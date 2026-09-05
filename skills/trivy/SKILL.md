@@ -36,6 +36,8 @@ run = "trivy --config trivy.yaml fs ." # mise appends extra path arguments
 
 Language-native scanners stay separate as `check:vuln` (`govulncheck`, `uv audit`, `pnpm audit`) because they know the lockfile semantics better; keep both tasks, `trivy fs` adds IaC, secrets, and licenses on top.
 
+For scheduled visibility into advisories that the blocking policy intentionally excludes, use the separate [fixed and unfixed report](references/unfixed-report.md). It never replaces the blocking gate.
+
 ## Triage
 
 1. Group findings by severity, then split fixable from `unfixed`.

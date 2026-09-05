@@ -2,14 +2,8 @@ package <slug>
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 )
-
-// Config represents the library configuration.
-type Config struct {
-	ConfigPath string `json:"config_path,omitzero"`
-}
 
 // Client is the entry point for the library business logic.
 type Client struct {
@@ -22,10 +16,10 @@ func NewClient(logger *slog.Logger) *Client {
 }
 
 // DoSomething executes the library business logic.
-func (c *Client) DoSomething(ctx context.Context, cfg Config) error {
-	c.logger.InfoContext(ctx, "doing something in library", "configPath", cfg.ConfigPath)
-	if cfg.ConfigPath != "" {
-		return fmt.Errorf("config files are not implemented yet: %s", cfg.ConfigPath)
+func (c *Client) DoSomething(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
+	c.logger.InfoContext(ctx, "doing something in library")
 	return nil
 }

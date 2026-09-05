@@ -1,4 +1,5 @@
 .agents/prompts/
+.agents/proposals/
 .agents/tmp/
 .antigravitycli/
 .claude/*
@@ -12,3 +13,5 @@
 __pycache__/
 dot_local/bin/executable_dot
 skills/local-*
+
+node_modules/

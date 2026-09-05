@@ -123,7 +123,7 @@ func TestRenderStatus(t *testing.T) {
 				Docker: DockerStatus{Installed: true},
 				K3d:    K3dStatus{Installed: true},
 			},
-			contains: []string{"Stopped or unreachable.", "Cluster 'local' does not exist or is stopped."},
+			contains: []string{"Stopped.", "Cluster 'local' does not exist or is stopped."},
 		},
 		{
 			name: "everything up with a dirty and a broken repository",
@@ -209,6 +209,35 @@ func TestGatherK3dStatus(t *testing.T) {
 			got := gatherK3dStatus(ctx, state)
 			if got.Installed != tc.wantInstalled || got.Running != tc.wantRunning {
 				t.Fatalf("gatherK3dStatus = %+v, want installed=%v running=%v", got, tc.wantInstalled, tc.wantRunning)
+			}
+		})
+	}
+}
+
+func TestServiceStatusDistinguishesProbeFailureFromStopped(t *testing.T) {
+	for _, test := range []struct {
+		gather  func(*GlobalState) string
+		runErr  error
+		name    string
+		output  string
+		wantErr bool
+	}{
+		{name: "docker stopped", output: "", gather: func(state *GlobalState) string { return gatherDockerStatus(context.Background(), state).Details }},
+		{name: "docker error", runErr: errors.New("credential-like-private-detail"), wantErr: true, gather: func(state *GlobalState) string { return gatherDockerStatus(context.Background(), state).Details }},
+		{name: "k3d stopped", output: "", gather: func(state *GlobalState) string { return gatherK3dStatus(context.Background(), state).Details }},
+		{name: "k3d malformed", output: "local nonsense", wantErr: true, gather: func(state *GlobalState) string { return gatherK3dStatus(context.Background(), state).Details }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := newTestState(&FakeRunner{RunFunc: func(context.Context, string, io.Reader, string, ...string) (string, error) {
+				return test.output, test.runErr
+			}})
+			state.Config.Cluster.Name = "local"
+			details := test.gather(state)
+			if (details != "") != test.wantErr {
+				t.Fatalf("details = %q, want diagnostic=%v", details, test.wantErr)
+			}
+			if strings.Contains(details, "credential-like-private-detail") {
+				t.Fatal("diagnostic exposed unrestricted subprocess error")
 			}
 		})
 	}

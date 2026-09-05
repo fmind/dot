@@ -3,6 +3,21 @@ set -euo pipefail
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
+MINIMUM_MISE_VERSION="2026.9.1"
+
+version_at_least() {
+  local actual=$1 minimum=$2 actual_part minimum_part
+  local IFS=.
+  read -r -a actual_parts <<<"${actual}"
+  read -r -a minimum_parts <<<"${minimum}"
+  for index in 0 1 2; do
+    actual_part=${actual_parts[${index}]:-0}
+    minimum_part=${minimum_parts[${index}]:-0}
+    ((10#${actual_part} > 10#${minimum_part})) && return 0
+    ((10#${actual_part} < 10#${minimum_part})) && return 1
+  done
+  return 0
+}
 
 # Error trap handler for clean bootstrapping diagnostics
 on_error() {
@@ -24,6 +39,12 @@ command -v mise >/dev/null || {
   echo "=> Installing mise..."
   curl -fsSL https://mise.run | bash
 }
+
+mise_version="$(mise --version | awk '{print $1}')"
+if [[ ! ${mise_version} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! version_at_least "${mise_version}" "${MINIMUM_MISE_VERSION}"; then
+  echo "mise ${MINIMUM_MISE_VERSION} or newer is required; found ${mise_version:-unknown}. Upgrade mise before bootstrapping." >&2
+  exit 1
+fi
 
 # Install chezmoi
 command -v chezmoi >/dev/null || {

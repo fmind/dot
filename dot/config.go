@@ -91,18 +91,27 @@ func RunConfigInit(state *GlobalState, force bool) error {
 	if path == "" {
 		return errors.New("could not resolve configuration path")
 	}
-	if _, err := os.Stat(path); err == nil && !force {
-		return fmt.Errorf("config file already exists at %s (use --force to overwrite)", path)
-	}
-
 	out, err := yaml.Marshal(DefaultConfig())
 	if err != nil {
 		return fmt.Errorf("failed to marshal default config: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+	if mkdirErr := os.MkdirAll(filepath.Dir(path), 0o755); mkdirErr != nil {
+		return fmt.Errorf("failed to create config directory: %w", mkdirErr)
 	}
-	if err := os.WriteFile(path, out, 0o644); err != nil {
+	// Exclusive creation protects existing files and dangling symlinks atomically.
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if force {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	file, err := os.OpenFile(path, flags, 0o644)
+	if errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("config file already exists at %s (use --force to overwrite)", path)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	_, writeErr := file.Write(out)
+	if err := errors.Join(writeErr, file.Close()); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

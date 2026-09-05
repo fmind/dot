@@ -25,7 +25,8 @@ depends = ["format:prettier", "format:dprint"]
 
 [tasks."format:prettier"]
 description = "Format TypeScript, HTML templates, CSS, and JSON (Prettier)"
-run = "pnpm exec prettier --write --log-level warn ."
+raw_args = true
+run = "bash -c 'if [ \"$#\" -eq 0 ]; then set -- .; fi; pnpm exec prettier --write --log-level warn \"$@\"' --"
 
 [tasks."format:dprint"]
 description = "Format Markdown, TOML, YAML (dprint)"
@@ -66,11 +67,11 @@ description = "Audit staged changes, the working tree, or recent commits for lea
 run = """
 sh -c '
 if [ "$#" -gt 0 ]; then
-  gitleaks git --verbose "$@"
+  gitleaks git --redact=100 --verbose "$@"
 elif git rev-parse --verify HEAD >/dev/null 2>&1; then
-  gitleaks git --log-opts="--max-count=100" --verbose
+  gitleaks git --redact=100 --log-opts="--max-count=100" --verbose
 else
-  gitleaks dir . --verbose
+  gitleaks dir . --redact=100 --verbose
 fi
 ' --
 """

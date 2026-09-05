@@ -34,7 +34,7 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 1. **Inspect integrations**: each MCP server, plugin, hook, and tool request needs a narrow purpose, explicit consent, a pinned source, least privilege, bounded transport, and no wildcard trust.
 1. **Run only non-executing analyzers**, noting their version and coverage limits; `gh skill publish --dry-run` proves structure, not safety:
    ```bash
-   gitleaks dir <root>
+   gitleaks dir <root> --redact=100
    trivy fs --scanners secret,license <root>
    opengrep scan --config <pinned-rules> <root>   # pinned rules per the secure skill
    ```

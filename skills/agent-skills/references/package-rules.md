@@ -13,6 +13,7 @@ Packaging constraints that `gh skill publish --dry-run` and the catalog tests en
 - Keep progressive-disclosure resources one level deep (`references/`, `templates/`, `scripts/`).
 - Every resource other than host-owned `agents/openai.yaml` must be named directly by the root `SKILL.md` or by a local path in that OpenAI metadata; a nested reference does not make another file discoverable.
 - Nested instructional Markdown is validated for missing or unsafe package links; output templates under `templates/` may point at destinations that exist only after materialization but still reject unsafe local schemes.
+- Resolve instructional file links from the skill root, including links in reference documents; generic Markdown checkers resolve from the document directory and can report false failures.
 - Test helpers live in a disposable directory; document required tools and side effects; keep executable code minimal and paths relative.
 
 ## `agents/openai.yaml`

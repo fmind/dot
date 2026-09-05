@@ -4,6 +4,7 @@ CLAUDE.md
 LICENSE
 README.md
 dot
+biome.json
 dprint.json
 go.work
 go.work.sum

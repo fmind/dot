@@ -228,16 +228,17 @@ func (c *AuthChecker) Name() string { return "CLI Authentication" }
 
 func (c *AuthChecker) Check(ctx context.Context, state *GlobalState, shouldFix bool) ([]CheckResult, bool) {
 	type authTask struct {
-		label   string
-		cmdName string
-		args    []string
+		label          string
+		cmdName        string
+		args           []string
+		requiresOutput bool
 	}
 
 	tasks := []authTask{
-		{"gh", "gh", []string{"auth", "status"}},
-		{"gcloud", "gcloud", []string{"auth", "print-access-token"}},
-		{"gcloud-adc", "gcloud", []string{"auth", "application-default", "print-access-token"}},
-		{"gws", "gws", []string{"auth", "status"}},
+		{label: "gh", cmdName: "gh", args: []string{"auth", "status"}},
+		{label: "gcloud", cmdName: "gcloud", args: []string{"auth", "print-access-token"}, requiresOutput: true},
+		{label: "gcloud-adc", cmdName: "gcloud", args: []string{"auth", "application-default", "print-access-token"}, requiresOutput: true},
+		{label: "gws", cmdName: "gws", args: []string{"auth", "status"}},
 	}
 
 	// jules authenticates via JULES_API_KEY, not an interactive login, so we only probe it
@@ -245,7 +246,7 @@ func (c *AuthChecker) Check(ctx context.Context, state *GlobalState, shouldFix b
 	// EnvVarsChecker; probing (and failing) here too would double-report one root cause.
 	julesConfigured := os.Getenv(EnvJulesAPIKey) != ""
 	if julesConfigured {
-		tasks = append(tasks, authTask{"jules", "jules", []string{"remote", "list", "--repo"}})
+		tasks = append(tasks, authTask{label: "jules", cmdName: "jules", args: []string{"remote", "list", "--repo"}})
 	}
 
 	results := make([]CheckResult, len(tasks)+1) // +1 for clasp
@@ -261,10 +262,15 @@ func (c *AuthChecker) Check(ctx context.Context, state *GlobalState, shouldFix b
 				return
 			}
 
-			_, err = state.Runner.Run(ctx, "", nil, task.cmdName, task.args...)
+			output, err := state.Runner.Run(ctx, "", nil, task.cmdName, task.args...)
 			switch {
-			case err == nil:
+			case err == nil && (!task.requiresOutput || strings.TrimSpace(output) != ""):
 				results[i] = CheckResult{Name: task.label, Status: statusPass, Condition: ProbeHealthy, Path: path, Details: "authenticated"}
+			case err == nil:
+				results[i] = CheckResult{Name: task.label, Status: statusFail, Condition: ProbeBroken, Path: path, Details: "auth check returned no usable output; state unknown"}
+				mu.Lock()
+				passed = false
+				mu.Unlock()
 			case ctx.Err() != nil:
 				// The suite deadline fired while this command was still running, so the
 				// tool's auth state was never determined. Calling that "NOT authenticated"
@@ -274,8 +280,13 @@ func (c *AuthChecker) Check(ctx context.Context, state *GlobalState, shouldFix b
 				mu.Lock()
 				passed = false
 				mu.Unlock()
-			default:
+			case recognizedCredentialFailure(err):
 				results[i] = CheckResult{Name: task.label, Status: statusFail, Condition: ProbeUnauthenticated, Path: path, Details: "NOT authenticated"}
+				mu.Lock()
+				passed = false
+				mu.Unlock()
+			default:
+				results[i] = CheckResult{Name: task.label, Status: statusFail, Condition: ProbeBroken, Path: path, Details: "auth check failed; state unknown"}
 				mu.Lock()
 				passed = false
 				mu.Unlock()
@@ -308,6 +319,31 @@ func (c *AuthChecker) Check(ctx context.Context, state *GlobalState, shouldFix b
 	}
 
 	return results, passed
+}
+
+func recognizedCredentialFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	detail := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"invalid_grant",
+		"expired or revoked",
+		"reauthentication failed",
+		"not currently logged in",
+		"do not currently have an active account",
+		"no credentialed accounts",
+		"not logged into any github hosts",
+		"authentication token is invalid",
+		"invalid authentication credentials",
+		"credentials not found",
+		"login required",
+	} {
+		if strings.Contains(detail, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // SecretsChecker verifies existence and file permissions of private keys/secrets.

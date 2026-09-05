@@ -1,4 +1,5 @@
 .agents/prompts/
+.agents/proposals/
 .agents/skills/local-*
 .agents/skills/private-*
 .agents/tmp/

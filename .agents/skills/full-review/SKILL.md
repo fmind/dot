@@ -37,8 +37,8 @@ Confirm the dot repository is healthy end to end: the gate is green, `dot` works
    ```
 
    `mise outdated` sees only mise pins; also scan action versions in `.github/workflows/*.yml`, plugin versions in `dprint.json`, and exact-version pins in `dot_config/mise/config.toml.tmpl`. Hand anything stale to [upgrade-tools](../../../skills/upgrade-tools/SKILL.md).
-1. **Check README drift**: `README.md` is outside the docs contract; cross-check its skill count, prerequisites, install steps, and environment variables, and hand drift to [readme-agents](../../../skills/readme-agents/SKILL.md).
-1. **Report**: every failure, staleness, or drift grouped by the step that surfaced it; fix small root-cause findings directly and route upgrades or doc rewrites to the skills above.
+1. **Check README drift**: the catalog gate checks README's skill count, while command and local-link coverage lives in `check:docs`; manually cross-check prerequisites, install steps, and environment variables, then hand drift to [readme-agents](../../../skills/readme-agents/SKILL.md).
+1. **Report**: every failure, staleness, or drift grouped by the step that surfaced it. This review does not authorize source changes; hand fixes to [project-health](../../../skills/project-health/SKILL.md) or the focused skills above.
 
 ## Gotchas
 

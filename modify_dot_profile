@@ -5,13 +5,13 @@
 {{-   $stdin -}}
 {{- else -}}
 {{-   if ne (trim $stdin) "" -}}
-{{-     $stdin }}
-
-{{   end -}}
+{{-     $stdin -}}
+{{   end }}
 {{ $sentinel }}
 # Set up mise paths for login shells
-export PATH="$HOME/.local/bin:$HOME/.local/share/mise/bin:$HOME/.local/share/mise/shims:$PATH"
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"
 if command -v mise >/dev/null 2>&1; then
-    eval "$(mise activate bash)"
+  mise_activation="$(mise activate bash)"
+  eval "${mise_activation}"
 fi
 {{- end -}}

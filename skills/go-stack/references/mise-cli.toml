@@ -44,11 +44,11 @@ description = "Audit staged changes, the working tree, or recent commits for lea
 run = """
 sh -c '
 if [ "$#" -gt 0 ]; then
-  gitleaks git --verbose "$@"
+  gitleaks git --redact=100 --verbose "$@"
 elif git rev-parse --verify HEAD >/dev/null 2>&1; then
-  gitleaks git --log-opts="--max-count=100" --verbose
+  gitleaks git --redact=100 --log-opts="--max-count=100" --verbose
 else
-  gitleaks dir . --verbose
+  gitleaks dir . --redact=100 --verbose
 fi
 ' --
 """
@@ -92,7 +92,15 @@ run = "dprint fmt --allow-no-files"
 description = "Format Go sources and imports (goimports + gofumpt)"
 # Flags must mirror .golangci.yml: `local-prefixes` and `extra-rules` are format policy,
 # so without them `format` writes a style that `check` then rejects.
-run = ["go tool goimports -local <import_path> -w .", "go tool gofumpt -extra -w ."]
+raw_args = true
+run = """
+bash -c '
+set -euo pipefail
+if [ "$#" -eq 0 ]; then set -- .; fi
+go tool goimports -local <import_path> -w "$@"
+go tool gofumpt -extra -w "$@"
+' --
+"""
 
 [tasks.install]
 alias = "i"

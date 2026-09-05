@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "module": "preserve",
+    "noEmit": true,
+    "paths": {
+      "@opencode-ai/plugin": ["./node_modules/@opencode-ai/plugin/dist/index.d.ts"]
+    },
+    "strict": true,
+    "target": "es2024",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["session-log.test.ts", "../../../dot_config/opencode/plugins/session-log.ts"]
+}

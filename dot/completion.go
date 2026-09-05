@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -51,7 +52,10 @@ func writeShellIntegration(ctx context.Context, state *GlobalState, integration 
 	if _, err := state.Runner.LookPath(integration.tool); err != nil {
 		return
 	}
-	out, err := state.Runner.Run(ctx, cacheDir, nil, integration.tool, integration.args...)
+	timeout := positiveOr(state.Config.Completions.Timeout.Duration(), defaultCompletionTimeout)
+	commandCtx, cancel := context.WithTimeout(ctx, timeout)
+	out, err := state.Runner.Run(commandCtx, cacheDir, nil, integration.tool, integration.args...)
+	cancel()
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -60,7 +64,7 @@ func writeShellIntegration(ctx context.Context, state *GlobalState, integration 
 		*genErrors = append(*genErrors, fmt.Errorf("failed to generate %s: %w", integration.file, err))
 		return
 	}
-	if err := os.WriteFile(filepath.Join(cacheDir, integration.file), []byte(out), 0o600); err != nil {
+	if err := publishFishScript(ctx, filepath.Join(cacheDir, integration.file), out, 0o600, timeout); err != nil {
 		_, _ = fmt.Fprintf(state.Stdout, "  %s Failed to write %s: %v\n", failIcon, integration.file, err)
 		*genErrors = append(*genErrors, fmt.Errorf("failed to write %s: %w", integration.file, err))
 		return
@@ -163,7 +167,7 @@ func RunCompletionGenerate(ctx context.Context, state *GlobalState) error {
 	}
 
 	dotPath := filepath.Join(compDir, "dot.fish")
-	if err := os.WriteFile(dotPath, []byte(strings.TrimSpace(dotCompletionTmpl)+"\n"), 0o644); err != nil {
+	if err := publishFishScript(ctx, dotPath, strings.TrimSpace(dotCompletionTmpl)+"\n", 0o644, positiveOr(state.Config.Completions.Timeout.Duration(), defaultCompletionTimeout)); err != nil {
 		_, _ = fmt.Fprintf(state.Stdout, "  %s Failed to write dot.fish: %v\n", failIcon, err)
 		genErrors = append(genErrors, fmt.Errorf("failed to write completions for dot: %w", err))
 	} else {
@@ -199,7 +203,7 @@ func writeToolCompletion(ctx context.Context, state *GlobalState, tool, compDir 
 	}
 
 	filePath := filepath.Join(compDir, tool+".fish")
-	err = os.WriteFile(filePath, []byte(out), 0o644)
+	err = publishFishScript(ctx, filePath, out, 0o644, positiveOr(state.Config.Completions.Timeout.Duration(), defaultCompletionTimeout))
 	if err != nil {
 		mu.Lock()
 		_, _ = fmt.Fprintf(state.Stdout, "  %s Failed to write %s.fish: %v\n", failIcon, tool, err)
@@ -211,6 +215,45 @@ func writeToolCompletion(ctx context.Context, state *GlobalState, tool, compDir 
 	mu.Lock()
 	_, _ = fmt.Fprintf(state.Stdout, "  %s Generated completions for %s\n", passIcon, tool)
 	mu.Unlock()
+}
+
+// publishFishScript validates generated syntax before atomically replacing the
+// last known-good file. Validation parses the script but never sources it.
+func publishFishScript(ctx context.Context, path, content string, mode os.FileMode, timeout time.Duration) error {
+	if strings.TrimSpace(content) == "" {
+		return errors.New("generated Fish script is empty")
+	}
+
+	validationCtx, cancel := context.WithTimeout(ctx, positiveOr(timeout, defaultCompletionTimeout))
+	defer cancel()
+	cmd := exec.CommandContext(validationCtx, "fish", "--no-config", "--no-execute")
+	cmd.Stdin = strings.NewReader(content)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("generated Fish script failed syntax validation: %w", err)
+	}
+
+	temp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	tempPath := temp.Name()
+	defer func() { _ = os.Remove(tempPath) }()
+	if err := temp.Chmod(mode); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if _, err := temp.WriteString(content); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tempPath, path)
 }
 
 // generateToolCompletion attempts to generate fish completion output for a single tool.

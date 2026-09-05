@@ -2,20 +2,20 @@
 {{- $pathSentinel := "# chezmoi: mise-bash-path" -}}
 {{- $pathBlock := `# chezmoi: mise-bash-path
 # Set up mise paths above non-interactive shell guard
-export PATH="$HOME/.local/bin:$HOME/.local/share/mise/bin:$HOME/.local/share/mise/shims:$PATH"` -}}
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"` -}}
 {{- $activationBlock := `# chezmoi: mise-bash-integration
 # Set up mise activation for interactive bash shells.
 if command -v mise >/dev/null 2>&1; then
-    eval "$(mise activate bash)"
+  mise_activation="$(mise activate bash)"
+  eval "${mise_activation}"
 fi` -}}
 {{- if contains $pathSentinel .chezmoi.stdin -}}
 {{- .chezmoi.stdin -}}
 {{- else -}}
 {{ $pathBlock }}
+{{- if ne (trim .chezmoi.stdin) "" }}
 
-{{ if ne (trim .chezmoi.stdin) "" -}}
-{{ .chezmoi.stdin }}
+{{ .chezmoi.stdin -}}
 {{ end }}
-
 {{ $activationBlock -}}
 {{- end -}}

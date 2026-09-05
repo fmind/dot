@@ -1334,7 +1334,7 @@ func TestGatherStatus(t *testing.T) {
 		},
 		RunFunc: func(ctx context.Context, dir string, stdin io.Reader, name string, args ...string) (string, error) {
 			if name == "docker" && args[0] == "info" {
-				return "my-docker-daemon", nil
+				return "my-docker-daemon (Containers: 2, Running: 1)", nil
 			}
 			if name == "k3d" && args[0] == "cluster" && args[1] == "list" {
 				return "local   1/1   1/1   true", nil
@@ -1359,7 +1359,7 @@ func TestGatherStatus(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if !status.Docker.Installed || !status.Docker.Running || status.Docker.Details != "my-docker-daemon" {
+	if !status.Docker.Installed || !status.Docker.Running || status.Docker.Details != "my-docker-daemon (Containers: 2, Running: 1)" {
 		t.Errorf("Unexpected docker status: %+v", status.Docker)
 	}
 
@@ -1431,5 +1431,16 @@ func TestOneLetterPathToEveryCommand(t *testing.T) {
 
 	for _, cmd := range app.Commands {
 		validate("dot", cmd)
+	}
+}
+
+func TestAppCommandsAlphabetical(t *testing.T) {
+	app := NewApp()
+	for i := 1; i < len(app.Commands); i++ {
+		prev := app.Commands[i-1].Name
+		curr := app.Commands[i].Name
+		if prev >= curr {
+			t.Errorf("top-level commands in NewApp() must be sorted alphabetically: %q should come after %q", prev, curr)
+		}
 	}
 }

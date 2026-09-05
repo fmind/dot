@@ -16,10 +16,10 @@ Find credentials before they reach a remote and the ones that already did; each 
 ## Commands
 
 ```bash
-gitleaks git --staged --verbose                        # pre-commit: the change about to be committed
-gitleaks git --log-opts="--max-count=100" --verbose    # check:leaks: the recent commits (bounded, fast)
-gitleaks git --verbose                                 # full history: the scheduled audit
-gitleaks dir . --verbose                               # working tree, including untracked files
+gitleaks git --redact=100 --staged --verbose                        # pre-commit: the change about to be committed
+gitleaks git --redact=100 --log-opts="--max-count=100" --verbose    # check:leaks: the recent commits (bounded, fast)
+gitleaks git --redact=100 --verbose                                 # full history: the scheduled audit
+gitleaks dir . --redact=100 --verbose                               # working tree, including untracked files
 gitleaks git --redact=100 --report-format sarif --report-path gitleaks.sarif
 ```
 
@@ -33,11 +33,11 @@ description = "Audit staged changes, the working tree, or recent commits for lea
 run = """
 sh -c '
 if [ "$#" -gt 0 ]; then
-  gitleaks git --verbose "$@"
+  gitleaks git --redact=100 --verbose "$@"
 elif git rev-parse --verify HEAD >/dev/null 2>&1; then
-  gitleaks git --log-opts="--max-count=100" --verbose
+  gitleaks git --redact=100 --log-opts="--max-count=100" --verbose
 else
-  gitleaks dir . --verbose
+  gitleaks dir . --redact=100 --verbose
 fi
 ' --
 """

@@ -39,6 +39,10 @@ Key routines:
 - **Manage skills**: Author global skills directly under `skills/` (repo-scoped ones under `.agents/skills/`) with the `skillify` skill and the limits in `dot_agents/AGENTS.md`; register each in `skills/contracts.json`, add a routing probe in `dot/testdata/skills/routing-boundaries.json`, and validate with `mise run check:skills` plus `mise run test`.
 - **Create visuals**: Use `fmind-visuals` skill (Slidev for decks, Mermaid for diagrams).
 
+Validation includes the Go race suite, Python audit tests, and a pinned OpenCode plugin type check and event test. Run `mise run test:starters` after changing stack references; it materializes Go, Python, and TypeScript projects under temporary directories. `mise run test:bootstrap` exercises installation with fake vendor tools in a disposable home. CI runs both alongside `mise run all` on Linux and macOS.
+
+Keep repository checks distinct from workstation checks: `mise run verify`, `mise run doctor`, and `mise run vim:verify` inspect local authentication, installation, and plugin state. `mise run check:vuln:tools` audits every installed npm and pipx version separately; the repository dependency scan does not cover those global tool environments.
+
 > Note: If `mise` fails with `command not found` in an agent shell, call `~/.local/bin/mise` directly.
 
 The unified `dot` CLI (source in `dot/`) is compiled to `~/.local/bin/dot`; every command and alias is documented once in [`skills/dot-cli/SKILL.md`](skills/dot-cli/SKILL.md), with the `dot prune` flag matrix in [`references/prune-flags.md`](skills/dot-cli/references/prune-flags.md); `dot <command> --help` remains authoritative for the complete flag list.
@@ -68,7 +72,7 @@ Two assets are authored once and consumed by all agent CLIs:
 - `AGENTS.md` (this file) — Repository guide, conventions, and layout for AI agents.
 - `CHANGELOG.md` — Versioned release history generated from Conventional Commits.
 - `CLAUDE.md` — Symlink to `AGENTS.md` so Claude Code loads the same project instructions.
-- `dot/` — Go CLI source package containing the unified `dot` command-line utility.
+- `dot/` — Go CLI source, task scripts in `scripts/`, and isolated test fixtures in `testdata/`.
 - `dot_agents/` — Source folder containing unified global instructions (`AGENTS.md`) and skills symlink template.
 - `dot_claude/` — Claude Code CLI settings template and persona/skills symlinks.
 - `dot_codex/` — OpenAI Codex CLI partial configuration modifier and persona symlink.
@@ -86,6 +90,7 @@ Two assets are authored once and consumed by all agent CLIs:
 - `dot_sqliterc` — SQLite interactive shell settings deployed to `~/.sqliterc`.
 - `dot_terraform.d/` — Terraform provider plugin cache deployed to `~/.terraform.d/`.
 - `dot_terraformrc` — Terraform CLI configuration deployed to `~/.terraformrc`.
+- `biome.json` — TypeScript formatting and lint policy for the OpenCode plugin and its tests.
 - `dprint.json` — Layout settings and format plugins for dprint code formatter.
 - `go.work` — Go workspace file targeting the `dot` CLI package.
 - `install.sh` — Bootstrapping shell script installing mise and chezmoi.

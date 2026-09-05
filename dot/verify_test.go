@@ -754,8 +754,48 @@ func TestAuthCheckerSeparatesTimeoutFromUnauthenticated(t *testing.T) {
 		t.Errorf("gws = %+v, want a timeout report", gws)
 	}
 
-	// A real non-zero exit must still read as unauthenticated.
-	if gcloud := byName["gcloud"]; gcloud.Condition != ProbeUnauthenticated {
-		t.Errorf("gcloud = %+v, want %q", gcloud, ProbeUnauthenticated)
+	// A bare non-zero exit proves only that the probe failed, not why.
+	if gcloud := byName["gcloud"]; gcloud.Condition != ProbeBroken {
+		t.Errorf("gcloud = %+v, want %q", gcloud, ProbeBroken)
+	}
+}
+
+func TestAuthCheckerClassifiesOnlyRecognizedCredentialFailures(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		output    string
+		err       error
+		condition string
+	}{
+		{name: "reauthentication required", err: errors.New("Reauthentication failed. cannot prompt during non-interactive execution."), condition: ProbeUnauthenticated},
+		{name: "revoked credential", err: errors.New("invalid_grant: token has been expired or revoked"), condition: ProbeUnauthenticated},
+		{name: "no active account", err: errors.New("You do not currently have an active account selected"), condition: ProbeUnauthenticated},
+		{name: "network failure", err: errors.New("dial tcp: lookup oauth2.googleapis.com: no such host"), condition: ProbeBroken},
+		{name: "unknown exit", err: errors.New("exit status 1"), condition: ProbeBroken},
+		{name: "empty success", condition: ProbeBroken},
+		{name: "valid token", output: "synthetic-token", condition: ProbeHealthy},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := newTestState(&FakeRunner{
+				LookPathFunc: func(name string) (string, error) { return "/bin/" + name, nil },
+				RunFunc: func(context.Context, string, io.Reader, string, ...string) (string, error) {
+					return test.output, test.err
+				},
+			})
+			t.Setenv("HOME", t.TempDir())
+			results, _ := (&AuthChecker{}).Check(context.Background(), state, false)
+			for _, result := range results {
+				if result.Name == "gcloud" {
+					if result.Condition != test.condition {
+						t.Fatalf("condition = %q, want %q: %+v", result.Condition, test.condition, result)
+					}
+					if strings.Contains(result.Details, "synthetic-token") {
+						t.Fatal("auth diagnostic exposed token output")
+					}
+					return
+				}
+			}
+			t.Fatal("gcloud result missing")
+		})
 	}
 }
