@@ -1,0 +1,3 @@
+minimumReleaseAgeExclude:
+  - "@opencode-ai/plugin@1.18.29"
+  - "@opencode-ai/sdk@1.18.29"

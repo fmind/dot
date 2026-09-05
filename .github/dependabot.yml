@@ -32,3 +32,19 @@ updates:
         update-types:
           - minor
           - patch
+  - package-ecosystem: npm
+    directory: /dot/testdata/opencode
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      opencode-contract:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch

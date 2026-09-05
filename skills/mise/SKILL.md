@@ -56,7 +56,7 @@ Those names are reserved: never respell one (`check:audit`, `check:dprint`) when
 - **Parallel checks**: `check` fans out with `depends = ["check:format", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
 - **Incremental tasks**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Staged vs whole-tree**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
-- **Argument passthrough**: mise appends CLI args to the task's last command; `$@` is empty in TOML tasks and `{{arg()}}` is deprecated, so use the `usage` field when args must land elsewhere.
+- **Argument passthrough**: mise appends CLI args to the last command; use `raw_args = true` and a script forwarding `"$@"` when several commands consume the same file list, or `usage` for structured arguments.
 - **Dotenv**: `[env]` with `_.file = ".env"` auto-loads the file.
 
 ## Tool Management
@@ -65,7 +65,9 @@ Those names are reserved: never respell one (`check:audit`, `check:dprint`) when
 mise registry <name>     # discover the tool's backend id
 mise use <tool>@latest   # pin into [tools] and install
 mise install             # install everything pinned
-mise lock                # refresh mise.lock for reproducibility
+mise lock                # refresh metadata for the locked versions
+mise lock --bump         # advance fuzzy selectors without installing
+mise lock --upgrade      # migrate legacy locks to request-specific bindings
 mise upgrade --bump      # bump pinned versions (updates mise.lock too)
 ```
 
@@ -76,9 +78,10 @@ mise upgrade --bump      # bump pinned versions (updates mise.lock too)
 - **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
 - **Non-interactive scripts**: pass `-y` (`mise install -y`) in scripts and CI steps that would otherwise prompt.
 - **Keep project config project-local**: never symlink a repository's `mise.toml` into `~/.config/mise/conf.d/`; mise then treats it as global, `mise lock` reports `No tools configured to lock`, and its tasks leak everywhere.
-- **Task `dir`**: defaults to the config root (the repo locally, the checkout in CI), so no `[task_config] dir` override is needed.
+- **Task `dir`**: pin `[task_config] dir = "{{config_root}}"` when inherited configs could select another project root; verify tasks from both the repository root and a subdirectory.
 
 ## Documentation
 
+- [Provenance pilot and adoption boundary](references/provenance-pilot.md)
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html)
 - Companion skills: [lefthook](../lefthook/SKILL.md) (hooks call these tasks), [github-actions](../github-actions/SKILL.md) (CI installs the toolchain with `mise-action` and runs `mise run all`).

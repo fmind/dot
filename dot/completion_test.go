@@ -482,6 +482,68 @@ func TestCompletionCommand_ShellIntegrations(t *testing.T) {
 	})
 }
 
+func TestShellIntegrationGenerationHasConfiguredDeadline(t *testing.T) {
+	var remaining time.Duration
+	runner := &FakeRunner{RunFunc: func(ctx context.Context, _ string, _ io.Reader, _ string, _ ...string) (string, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return "", errors.New("integration generation has no deadline")
+		}
+		remaining = time.Until(deadline)
+		return "# valid fish integration\n", nil
+	}}
+	state := newTestState(runner)
+	state.Config.Completions.Timeout = Duration(2 * time.Second)
+	var mu sync.Mutex
+	var generationErrors []error
+	writeShellIntegration(context.Background(), state, shellIntegrations[0], t.TempDir(), &mu, &generationErrors)
+	if len(generationErrors) != 0 {
+		t.Fatalf("generation errors: %v", generationErrors)
+	}
+	if remaining <= 0 || remaining > 2*time.Second {
+		t.Fatalf("deadline remaining = %v, want (0, 2s]", remaining)
+	}
+}
+
+func TestPublishFishScriptRejectsInvalidOutputAndPreservesGoodFile(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "tool.fish")
+	if err := os.WriteFile(target, []byte("# old complete script\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, invalid := range []string{"   \n", "if true\n"} {
+		if err := publishFishScript(context.Background(), target, invalid, 0o644, time.Second); err == nil {
+			t.Fatalf("invalid Fish output %q was published", invalid)
+		}
+		content, err := os.ReadFile(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(content) != "# old complete script\n" {
+			t.Fatalf("failed publication replaced the good file with %q", content)
+		}
+	}
+
+	if err := publishFishScript(context.Background(), target, "function valid\nend\n", 0o644, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("mode = %o, want 644", got)
+	}
+	leftovers, err := filepath.Glob(filepath.Join(dir, ".tool.fish.*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(leftovers) != 0 {
+		t.Fatalf("temporary publication files remain: %v", leftovers)
+	}
+}
+
 func TestWriteToolCompletionReportsSkipsAndFailures(t *testing.T) {
 	tests := []struct {
 		name       string

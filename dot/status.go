@@ -131,14 +131,30 @@ func gatherDockerStatus(ctx context.Context, state *GlobalState) DockerStatus {
 	defer cancel()
 
 	var status DockerStatus
-	if _, err := state.Runner.LookPath("docker"); err == nil {
-		status.Installed = true
-		info, err := state.Runner.Run(ctx, "", nil, "docker", "info", "--format", "{{.Name}} (Containers: {{.Containers}}, Running: {{.ContainersRunning}})")
-		if err == nil {
-			status.Running = true
-			status.Details = strings.TrimSpace(info)
-		}
+	if _, err := state.Runner.LookPath("docker"); err != nil {
+		status.Details = "command not found"
+		return status
 	}
+	status.Installed = true
+	info, err := state.Runner.Run(ctx, "", nil, "docker", "info", "--format", "{{.Name}} (Containers: {{.Containers}}, Running: {{.ContainersRunning}})")
+	if err != nil {
+		if ctx.Err() != nil {
+			status.Details = "inspection timed out"
+		} else {
+			status.Details = "inspection command failed"
+		}
+		return status
+	}
+	info = strings.TrimSpace(info)
+	if info == "" {
+		return status
+	}
+	if !strings.Contains(info, "(Containers:") || !strings.Contains(info, ", Running:") {
+		status.Details = "inspection returned malformed output"
+		return status
+	}
+	status.Running = true
+	status.Details = info
 	return status
 }
 
@@ -149,6 +165,7 @@ func gatherK3dStatus(ctx context.Context, state *GlobalState) K3dStatus {
 	var status K3dStatus
 	clusterName := state.Config.Cluster.Name
 	if _, err := state.Runner.LookPath("k3d"); err != nil {
+		status.Details = "command not found"
 		return status
 	}
 	status.Installed = true
@@ -159,19 +176,36 @@ func gatherK3dStatus(ctx context.Context, state *GlobalState) K3dStatus {
 	// merely matching the name would report a stopped cluster as running.
 	list, err := state.Runner.Run(ctx, "", nil, "k3d", "cluster", "list", clusterName, "--no-headers")
 	if err != nil {
+		if ctx.Err() != nil {
+			status.Details = "inspection timed out"
+		} else {
+			status.Details = "inspection command failed"
+		}
 		return status
 	}
-	for line := range strings.SplitSeq(strings.TrimSpace(list), "\n") {
+	trimmed := strings.TrimSpace(list)
+	if trimmed == "" {
+		return status
+	}
+	for line := range strings.SplitSeq(trimmed, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 2 || fields[0] != clusterName {
 			continue
 		}
 		status.Details = strings.TrimSpace(line)
-		running, _, _ := strings.Cut(fields[1], "/")
-		if n, convErr := strconv.Atoi(running); convErr == nil && n > 0 {
+		running, total, found := strings.Cut(fields[1], "/")
+		n, convErr := strconv.Atoi(running)
+		if !found || total == "" || convErr != nil {
+			status.Details = "inspection returned malformed output"
+			return status
+		}
+		if n > 0 {
 			status.Running = true
 		}
 		break
+	}
+	if status.Details == "" {
+		status.Details = "inspection returned malformed output"
 	}
 	return status
 }
@@ -222,7 +256,11 @@ func RenderStatus(status *SystemStatus, state *GlobalState) {
 	case status.Docker.Running:
 		_, _ = fmt.Fprintf(state.Stdout, "  %s Running: %s\n", passIcon, status.Docker.Details)
 	default:
-		_, _ = fmt.Fprintf(state.Stdout, "  %s Stopped or unreachable.\n", failIcon)
+		if status.Docker.Details == "" {
+			_, _ = fmt.Fprintf(state.Stdout, "  %s Stopped.\n", failIcon)
+		} else {
+			_, _ = fmt.Fprintf(state.Stdout, "  %s Stopped or unreachable: %s.\n", failIcon, status.Docker.Details)
+		}
 	}
 
 	// 2. Kubernetes / k3d Status
@@ -235,7 +273,11 @@ func RenderStatus(status *SystemStatus, state *GlobalState) {
 	case status.K3d.Running:
 		_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s': %s\n", passIcon, clusterName, status.K3d.Details)
 	default:
-		_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s' does not exist or is stopped.\n", failIcon, clusterName)
+		if status.K3d.Details == "" {
+			_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s' does not exist or is stopped.\n", failIcon, clusterName)
+		} else {
+			_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s' unavailable: %s.\n", failIcon, clusterName, status.K3d.Details)
+		}
 	}
 
 	// 3. Git Workspaces Status

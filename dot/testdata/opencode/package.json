@@ -1,0 +1,12 @@
+{
+  "name": "dot-opencode-plugin-contract",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.18.29",
+    "@types/node": "24.13.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

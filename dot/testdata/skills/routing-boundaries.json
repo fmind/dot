@@ -2,7 +2,7 @@
   "version": 1,
   "created": "2026-08-08",
   "purpose": "Transparent regression probes for lexical routing boundaries across global and repository-scoped skills.",
-  "construction": "The original corpus was independently authored before the 2026-08-08 router hardening without copying lifecycle-evaluations.json wording. New-skill boundary probes are added when ownership changes. After adoption every case is a development regression, not a blind or behavioral evaluation. The catalog-* cases were added on 2026-09-02 when the catalog gained stack, security-tool, and workflow skills. The catalog-19 to catalog-23 cases were added on 2026-09-02 with the kaggle, hf, playwright, colab, and acli tool skills, when google-workspace-cli and google-cloud-operations were renamed to gws and gcloud. The catalog-24 to catalog-27 cases were added on 2026-09-03 with the google-cloud, google-ads, google-analytics, and google-developer catalog skills. Catalog-46 was added on 2026-09-03 for GitHub Agentic Workflows with the Copilot engine. Catalog-47 and catalog-48 were added on 2026-09-03 for the fkf read and learning workflows. Catalog-49 was added on 2026-09-03 for agent usage and token tracking. Catalog-50 was added on 2026-09-03 for the Antigravity Python SDK orchestration skill. Catalog-51 and catalog-52 were added on 2026-09-03 for Modern Web Guidance standards and Chrome DevTools MCP browser debugging. Catalog-53 was added on 2026-09-04 for the Astro web framework skill.",
+  "construction": "The original corpus was independently authored before the 2026-08-08 router hardening without copying lifecycle-evaluations.json wording. New-skill boundary probes are added when ownership changes. After adoption every case is a development regression, not a blind or behavioral evaluation. The catalog-* cases were added on 2026-09-02 when the catalog gained stack, security-tool, and workflow skills. The catalog-19 to catalog-23 cases were added on 2026-09-02 with the kaggle, hf, playwright, colab, and acli tool skills, when google-workspace-cli and google-cloud-operations were renamed to gws and gcloud. The catalog-24 to catalog-27 cases were added on 2026-09-03 with the google-cloud, google-ads, google-analytics, and google-developer catalog skills. Catalog-46 was added on 2026-09-03 for GitHub Agentic Workflows with the Copilot engine. Catalog-47 and catalog-48 were added on 2026-09-03 for the fkf read and learning workflows. Catalog-49 was added on 2026-09-03 for agent usage and token tracking. Catalog-50 was added on 2026-09-03 for the Antigravity Python SDK orchestration skill. Catalog-51 and catalog-52 were added on 2026-09-03 for Modern Web Guidance standards and Chrome DevTools MCP browser debugging. Catalog-53 was added on 2026-09-04 for the Astro web framework skill. Catalog-54 and catalog-55 were added on 2026-09-05 for the agent-prompt and agent-proposal workflow skills. Catalog-56 was added on 2026-09-05 for bounded read-only HTTP inspection with xh.",
   "proof_boundary": "Routable cases test deterministic ranking against the complete stored names and descriptions. They do not prove that a host includes every skill, preserves full descriptions within its metadata budget, abstains correctly, selects semantically, follows pressure contracts, or uses tools safely; those boundaries require actual-host discovery and separate behavioral evaluation.",
   "cases": [
     {
@@ -2346,6 +2346,48 @@
         "astro"
       ],
       "primary": "astro",
+      "top_k": 3
+    },
+    {
+      "id": "catalog-54",
+      "categories": [
+        "agent",
+        "prompt",
+        "workflow"
+      ],
+      "prompt": "Audit the repository context and write an amplified task prompt in .agents/prompts/ for another coding agent.",
+      "expected": [
+        "agent-prompt"
+      ],
+      "primary": "agent-prompt",
+      "top_k": 3
+    },
+    {
+      "id": "catalog-55",
+      "categories": [
+        "agent",
+        "proposal",
+        "workflow"
+      ],
+      "prompt": "Research candidate features and draft a human-editable proposal in .agents/proposals/ with benefits and trade-offs.",
+      "expected": [
+        "agent-proposal"
+      ],
+      "primary": "agent-proposal",
+      "top_k": 3
+    },
+    {
+      "id": "catalog-56",
+      "categories": [
+        "http",
+        "api",
+        "inspection"
+      ],
+      "prompt": "Inspect this API's response headers and a bounded slice of its body with a read-only HTTP request.",
+      "expected": [
+        "xh"
+      ],
+      "primary": "xh",
       "top_k": 3
     }
   ]

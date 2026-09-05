@@ -25,6 +25,14 @@ jobs:
           cache: true
       - name: Trust repository
         run: mise trust -y mise.toml && mise trust -y dot/mise.toml
+      - name: Report fixed and unfixed advisories
+        run: mise run report:vuln -- "$RUNNER_TEMP/trivy-unfixed.json"
+      - name: Upload advisory report
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-fixed-and-unfixed
+          path: ${{ runner.temp }}/trivy-unfixed.json
+          retention-days: 14
       - name: Scan full checkout
         # Delegate to the task so this never drifts from the local gate again; the
         # hand-written copy had already lost --tf-vars and scanned the Terraform

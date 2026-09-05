@@ -13,6 +13,8 @@ local function upstream_gopls_root_dir()
   return gopls_upstream_root_dir or nil
 end
 
+local go_tool = require("config.go_tool")
+
 return {
   {
     "neovim/nvim-lspconfig",
@@ -38,7 +40,9 @@ return {
             on_dir(vim.fs.root(fname, "go.work") or go_mod)
           end,
         },
-        templ = {},
+        templ = {
+          cmd = go_tool.lsp("templ", { "lsp" }),
+        },
         tailwindcss = {
           filetypes_include = { "templ" },
           settings = {

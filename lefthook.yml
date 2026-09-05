@@ -33,6 +33,14 @@ pre-commit:
       priority: 10
       run: mise run format:shell {staged_files}
       stage_fixed: true
+    format:typescript:
+      glob: "**/*.ts"
+      exclude:
+        - "skills/**"
+        - ".agents/tmp/**"
+      priority: 10
+      run: mise run format:typescript {staged_files}
+      stage_fixed: true
     check:leaks:
       priority: 20
       run: mise run check:leaks --staged

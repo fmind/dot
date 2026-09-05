@@ -399,6 +399,101 @@ func TestRunAgentHookUsageCopilotOutput(t *testing.T) {
 	}
 }
 
+func TestRunAgentHookUsageFileAndDatabaseAdapters(t *testing.T) {
+	t.Run("claude", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		transcript := filepath.Join(home, "claude.jsonl")
+		line := `{"timestamp":"2026-09-04T10:00:00Z","type":"assistant","message":{"model":"claude-test","usage":{"input_tokens":10,"output_tokens":4}}}` + "\n"
+		if err := os.WriteFile(transcript, []byte(line), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		for range 2 {
+			state := &GlobalState{Config: DefaultConfig(), Stdin: strings.NewReader(`{"session_id":"claude-hook","cwd":"/work/claude","transcript_path":"` + transcript + `"}`)}
+			if err := RunAgentHookUsage(context.Background(), state, sessionStoreClaude, "", ""); err != nil {
+				t.Fatal(err)
+			}
+		}
+		record := loadUsageRecord(t, sessionStoreClaude, "claude-hook")
+		if record.TotalTokens != 14 || record.CWD != "/work/claude" {
+			t.Fatalf("unexpected Claude record: %+v", record)
+		}
+	})
+
+	t.Run("codex", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		transcript := filepath.Join(home, "codex.jsonl")
+		line := `{"timestamp":"2026-09-04T10:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"output_tokens":5,"total_tokens":17}}}}` + "\n"
+		if err := os.WriteFile(transcript, []byte(line), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		state := &GlobalState{Config: DefaultConfig(), Stdin: strings.NewReader(`{"session_id":"codex-hook","cwd":"/work/codex","transcript_path":"` + transcript + `"}`)}
+		if err := RunAgentHookUsage(context.Background(), state, sessionStoreCodex, "", ""); err != nil {
+			t.Fatal(err)
+		}
+		record := loadUsageRecord(t, sessionStoreCodex, "codex-hook")
+		if record.TotalTokens != 17 || record.CWD != "/work/codex" {
+			t.Fatalf("unexpected Codex record: %+v", record)
+		}
+	})
+
+	t.Run("grok", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		cwd := "/work/grok"
+		root := filepath.Join(home, "grok-sessions")
+		sessionDir := filepath.Join(root, grokSessionDirectory(cwd), "grok-hook")
+		if err := os.MkdirAll(sessionDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(sessionDir, "signals.json"), []byte(`{"primaryModelId":"grok-test","contextTokensUsed":21,"turnCount":3}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		state := &GlobalState{Config: DefaultConfig(), Stdin: strings.NewReader(`{"sessionId":"grok-hook","cwd":"` + cwd + `"}`)}
+		state.Config.Agent.Sources = map[string]string{sessionStoreGrok: root}
+		if err := RunAgentHookUsage(context.Background(), state, sessionStoreGrok, "", ""); err != nil {
+			t.Fatal(err)
+		}
+		record := loadUsageRecord(t, sessionStoreGrok, "grok-hook")
+		if record.TotalTokens != 21 || record.TurnCount != 3 {
+			t.Fatalf("unexpected Grok record: %+v", record)
+		}
+	})
+
+	t.Run("opencode", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		db := filepath.Join(home, "opencode.db")
+		if err := os.WriteFile(db, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		state := &GlobalState{Config: DefaultConfig(), Runner: &FakeRunner{RunFunc: func(context.Context, string, io.Reader, string, ...string) (string, error) {
+			return `[{"model":"test/model","tokens_input":30,"tokens_output":7,"tokens_reasoning":2,"tokens_cache_read":3,"tokens_cache_write":1,"cost":0.01,"directory":"/db/cwd","time_created":1788516000000}]`, nil
+		}}}
+		state.Config.Agent.Sources = map[string]string{sessionStoreOpenCode: db}
+		if err := RunAgentHookUsage(context.Background(), state, sessionStoreOpenCode, "opencode-hook", "/work/opencode"); err != nil {
+			t.Fatal(err)
+		}
+		record := loadUsageRecord(t, sessionStoreOpenCode, "opencode-hook")
+		if record.TotalTokens != 41 || record.CWD != "/work/opencode" {
+			t.Fatalf("unexpected OpenCode record: %+v", record)
+		}
+	})
+}
+
+func TestRunAgentHookUsageRejectsMalformedAdapterInput(t *testing.T) {
+	for _, agent := range []string{sessionStoreClaude, sessionStoreCodex, sessionStoreGrok, sessionStoreOpenCode} {
+		t.Run(agent, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			state := &GlobalState{Config: DefaultConfig(), Stdin: strings.NewReader(`{"session_id":`)}
+			if err := RunAgentHookUsage(context.Background(), state, agent, "", ""); err == nil || !strings.Contains(err.Error(), "failed to parse agent hook input") {
+				t.Fatalf("malformed hook input error = %v", err)
+			}
+		})
+	}
+}
+
 func TestRunAgentUsageStatsAndList(t *testing.T) {
 	tempHome := t.TempDir()
 	t.Setenv("HOME", tempHome)

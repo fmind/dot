@@ -21,14 +21,16 @@ type documentedTask struct {
 }
 
 var (
-	miseRunPattern = regexp.MustCompile(`mise run ([a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)*)`)
-	dotRunPattern  = regexp.MustCompile("`dot(?: ([^`]+))?`")
-	linkPattern    = regexp.MustCompile(`\[[^]]+\]\(([^)]+)\)`)
-	layoutPattern  = regexp.MustCompile("^- `([^`]+)`")
-	aliasPattern   = regexp.MustCompile("`([a-z]+)` ([a-z][a-z:]*)")
+	miseRunPattern  = regexp.MustCompile(`mise run ([a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)*)`)
+	dotRunPattern   = regexp.MustCompile("`dot(?: ([^`]+))?`")
+	dotFencePattern = regexp.MustCompile(`^\s*dot\s+([^#]+?)\s*$`)
+	linkPattern     = regexp.MustCompile(`\[[^]]+\]\(([^)]+)\)`)
+	layoutPattern   = regexp.MustCompile("^- `([^`]+)`")
+	aliasPattern    = regexp.MustCompile("`([a-z]+)` ([a-z][a-z:]*)")
 )
 
 var repositoryCommandFiles = map[string]struct{}{
+	"README.md":                           {},
 	"AGENTS.md":                           {},
 	".agents/skills/chezmoi/SKILL.md":     {},
 	"skills/dot-cli/SKILL.md":             {},
@@ -162,8 +164,8 @@ func documentationFiles(t *testing.T, repo string) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := make([]string, 0, 1+len(skills)+len(agentSkills))
-	files = append(files, filepath.Join(repo, "AGENTS.md"))
+	files := make([]string, 0, 2+len(skills)+len(agentSkills))
+	files = append(files, filepath.Join(repo, "AGENTS.md"), filepath.Join(repo, "README.md"))
 	files = append(files, skills...)
 	return append(files, agentSkills...)
 }
@@ -188,7 +190,11 @@ func checkDocumentationFile(t *testing.T, repo, path string, tasks map[string]st
 				t.Errorf("%s:%d: missing mise task %q; replace with %q", relative(repo, path), line, match[1], nearest(match[1], mapKeys(tasks)))
 			}
 		}
-		for _, match := range dotRunPattern.FindAllStringSubmatch(text, -1) {
+		dotMatches := dotRunPattern.FindAllStringSubmatch(text, -1)
+		if fenced := dotFencePattern.FindStringSubmatch(text); fenced != nil {
+			dotMatches = append(dotMatches, []string{fenced[0], fenced[1]})
+		}
+		for _, match := range dotMatches {
 			parts := strings.Fields(match[1])
 			if len(parts) == 0 || strings.HasPrefix(parts[0], "<") {
 				continue

@@ -37,5 +37,9 @@ jobs:
         run: mise trust -y mise.toml && mise trust -y dot/mise.toml
       - name: Run canonical gate
         run: mise run all
+      - name: Execute starter contracts
+        run: mise run test:starters
+      - name: Exercise disposable bootstrap
+        run: mise run test:bootstrap
       - name: Verify clean tree
         run: test -z "$(git status --porcelain)"

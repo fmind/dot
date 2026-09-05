@@ -27,22 +27,11 @@ func main() {
 		Name:    "<slug>",
 		Usage:   "A modern Go CLI application",
 		Version: "0.1.0",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "config",
-				Aliases: []string{"c"},
-				Usage:   "path to configuration file",
-			},
-		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			logger.Info("Starting <slug>", "version", cmd.Version)
 
-			libCfg := <package>.Config{
-				ConfigPath: cmd.String("config"),
-			}
-
 			client := <package>.NewClient(logger)
-			return client.DoSomething(ctx, libCfg)
+			return client.DoSomething(ctx)
 		},
 	}
 

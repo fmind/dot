@@ -81,9 +81,8 @@ if status is-interactive
     abbr -a r rg
     # s:ssh
     abbr -a s ssh
-    # t:tofu/terraform
+    # t:tofu
     abbr -a t tofu
-    abbr -a tf terraform
     # u:uv
     abbr -a u uv
     abbr -a ur "uv run"

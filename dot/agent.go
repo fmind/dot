@@ -91,6 +91,7 @@ func NewAgentCmd(state *GlobalState) *cli.Command {
 		Aliases: []string{"a"},
 		Usage:   "Manage AI agent integrations and sessions",
 		Commands: []*cli.Command{
+			NewAgentCleanCmd(state),
 			NewAgentDoctorCmd(state),
 			NewAgentHookCmd(state),
 			NewAgentSessionCmd(state),

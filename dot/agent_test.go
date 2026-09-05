@@ -32,10 +32,14 @@ func TestNewAgentCmd(t *testing.T) {
 	for _, sub := range cmd.Commands {
 		groups[sub.Name] = sub
 	}
-	for _, name := range []string{"session"} {
+	for _, name := range []string{"clean", "session"} {
 		if groups[name] == nil {
 			t.Fatalf("expected sub-command %q, got %v", name, groups)
 		}
+	}
+	cleanCmd := groups["clean"]
+	if len(cleanCmd.Aliases) != 1 || cleanCmd.Aliases[0] != "c" {
+		t.Errorf("expected clean command alias 'c', got %v", cleanCmd.Aliases)
 	}
 	// notify was promoted to a top-level command; `agent` must not re-expose it.
 	if groups["notify"] != nil {
@@ -549,7 +553,7 @@ func setupOpenCodeFixture(t *testing.T, home string) {
 
 	sqlitePath, err := exec.LookPath("sqlite3")
 	if err != nil {
-		t.Skip("sqlite3 is required for the OpenCode integration test")
+		t.Fatal("sqlite3 is required for the OpenCode integration test; run `mise install`")
 	}
 
 	dbDir := filepath.Join(home, ".local", "share", "opencode")
@@ -679,7 +683,7 @@ func setupCopilotFixture(t *testing.T, home string) {
 
 	sqlitePath, err := exec.LookPath("sqlite3")
 	if err != nil {
-		t.Skip("sqlite3 is required for the Copilot integration test")
+		t.Fatal("sqlite3 is required for the Copilot integration test; run `mise install`")
 	}
 
 	dbDir := filepath.Join(home, ".copilot")

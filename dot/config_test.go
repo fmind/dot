@@ -364,3 +364,20 @@ func TestRunConfigEditScaffoldsAndRequiresEditor(t *testing.T) {
 		}
 	})
 }
+
+func TestRunConfigInitRejectsDanglingSymlink(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "missing.yaml")
+	path := filepath.Join(root, "dot.yaml")
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+	state := newTestState(&FakeRunner{})
+	state.ConfigPath = path
+	if err := RunConfigInit(state, false); err == nil {
+		t.Fatal("init must not follow an existing symlink without --force")
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("symlink target was created: %v", err)
+	}
+}

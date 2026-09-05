@@ -54,6 +54,16 @@ func TestMiseLockedInstallsResolveForSupportedPlatforms(t *testing.T) {
 	}
 }
 
+func TestRepositoryToolContractRequiresSQLite(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join(repositoryRoot(t), "mise.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?m)^sqlite\s*=\s*"latest"$`).Match(content) {
+		t.Fatal("mise.toml must declare sqlite so database integration tests cannot inherit an undeclared workstation executable")
+	}
+}
+
 func copyMiseTestFile(t *testing.T, source, target string) {
 	t.Helper()
 	content, err := os.ReadFile(source)

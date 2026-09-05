@@ -11,7 +11,7 @@ metadata:
 
 # Terraform / OpenTofu Stack Standard
 
-Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; the binary is `tofu`). Reserve HashiCorp `terraform` for repositories that require a BSL-licensed feature or an employer mandate, and mention the deviation.
+Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; the binary is `tofu`). A repository that needs a BSL-licensed feature or employer-mandated HashiCorp Terraform pins `terraform` in its own mise configuration and documents the deviation.
 
 ## 1. Core Stack
 

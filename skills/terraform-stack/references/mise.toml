@@ -47,11 +47,11 @@ description = "Audit staged changes, the working tree, or recent commits for lea
 run = """
 sh -c '
 if [ "$#" -gt 0 ]; then
-  gitleaks git --verbose "$@"
+  gitleaks git --redact=100 --verbose "$@"
 elif git rev-parse --verify HEAD >/dev/null 2>&1; then
-  gitleaks git --log-opts="--max-count=100" --verbose
+  gitleaks git --redact=100 --log-opts="--max-count=100" --verbose
 else
-  gitleaks dir . --verbose
+  gitleaks dir . --redact=100 --verbose
 fi
 ' --
 """
@@ -84,7 +84,8 @@ run = "dprint fmt --allow-no-files"
 # an empty file list (it exits 14 with "No files found").
 [tasks."format:tofu"]
 description = "Format HCL sources (tofu fmt)"
-run = "tofu fmt -recursive"
+raw_args = true
+run = "bash -c 'if [ \"$#\" -eq 0 ]; then tofu fmt -recursive; else tofu fmt \"$@\"; fi' --"
 
 [tasks.install]
 alias = "i"

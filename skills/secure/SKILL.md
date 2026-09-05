@@ -18,6 +18,7 @@ One ordered checklist that composes the tool skills; each step names the skill t
 1. **Secrets in git**: run the full-history scan and wire the staged pre-commit hook per [gitleaks](../gitleaks/SKILL.md); rotate anything found before touching anything else.
 1. **Secrets at rest**: move plaintext credentials into environment variables or encrypted `*.enc.*` files per [sops-secrets](../sops-secrets/SKILL.md); runtime secrets come from Secret Manager per [cloud-run](../cloud-run/SKILL.md).
 1. **Dependencies, IaC, licenses**: run `check:vuln` (native scanner) and `check:scan` per [trivy](../trivy/SKILL.md); fix or justify every `HIGH`/`CRITICAL`.
+1. **Installed tool environments**: when auditing the workstation rather than a repository, follow [installed-tool auditing](references/installed-tools.md); coverage gaps are failures, not a clean result.
 1. **Code patterns (opt-in)**: adopt `check:sast` per [opengrep](../opengrep/SKILL.md) when the project handles untrusted input, authentication, or agents with tools.
 1. **Workflows**: run `check:actions` and fix findings per [zizmor](../zizmor/SKILL.md): least-privilege `permissions`, no template injection, pinned actions, `persist-credentials: false`.
 1. **Automated updates**: enable [dependabot](../dependabot/SKILL.md) for every ecosystem so the scans above stay green without manual bumps.
