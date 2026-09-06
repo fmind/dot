@@ -10,9 +10,7 @@
   "includeCoAuthoredBy": false,
   "keepAlive": "busy",
   "model": "auto",
-  "mouse": true,
   "remoteExport": false,
   "respectGitignore": false,
-  "stayInAutopilot": true,
-  "theme": "github"
+  "stayInAutopilot": true
 }

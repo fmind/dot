@@ -13,9 +13,9 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 - **Editor** — [Neovim](https://neovim.io/) powered by [LazyVim](https://www.lazyvim.org/).
 - **Terminal** — [Ghostty](https://ghostty.org/) (GPU-accelerated) and [Zellij](https://zellij.dev/) workspace multiplexer.
 - **AI-CLI Integration** — Built-in setups for [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [Antigravity](https://antigravity.google/) (`agy`), [OpenCode](https://opencode.ai/), [Claude Code](https://claude.com/claude-code), [GitHub Copilot](https://github.com/features/copilot) (`copilot`), and [Grok Build](https://x.ai/build) (`grok`), sharing a unified persona (`AGENTS.md`) and skills.
-- **Agent Skills** — A library of 102 reusable [Agent Skills](https://agentskills.io) in [`skills/`](skills/), shared by every AI CLI above.
+- **Agent Skills** — A library of reusable [Agent Skills](https://agentskills.io) in [`skills/`](skills/), shared by every AI CLI above.
 - **Languages & Stacks** — Go and Python as the core languages, TypeScript with [Angular](https://angular.dev/) and [Firebase](https://firebase.google.com/) for web apps, [Google ADK](https://google.github.io/adk-docs/) for agents, plus OpenTofu/Terraform for infrastructure, [Typst](https://typst.app/) for documents, and [Hugo](https://gohugo.io/) for sites — each with a pinned toolchain, formatter, linter, and test gate.
-- **Custom `dot` CLI** — A Go utility for environment health checks, workspace updates, agent session and usage archives, project cleanup, commit generation, logins, and optional local Kubernetes. Source in [`dot/`](dot/).
+- **Custom `dot` CLI** — A Go utility for environment health checks, workspace updates, agent session and usage archives, project cleanup, commit generation, and logins. Source in [`dot/`](dot/).
 - **User-space toolchain** — `install.sh` bootstraps mise and chezmoi, while a single mise config (`~/.config/mise/config.toml`) pins and manages the development CLI toolchain without system package managers. The committed lock selects exact versions and records artifact digests where the backend supplies them; digest-free backends and live vendor installers remain explicit exceptions.
 
 ## Prerequisites
@@ -30,7 +30,9 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring
 xcode-select --install
 ```
 
-Install a Docker-compatible engine if you plan to build container images. Kubernetes tooling (kubectl, k3d, helm, ...) is commented out in the mise config because Cloud Run is the default deploy target; uncomment it when a project needs a local cluster.
+Install a Docker-compatible engine if you plan to build container images. Cloud Run is the default deployment target; projects that adopt Kubernetes own and pin their cluster tooling locally. The optional Kubernetes shell shortcuts, editor support, and tool settings remain available for those projects.
+
+The global toolchain covers everyday shell tools, language tooling, and agent CLIs. Install Slidev, LikeC4, Lighthouse, and TypeScript's Genkit CLI in the projects that use them with pnpm; Atlas and Go/Python's Genkit CLI belong in the project's `mise.toml`. Commit the corresponding project lockfiles so dependency fixes travel with the project.
 
 [Ghostty](https://ghostty.org/docs/install/binary) and [FiraCode Nerd Font Mono](https://www.nerdfonts.com/font-downloads) are recommended host integrations for the configured terminal experience; they are not installed by mise.
 
@@ -57,7 +59,9 @@ Set `SKIP_GIT_PULL=true` only when intentionally bootstrapping from the existing
 
 The agent configurations enable autonomous execution with broad tool permissions and selected experimental features. Use them in trusted workspaces; review each harness's permission settings before adopting these defaults. Shared instructions guide agent behavior but do not enforce a sandbox.
 
-The installer is idempotent: it keeps an already-installed `mise` and `chezmoi`, and otherwise installs mise from its vendor's install script and chezmoi through mise. The mise lock selects exact versions for x86-64 Linux and Apple silicon macOS and verifies recorded checksums, but registry, Go, npm, and pipx entries do not all carry artifact digests. A checksum proves artifact integrity, not publisher identity; provenance verification remains disabled until a tool has a proven signer contract on both platforms. Antigravity and Grok are additional live vendor-script installs outside the mise lock, so reruns converge operationally rather than reproducing those installer bytes.
+The installer is idempotent: it keeps an already-installed `mise` and `chezmoi`, and otherwise installs mise from its vendor's install script and chezmoi through mise. The mise lock selects exact versions for x86-64 Linux and Apple silicon macOS and verifies recorded checksums, but registry, Cargo, Go, npm, and pipx entries do not all carry artifact digests. A checksum proves artifact integrity, not publisher identity; provenance verification remains disabled until a tool has a proven signer contract on both platforms. Antigravity and Grok are additional live vendor-script installs outside the mise lock, so reruns converge operationally rather than reproducing those installer bytes.
+
+Tree-sitter builds from source with a minimal mise-managed Rust toolchain so current Neovim parsers work on Linux distributions whose GLIBC cannot run upstream's prebuilt CLI. The first installation takes a few minutes and requires a C compiler and linker, as do Neovim's parser builds.
 
 ## Credentials
 

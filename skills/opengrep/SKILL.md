@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/opengrep
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Opengrep
@@ -25,12 +25,12 @@ PAGER=cat opengrep scan --help                                                  
 
 ## Mise Tasks
 
-The rules are pinned by commit into an ignored directory so the check stays offline and reproducible; add `.opengrep/` to `.gitignore`:
+Copy [install-rules.sh](scripts/install-rules.sh) to the project as `scripts/install-sast.sh`. It reconciles the full commit pin with the `git` checkout, repairs empty/partial initialization, and refuses local changes. Add `.opengrep/` to `.gitignore`:
 
 ```toml
 [tasks."install:sast"]
 description = "Fetch the pinned opengrep rules"
-run = "test -d .opengrep/rules || (git init -q .opengrep/rules && git -C .opengrep/rules fetch -q --depth 1 https://github.com/opengrep/opengrep-rules <commit> && git -C .opengrep/rules checkout -q FETCH_HEAD)"
+run = "bash scripts/install-sast.sh <commit>"
 
 [tasks."check:sast"]
 description = "Scan source for insecure code patterns (opengrep)"
@@ -38,7 +38,7 @@ depends = ["install:sast"]
 run = "opengrep scan --error --quiet --config .opengrep/rules/go --config .opengrep/rules/python ." # one --config per language directory
 ```
 
-The rules repository ships one directory per language, including `go/`, `python/`, `typescript/`, `terraform/`, `dockerfile/`, and `yaml/`.
+Run `install:sast` while network access is available; a rerun at the same cached commit needs no fetch. The rules repository ships one directory per language, including `go/`, `python/`, `typescript/`, `terraform/`, `dockerfile/`, and `yaml/`.
 
 ## Workflow
 

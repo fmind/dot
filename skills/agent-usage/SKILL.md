@@ -6,74 +6,19 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Agent Usage
 
-Token usage for all AI harnesses (`agy`, `claude`, `codex`, `copilot`, `grok`, `opencode`) is recorded to `~/.agents/usages/<harness>/<session_id>.json` on session completion and turn boundaries.
-
-## Directory Layout & Schema
-
-Every session record is stored atomically with permissions `0o600`:
-
-```text
-~/.agents/usages/
-├── agy/
-│   └── <session_id>.json
-├── claude/
-│   └── <session_id>.json
-├── codex/
-│   └── <session_id>.json
-├── copilot/
-│   └── <session_id>.json
-├── grok/
-│   └── <session_id>.json
-└── opencode/
-    └── <session_id>.json
-```
-
-Each record contains:
-
-```json
-{
-  "timestamp": "2026-09-03T18:00:00Z",
-  "harness": "claude",
-  "agent": "claude",
-  "session_id": "abc-123",
-  "model": "claude-opus-5",
-  "input_tokens": 12500,
-  "output_tokens": 3400,
-  "cached_tokens": 82000,
-  "cache_write_tokens": 1200,
-  "reasoning_tokens": 0,
-  "total_tokens": 99100,
-  "cost_usd": 0.1425,
-  "turn_count": 8,
-  "cwd": "~/project"
-}
-```
-
-## Commands
-
-```bash
-dot agent usage stats                                              # summary table of token usage per harness
-dot agent usage stats --by-model                                   # break down token usage by harness and model
-dot agent usage stats --harness claude                             # filter stats to a specific harness
-dot agent usage stats --since 24h --json                           # emit json array for scripting
-dot agent usage list -n 20                                         # list recent session records
-dot agent usage show claude <session_id>                           # inspect a specific session record
-dot agent usage sync                                               # scan raw stores and backfill missing records
-duckdb -c "SELECT harness, count(*), sum(total_tokens) FROM read_json_auto('~/.agents/usages/*/*.json', union_by_name=true) GROUP BY harness" # ad-hoc SQL
-```
+Analyze the shared usage archive with dot and DuckDB. Preserve the difference between recorded token usage, estimated cost, and the provider's actual bill.
 
 ## Workflow
 
-1. **Check aggregate usage**: run `dot agent usage stats` to inspect overall token consumption and costs across harnesses.
-1. **Break down by model**: run `dot agent usage stats --by-model` when comparing prompt efficiency or model tiers.
-1. **Filter by time window**: pass `--since 24h` or `--since 7d` to isolate a recent sprint or experiment.
-1. **Deep dive with DuckDB**: query `~/.agents/usages/*/*.json` directly with `read_json_auto` in `duckdb` for custom aggregations, percentiles, or CSV exports.
-1. **Synchronize historical sessions**: run `dot agent usage sync` after adding an integration to extract metrics from historical transcripts.
+1. **Bound the question**: harnesses, time range, sessions, models, and the comparison needed; inspect the existing archive before collecting more data.
+1. **Use the owner**: dot owns source synchronization and archive schemas; read [queries.md](references/queries.md) for layout, fields, DuckDB queries, and exports.
+1. **Analyze comparable data**: account for missing sessions, model aliases, cache tokens, provider accounting differences, and time zones before aggregating.
+1. **Report**: include period, sources, completeness, units, assumptions, and the query or artifact supporting the result; protect prompt and account data.
 
 ## Gotchas
 

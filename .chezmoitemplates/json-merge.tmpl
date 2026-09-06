@@ -1,0 +1,9 @@
+{{- /* Keep host-owned MCP registrations and hook events outside dot's managed keys. */ -}}
+{{- $current := dict -}}
+{{- if ne (trim .stdin) "" }}{{ $current = mustFromJson .stdin }}{{ end -}}
+{{- $desired := mergeOverwrite (deepCopy $current) .managed -}}
+{{- if and (ne (trim .stdin) "") (deepEqual $current $desired) -}}
+{{ .stdin -}}
+{{- else -}}
+{{ $desired | toPrettyJson }}
+{{- end -}}

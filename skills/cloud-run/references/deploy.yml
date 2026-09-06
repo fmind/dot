@@ -31,10 +31,21 @@ jobs:
         id: image
         env:
           KO_DOCKER_REPO: ${{ vars.GCP_ARTIFACT_REPO }}
-        # ko prints the pushed digest reference on the last stdout line.
-        run: echo "ref=$(mise run build:image | tail -n 1)" >> "$GITHUB_OUTPUT"
+          GCP_RUNTIME_SA: ${{ vars.GCP_RUNTIME_SA }}
+        shell: bash
+        run: |
+          : "${GCP_RUNTIME_SA:?Set the dedicated runtime service account before deploying}"
+          [[ "$GCP_RUNTIME_SA" =~ ^[^[:space:]@]+@[^[:space:]@]+\.iam\.gserviceaccount\.com$ ]]
+          refs="$RUNNER_TEMP/image-refs"
+          # A failing build must stop the step before any deployment output is emitted.
+          mise run build:image -- --push=true --image-refs "$refs"
+          image=$(cat "$refs")
+          [[ "$image" =~ ^[^[:space:]@]+@sha256:[[:xdigit:]]{64}$ ]]
+          printf 'ref=%s\n' "$image" >> "$GITHUB_OUTPUT"
       - uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ vars.CLOUDRUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ steps.image.outputs.ref }}
+          # The deployer authenticated above is distinct from the app's runtime identity.
+          flags: --service-account=${{ vars.GCP_RUNTIME_SA }} --no-allow-unauthenticated

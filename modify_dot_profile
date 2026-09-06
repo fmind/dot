@@ -1,17 +1,27 @@
 # chezmoi:modify-template
 {{- $stdin := .chezmoi.stdin -}}
 {{- $sentinel := "# chezmoi: mise-bash-integration" -}}
-{{- if contains $sentinel $stdin -}}
-{{-   $stdin -}}
-{{- else -}}
-{{-   if ne (trim $stdin) "" -}}
-{{-     $stdin -}}
-{{   end }}
-{{ $sentinel }}
+{{- $legacyBlock := `# chezmoi: mise-bash-integration
 # Set up mise paths for login shells
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"
 if command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate bash)"
   eval "${mise_activation}"
-fi
+fi` -}}
+{{- $activationBlock := `# chezmoi: mise-bash-integration
+# Bootstrap mise for login shells; activation owns tool-version precedence.
+export PATH="${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
+if command -v mise >/dev/null 2>&1; then
+  mise_activation="$(mise activate bash)"
+  eval "${mise_activation}"
+fi` -}}
+{{- if contains $legacyBlock $stdin -}}
+{{-   replace $legacyBlock $activationBlock $stdin -}}
+{{- else if contains $sentinel $stdin -}}
+{{-   $stdin -}}
+{{- else -}}
+{{-   if ne (trim $stdin) "" -}}
+{{-     $stdin -}}
+{{   end }}
+{{ $activationBlock }}
 {{- end -}}

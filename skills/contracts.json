@@ -20,14 +20,14 @@
     "agent-proposal": [
       "git"
     ],
-    "agent-skills": [
-      "gh",
-      "skills"
+    "agent-report": [
+      "git"
     ],
     "agent-usage": [
       "dot",
       "duckdb"
     ],
+    "agents-md": [],
     "agy-sdk": [
       "gcloud",
       "skills",
@@ -121,10 +121,6 @@
     "fmind-visuals": [
       "skills"
     ],
-    "full-review": [
-      "dot",
-      "mise"
-    ],
     "gcloud": [
       "gcloud"
     ],
@@ -188,9 +184,6 @@
     "gws": [
       "gws"
     ],
-    "handover": [
-      "git"
-    ],
     "hf": [
       "hf"
     ],
@@ -200,14 +193,7 @@
       "mise"
     ],
     "implementation-plan": [],
-    "improve-docs": [
-      "lychee"
-    ],
     "incident-response": [],
-    "k8s-local": [
-      "docker",
-      "kubectl"
-    ],
     "kaggle": [
       "kaggle"
     ],
@@ -238,6 +224,7 @@
       "gcloud"
     ],
     "opengrep": [
+      "git",
       "opengrep"
     ],
     "plan-execution": [
@@ -273,9 +260,7 @@
     "quality-assurance": [
       "mise"
     ],
-    "readme-agents": [
-      "lychee"
-    ],
+    "readme-md": [],
     "reclaim-disk": [
       "dot"
     ],
@@ -336,9 +321,6 @@
     "trivy": [
       "trivy"
     ],
-    "xh": [
-      "xh"
-    ],
     "typescript-stack": [
       "biome",
       "knip",
@@ -353,8 +335,15 @@
       "typst",
       "typstyle"
     ],
+    "update-docs": [
+      "dprint",
+      "lychee"
+    ],
     "upgrade-tools": [
       "mise"
+    ],
+    "xh": [
+      "xh"
     ],
     "zizmor": [
       "zizmor"

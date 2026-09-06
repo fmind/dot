@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-review
   created: "2026-08-01"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Repository Review
@@ -19,7 +19,7 @@ Audit the whole delivery system read-only and report ranked, evidence-backed fin
 1. **Record the candidate**: Capture branch, `HEAD`, upstream, and `git status --short`; distinguish staged, unstaged, and untracked paths, treat pre-existing changes as user-owned, and state whether evidence concerns committed `HEAD`, the dirty tree, or both.
 1. **Map the system**: Inspect manifests, entry points, package boundaries, tasks, hooks, workflows, deployment and release automation, docs, generated files, and runtime configuration against the [review matrix](references/review-matrix.md).
 1. **Run native checks**: Iterate with `mise run check`, targeted `check:*` subtasks, and `mise run test`; invoke [secure](../secure/SKILL.md) only when the request needs the full security boundary.
-1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in a temporary `git worktree` or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
 1. **Inspect live evidence read-only**: Compare the exact `HEAD` SHA with CI checks, deployments, tags, releases, or runtime observations only where authorized and reachable; a green result for another head is stale.
 1. **Challenge each conclusion**: Reproduce high-impact claims when safe, prefer repository or dependency source over assumptions, and separate an observed defect from a speculative risk.
 1. **Report findings**: Lead with **Key findings** ranked `P0`–`P3` (scale in [diff-review](../diff-review/SKILL.md)), each with the defect, impact, and direct file, command, CI, or runtime evidence; if none are material, say so and list residual gaps.
@@ -27,7 +27,7 @@ Audit the whole delivery system read-only and report ranked, evidence-backed fin
 
 ## Gotchas
 
-- **Review only**: A review request authorizes inspection and bounded validation, not fixes, issues, comments, deployment, or publication; never write a report file or backlog item unless the user asks.
+- **Review only**: A review request includes inspection, bounded validation, and a useful local report or issue draft. Applying fixes, creating remote issues/comments, deploying, or publishing follows the user's authorized scope.
 - **Dirty tree**: Preserve it and state which candidate each check covered; a full gate on a dirty tree is coherent only against a materialized candidate.
 - **Partial scan**: Keep the exact timeout, unavailable database, skipped target, or truncated scope; a partial scan is neither green nor finding-free.
 - **Stale CI**: Report the checked SHA and the reviewed SHA; never transfer a result across commits.

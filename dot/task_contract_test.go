@@ -63,7 +63,7 @@ func TestTaskFormatHelpersHonorExplicitFiles(t *testing.T) {
 			if err := os.WriteFile(sibling, []byte(test.sibling), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cmd := exec.Command(filepath.Join(repo, "dot", "scripts", test.script), selected)
+			cmd := exec.Command(filepath.Join(repo, "scripts", test.script), selected)
 			cmd.Dir = repo
 			if output, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("format selected file: %v\n%s", err, output)
@@ -86,7 +86,7 @@ func TestTaskFormatHelpersHonorExplicitFiles(t *testing.T) {
 	}
 }
 
-func TestTaskToolsPropagatesInventoryFailures(t *testing.T) {
+func TestTaskToolsSeparatesRepositoryAndWorkstationFailures(t *testing.T) {
 	realMise, err := exec.LookPath("mise")
 	if err != nil {
 		t.Fatal("mise is required for task contract tests")
@@ -109,20 +109,61 @@ esac
 
 	for _, test := range []struct {
 		name    string
+		task    string
 		mode    string
 		wantErr bool
 	}{
-		{name: "clean"},
-		{name: "orphan", mode: "orphan", wantErr: true},
-		{name: "prune failure", mode: "prune-failure", wantErr: true},
-		{name: "validation failure", mode: "validate-failure", wantErr: true},
+		{name: "valid tasks", task: "check:tools"},
+		{name: "orphan does not fail repository", task: "check:tools", mode: "orphan"},
+		{name: "inventory failure does not fail repository", task: "check:tools", mode: "prune-failure"},
+		{name: "invalid tasks fail repository", task: "check:tools", mode: "validate-failure", wantErr: true},
+		{name: "owned tools", task: "doctor:tools"},
+		{name: "orphan fails workstation", task: "doctor:tools", mode: "orphan", wantErr: true},
+		{name: "inventory failure fails workstation", task: "doctor:tools", mode: "prune-failure", wantErr: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(realMise, "-C", repositoryRoot(t), "run", "check:tools")
+			cmd := exec.Command(realMise, "-C", repositoryRoot(t), "run", test.task)
 			cmd.Env = append(os.Environ(), "PATH="+fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"), "TASK_TOOLS_CASE="+test.mode)
 			output, err := cmd.CombinedOutput()
 			if (err != nil) != test.wantErr {
 				t.Fatalf("error = %v, wantErr %v\n%s", err, test.wantErr, output)
+			}
+		})
+	}
+}
+
+func TestTaskShellDiscoveryUsesWorkingTree(t *testing.T) {
+	for _, script := range []string{"check-shell.sh", "format-shell.sh"} {
+		t.Run(script, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, name := range []string{"kept.sh", "deleted.sh"} {
+				writeExecutable(t, filepath.Join(dir, name), "#!/bin/sh\ntrue\n")
+			}
+			for _, args := range [][]string{{"init", "-q"}, {"add", "kept.sh", "deleted.sh"}} {
+				cmd := exec.Command("git", args...)
+				cmd.Dir = dir
+				if output, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("prepare fixture: %v\n%s", err, output)
+				}
+			}
+			if err := os.Remove(filepath.Join(dir, "deleted.sh")); err != nil {
+				t.Fatal(err)
+			}
+			writeExecutable(t, filepath.Join(dir, "new file.sh"), "#!/bin/sh\ntrue\n")
+			bin := t.TempDir()
+			log := filepath.Join(t.TempDir(), "calls")
+			for _, tool := range []string{"shellcheck", "shfmt", "chezmoi"} {
+				writeExecutable(t, filepath.Join(bin, tool), "#!/bin/sh\nprintf '%s\\n' \"$@\" >>\"$TASK_SHELL_LOG\"\n")
+			}
+			cmd := exec.Command(readRepoPath(t, "scripts/"+script))
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "TASK_SHELL_LOG="+log)
+			if output, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("discover shell files: %v\n%s", err, output)
+			}
+			calls := readOptionalFile(t, log)
+			if !strings.Contains(calls, "kept.sh\n") || !strings.Contains(calls, "new file.sh\n") || strings.Contains(calls, "deleted.sh\n") {
+				t.Fatalf("expected existing tracked and untracked files only, got:\n%s", calls)
 			}
 		})
 	}
@@ -135,7 +176,6 @@ func TestTaskContractFormattersAcceptExactFileLists(t *testing.T) {
 		tasks []string
 	}{
 		{file: "mise.toml", tasks: []string{"format:go", "format:lua", "format:python", "format:shell"}},
-		{file: "dot/mise.toml", tasks: []string{"format:go"}},
 	} {
 		content, err := os.ReadFile(filepath.Join(repo, test.file))
 		if err != nil {
@@ -152,7 +192,7 @@ func TestTaskContractFormattersAcceptExactFileLists(t *testing.T) {
 			if next := strings.Index(block[len(marker):], "\n[tasks."); next >= 0 {
 				block = block[:len(marker)+next]
 			}
-			forwardsArgs := strings.Contains(block, `$@`) || strings.Contains(block, "dot/scripts/format-")
+			forwardsArgs := strings.Contains(block, `$@`) || strings.Contains(block, "scripts/format-")
 			if !strings.Contains(block, "raw_args = true") || !forwardsArgs {
 				t.Errorf("%s: %s must forward an explicit argv list to every formatter", test.file, task)
 			}
@@ -163,7 +203,7 @@ func TestTaskContractFormattersAcceptExactFileLists(t *testing.T) {
 func TestTaskContractChecksAreReadOnlyAndComplete(t *testing.T) {
 	repo := repositoryRoot(t)
 	var combined strings.Builder
-	for _, relative := range []string{"mise.toml", "dot/scripts/check-fish.sh", "dot/scripts/check-shell.sh"} {
+	for _, relative := range []string{"mise.toml", "scripts/check-fish.sh", "scripts/check-shell.sh"} {
 		content, err := os.ReadFile(filepath.Join(repo, relative))
 		if err != nil {
 			t.Fatal(err)

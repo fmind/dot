@@ -21,12 +21,12 @@ type documentedTask struct {
 }
 
 var (
-	miseRunPattern  = regexp.MustCompile(`mise run ([a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)*)`)
-	dotRunPattern   = regexp.MustCompile("`dot(?: ([^`]+))?`")
-	dotFencePattern = regexp.MustCompile(`^\s*dot\s+([^#]+?)\s*$`)
-	linkPattern     = regexp.MustCompile(`\[[^]]+\]\(([^)]+)\)`)
-	layoutPattern   = regexp.MustCompile("^- `([^`]+)`")
-	aliasPattern    = regexp.MustCompile("`([a-z]+)` ([a-z][a-z:]*)")
+	miseRunPattern    = regexp.MustCompile(`mise run ([a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)*)`)
+	dotRunPattern     = regexp.MustCompile("`dot(?: ([^`]+))?`")
+	dotFencePattern   = regexp.MustCompile(`^\s*dot\s+([^#]+?)\s*$`)
+	linkPattern       = regexp.MustCompile(`\[[^]]+\]\(([^)]+)\)`)
+	layoutPathPattern = regexp.MustCompile("`([^`]+)`")
+	aliasPattern      = regexp.MustCompile("`([a-z]+)` ([a-z][a-z:]*)")
 )
 
 var repositoryCommandFiles = map[string]struct{}{
@@ -53,7 +53,7 @@ func TestDocumentationContract(t *testing.T) {
 		_, checkTasks := repositoryCommandFiles[relative(repo, path)]
 		checkDocumentationFile(t, repo, path, tasks, aliases, commands, checkTasks)
 	}
-	checkLayoutInventory(t, repo)
+	checkLayoutPaths(t, repo)
 	checkCommandInventory(t, repo)
 }
 
@@ -238,14 +238,15 @@ func checkDocumentationFile(t *testing.T, repo, path string, tasks map[string]st
 	}
 }
 
-func checkLayoutInventory(t *testing.T, repo string) {
+// checkLayoutPaths keeps every named ownership boundary honest without turning
+// the agent guide back into an exhaustive filesystem inventory.
+func checkLayoutPaths(t *testing.T, repo string) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(repo, "AGENTS.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	inLayout := false
-	documented := make(map[string]struct{})
 	for lineNumber, line := range strings.Split(string(data), "\n") {
 		if line == "## Layout" {
 			inLayout = true
@@ -254,38 +255,27 @@ func checkLayoutInventory(t *testing.T, repo string) {
 		if inLayout && strings.HasPrefix(line, "## ") {
 			break
 		}
-		match := layoutPattern.FindStringSubmatch(line)
-		if !inLayout || match == nil {
+		if !inLayout || !strings.HasPrefix(line, "- ") {
 			continue
 		}
-		target := strings.TrimSuffix(match[1], "/")
-		documented[target] = struct{}{}
-		if _, workspaceState := workspaceLayoutPaths[target]; workspaceState {
-			continue
-		}
-		if _, statErr := os.Stat(filepath.Join(repo, target)); statErr != nil {
-			t.Errorf("AGENTS.md:%d: missing layout path %q; remove it or replace it with an existing top-level path", lineNumber+1, match[1])
-		}
-	}
-	cmd := exec.CommandContext(context.Background(), "git", "ls-files")
-	cmd.Dir = repo
-	output, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("git ls-files: %v", err)
-	}
-	for path := range strings.FieldsSeq(string(output)) {
-		if _, statErr := os.Lstat(filepath.Join(repo, filepath.FromSlash(path))); os.IsNotExist(statErr) {
-			// A tracked deletion is part of the working-tree candidate under review;
-			// requiring its stale inventory entry would make the contract validate HEAD
-			// instead of the candidate. Present paths remain checked below.
-			continue
-		} else if statErr != nil {
-			t.Errorf("failed to inspect tracked path %q: %v", path, statErr)
-			continue
-		}
-		top, _, _ := strings.Cut(path, "/")
-		if _, ok := documented[top]; !ok {
-			t.Errorf("AGENTS.md: missing tracked top-level path %q from Layout; add it to the inventory", top)
+		for _, match := range layoutPathPattern.FindAllStringSubmatch(line, -1) {
+			target := strings.TrimSuffix(match[1], "/")
+			if _, workspaceState := workspaceLayoutPaths[target]; workspaceState {
+				continue
+			}
+			path := filepath.Join(repo, filepath.FromSlash(target))
+			if strings.ContainsAny(target, "*?[") {
+				matches, globErr := filepath.Glob(path)
+				if globErr != nil {
+					t.Errorf("AGENTS.md:%d: invalid layout pattern %q: %v", lineNumber+1, match[1], globErr)
+				} else if len(matches) == 0 {
+					t.Errorf("AGENTS.md:%d: layout pattern %q matches no repository path", lineNumber+1, match[1])
+				}
+				continue
+			}
+			if _, statErr := os.Stat(path); statErr != nil {
+				t.Errorf("AGENTS.md:%d: missing layout path %q; remove it or replace it with an existing top-level path", lineNumber+1, match[1])
+			}
 		}
 	}
 }

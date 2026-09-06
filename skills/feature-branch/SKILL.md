@@ -1,17 +1,17 @@
 ---
 name: feature-branch
-description: Create and switch to a new git branch with conventional <type>/<slug> naming. Use when starting work that needs its own branch off main.
+description: Create and switch to a new git branch with conventional <type>/<slug> naming. Use when starting work that needs its own branch.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/feature-branch
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Feature Branch
 
-Create and switch to a `<type>/<slug>` branch off `main` for the work the user described; [conventional-commit](../conventional-commit/SKILL.md) owns the commits that follow.
+Create and switch to a `<type>/<slug>` branch from the selected base for the work the user described; [conventional-commit](../conventional-commit/SKILL.md) owns the commits that follow.
 
 ## Workflow
 
@@ -27,8 +27,8 @@ Create and switch to a `<type>/<slug>` branch off `main` for the work the user d
    - `<type>`: a commit type from [conventional-commit](../conventional-commit/SKILL.md), usually `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, or `ci`.
    - `<slug>`: lowercase ASCII kebab-case, under 50 characters, no trailing punctuation.
 1. **Reuse a valid name**: when the user's input already is a valid branch name, use it as is.
-1. **Confirm the base**: off a branch other than `main` (or the default branch), warn and ask first.
-1. **Confirm a dirty tree**: uncommitted changes move with the new branch; surface them and ask before continuing.
+1. **Resolve the base**: use the user-specified base; otherwise state that the new branch starts at the current commit. Ask only if competing branch histories make the intended base unclear.
+1. **Preserve a dirty tree**: record existing changes and let them stay in place when branching from the current commit. Do not stash, reset, or overwrite work to switch bases; resolve a conflicting target with the user.
 1. **Create and switch**; if the branch already exists, stop and report it:
 
    ```bash

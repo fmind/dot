@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Google Colab CLI
@@ -35,7 +35,7 @@ Use `colab` when a task needs an accelerator the workstation lacks. The official
 
 ## Official Skills
 
-Upstream: `googlecolab/google-colab-cli` (the same text `colab skill` prints). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `googlecolab/google-colab-cli` (the same text `colab skill` prints). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add googlecolab/google-colab-cli --list

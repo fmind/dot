@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/modern-web
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Modern Web Guidance
@@ -38,7 +38,7 @@ Modern Web Guidance embeds web platform expertise, browser compatibility data, a
 
 ## Official Skills
 
-Upstream: `GoogleChrome/modern-web-guidance`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `GoogleChrome/modern-web-guidance`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add GoogleChrome/modern-web-guidance --list

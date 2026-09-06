@@ -70,7 +70,7 @@ fi
 [tasks.test]
 alias = "t"
 description = "Run unit and component tests (Vitest)"
-run = "pnpm exec vitest run --passWithNoTests"
+run = "pnpm exec vitest run"
 
 [tasks.build]
 alias = "b"

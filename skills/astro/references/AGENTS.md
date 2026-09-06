@@ -15,7 +15,7 @@ All work goes through `mise` (see `mise.toml`); git hooks and CI call the same t
 - Install: `mise run install` — `pnpm install --frozen-lockfile` and git hooks.
 - Format: `mise run format` — Prettier (Astro, TypeScript, CSS, JSON) and dprint (Markdown, TOML, YAML).
 - Check: `mise run check` — `astro check`, Knip dependency hygiene, format checks, `pnpm audit`, gitleaks.
-- Test: `mise run test` — `vitest run` once with coverage or passWithNoTests.
+- Test: `mise run test` — `vitest run` with meaningful behavior tests; for a content-only site, document the actual content and built-link checks configured in this task.
 - Build: `mise run build` — `astro build` production bundle into `dist/`.
 - Watch: `mise run watch` — `astro dev` with live reload.
 

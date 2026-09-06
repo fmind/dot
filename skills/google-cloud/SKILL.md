@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-cloud
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Google Cloud
@@ -15,13 +15,13 @@ Google Cloud is the default cloud for Fmind projects. [gcloud](../gcloud/SKILL.m
 
 ## Gotchas
 
-- **Cloud Run first**: GKE skills exist, but Kubernetes stays opt-in per [k8s-local](../k8s-local/SKILL.md).
+- **Cloud Run first**: GKE skills exist, but install them only in projects that explicitly adopt Kubernetes.
 - **Region and project**: `europe-west1` unless the project says otherwise, with account, project, and billing pinned per [gcloud](../gcloud/SKILL.md).
 - **Authority**: every installed skill drives `gcloud` under the hood, so mutations, API enablement, and spend still need explicit approval.
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud` group; the CLI guardrail and authentication skills apply to almost every task, and deeper database and analytics skills live in the `gemini-cli-extensions/*` repositories its marketplace file lists). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `google/skills` (`skills/cloud` group; the CLI guardrail and authentication skills apply to almost every task, and deeper database and analytics skills live in the `gemini-cli-extensions/*` repositories its marketplace file lists). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add https://github.com/google/skills/tree/main/skills/cloud --list

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/angular
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Angular Standard
@@ -30,7 +30,7 @@ Angular owns its toolchain: the CLI builds, serves, tests, generates, and update
 1. **Quality tools**: `cd <slug> && ng add angular-eslint --skip-confirmation`, then `pnpm add -D @vitest/coverage-v8 knip`.
 1. **Tasks and hooks**: copy [mise.toml](references/mise.toml), [lefthook.yml](references/lefthook.yml), [knip.json](references/knip.json), [prettierignore](references/prettierignore) as `.prettierignore`, `dprint.json` per [dprint](../dprint/SKILL.md) with the excludes above, and `AGENTS.md` from [AGENTS.md](references/AGENTS.md).
 1. **Validate**: `git init --initial-branch=main`, `mise trust`, then `mise run install`, `mise run format`, `mise run check`, `mise run test`, `mise run build`.
-1. **Finish**: `README.md` per [readme-agents](../readme-agents/SKILL.md), then `git add . && git commit -m "chore: initial commit"`.
+1. **Finish**: `README.md` per [readme-md](../readme-md/SKILL.md), then report the verified result; if committing was requested, stage only the intended files and use [conventional-commit](../conventional-commit/SKILL.md).
 
 ## 3. Everyday Commands
 
@@ -60,7 +60,7 @@ ng build --configuration development         # fast debug bundle; `mise run buil
 
 ## Official Skills
 
-Upstream: `angular/skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `angular/skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add angular/skills --list

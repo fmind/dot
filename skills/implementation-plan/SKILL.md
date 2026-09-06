@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/implementation-plan
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Implementation Plan
@@ -15,29 +15,13 @@ Design the smallest sequence of independently verifiable vertical slices that sa
 
 ## Workflow
 
-1. **Read the contract**: Re-read the accepted spec or request; extract requirements, non-goals, constraints, success criteria, authority limits, and unresolved decisions.
-1. **Inspect reality**: Read repository instructions, status, relevant source, tests, manifests, tasks, recent history, and existing patterns. Preserve staged, unstaged, and untracked user work.
-1. **Verify unfamiliar APIs**: Use [technical-research](../technical-research/SKILL.md) before planning against a dependency whose local source you have not read.
-1. **Map the change**: Describe current flow, desired flow, affected components, interfaces, data, trust boundaries, and operational consumers; record code to reuse or delete and name the real architectural choices.
-1. **Lock boundaries**: Give each file or package one responsibility; record interface signatures, ownership, invariants, domain vocabulary, and compatibility behavior shared across tasks.
-1. **Slice vertically**: Order work by dependencies so each slice delivers coherent behavior through its test boundary; fold scaffolding, configuration, documentation, and telemetry into the slice that needs them.
-1. **Design proof first**: For each slice name the failing or characterization test, focused command, full project gate, runtime or manual evidence, and the expected failure or success signal.
-1. **Plan safe change**: Cover migration, backward compatibility, feature flags, observability, rollout, rollback, support, and cleanup only when applicable.
-1. **Mark concurrency**: Parallelize only independent tasks with disjoint ownership; name shared files, generated outputs, runtime leases, and merge order.
-1. **Self-review**: Map every requirement to a task and proof, remove placeholders and speculative flexibility, verify paths and symbols, and list anything that still needs a user decision.
-1. **Write each task**: In a full plan every task carries:
-   - **Outcome**: one observable behavior or enabling invariant.
-   - **Dependencies**: earlier tasks, external decisions, and shared resources.
-   - **Files**: exact create, modify, and test paths with the responsibility of each change.
-   - **Interfaces**: inputs, outputs, signatures, schemas, or commands neighboring tasks rely on.
-   - **Steps**: test first, implementation second, focused verification third.
-   - **Proof**: expected red signal, focused green command, full gate, and any runtime or manual check.
-   - **Safety**: migration, compatibility, security, privacy, rollback, or authority notes.
-   - **Done**: acceptance criteria checkable without subjective judgment.
-1. **Scale the shape**: Match the plan's weight to its risk and hand off explicitly.
-   - For two or three low-risk linear slices, use a compact task table with outcome, exact files or interfaces, red-green proof, applicable safety, and objective done criteria, followed by a one-line dependency chain and an execution handoff.
-   - Omit empty parallel-lane, migration, rollback, and critical-path prose; never omit a real risk or proof boundary.
-   - Larger or cross-cutting plans use the full task contract and end with a dependency graph, critical path, parallel lanes, proof checklist, and execution handoff.
+1. **Read the accepted scope**: identify the outcome, constraints, authorization, and unresolved decisions; use [agent-proposal](../agent-proposal/SKILL.md) when the user still wants options.
+1. **Inspect the implementation**: verify relevant paths, interfaces, dependencies, tests, and current work; preserve user changes and reuse existing mechanisms.
+1. **Choose useful slices**: order the smallest independently verifiable changes by dependency; identify shared files and real compatibility or migration risks.
+1. **Specify proof**: each slice names its outcome, affected files, dependencies, implementation steps, focused checks with expected results, and objective acceptance criteria.
+1. **Review the plan**: map every requirement to a slice, verify unfamiliar APIs, remove speculative flexibility, and state any decision that truly blocks execution.
+1. **Deliver at the right scale**: use a compact task table for linear work; add interface contracts, concurrency, rollout, or rollback details where needed, retaining every applicable risk and proof boundary.
+1. **Hand off**: identify the first executable slice and the full project gate; carry existing implementation authorization forward without requesting it again.
 
 ## Gotchas
 

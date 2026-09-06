@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Google Workspace CLI
@@ -42,7 +42,7 @@ Use `gws` for Google Workspace automation from the shell: authentication, API di
 
 ## Official Skills
 
-Upstream: `googleworkspace/cli` generates its skills from the CLI itself (a shared base skill that every service skill requires, plus one per API). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `googleworkspace/cli` generates its skills from the CLI itself (a shared base skill that every service skill requires, plus one per API). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add googleworkspace/cli --list

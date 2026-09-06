@@ -60,17 +60,17 @@ Skills live in `~/.agents/skills/<name>/SKILL.md`; names below are skills.
 
 - **CLI Automation**: `gh` (GitHub), `gws` (Google Workspace), `gcloud` (Google Cloud), and `acli` (Jira, Confluence); each tool skill points to the vendor's official skills instead of vendoring them.
 - **Google Products**: `google-developer` locates the official Google skill for any product on demand; `google-cloud`, `google-ads`, and `google-analytics` are the product maps that install from `google/skills`.
-- **Cloud Deployment**: `cloud-run` ships services and agents to GCP with keyless CI deploys; Kubernetes is opt-in (`k8s-local`), never the default.
-- **Documentation**: Keep `README.md` (humans) and `AGENTS.md` (agents) current with `readme-agents`; trim wider docs with `improve-docs`.
+- **Cloud Deployment**: `cloud-run` ships services and agents to GCP with keyless CI deploys; Kubernetes stays project-local and opt-in.
+- **Documentation**: Write human-facing README files with `readme-md` and agent instructions with `agents-md`; use `update-docs` to keep docs, both root files, and `.agents/skills` aligned with the repository.
 - **New Projects**: Start every repository with the `new-project` checklist; refresh an existing one with `project-health`; simplify with `reduce-complexity`.
-- **Skills**: Capture a repeated workflow as a skill with `skillify`; the package format, validation, and host discovery live in `agent-skills`; project-level agent files follow `agent-project`.
+- **Skills**: Capture a repeated workflow with `skillify`; use the host's native package authoring, validation, and discovery. Vendor skill sources live in their matching tool skills; repository agent setup follows `agent-project`.
 - **Environment**: This machine is configured by the `fmind/dot` repository in `~/.local/share/chezmoi` (tools in `dot_config/mise/config.toml.tmpl`); consult it only to understand the environment.
 - **Idempotent Operations**: Scripts, tasks, and state mutations must be safely re-runnable; keep checks simple.
 - **Latest Stable**: Latest stable releases only (no RCs or betas); verify versions online; bump with `upgrade-tools`.
 - **Markdown Style**: A language identifier on every code block; only `1.` for numbered list items.
 - **No Absolute Paths**: Never use absolute paths in agent skills or `AGENTS.md`; use relative or `~`-relative paths.
 - **Release & Versioning**: `release` cuts tagged semver releases (git-cliff changelog, `v` tag, GitHub publish).
-- **Secrets Management**: `sops-secrets` (sops + age) for secrets in git and at runtime — encrypted `*.enc.*` files, memory-only decryption.
+- **Secrets Management**: `sops-secrets` (sops + age) for secrets in git and at runtime — encrypted `*.enc.*` files, controlled runtime delivery, and protected editor temporary files.
 - **Security**: `secure` is the repository security pass; it composes the tool skills `trivy`, `gitleaks`, `zizmor`, `cosign`, and `threat-model`.
 - **Testing Standard**: Prefer deterministic unit tests, lightweight fakes, and local integration tests; use real or paid external services only with explicit approval of access and cost. Test your changes first, then the whole project.
 

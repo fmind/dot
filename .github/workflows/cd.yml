@@ -27,7 +27,7 @@ jobs:
       - name: Require successful CI for tagged commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: dot/scripts/release-exact-sha.sh
+        run: scripts/release-exact-sha.sh
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

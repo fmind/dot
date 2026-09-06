@@ -406,7 +406,7 @@ func TestPruneConfiguredLevels(t *testing.T) {
 	t.Run("a bare flag uses the configured depth", func(t *testing.T) {
 		runner := newRecordedRunner(nil)
 		state, _, _ := newPruneTestState(t, runner)
-		// A machine that never runs a local k3d cluster can make the deep prune the norm.
+		// A machine that treats stopped container state as disposable can make deep prune the norm.
 		state.Config.Prune.Docker.Level = levelSystem
 
 		app := &cli.Command{Writer: io.Discard, Commands: []*cli.Command{NewPruneCmd(state)}}

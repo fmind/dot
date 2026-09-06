@@ -37,16 +37,18 @@ jobs:
         env:
           KO_DOCKER_REPO: ${{ env.IMAGE_REPOSITORY }}
         run: |
-          # build:image is `go tool ko build ./cmd/<slug> --bare` from mise.toml (containerize skill);
+          # build:image defaults to a local tarball; this authorized publishing job explicitly pushes.
           # mise appends the flags below to it. $GITHUB_REF_NAME comes from the runner env: an
           # inline github.ref_name expansion would let a crafted tag inject shell code, even in
           # comments. --bare names the image exactly KO_DOCKER_REPO, so --tags is safe only with
           # a single import path (ko warns it may misbehave with several).
           mkdir -p tmp
-          mise run build:image \
+          mise run build:image -- --push=true \
             --image-refs tmp/refs.txt \
             --platform=linux/amd64,linux/arm64 \
             --tags=latest,"$GITHUB_REF_NAME"
+          image=$(cat tmp/refs.txt)
+          [[ "$image" =~ ^[^[:space:]@]+@sha256:[[:xdigit:]]{64}$ ]]
       - name: Sign the image digest
         # tmp/refs.txt holds the digest reference ko published (one line for one import path);
         # cosign is pinned in mise.toml [tools], --yes skips the interactive prompt.

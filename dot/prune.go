@@ -101,8 +101,8 @@ func defaultPruneConfig() PruneConfig {
 			Keep: []string{"memory", "memory.jsonl", "MEMORY.md"},
 		},
 		// Level is the depth a bare flag (and `--all`) selects; set one to its deeper
-		// value to make that the norm on a machine, e.g. docker.level: system where no
-		// local k3d cluster ever runs.
+		// value to make that the norm on a machine, e.g. docker.level: system where
+		// stopped container state is disposable.
 		Docker: PruneTargetConfig{Level: levelBuild},
 		Go:     PruneTargetConfig{Level: levelBuild},
 		Python: PruneTargetConfig{Level: levelCache},
@@ -822,9 +822,8 @@ func pruneDocker(ctx context.Context, run *pruneRun, level string) error {
 	if level != levelSystem {
 		return nil
 	}
-	// `docker system prune` removes stopped containers, and a stopped local k3d cluster
-	// *is* a set of stopped containers — deleting them destroys the cluster. That is why
-	// this only runs when the deeper level is asked for by name.
+	// `docker system prune` removes stopped containers whose state the user may expect
+	// to preserve, so it only runs when the deeper level is asked for by name.
 	return run.exec(ctx, "docker", "pruned stopped containers, networks, and dangling images",
 		"docker", "system", "prune", "-f")
 }

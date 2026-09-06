@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skill-security-review
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Skill Security Review
 
-Review a candidate skill package as executable supply-chain code, from an immutable snapshot and without running it, because its instructions act with the user's permissions. Inspection does not authorize installation, script execution, hooks, MCP startup, publication, or the network calls it describes; [agent-skills](../agent-skills/SKILL.md) installs only after this review passes, and [secure](../secure/SKILL.md) owns scanner depth in a checked-out repository.
+Review a candidate skill package as executable supply-chain code, from an immutable snapshot and without running it, because its instructions act with the user's permissions. Inspection does not authorize installation, script execution, hooks, MCP startup, publication, or the network calls it describes; use native installation tooling only within the user's authorized scope after reviewing the exact candidate, and [secure](../secure/SKILL.md) owns scanner depth in a checked-out repository.
 
 ## Workflow
 
@@ -51,4 +51,4 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 
 - [Agent Skills specification](https://agentskills.io/specification) · [gitleaks](../gitleaks/SKILL.md) · [trivy](../trivy/SKILL.md)
 - Adapted from [NVIDIA SkillSpector at `2bc641f`](https://github.com/NVIDIA/SkillSpector/blob/2bc641fd0639550a1cae9557491f483e30520afb/README.md), [Waza skill scanner at `fb4e1d3`](https://github.com/tw93/Waza/blob/fb4e1d3118bb0addce65e05b43c1739aa7294cad/plugins/waza/skills/health/scripts/scan_skill_security.py).
-- Companion skills: [agent-skills](../agent-skills/SKILL.md) (install after review), [secure](../secure/SKILL.md) (repository scans and pinned opengrep rules), [threat-model](../threat-model/SKILL.md) (attack paths beyond scanners).
+- Companion skills: [native skill tooling](https://skills.sh/docs/cli) (install after review), [secure](../secure/SKILL.md) (repository scans and pinned opengrep rules), [threat-model](../threat-model/SKILL.md) (attack paths beyond scanners).

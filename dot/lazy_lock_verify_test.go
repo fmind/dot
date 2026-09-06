@@ -13,7 +13,7 @@ import (
 
 func TestLazyLockVerifier(t *testing.T) {
 	repo := repositoryRoot(t)
-	verifier := filepath.Join(repo, "verify-lazy-lock.sh")
+	verifier := filepath.Join(repo, "scripts", "verify-lazyvim-lock.sh")
 
 	t.Run("accepts locked checkout with generated dirt", func(t *testing.T) {
 		lazyRoot, commit := lazyPluginFixture(t)

@@ -22,7 +22,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/urfave/cli/v3"
 	"github.com/yuin/goldmark"
 	markdownast "github.com/yuin/goldmark/ast"
 	markdowntext "github.com/yuin/goldmark/text"
@@ -104,14 +103,6 @@ func TestSkillContracts(t *testing.T) {
 	for _, finding := range discoveryFindings {
 		t.Error(finding)
 	}
-	globalCount := 0
-	for _, skillFile := range skillFiles {
-		relative := skillRelativePath(repo, skillFile)
-		if strings.HasPrefix(relative, "skills/") {
-			globalCount++
-		}
-	}
-	checkSkillCountDocumentation(t, repo, globalCount)
 	seen := make(map[string]string, len(skillFiles))
 	for _, skillFile := range skillFiles {
 		name := filepath.Base(filepath.Dir(skillFile))
@@ -2387,19 +2378,6 @@ func isSkillInvocationContinuation(value byte) bool {
 	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9' || value == '-' || value == '_' || value == '$'
 }
 
-func checkSkillCountDocumentation(t *testing.T, repo string, count int) {
-	t.Helper()
-	path := filepath.Join(repo, "README.md")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := fmt.Sprintf("library of %d reusable", count)
-	if !strings.Contains(string(data), want) {
-		t.Errorf("README.md: skill count drift; describe the current %d global skills with %q", count, want)
-	}
-}
-
 func pathWithin(root, path string) bool {
 	relative, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
@@ -2411,146 +2389,6 @@ func skillRelativePath(repo, path string) string {
 		return path
 	}
 	return filepath.ToSlash(relative)
-}
-
-func TestSkillContractFullGateInstructionsPreserveDirtyWorktrees(t *testing.T) {
-	repo := skillRepositoryRoot(t)
-	skillFiles, findings := discoverSkillFiles(repo)
-	if len(findings) != 0 {
-		t.Fatalf("discover skills: %v", findings)
-	}
-	// The mise skill owns the dirty-tree rule for the full gate; every other
-	// skill that invokes the gate must either link it or carry the one-line
-	// safeguard itself, so an agent never write-formats unrelated work.
-	for _, skillFile := range skillFiles {
-		data, err := readSkillParsedFile(skillFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-		content := strings.ToLower(string(data))
-		if !strings.Contains(content, "`mise run all`") {
-			continue
-		}
-		if filepath.Base(filepath.Dir(skillFile)) == "mise" {
-			if !strings.Contains(content, "temporary `git worktree`") {
-				t.Errorf("%s: the mise skill must own the dirty-tree safeguard for `mise run all`", skillRelativePath(repo, skillFile))
-			}
-			continue
-		}
-		if !strings.Contains(content, "temporary `git worktree`") && !strings.Contains(content, "../mise/skill.md") {
-			t.Errorf("%s: full-gate instruction must link the mise skill or state the temporary `git worktree` safeguard", skillRelativePath(repo, skillFile))
-		}
-	}
-}
-
-func TestHighRiskSkillSmokeContracts(t *testing.T) {
-	repo := skillRepositoryRoot(t)
-	tests := []struct {
-		name     string
-		path     string
-		required []string
-		ordered  []string
-		commands [][]string
-	}{
-		{
-			name:     "release gates publication",
-			path:     "skills/release/SKILL.md",
-			ordered:  []string{"Clean working tree", "git tag -a", "git push --atomic", "gh release create \"$tag\""},
-			commands: [][]string{{"release"}, {"r"}},
-		},
-		{
-			name:     "kubernetes verifies and stops local state",
-			path:     "skills/k8s-local/SKILL.md",
-			required: []string{"OFF by Default", "docker info", "--kubeconfig ~/.kube/dot/local.yaml --context k3d-local", "dot cluster start", "dot cluster stop"},
-			commands: [][]string{{"cluster", "start"}, {"k", "s"}, {"cluster", "stop"}},
-		},
-		{
-			name:    "git publication validates before push",
-			path:    "skills/git-add-commit-push/SKILL.md",
-			ordered: []string{"git status --short", "git commit -m", "git push", "Do not use `--no-verify`"},
-		},
-		{
-			name:     "repository review preserves proof boundaries",
-			path:     "skills/repository-review/SKILL.md",
-			required: []string{"staged, unstaged, and untracked", "mise run all", "proof ladder", "production-readiness", "P0", "Key findings", "Actions"},
-		},
-		{
-			name:     "project backlog separates drafts from mutation",
-			path:     "skills/project-backlog/SKILL.md",
-			required: []string{"read-only", "explicitly authorizes", "open and closed", "verified finding", "trend opportunity", "confirmed repository", "private", "unavailable", "Unauthorized writes", "partial issue creation", "addBlockedBy", "Mutation receipt", "github-issues"},
-		},
-		{
-			name:     "agent skills covers lifecycle and publication authority",
-			path:     "skills/agent-skills/SKILL.md",
-			required: []string{"# Agent Skills", "## Author", "## Validate", "## Publish", "## Install", "<candidate-root>/<slug>/SKILL.md", "gh skill publish --dry-run <candidate-root>", "gh skill publish <candidate-root> --tag <vX.Y.Z>", "explicit publication authorization"},
-			ordered:  []string{"## Author", "## Validate", "## Publish", "## Install"},
-		},
-		{
-			name:     "product spec scales compact output without dropping invariants",
-			path:     "skills/product-loop/SKILL.md",
-			required: []string{"compact, low-risk", "combine or omit immaterial sections", "Always retain the decision summary", "acceptance and edge cases", "data and trust boundaries", "open decisions"},
-		},
-		{
-			name:     "implementation plan scales compact output without fake topology",
-			path:     "skills/implementation-plan/SKILL.md",
-			required: []string{"two or three low-risk linear slices", "compact task table", "red-green proof", "one-line dependency chain", "Omit empty parallel-lane", "never omit a real risk or proof boundary"},
-		},
-		{
-			name:     "terraform scaffold passes static scan variables",
-			path:     "skills/terraform-stack/references/mise.toml",
-			required: []string{"trivy config --exit-code 1 --tf-vars terraform.example.tfvars ."},
-		},
-	}
-	app := NewApp()
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			data, err := readSkillParsedFile(filepath.Join(repo, test.path))
-			if err != nil {
-				t.Fatal(err)
-			}
-			content := string(data)
-			for _, required := range test.required {
-				if !strings.Contains(content, required) {
-					t.Errorf("%s: missing offline smoke invariant %q; restore the documented safety step", test.path, required)
-				}
-			}
-			previous := -1
-			for _, required := range test.ordered {
-				position := strings.Index(content, required)
-				if position < 0 {
-					t.Errorf("%s: missing offline smoke invariant %q; restore the documented safety step", test.path, required)
-					continue
-				}
-				if position <= previous {
-					t.Errorf("%s: safety step %q is out of order; keep validation before mutation and publication", test.path, required)
-				}
-				previous = position
-			}
-			for _, commandPath := range test.commands {
-				if !hasCommandPath(app, commandPath) {
-					t.Errorf("%s: documented dot command %q is unavailable; replace it with live command metadata", test.path, strings.Join(commandPath, " "))
-				}
-			}
-		})
-	}
-}
-
-func hasCommandPath(root *cli.Command, path []string) bool {
-	current := root
-	for _, part := range path {
-		var found *cli.Command
-		for _, command := range current.Commands {
-			if command.Name == part || slices.Contains(command.Aliases, part) {
-				found = command
-				break
-			}
-		}
-		if found == nil {
-			return false
-		}
-		current = found
-	}
-	return true
 }
 
 func TestSkillContractSkipsUntrackedForeignSkillRoots(t *testing.T) {

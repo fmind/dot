@@ -28,9 +28,8 @@ Free disk space in safety order: the big shared caches first through `dot prune`
 - **Never delete keys or secrets**: `~/.config/chezmoi/key.txt` (the age key), `~/.ssh`, any `secrets.fish` or `*.age` file.
 - **Uncommitted work**: check `git status` before removing anything inside a repository.
 - **Docker volumes**: `docker volume ls` shows data volumes; remove one only when the user names it.
-- **k3d cluster**: `dot prune --docker=system` deletes stopped k3d clusters; stop and keep the cluster only when the user needs its state.
 
 ## Documentation
 
 - [dust](https://github.com/bootandy/dust) · [duf](https://github.com/muesli/duf)
-- Companion skills: [dot-cli](../dot-cli/references/prune-flags.md) (every `dot prune` target and depth), [k8s-local](../k8s-local/SKILL.md) (the local cluster `--docker=system` can remove).
+- Companion skill: [dot-cli](../dot-cli/references/prune-flags.md) (every `dot prune` target and depth).

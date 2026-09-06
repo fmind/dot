@@ -11,6 +11,65 @@ import (
 	"testing"
 )
 
+func TestSessionIngestionPreservesStandaloneUsage(t *testing.T) {
+	for _, test := range []struct {
+		extract func(AgentConfig, string, string, string) (*UsageRecord, error)
+		harness string
+		lines   []string
+		tokens  int64
+	}{
+		{
+			harness: sessionStoreClaude,
+			lines: []string{
+				`{"type":"assistant","message":{"model":"claude-test","content":[{"type":"text","text":"hello"}],"usage":{"input_tokens":10,"output_tokens":4,"cache_read_input_tokens":3}}}`,
+				`{"type":"assistant","message":{"usage":{"input_tokens":2,"output_tokens":1}}}`,
+				`{"type":"cost-state","timestamp":"2026-09-05T10:00:00Z","totalCostUSD":0.25}`,
+			},
+			tokens:  20,
+			extract: ExtractUsageClaude,
+		},
+		{
+			harness: sessionStoreCodex,
+			lines: []string{
+				`{"type":"turn_context","payload":{"model":"codex-test"}}`,
+				`{"type":"response_item","payload":{"role":"assistant","content":[{"type":"output_text","text":"hello"}]}}`,
+				`{"type":"event_msg","timestamp":"2026-09-05T10:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"output_tokens":5,"cached_input_tokens":3,"reasoning_output_tokens":2,"total_tokens":17}}}}`,
+			},
+			tokens:  17,
+			extract: ExtractUsageCodex,
+		},
+	} {
+		t.Run(test.harness, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			path := filepath.Join(home, "transcript.jsonl")
+			// Invalid records remain partial-session evidence, while usage still
+			// includes valid events that have no displayable conversation content.
+			content := "invalid record\n" + strings.Join(test.lines, "\n") + "\n"
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			want, err := test.extract(AgentConfig{}, "usage-parity", home, path)
+			if err != nil || want.TotalTokens != test.tokens {
+				t.Fatalf("standalone usage = %+v, %v; want %d tokens", want, err, test.tokens)
+			}
+			input, err := json.Marshal(map[string]string{"session_id": "usage-parity", "cwd": home, "transcript_path": path})
+			if err != nil {
+				t.Fatal(err)
+			}
+			state := newTestState(&FakeRunner{})
+			state.Stdin = bytes.NewReader(input)
+			if err := RunAgentHookSession(context.Background(), state, test.harness, "", ""); err != nil {
+				t.Fatal(err)
+			}
+			got := loadUsageRecord(t, test.harness, "usage-parity")
+			if got != *want {
+				t.Fatalf("session usage = %+v, standalone usage = %+v", got, *want)
+			}
+		})
+	}
+}
+
 func TestWriteAndLoadUsageRecord(t *testing.T) {
 	tempHome := t.TempDir()
 	t.Setenv("HOME", tempHome)
@@ -56,6 +115,40 @@ func TestWriteAndLoadUsageRecord(t *testing.T) {
 	}
 	if len(all) != 1 {
 		t.Fatalf("expected 1 record, got %d", len(all))
+	}
+}
+
+func TestUsageStatsRejectsUnreadableRecords(t *testing.T) {
+	for _, broken := range []string{"malformed", "read-error"} {
+		t.Run(broken, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			if err := WriteUsageRecord(UsageRecord{Harness: "claude", SessionID: "valid", InputTokens: 100}); err != nil {
+				t.Fatal(err)
+			}
+			dir, err := HarnessUsageDir("claude")
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "broken.json")
+			if broken == "malformed" {
+				err = os.WriteFile(path, []byte("{"), 0o600)
+			} else {
+				// A symlink loop produces a read error even when tests run as root.
+				err = os.Symlink("broken.json", path)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			state := newTestState(&FakeRunner{})
+			var output bytes.Buffer
+			state.Stdout = &output
+			if err := RunAgentUsageStats(context.Background(), state, UsageStatsOptions{JSON: true}); err == nil {
+				t.Fatal("usage stats silently omitted a broken record")
+			}
+			if output.Len() != 0 {
+				t.Fatal("usage stats emitted an incomplete total before reporting the failure")
+			}
+		})
 	}
 }
 
@@ -822,6 +915,91 @@ func TestRunAgentUsageSyncSkipsClaudeMemoryFile(t *testing.T) {
 	}
 	if len(names) != 1 || names[0] != "real-session.json" {
 		t.Errorf("usage records = %v, want exactly [real-session.json]; memory.jsonl is not a session", names)
+	}
+}
+
+func TestRunAgentUsageSyncRegistrySources(t *testing.T) {
+	t.Run("grok", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		root := filepath.Join(home, "grok-sessions")
+		sessionID := "grok-sync"
+		sessionDir := filepath.Join(root, grokSessionDirectory("/work/grok"), sessionID)
+		if err := os.MkdirAll(sessionDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(sessionDir, "signals.json"), []byte(`{"primaryModelId":"grok-test","contextTokensUsed":21,"turnCount":3}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		state := &GlobalState{Config: DefaultConfig(), Stdout: io.Discard, Stderr: io.Discard}
+		state.Config.Agent.Sources = map[string]string{sessionStoreGrok: root}
+		if err := RunAgentUsageSync(context.Background(), state); err != nil {
+			t.Fatal(err)
+		}
+		if record := loadUsageRecord(t, sessionStoreGrok, sessionID); record.TotalTokens != 21 || record.TurnCount != 3 {
+			t.Fatalf("unexpected Grok sync record: %+v", record)
+		}
+	})
+
+	tests := []struct {
+		name       string
+		harness    string
+		sessionID  string
+		candidate  string
+		usageQuery string
+		usage      string
+		session    string
+		wantTotal  int64
+	}{
+		{
+			name: "opencode", harness: sessionStoreOpenCode, sessionID: "opencode-sync",
+			candidate: `[{"id":"opencode-sync","cwd":"/work/opencode"}]`, usageQuery: "tokens_input",
+			usage:     `[{"model":"test/model","tokens_input":30,"tokens_output":7,"tokens_reasoning":2,"tokens_cache_read":3,"tokens_cache_write":1,"cost":0.01,"directory":"/work/opencode","time_created":1788516000000}]`,
+			wantTotal: 41,
+		},
+		{
+			name: "copilot", harness: sessionStoreCopilot, sessionID: "copilot-sync",
+			candidate: `[{"id":"copilot-sync","cwd":"/work/copilot"}]`, usageQuery: "assistant_usage_events",
+			usage:   `[{"model":"test/model","input_tokens":30,"output_tokens":7,"cache_read_tokens":3,"cache_write_tokens":1,"reasoning_tokens":2,"turns":1}]`,
+			session: `[{"cwd":"/work/copilot","created_at":"2026-09-05T10:00:00Z"}]`, wantTotal: 41,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			db := filepath.Join(home, test.name+".db")
+			if err := os.WriteFile(db, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			state := &GlobalState{Config: DefaultConfig(), Stdout: io.Discard, Stderr: io.Discard}
+			state.Config.Agent.Sources = map[string]string{test.harness: db}
+			state.Runner = &FakeRunner{RunFunc: func(_ context.Context, _ string, _ io.Reader, name string, args ...string) (string, error) {
+				if name != "sqlite3" {
+					t.Fatalf("unexpected command %s", name)
+				}
+				query := args[len(args)-1]
+				switch {
+				case strings.Contains(query, "SELECT id"):
+					return test.candidate, nil
+				case strings.Contains(query, test.usageQuery):
+					return test.usage, nil
+				case test.session != "" && strings.Contains(query, "SELECT cwd, created_at"):
+					return test.session, nil
+				default:
+					t.Fatalf("unexpected SQLite query: %s", query)
+					return "", nil
+				}
+			}}
+
+			if err := RunAgentUsageSync(context.Background(), state); err != nil {
+				t.Fatal(err)
+			}
+			if record := loadUsageRecord(t, test.harness, test.sessionID); record.TotalTokens != test.wantTotal {
+				t.Fatalf("unexpected %s sync record: %+v", test.name, record)
+			}
+		})
 	}
 }
 

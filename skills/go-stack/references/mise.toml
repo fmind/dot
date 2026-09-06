@@ -30,9 +30,10 @@ depends = ["build:go"]
 
 # On-demand: needs `ko` from the containerize skill (`go get -tool github.com/google/ko`).
 [tasks."build:image"]
-description = "Build production OCI image (ko)"
+description = "Build local OCI image (ko; publication requires --push=true)"
+raw_args = true
 depends = ["build:templ", "build:css", "build:js"]
-run = "go tool ko build ./cmd/$APP_NAME --bare"
+run = ["mkdir -p tmp", "go tool ko build ./cmd/$APP_NAME --bare --push=false --tarball tmp/image.tar"]
 
 [tasks."build:css"]
 description = "Compile and minify Tailwind CSS"

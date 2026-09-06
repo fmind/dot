@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terraform-stack
   created: "2026-08-07"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Terraform / OpenTofu Stack Standard
@@ -15,10 +15,10 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 ## 1. Core Stack
 
-- **Engine**: OpenTofu via mise (`opentofu` tool, `tofu` binary); every `terraform {}` block and `.tf` file works unchanged, and OpenTofu adds client-side state encryption.
+- **Engine**: OpenTofu via mise (`opentofu` tool, `tofu` binary); verify provider, backend, state, and language-feature compatibility before migration; OpenTofu also supports client-side state encryption.
 - **Tasks and hooks**: [mise.toml](references/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](references/lefthook.yml) wires the hooks per [lefthook](../lefthook/SKILL.md).
 - **Docs**: `terraform-docs` injects the inputs/outputs table into `README.md` between `<!-- BEGIN_TF_DOCS -->` / `<!-- END_TF_DOCS -->` markers, configured by [terraform-docs.yml](references/terraform-docs.yml).
-- **Apply is manual**: `build` produces `tmp/plan.tfplan`; applying it is a deliberate human step (`tofu apply tmp/plan.tfplan`), never a task or hook.
+- **Apply is manual**: `build` produces `tmp/plan.tfplan`; applying it requires the user-authorized target and reviewed plan (`tofu apply tmp/plan.tfplan`); keep apply out of automatic hooks and checks.
 
 ## 2. Project Scaffolding Workflow
 
@@ -33,9 +33,9 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
    - [main.tf](references/main.tf), [variables.tf](references/variables.tf) (typed, validated inputs), [outputs.tf](references/outputs.tf).
    - [terraform.example.tfvars](references/terraform.example.tfvars) — non-secret example and static-scan values; replace the project ID before planning.
    - `tests/main.tftest.hcl` from [main.tftest.hcl](references/main.tftest.hcl) — plan-only native tests.
-1. **Validate**: `git init --initial-branch=main`, then `mise run install`, `mise run format`, `mise run check`, `mise run test` — green without cloud access because the backend ships commented and tests run in plan mode.
+1. **Validate**: `git init --initial-branch=main`, then `mise run install`, `mise run format`, `mise run check`, `mise run test` — no cloud API access for this starter because the backend is commented and the test uses `mock_provider`; downloading tools/providers still needs network access.
 1. **Lock providers**: commit `.terraform.lock.hcl`; on multi-platform teams run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64`.
-1. **Promote the backend**: once real state exists, create the versioned GCS bucket (commands in [versions.tf](references/versions.tf)), uncomment `backend "gcs"`, and re-run `mise run install`; `tofu init` migrates local state after a prompt.
+1. **Promote the backend**: once backend creation and state migration are authorized, create the versioned GCS bucket (commands in [versions.tf](references/versions.tf)), uncomment `backend "gcs"`, and re-run `mise run install`; `tofu init` migrates local state after a prompt.
 
 ## 3. State & Secrets
 
@@ -45,7 +45,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 ## 4. Testing Standard
 
-- **Native tests first**: `tofu test` over `tests/*.tftest.hcl` with `command = plan` asserts on planned attributes ([main.tftest.hcl](references/main.tftest.hcl)) — deterministic and credential-free.
+- **Native tests first**: `tofu test` over `tests/*.tftest.hcl` with `command = plan` asserts on planned attributes ([main.tftest.hcl](references/main.tftest.hcl)) ; the supplied `mock_provider` keeps this starter offline. Plan mode alone can still authenticate, refresh state, and read data sources.
 - **Apply-mode tests**: `command = apply` creates real (then destroyed) resources; reserve it for behavior a plan cannot prove, with approved project access and cost.
 - **Policy checks**: encode "must never happen" rules (public buckets, missing labels) as `check:scan` trivy findings or plan-test assertions.
 
@@ -59,7 +59,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 ## Official Skills
 
-Upstream: `hashicorp/agent-skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `hashicorp/agent-skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add hashicorp/agent-skills --list

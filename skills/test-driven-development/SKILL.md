@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/test-driven-development
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Test-Driven Development
@@ -23,7 +23,7 @@ Prove a change with an honest red-green-refactor cycle: a failing test that dete
 1. **REFACTOR**: Improve names, structure, duplication, and types only while everything stays green; add no behavior.
 1. **Repeat**: Take the next smallest behavior, edge case, or failure path through a new red cycle.
 1. **Prove the regression test**: For a bug fix, temporarily reverse the fix when safe, confirm the test fails, then restore it and confirm green.
-1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in a temporary `git worktree` or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
 1. **Report evidence**: Give the red command and expected failure, the focused green command, the wider suite, the full gate, and any boundary still covered only manually or not at all.
 
 ## Gotchas

@@ -6,70 +6,20 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Set Up Agents on a Project
 
-Create the portable instruction and skill layer once, then add only the host-specific files a project needs. [agent-mcp](../agent-mcp/SKILL.md) owns MCP servers, [agent-skills](../agent-skills/SKILL.md) owns skill packages, and [readme-agents](../readme-agents/SKILL.md) keeps `AGENTS.md` current afterwards.
+Author the shared project instruction and skill layer once, then add only required host bridges. [agents-md](../agents-md/SKILL.md) owns instruction conventions; [agent-mcp](../agent-mcp/SKILL.md) owns MCP configuration.
 
 ## Workflow
 
-1. **Create the shared layer**:
-   ```bash
-   mkdir -p .agents/skills .agents/prompts
-   ```
-   Start `AGENTS.md` from the [project template](templates/AGENTS.md); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored).
-1. **Bridge Claude Code**: Claude reads `CLAUDE.md` and `.claude/skills`, not `AGENTS.md` and `.agents/skills`. After checking that neither path already exists unmanaged:
-   ```bash
-   ln -s AGENTS.md CLAUDE.md                          # or a CLAUDE.md containing only `@AGENTS.md`
-   mkdir -p .claude && ln -s ../.agents/skills .claude/skills
-   ```
-   When `.claude/` or `CLAUDE.md` is gitignored (globally or in the repository), un-ignore both tracked entries so every clone gets them; a directory rule cannot be re-included, so ignore the contents instead:
-   ```gitignore
-   .claude/*
-   !.claude/skills
-   !CLAUDE.md
-   ```
-1. **Add host files only when needed**:
-   - **Antigravity**: reads `AGENTS.md` and `.agents/skills`; workspace settings and MCP file paths follow its current docs and it respects `.gitignore`.
-   - **Claude Code**: `.mcp.json` for project MCP servers (`claude mcp add --scope project`).
-   - **Codex**: reads `AGENTS.md` and `.agents/skills`; `.codex/config.toml` holds trusted project overrides and MCP.
-   - **Copilot**: reads `AGENTS.md` and `.agents/skills`; `.github/copilot-instructions.md` only for extra repository-wide Copilot instructions.
-   - **Grok**: reads `AGENTS.md` and `.agents/skills`; project MCP lives in `./.grok/config.toml` via `grok mcp add --scope project`.
-   - **OpenCode**: reads `AGENTS.md` and `.agents/skills`; `opencode.json` holds project settings and MCP.
-1. **Keep secrets and state out of git**: ignore local credentials, generated agent state, and secret-bearing overrides; commit only portable configuration.
-1. **Verify each installed CLI**: start it from the repository root and confirm instructions, skills, and configured MCP servers load, using the listing commands in [host discovery](../agent-skills/references/host-discovery.md).
-
-## Layout
-
-```text
-<repo>/
-├── AGENTS.md                          # shared instructions for all six hosts
-├── CLAUDE.md -> AGENTS.md             # Claude bridge (or a file containing @AGENTS.md)
-├── .agents/
-│   ├── prompts/                       # handover prompts, gitignored
-│   └── skills/<name>/SKILL.md         # project skills
-├── .claude/skills -> ../.agents/skills
-├── .codex/config.toml                 # optional: Codex overrides and MCP
-├── .github/copilot-instructions.md    # optional: extra Copilot instructions
-├── .grok/config.toml                  # optional: Grok project MCP
-├── .mcp.json                          # optional: Claude project MCP
-└── opencode.json                      # optional: OpenCode settings and MCP
-```
-
-## Custom Agents
-
-Custom-agent definitions are not portable; keep them in each host's native location instead of a shared `.agents/agents`, give parallel agents bounded tasks with non-overlapping file ownership, and let the parent integrate and validate.
-
-| Host        | Project location                                        |
-| ----------- | ------------------------------------------------------- |
-| Antigravity | `.agents/agents/<name>/agent.md`                        |
-| Claude Code | `.claude/agents/<name>.md`                              |
-| Codex       | `.codex/agents/<name>.toml`                             |
-| Copilot     | `.github/agents/<name>.agent.md`                        |
-| Grok        | `grok --agent <definition-file>` (no project directory) |
-| OpenCode    | `.opencode/agents/<name>.md`                            |
+1. **Inspect first**: preserve existing AGENTS.md, host files, skills, and user settings; reuse a stack-specific instruction file when one exists.
+1. **Create the shared layer**: `AGENTS.md` from the [project template](templates/AGENTS.md), `.agents/skills/`, and ignored `.agents/{prompts,proposals,reports}/` for [agent-prompt](../agent-prompt/SKILL.md), [agent-proposal](../agent-proposal/SKILL.md), and [agent-report](../agent-report/SKILL.md).
+1. **Bridge installed hosts**: follow [host-setup.md](references/host-setup.md) for Claude links, optional configuration, and native custom-agent locations; do not create unused host files.
+1. **Verify discovery**: read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs; distinguish presence from demonstrated instruction following.
+1. **Keep current**: route repository changes through [update-docs](../update-docs/SKILL.md), including project-local skill references.
 
 ## Gotchas
 
@@ -81,4 +31,4 @@ Custom-agent definitions are not portable; keep them in each host's native locat
 ## Documentation
 
 - [AGENTS.md standard](https://agents.md) · [Agent Skills specification](https://agentskills.io/specification)
-- Companion skills: [agent-mcp](../agent-mcp/SKILL.md) (MCP servers), [agent-skills](../agent-skills/SKILL.md) (skill packages), [readme-agents](../readme-agents/SKILL.md) (keeping `AGENTS.md` current), [handover](../handover/SKILL.md) (`.agents/prompts/`).
+- Companion skills: [agent-mcp](../agent-mcp/SKILL.md) (MCP servers), [agents-md](../agents-md/SKILL.md) (instruction conventions), [update-docs](../update-docs/SKILL.md) (keeping `AGENTS.md` current), [agent-prompt](../agent-prompt/SKILL.md) (`.agents/prompts/`), [agent-proposal](../agent-proposal/SKILL.md) (`.agents/proposals/`), [agent-report](../agent-report/SKILL.md) (`.agents/reports/`).

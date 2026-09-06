@@ -1,6 +1,5 @@
 # chezmoi:modify-template
 {{- $managedConfig := fromToml `
-allow_login_shell = true
 approval_policy = "never"
 background_terminal_max_timeout = 1200000
 sandbox_mode = "danger-full-access"
@@ -10,7 +9,6 @@ web_search = "live"
 [agents]
 default_subagent_reasoning_effort = "xhigh"
 job_max_runtime_seconds = 10800
-max_depth = 1
 max_concurrent_threads_per_session = 4
 
 [features]
@@ -90,12 +88,10 @@ vim_mode_default = true
 ` -}}
 {{- $_ := set $managedConfig "log_dir" (joinPath .chezmoi.homeDir ".codex/log") -}}
 {{- $_ = set $managedConfig "sqlite_home" (joinPath .chezmoi.homeDir ".codex/sqlite") -}}
-{{- $base := env "FKF_BASE" | default (joinPath .chezmoi.homeDir "fmind/brain") -}}
-{{- $_ = set $managedConfig "mcp_servers" (dict "fkf" (dict "command" "fkf" "args" (list "mcp" "serve" "--base" $base))) -}}
 {{- /* personality is a default rather than a managed key: it seeds a fresh config, then
        stays whatever /personality last set it to. */ -}}
 {{- includeTemplate "toml-merge.tmpl" (dict
       "stdin" .chezmoi.stdin
       "managed" $managedConfig
       "defaults" (dict "personality" "pragmatic")
-      "prune" (list "agents.max_threads" "vim_mode_default" "tools.view_image")) -}}
+      "prune" (list "allow_login_shell" "agents.max_depth" "agents.max_threads" "vim_mode_default" "tools.view_image")) -}}

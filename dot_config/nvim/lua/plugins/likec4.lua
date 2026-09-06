@@ -7,6 +7,6 @@ return {
     -- ftdetect at startup when `ft` is set, so `.c4` files still trigger it.
     ft = "likec4",
     -- The LSP is `likec4 lsp --stdio` (see the plugin's own `lsp/likec4.lua`), so it
-    -- comes from the `npm:likec4` CLI in mise, not from a separate LSP package or `build`.
+    -- comes from the project's LikeC4 CLI dependency, not a separate LSP package.
   },
 }

@@ -22,6 +22,8 @@ User-facing install and usage docs live in `README.md`; this file is for agents 
 
 Tasks run via `mise run <task>`. **Do not use `mr`** — it is an interactive-only fish abbreviation.
 
+The root `mise.toml` owns every repository task; invoking a task from `dot/` resolves to the same definition and build output. Commits run validation hooks without deploying; use `mise run deploy` explicitly to install the current CLI.
+
 Aliases split into two namespaces so a mistyped letter can never fire the wrong kind of task:
 
 - **Common tasks** take the canonical one-letter alias from the mise skill: `a` all, `b` build, `c` check, `f` format, `i` install, `t` test, `w` watch (plus `c*`/`f*` for subtasks, e.g. `cg` check:go, `fd` format:dprint).
@@ -41,11 +43,17 @@ Key routines:
 
 Validation includes the Go race suite, Python audit tests, and a pinned OpenCode plugin type check and event test. Run `mise run test:starters` after changing stack references; it materializes Go, Python, and TypeScript projects under temporary directories. `mise run test:bootstrap` exercises installation with fake vendor tools in a disposable home. CI runs both alongside `mise run all` on Linux and macOS.
 
-Keep repository checks distinct from workstation checks: `mise run verify`, `mise run doctor`, and `mise run vim:verify` inspect local authentication, installation, and plugin state. `mise run check:vuln:tools` audits every installed npm and pipx version separately; the repository dependency scan does not cover those global tool environments.
+Skill validation enforces package structure, metadata, links, required tools, and fixture consistency. `mise run report:skills` shows word-overlap rankings as an editing aid; prose wording and ranking scores do not gate changes or prove host behavior.
+
+Keep repository checks distinct from workstation checks: `mise run verify`, `mise run doctor`, and `mise run vim:verify` inspect local authentication, installation, and plugin state. `mise run doctor:tools` checks installed-tool ownership and also runs through `doctor`; `check:tools` validates repository task definitions only. `mise run check:vuln:tools` audits every installed npm and pipx version separately; the repository dependency scan includes development dependencies but does not cover those global tool environments.
 
 > Note: If `mise` fails with `command not found` in an agent shell, call `~/.local/bin/mise` directly.
 
-The unified `dot` CLI (source in `dot/`) is compiled to `~/.local/bin/dot`; every command and alias is documented once in [`skills/dot-cli/SKILL.md`](skills/dot-cli/SKILL.md), with the `dot prune` flag matrix in [`references/prune-flags.md`](skills/dot-cli/references/prune-flags.md); `dot <command> --help` remains authoritative for the complete flag list.
+The unified `dot` CLI (source in `dot/`) builds to `dot_local/bin/executable_dot`; `mise run deploy` installs it at `~/.local/bin/dot`. Every command and alias is documented once in [`skills/dot-cli/SKILL.md`](skills/dot-cli/SKILL.md), with the `dot prune` flag matrix in [`references/prune-flags.md`](skills/dot-cli/references/prune-flags.md); `dot <command> --help` remains authoritative for the complete flag list.
+
+Agent registration lives in `dot/agent_sources.go`; session and usage parsing lives in the corresponding `dot/agent_<harness>.go` files. Both sync paths use that registry, while shared transcript, SQLite, and archive code owns source validation and persistence.
+
+`dot agent doctor` limits each store scan to `agent.doctor.scan_limit` (4096 files by default). A `truncated=true` result means the scan cannot establish full health; raise that setting in a temporary `--config` file for a larger read-only audit.
 
 ## Agents
 
@@ -58,52 +66,12 @@ Two assets are authored once and consumed by all agent CLIs:
 
 ## Layout
 
-- `.agents/` — Workspace-scoped state, session records, project skills, and scratch scripts for AI agents.
-- `.antigravitycli/` — Workspace-scoped session records and state for Antigravity CLI.
-- `.chezmoi.toml.tmpl` — Host-specific chezmoi configuration template.
-- `.chezmoiignore` — Chezmoi exclude rules for non-deployed repository files.
-- `.chezmoitemplates/` — Shared template partials pulled in by `modify_` scripts via `includeTemplate`.
-- `.claude/` — Claude Code workspace state (ignored) plus the tracked `skills` link to `.agents/skills/` so Claude discovers the repo-local skills.
-- `.gemini/` — Workspace configurations and metadata for Antigravity CLI.
-- `.github/` — GitHub Actions workflows (`ci.yml`, `cd.yml`, `security.yml`), the `zizmor.yml` audit policy, and Dependabot config.
-- `.gitignore` — Git exclusion rules.
-- `.gitleaks.toml` — Security configuration and secrets scanner allowlist for GitLeaks.
-- `.stylua.toml` — StyleLua formatting policy for managed Neovim Lua sources.
-- `AGENTS.md` (this file) — Repository guide, conventions, and layout for AI agents.
-- `CHANGELOG.md` — Versioned release history generated from Conventional Commits.
-- `CLAUDE.md` — Symlink to `AGENTS.md` so Claude Code loads the same project instructions.
-- `dot/` — Go CLI source, task scripts in `scripts/`, and isolated test fixtures in `testdata/`.
-- `dot_agents/` — Source folder containing unified global instructions (`AGENTS.md`) and skills symlink template.
-- `dot_claude/` — Claude Code CLI settings template and persona/skills symlinks.
-- `dot_codex/` — OpenAI Codex CLI partial configuration modifier and persona symlink.
-- `dot_config/` — Custom configuration templates deployed to `~/.config/`.
-- `dot_copilot/` — GitHub Copilot CLI integration configurations and symlink templates.
-- `dot_duckdbrc` — DuckDB CLI settings deployed to `~/.duckdbrc`.
-- `dot_gemini/` — Antigravity CLI config settings and symlinks deployed to `~/.gemini/`.
-- `dot_gitconfig.tmpl` — Global Git configuration template deployed to `~/.gitconfig`.
-- `dot_grok/` — Grok Build CLI partial configuration modifier, LSP servers, hooks, and persona/skills symlinks.
-- `dot_inputrc` — Readline prompt styling configurations deployed to `~/.inputrc`.
-- `dot_kube/` — kubectl settings deployed to `~/.kube/`.
-- `dot_local/` — Executables and application configurations deployed to `~/.local/`.
-- `dot_npmrc` — npm configuration deployed to `~/.npmrc`.
-- `dot_skaffold/` — Skaffold settings deployed to `~/.skaffold/`.
-- `dot_sqliterc` — SQLite interactive shell settings deployed to `~/.sqliterc`.
-- `dot_terraform.d/` — Terraform provider plugin cache deployed to `~/.terraform.d/`.
-- `dot_terraformrc` — Terraform CLI configuration deployed to `~/.terraformrc`.
-- `biome.json` — TypeScript formatting and lint policy for the OpenCode plugin and its tests.
-- `dprint.json` — Layout settings and format plugins for dprint code formatter.
-- `go.work` — Go workspace file targeting the `dot` CLI package.
-- `install.sh` — Bootstrapping shell script installing mise and chezmoi.
-- `lefthook.yml` — Lefthook Git hooks manager settings (pre-commit, pre-push, post-commit).
-- `LICENSE` — MIT License file.
-- `mise.lock` — Cross-platform lockfile for repository-scoped mise toolchain.
-- `mise.toml` — Project-scoped task definitions and toolchain configuration.
-- `modify_dot_bashrc` — Partial chezmoi ownership for Bash interactive shell mise activation.
-- `modify_dot_profile` — Partial chezmoi ownership for login shell environment and mise activation.
-- `README.md` — Human-centric documentation detailing requirements, installation, and setup.
-- `ruff.toml` — Python linter and formatter configuration for Ruff.
-- `run_once_after_install-antigravity-cli.sh.tmpl` — Post-install hook for Antigravity CLI.
-- `run_once_after_install-grok.sh.tmpl` — Post-install hook for Grok Build CLI.
-- `skills/` — Storage directory holding global agent skills symlinked to `~/.agents/skills/`.
-- `trivy.yaml` — Security scanner policy configuration for Trivy.
-- `verify-lazy-lock.sh` — Fail-closed validation for Lazy plugin checkouts and commits.
+- `.agents/`, `.antigravitycli/`, `.claude/`, and `.gemini/` hold repository-scoped agent state, links, and local skills.
+- `.github/` owns CI, release, security, audit, and dependency-update automation.
+- `dot/` contains the Go CLI, task helpers, and isolated test fixtures.
+- `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host.
+- `dot_config/` contains managed application configuration; the smaller `dot_kube/` and root `dot_*` sources map directly to their home targets.
+- `modify_dot_bashrc`, `modify_dot_profile`, and `run_once_*` integrate with files or installation events that chezmoi cannot own wholesale.
+- `skills/` is the global Agent Skill catalog shared by every supported host.
+- `mise.toml`, `mise.lock`, `lefthook.yml`, and the root formatter or scanner configs define the reproducible repository gate.
+- `README.md`, `AGENTS.md`, `CHANGELOG.md`, `LICENSE`, and `install.sh` are the human contract, agent contract, release record, license, and bootstrap entrypoint.

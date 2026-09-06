@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Playwright
@@ -30,7 +30,7 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 
 ## Official Skills
 
-Upstream: `microsoft/playwright`. The CLI installs the skills bundled with the installed Playwright version into the project's `.agents/skills`; review the snapshot before trusting it (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `microsoft/playwright`. The CLI installs the skills bundled with the installed Playwright version into the project's `.agents/skills`; review the snapshot before trusting it (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 playwright init-skills --loop agents

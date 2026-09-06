@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Upgrade Tools
@@ -22,13 +22,13 @@ Bump every pinned tool and dependency to its latest stable version, one ecosyste
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop at the first failing ecosystem** and fix it before continuing; bumping the rest on top of a broken one turns a short upgrade into an afternoon of bisecting.
 1. **Run the hooks once at the end**: `lefthook run pre-commit --all-files` and `lefthook run pre-push --all-files`.
-1. **Commit per ecosystem**: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../conventional-commit/SKILL.md).
+1. **If commits were requested**, commit per ecosystem: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../conventional-commit/SKILL.md).
 
 ## Gotchas
 
 - **Latest stable only**: no RCs, betas, or pre-releases; tools deliberately range-pinned pre-1.0 stay in their range.
 - **Lockfiles are the record**: commit `mise.lock`, `go.sum`, `uv.lock`, `pnpm-lock.yaml`, `.terraform.lock.hcl`; the manifest says "latest", the lockfile says which.
-- **Majors are separate changes**: `go get -u` and `uv lock --upgrade` stay within declared majors; a major bump gets its own reviewed change.
+- **Majors are separate changes**: Go module paths usually encode v2+ majors; Python upgrades follow declared constraints and `uv lock --upgrade` can cross majors. Inspect the actual version diff and handle breaking upgrades as separate changes.
 - **Held-back pins**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
 
 ## Documentation

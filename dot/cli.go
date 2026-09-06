@@ -1,4 +1,4 @@
-// Package dot implements the unified CLI utility to manage dotfiles, local clusters, and workspaces.
+// Package dot implements the unified CLI utility to manage dotfiles and workspaces.
 package dot
 
 import (
@@ -37,7 +37,7 @@ func NewApp() *cli.Command {
 
 	return &cli.Command{
 		Name:    "dot",
-		Usage:   "Unified CLI utility to manage dotfiles, local clusters, and workspaces",
+		Usage:   "Unified CLI utility to manage dotfiles and workspaces",
 		Version: Version,
 		// Enable the hidden --generate-shell-completion flag that dot.fish drives for
 		// dynamic self-completion. The auto-added command is renamed so it can't clash
@@ -94,7 +94,6 @@ func NewApp() *cli.Command {
 		Commands: []*cli.Command{
 			NewAgentCmd(state),
 			NewChezmoiCmd(state),
-			NewClusterCmd(state),
 			NewCommitCmd(state),
 			NewCompletionCmd(state),
 			NewConfigCmd(state),

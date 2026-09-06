@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Google Developer Catalog
@@ -21,14 +21,14 @@ metadata:
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/developers` group, two meta skills). List the current release, then install both at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `google/skills` (`skills/developers` group). List the current release, then install only the skills needed for the task at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add https://github.com/google/skills/tree/main/skills/developers --list
-skills add https://github.com/google/skills/tree/main/skills/developers --skill '*' -y
+skills add https://github.com/google/skills/tree/main/skills/developers --skill <name> -y
 ```
 
 ## Documentation
 
 - [google/skills](https://github.com/google/skills) · [Google for Developers](https://developers.google.com)
-- Companion skills: [google-cloud](../google-cloud/SKILL.md), [google-ads](../google-ads/SKILL.md), [google-analytics](../google-analytics/SKILL.md), [technical-research](../technical-research/SKILL.md), [agent-skills](../agent-skills/SKILL.md).
+- Companion skills: [google-cloud](../google-cloud/SKILL.md), [google-ads](../google-ads/SKILL.md), [google-analytics](../google-analytics/SKILL.md), [technical-research](../technical-research/SKILL.md), [native skill tooling](https://skills.sh/docs/cli).

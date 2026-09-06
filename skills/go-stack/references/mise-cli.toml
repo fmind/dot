@@ -24,8 +24,9 @@ depends = ["build:go"]
 
 # On-demand: needs `ko` from the containerize skill (`go get -tool github.com/google/ko`).
 [tasks."build:image"]
-description = "Build production OCI image (ko)"
-run = "go tool ko build ./cmd/$APP_NAME --bare"
+description = "Build local OCI image (ko; publication requires --push=true)"
+raw_args = true
+run = ["mkdir -p tmp", "go tool ko build ./cmd/$APP_NAME --bare --push=false --tarball tmp/image.tar"]
 
 [tasks."build:go"]
 description = "Compile production Go binary"

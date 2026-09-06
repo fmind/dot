@@ -36,7 +36,7 @@ type agentDoctorResult struct {
 	LastIngestion string
 	LastFailure   string
 	ArchiveLag    string
-	Omitted       int
+	Truncated     bool
 	Healthy       bool
 }
 
@@ -45,7 +45,7 @@ type agentLineageSummary struct {
 	Latest       time.Time
 	Partial      bool
 	Unreadable   bool
-	Omitted      int
+	Truncated    bool
 }
 
 func NewAgentDoctorCmd(state *GlobalState) *cli.Command {
@@ -113,7 +113,7 @@ func RunAgentDoctor(ctx context.Context, state *GlobalState, options AgentDoctor
 		if !result.Healthy {
 			healthy = false
 		}
-		_, _ = fmt.Fprintf(state.Stdout, "%s %s: discovery=%s hooks=%s tools=%s source=%s ingestion=%s failure=%s lag=%s omitted=%d\n", map[bool]string{true: passIcon, false: failIcon}[result.Healthy], result.Agent, result.Discovery, result.Hooks, result.Tools, result.Source, result.LastIngestion, result.LastFailure, result.ArchiveLag, result.Omitted)
+		_, _ = fmt.Fprintf(state.Stdout, "%s %s: discovery=%s hooks=%s tools=%s source=%s ingestion=%s failure=%s lag=%s truncated=%t\n", map[bool]string{true: passIcon, false: failIcon}[result.Healthy], result.Agent, result.Discovery, result.Hooks, result.Tools, result.Source, result.LastIngestion, result.LastFailure, result.ArchiveLag, result.Truncated)
 	}
 	if !healthy {
 		return errors.New("agent doctor found unhealthy integrations")
@@ -142,14 +142,15 @@ func gatherAgentDoctor(ctx context.Context, state *GlobalState, home string, now
 		}
 		probeResults, probesOK := runToolProbes(ctx, state.Runner, probeNames, registry, state.Config.Verify.ProbeConcurrency)
 		tools := summarizeDoctorProbes(probeResults)
-		source, sourceTime, sourcePresent, sourceOK, sourceOmitted := inspectAgentSource(ctx, state, cfg, definition)
+		source, sourceTime, sourcePresent, sourceOK, sourceTruncated := inspectAgentSource(ctx, state, cfg, definition)
 		lineage := inspectAgentLineage(cfg, home, definition.Agent)
 		failure, failureOK := inspectLastHookFailure(cfg, home, definition.Agent)
 		ingestion, lag, lineageOK := summarizeAgentLineage(cfg, now, sourceTime, sourcePresent, lineage)
 		results = append(results, agentDoctorResult{
 			Agent: definition.Agent, Discovery: discovery, Hooks: hooks, Tools: tools, Source: source,
-			LastIngestion: ingestion, LastFailure: failure, ArchiveLag: lag, Omitted: sourceOmitted + lineage.Omitted,
-			Healthy: discoveryOK && hooksOK && probesOK && sourceOK && lineageOK && failureOK,
+			LastIngestion: ingestion, LastFailure: failure, ArchiveLag: lag, Truncated: sourceTruncated || lineage.Truncated,
+			// A bounded scan cannot prove the unseen tail healthy, so truncation is partial health.
+			Healthy: discoveryOK && hooksOK && probesOK && sourceOK && lineageOK && failureOK && !sourceTruncated && !lineage.Truncated,
 		})
 	}
 	return results
@@ -301,25 +302,25 @@ func summarizeDoctorProbes(results []CheckResult) string {
 	return strings.Join(failed, ",")
 }
 
-func inspectAgentSource(ctx context.Context, state *GlobalState, cfg AgentConfig, definition agentDefinition) (string, time.Time, bool, bool, int) {
+func inspectAgentSource(ctx context.Context, state *GlobalState, cfg AgentConfig, definition agentDefinition) (string, time.Time, bool, bool, bool) {
 	sourcePath := ExpandPath(definition.Source)
 	scanLimit := cfg.scanLimit()
 	info, err := os.Lstat(sourcePath)
 	if errors.Is(err, os.ErrNotExist) {
-		return "missing", time.Time{}, false, true, 0
+		return "missing", time.Time{}, false, true, false
 	}
 	if err != nil {
-		return "unreadable", time.Time{}, false, false, 0
+		return "unreadable", time.Time{}, false, false, false
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return "linked", time.Time{}, false, false, 0
+		return "linked", time.Time{}, false, false, false
 	}
 	if !info.IsDir() {
-		return "present", databaseSourceTime(ctx, state, definition, sourcePath, info.ModTime()), true, true, 0
+		return "present", databaseSourceTime(ctx, state, definition, sourcePath, info.ModTime()), true, true, false
 	}
 	latest := time.Time{}
 	seen := 0
-	omitted := 0
+	truncated := false
 	walkErr := filepath.WalkDir(sourcePath, func(path string, entry fs.DirEntry, entryErr error) error {
 		if entryErr != nil {
 			return entryErr
@@ -331,7 +332,7 @@ func inspectAgentSource(ctx context.Context, state *GlobalState, cfg AgentConfig
 			return nil
 		}
 		if seen >= scanLimit {
-			omitted = 1
+			truncated = true
 			return fs.SkipAll
 		}
 		seen++
@@ -345,9 +346,9 @@ func inspectAgentSource(ctx context.Context, state *GlobalState, cfg AgentConfig
 		return nil
 	})
 	if walkErr != nil {
-		return "unreadable", latest, true, false, omitted
+		return "unreadable", latest, true, false, truncated
 	}
-	return "present", latest, true, true, omitted
+	return "present", latest, true, true, truncated
 }
 
 // databaseSourceTime reports when a SQLite-backed store last gained a session. The
@@ -400,7 +401,7 @@ func inspectAgentLineage(cfg AgentConfig, home, agent string) agentLineageSummar
 			return nil
 		}
 		if seen >= scanLimit {
-			summary.Omitted = 1
+			summary.Truncated = true
 			return fs.SkipAll
 		}
 		seen++
@@ -478,7 +479,8 @@ func summarizeAgentLineage(cfg AgentConfig, now, sourceTime time.Time, sourcePre
 		if summary.Partial {
 			return "partial-only", "unknown", false
 		}
-		return "none", "unknown", true
+		// An empty or absent source needs no ingestion; a recognized transcript does.
+		return "none", "unknown", !sourcePresent || sourceTime.IsZero()
 	}
 	ingestion := summary.LastComplete.UTC().Format(time.RFC3339)
 	if summary.Partial && summary.Latest.After(summary.LastComplete) {

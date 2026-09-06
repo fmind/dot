@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-analytics
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Google Analytics
@@ -21,7 +21,7 @@ Google Analytics (GA4) exposes two developer APIs: the Admin API manages account
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/analytics` group; Admin-type skills cover configuration, Data-type skills cover reporting). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `google/skills` (`skills/analytics` group; Admin-type skills cover configuration, Data-type skills cover reporting). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add https://github.com/google/skills/tree/main/skills/analytics --list

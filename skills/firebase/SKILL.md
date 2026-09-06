@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/firebase
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Firebase Standard
@@ -53,7 +53,7 @@ firebase deploy --only apphosting                         # SSR backends (Blaze 
 
 ## Official Skills
 
-Upstream: `firebase/agent-skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `firebase/agent-skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add firebase/agent-skills --list

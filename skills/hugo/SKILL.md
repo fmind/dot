@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hugo
   created: "2026-08-07"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Hugo Site Standard
@@ -30,7 +30,7 @@ Canonical static sites with Hugo extended and the Hextra theme: documentation si
    - `dprint.json` per [dprint](../dprint/SKILL.md), `.gitignore` from [gitignore](references/gitignore), `LICENSE` per [project-license](../project-license/SKILL.md).
 1. **Content**: `content/_index.md` from [index.md](references/index.md) (hero layout); `content/docs/_index.md` from [docs-index.md](templates/docs-index.md) and a first page from [docs-page.md](templates/docs-page.md).
 1. **Validate**: `git init --initial-branch=main`, then `mise run install`, `mise run format`, `mise run check`, `mise run test`; before the first commit, `check:leaks` scans the working tree.
-1. **Finish**: smoke-test with `mise run watch`, then `git add . && git commit -m "chore: initial site"`.
+1. **Finish**: smoke-test with `mise run watch`, then report the verified result; if committing was requested, stage only the intended files and use [conventional-commit](../conventional-commit/SKILL.md).
 1. **Deploy**: copy [pages.yml](references/pages.yml) to `.github/workflows/pages.yml` and set the Pages source to "GitHub Actions"; the workflow reuses `mise run build` with the Pages base URL, and CI checks come from [github-actions](../github-actions/SKILL.md).
 
 ## 3. Content Authoring
