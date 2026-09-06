@@ -31,7 +31,7 @@ if status is-interactive
     abbr -a i agy
     abbr -a iq "agy --prompt"
     # j:fkf
-    abbr -a j fkf
+    abbr -a j 'fkf --base "$HOME/fmind/brain"'
     # k:kubectl/kubecolor
     if command -q kubecolor
         function kubectl

@@ -149,7 +149,7 @@ func TestAgentNotifyHookSpoolsFailures(t *testing.T) {
 
 func TestAgentHookTemplatesUseObservableBoundary(t *testing.T) {
 	tests := map[string][]string{
-		"../dot_claude/settings.json.tmpl":                {"dot agent hook session claude", "dot agent hook notify claude"},
+		"../dot_claude/modify_settings.json":              {"dot agent hook session claude", "dot agent hook notify claude"},
 		"../dot_codex/modify_private_config.toml":         {"dot agent hook session codex", "dot agent hook notify codex stop"},
 		"../dot_gemini/private_config/private_hooks.json": {"dot agent hook session agy", "dot agent hook notify agy stop"},
 		"../dot_config/opencode/plugins/session-log.ts":   {"dot agent hook session opencode"},

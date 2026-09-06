@@ -16,12 +16,14 @@ const (
 	cleanTargetAll       = "all"
 	cleanTargetPrompts   = "prompts"
 	cleanTargetProposals = "proposals"
+	cleanTargetReports   = "reports"
 )
 
 var validCleanTargets = map[string]struct{}{
 	cleanTargetAll:       {},
 	cleanTargetPrompts:   {},
 	cleanTargetProposals: {},
+	cleanTargetReports:   {},
 }
 
 // NewAgentCleanCmd constructs the `dot agent clean` command.
@@ -29,8 +31,8 @@ func NewAgentCleanCmd(state *GlobalState) *cli.Command {
 	return &cli.Command{
 		Name:      "clean",
 		Aliases:   []string{"c"},
-		Usage:     "Clean up content in .agents/{prompts,proposals}",
-		ArgsUsage: "[all|prompts|proposals]",
+		Usage:     "Clean up content in .agents/{prompts,proposals,reports}",
+		ArgsUsage: "[all|prompts|proposals|reports]",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    "dry-run",
@@ -45,14 +47,15 @@ func NewAgentCleanCmd(state *GlobalState) *cli.Command {
 }
 
 // parseCleanTargets normalizes and validates target operands. If no arguments are
-// given, it defaults to all targets (prompts and proposals).
+// given, it defaults to all targets (prompts, proposals, and reports).
 func parseCleanTargets(args []string) ([]string, error) {
 	if len(args) == 0 {
-		return []string{cleanTargetPrompts, cleanTargetProposals}, nil
+		return []string{cleanTargetPrompts, cleanTargetProposals, cleanTargetReports}, nil
 	}
 
 	cleanPrompts := false
 	cleanProposals := false
+	cleanReports := false
 
 	for _, rawArg := range args {
 		for token := range strings.SplitSeq(rawArg, ",") {
@@ -61,16 +64,19 @@ func parseCleanTargets(args []string) ([]string, error) {
 				continue
 			}
 			if _, ok := validCleanTargets[token]; !ok {
-				return nil, fmt.Errorf("unknown target %q: must be one of all, prompts, proposals", token)
+				return nil, fmt.Errorf("unknown target %q: must be one of all, prompts, proposals, reports", token)
 			}
 			switch token {
 			case cleanTargetAll:
 				cleanPrompts = true
 				cleanProposals = true
+				cleanReports = true
 			case cleanTargetPrompts:
 				cleanPrompts = true
 			case cleanTargetProposals:
 				cleanProposals = true
+			case cleanTargetReports:
+				cleanReports = true
 			}
 		}
 	}
@@ -81,6 +87,9 @@ func parseCleanTargets(args []string) ([]string, error) {
 	}
 	if cleanProposals {
 		targets = append(targets, cleanTargetProposals)
+	}
+	if cleanReports {
+		targets = append(targets, cleanTargetReports)
 	}
 	return targets, nil
 }
@@ -100,7 +109,7 @@ func resolveProjectRoot(ctx context.Context, state *GlobalState) (string, error)
 	return cwd, nil
 }
 
-// RunAgentClean removes generated contents inside .agents/prompts and/or .agents/proposals.
+// RunAgentClean removes generated contents inside .agents/prompts, .agents/proposals, and/or .agents/reports.
 func RunAgentClean(ctx context.Context, state *GlobalState, args []string, dryRun bool) error {
 	targets, err := parseCleanTargets(args)
 	if err != nil {

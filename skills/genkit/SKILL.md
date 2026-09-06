@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/genkit
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Genkit
@@ -15,17 +15,18 @@ Genkit is Firebase's framework for AI features inside an application: flows, too
 
 ## 1. Setup
 
-- **CLI**: `genkit` from mise (`npm:genkit-cli`); the upstream skill states the minimum CLI version it expects.
+- **CLI**: TypeScript uses `pnpm add -D genkit-cli` and commits `pnpm-lock.yaml`; Go/Python can use project-local `mise use npm:genkit-cli@latest` and commit `mise.lock`.
 - **Packages**: TypeScript `genkit` and `@genkit-ai/google-genai` (`googleAI()` plugin); Go `github.com/firebase/genkit/go/{genkit,ai,plugins/googlegenai}`; Python `genkit`.
-- **Docs**: `genkit docs:search "<topic>" <language>` answers API questions from the current documentation, not memory.
+- **Docs**: `pnpm exec genkit docs:search "<topic>" <language>` searches the current documentation.
 
 ## 2. Development Loop
 
 ```bash
-genkit start -- pnpm exec tsx --watch src/index.ts   # TypeScript: dev UI on http://localhost:4000 with traces
-genkit start -- go run .                            # Go
-genkit flow:run <flowName> '{"input": "..."}' -- pnpm exec tsx src/index.ts   # non-interactive run for tests and CI
-genkit trace:list && genkit trace:get <id> --format json                       # inspect what the model and tools did
+pnpm exec genkit start -- pnpm exec tsx --watch src/index.ts   # TypeScript: dev UI with traces
+mise exec -- genkit start -- go run .                         # Go with the project mise tool
+pnpm exec genkit flow:run <flowName> '{"input": "..."}' -- pnpm exec tsx src/index.ts
+pnpm exec genkit trace:list
+pnpm exec genkit trace:get <id> --format json
 ```
 
 - Run flows through `genkit start` or `flow:run`; a plain `node`/`go run` skips trace capture and debugs blind.
@@ -42,7 +43,7 @@ genkit trace:list && genkit trace:get <id> --format json                       #
 
 ## Official Skills
 
-Upstream: `genkit-ai/skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `genkit-ai/skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add genkit-ai/skills --list

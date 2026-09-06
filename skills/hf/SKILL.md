@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Hugging Face CLI
@@ -36,7 +36,7 @@ Use `hf` for Hub operations from the shell. The CLI generates its own command sk
 
 ## Official Skills
 
-Upstream: `huggingface/skills`, the same packages the CLI marketplace serves. `hf skills add` writes the CLI's own skill and `hf skills list` shows the marketplace; install at project scope (never `-g`) after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `huggingface/skills`, the same packages the CLI marketplace serves. `hf skills add` writes the CLI's own skill and `hf skills list` shows the marketplace; install at project scope (never `-g`) after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 hf skills list

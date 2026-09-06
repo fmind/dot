@@ -1,7 +1,10 @@
 package dot
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -42,8 +45,13 @@ const (
 // retention, and `dot agent doctor` all read this table, so the path dot ingests
 // from can never drift from the path dot prunes or health-checks.
 type agentDefinition struct {
+	Session      agentSessionEntry
+	Usage        usageSyncSource
+	UsageHook    agentSessionLogger
+	SyncSessions func(context.Context, *GlobalState, string) (int, error)
 	// Agent is the canonical short name used in stores, flags, and hook arguments.
 	Agent string
+	Label string
 	// Alias is the 1-letter shortcut for subcommand invocation under agent session.
 	Alias string
 	// Source is the ~-relative root of the agent's raw transcript store: a directory
@@ -75,13 +83,25 @@ type agentDefinition struct {
 	HookJSON bool
 	// Notifications marks an integration that also drives desktop notifications.
 	Notifications bool
+	// Database distinguishes SQLite stores from transcript directories in both sync paths.
+	Database bool
 }
 
 // agentDefinitions returns the canonical integration table in ingestion order.
 func agentDefinitions() []agentDefinition {
 	return []agentDefinition{
 		{
-			Agent:         sessionStoreAgy,
+			Agent:        sessionStoreAgy,
+			Label:        "agy",
+			Session:      agentSessionEntry{Log: RunAgentSessionLogAgy, Usage: "Process session end hook for Antigravity (agy)"},
+			UsageHook:    handleAgyUsageHook,
+			SyncSessions: syncAgySessions,
+			Usage: usageSyncSource{
+				enumerate: agyUsageCandidates,
+				extract: func(_ context.Context, state *GlobalState, candidate usageSyncCandidate) (*UsageRecord, error) {
+					return ExtractUsageAgy(state, candidate.SessionID, candidate.CWD, candidate.Path)
+				},
+			},
 			Alias:         "a",
 			Source:        "~/.gemini/antigravity-cli/brain",
 			PersonaPath:   "~/.gemini/GEMINI.md",
@@ -93,7 +113,25 @@ func agentDefinitions() []agentDefinition {
 			Notifications: true,
 		},
 		{
-			Agent:         sessionStoreClaude,
+			Agent:        sessionStoreClaude,
+			Label:        "Claude",
+			Session:      agentSessionEntry{Log: RunAgentSessionLogClaude, Usage: "Process session end/stop hook for Claude Code"},
+			UsageHook:    handleClaudeUsageHook,
+			SyncSessions: syncClaudeSessions,
+			Usage: usageSyncSource{
+				enumerate: func(_ context.Context, _ *GlobalState, root string) ([]usageSyncCandidate, error) {
+					return transcriptCandidates(root, func(name string) string {
+						sessionID := claudeSessionID(name)
+						if !isValidSessionID(sessionID) {
+							return ""
+						}
+						return sessionID
+					})
+				},
+				extract: func(_ context.Context, state *GlobalState, candidate usageSyncCandidate) (*UsageRecord, error) {
+					return ExtractUsageClaude(state.Config.Agent, candidate.SessionID, candidate.CWD, candidate.Path)
+				},
+			},
 			Alias:         "c",
 			Source:        "~/.claude/projects",
 			PersonaPath:   "~/.claude/CLAUDE.md",
@@ -105,7 +143,19 @@ func agentDefinitions() []agentDefinition {
 			Notifications: true,
 		},
 		{
-			Agent:         sessionStoreCodex,
+			Agent:        sessionStoreCodex,
+			Label:        "Codex",
+			Session:      agentSessionEntry{Log: RunAgentSessionLogCodex, Usage: "Process session hook for OpenAI Codex"},
+			UsageHook:    handleCodexUsageHook,
+			SyncSessions: syncCodexSessions,
+			Usage: usageSyncSource{
+				enumerate: func(_ context.Context, _ *GlobalState, root string) ([]usageSyncCandidate, error) {
+					return transcriptCandidates(root, codexSessionID)
+				},
+				extract: func(_ context.Context, state *GlobalState, candidate usageSyncCandidate) (*UsageRecord, error) {
+					return ExtractUsageCodex(state.Config.Agent, candidate.SessionID, candidate.CWD, candidate.Path)
+				},
+			},
 			Alias:         "x",
 			Source:        "~/.codex/sessions",
 			PersonaPath:   "~/.codex/AGENTS.md",
@@ -115,7 +165,17 @@ func agentDefinitions() []agentDefinition {
 			Notifications: true,
 		},
 		{
-			Agent:       sessionStoreGrok,
+			Agent:        sessionStoreGrok,
+			Label:        "Grok",
+			Session:      agentSessionEntry{Log: RunAgentSessionLogGrok, Usage: "Process session hook for Grok Build"},
+			UsageHook:    handleGrokUsageHook,
+			SyncSessions: syncGrokSessions,
+			Usage: usageSyncSource{
+				enumerate: grokUsageCandidates,
+				extract: func(_ context.Context, state *GlobalState, candidate usageSyncCandidate) (*UsageRecord, error) {
+					return ExtractUsageGrok(state, candidate.SessionID, candidate.CWD)
+				},
+			},
 			Alias:       "g",
 			Source:      "~/.grok/sessions",
 			PersonaPath: "~/.grok/AGENTS.md",
@@ -130,6 +190,19 @@ func agentDefinitions() []agentDefinition {
 		},
 		{
 			Agent:        sessionStoreOpenCode,
+			Label:        "OpenCode",
+			Session:      agentSessionEntry{Log: RunAgentSessionLogOpencode, Usage: "Process session hook for OpenCode"},
+			UsageHook:    handleOpenCodeUsageHook,
+			SyncSessions: syncOpencodeSessions,
+			Usage: usageSyncSource{
+				enumerate: func(ctx context.Context, state *GlobalState, root string) ([]usageSyncCandidate, error) {
+					return sqliteCandidates(ctx, state, root, "SELECT id, directory AS cwd FROM session;")
+				},
+				extract: func(ctx context.Context, state *GlobalState, candidate usageSyncCandidate) (*UsageRecord, error) {
+					return ExtractUsageOpencode(ctx, state, candidate.SessionID, candidate.CWD)
+				},
+			},
+			Database:     true,
 			Alias:        "o",
 			Source:       "~/.local/share/opencode/opencode.db",
 			PersonaPath:  "~/.config/opencode/opencode.json",
@@ -142,6 +215,19 @@ func agentDefinitions() []agentDefinition {
 		},
 		{
 			Agent:        sessionStoreCopilot,
+			Label:        "Copilot",
+			Session:      agentSessionEntry{Log: RunAgentSessionLogCopilot, Usage: "Process a GitHub Copilot CLI session from its session store"},
+			UsageHook:    handleCopilotUsageHook,
+			SyncSessions: syncCopilotSessions,
+			Usage: usageSyncSource{
+				enumerate: func(ctx context.Context, state *GlobalState, root string) ([]usageSyncCandidate, error) {
+					return sqliteCandidates(ctx, state, root, "SELECT id, cwd FROM sessions;")
+				},
+				extract: func(ctx context.Context, state *GlobalState, candidate usageSyncCandidate) (*UsageRecord, error) {
+					return ExtractUsageCopilot(ctx, state, candidate.SessionID, candidate.CWD)
+				},
+			},
+			Database:     true,
 			Alias:        "p",
 			Source:       "~/.copilot/session-store.db",
 			PersonaPath:  "~/.copilot/copilot-instructions.md",
@@ -170,8 +256,8 @@ type AgentDoctorConfig struct {
 	// StaleLag is how far the raw source may run ahead of the last complete ingestion
 	// before the integration is reported unhealthy.
 	StaleLag Duration `yaml:"stale_lag"`
-	// ScanLimit caps the files inspected per store; the overflow is reported as
-	// `omitted` rather than silently dropped.
+	// ScanLimit caps the files inspected per store; truncation prevents an
+	// incomplete scan from being reported healthy.
 	ScanLimit int `yaml:"scan_limit"`
 }
 
@@ -289,4 +375,36 @@ func defaultRawSessionStores() []PruneSessionStore {
 		Source:   sessionStoreArchive,
 		KeepDays: defaultArchiveKeepDays,
 	})
+}
+
+func agentDefinitionNamed(agent string) (agentDefinition, bool) {
+	for _, definition := range agentDefinitions() {
+		if definition.Agent == agent {
+			return definition, true
+		}
+	}
+	return agentDefinition{}, false
+}
+
+// sourcePath gives session and usage sync the same missing/unreadable-store contract.
+func (definition agentDefinition) sourcePath(cfg AgentConfig) (string, bool, error) {
+	root, err := cfg.SourceRoot(definition.Agent)
+	if err != nil {
+		return "", false, err
+	}
+	if !definition.Database {
+		present, existsErr := sourceDirectoryExists(root, definition.Label)
+		return root, present, existsErr
+	}
+	info, err := os.Stat(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return root, false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("failed to inspect %s database %s: %w", definition.Label, root, err)
+	}
+	if info.IsDir() {
+		return "", false, fmt.Errorf("%s database path is a directory: %s", definition.Label, root)
+	}
+	return root, true, nil
 }

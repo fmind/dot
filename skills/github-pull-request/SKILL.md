@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # GitHub Pull Request
@@ -53,11 +53,12 @@ Create or update the pull request for the current branch against `main` with a W
 
 ## Official Skills
 
-Upstream: `cli/cli`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `cli/cli`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
-gh skill preview cli/cli gh
-gh skill install cli/cli gh
+gh skill search github --owner cli --json repo,skillName,description
+gh skill preview cli/cli <name>
+gh skill install cli/cli <name>
 ```
 
 ## Documentation

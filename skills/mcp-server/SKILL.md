@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-server
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # MCP Server
@@ -47,7 +47,7 @@ Author a Model Context Protocol server that exposes typed tools, resources, and 
 
 ## Official Skills
 
-Upstream: `anthropics/skills`. List the current release, then install the MCP builder skill at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `anthropics/skills`. List the current release, then install the MCP builder skill at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add anthropics/skills --list

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/astro
   created: "2026-09-04"
-  updated: "2026-09-04"
+  updated: "2026-09-05"
 ---
 
 # Astro Standard
@@ -31,8 +31,9 @@ Astro builds content-driven websites and web apps with islands architecture and 
 1. **Quality tools**: `pnpm add -D @astrojs/check "typescript@^5" prettier prettier-plugin-astro vitest knip`.
 1. **Tailwind CSS v4**: `pnpm add tailwindcss @tailwindcss/vite`, wire the Vite plugin in `astro.config.mjs`, and add `@import "tailwindcss";` to `src/styles/global.css`.
 1. **Tasks and hooks**: copy [mise.toml](references/mise.toml), [lefthook.yml](references/lefthook.yml), [knip.json](references/knip.json), [prettierignore](references/prettierignore) as `.prettierignore`, [vitest.config.ts](references/vitest.config.ts), `dprint.json` per [dprint](../dprint/SKILL.md), and [AGENTS.md](references/AGENTS.md).
+1. **Choose meaningful checks**: add tests for the site's behavior before running the Vitest task. For a content-only site, replace that task with explicit content and built-link checks and document their scope in `AGENTS.md`.
 1. **Validate**: `git init --initial-branch=main`, `mise trust`, then `mise run install`, `mise run format`, `mise run check`, `mise run test`, `mise run build`.
-1. **Finish**: `README.md` per [readme-agents](../readme-agents/SKILL.md), then `git add . && git commit -m "chore: initial commit"`.
+1. **Finish**: `README.md` per [readme-md](../readme-md/SKILL.md), then report the verified result; if committing was requested, stage only the intended files and use [conventional-commit](../conventional-commit/SKILL.md).
 
 ## 3. Everyday Commands
 
@@ -52,20 +53,22 @@ astro sync                                    # regenerate content collections a
 
 ## Gotchas
 
+- **Test what exists**: behavioral sites use `vitest run` with meaningful tests. A content-only site can make `test` run declared content/link checks; do not pass an empty suite as test coverage.
+
 - **TypeScript 7 incompatibility**: `astro check` fails on TypeScript 7 (`assertCompatibleTypeScript: does not expose the programmatic API`); pin `typescript@^5` in `devDependencies`.
 - **`astro check` requires `@astrojs/check`**: without `@astrojs/check` installed, `astro check` prompts interactively and stalls non-interactive gates.
-- **Tailwind v4 deprecation**: do NOT use `astro add tailwind` or `@astrojs/tailwind`; install `tailwindcss` and `@tailwindcss/vite` directly.
+- **Tailwind v4**: Astro 5.2+ supports `astro add tailwind` to configure `@tailwindcss/vite`; remove the legacy `@astrojs/tailwind` integration when migrating from v3.
 - **Content Layer API**: modern Astro defines collections in `src/content.config.ts` with `loader` (`glob()` or `file()` from `astro/loaders`), not the legacy `src/content/config.ts`.
 - **Prettier and dprint overlap**: `.prettierignore` must ignore `*.md`, `*.yaml`, `*.yml`, and `*.toml` so dprint handles markup and config files without format churn.
 - **Knip false positives**: Knip misses `tailwindcss` (referenced only in CSS `@import`) and task runners; keep [knip.json](references/knip.json) rules minimal.
 
-## Official Skills
+## Upstream Skills
 
-Upstream ecosystem skill: `astrolicious/agent-skills`. List and install at project scope (see [agent-skills](../agent-skills/SKILL.md)):
+Community-maintained bundle: `astrolicious/agent-skills`. List and install at project scope (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add astrolicious/agent-skills --list
-skills add astrolicious/agent-skills --skill astro -y
+skills add astrolicious/agent-skills --skill <name> -y
 ```
 
 For live documentation retrieval, configure the official Astro Docs remote MCP server (`https://mcp.docs.astro.build/mcp`) via [agent-mcp](../agent-mcp/SKILL.md).

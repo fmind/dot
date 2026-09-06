@@ -15,7 +15,7 @@ func TestSecurityWorkflowPublishesUnfixedReportWithoutWeakeningGate(t *testing.T
 			t.Errorf("security workflow lacks %q", required)
 		}
 	}
-	script := readRepoFile(t, "dot/scripts/report-vuln.sh")
+	script := readRepoFile(t, "scripts/report-vuln.sh")
 	for _, required := range []string{"--scanners vuln", "--ignore-unfixed=false", "--exit-code 0", "--format json"} {
 		if !strings.Contains(script, required) {
 			t.Errorf("advisory report lacks %q", required)
@@ -34,7 +34,7 @@ func TestTaskVulnReportPropagatesScannerFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := filepath.Join(t.TempDir(), "report.json")
-	command := exec.Command(readRepoPath(t, "dot/scripts/report-vuln.sh"), output)
+	command := exec.Command(readRepoPath(t, "scripts/report-vuln.sh"), output)
 	command.Dir = repositoryRoot(t)
 	command.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"))
 	if err := command.Run(); err == nil {

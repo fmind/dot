@@ -66,12 +66,9 @@ else
   chezmoi init --force --source "${SOURCE_DIR}" "$@"
 fi
 
-# Trust every reviewed config in the checkout before a task can load it. Trust is
-# per file, so the nested Go module config needs its own grant: without it the
-# first `mise -C dot ...` of the bootstrap stops on an untrusted config.
-echo "=> Trusting mise configs..."
+# All repository tasks are owned by this config, including calls from dot/.
+echo "=> Trusting mise config..."
 mise trust -y "${SOURCE_DIR}/mise.toml"
-mise trust -y "${SOURCE_DIR}/dot/mise.toml"
 
 # Complete the ordered bootstrap: apply, trust, tools, hooks, and editor.
 echo "=> Completing environment bootstrap..."

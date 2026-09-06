@@ -338,9 +338,8 @@ type CompletionConfig struct {
 func defaultCompletionConfig() CompletionConfig {
 	return CompletionConfig{
 		Tools: []string{
-			// Kubernetes tools (kubectl, helm, k3d, ...) are opt-in in the mise config,
-			// so they are not listed here: a shim without a configured version fails
-			// the whole completions task instead of being skipped.
+			// Project-specific tools are not listed here: a shim without a configured
+			// version fails the whole completions task instead of being skipped.
 			"ast-grep", "atlas", "atuin", "bat", "carapace", "chezmoi", "codex", "cosign", "delta",
 			"dlv", "doggo", "dprint", "dyff", "fd", "gh", "git-lfs", "gitleaks", "golangci-lint", "goreleaser",
 			"hugo", "jules", "ko", "lazygit", "lefthook", "mise", "opencode",
@@ -365,6 +364,7 @@ func defaultCompletionConfig() CompletionConfig {
 			"gh":        {Args: []string{"completion", "-s", "fish"}},
 			"git-lfs":   {Binary: "git", Args: []string{"lfs", "completion", "fish"}},
 			"lazygit":   {Args: []string{"completion", "fish"}},
+			"opencode":  {Binary: "carapace", Args: []string{"opencode", "fish"}}, // Native output is Bash; bridge yargs.
 			"rg":        {Args: []string{"--generate", "complete-fish"}},
 			"ruff":      {Args: []string{"generate-shell-completion", "fish"}},
 			"starship":  {Args: []string{"completions", "fish"}},

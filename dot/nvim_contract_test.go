@@ -23,6 +23,75 @@ func TestNvimBootstrapIsBoundedAndNonInteractive(t *testing.T) {
 	}
 }
 
+func TestNvimParserSyncWaitsAndRejectsIncompleteInstallation(t *testing.T) {
+	nvim, err := exec.LookPath("nvim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := filepath.Join(t.TempDir(), "parsers.lua")
+	lua := `local waited = {}
+LazyVim = { opts = function() return { ensure_installed = { "go" } } end }
+vim.wait = function(timeout, done)
+  assert(timeout > 0)
+  waited.install = true
+  return done()
+end
+local function task(kind)
+  return { wait = function(_, timeout)
+    assert(timeout > 0)
+    if vim.env.DOT_PARSER_CASE == "timeout" then error("synthetic parser timeout") end
+    waited[kind] = true
+    return true
+  end }
+end
+package.preload["nvim-treesitter"] = function()
+  return {
+    update = function() return task("update") end,
+    get_installed = function(kind)
+      assert(kind == "parsers", "query directories alone are not installed parsers")
+      return vim.env.DOT_PARSER_CASE == "missing" and {} or { "go" }
+    end,
+  }
+end
+package.preload["nvim-treesitter.config"] = function()
+  return { get_install_dir = function()
+    return vim.env.DOT_PARSER_INFO .. (vim.env.DOT_PARSER_CASE == "metadata" and "/missing" or "")
+  end }
+end
+dofile(vim.env.DOT_PARSER_SYNC)
+assert(waited.install and waited.update, "parser work was not awaited")
+print("parser sync complete")
+`
+	if err := os.WriteFile(fixture, []byte(lua), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(fixture), "go.revision"), []byte("synthetic"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name string
+		want string
+	}{
+		{name: "healthy", want: "parser sync complete"},
+		{name: "missing", want: "Tree-sitter parsers are still missing after installation"},
+		{name: "metadata", want: "Tree-sitter parsers are still missing after installation"},
+		{name: "timeout", want: "synthetic parser timeout"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, nvim, "--headless", "-u", "NONE", "-c", "luafile "+fixture, "-c", "qa!")
+			cmd.Env = append(os.Environ(), "DOT_PARSER_CASE="+test.name,
+				"DOT_PARSER_INFO="+filepath.Dir(fixture),
+				"DOT_PARSER_SYNC="+readRepoPath(t, "dot_config/nvim/lua/config/sync-parsers.lua"))
+			output, runErr := cmd.CombinedOutput()
+			if ctx.Err() != nil || (runErr != nil) != (test.name != "healthy") || !strings.Contains(string(output), test.want) {
+				t.Fatalf("parser sync: %v (deadline: %v): %s", runErr, ctx.Err(), output)
+			}
+		})
+	}
+}
+
 func TestNvimBootstrapRuntimeTimeout(t *testing.T) {
 	nvim, lookupErr := exec.LookPath("nvim")
 	if lookupErr != nil {

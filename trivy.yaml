@@ -3,6 +3,9 @@ exit-code: 1
 severity:
   - HIGH
   - CRITICAL
+pkg:
+  # The repository executes its development toolchain during validation.
+  include-dev-deps: true
 scan:
   scanners:
     - license

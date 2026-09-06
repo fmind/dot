@@ -54,10 +54,6 @@ func TestDefaultConfig(t *testing.T) {
 		t.Error("Expected default tools to check to be non-empty")
 	}
 
-	if cfg.Cluster.Name != "local" {
-		t.Errorf("Expected default cluster name to be 'local', got %q", cfg.Cluster.Name)
-	}
-
 	if cfg.PR.BaseBranch != "main" {
 		t.Errorf("Expected default PR base branch to be 'main', got %q", cfg.PR.BaseBranch)
 	}
@@ -98,8 +94,8 @@ func TestLoadConfig_NonExistent(t *testing.T) {
 		t.Fatal("Expected config to be loaded but got nil")
 	}
 
-	if cfg.Cluster.Name != "local" {
-		t.Errorf("Expected cluster name 'local', got %q", cfg.Cluster.Name)
+	if cfg.PR.BaseBranch != "main" {
+		t.Errorf("Expected PR base branch 'main', got %q", cfg.PR.BaseBranch)
 	}
 }
 
@@ -111,13 +107,10 @@ func TestLoadConfig_CustomYaml(t *testing.T) {
 	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	yamlContent := `
-cluster:
-  name: "custom-cluster"
-  config_path: "/path/to/k3d.yaml"
 verify:
   tools:
-    - kubectl
-    - helm
+    - git
+    - docker
 pr:
   base_branch: "develop"
   prompt: "custom pr prompt"
@@ -154,11 +147,8 @@ login:
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	if cfg.Cluster.Name != "custom-cluster" {
-		t.Errorf("Expected cluster name 'custom-cluster', got %q", cfg.Cluster.Name)
-	}
-	if len(cfg.Verify.Tools) != 2 || cfg.Verify.Tools[0] != "kubectl" || cfg.Verify.Tools[1] != "helm" {
-		t.Errorf("Expected verify tools ['kubectl', 'helm'], got %v", cfg.Verify.Tools)
+	if len(cfg.Verify.Tools) != 2 || cfg.Verify.Tools[0] != "git" || cfg.Verify.Tools[1] != "docker" {
+		t.Errorf("Expected verify tools ['git', 'docker'], got %v", cfg.Verify.Tools)
 	}
 	if cfg.PR.BaseBranch != "develop" {
 		t.Errorf("Expected PR base branch 'develop', got %q", cfg.PR.BaseBranch)
@@ -211,9 +201,9 @@ func TestLoadConfig_InvalidYaml(t *testing.T) {
 	if cfg == nil {
 		t.Fatal("Expected fallback config to be returned despite error, got nil")
 	}
-	// Fallback should still have defaults
-	if cfg.Cluster.Name != "local" {
-		t.Errorf("Expected default cluster name 'local', got %q", cfg.Cluster.Name)
+	// Fallback should still have defaults.
+	if cfg.PR.BaseBranch != "main" {
+		t.Errorf("Expected default PR base branch 'main', got %q", cfg.PR.BaseBranch)
 	}
 }
 
@@ -224,11 +214,7 @@ func TestAppConfigFlag(t *testing.T) {
 	}
 	defer func() { _ = os.RemoveAll(tempDir) }()
 
-	yamlContent := `
-cluster:
-  name: "app-test-cluster"
-  config_path: "/path/to/k3d.yaml"
-`
+	yamlContent := "pr:\n  base_branch: develop\n"
 	configPath := filepath.Join(tempDir, "dot.yaml")
 	err = os.WriteFile(configPath, []byte(yamlContent), 0o600)
 	if err != nil {
@@ -258,8 +244,8 @@ func TestLoadConfig_DefaultPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected no error loading default config, got %v", err)
 	}
-	if cfg.Cluster.Name != "local" {
-		t.Errorf("Expected fallback default config cluster 'local', got %q", cfg.Cluster.Name)
+	if cfg.PR.BaseBranch != "main" {
+		t.Errorf("Expected fallback default PR branch 'main', got %q", cfg.PR.BaseBranch)
 	}
 
 	// Create ~/.config directory and dot.yaml
@@ -269,10 +255,7 @@ func TestLoadConfig_DefaultPath(t *testing.T) {
 		t.Fatalf("Failed to create .config dir: %v", err)
 	}
 
-	yamlContent := `
-cluster:
-  name: "default-path-cluster"
-`
+	yamlContent := "pr:\n  base_branch: develop\n"
 	err = os.WriteFile(filepath.Join(configDir, "dot.yaml"), []byte(yamlContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write dot.yaml: %v", err)
@@ -282,21 +265,40 @@ cluster:
 	if err != nil {
 		t.Fatalf("Expected no error loading default config, got %v", err)
 	}
-	if cfg.Cluster.Name != "default-path-cluster" {
-		t.Errorf("Expected cluster 'default-path-cluster', got %q", cfg.Cluster.Name)
+	if cfg.PR.BaseBranch != "develop" {
+		t.Errorf("Expected PR branch 'develop', got %q", cfg.PR.BaseBranch)
 	}
 }
 
 func TestLoadConfig_UnknownKey(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "dot.yaml")
-	// 'naem' is a typo for 'name'; strict decoding must fail loudly instead of silently ignoring it.
-	if err := os.WriteFile(configPath, []byte("cluster:\n  naem: oops\n"), 0o600); err != nil {
+	// 'directoories' is a typo; strict decoding must fail loudly instead of silently ignoring it.
+	if err := os.WriteFile(configPath, []byte("pull:\n  directoories: []\n"), 0o600); err != nil {
 		t.Fatalf("Failed to write dot.yaml: %v", err)
 	}
 
 	if _, err := LoadConfig(configPath); err == nil {
 		t.Error("Expected error for an unknown config key, got nil")
+	}
+}
+
+func TestLoadConfigRejectsTrailingYAMLDocuments(t *testing.T) {
+	for _, trailing := range []string{
+		"---\npull:\n  directories: [/tmp/ignored]\n",
+		"---\nunknown_setting: true\n",
+		"---\n",
+		"---\ninvalid: [\n",
+	} {
+		t.Run(trailing, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "dot.yaml")
+			if err := os.WriteFile(path, []byte("pull:\n  directories: [/tmp/selected]\n"+trailing), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadConfig(path); err == nil {
+				t.Fatal("configuration with a trailing YAML document was accepted")
+			}
+		})
 	}
 }
 
@@ -311,8 +313,8 @@ func TestLoadConfig_EmptyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected no error for an empty config file, got %v", err)
 	}
-	if cfg.Cluster.Name != "local" {
-		t.Errorf("Expected defaults for an empty config, got %q", cfg.Cluster.Name)
+	if cfg.PR.BaseBranch != "main" {
+		t.Errorf("Expected defaults for an empty config, got %q", cfg.PR.BaseBranch)
 	}
 }
 
@@ -344,7 +346,7 @@ func TestConfigFilePathWithoutHome(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected LoadConfig to surface the home directory error")
 	}
-	if cfg == nil || cfg.Cluster.Name == "" {
+	if cfg == nil || cfg.PR.BaseBranch == "" {
 		t.Error("expected LoadConfig to still return the default configuration")
 	}
 }

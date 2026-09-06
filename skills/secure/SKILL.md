@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/secure
   created: "2026-07-04"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Secure a Repository
@@ -33,7 +33,7 @@ Every offline scan lives in `mise run check` so hooks and CI share it: `check:le
 ## Report
 
 - List findings by severity with the fix applied or the justified ignore (`.trivyignore`, `.gitleaks.toml`, `.semgrepignore` or `nosemgrep`, `.github/zizmor.yml`), each with a reason.
-- State what each proof covers: a green local gate proves the checkout and recent history; only the scheduled workflow proves full history, and only a verified signature proves the shipped image.
+- State what each proof covers: identify the scanned tree, revision range, and scanners; a completed manual or scheduled full-history scan proves that scope. A verified signature binds a digest to the expected identity and issuer; it does not establish deployment or absence of vulnerabilities.
 - Never describe a suppressed finding as fixed.
 
 ## Documentation

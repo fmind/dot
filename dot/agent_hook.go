@@ -76,22 +76,12 @@ func NewAgentHookCmd(state *GlobalState) *cli.Command {
 }
 
 func RunAgentHookSession(ctx context.Context, state *GlobalState, agent, sessionID, cwd string) error {
+	definition, ok := agentDefinitionNamed(agent)
 	var err error
-	switch agent {
-	case sessionStoreAgy:
-		err = RunAgentSessionLogAgy(ctx, state, sessionID, cwd)
-	case sessionStoreClaude:
-		err = RunAgentSessionLogClaude(ctx, state, sessionID, cwd)
-	case sessionStoreCodex:
-		err = RunAgentSessionLogCodex(ctx, state, sessionID, cwd)
-	case sessionStoreGrok:
-		err = RunAgentSessionLogGrok(ctx, state, sessionID, cwd)
-	case sessionStoreOpenCode:
-		err = RunAgentSessionLogOpencode(ctx, state, sessionID, cwd)
-	case sessionStoreCopilot:
-		err = RunAgentSessionLogCopilot(ctx, state, sessionID, cwd)
-	default:
+	if !ok {
 		err = fmt.Errorf("unknown session hook agent %q", agent)
+	} else {
+		err = definition.Session.Log(ctx, state, sessionID, cwd)
 	}
 	return spoolHookFailure(state.Config.Agent, agent, "session", sessionID, err)
 }

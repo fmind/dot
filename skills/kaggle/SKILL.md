@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Kaggle CLI
@@ -42,7 +42,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
 
 ## Official Skills
 
-Upstream: `Kaggle/kaggle-cli` (command guide) and `Kaggle/kaggle-skills` (competition formats). List the current releases, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `Kaggle/kaggle-cli` (command guide) and `Kaggle/kaggle-skills` (competition formats). List the current releases, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add Kaggle/kaggle-cli --list

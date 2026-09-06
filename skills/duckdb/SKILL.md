@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # DuckDB and SQLite
@@ -45,7 +45,7 @@ The interactive shells load `~/.duckdbrc` and `~/.sqliterc` (box mode, headers, 
 
 ## Official Skills
 
-Upstream: `duckdb/duckdb-skills` (one skill per task: querying, file formats, attaching databases, spatial, S3, docs lookup). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `duckdb/duckdb-skills` (one skill per task: querying, file formats, attaching databases, spatial, S3, docs lookup). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add duckdb/duckdb-skills --list

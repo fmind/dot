@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # GitHub Issues
@@ -41,11 +41,12 @@ Read and mutate GitHub issues with `gh` from verified remote state; [project-bac
 
 ## Official Skills
 
-Upstream: `cli/cli`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `cli/cli`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
-gh skill preview cli/cli gh
-gh skill install cli/cli gh
+gh skill search github --owner cli --json repo,skillName,description
+gh skill preview cli/cli <name>
+gh skill install cli/cli <name>
 ```
 
 ## Documentation

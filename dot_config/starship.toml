@@ -44,7 +44,3 @@ format = 'on [☸  $context (\($namespace\))](bold blue) '
 [[kubernetes.contexts]]
 context_pattern = "gke_.*_prod-.*"
 context_alias = "prod-gke"
-
-[[kubernetes.contexts]]
-context_pattern = "k3d-.*"
-context_alias = "local"

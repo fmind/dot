@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-ads
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Google Ads
@@ -21,7 +21,7 @@ Google's advertising developer surface has four families: the Google Ads API (ca
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/ads` group; pick by family: API quickstart or diagnostics, Data Manager ingestion, mobile SDK formats and migration, IMA client-side or DAI). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `google/skills` (`skills/ads` group; pick by family: API quickstart or diagnostics, Data Manager ingestion, mobile SDK formats and migration, IMA client-side or DAI). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add https://github.com/google/skills/tree/main/skills/ads --list

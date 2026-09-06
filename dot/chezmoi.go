@@ -317,6 +317,7 @@ func defaultChezmoiCleanConfig() ChezmoiCleanConfig {
 			// ~/.claude, ~/.codex, ~/.gemini and ~/.copilot undetectable.
 			"skills",
 			"dot",
+			"scripts",
 		},
 		IgnoredFiles: []string{
 			"README.md",
@@ -331,7 +332,6 @@ func defaultChezmoiCleanConfig() ChezmoiCleanConfig {
 			"mise.toml",
 			"install.sh",
 			"skill-lock.json",
-			"verify-lazy-lock.sh",
 		},
 	}
 }

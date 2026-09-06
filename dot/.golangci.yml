@@ -4,6 +4,7 @@ run:
   tests: true
   timeout: 5m
   concurrency: 0
+  allow-serial-runners: true
   issues-exit-code: 1
   enable-build-vcs: false
   relative-path-mode: cfg

@@ -47,10 +47,6 @@ pre-commit:
     check:
       priority: 30
       run: mise run check
-post-commit:
-  commands:
-    deploy:
-      run: mise run deploy
 pre-push:
   commands:
     test:

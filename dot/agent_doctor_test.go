@@ -71,7 +71,12 @@ func setupHealthyAgentDoctor(t *testing.T) (*GlobalState, *strings.Builder, stri
 
 	runner := &FakeRunner{
 		LookPathFunc: func(name string) (string, error) { return "/bin/" + name, nil },
-		RunFunc:      func(context.Context, string, io.Reader, string, ...string) (string, error) { return "ok", nil },
+		RunFunc: func(_ context.Context, _ string, _ io.Reader, name string, _ ...string) (string, error) {
+			if name == "sqlite3" {
+				return `[{"at":null}]`, nil // MAX() over an empty session table.
+			}
+			return "ok", nil
+		},
 	}
 	output := &strings.Builder{}
 	state := newTestState(runner)
@@ -103,6 +108,15 @@ func TestAgentDoctorHealthyReadOnlyReport(t *testing.T) {
 	}
 	if strings.Contains(report, "Persona") || strings.Contains(report, "transcript") {
 		t.Fatalf("doctor exposed file content: %s", report)
+	}
+}
+
+func TestAgentDoctorRejectsUnarchivedSource(t *testing.T) {
+	state, _, home := setupHealthyAgentDoctor(t)
+	writeDoctorFile(t, filepath.Join(home, ".claude", "projects", "new-session.jsonl"), "{}\n")
+	result := doctorResultFor(t, gatherAgentDoctor(context.Background(), state, home, time.Now()), sessionStoreClaude)
+	if result.Healthy || result.LastIngestion != "none" {
+		t.Fatalf("a source with no archived ingestion must not be healthy: %+v", result)
 	}
 }
 
@@ -142,6 +156,28 @@ func TestAgentDoctorSanitizedFailureFixtures(t *testing.T) {
 		if result.Healthy || !strings.Contains(result.Tools, "codex:missing") {
 			t.Fatalf("unexpected missing-tool result: %+v", result)
 		}
+	})
+
+	t.Run("truncated source scan", func(t *testing.T) {
+		state, output, home := setupHealthyAgentDoctor(t)
+		state.Config.Agent.Doctor.ScanLimit = 1
+		writeDoctorFile(t, filepath.Join(home, ".claude", "projects", "second.jsonl"), "{}\n")
+		result := doctorResultFor(t, gatherAgentDoctor(context.Background(), state, home, time.Now()), sessionStoreClaude)
+		if !result.Truncated || result.Healthy {
+			t.Fatalf("truncated scan must report partial health: %+v", result)
+		}
+		if err := RunAgentDoctor(context.Background(), state, AgentDoctorOptions{}); err == nil {
+			t.Fatal("truncated scan must fail the doctor command")
+		}
+		for line := range strings.SplitSeq(output.String(), "\n") {
+			if strings.Contains(line, " "+sessionStoreClaude+":") {
+				if !strings.Contains(line, "truncated=true") || strings.Contains(line, "omitted=") {
+					t.Fatalf("truncation output is ambiguous: %q", line)
+				}
+				return
+			}
+		}
+		t.Fatalf("missing Claude doctor output: %s", output.String())
 	})
 
 	t.Run("partial lineage", func(t *testing.T) {

@@ -52,7 +52,7 @@ func TestReleaseWorkflowGateRejectsWrongSHAAndFailedCI(t *testing.T) {
 
 func runReleaseGate(t *testing.T, repo, bin, sha, fixture string, wantSuccess bool) {
 	t.Helper()
-	command := exec.Command(readRepoPath(t, "dot/scripts/release-exact-sha.sh"))
+	command := exec.Command(readRepoPath(t, "scripts/release-exact-sha.sh"))
 	command.Dir = repo
 	command.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), "GITHUB_SHA="+sha, "GITHUB_REF_NAME=v1.0.0", "GH_FIXTURE="+fixture, "RELEASE_GATE_ATTEMPTS=1", "RELEASE_GATE_INTERVAL_SECONDS=0")
 	err := command.Run()

@@ -21,8 +21,8 @@ func TestRunConfigShow(t *testing.T) {
 		t.Fatalf("RunConfigShow: %v", err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "cluster:") || !strings.Contains(out, "name: local") {
-		t.Errorf("expected YAML with cluster config, got %q", out)
+	if !strings.Contains(out, "pull:") || !strings.Contains(out, "directories:") {
+		t.Errorf("expected YAML with pull config, got %q", out)
 	}
 }
 
@@ -44,8 +44,8 @@ func TestRunConfigInitAndValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("scaffolded config failed to load: %v", err)
 	}
-	if cfg.Cluster.Name != "local" {
-		t.Errorf("expected round-tripped cluster name 'local', got %q", cfg.Cluster.Name)
+	if len(cfg.Pull.Directories) == 0 {
+		t.Error("expected round-tripped pull directories")
 	}
 
 	// Refuse to overwrite without --force, allow it with --force.
@@ -82,8 +82,8 @@ func TestRunConfigValidate_Missing(t *testing.T) {
 
 func TestRunConfigValidate_Invalid(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "dot.yaml")
-	// 'naem' is an unknown key: strict decoding must reject it.
-	if err := os.WriteFile(path, []byte("cluster:\n  naem: typo\n"), 0o600); err != nil {
+	// 'directoories' is an unknown key: strict decoding must reject it.
+	if err := os.WriteFile(path, []byte("pull:\n  directoories: []\n"), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	state := newTestState(&FakeRunner{})
@@ -129,7 +129,7 @@ func TestConfigEdit_ScaffoldsAndOpensEditor(t *testing.T) {
 
 func TestConfigEdit_WhitespaceEditorFallsBackToVi(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "dot.yaml")
-	if err := os.WriteFile(path, []byte("cluster:\n  name: local\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("pull:\n  directories: []\n"), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	var editorCall []string
@@ -171,7 +171,7 @@ func TestAppConfigFatality(t *testing.T) {
 	ctx := context.Background()
 	// An unknown key fails strict decoding: a parse error (not a missing file).
 	malformed := filepath.Join(t.TempDir(), "dot.yaml")
-	if err := os.WriteFile(malformed, []byte("cluster:\n  naem: typo\n"), 0o600); err != nil {
+	if err := os.WriteFile(malformed, []byte("pull:\n  directoories: []\n"), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 

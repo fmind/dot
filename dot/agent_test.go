@@ -341,6 +341,8 @@ func TestRunAgentSessionLogClaude(t *testing.T) {
 	}
 }
 
+const grokTestSessionID = "01a0003d-822f-7032-a5cb-e9badb3abbbd"
+
 // grokUpdateLines is one Grok session: a prompt, reasoning that must not be
 // archived, an answer streamed as two chunks, and the turn-completion event.
 var grokUpdateLines = []string{
@@ -353,9 +355,9 @@ var grokUpdateLines = []string{
 
 // writeGrokSession lays out one session the way Grok does: a percent-encoded working
 // directory, then the session ID, then the update stream.
-func writeGrokSession(t *testing.T, home, cwd, sessionID string) {
+func writeGrokSession(t *testing.T, home, cwd string) {
 	t.Helper()
-	sessionDir := filepath.Join(home, ".grok", "sessions", grokSessionDirectory(cwd), sessionID)
+	sessionDir := filepath.Join(home, ".grok", "sessions", grokSessionDirectory(cwd), grokTestSessionID)
 	if err := os.MkdirAll(sessionDir, 0o700); err != nil {
 		t.Fatalf("failed to create grok session dir: %v", err)
 	}
@@ -398,9 +400,9 @@ func TestRunAgentSessionLogGrok(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	sessionID := "01a0003d-822f-7032-a5cb-e9badb3abbbd"
+	sessionID := grokTestSessionID
 	cwd := "/workspace/test"
-	writeGrokSession(t, home, cwd, sessionID)
+	writeGrokSession(t, home, cwd)
 
 	if err := RunAgentSessionLogGrok(context.Background(), newTestState(&FakeRunner{}), sessionID, cwd); err != nil {
 		t.Fatalf("RunAgentSessionLogGrok failed: %v", err)
@@ -428,13 +430,37 @@ func TestRunAgentSessionLogGrok(t *testing.T) {
 	}
 }
 
+func TestRunAgentSessionSyncGrok(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	sessionID := grokTestSessionID
+	cwd := "/workspace/sync"
+	writeGrokSession(t, home, cwd)
+
+	state := newTestState(&FakeRunner{})
+	var stderr strings.Builder
+	state.Stderr = &stderr
+	if err := RunAgentSessionSync(context.Background(), state); err != nil {
+		t.Fatalf("RunAgentSessionSync failed: %v", err)
+	}
+
+	logs := readAgentSessionLogs(t, home, sessionStoreGrok)[sessionID]
+	if len(logs) != 2 || logs[0].CWD != cwd {
+		t.Fatalf("Grok registry sync did not normalize the session: %+v", logs)
+	}
+	if !strings.Contains(stderr.String(), "grok: 1 checked") {
+		t.Fatalf("Grok registry sync omitted its summary: %q", stderr.String())
+	}
+}
+
 func TestRunAgentSessionLogGrokRecoversCWDFromStoreLayout(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	sessionID := "01a0003d-822f-7032-a5cb-e9badb3abbbd"
+	sessionID := grokTestSessionID
 	cwd := "/workspace/test"
-	writeGrokSession(t, home, cwd, sessionID)
+	writeGrokSession(t, home, cwd)
 
 	// `dot agent session sync` has no hook payload, so the working directory has to
 	// come back out of the percent-encoded directory name.
@@ -452,8 +478,8 @@ func TestRunAgentSessionLogGrokFindsRelocatedSession(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	sessionID := "01a0003d-822f-7032-a5cb-e9badb3abbbd"
-	writeGrokSession(t, home, "/workspace/elsewhere", sessionID)
+	sessionID := grokTestSessionID
+	writeGrokSession(t, home, "/workspace/elsewhere")
 
 	// A session resumed from another directory is not under the CWD-derived path, so
 	// ingestion must fall back to scanning the store.
@@ -468,10 +494,10 @@ func TestRunAgentSessionLogGrokFindsRelocatedSession(t *testing.T) {
 
 func TestRawSessionIdentityGrokNamesTheDirectory(t *testing.T) {
 	root := filepath.Join("/store", "grok")
-	sessionDir := filepath.Join(root, "%2Fworkspace", "01a0003d-822f-7032-a5cb-e9badb3abbbd")
+	sessionDir := filepath.Join(root, "%2Fworkspace", grokTestSessionID)
 
 	sessionID, recognized := rawSessionIdentity(root, filepath.Join(sessionDir, grokTranscriptName), sessionStoreGrok)
-	if !recognized || sessionID != "01a0003d-822f-7032-a5cb-e9badb3abbbd" {
+	if !recognized || sessionID != grokTestSessionID {
 		t.Errorf("update stream not recognized: %q %v", sessionID, recognized)
 	}
 	// Retention must not treat the sibling streams as transcripts of their own.

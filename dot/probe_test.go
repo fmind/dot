@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -33,13 +32,6 @@ func TestCapabilityProbeRegistryContract(t *testing.T) {
 	delete(registry, "git")
 	if _, ok := CapabilityProbeRegistry()["git"]; !ok {
 		t.Error("registry callers must receive a defensive copy")
-	}
-}
-
-func TestHelmCapabilityProbeSupportsCurrentClientOnlyCLI(t *testing.T) {
-	probe := CapabilityProbeRegistry()["helm"]
-	if !slices.Equal(probe.Args, []string{"version", "--short"}) {
-		t.Fatalf("helm probe args = %v, want version --short", probe.Args)
 	}
 }
 

@@ -15,413 +15,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func TestClusterCommands(t *testing.T) {
-	t.Run("start existing cluster", func(t *testing.T) {
-		var startCalled, mergeCalled, waitCalled int32
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				return "/bin/" + name, nil
-			},
-			RunFunc: func(ctx context.Context, dir string, stdin io.Reader, name string, args ...string) (string, error) {
-				switch name {
-				case "docker":
-					if args[0] == "info" {
-						return "docker ok", nil
-					}
-				case "k3d":
-					if args[0] == "cluster" && args[1] == "list" {
-						return "local", nil // cluster exists
-					}
-					if args[0] == "cluster" && args[1] == "start" {
-						atomic.AddInt32(&startCalled, 1)
-						return "started", nil
-					}
-					if args[0] == "kubeconfig" && args[1] == "merge" {
-						atomic.AddInt32(&mergeCalled, 1)
-						return "merged", nil
-					}
-				}
-				return "", fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-			RunInteractiveFunc: func(ctx context.Context, dir, name string, args ...string) error {
-				if name == "kubectl" && args[1] == "wait" {
-					atomic.AddInt32(&waitCalled, 1)
-					return nil
-				}
-				return fmt.Errorf("unexpected interactive command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "start"})
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		if atomic.LoadInt32(&startCalled) != 1 {
-			t.Error("Expected k3d cluster start to be called once")
-		}
-		if atomic.LoadInt32(&mergeCalled) != 0 {
-			t.Error("Expected the default kubeconfig never to be merged")
-		}
-		if atomic.LoadInt32(&waitCalled) != 1 {
-			t.Error("Expected kubectl wait to be called once")
-		}
-	})
-
-	t.Run("stop cluster", func(t *testing.T) {
-		var stopCalled atomic.Int32
-		runner := &FakeRunner{
-			RunInteractiveFunc: func(ctx context.Context, dir, name string, args ...string) error {
-				if name == "k3d" && args[0] == "cluster" && args[1] == "stop" {
-					stopCalled.Add(1)
-					return nil
-				}
-				return fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "stop"})
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-		if stopCalled.Load() != 1 {
-			t.Error("Expected k3d cluster stop to be called")
-		}
-	})
-
-	t.Run("stop cluster missing k3d", func(t *testing.T) {
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				return "", errors.New("k3d not found")
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "stop"})
-		if err == nil {
-			t.Error("Expected error because k3d is not installed")
-		}
-	})
-
-	t.Run("start non-existing cluster config not found", func(t *testing.T) {
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				return "/bin/" + name, nil
-			},
-			RunFunc: func(ctx context.Context, dir string, stdin io.Reader, name string, args ...string) (string, error) {
-				if name == "docker" && args[0] == "info" {
-					return "ok", nil
-				}
-				if name == "k3d" && args[0] == "cluster" && args[1] == "list" {
-					return "", nil // cluster does not exist
-				}
-				return "", fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		state.Config.Cluster.ConfigPath = "/tmp/non-existent-config-file-path.yaml"
-
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "start"})
-		if err == nil {
-			t.Fatal("Expected error because cluster config file does not exist")
-		}
-		if !strings.Contains(err.Error(), "config file not found") {
-			t.Errorf("Expected 'config file not found' error, got: %v", err)
-		}
-	})
-
-	t.Run("start non-existing cluster success", func(t *testing.T) {
-		tempFile, err := os.CreateTemp("", "k3d-config-*.yaml")
-		if err != nil {
-			t.Fatalf("Failed to create temp config: %v", err)
-		}
-		defer func() { _ = os.Remove(tempFile.Name()) }()
-		if _, writeErr := tempFile.WriteString("name: from-file\n"); writeErr != nil {
-			t.Fatalf("Failed to write temp config: %v", writeErr)
-		}
-		_ = tempFile.Close()
-
-		var createCalled, mergeCalled, waitCalled int32
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				return "/bin/" + name, nil
-			},
-			RunFunc: func(ctx context.Context, dir string, stdin io.Reader, name string, args ...string) (string, error) {
-				if name == "docker" && args[0] == "info" {
-					return "ok", nil
-				}
-				if name == "k3d" && args[0] == "cluster" && args[1] == "list" {
-					return "", nil // cluster does not exist
-				}
-				if name == "k3d" && args[0] == "kubeconfig" && args[1] == "merge" {
-					atomic.AddInt32(&mergeCalled, 1)
-					return "merged", nil
-				}
-				return "", fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-			RunInteractiveFunc: func(ctx context.Context, dir, name string, args ...string) error {
-				if name == "k3d" && len(args) == 7 && args[0] == "cluster" && args[1] == "create" &&
-					args[2] == "configured-name" && args[3] == "--config" && args[4] == tempFile.Name() &&
-					slices.Contains(args, "--kubeconfig-update-default=false") && slices.Contains(args, "--kubeconfig-switch-context=false") {
-					atomic.AddInt32(&createCalled, 1)
-					return nil
-				}
-				if name == "kubectl" && args[1] == "wait" {
-					atomic.AddInt32(&waitCalled, 1)
-					return nil
-				}
-				return fmt.Errorf("unexpected interactive command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		state.Config.Cluster.Name = "configured-name"
-		state.Config.Cluster.ConfigPath = tempFile.Name()
-		configureClusterTestTarget(t, state, runner)
-
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err = app.Run(context.Background(), []string{"dot", "cluster", "start"})
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		if atomic.LoadInt32(&createCalled) != 1 {
-			t.Error("Expected k3d cluster create to be called once")
-		}
-		if atomic.LoadInt32(&mergeCalled) != 0 {
-			t.Error("Expected the default kubeconfig never to be merged")
-		}
-		if atomic.LoadInt32(&waitCalled) != 1 {
-			t.Error("Expected kubectl wait to be called once")
-		}
-	})
-
-	t.Run("delete cluster", func(t *testing.T) {
-		var deleteCalled atomic.Int32
-		runner := &FakeRunner{
-			RunInteractiveFunc: func(ctx context.Context, dir, name string, args ...string) error {
-				if name == "k3d" && args[0] == "cluster" && args[1] == "delete" {
-					deleteCalled.Add(1)
-					return nil
-				}
-				return fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "delete", "--yes"})
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-		if deleteCalled.Load() != 1 {
-			t.Error("Expected k3d cluster delete to be called")
-		}
-	})
-
-	t.Run("delete cluster declined at prompt does not delete", func(t *testing.T) {
-		var deleteCalled atomic.Int32
-		runner := &FakeRunner{
-			RunInteractiveFunc: func(ctx context.Context, dir, name string, args ...string) error {
-				if name == "k3d" && args[0] == "cluster" && args[1] == "delete" {
-					deleteCalled.Add(1)
-				}
-				return nil
-			},
-		}
-		state := newTestState(runner)
-		state.Stdin = strings.NewReader("n\n")
-		var out strings.Builder
-		state.Stdout = &out
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-		// Without --yes, answering 'n' must abort teardown of the SHARED local cluster
-		// entirely. This guards the confirmation prompt so it cannot silently regress.
-		err := app.Run(context.Background(), []string{"dot", "cluster", "delete"})
-		if err != nil {
-			t.Fatalf("Expected no error when declining, got %v", err)
-		}
-		if deleteCalled.Load() != 0 {
-			t.Error("Expected k3d cluster delete NOT to be called when the confirmation is declined")
-		}
-		if !strings.Contains(out.String(), "Canceled") {
-			t.Errorf("Expected 'Canceled.' in output, got %q", out.String())
-		}
-	})
-
-	t.Run("delete cluster missing k3d", func(t *testing.T) {
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				return "", errors.New("k3d not found")
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "delete"})
-		if err == nil {
-			t.Error("Expected error because k3d is not installed")
-		}
-	})
-
-	t.Run("status cluster", func(t *testing.T) {
-		var listCalled, getCalled int32
-		runner := &FakeRunner{
-			RunInteractiveFunc: func(ctx context.Context, dir, name string, args ...string) error {
-				if name == "k3d" && args[0] == "cluster" && args[1] == "list" {
-					atomic.AddInt32(&listCalled, 1)
-					return nil
-				}
-				if name == "kubectl" && args[0] == "get" && args[1] == "nodes" {
-					atomic.AddInt32(&getCalled, 1)
-					return nil
-				}
-				return fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "status"})
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-		if atomic.LoadInt32(&listCalled) != 1 {
-			t.Error("Expected k3d cluster list to be called")
-		}
-		if atomic.LoadInt32(&getCalled) != 1 {
-			t.Error("Expected kubectl get nodes to be called")
-		}
-	})
-
-	t.Run("status cluster missing kubectl", func(t *testing.T) {
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				if name == "kubectl" {
-					return "", errors.New("kubectl not found")
-				}
-				return "/bin/" + name, nil
-			},
-		}
-
-		state := newTestState(runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "status"})
-		if err == nil {
-			t.Error("Expected error because kubectl is not installed")
-		}
-	})
-
-	t.Run("namespace cluster create new and set context", func(t *testing.T) {
-		var getCalled, createCalled, setCalled int32
-		runner := &FakeRunner{
-			LookPathFunc: func(name string) (string, error) {
-				return "/bin/" + name, nil
-			},
-			RunFunc: func(ctx context.Context, dir string, stdin io.Reader, name string, args ...string) (string, error) {
-				if name == "kubectl" {
-					if args[0] == "get" && args[1] == "namespace" && args[2] == "test-ns" {
-						atomic.AddInt32(&getCalled, 1)
-						return "", nil // --ignore-not-found: empty output, no error = absent
-					}
-					if args[0] == "create" && args[1] == "namespace" && args[2] == "test-ns" {
-						atomic.AddInt32(&createCalled, 1)
-						return "created", nil
-					}
-					if args[0] == "config" && args[1] == "set-context" && args[4] == "test-ns" {
-						atomic.AddInt32(&setCalled, 1)
-						return "context set", nil
-					}
-				}
-				return "", fmt.Errorf("unexpected command: %s %v", name, args)
-			},
-		}
-
-		state := newTestState(runner)
-		configureClusterTestTarget(t, state, runner)
-		app := &cli.Command{
-			Commands: []*cli.Command{
-				NewClusterCmd(state),
-			},
-		}
-
-		err := app.Run(context.Background(), []string{"dot", "cluster", "namespace", "test-ns"})
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-		if atomic.LoadInt32(&getCalled) != 1 {
-			t.Error("Expected kubectl get namespace to be called")
-		}
-		if atomic.LoadInt32(&createCalled) != 1 {
-			t.Error("Expected kubectl create namespace to be called")
-		}
-		if atomic.LoadInt32(&setCalled) != 1 {
-			t.Error("Expected kubectl config set-context to be called")
-		}
-	})
-}
-
 func TestAgentSessionCommandDispatch(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	state := newTestState(&FakeRunner{})
@@ -435,7 +28,7 @@ func TestAgentSessionCommandDispatch(t *testing.T) {
 		t.Fatal("expected invalid retention to fail")
 	}
 
-	for _, source := range []string{"agy", "claude", "codex", "opencode", "copilot"} {
+	for _, source := range []string{"agy", "claude", "codex", "grok", "opencode", "copilot"} {
 		t.Run(source, func(t *testing.T) {
 			err := app.Run(context.Background(), []string{"dot", "agent", "session", source})
 			if err == nil {
@@ -1249,7 +842,7 @@ func TestStatusCommand(t *testing.T) {
 	repo1 := filepath.Join(tempDir, "repo1")
 	_ = os.MkdirAll(filepath.Join(repo1, ".git"), 0o755)
 
-	var dockerCalled, k3dCalled, gitBranchCalled, gitStatusCalled int32
+	var dockerCalled, gitBranchCalled, gitStatusCalled int32
 	runner := &FakeRunner{
 		LookPathFunc: func(name string) (string, error) {
 			return "/bin/" + name, nil
@@ -1258,10 +851,6 @@ func TestStatusCommand(t *testing.T) {
 			if name == "docker" && args[0] == "info" {
 				atomic.AddInt32(&dockerCalled, 1)
 				return "my-docker-daemon", nil
-			}
-			if name == "k3d" && args[0] == "cluster" && args[1] == "list" {
-				atomic.AddInt32(&k3dCalled, 1)
-				return "local   1/1   1/1   true", nil
 			}
 			if name == "git" {
 				if args[0] == "branch" && args[1] == "--show-current" && dir == repo1 {
@@ -1295,9 +884,6 @@ func TestStatusCommand(t *testing.T) {
 
 	if atomic.LoadInt32(&dockerCalled) != 1 {
 		t.Error("Expected docker info to be called")
-	}
-	if atomic.LoadInt32(&k3dCalled) != 1 {
-		t.Error("Expected k3d cluster list to be called")
 	}
 	if atomic.LoadInt32(&gitBranchCalled) != 1 {
 		t.Error("Expected git branch to be called")
@@ -1336,9 +922,6 @@ func TestGatherStatus(t *testing.T) {
 			if name == "docker" && args[0] == "info" {
 				return "my-docker-daemon (Containers: 2, Running: 1)", nil
 			}
-			if name == "k3d" && args[0] == "cluster" && args[1] == "list" {
-				return "local   1/1   1/1   true", nil
-			}
 			if name == "git" {
 				if args[0] == "branch" && args[1] == "--show-current" && dir == repo1 {
 					return "feature-branch\n", nil
@@ -1361,10 +944,6 @@ func TestGatherStatus(t *testing.T) {
 
 	if !status.Docker.Installed || !status.Docker.Running || status.Docker.Details != "my-docker-daemon (Containers: 2, Running: 1)" {
 		t.Errorf("Unexpected docker status: %+v", status.Docker)
-	}
-
-	if !status.K3d.Installed || !status.K3d.Running || status.K3d.Details != "local   1/1   1/1   true" {
-		t.Errorf("Unexpected k3d status: %+v", status.K3d)
 	}
 
 	if len(status.Repositories) != 1 {

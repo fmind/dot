@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Observability
@@ -35,7 +35,7 @@ One telemetry stack for services and agents: JSON logs on stdout, OpenTelemetry 
 
 ## Official Skills
 
-Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, `grafana/skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [agent-skills](../agent-skills/SKILL.md)):
+Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, `grafana/skills`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
 
 ```bash
 skills add langfuse/skills --list          # likewise mlflow/skills, pydantic/skills, grafana/skills

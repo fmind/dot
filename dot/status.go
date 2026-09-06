@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,19 +15,11 @@ import (
 // SystemStatus represents the overall status of external services and git repositories.
 type SystemStatus struct {
 	Docker       DockerStatus `json:"docker"`
-	K3d          K3dStatus    `json:"k3d"`
 	Repositories []RepoStatus `json:"repositories"`
 }
 
 // DockerStatus represents the status of the local Docker daemon.
 type DockerStatus struct {
-	Details   string `json:"details,omitzero"`
-	Installed bool   `json:"installed"`
-	Running   bool   `json:"running"`
-}
-
-// K3dStatus represents the status of the local k3d cluster.
-type K3dStatus struct {
 	Details   string `json:"details,omitzero"`
 	Installed bool   `json:"installed"`
 	Running   bool   `json:"running"`
@@ -49,7 +40,7 @@ func NewStatusCmd(state *GlobalState) *cli.Command {
 	return &cli.Command{
 		Name:    "status",
 		Aliases: []string{"s"},
-		Usage:   "Show a unified summary of git repositories, docker, and k3d cluster status",
+		Usage:   "Show a unified summary of git repositories and Docker status",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    "json",
@@ -63,7 +54,7 @@ func NewStatusCmd(state *GlobalState) *cli.Command {
 	}
 }
 
-// RunStatus outputs telemetry regarding Docker, Kubernetes, and git repositories.
+// RunStatus outputs telemetry regarding Docker and git repositories.
 func RunStatus(ctx context.Context, state *GlobalState, isJSON bool) error {
 	if err := checkGit(state); err != nil {
 		return err
@@ -84,7 +75,7 @@ func RunStatus(ctx context.Context, state *GlobalState, isJSON bool) error {
 	return nil
 }
 
-// GatherStatus queries telemetry regarding Docker, Kubernetes, and git repositories concurrently.
+// GatherStatus queries telemetry regarding Docker and git repositories concurrently.
 func GatherStatus(ctx context.Context, state *GlobalState) (*SystemStatus, error) {
 	g, groupCtx := errgroup.WithContext(ctx)
 	g.SetLimit(8)
@@ -92,12 +83,6 @@ func GatherStatus(ctx context.Context, state *GlobalState) (*SystemStatus, error
 	var dockerStatus DockerStatus
 	g.Go(func() error {
 		dockerStatus = gatherDockerStatus(groupCtx, state)
-		return nil
-	})
-
-	var k3dStatus K3dStatus
-	g.Go(func() error {
-		k3dStatus = gatherK3dStatus(groupCtx, state)
 		return nil
 	})
 
@@ -118,7 +103,6 @@ func GatherStatus(ctx context.Context, state *GlobalState) (*SystemStatus, error
 
 	return &SystemStatus{
 		Docker:       dockerStatus,
-		K3d:          k3dStatus,
 		Repositories: repoStatuses,
 	}, nil
 }
@@ -155,58 +139,6 @@ func gatherDockerStatus(ctx context.Context, state *GlobalState) DockerStatus {
 	}
 	status.Running = true
 	status.Details = info
-	return status
-}
-
-func gatherK3dStatus(ctx context.Context, state *GlobalState) K3dStatus {
-	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
-	defer cancel()
-
-	var status K3dStatus
-	clusterName := state.Config.Cluster.Name
-	if _, err := state.Runner.LookPath("k3d"); err != nil {
-		status.Details = "command not found"
-		return status
-	}
-	status.Installed = true
-
-	// --no-headers so every row is a cluster entry ("<name> <servers> <agents> <lb>",
-	// e.g. "local 1/1 1/1 true"). A cluster that exists but is stopped still lists, with
-	// SERVERS "0/1" — so a running/total count is the only reliable "is it up?" signal;
-	// merely matching the name would report a stopped cluster as running.
-	list, err := state.Runner.Run(ctx, "", nil, "k3d", "cluster", "list", clusterName, "--no-headers")
-	if err != nil {
-		if ctx.Err() != nil {
-			status.Details = "inspection timed out"
-		} else {
-			status.Details = "inspection command failed"
-		}
-		return status
-	}
-	trimmed := strings.TrimSpace(list)
-	if trimmed == "" {
-		return status
-	}
-	for line := range strings.SplitSeq(trimmed, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 || fields[0] != clusterName {
-			continue
-		}
-		status.Details = strings.TrimSpace(line)
-		running, total, found := strings.Cut(fields[1], "/")
-		n, convErr := strconv.Atoi(running)
-		if !found || total == "" || convErr != nil {
-			status.Details = "inspection returned malformed output"
-			return status
-		}
-		if n > 0 {
-			status.Running = true
-		}
-		break
-	}
-	if status.Details == "" {
-		status.Details = "inspection returned malformed output"
-	}
 	return status
 }
 
@@ -263,24 +195,7 @@ func RenderStatus(status *SystemStatus, state *GlobalState) {
 		}
 	}
 
-	// 2. Kubernetes / k3d Status
-	clusterName := state.Config.Cluster.Name
-	_, _ = fmt.Fprintln(state.Stdout)
-	section(state.Stdout, "Kubernetes Cluster (k3d)")
-	switch {
-	case !status.K3d.Installed:
-		_, _ = fmt.Fprintf(state.Stdout, "  %s k3d not installed.\n", failIcon)
-	case status.K3d.Running:
-		_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s': %s\n", passIcon, clusterName, status.K3d.Details)
-	default:
-		if status.K3d.Details == "" {
-			_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s' does not exist or is stopped.\n", failIcon, clusterName)
-		} else {
-			_, _ = fmt.Fprintf(state.Stdout, "  %s Cluster '%s' unavailable: %s.\n", failIcon, clusterName, status.K3d.Details)
-		}
-	}
-
-	// 3. Git Workspaces Status
+	// 2. Git Workspaces Status
 	_, _ = fmt.Fprintln(state.Stdout)
 	section(state.Stdout, "Git Repositories")
 	if len(status.Repositories) == 0 {

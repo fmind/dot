@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # GitHub Actions
@@ -26,7 +26,7 @@ CI runs the canonical [mise](../mise/SKILL.md) `all` task so it never drifts fro
    run = ["actionlint", "zizmor --offline .github/workflows/"]
    ```
 
-1. **Verify locally**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in a temporary `git worktree` or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Verify locally**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
 
 ## Principles
 

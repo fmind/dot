@@ -1,0 +1,150 @@
+# chezmoi:modify-template
+{{- $managedConfig := fromJson `
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "advisorModel": "opus",
+  "agentPushNotifEnabled": true,
+  "alwaysThinkingEnabled": true,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "autoCompactEnabled": true,
+  "autoDreamEnabled": true,
+  "autoMemoryEnabled": true,
+  "autoUpdatesChannel": "stable",
+  "editorMode": "vim",
+  "effortLevel": "xhigh",
+  "enableAllProjectMcpServers": true,
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "BASH_MAX_TIMEOUT_MS": "1800000",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "TASK_MAX_OUTPUT_LENGTH": "160000"
+  },
+  "fallbackModel": [
+    "sonnet"
+  ],
+  "feedbackSurveyRate": 0,
+  "fileCheckpointingEnabled": true,
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "command": "dot agent hook notify claude needs-input",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "dot agent hook session claude",
+            "timeout": 30,
+            "type": "command"
+          },
+          {
+            "command": "dot agent hook usage claude",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "dot agent hook session claude",
+            "timeout": 30,
+            "type": "command"
+          },
+          {
+            "command": "dot agent hook usage claude",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "dot agent hook session claude",
+            "timeout": 30,
+            "type": "command"
+          },
+          {
+            "command": "dot agent hook notify claude stop",
+            "timeout": 30,
+            "type": "command"
+          },
+          {
+            "command": "dot agent hook usage claude",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "command": "dot agent hook session claude",
+            "timeout": 30,
+            "type": "command"
+          },
+          {
+            "command": "dot agent hook usage claude",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ]
+  },
+  "inputNeededNotifEnabled": true,
+  "model": "opus[1m]",
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "precomputeCompactionEnabled": true,
+  "promptSuggestionEnabled": false,
+  "respectGitignore": false,
+  "showThinkingSummaries": true,
+  "skillListingBudgetFraction": 0.02,
+  "skillListingMaxDescChars": 3000,
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "spinnerTipsEnabled": false,
+  "statusLine": {
+    "type": "command",
+    "command": "jq -c '{recorded: now, model: .model.display_name, rate_limits}' | tee \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/usage.json\" | jq -r '\"\\(.model) | weekly tokens \\(.rate_limits.seven_day.used_percentage // \"?\")% used\"'"
+  },
+  "teammateDefaultModel": "sonnet",
+  "todoFeatureEnabled": true,
+  "tui": "fullscreen",
+  "useAutoModeDuringPlan": true,
+  "verbose": true,
+  "viewMode": "verbose",
+  "workflowKeywordTriggerEnabled": true,
+  "worktree": {
+    "baseRef": "head"
+  }
+}
+` -}}
+{{- $_ := set $managedConfig.permissions "additionalDirectories" (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

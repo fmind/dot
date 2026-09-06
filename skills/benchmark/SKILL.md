@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/benchmark
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Benchmark
@@ -20,7 +20,7 @@ hyperfine --warmup 3 --runs 10 'old-cmd' 'new-cmd'                       # A/B w
 hyperfine --warmup 3 --prepare 'go build ./...' 'go test ./...'          # reset state before each run
 hyperfine --parameter-list n 10,100,1000 'tool --items {n}'               # scaling curve
 hyperfine --export-markdown bench.md --export-json bench.json 'cmd'       # tables for the PR, raw data for later
-oha -z 30s -c 50 --latency-correction http://localhost:8080/health        # 30 s, 50 connections, coordinated-omission safe
+oha -z 30s -c 50 --latency-correction http://localhost:8080/health        # 30 s, 50 connections, record the load model and correction setting
 oha -n 2000 -c 20 -m POST -H 'Content-Type: application/json' -d '{"q":1}' http://localhost:8080/api
 oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080/   # scriptable output for CI or a report
 ```
@@ -30,12 +30,12 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 1. **Fix the question**: one command or endpoint, one metric (mean latency, p99, requests per second), one hypothesis.
 1. **Control the machine**: close heavy processes, run on AC power, and pin versions; record CPU, OS, and tool versions in the report.
 1. **Warm up and repeat**: at least 3 warmup runs and 10 measured runs for commands; at least 30 seconds for endpoints. Compare against a baseline measured the same way in the same session.
-1. **Read the variance**: a difference smaller than the standard deviation is noise; rerun with more iterations before claiming a win.
+1. **Quantify uncertainty**: compare repeated, equivalently controlled runs and report uncertainty in the difference; a run's standard deviation alone does not decide significance. Alternate baseline/candidate measurements when machine drift matters.
 1. **Report**: the command lines, the exported table, the relative change, and the conditions. Keep `bench.json` if the number will be tracked over time.
 
 ## Gotchas
 
-- **Never load-test a remote service you do not own** or a production system without explicit approval; `oha` at 50 connections is a denial-of-service from the target's point of view.
+- **Never load-test a remote service you do not own** or a production system without explicit approval; agree a load bound and stop condition appropriate to the target's capacity.
 - **Localhost numbers exclude the network**: `oha` against `localhost` measures the server, not the user experience.
 - **Shell startup pollutes short commands**: use `--shell=none` in hyperfine for sub-10 ms commands, or `-N`.
 - **Caches lie**: a second run of a build or query hits caches; use `--prepare` to clear them when the cold path is what matters.

@@ -181,6 +181,9 @@ func TestHookCommandsAreWiredAndResolvable(t *testing.T) {
 	commands := commandPaths(NewApp())
 	agents := agentNameSet()
 	for _, definition := range agentDefinitions() {
+		if definition.Session.Log == nil || definition.UsageHook == nil || definition.SyncSessions == nil || definition.Usage.enumerate == nil || definition.Usage.extract == nil {
+			t.Fatalf("agent %q has an incomplete session/usage adapter", definition.Agent)
+		}
 		for _, command := range definition.HookCommands {
 			wired := false
 			for _, content := range managed {
@@ -206,7 +209,7 @@ func TestHookCommandsAreWiredAndResolvable(t *testing.T) {
 func TestAgentDoctorFlagsHookCommandsTheInstalledBinaryCannotRun(t *testing.T) {
 	definition := agentDefinition{
 		Agent:        sessionStoreClaude,
-		HookPath:     "../dot_claude/settings.json.tmpl",
+		HookPath:     "../dot_claude/modify_settings.json",
 		HookCommands: []string{"dot agent hook session claude"},
 	}
 	if status, ok := checkAgentHooks(definition, func([]string) bool { return true }); !ok || status != "healthy" {

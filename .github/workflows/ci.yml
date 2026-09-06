@@ -34,7 +34,7 @@ jobs:
         with:
           cache: true
       - name: Trust repository
-        run: mise trust -y mise.toml && mise trust -y dot/mise.toml
+        run: mise trust -y mise.toml
       - name: Run canonical gate
         run: mise run all
       - name: Execute starter contracts

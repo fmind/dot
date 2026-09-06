@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Containerize an Application
@@ -19,14 +19,14 @@ Build a small, non-root, reproducible OCI image and verify it before it ships; [
 
    ```bash
    export KO_DOCKER_REPO=<registry>/<slug>
-   go tool ko build ./cmd/<slug> --bare --platform=linux/amd64,linux/arm64
+   mkdir -p tmp
+   go tool ko build ./cmd/<slug> --bare --push=false --tarball tmp/image.tar
    ```
 
 1. **Python: multi-stage Dockerfile**: copy [Dockerfile](references/Dockerfile) and [.dockerignore](references/.dockerignore), then set the image digests and the `<slug>` entry point. Other runtimes need their own lockfile-aware build stage.
 
    ```bash
    docker build -t <registry>/<slug>:<tag> .
-   docker buildx build --platform linux/amd64,linux/arm64 -t <registry>/<slug>:<tag> --push .
    ```
 
 1. **Wire the tasks** into `mise.toml`: `build:image` builds, `check:image` scans a local tarball so no registry push or digest is needed before the image ships.
@@ -36,8 +36,12 @@ Build a small, non-root, reproducible OCI image and verify it before it ships; [
    KO_DOCKER_REPO = "<registry>/<slug>" # ko names images from it even when not pushing
 
    [tasks."build:image"]
-   description = "Build the OCI image (ko)"
-   run = "go tool ko build ./cmd/<slug> --bare" # or: docker build -t <registry>/<slug>:<tag> .
+   description = "Build a local OCI image (ko)"
+   raw_args = true
+   run = [
+     "mkdir -p tmp",
+     "go tool ko build ./cmd/<slug> --bare --push=false --tarball tmp/image.tar",
+   ] # or: docker build -t <registry>/<slug>:<tag> .
 
    [tasks."check:image"]
    description = "Scan the OCI image for vulnerabilities (trivy)"
@@ -48,8 +52,9 @@ Build a small, non-root, reproducible OCI image and verify it before it ships; [
    ]
    ```
 
+1. **Publish when authorized**: `mise run build:image -- --push=true --image-refs tmp/refs.txt`, or use `docker buildx build --push` for a reviewed registry target. Require a successful build and an exact digest in the reference file.
 1. **Verify the pushed digest**: use the registry digest for every scan, signature, SBOM, and deployment reference; scan per [trivy](../trivy/SKILL.md), then sign, verify, and attest the SBOM per [cosign](../cosign/SKILL.md).
-1. **Run locally** the way Cloud Run will: `docker run --rm -p 8080:8080 -e PORT=8080 <registry>/<slug>@<digest>`; a project with a local cluster pushes to its registry per [k8s-local](../k8s-local/SKILL.md).
+1. **Run locally**: load the local image with `docker load --input tmp/image.tar` (or `ko --local`), then use its local reference with `docker run --rm -p 8080:8080 -e PORT=8080 <local-image>`. For a previously published image, `docker run --rm -p 8080:8080 -e PORT=8080 <registry>/<slug>@<digest>`; project-owned environments define their own registry-loading workflow.
 
 ## Gotchas
 

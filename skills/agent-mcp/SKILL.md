@@ -6,44 +6,20 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-mcp
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Configure Agent MCP Servers
 
-Add Model Context Protocol servers through each host's native command so the config file shape stays correct; [agent-project](../agent-project/SKILL.md) owns the surrounding repository layout.
-
-## Commands
-
-One stdio example per host. For a remote server replace the trailing command with `--transport http <url>` (Claude Code, Copilot, Grok), `--url <url>` (Codex, OpenCode), or a plain URL argument (Antigravity):
-
-```bash
-agy mcp add --env KEY=value <name> -- npx -y <package>                   # Antigravity CLI; flags before <name>
-claude mcp add --scope project -e KEY=value <name> -- npx -y <package>   # default scope is local, not project
-codex mcp add <name> --env KEY=value -- npx -y <package>                 # no scope flag: writes ~/.codex/config.toml
-copilot mcp add --env KEY=value <name> -- npx -y <package>               # user configuration
-grok mcp add --scope project -e KEY=value <name> -- npx -y <package>     # --scope user is the default
-opencode mcp add <name> --env KEY=value                                  # prompts for the remaining fields
-```
-
-## Config Files
-
-| Host        | User scope                                           | Project scope                                        |
-| ----------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| Antigravity | `~/.gemini/config/mcp_config.json` (per its docs)    | `.agents/mcp_config.json` (per its docs)             |
-| Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                      |
-| Codex       | `~/.codex/config.toml` under `[mcp_servers.<name>]`  | `.codex/config.toml` (trusted projects, hand-edited) |
-| Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited)      |
-| Grok        | `~/.grok/config.toml`                                | `./.grok/config.toml`                                |
-| OpenCode    | `~/.config/opencode/opencode.json` under `"mcp"`     | `opencode.json` under `"mcp"`                        |
+Connect only the MCP capability the task needs, using the installed host's native interface. [mcp-server](../mcp-server/SKILL.md) owns server implementation and [agent-project](../agent-project/SKILL.md) owns shared project layout.
 
 ## Workflow
 
-1. **Review the server**: verify publisher, executable or URL, requested credentials, and tools against upstream documentation before adding it.
-1. **Choose transport**: stdio for a local executable, streamable HTTP for a hosted endpoint; legacy SSE only when the provider requires it.
-1. **Keep secrets external**: pass `KEY=value` from the environment or use the host's OAuth flow (`codex mcp add --bearer-token-env-var`, `opencode mcp auth`); never write a token into a committed file.
-1. **Add with the native command**: hand-written JSON drifts because the remote-URL key differs per host (`serverUrl` in Antigravity, `httpUrl` in Gemini CLI, `url` elsewhere), so let the CLI write it.
-1. **Verify**: `agy mcp list`, `claude mcp list`, `codex mcp list`, `copilot mcp list`, `grok mcp list`, or `opencode mcp list`.
+1. **Identify host and scope**: inspect the installed `agy`, `claude`, `codex`, `copilot`, `grok`, or `opencode` interface and choose project versus user configuration.
+1. **Review the server**: verify its source, transport, tools, credential flow, and requested permissions before launching it; use [host commands](references/host-commands.md) for the matching setup.
+1. **Configure once**: preserve unmanaged settings, avoid duplicate registrations, and pass secrets through the supported environment or secret manager.
+1. **Verify**: list the configured server, check its tool surface, and exercise a small read-only call; registration alone does not prove authentication or safe writes.
+1. **Google Cloud case**: read [google-cloud-mcp.md](references/google-cloud-mcp.md) only for those product-specific registrations.
 
 ## Gotchas
 

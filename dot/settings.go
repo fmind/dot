@@ -60,7 +60,6 @@ type Config struct {
 	Release      ReleaseConfig      `yaml:"release"`
 	AI           AIConfig           `yaml:"ai"`
 	Prune        PruneConfig        `yaml:"prune"`
-	Cluster      ClusterConfig      `yaml:"cluster"`
 	Login        LoginConfig        `yaml:"login"`
 	PR           PRConfig           `yaml:"pr"`
 	ChezmoiClean ChezmoiCleanConfig `yaml:"chezmoi_clean"`
@@ -95,7 +94,6 @@ func ExpandPath(path string) string {
 func DefaultConfig() *Config {
 	return &Config{
 		Completions:  defaultCompletionConfig(),
-		Cluster:      defaultClusterConfig(),
 		PR:           defaultPRConfig(),
 		AI:           defaultAIConfig(),
 		Verify:       defaultVerifyConfig(),
@@ -156,6 +154,14 @@ func LoadConfig(path string) (*Config, error) {
 	dec.KnownFields(true)
 	if err := dec.Decode(cfg); err != nil && !errors.Is(err, io.EOF) {
 		return DefaultConfig(), fmt.Errorf("failed to parse config file at %s: %w", resolved, err)
+	}
+	// A YAML stream may contain several documents; configuration owns exactly one.
+	var trailing yaml.Node
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err != nil {
+			return DefaultConfig(), fmt.Errorf("failed to parse trailing configuration at %s: %w", resolved, err)
+		}
+		return DefaultConfig(), fmt.Errorf("config file at %s must contain exactly one YAML document", resolved)
 	}
 	return cfg, nil
 }

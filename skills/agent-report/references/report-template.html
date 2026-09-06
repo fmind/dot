@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audit Report · {{TITLE}}</title>
+  <style>
+    :root {
+      font: clamp(13px, min(1.05vw, 1.6vh), 18px)/1.35 system-ui, sans-serif;
+      color: #162c38;
+      background: #edf2ef;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: 100%; padding: clamp(16px, 2vw, 36px); margin: auto; }
+    .masthead { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; margin-bottom: 14px; }
+    h1 { font-size: 1.8rem; line-height: 1.1; letter-spacing: -0.035em; margin: 0; }
+    h2 { font-size: 1.2rem; line-height: 1.2; margin: 0 0 14px; overflow-wrap: anywhere; }
+    h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: #07635c; margin: 16px 0 6px; }
+    p { margin: 0 0 10px; }
+    .muted { color: #50626a; }
+    .eyebrow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.16em; font-weight: 750; color: #07635c; margin-bottom: 6px; }
+    .dashboard { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+    .overview { display: grid; gap: 16px; }
+    .summary, aside, article { padding: 16px; background: white; border: 1px solid #d6e1da; border-radius: 12px; }
+    .summary h2, aside h2 { font-size: 1rem; margin-bottom: 8px; }
+    .summary p, aside p { margin-bottom: 0; }
+    aside { border-left: 4px solid #b56322; }
+    ul { padding-left: 18px; margin: 0; }
+    li + li { margin-top: 7px; }
+    strong { font-weight: 750; color: #0c4944; }
+    .cards { display: contents; }
+    article { height: 100%; border-top: 4px solid #087b70; }
+    article:nth-child(2) { border-top-color: #92702f; }
+    article:nth-child(3) { border-top-color: #4d71a1; }
+    article:nth-child(4) { border-top-color: #725391; }
+    article p:last-child { margin-bottom: 0; }
+    footer { font-size: 0.68rem; color: #50626a; margin-top: 14px; }
+    @media (max-width: 1099px) {
+      :root { font-size: 15px; }
+      .masthead { display: block; }
+      .masthead .muted { margin-top: 10px; }
+      .dashboard { grid-template-columns: 1fr; }
+      .cards { display: grid; gap: 16px; }
+      article { height: auto; }
+    }
+    @media print {
+      body { background: white; }
+      main { padding: 0; }
+      :root { font-size: 10pt; }
+      .overview, .cards { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="masthead">
+      <div>
+        <p class="eyebrow">{{CATEGORY}} / {{SUBCATEGORY}}</p>
+        <h1>{{TITLE}}</h1>
+      </div>
+      <p class="muted">{{TIMESTAMP}} · {{SCOPE}}</p>
+    </div>
+
+    <div class="dashboard">
+      <div class="overview">
+        <section class="summary">
+          <h2>Executive Summary</h2>
+          <ul>
+            <li><strong>Verdict</strong>: High-level outcome or health assessment.</li>
+            <li><strong>Key takeaway</strong>: Primary observation requiring visibility.</li>
+          </ul>
+        </section>
+
+        <aside>
+          <h2>Decisions Needed</h2>
+          <ul>
+            <li><strong>Action required</strong>: Approval or direction needed from developer.</li>
+          </ul>
+        </aside>
+      </div>
+
+      <div class="cards">
+        <article>
+          <h2>{{SECTION_1_TITLE}}</h2>
+          <section>
+            <h3>Observations</h3>
+            <ul>
+              <li><strong>Item</strong>: Evidence-backed finding.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Next Actions</h3>
+            <ul>
+              <li><strong>Step</strong>: Prioritized follow-up.</li>
+            </ul>
+          </section>
+        </article>
+
+        <article>
+          <h2>{{SECTION_2_TITLE}}</h2>
+          <section>
+            <h3>Observations</h3>
+            <ul>
+              <li><strong>Item</strong>: Evidence-backed finding.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Next Actions</h3>
+            <ul>
+              <li><strong>Step</strong>: Prioritized follow-up.</li>
+            </ul>
+          </section>
+        </article>
+      </div>
+    </div>
+
+    <footer>
+      Report generated {{TIMESTAMP}} from git HEAD {{COMMIT_SHA}}. Based on recorded evidence.
+    </footer>
+  </main>
+</body>
+</html>

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/atlas
   created: "2026-09-03"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Atlas
@@ -15,6 +15,7 @@ Manage the database schema as code with the Atlas CLI: a declarative `schema.sql
 
 ## Workflow
 
+1. **Install locally**: `mise use atlas@latest` in the repository, then commit `mise.toml` and `mise.lock`; Atlas is not part of the global toolchain.
 1. **Project file**: commit `atlas.hcl` with one env per target; `dev` is a disposable Docker database Atlas uses to normalize and lint.
    ```hcl
    env "local" {

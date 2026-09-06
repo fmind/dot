@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/plan-execution
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Plan Execution
@@ -15,17 +15,12 @@ Turn an accepted plan into reviewable evidence slice by slice; [implementation-p
 
 ## Workflow
 
-1. **Confirm authority**: A plan alone is not authorization to mutate the repository; confirm the request includes implementation, then re-read the request, plan, repository instructions, and status before the first edit.
-1. **Capture the baseline**: Record branch, `HEAD`, status, relevant test state, and known external boundaries. Preserve staged, unstaged, and untracked user work and note which edits belong to the user.
-1. **Reconcile the plan**: Check that paths, symbols, dependency versions, commands, and assumptions still match the checkout; note deviations in the execution notes and ask for direction when the outcome would materially change.
-1. **Order the work**: Follow the dependency graph and critical path; take the smallest vertical slice that yields independently useful behavior and proof.
-1. **Establish red evidence**: Use [test-driven-development](../test-driven-development/SKILL.md) for behavior changes, a characterization test for legacy behavior, or a failing validation signal for non-code changes.
-1. **Implement minimally**: Use the applicable stack skill and touch only files traceable to the current slice.
-1. **Verify the slice**: Run the focused test, formatter, static checks, and any bounded runtime or manual check the plan promised; read the full output.
-1. **Review the delta**: Compare the diff with the intended slice, remove only artifacts this work introduced, and use [diff-review](../diff-review/SKILL.md) for risky changes.
-1. **Checkpoint honestly**: Mark a slice complete only with fresh evidence; record partial results, deviations, and residual gaps before moving on.
-1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in a temporary `git worktree` or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
-1. **Hand off**: Summarize changes, verification, untested boundaries, and remaining tasks; report the highest proven rung of the [proof ladder](../production-readiness/SKILL.md) and leave the worktree for review.
+1. **Read the task and baseline**: confirm implementation is requested, reconcile the accepted plan with current files and tests, and preserve staged, unstaged, and untracked user work.
+1. **Execute by dependency**: take the smallest useful slice, use the applicable stack guidance, and touch only files needed for that outcome.
+1. **Prove the change**: use [test-driven-development](../test-driven-development/SKILL.md) for regressions, characterization for refactors, and native validation for configuration or documentation.
+1. **Inspect the result**: run focused checks, review the diff against the requested behavior, and fix unexpected failures before expanding the change.
+1. **Continue**: finish the authorized slices; ask only when changed scope or an unresolved dependency requires a decision, and keep independent work moving.
+1. **Gate and report**: run `mise run all`, then report the changes, evidence, and remaining proof gaps; preserve unrelated dirt per [mise](../mise/SKILL.md).
 
 ## Gotchas
 

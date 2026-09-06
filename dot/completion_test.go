@@ -24,7 +24,6 @@ func TestGetCompletionCommand(t *testing.T) {
 	}{
 		{"git-lfs", "git", []string{"lfs", "completion", "fish"}},
 		{"gh", "gh", []string{"completion", "-s", "fish"}},
-		{"kubectl", "kubectl", []string{"completion", "fish"}},
 		{"uv", "uv", []string{"generate-shell-completion", "fish"}},
 		{"ast-grep", "ast-grep", []string{"completions", "fish"}},
 		{"atlas", "atlas", []string{"completion", "fish"}},
@@ -32,6 +31,7 @@ func TestGetCompletionCommand(t *testing.T) {
 		{"bat", "bat", []string{"--completion", "fish"}},
 		{"carapace", "carapace", []string{"_carapace", "fish"}},
 		{"delta", "delta", []string{"--generate-completion", "fish"}},
+		{"opencode", "carapace", []string{"opencode", "fish"}},
 		{"rg", "rg", []string{"--generate", "complete-fish"}},
 		{"ruff", "ruff", []string{"generate-shell-completion", "fish"}},
 		{"starship", "starship", []string{"completions", "fish"}},

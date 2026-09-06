@@ -1,15 +1,20 @@
 # chezmoi:modify-template
 {{- $pathSentinel := "# chezmoi: mise-bash-path" -}}
-{{- $pathBlock := `# chezmoi: mise-bash-path
+{{- $legacyPathBlock := `# chezmoi: mise-bash-path
 # Set up mise paths above non-interactive shell guard
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"` -}}
+{{- $pathBlock := `# chezmoi: mise-bash-path
+# Make mise-installed tools available to non-interactive shells.
+export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"` -}}
 {{- $activationBlock := `# chezmoi: mise-bash-integration
 # Set up mise activation for interactive bash shells.
 if command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate bash)"
   eval "${mise_activation}"
 fi` -}}
-{{- if contains $pathSentinel .chezmoi.stdin -}}
+{{- if contains $legacyPathBlock .chezmoi.stdin -}}
+{{- replace $legacyPathBlock $pathBlock .chezmoi.stdin -}}
+{{- else if contains $pathSentinel .chezmoi.stdin -}}
 {{- .chezmoi.stdin -}}
 {{- else -}}
 {{ $pathBlock }}

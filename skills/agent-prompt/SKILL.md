@@ -1,6 +1,6 @@
 ---
 name: agent-prompt
-description: Audit repository context and write an amplified task prompt in .agents/prompts/<file>.md to handover to another agent. Use when delegating an agent prompt.
+description: "Prepare a grounded task or continuation prompt. Use when delegating fresh work or carrying progress, decisions, failures, and proof into a new agent session."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
@@ -11,28 +11,22 @@ metadata:
 
 # Agent Prompt
 
-Investigate the repository, clarify ambiguities, and write a self-contained execution prompt under `.agents/prompts/<file>.md` to handover a delegated task to another coding agent. Amplifying prompts upfront grounds the task in real file paths, commands, and constraints so an execution model can implement without stalling.
+Prepare instructions the receiving agent can use without this conversation. [prompt-design](../prompt-design/SKILL.md) owns prompts embedded in applications; native resume or compaction is preferable when it already preserves the needed state.
 
 ## Workflow
 
-1. **Parse the request**: extract the target filename under `.agents/prompts/<file>.md` (defaulting to a descriptive slug if omitted) and the task description from the invocation arguments (for example, `/agent-prompt PLAN.md Improve code coverage`).
-1. **Investigate the repository**: inspect relevant source files, tests, configurations, and dependencies with `rg`, `fd`, or file viewers; verify exact paths and symbol names instead of guessing.
-1. **Assess clarity and clarify**: check whether the request leaves critical architectural decisions or scope underspecified; if ambiguous, ask the user to clarify before writing, or record explicit, grounded assumptions.
-1. **Amplify the prompt**: structure a complete, self-contained instruction for the receiving agent covering:
-   - **Objective**: concise statement of the outcome and acceptance criteria.
-   - **Context & verified paths**: exact file paths, relevant line numbers, and existing implementation patterns.
-   - **Constraints & standards**: non-negotiable project rules (minimalist, 80/20, typed, lint-before-done, no-sudo).
-   - **Implementation steps**: ordered, dependency-aware instructions with concrete actions.
-   - **Verification gate**: commands the receiving agent must execute warning-free (`mise run check`, `mise run test`).
-1. **Write the prompt file**: write the amplified prompt to `.agents/prompts/<file>.md` under `git rev-parse --show-toplevel`; create the directory if it does not exist.
-1. **Summarize to the user**: provide a brief summary of what the prompt instructs, the files it targets, and how to invoke the next agent session with it.
+1. **Choose the mode**: fresh task, or continuation of work already underway; resolve the requested outcome, latest corrections, scope, and acceptance criteria.
+1. **Ground the prompt**: inspect relevant repository instructions, source, tests, and installed dependencies; verify paths and commands and label assumptions.
+1. **For a continuation**: check `git status --short --branch`, record completed proof, the exact stopping point, outstanding work, failed approaches, and reasons for material decisions.
+1. **Draft** from [prompt-template.md](references/prompt-template.md); omit empty sections and add ordered slices only when execution needs them.
+1. **Write and check**: resolve the root with `git rev-parse --show-toplevel`; save `.agents/prompts/<file>.md`, defaulting to `<YYYY-MM-DD>-<slug>.md`, or `~/.agents/prompts/` outside a repository. Verify the receiver can act without hidden context, then report the path.
 
 ## Gotchas
 
-- **Do not execute the task**: this skill prepares the amplified prompt for another agent; do not edit code or implement the changes in this session.
-- **Self-contained instructions**: the receiving agent lacks this session's context; resolve all pronouns, cite actual file paths, and provide explicit verification commands.
-- **Ignore working prompts**: ensure `.agents/prompts/` is gitignored so temporary prompt files are not tracked in git.
+- **Authority travels with the task**: distinguish authorized actions from proposed work; writing the prompt does not grant additional permission.
+- **Useful history**: preserve failures and proof gaps; cite code paths and lines instead of copying source or the shared persona.
+- **Working inbox**: keep `.agents/prompts/` gitignored unless the user wants it tracked; keep a small continuation short.
 
 ## Documentation
 
-- Companion skills: [agent-proposal](../agent-proposal/SKILL.md) (human-in-the-loop proposals before prompt drafting), [handover](../handover/SKILL.md) (session-to-session state handover), [implementation-plan](../implementation-plan/SKILL.md) (multi-slice architecture plans), [prompt-design](../prompt-design/SKILL.md) (system prompt engineering).
+- Companion skills: [agent-proposal](../agent-proposal/SKILL.md) (options), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [plan-execution](../plan-execution/SKILL.md) (receiving work), [agent-project](../agent-project/SKILL.md) (host layout).

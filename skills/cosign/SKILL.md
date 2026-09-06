@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cosign
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Cosign
@@ -23,7 +23,7 @@ cosign verify \
   <registry>/<slug>@<digest>
 cosign attest --yes --type cyclonedx --predicate sbom.json <registry>/<slug>@<digest>
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity-regexp 'https://github.com/<owner>/<repo>/' \
+  --certificate-identity 'https://github.com/<owner>/<repo>/.github/workflows/cd.yml@refs/tags/<tag>' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   <registry>/<slug>@<digest>
 ```

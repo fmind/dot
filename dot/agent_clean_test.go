@@ -23,17 +23,17 @@ func TestParseCleanTargets(t *testing.T) {
 		{
 			name: "empty args defaults to all",
 			args: nil,
-			want: []string{"prompts", "proposals"},
+			want: []string{"prompts", "proposals", "reports"},
 		},
 		{
 			name: "explicit all",
 			args: []string{"all"},
-			want: []string{"prompts", "proposals"},
+			want: []string{"prompts", "proposals", "reports"},
 		},
 		{
 			name: "uppercase ALL",
 			args: []string{"ALL"},
-			want: []string{"prompts", "proposals"},
+			want: []string{"prompts", "proposals", "reports"},
 		},
 		{
 			name: "prompts only",
@@ -46,19 +46,24 @@ func TestParseCleanTargets(t *testing.T) {
 			want: []string{"proposals"},
 		},
 		{
-			name: "both as separate args",
-			args: []string{"prompts", "proposals"},
-			want: []string{"prompts", "proposals"},
+			name: "reports only",
+			args: []string{"reports"},
+			want: []string{"reports"},
+		},
+		{
+			name: "all three as separate args",
+			args: []string{"prompts", "proposals", "reports"},
+			want: []string{"prompts", "proposals", "reports"},
 		},
 		{
 			name: "comma separated",
-			args: []string{"prompts,proposals"},
-			want: []string{"prompts", "proposals"},
+			args: []string{"prompts,proposals,reports"},
+			want: []string{"prompts", "proposals", "reports"},
 		},
 		{
 			name: "all and prompts combined",
 			args: []string{"all", "prompts"},
-			want: []string{"prompts", "proposals"},
+			want: []string{"prompts", "proposals", "reports"},
 		},
 		{
 			name:    "unknown target",
@@ -103,12 +108,16 @@ func TestRunAgentClean_AllDefault(t *testing.T) {
 	tempDir := t.TempDir()
 	promptsDir := filepath.Join(tempDir, ".agents", "prompts")
 	proposalsDir := filepath.Join(tempDir, ".agents", "proposals")
+	reportsDir := filepath.Join(tempDir, ".agents", "reports")
 	skillsDir := filepath.Join(tempDir, ".agents", "skills", "custom")
 
 	if err := os.MkdirAll(promptsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(proposalsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(reportsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
@@ -118,9 +127,10 @@ func TestRunAgentClean_AllDefault(t *testing.T) {
 	prompt1 := filepath.Join(promptsDir, "TASK.md")
 	prompt2 := filepath.Join(promptsDir, "PLAN.md")
 	prop1 := filepath.Join(proposalsDir, "FEAT.md")
+	rep1 := filepath.Join(reportsDir, "AUDIT.html")
 	preservedSkill := filepath.Join(skillsDir, "SKILL.md")
 
-	for _, path := range []string{prompt1, prompt2, prop1, preservedSkill} {
+	for _, path := range []string{prompt1, prompt2, prop1, rep1, preservedSkill} {
 		if err := os.WriteFile(path, []byte("content"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -133,8 +143,8 @@ func TestRunAgentClean_AllDefault(t *testing.T) {
 		t.Fatalf("RunAgentClean failed: %v", err)
 	}
 
-	// Verify prompt and proposal files were removed
-	for _, path := range []string{prompt1, prompt2, prop1} {
+	// Verify prompt, proposal, and report files were removed
+	for _, path := range []string{prompt1, prompt2, prop1, rep1} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("file %s should have been removed", path)
 		}
@@ -145,8 +155,8 @@ func TestRunAgentClean_AllDefault(t *testing.T) {
 		t.Errorf("skill file %s should be preserved: %v", preservedSkill, err)
 	}
 
-	// Verify prompts and proposals directories still exist
-	for _, dir := range []string{promptsDir, proposalsDir} {
+	// Verify prompts, proposals, and reports directories still exist
+	for _, dir := range []string{promptsDir, proposalsDir, reportsDir} {
 		if _, err := os.Stat(dir); err != nil {
 			t.Errorf("directory %s should still exist: %v", dir, err)
 		}
@@ -158,6 +168,9 @@ func TestRunAgentClean_AllDefault(t *testing.T) {
 	}
 	if !strings.Contains(output, "Cleaned 1 file(s) in .agents/proposals") {
 		t.Errorf("expected clean proposals message in output: %s", output)
+	}
+	if !strings.Contains(output, "Cleaned 1 file(s) in .agents/reports") {
+		t.Errorf("expected clean reports message in output: %s", output)
 	}
 }
 
@@ -249,6 +262,50 @@ func TestRunAgentClean_ProposalsOnly(t *testing.T) {
 	}
 }
 
+func TestRunAgentClean_ReportsOnly(t *testing.T) {
+	tempDir := t.TempDir()
+	promptsDir := filepath.Join(tempDir, ".agents", "prompts")
+	reportsDir := filepath.Join(tempDir, ".agents", "reports")
+
+	if err := os.MkdirAll(promptsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(reportsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	promptFile := filepath.Join(promptsDir, "TASK.md")
+	repFile := filepath.Join(reportsDir, "AUDIT.html")
+
+	for _, path := range []string{promptFile, repFile} {
+		if err := os.WriteFile(path, []byte("content"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var out bytes.Buffer
+	state := newCleanTestState(tempDir, &out)
+
+	if err := RunAgentClean(context.Background(), state, []string{"reports"}, false); err != nil {
+		t.Fatalf("RunAgentClean failed: %v", err)
+	}
+
+	if _, err := os.Stat(repFile); !os.IsNotExist(err) {
+		t.Errorf("report file should have been removed: %s", repFile)
+	}
+	if _, err := os.Stat(promptFile); err != nil {
+		t.Errorf("prompt file should be preserved: %s", promptFile)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "Cleaned 1 file(s) in .agents/reports") {
+		t.Errorf("expected clean reports message in output: %s", output)
+	}
+	if strings.Contains(output, ".agents/prompts") {
+		t.Errorf("prompts should not have been mentioned in output: %s", output)
+	}
+}
+
 func TestRunAgentClean_DryRun(t *testing.T) {
 	tempDir := t.TempDir()
 	promptsDir := filepath.Join(tempDir, ".agents", "prompts")
@@ -299,6 +356,9 @@ func TestRunAgentClean_NonExistentDirectories(t *testing.T) {
 	if !strings.Contains(output, "Cleaned 0 file(s) in .agents/proposals") {
 		t.Errorf("expected 0 files cleaned for proposals: %s", output)
 	}
+	if !strings.Contains(output, "Cleaned 0 file(s) in .agents/reports") {
+		t.Errorf("expected 0 files cleaned for reports: %s", output)
+	}
 }
 
 func TestRunAgentClean_Subdirectories(t *testing.T) {
@@ -328,6 +388,7 @@ func TestAgentCleanCLI_ShortcutAndArgs(t *testing.T) {
 	tempDir := t.TempDir()
 	promptsDir := filepath.Join(tempDir, ".agents", "prompts")
 	proposalsDir := filepath.Join(tempDir, ".agents", "proposals")
+	reportsDir := filepath.Join(tempDir, ".agents", "reports")
 
 	if err := os.MkdirAll(promptsDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -335,10 +396,14 @@ func TestAgentCleanCLI_ShortcutAndArgs(t *testing.T) {
 	if err := os.MkdirAll(proposalsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(reportsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	makeFiles := func() {
 		_ = os.WriteFile(filepath.Join(promptsDir, "P.md"), []byte("p"), 0o600)
 		_ = os.WriteFile(filepath.Join(proposalsDir, "PR.md"), []byte("pr"), 0o600)
+		_ = os.WriteFile(filepath.Join(reportsDir, "R.html"), []byte("r"), 0o600)
 	}
 
 	makeFiles()
@@ -366,7 +431,8 @@ func TestAgentCleanCLI_ShortcutAndArgs(t *testing.T) {
 		t.Fatalf("dot a c failed: %v", err)
 	}
 	if !strings.Contains(out.String(), "Cleaned 1 file(s) in .agents/prompts") ||
-		!strings.Contains(out.String(), "Cleaned 1 file(s) in .agents/proposals") {
+		!strings.Contains(out.String(), "Cleaned 1 file(s) in .agents/proposals") ||
+		!strings.Contains(out.String(), "Cleaned 1 file(s) in .agents/reports") {
 		t.Errorf("unexpected output for dot a c: %s", out.String())
 	}
 
@@ -379,8 +445,21 @@ func TestAgentCleanCLI_ShortcutAndArgs(t *testing.T) {
 	if !strings.Contains(out.String(), "Cleaned 1 file(s) in .agents/prompts") {
 		t.Errorf("unexpected output: %s", out.String())
 	}
-	if strings.Contains(out.String(), "proposals") {
-		t.Errorf("proposals should not be cleaned: %s", out.String())
+	if strings.Contains(out.String(), "proposals") || strings.Contains(out.String(), "reports") {
+		t.Errorf("proposals and reports should not be cleaned: %s", out.String())
+	}
+
+	// Recreate files and test shortcut with target `dot a c reports`
+	out.Reset()
+	makeFiles()
+	if err := app.Run(context.Background(), []string{"dot", "a", "c", "reports"}); err != nil {
+		t.Fatalf("dot a c reports failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "Cleaned 1 file(s) in .agents/reports") {
+		t.Errorf("unexpected output: %s", out.String())
+	}
+	if strings.Contains(out.String(), "prompts") || strings.Contains(out.String(), "proposals") {
+		t.Errorf("prompts and proposals should not be cleaned: %s", out.String())
 	}
 
 	// Invalid target should fail

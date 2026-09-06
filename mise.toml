@@ -122,12 +122,13 @@ run = "go test -C dot -run '^TestDocumentationContract$' ."
 
 [tasks."check:fish"]
 description = "Validate Fish syntax without loading user configuration"
-run = "dot/scripts/check-fish.sh"
+run = "scripts/check-fish.sh"
 
 [tasks."check:go"]
 alias = "cg"
 description = "Lint and vuln-scan the Go module (dot/)"
-run = ["mise -C dot run check:lint", "mise -C dot run check:vuln"]
+dir = "{{config_root}}/dot"
+run = ["golangci-lint run ./...", "go tool govulncheck ./..."]
 
 [tasks."check:leaks"]
 alias = "cl"
@@ -142,8 +143,9 @@ description = "Check Neovim Lua formatting (stylua)"
 run = "stylua --check dot_config/nvim"
 
 [tasks."check:opencode"]
-description = "Install and type-check the pinned OpenCode plugin contract"
-run = "dot/scripts/check-opencode.sh"
+description = "Type-check and lint the pinned OpenCode plugin contract"
+depends = ["install:opencode"]
+run = ["pnpm --dir dot/testdata/opencode exec tsc --project tsconfig.json", "biome check"]
 
 [tasks."check:python"]
 alias = "cp"
@@ -158,12 +160,12 @@ run = "trivy --config trivy.yaml fs --tf-vars skills/terraform-stack/references/
 [tasks."report:vuln"]
 description = "Write an informational fixed and unfixed vulnerability report (Trivy)"
 raw_args = true
-run = "dot/scripts/report-vuln.sh"
+run = "scripts/report-vuln.sh"
 
 [tasks."check:shell"]
 alias = "cs"
 description = "Lint and format-check shell scripts, including rendered chezmoi sources"
-run = "dot/scripts/check-shell.sh"
+run = "scripts/check-shell.sh"
 
 [tasks."check:skills"]
 alias = "ck"
@@ -178,16 +180,16 @@ run = "gh skill publish --dry-run skills"
 
 [tasks."check:tools"]
 alias = "cw"
-description = "Validate mise tasks and installed tool ownership"
-# mise.lock proves that what is *declared* installs reproducibly; nothing proved the
-# converse, which is how orphan installs accumulate unnoticed. Only fully untracked
-# tools fail here -- a superseded version of a declared tool is benign upgrade residue
-# that `mise prune` clears on its own, and failing on it would make the gate noisy.
-run = "dot/scripts/check-tools.sh"
+description = "Validate repository task definitions"
+run = "mise tasks validate"
 
 [tasks."check:vuln:tools"]
 description = "Audit the installed npm and pipx tool environments"
-run = "python dot/scripts/audit-tools.py"
+run = "python scripts/audit-tools.py"
+
+[tasks."report:skills"]
+description = "Report informational skill word-overlap rankings"
+run = "go test -C dot -run '^TestLifecycleSkillRoutingDiagnostics$' -count=1 -v ."
 
 [tasks.format]
 alias = "f"
@@ -212,25 +214,25 @@ run = "dprint fmt --allow-no-files"
 alias = "fg"
 description = "Format Go sources and imports (goimports + gofumpt)"
 raw_args = true
-run = "dot/scripts/format-go.sh"
+run = "scripts/format-go.sh"
 
 [tasks."format:lua"]
 alias = "fu"
 description = "Format Neovim Lua sources (stylua)"
 raw_args = true
-run = "dot/scripts/format-lua.sh"
+run = "scripts/format-lua.sh"
 
 [tasks."format:python"]
 alias = "fp"
 description = "Format Python sources and imports (ruff)"
 raw_args = true
-run = "dot/scripts/format-python.sh"
+run = "scripts/format-python.sh"
 
 [tasks."format:shell"]
 alias = "fs"
 description = "Format shell scripts (shfmt)"
 raw_args = true
-run = "dot/scripts/format-shell.sh"
+run = "scripts/format-shell.sh"
 
 [tasks."format:typescript"]
 alias = "ft"
@@ -242,26 +244,40 @@ alias = "i"
 description = "Bootstrap a freshly initialized checkout"
 run = [
   "mise trust -y mise.toml",
-  "mise trust -y dot/mise.toml",
   "mise run tools",
   "mise run hooks",
   "mise run vim",
   "echo '✓ First-time bootstrap complete.'",
 ]
 
+[tasks."install:opencode"]
+description = "Prepare the pinned OpenCode plugin dependencies"
+sources = ["mise.lock", "dot/testdata/opencode/package.json", "dot/testdata/opencode/pnpm-lock.yaml"]
+outputs = [
+  "dot/testdata/opencode/node_modules/.modules.yaml",
+  "dot/testdata/opencode/node_modules/.bin/tsc",
+  "dot/testdata/opencode/node_modules/.bin/vitest",
+]
+run = "pnpm --dir dot/testdata/opencode install --frozen-lockfile --ignore-scripts"
+
 [tasks.test]
 alias = "t"
 description = "Run the dot CLI test suite (skill contracts included)"
-depends = ["test:opencode", "test:python"]
-run = "mise -C dot run test"
+depends = ["test:go", "test:opencode", "test:python"]
+
+[tasks."test:go"]
+description = "Run Go tests with the race detector and coverage"
+dir = "{{config_root}}/dot"
+run = "gotestsum --format pkgname -- -race -coverprofile=coverage.out ./..."
 
 [tasks."test:opencode"]
 description = "Test the pinned OpenCode plugin contract"
-run = "dot/scripts/test-opencode.sh"
+depends = ["install:opencode"]
+run = "pnpm --dir dot/testdata/opencode exec vitest run"
 
 [tasks."test:python"]
 description = "Test installed-tool audit parsing and failure handling"
-run = "python -m unittest discover -s dot/scripts -p 'test_*.py'"
+run = "python -m unittest discover -s scripts -p 'test_*.py'"
 
 [tasks."test:starters"]
 description = "Materialize and execute the Go, Python, and TypeScript starter contracts"
@@ -275,7 +291,13 @@ run = "go test -C dot -run '^TestBootstrap' -timeout 2m ."
 [tasks.watch]
 alias = "w"
 description = "Re-run the dot CLI test suite on every change"
-run = "mise -C dot run test:watch"
+dir = "{{config_root}}/dot"
+run = "gotestsum --watch --format pkgname -- -race -coverprofile=coverage.out ./..."
+
+[tasks.coverage]
+description = "Display Go test coverage"
+depends = ["test:go"]
+run = "go tool cover -func=dot/coverage.out"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Project management — chezmoi orchestration, tool sync, and bootstrap.
@@ -306,8 +328,12 @@ run = "chezmoi diff --force"
 
 [tasks.doctor]
 alias = "mo"
-description = "Run chezmoi/mise health checks"
-run = ["chezmoi doctor", "mise doctor"]
+description = "Run chezmoi/mise health and installed-tool ownership checks"
+run = ["chezmoi doctor", "mise doctor", "mise run doctor:tools"]
+
+[tasks."doctor:tools"]
+description = "Check installed tool ownership on this workstation"
+run = "scripts/doctor-tools.sh"
 
 [tasks.full]
 alias = "mf"
@@ -363,7 +389,6 @@ alias = "mtr"
 description = "Trust repo and home mise configs"
 run = [
   "mise trust -y mise.toml",
-  "mise trust -y dot/mise.toml",
   "mise trust -y ~/.config/mise/config.toml",
 ]
 
@@ -377,7 +402,7 @@ run = [
   "mise lock --global --yes",
   "chezmoi re-add --source \"$PWD\" ~/.config/mise/mise.lock",
   "nvim --headless '+Lazy! update' +qa",
-  "mise run vim:verify",
+  "mise run vim",
   "chezmoi re-add --source \"$PWD\" ~/.config/nvim/lazy-lock.json",
   "mise run tools",
 ]
@@ -391,8 +416,11 @@ run = "executable_dot verify"
 [tasks.vim]
 alias = "mv"
 description = "Sync Neovim plugins headlessly (LazyVim)"
-run = ["nvim --headless '+Lazy! restore' +qa", "mise run vim:verify"]
+run = [
+  "nvim --headless '+Lazy! restore' '+lua require(\"config.sync-parsers\")' +qa",
+  "mise run vim:verify",
+]
 
 [tasks."vim:verify"]
 description = "Verify every Lazy plugin checkout against the active lockfile"
-run = "bash verify-lazy-lock.sh"
+run = "bash scripts/verify-lazyvim-lock.sh"

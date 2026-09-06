@@ -169,39 +169,6 @@ checksum = "sha256:6d2279dea5bea2ad79c66ea93f5fe54ba926e398a8a26de76c56db68fe59e
 url = "https://github.com/ast-grep/ast-grep/releases/download/0.45.3/app-aarch64-apple-darwin.zip"
 url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/537332514"
 
-[[tools.atlas]]
-version = "1.3.0"
-backend = "aqua:ariga/atlas"
-specifiers = ["latest"]
-
-[tools.atlas."platforms.linux-arm64"]
-checksum = "sha256:d2cfb1c71e58170bb4ddbe62107a38da4490f516ffa53a13abf57583819b6a40"
-url = "https://release.ariga.io/atlas/atlas-linux-arm64-v1.3.0"
-
-[tools.atlas."platforms.linux-arm64-musl"]
-checksum = "sha256:d2cfb1c71e58170bb4ddbe62107a38da4490f516ffa53a13abf57583819b6a40"
-url = "https://release.ariga.io/atlas/atlas-linux-arm64-v1.3.0"
-
-[tools.atlas."platforms.linux-x64"]
-checksum = "sha256:cfc773e5b4e845bc01d680390c174648938a7f88bf30e5a2c83ae85217c21587"
-url = "https://release.ariga.io/atlas/atlas-linux-amd64-v1.3.0"
-
-[tools.atlas."platforms.linux-x64-musl"]
-checksum = "sha256:cfc773e5b4e845bc01d680390c174648938a7f88bf30e5a2c83ae85217c21587"
-url = "https://release.ariga.io/atlas/atlas-linux-amd64-v1.3.0"
-
-[tools.atlas."platforms.macos-arm64"]
-checksum = "sha256:47aaf7c295c7569c7eecfcbc53f02de862846ce1fbef16f1bd8ae98b03c3c68f"
-url = "https://release.ariga.io/atlas/atlas-darwin-arm64-v1.3.0"
-
-[tools.atlas."platforms.macos-x64"]
-checksum = "sha256:4b4d8621332eabc3e6e7554d799a98ceef6376c4d8bbad6ed7832b49655e3480"
-url = "https://release.ariga.io/atlas/atlas-darwin-amd64-v1.3.0"
-
-[tools.atlas."platforms.windows-x64"]
-checksum = "sha256:19b3bf812be93d1b30d7199c5700af01002cbd606c2aec2394fd618af7e3f7b1"
-url = "https://release.ariga.io/atlas/atlas-windows-amd64-v1.3.0.exe"
-
 [[tools.bat]]
 version = "0.26.1"
 backend = "aqua:sharkdp/bat"
@@ -1360,32 +1327,9 @@ specifiers = ["latest"]
 [tools."npm:@mermaid-js/mermaid-cli".options]
 allow_builds = '["puppeteer"]'
 
-[[tools."npm:@slidev/cli"]]
-version = "52.19.1"
-backend = "npm:@slidev/cli"
-specifiers = ["latest"]
-
-[tools."npm:@slidev/cli".options]
-trust_policy_excludes = '["cytoscape@3.34.1"]'
-
-[[tools."npm:genkit-cli"]]
-version = "1.42.0"
-backend = "npm:genkit-cli"
-specifiers = ["latest"]
-
 [[tools."npm:knip"]]
 version = "6.34.0"
 backend = "npm:knip"
-specifiers = ["latest"]
-
-[[tools."npm:lighthouse"]]
-version = "13.4.1"
-backend = "npm:lighthouse"
-specifiers = ["latest"]
-
-[[tools."npm:likec4"]]
-version = "1.59.3"
-backend = "npm:likec4"
 specifiers = ["latest"]
 
 [[tools."npm:playwright"]]
@@ -1573,6 +1517,14 @@ url_api = "https://api.github.com/repos/astral-sh/ruff/releases/assets/543094461
 checksum = "sha256:77513748c833b435b82453ba20e07db808ef6c5121945ede80a6cf21bee468a4"
 url = "https://github.com/astral-sh/ruff/releases/download/0.16.6/ruff-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/astral-sh/ruff/releases/assets/543094359"
+
+[[tools.rust]]
+version = "1.98.1"
+backend = "core:rust"
+specifiers = ["latest"]
+
+[tools.rust.options]
+profile = "minimal"
 
 [[tools.shellcheck]]
 version = "0.11.0"
@@ -1786,44 +1738,9 @@ url = "https://github.com/terraform-linters/tflint/releases/download/v0.64.0/tfl
 url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/480528349"
 
 [[tools.tree-sitter]]
-version = "0.25.10"
-backend = "aqua:tree-sitter/tree-sitter"
-specifiers = ["0.25.10"]
-
-[tools.tree-sitter."platforms.linux-arm64"]
-checksum = "sha256:07fbff8ae0eeb0d3e496e14fc1a30dcc730cc2c97d70e601e5357f2e51958af5"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-linux-arm64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134136"
-
-[tools.tree-sitter."platforms.linux-arm64-musl"]
-checksum = "sha256:07fbff8ae0eeb0d3e496e14fc1a30dcc730cc2c97d70e601e5357f2e51958af5"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-linux-arm64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134136"
-
-[tools.tree-sitter."platforms.linux-x64"]
-checksum = "sha256:8283ddba69253c698f6e987ba0e2f9285e079c8db4d36ebe1394b5bb3a0ebdfd"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-linux-x64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134134"
-
-[tools.tree-sitter."platforms.linux-x64-musl"]
-checksum = "sha256:8283ddba69253c698f6e987ba0e2f9285e079c8db4d36ebe1394b5bb3a0ebdfd"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-linux-x64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134134"
-
-[tools.tree-sitter."platforms.macos-arm64"]
-checksum = "sha256:a6295d469669f6e901b6029ae6c129bd094df582d278c237fada413505cb9c42"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-macos-arm64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134144"
-
-[tools.tree-sitter."platforms.macos-x64"]
-checksum = "sha256:c7a962bdc850dccb184afdb73853754767304d725b545362352d1838c9a18d7e"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-macos-x64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134147"
-
-[tools.tree-sitter."platforms.windows-x64"]
-checksum = "sha256:c940b471683b9cd89b9efbe8697e14b5244cc09d2e2b889d04c9c76eea1a8db3"
-url = "https://github.com/tree-sitter/tree-sitter/releases/download/v0.25.10/tree-sitter-windows-x64.gz"
-url_api = "https://api.github.com/repos/tree-sitter/tree-sitter/releases/assets/296134150"
+version = "0.27.0"
+backend = "cargo:tree-sitter-cli"
+specifiers = ["latest"]
 
 [[tools.trivy]]
 version = "0.74.0"

@@ -14,7 +14,12 @@
   chezmoi 2.72.0 the .chezmoitemplates namespace is not reachable from the template set
   of a modify_ script, and a template action there fails with "template not defined".
 */ -}}
-{{- $stdin := trim .stdin -}}
+{{- $stdin := .stdin -}}
+{{- /* FKF owns complete marked MCP/hook blocks. Preserve their exact bytes: a TOML
+       round-trip drops ownership markers and makes the next FKF repair refuse the file. */ -}}
+{{- $fkfBlocks := regexFindAll "(?ms)^# >>> fkf harness [^\\n]+\\n.*?^# <<< fkf harness [^\\n]+(?:\\n|$)" .stdin -1 -}}
+{{- range $fkfBlocks }}{{ $stdin = replace . "" $stdin }}{{ end -}}
+{{- $stdin = trim $stdin -}}
 {{- $current := dict -}}
 {{- if ne $stdin "" }}{{ $current = fromToml $stdin }}{{ end -}}
 {{- /* deepCopy is load-bearing: mergeOverwrite splices nested maps into the destination by
@@ -34,4 +39,5 @@
 {{ .stdin -}}
 {{- else -}}
 {{ $desired | toToml -}}
+{{- range $fkfBlocks }}{{ printf "\n%s" . }}{{ end -}}
 {{- end -}}

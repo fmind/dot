@@ -6,60 +6,23 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-05"
 ---
 
 # Repository History
 
-Recover why tracked code exists from read-only Git history, cited and labeled by confidence, before a risky edit; [systematic-debugging](../systematic-debugging/SKILL.md) owns reproducing a current failure and [diff-review](../diff-review/SKILL.md) owns defects in one change.
+Explain why tracked code exists from Git lineage and recorded rationale. Keep present-day debugging in [systematic-debugging](../systematic-debugging/SKILL.md) and external API choices in [technical-research](../technical-research/SKILL.md).
 
 ## Workflow
 
-1. **Frame the question**: Name the repository, tracked path, line range or symbol, proposed change, and the specific uncertainty; keep the scope small enough that every cited commit can be inspected.
-1. **Establish coverage**: Use `git` to record branch, `HEAD`, dirty state, available refs, and whether the clone is shallow; say which evidence Git cannot supply when the path is untracked, generated, vendored, or absent at `HEAD`. Preserve staged, unstaged, and untracked work.
-
-   ```bash
-   git status --short
-   git rev-parse HEAD
-   git rev-parse --is-shallow-repository
-   ```
-
-1. **Seed line provenance**: Treat movement and copy detection as clues, not guarantees; review a repository-owned `.git-blame-ignore-revs` before honoring it and disclose ignored revisions.
-
-   ```bash
-   git blame --line-porcelain -w -M -C -C -C -L <start>,<end> -- <path>
-   ```
-
-1. **Trace the timeline**: Use the smallest relevant view and name the exact revision range instead of treating every ref as one lineage.
-
-   ```bash
-   git log --follow --format=fuller -- <path>   # one file across renames
-   git log -L <start>,<end>:<path>              # commits that shaped a line range
-   git log -S '<literal>' -p -- <path>          # occurrence count of a string changed
-   git log -G '<regex>' -p -- <path>            # a diff added or removed matching lines
-   ```
-
-1. **Inspect candidate commits**: Read subject, body, changed tests, schemas, migrations, configuration, and docs together; preserve reverts and behavior changes, and group mechanical edits only after verifying they are mechanical.
-
-   ```bash
-   git show --format=fuller --find-renames --find-copies --stat <sha>
-   ```
-
-1. **Resolve ancestry anomalies**: Check renames, splits, copies, bulk formatting, generated files, squashes, rebases, cherry-picks, backports, merge parents, and revert pairs; when line history stops at a rewrite, compare file history, pickaxe searches, and neighboring tests, and report the break rather than forcing one origin.
-1. **Find coupling clues**: Count files that repeatedly changed with the target across behavior commits. Repeated co-change can suggest a test, schema, migration, or deployment constraint; one shared commit or a formatting sweep proves nothing.
-1. **Add remote rationale only when needed**: Map an exact commit to its pull requests with `gh`, then read the PR body, linked issue, reviews, inline comments, and changed files; paginate, disclose truncation, and treat a title match or semantic search alone as low confidence.
-1. **Extract decision atoms**: Separate facts, author-stated rationale, inference, contradiction, and unknowns; cite the commit, patch, test, issue, or review for every proposed constraint and check whether later changes superseded it.
-1. **Return the history note**: Do not implement the change unless requested separately. Report:
-   - **Bottom line**: the most likely explanation, its confidence, and whether it changes the proposed plan.
-   - **Scope and identity**: `HEAD`, working-copy boundary, path, lines or symbol, revision range, shallow state, and remote evidence checked.
-   - **Origin and timeline**: introducing evidence, later changes, fixes, reverts, and moves with short hashes and dates.
-   - **Decision atoms and companion evidence**: each labeled fact, inference, contradiction, or unknown; co-changes stay correlation until code confirms the seam.
-   - **Change risk**: what could break, which evidence may be stale, and the smallest current test or human answer that resolves the rest.
-   - **Evidence sources**: local objects, remote discussion, runtime behavior, and human intent kept separate.
+1. **Bound the question**: path, symbol, revision range, and the decision the history should inform; record HEAD, shallow state, and dirty work.
+1. **Trace evidence**: use [investigation.md](references/investigation.md) for blame, line history, pickaxe, renames, commit inspection, and exact PR mapping through gh.
+1. **Explain the timeline**: connect behavior changes, tests, reversions, and later superseding decisions; treat formatting and co-change as clues rather than causes.
+1. **Report**: separate author-stated rationale, verified facts, inference, contradictions, and unknowns; cite commits/paths and name the smallest current check that resolves remaining risk.
 
 ## Gotchas
 
-- **Investigation is read-only**: Do not fetch, pull, checkout, bisect with mutations, reset, rebase, amend, revert, delete refs, rewrite history, or contact an author unless the user separately authorizes it.
+- **Investigation is read-only**: Preserve the working tree and existing refs. Fetch missing objects into an isolated clone when needed for the requested investigation; use a disposable worktree for bisect experiments. Pulling into the working tree, rewriting history, and contacting authors require authority for those effects.
 - **Never print raw remote URLs**: identify the remote with `gh repo view --json nameWithOwner` and never echo a URL that carries a token.
 - **Current blame is not original authorship**: a committer is not necessarily the designer, and a message can state intent without proving the constraint still holds; redact email addresses from returned evidence.
 - **Confidence**: `High` needs explicit rationale that agrees with the patch, tests, and later history; `Medium` has agreeing lineage and co-change without stated rationale; `Low` rests on blame, one title match, a semantic search, sparse history, or an ancestry break; otherwise say `UNKNOWN`.
