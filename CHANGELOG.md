@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.27.0] - 2026-09-06
+
+### 🚀 Features
+
+- _(dot)_ Migrate CLI from Go to Python
+
+### 🐛 Bug Fixes
+
+- Harden tooling, agent workflows, and validation contracts
+- _(ci)_ Make Python gate environment-independent
+
+### ♻️ Refactor
+
+- Streamline scripts, agent skill catalog, and tool configs
+
 ## [1.26.2] - 2026-09-04
 
 ### 📚 Documentation
