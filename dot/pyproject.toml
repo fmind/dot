@@ -3,7 +3,7 @@
 
 [project]
 name = "fmind-dot"
-version = "1.26.2"
+version = "1.27.0"
 description = "Python-first CLI for fmind's dotfiles and agent workflows"
 requires-python = ">=3.14"
 license = "MIT"
