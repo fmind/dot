@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from typer import _click
 from typer.testing import CliRunner
 
 import fmind_dot.agent as agent_module
@@ -395,5 +396,6 @@ def test_doctor_cli_exposes_fix_and_preview_flags() -> None:
     result = CliRunner().invoke(app, ["agent", "doctor", "--help"])
 
     assert result.exit_code == 0
-    assert "--fix" in result.stdout
-    assert "--dry-run" in result.stdout
+    output = _click.utils.strip_ansi(result.stdout)
+    assert "--fix" in output
+    assert "--dry-run" in output

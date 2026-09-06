@@ -12,6 +12,7 @@ from typing import IO
 
 import pytest
 import typer
+from typer import _click
 from typer.testing import CliRunner, Result
 
 import fmind_dot.maintenance as maintenance
@@ -196,15 +197,14 @@ def invoke_prune(
 
 
 def copy_release_project(tmp_path: Path) -> tuple[Path, bytes]:
-    source = Path(__file__).parents[1]
     project = tmp_path / "dot"
     project.mkdir()
-    shutil.copy2(source / "pyproject.toml", project / "pyproject.toml")
-    shutil.copy2(source / "uv.lock", project / "uv.lock")
+    # A dependency-free package keeps the real uv lock rewrite hermetic even
+    # when the test runner starts with an empty package cache.
+    (project / "pyproject.toml").write_text(
+        '[project]\nname = "fmind-dot"\nversion = "1.26.2"\nrequires-python = ">=3.14"\ndependencies = []\n'
+    )
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n")
-    # Keep the release fixture independent of the repository's current version;
-    # the real release gate runs these tests after bumping that live manifest.
-    write_release_version(tmp_path, "v1.26.2")
     Runner().run(["uv", "lock", "--project", str(project)], env={"UV_OFFLINE": "1"})
     return project, (project / "uv.lock").read_bytes()
 
@@ -246,8 +246,9 @@ def test_registration_exposes_python_maintenance_contract() -> None:
     prune = CliRunner().invoke(app, ["prune", "--help"])
 
     assert root.exit_code == 0
-    assert {"chezmoi", "prune", "release"} <= set(root.stdout.split())
+    assert {"chezmoi", "prune", "release"} <= set(_click.utils.strip_ansi(root.stdout).split())
     assert prune.exit_code == 0
+    prune_output = _click.utils.strip_ansi(prune.stdout)
     for target, levels in {
         "--agents": "[=sessions]",
         "--docker": "[=build|system]",
@@ -256,10 +257,10 @@ def test_registration_exposes_python_maintenance_contract() -> None:
         "--tools": "[=cache]",
         "--all": "[=shallow|deep]",
     }.items():
-        assert target in prune.stdout
-        assert levels in prune.stdout
-    assert "--go" not in prune.stdout
-    assert "--node" not in prune.stdout
+        assert target in prune_output
+        assert levels in prune_output
+    assert "--go" not in prune_output
+    assert "--node" not in prune_output
 
 
 def test_prune_cli_bare_flags_use_configured_levels(monkeypatch: pytest.MonkeyPatch) -> None:

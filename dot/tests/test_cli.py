@@ -149,7 +149,7 @@ def test_root_help_command_and_bare_invocation_exit_successfully(
     result = runner.invoke(app, arguments)
 
     assert result.exit_code == 0
-    assert "Usage: dot [OPTIONS] COMMAND [ARGS]..." in result.stdout
+    assert "Usage: dot [OPTIONS] COMMAND [ARGS]..." in _click.utils.strip_ansi(result.stdout)
 
 
 def test_help_command_resolves_nested_command_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -158,8 +158,9 @@ def test_help_command_resolves_nested_command_paths(tmp_path: Path, monkeypatch:
     result = runner.invoke(app, ["help", "agent", "session"])
 
     assert result.exit_code == 0
-    assert "Usage: dot agent session [OPTIONS] COMMAND [ARGS]..." in result.stdout
-    assert "Manage agent session logs" in result.stdout
+    output = _click.utils.strip_ansi(result.stdout)
+    assert "Usage: dot agent session [OPTIONS] COMMAND [ARGS]..." in output
+    assert "Manage agent session logs" in output
 
 
 @pytest.mark.parametrize("arguments", [["version"], ["i"], ["--version"], ["-v"]])
