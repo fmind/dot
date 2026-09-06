@@ -1,3 +1,4 @@
+-- Docs: https://github.com/nvim-treesitter/nvim-treesitter#commands
 -- Lazy's build callbacks start asynchronous parser work; headless tasks must wait.
 local ok, err = pcall(function()
   local timeout = 15 * 60 * 1000
@@ -17,7 +18,7 @@ local ok, err = pcall(function()
     end),
     "Tree-sitter parsers are still missing after installation"
   )
-  assert(ts.update():wait(timeout), "Tree-sitter parser update failed")
+  assert(ts.update(languages, { summary = true }):wait(timeout), "Tree-sitter parser update failed")
 end)
 
 if not ok then

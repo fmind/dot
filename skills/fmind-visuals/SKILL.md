@@ -1,58 +1,46 @@
 ---
 name: fmind-visuals
-description: Apply the Fmind visual identity and route slide or diagram work to Slidev, Mermaid, LikeC4, or D2. Use for Fmind talks, decks, article diagrams, site assets.
+description: Apply the Fmind visual identity and route decks or diagrams to Typst, Mermaid, or D2. Use for Fmind talks, decks, article diagrams, and site assets.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Fmind Visual Communication
 
-Apply the Fmind visual identity from [fmind-theme.md](references/fmind-theme.md). Preserve readable typography, spacious composition, and evidence-backed claims; [technical-publishing](../technical-publishing/SKILL.md) owns article production.
+Apply the Fmind identity from [fmind-theme.md](references/fmind-theme.md): readable typography, spacious composition, and evidence-backed claims. [Technical publishing](../technical-publishing/SKILL.md) owns article production.
 
 ## Workflow
 
-1. **Select the format** from the table and respect an explicitly requested format or existing project.
-1. **Apply the brand**: use Outfit headings, Inter body text, and the reference's tokens; article diagrams use the light-surface [D2 template](references/diagram.d2). Copy fonts and logos into the deliverable.
-1. **Create**: follow [production.md](references/production.md) for deck setup and exports; start decks from [package.json.template](references/package.json.template), [pnpm-workspace.yaml](references/pnpm-workspace.yaml), [slides.md](references/slides.md), and [style.css](references/style.css).
-1. **Verify**: inspect every rendered and exported view for legibility, clipping, loading fonts, and accessibility; keep editable source with its exports.
+1. **Select the format** from the table while respecting an explicitly requested format or an existing project.
+1. **Apply the brand**: use Outfit headings and Inter body text for released artifacts; the self-contained deck starts with an installed sans-serif fallback. Copy the fonts and logo into the deliverable rather than linking to private paths.
+1. **Create**: follow [production.md](references/production.md); start decks from [deck.typ](references/deck.typ), ordinary diagrams with [Mermaid](../mermaid/SKILL.md), and article diagrams from the light-surface [D2 template](references/diagram.d2).
+1. **Verify**: run `typstyle`, compile with `typst`, and inspect every rendered page or diagram for legibility, clipping, font loading, and accessibility. Keep editable sources beside their exports.
 
 ## Canonical Tool Choice
 
 | Need                                                        | Tool                           | Boundary                                                  |
 | ----------------------------------------------------------- | ------------------------------ | --------------------------------------------------------- |
-| Slides, talks, workshops, LinkedIn documents                | [Slidev](https://sli.dev)      | Default for every new deck                                |
 | Flow, sequence, state, class, ER, compact technical diagram | [Mermaid](../mermaid/SKILL.md) | Default for every new diagram                             |
 | Fmind article diagram                                       | [D2](../d2/SKILL.md)           | Import [diagram.d2](references/diagram.d2), light surface |
-| Durable architecture model with multiple generated views    | [LikeC4](https://likec4.dev/)  | Use when the model, not one image, is the source of truth |
 | Existing D2 source or bespoke standalone composition        | [D2](../d2/SKILL.md)           | Specialist fallback                                       |
-
-Do not create a custom HTML deck, Typst deck, PowerPoint source, or generated raster diagram unless the user explicitly requests that format or an existing project requires it.
 
 ## Gotchas
 
-- **Interactive success is not export success**: inspect the PDF or PNG; fixed bounds clip late-loading fonts.
-- **Decoration**: every node and slide carries one evidence-backed thesis; remove decorative nodes, gradients, and generic AI imagery.
-- **Accessibility**: diagrams need a prose equivalent or alt text; text stays legible on a laptop, projector, mobile preview, and exported page.
-- **Private paths**: copy brand assets into the deliverable; never link local workspace paths from a published artifact.
+- **Compile success is not visual success**: inspect the PDF or PNG at projector and mobile-preview sizes; fixed bounds can clip dense content.
+- **One thesis per page**: use one claim, mechanism, decision, or artifact; split dense content instead of shrinking type.
+- **Decoration**: remove decorative nodes, gradients, and generic AI imagery.
+- **Accessibility**: diagrams need a prose equivalent or alt text, and text must retain readable contrast and size.
+- **External diagrams**: render Mermaid or D2 to SVG before embedding it in Typst; keep the `.mmd` or `.d2` source beside the export.
 
 ## Official Skills
 
-For a LikeC4 model, install the CLI with `pnpm add -D likec4` in its project, commit `pnpm-lock.yaml`, and invoke it with `pnpm exec likec4`.
-
-Upstream: `slidevjs/slidev` (decks) and `likec4/likec4` (architecture models). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add slidevjs/slidev --list
-skills add slidevjs/slidev --skill <name> -y
-skills add likec4/likec4 --list
-skills add likec4/likec4 --skill <name> -y
-```
+Typst is invoked directly for decks; Mermaid and D2 use their companion skills in this catalog. No additional upstream skill bundle is required.
 
 ## Documentation
 
-- [Fmind website](https://www.fmind.dev/) · [Slidev](https://sli.dev) · [Mermaid](https://mermaid.js.org/) · [LikeC4](https://likec4.dev/) · [D2](https://d2lang.com/)
-- Companion skills: [mermaid](../mermaid/SKILL.md) (default diagrams), [d2](../d2/SKILL.md) (specialist diagrams), [technical-publishing](../technical-publishing/SKILL.md) (Fmind articles), [native skill tooling](https://skills.sh/docs/cli) (upstream skill install).
+- [Fmind website](https://www.fmind.dev/) · [Typst](https://typst.app/docs/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
+- Companion skills: [mermaid](../mermaid/SKILL.md) (default diagrams), [d2](../d2/SKILL.md) (specialist diagrams), and [technical-publishing](../technical-publishing/SKILL.md) (Fmind articles).

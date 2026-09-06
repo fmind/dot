@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-prompt
   created: "2026-09-05"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Agent Prompt
@@ -29,4 +29,4 @@ Prepare instructions the receiving agent can use without this conversation. [pro
 
 ## Documentation
 
-- Companion skills: [agent-proposal](../agent-proposal/SKILL.md) (options), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [plan-execution](../plan-execution/SKILL.md) (receiving work), [agent-project](../agent-project/SKILL.md) (host layout).
+- Companion skills: [technical-research](../technical-research/SKILL.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [plan-execution](../plan-execution/SKILL.md) (receiving work), [agent-project](../agent-project/SKILL.md) (host layout).

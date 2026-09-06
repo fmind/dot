@@ -4,11 +4,11 @@ description: One sentence.
 slug: "n-m-title"
 ---
 
-{{% admonition abstract "In one glance" %}}
+**In one glance**
 
 - **You will:** Outcome.
 - **You need:** `mise run install` done. No model, cluster, or account.
-- **Time:** about N minutes, hands-on. {{% /admonition %}}
+- **Time:** about N minutes, hands-on.
 
 ## What this section teaches, named as its purpose (concept first, then a runnable command and its verbatim output)
 
@@ -26,4 +26,4 @@ slug: "n-m-title"
 
 - Observable capability.
 
-Continue to [N.M+1. Next page]({{< relref "/N. Chapter/N.M+1. Next page.md" >}}), which does the next thing.
+Continue to [N.M+1. Next page](#replace-with-next-page-url), which does the next thing.

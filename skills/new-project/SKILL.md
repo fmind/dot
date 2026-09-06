@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/new-project
   created: "2026-09-02"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # New Project
@@ -17,12 +17,9 @@ Bootstrap a repository in a fixed order, one stack skill for the code and then t
 
 1. **Decide the basics**: slug (lowercase, hyphens), owner (`fmind`, `fmind-ai`, `mlops-courses`), visibility, purpose, and the parent directory from the global `AGENTS.md`; ask only when one is missing.
 1. **Pick one stack skill** and follow its scaffolding; it already writes `mise.toml`, `lefthook.yml`, `.gitignore`, and a stack `AGENTS.md`:
-   - Go library, CLI, web app, or ADK agent: [go-stack](../go-stack/SKILL.md)
-   - Python package, CLI, web app: [python-stack](../python-stack/SKILL.md)
-   - TypeScript frontend or full-stack website: [typescript-stack](../typescript-stack/SKILL.md), which composes [angular](../angular/SKILL.md) and adds [firebase](../firebase/SKILL.md) or [genkit](../genkit/SKILL.md) only when needed
-   - Agent with the agents CLI: [google-adk](../google-adk/SKILL.md)
-   - Content-driven site with islands: [astro](../astro/SKILL.md)
-   - Docs site: [hugo](../hugo/SKILL.md); document: [typst](../typst/SKILL.md); infrastructure: [terraform-stack](../terraform-stack/SKILL.md)
+   - Python package, CLI, or Litestar web app: [python-stack](../python-stack/SKILL.md)
+   - Python agent with the agents CLI: [agents-cli](../agents-cli/SKILL.md), then [google-adk](../google-adk/SKILL.md) for SDK code
+   - Documentation or course site: [zensical](../zensical/SKILL.md), with [course-development](../course-development/SKILL.md) for lessons; infrastructure: [terraform](../terraform/SKILL.md)
 1. **Add the shared layer**, skipping what the stack already produced:
    - `LICENSE` and manifest field: [project-license](../project-license/SKILL.md)
    - `dprint.json`: [dprint](../dprint/SKILL.md); hooks installed: [lefthook](../lefthook/SKILL.md)

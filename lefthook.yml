@@ -1,3 +1,6 @@
+# yaml-language-server: $schema=https://json.schemastore.org/lefthook.json
+# Docs: https://lefthook.dev/configuration/
+
 glob_matcher: doublestar
 pre-commit:
   parallel: false
@@ -6,14 +9,6 @@ pre-commit:
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
       priority: 10
       run: mise run format:dprint {staged_files}
-      stage_fixed: true
-    format:go:
-      glob: "**/*.go"
-      exclude:
-        - "skills/**/*.go"
-        - ".agents/tmp/**/*.go"
-      priority: 10
-      run: mise run format:go {staged_files}
       stage_fixed: true
     format:lua:
       glob: "**/*.lua"
@@ -26,20 +21,12 @@ pre-commit:
         - "skills/*/references/**/*.py"
         - ".agents/tmp/**/*.py"
       priority: 10
-      run: mise run format:python {staged_files}
+      run: mise run format:python
       stage_fixed: true
     format:shell:
       glob: "**/*.sh"
       priority: 10
-      run: mise run format:shell {staged_files}
-      stage_fixed: true
-    format:typescript:
-      glob: "**/*.ts"
-      exclude:
-        - "skills/**"
-        - ".agents/tmp/**"
-      priority: 10
-      run: mise run format:typescript {staged_files}
+      run: mise run format:shell
       stage_fixed: true
     check:leaks:
       priority: 20

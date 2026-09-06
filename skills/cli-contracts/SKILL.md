@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cli-contracts
   created: "2026-08-30"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # CLI Contracts
 
-Define a command-line interface as a stable human and machine contract before implementing it. [go-stack](../go-stack/SKILL.md) and [python-stack](../python-stack/SKILL.md) own the language code; [systematic-debugging](../systematic-debugging/SKILL.md) owns unknown failures.
+Define a command-line interface as a stable human and machine contract before implementing it. [python-stack](../python-stack/SKILL.md) owns the application code; [systematic-debugging](../systematic-debugging/SKILL.md) owns unknown failures.
 
 ## Workflow
 
@@ -29,4 +29,4 @@ Define a command-line interface as a stable human and machine contract before im
 ## Documentation
 
 - [Command Line Interface Guidelines](https://clig.dev)
-- Companion skills: [go-stack](../go-stack/SKILL.md) (Go CLIs), [python-stack](../python-stack/SKILL.md) (Python CLIs), [systematic-debugging](../systematic-debugging/SKILL.md) (failures of unknown cause).
+- Companion skills: [python-stack](../python-stack/SKILL.md) (Python CLIs), [systematic-debugging](../systematic-debugging/SKILL.md) (failures of unknown cause).

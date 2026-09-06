@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # DuckDB and SQLite
@@ -45,14 +45,9 @@ The interactive shells load `~/.duckdbrc` and `~/.sqliterc` (box mode, headers, 
 
 ## Official Skills
 
-Upstream: `duckdb/duckdb-skills` (one skill per task: querying, file formats, attaching databases, spatial, S3, docs lookup). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add duckdb/duckdb-skills --list
-skills add duckdb/duckdb-skills --skill <name> -y
-```
+Upstream: `duckdb/duckdb-skills`, with separate selections for querying, file formats, attached databases, spatial, S3, and documentation lookup. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 
 - [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview) · [SQLite CLI](https://sqlite.org/cli.html)
-- Companion skills: [python-script](../python-script/SKILL.md) (a one-file pipeline when SQL is not enough), [go-stack](../go-stack/SKILL.md) (`sqlc` for application SQL).
+- Companion skills: [python-script](../python-script/SKILL.md) (a one-file pipeline when SQL is not enough), [python-stack](../python-stack/SKILL.md) (typed application data access and embedded SQLite).

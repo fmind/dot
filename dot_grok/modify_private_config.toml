@@ -46,15 +46,11 @@ max_thoughts_width = 120
 permission_mode = "always-approve"
 render_mermaid = "on"
 screen_mode = "fullscreen"
-show_timeline = false
-# simple_mode is the prompt editor and vim_mode is scrollback navigation, and both are on
-# vim here so Grok matches Claude Code (editorMode), Codex (vim_mode_default), and readline
-# (dot_inputrc). Grok flags prompt vim editing as experimental: an empty prompt starts in
-# normal mode with focus on the scrollback, so "i" is what begins typing.
-simple_mode = false
+# simple_mode keeps prompt editing non-modal and responsive for immediate typing,
+# while vim_mode preserves vim navigation in scrollback history.
+simple_mode = true
 theme = "tokyonight"
 vim_mode = true
-voice_stt_language = "fr"
 
 # Grok's bash defaults truncate a "mise run test" run twice over: the 120s timeout kills it
 # long before it finishes, and the 20 KB output cap cuts off the failure that matters. Both
@@ -108,12 +104,11 @@ skills = false
 
 ` -}}
 {{- /* Dropping a key from the managed block above only stops managing it -- the merge would
-       still carry whatever Grok last wrote. These three have to be pruned to actually go:
-       privacy, which Grok wrote and a later version dropped, so "grok inspect" now reports
-       it as an unrecognized config key; models.default, per the [models] note; and ui.yolo,
-       the redundant second spelling of permission_mode. */ -}}
+       still carry whatever Grok last wrote. These have to be pruned to actually go:
+       privacy, which Grok wrote and a later version dropped; models.default, per the [models] note;
+       ui.yolo, the redundant second spelling of permission_mode; and extraneous ui keys. */ -}}
 {{- includeTemplate "toml-merge.tmpl" (dict
       "stdin" .chezmoi.stdin
       "managed" $managedConfig
       "defaults" dict
-      "prune" (list "models.default" "privacy" "ui.yolo")) -}}
+      "prune" (list "models.default" "privacy" "ui.show_timeline" "ui.voice_stt_language" "ui.yolo")) -}}

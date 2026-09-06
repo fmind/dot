@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/update-docs
   created: "2026-09-02"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Update Repository Documentation
@@ -32,4 +32,4 @@ Reconcile the repository's human and agent documentation with the implementation
 ## Documentation
 
 - [lychee](https://lychee.cli.rs) · [dprint](https://dprint.dev)
-- Companion skills: [readme-md](../readme-md/SKILL.md), [agents-md](../agents-md/SKILL.md), [skillify](../skillify/SKILL.md), [hugo](../hugo/SKILL.md), [reduce-complexity](../reduce-complexity/SKILL.md).
+- Companion skills: [readme-md](../readme-md/SKILL.md), [agents-md](../agents-md/SKILL.md), [skillify](../skillify/SKILL.md), [project-health](../project-health/SKILL.md).

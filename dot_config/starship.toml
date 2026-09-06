@@ -1,4 +1,5 @@
 "$schema" = "https://starship.rs/config-schema.json"
+# Docs: https://starship.rs/config/
 
 add_newline = false
 format = "$directory$git_branch$git_state$git_status$kubernetes$cmd_duration$character"

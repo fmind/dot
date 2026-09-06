@@ -1,3 +1,5 @@
+# Docs: https://github.com/sharkdp/bat#configuration-file
+
 --paging=auto
 --style="plain"
 --theme="ansi"

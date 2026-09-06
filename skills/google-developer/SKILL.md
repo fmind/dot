@@ -21,12 +21,7 @@ metadata:
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/developers` group). List the current release, then install only the skills needed for the task at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add https://github.com/google/skills/tree/main/skills/developers --list
-skills add https://github.com/google/skills/tree/main/skills/developers --skill <name> -y
-```
+Upstream: `google/skills` (`skills/developers` group). Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select only the product guidance needed by the task.
 
 ## Documentation
 

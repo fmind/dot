@@ -1,2 +1,4 @@
+# Docs: https://github.com/stern/stern#config-file
+
 tail: 50
 timestamps: short

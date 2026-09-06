@@ -1,17 +1,17 @@
 ---
 name: mermaid
-description: Create, theme, validate, and embed Mermaid diagrams, the default diagram format for GitHub, Hugo, Slidev, and docs. Use for any new diagram unless D2 or LikeC4 applies.
+description: Create, theme, validate, and embed Mermaid diagrams, the default diagram format for GitHub and Markdown documentation. Use for any new diagram unless D2 or LikeC4 applies.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mermaid
   created: "2026-07-16"
-  updated: "2026-09-04"
+  updated: "2026-09-06"
 ---
 
 # Mermaid Diagram Standard
 
-Mermaid is the default diagram format because the same editable text renders in GitHub Markdown, Hugo sites (Hextra bundles it), and Slidev decks. Keep the source portable, reviewable, and close to the prose it explains; the choice between Mermaid, [D2](../d2/SKILL.md), LikeC4, or no diagram lives in [fmind-visuals](../fmind-visuals/SKILL.md).
+Mermaid is the default diagram format because the same editable text renders in GitHub Markdown and documentation renderers with Mermaid support. Keep the source portable, reviewable, and close to the prose it explains; the choice between Mermaid, [D2](../d2/SKILL.md), LikeC4, or no diagram lives in [fmind-visuals](../fmind-visuals/SKILL.md).
 
 ## Workflow
 
@@ -41,4 +41,4 @@ Mermaid is the default diagram format because the same editable text renders in 
 ## Documentation
 
 - [Syntax reference](https://mermaid.js.org/intro/syntax-reference.html) · [Theming](https://mermaid.js.org/config/theming) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)
-- Companion skills: [fmind-visuals](../fmind-visuals/SKILL.md) (tool choice and Fmind theme), [d2](../d2/SKILL.md) (bespoke compositions), [hugo](../hugo/SKILL.md) (Hextra sites).
+- Companion skills: [fmind-visuals](../fmind-visuals/SKILL.md) (tool choice and Fmind theme), [d2](../d2/SKILL.md) (bespoke compositions).

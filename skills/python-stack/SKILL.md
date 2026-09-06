@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Python Stack Standard
 
-Use typed Python for packages, CLIs, Litestar applications, and ADK integrations. [python-script](../python-script/SKILL.md) owns single-file PEP 723 scripts; [google-adk](../google-adk/SKILL.md) owns the agent workflow.
+Use typed Python for packages, CLIs, Litestar applications, and ADK integrations. [python-script](../python-script/SKILL.md) owns single-file PEP 723 scripts; [agents-cli](../agents-cli/SKILL.md) owns agent scaffolding and deployment, and [google-adk](../google-adk/SKILL.md) owns ADK code.
 
 ## Defaults
 
@@ -45,7 +45,9 @@ Use typed Python for packages, CLIs, Litestar applications, and ADK integrations
 
 ## Official Skills
 
-Astral's `astral-sh/claude-code-plugins` provides Python-tool integrations. Discover the current bundle with native host tooling and select only the required integration.
+Use the tool-specific guide to list, review, and install official skills in the target project: [uv](../uv/SKILL.md), [Ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md), [Pydantic](../pydantic/SKILL.md), [Typer](../typer/SKILL.md), [Litestar](../litestar/SKILL.md), and [FastAPI](../fastapi/SKILL.md) for existing or explicitly selected FastAPI apps. [Zensical](../zensical/SKILL.md) is the documentation and course publisher.
+
+Read the [official skill source audit](references/official-skills.md) when selecting additional dependencies or checking which vendors publish application skills. It records coverage and gaps; it is not an instruction to install every bundle.
 
 ## Documentation
 

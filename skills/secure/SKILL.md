@@ -1,43 +1,42 @@
 ---
 name: secure
-description: "Run the repository security pass: secret leaks, dependency and IaC scans, workflow audit, image signing, encrypted secrets, threat model. Use for a security review or checklist."
+description: "Run the Python repository security pass across secrets, dependencies, IaC, workflows, images, provenance, and threat boundaries. Use for a security review."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/secure
   created: "2026-07-04"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
-# Secure a Repository
+# Secure a Python Repository
 
-One ordered checklist that composes the tool skills; each step names the skill that owns the detail, this file only decides the order and the gate.
+Run one ordered gate for a uv-managed Python project. The linked tool skills own command details; this skill owns coverage, order, and honest reporting.
 
-## Checklist
+## Workflow
 
-1. **Secrets in git**: run the full-history scan and wire the staged pre-commit hook per [gitleaks](../gitleaks/SKILL.md); rotate anything found before touching anything else.
-1. **Secrets at rest**: move plaintext credentials into environment variables or encrypted `*.enc.*` files per [sops-secrets](../sops-secrets/SKILL.md); runtime secrets come from Secret Manager per [cloud-run](../cloud-run/SKILL.md).
-1. **Dependencies, IaC, licenses**: run `check:vuln` (native scanner) and `check:scan` per [trivy](../trivy/SKILL.md); fix or justify every `HIGH`/`CRITICAL`.
-1. **Installed tool environments**: when auditing the workstation rather than a repository, follow [installed-tool auditing](references/installed-tools.md); coverage gaps are failures, not a clean result.
-1. **Code patterns (opt-in)**: adopt `check:sast` per [opengrep](../opengrep/SKILL.md) when the project handles untrusted input, authentication, or agents with tools.
-1. **Workflows**: run `check:actions` and fix findings per [zizmor](../zizmor/SKILL.md): least-privilege `permissions`, no template injection, pinned actions, `persist-credentials: false`.
-1. **Automated updates**: enable [dependabot](../dependabot/SKILL.md) for every ecosystem so the scans above stay green without manual bumps.
-1. **Supply chain**: for shipped images, scan, sign, and attest the digest per [containerize](../containerize/SKILL.md) and [cosign](../cosign/SKILL.md); verification pins identity and issuer.
-1. **Runtime posture**: private services by default (`--no-allow-unauthenticated`), dedicated runtime service accounts, keyless CI identity via Workload Identity Federation per [cloud-run](../cloud-run/SKILL.md).
-1. **Threat model**: when the project handles authentication, personal data, agents with tools, or public exposure, run [threat-model](../threat-model/SKILL.md); scanners do not find design flaws.
+1. **Leaks**: run the full-history scan and wire the staged hook per [gitleaks](../gitleaks/SKILL.md). Treat a finding as compromised and rotate it before continuing.
+1. **Secrets at rest**: move plaintext credentials to environment variables or encrypted `*.enc.*` files per [sops-secrets](../sops-secrets/SKILL.md). Cloud Run receives runtime values from Secret Manager.
+1. **Dependency graphs**: run `uv audit --preview-features audit-command --locked` against `uv.lock` without the experimental-command warning. Audit exact installed `npm:` and `pipx:` tool graphs separately with [installed-tools.md](references/installed-tools.md); do not substitute a newly resolved graph for installed evidence.
+1. **Repository and IaC**: run `check:scan` per [trivy](../trivy/SKILL.md) for vulnerabilities, misconfiguration, secrets, and licenses. Fix or justify every `HIGH` or `CRITICAL` finding.
+1. **Workflows**: run `check:actions` per [zizmor](../zizmor/SKILL.md). Keep permissions least privilege, avoid template injection, pin actions, and set `persist-credentials: false`.
+1. **Updates**: configure [dependabot](../dependabot/SKILL.md) for the Python lock and GitHub Actions so the same gates inspect upgrades.
+1. **Images and provenance**: build the pinned non-root image per [containerize](../containerize/SKILL.md). Scan the exact digest, generate an SBOM, then sign, verify, and attest it per [cosign](../cosign/SKILL.md).
+1. **Runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../cloud-run/SKILL.md). Review declarative infrastructure with [terraform](../terraform/SKILL.md).
+1. **Threat boundaries**: run [threat-model](../threat-model/SKILL.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
 
 ## Gate
 
-Every offline scan lives in `mise run check` so hooks and CI share it: `check:leaks`, `check:vuln`, `check:scan`, `check:actions`, and `check:sast` once adopted (names from [mise](../mise/SKILL.md)). Full-history and image scans run in the scheduled `security.yml` per [github-actions](../github-actions/SKILL.md).
+`mise run check` owns the checks shared by hooks and CI (advisory databases may require network access): `check:leaks`, `check:vuln`, `check:scan`, and `check:actions`. Keep full-history and published-image scans in the scheduled `security.yml` per [github-actions](../github-actions/SKILL.md).
 
 ## Report
 
-- List findings by severity with the fix applied or the justified ignore (`.trivyignore`, `.gitleaks.toml`, `.semgrepignore` or `nosemgrep`, `.github/zizmor.yml`), each with a reason.
-- State what each proof covers: identify the scanned tree, revision range, and scanners; a completed manual or scheduled full-history scan proves that scope. A verified signature binds a digest to the expected identity and issuer; it does not establish deployment or absence of vulnerabilities.
-- Never describe a suppressed finding as fixed.
+- List findings by severity, affected revision or digest, and the applied fix or narrow justified ignore.
+- State the proof boundary for every command: working tree, history range, lockfile, image digest, IaC tree, workflow set, signature identity, and issuer.
+- Report missing tools, databases, lockfiles, inaccessible registries, malformed output, and skipped targets as coverage gaps.
+- Never describe a suppression as a fix or one scanner as proof for another control.
 
 ## Documentation
 
-- [OpenSSF Scorecard](https://securityscorecards.dev) is the checklist behind these steps; the one deliberate deviation is major-tag pinning of actions instead of hash pins (see [zizmor](../zizmor/SKILL.md)).
-- Third-party audit skills: `skills add trailofbits/skills --list` (supply-chain and agentic-actions auditors; CC-BY-SA, install at project scope only) and `gh skill preview cli/cli dependabot-triager --allow-hidden-dirs`.
-- Companion skills: [skill-security-review](../skill-security-review/SKILL.md) (vet third-party skills before installing), [incident-response](../incident-response/SKILL.md) (when something already leaked).
+- [OpenSSF Scorecard](https://securityscorecards.dev)
+- Companion skills: [skill-security-review](../skill-security-review/SKILL.md) for third-party skills and [incident-response](../incident-response/SKILL.md) when an incident is active.

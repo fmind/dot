@@ -1,24 +1,24 @@
 ---
 name: github-actions
-description: Configure GitHub Actions CI/CD so workflows run the same mise format, check, test, build gate as local hooks, lint with actionlint and zizmor, and deploy keyless. Use when adding or fixing workflows.
+description: Configure GitHub Actions for Python CI, PyPI Trusted Publishing, and signed Dockerfile images, with mise, actionlint, and zizmor. Use when adding or fixing Python workflows.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
-# GitHub Actions
+# GitHub Actions for Python
 
-CI runs the canonical [mise](../mise/SKILL.md) `all` task so it never drifts from the local [lefthook](../lefthook/SKILL.md) hooks; CD builds, signs, and publishes from a version tag with OIDC instead of long-lived credentials.
+CI runs the canonical [mise](../mise/SKILL.md) `all` task so it stays aligned with local [lefthook](../lefthook/SKILL.md) hooks; CD publishes Python distributions or Dockerfile images from version tags with short-lived OIDC credentials.
 
 ## Workflow
 
 1. **CI**: copy [ci.yml](references/ci.yml) to `.github/workflows/ci.yml`; it runs `mise run all`, asserts an empty porcelain status so drift fails the build, and fetches 100 commits to match the `check:leaks` bound.
 1. **Security**: copy [security.yml](references/security.yml) to `.github/workflows/security.yml`: a scheduled full-history [gitleaks](../gitleaks/SKILL.md) and [trivy](../trivy/SKILL.md) rescan where any finding fails the job.
-1. **CD**: copy [cd.yml](references/cd.yml) to `.github/workflows/cd.yml` and enable one job: a `ko` container signed keyless with [cosign](../cosign/SKILL.md), a PyPI package via Trusted Publishing, or a Dockerfile image.
-1. **Lint the workflows**: copy [zizmor.yml](references/zizmor.yml) to `.github/zizmor.yml`, pin `actionlint`, `shellcheck`, and `zizmor` in `mise.toml` `[tools]`, and expose `check:actions`:
+1. **CD**: copy [cd.yml](references/cd.yml) to `.github/workflows/cd.yml`; enable `ENABLE_DEPLOY_PYPI`, `ENABLE_DEPLOY_CONTAINER`, or both. Configure the `pypi` environment and matching PyPI Trusted Publisher before enabling package publication. The image path expects the [containerize](../containerize/SKILL.md) Dockerfile, `trivy.yaml`, and `trivy` plus `cosign` in `mise.toml`.
+1. **Lint the workflows**: pin `actionlint`, `shellcheck`, and `zizmor` in `mise.toml` `[tools]`, and expose `check:actions`:
 
    ```toml
    [tasks."check:actions"]
@@ -26,25 +26,26 @@ CI runs the canonical [mise](../mise/SKILL.md) `all` task so it never drifts fro
    run = ["actionlint", "zizmor --offline .github/workflows/"]
    ```
 
-1. **Verify locally**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Verify locally**: run `mise run all`; when unrelated changes make a write-formatting gate unsafe, use an isolated working-tree copy containing the candidate edits or run `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
 
 ## Principles
 
-- **One gate**: CI runs `mise run all`, the same tasks the hooks call plus the production build; no CI-only steps.
-- **Tools from `mise.toml`**: `jdx/mise-action` installs and caches the pinned toolchain so CI runs the versions pinned locally; commit `mise.lock` for stable caches.
-- **Least privilege**: top-level `permissions: contents: read`; widen (`packages: write`, `id-token: write`) only in the job that needs it.
-- **Keyless**: OIDC for cosign signing and PyPI Trusted Publishing; no long-lived registry or package credentials.
-- **Fail fast, cancel stale**: `concurrency` cancels superseded runs on pull requests and branches while `main` keeps every run.
-- **Current majors**: keep actions on the current major tag (`actions/checkout@v7`, `jdx/mise-action@v4`) so runner runtime deprecations never bite.
+- **One gate**: CI runs `mise run all`, the same tasks the hooks call plus the production build.
+- **Pinned project tools**: `jdx/mise-action` installs the `mise.toml` toolchain; commit `mise.lock` for stable caches and disable caches in release jobs.
+- **Isolated publishing**: build distributions without OIDC, transfer only `dist/`, then grant `id-token: write` to the PyPI job. `pypa/gh-action-pypi-publish` performs Trusted Publishing and creates PyPI attestations.
+- **Least privilege**: top-level `contents: read`; grant `id-token: write` only to publishers and `packages: write` only to the GHCR job.
+- **Immutable images**: validate and scan the published Buildx digest, generate its CycloneDX SBOM, then sign, verify, attest, and verify the attestation with [trivy](../trivy/SKILL.md) and [cosign](../cosign/SKILL.md).
+- **Immutable action refs**: use the full 40-character commit SHA plus the release as a trailing comment, such as `actions/checkout@<sha> # v7.0.1`; let Dependabot propose reviewed updates.
 
 ## Gotchas
 
-- **Injection and cache poisoning**: `${{ ... }}` expands in `run:` before the shell runs, even inside comments, and a shared cache can reach signed artifacts; the fixes are the `template-injection` and `cache-poisoning` rows of [zizmor](../zizmor/SKILL.md).
-- **Separate security cadence**: full-history scans need `fetch-depth: 0` and minutes of runtime; keep them in the scheduled workflow with a job timeout, not in push CI.
-- **Downcase registry paths**: GHCR rejects uppercase owners; derive `IMAGE_REPOSITORY` with `tr '[:upper:]' '[:lower:]'` as the templates do.
-- **Tag pins by policy**: [zizmor.yml](references/zizmor.yml) relaxes `unpinned-uses` to the major-tag policy of [upgrade-tools](../upgrade-tools/SKILL.md); hash pins are the Scorecard default, not ours.
+- **Injection and cache poisoning**: `${{ ... }}` expands in `run:` before the shell runs, even inside comments; pass expression values through `env:` or action inputs and follow the `template-injection` and `cache-poisoning` fixes in [zizmor](../zizmor/SKILL.md).
+- **Trusted Publisher identity**: PyPI must match the GitHub owner, repository, workflow filename, and optional `pypi` environment exactly; no API token is needed.
+- **Separate security cadence**: full-history scans need `fetch-depth: 0` and minutes of runtime; keep them in the scheduled workflow with a job timeout.
+- **Registry identity**: GHCR rejects uppercase repository paths, while the cosign certificate retains the GitHub workflow identity; lowercase only the image repository.
+- **SHA comments drift**: when changing an action SHA manually, verify the release tag resolves to that exact commit and update its trailing comment in the same change.
 
 ## Documentation
 
-- [GitHub Actions](https://docs.github.com/actions) · [jdx/mise-action](https://github.com/jdx/mise-action)
-- Companion skills: [zizmor](../zizmor/SKILL.md) (findings and fixes), [trivy](../trivy/SKILL.md) (`security.yml`), [containerize](../containerize/SKILL.md) (`build:image`), [cosign](../cosign/SKILL.md) (signing), [secure](../secure/SKILL.md) (checklist).
+- [GitHub Actions](https://docs.github.com/actions) · [PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/) · [PyPA publish action](https://github.com/pypa/gh-action-pypi-publish) · [Docker build-push action](https://github.com/docker/build-push-action)
+- Companion skills: [python-stack](../python-stack/SKILL.md), [zizmor](../zizmor/SKILL.md), [trivy](../trivy/SKILL.md), [containerize](../containerize/SKILL.md), [cosign](../cosign/SKILL.md), and [secure](../secure/SKILL.md).

@@ -1,3 +1,4 @@
+-- Docs: https://www.lazyvim.org/configuration/general
 local map = vim.keymap.set
 
 -- Access literal (physical) line movement via gj/gk.

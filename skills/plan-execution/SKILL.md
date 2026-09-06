@@ -1,12 +1,12 @@
 ---
 name: plan-execution
-description: Execute an accepted implementation plan in bounded, verified slices. Use to coordinate agents and shared-file ownership, resume planned work, or finish scoped tasks without crossing commit or deploy boundaries.
+description: Execute an accepted implementation plan in bounded, verified slices. Use when coordinating shared files, resuming planned work, or finishing scoped tasks.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/plan-execution
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Plan Execution

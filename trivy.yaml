@@ -1,3 +1,5 @@
+# Docs: https://trivy.dev/docs/latest/references/configuration/config-file/
+
 timeout: 15m
 exit-code: 1
 severity:
@@ -18,6 +20,7 @@ scan:
     - .claude
     - .gemini
     - .git
+    - .opengrep
     - .ruff_cache
     - .venv
     - dot_local

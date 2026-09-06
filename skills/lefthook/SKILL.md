@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/lefthook
   created: "2026-07-04"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # Lefthook
@@ -15,8 +15,8 @@ Thin git hooks that delegate every command to a `mise run` task so hooks and CI 
 
 ## Workflow
 
-1. **Install**: pin `lefthook` via mise or the stack's dev dependencies ([go-stack](../go-stack/SKILL.md), [python-stack](../python-stack/SKILL.md), [typescript-stack](../typescript-stack/SKILL.md)).
-1. **Configure**: create `lefthook.yml` at the repository root from the template below; reference files live in [go-stack](../go-stack/references/lefthook.yml) and [python-stack](../python-stack/references/lefthook.yml).
+1. **Install**: pin `lefthook` via mise alongside the [Python stack](../python-stack/SKILL.md).
+1. **Configure**: create `lefthook.yml` at the repository root from the template below; the complete Python reference lives in [python-stack](../python-stack/references/lefthook.yml).
 1. **Activate**: `lefthook install`, wired into `mise run install`.
 
 ## Template
@@ -31,10 +31,10 @@ pre-commit:
       priority: 10
       run: mise run format:dprint {staged_files}
       stage_fixed: true
-    format:<lang>: # one per language: format:go / format:python / format:templ ...
-      glob: "*.<ext>"
+    format:python:
+      glob: "*.py"
       priority: 10
-      run: mise run format:<lang> {staged_files}
+      run: mise run format:python {staged_files}
       stage_fixed: true
     check:leaks: # staged secret scan: history-mode gitleaks in `check` cannot see the incoming commit
       priority: 20
@@ -52,7 +52,7 @@ pre-push:
 
 - **pre-commit** (fast): format staged files, then the static checks and the staged secret scan.
 - **pre-push** (slower): the test suite.
-- **post-commit** (optional): rebuild and redeploy a binary built from the repo's own sources, guarded to commits that touch a build input; git ignores its exit status, so it never blocks a commit.
+- **post-commit** (optional): rebuild and reinstall a Python application from the repository's own package, guarded to commits that touch a build input; git ignores its exit status, so it never blocks a commit.
 - **Delegate, don't duplicate**: every command is `mise run <task>` and its name mirrors the task; never inline tool commands.
 - **Staged formatters, whole-tree checks**: formatters take `{staged_files}` and restage fixes with `stage_fixed: true`; `check` and `test` take no files.
 

@@ -1,4 +1,7 @@
-"""Configuration for ptpython."""
+"""Configuration for ptpython.
+
+Docs: https://github.com/prompt-toolkit/ptpython
+"""
 
 
 def configure(repl) -> None:

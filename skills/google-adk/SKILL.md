@@ -1,67 +1,36 @@
 ---
 name: google-adk
-description: Build, run, evaluate, and deploy Google ADK agents in Go or Python with agents-cli, Agent Runtime, or Cloud Run and the official ADK skills. Use for any ADK work.
+description: Develop Google Agent Development Kit applications with Agent, Runner, sessions, callbacks, evaluation, and Gemini models. Use for Python google-adk code.
 license: MIT
 metadata:
-  author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-adk
   created: "2026-09-02"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
-# Google ADK Agents
+# Google ADK
 
-The Agent Development Kit is the default agent framework: code-first, model-agnostic, Gemini-optimized, with a launcher serving console, web UI, REST, and A2A from one binary. Go is the default; Python when `agents-cli` scaffolding, evaluation, or Agent Runtime matter more than a single static binary. Language APIs live in [go-stack](../go-stack/SKILL.md) §6 and [python-stack](../python-stack/SKILL.md) §5.
+Implement Python ADK behavior within the existing project; [agents-cli](../agents-cli/SKILL.md) owns the generated application, evaluation commands, and deployment lifecycle.
 
-## 1. Choose the Path
+## Workflow
 
-- **Go service, CLI, or single binary**: `google.golang.org/adk/v2` with `full.NewLauncher()` per [go-stack](../go-stack/SKILL.md) §6.
-- **Python with generated CI, eval, and deploy scaffold**: `agents-cli`, run as `uvx google-agents-cli` (`uvx` ships with `uv`; nothing to install) per §2.
-- **Managed runtime (sessions, memory, registry)**: Agent Runtime (Gemini Enterprise Agent Platform, formerly Vertex AI) via `agents-cli deploy --deployment-target agent_runtime`.
-- **Self-managed container**: Cloud Run via `agents-cli deploy --deployment-target cloud_run`, or the Go launcher's `web` mode per [cloud-run](../cloud-run/SKILL.md).
-
-## 2. Python Workflow (agents-cli)
-
-```bash
-uvx google-agents-cli create <name> --agent adk --deployment-target cloud_run --region europe-west1 --agent-guidance-filename AGENTS.md   # name <= 26 chars, lowercase
-cd <name> && uvx google-agents-cli install --locked   # dependencies
-uvx google-agents-cli playground                      # local web UI with live reload
-uvx google-agents-cli run "hello"                     # one prompt, then shutdown
-uvx google-agents-cli eval run                        # dataset in tests/, LLM-as-judge metrics (approval: model cost)
-uvx google-agents-cli deploy --dry-run                # review; real deploys need explicit approval
-```
-
-- Agent Runtime targets omit `--session-type`; other targets accept `--session-type agent_platform_sessions`; `--cicd-runner github_actions` generates the workflow.
-- Keep the generated `app/` layout (`agent.py`, `fast_api_app.py`) and `agents-cli-manifest.yaml`; add the canonical `mise.toml` tasks around it and never hand-write A2A plumbing.
-- Test wiring and scaffold normalization are in [python-stack](../python-stack/SKILL.md) §5.
-
-## 3. Rules for Every Agent
-
-- **Auth**: the platform with Application Default Credentials (`gcloud auth application-default login` locally, the runtime service account in production); an API key only for AI Studio prototypes, never committed.
-- **Environment**: `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=<project_id>`, `GOOGLE_CLOUD_LOCATION=<region>` (e.g. `europe-west1` or `global`) in `.env`.
-- **Model pins**: name the current Flash or Pro generation (the scaffold's default is a good anchor) and record the choice in `AGENTS.md`; pin a dated snapshot only for strict reproducibility.
-- **Never `-latest`**: its platform resolution is version-ambiguous and hot-swaps model quality under a stable name.
-- **Tools are typed**: schema-documented functions with narrow permissions; destructive tools require confirmation.
-- **Evaluate before deploy**: a dataset with expected trajectories and responses per [agent-evaluation](../agent-evaluation/SKILL.md), candidate against baseline.
-- **Observability**: OpenTelemetry traces (`OTEL_EXPORTER_OTLP_ENDPOINT` or `--otel_to_cloud`) and structured logs without prompt bodies that may carry personal data.
-- **Secrets and safety**: Secret Manager references; Model Armor or equivalent input and output filters for public agents per [threat-model](../threat-model/SKILL.md).
+1. **Inspect the installed SDK** and project model, tools, session service, and app entry point before coding. Use [python-stack](../python-stack/SKILL.md) for ordinary Python code.
+1. **Choose the official guidance** below for ADK agents, tool functions, orchestration, callbacks, state, or tests; compare its supported SDK version with the project lock.
+1. **Implement narrow tools** with complete types, useful docstrings, bounded I/O, and explicit errors. Keep business logic independently testable and prompts in reviewable source.
+1. **Test locally** with deterministic tool and workflow cases; run provider smoke calls and repeated evaluations only within their authorized access and cost.
+1. **Evaluate changes** with the project or provider's versioned evaluation workflow; preserve generated deployment choices and use [observability](../observability/SKILL.md) for traces.
 
 ## Gotchas
 
-- **Upstream code skill is Python-only**: for Go, `go doc` and the examples in `~/go/pkg/mod/google.golang.org/adk/v2` are the reference.
-- **Runtime skills are not coding skills**: the [ADK skills page](https://adk.dev/skills/) describes `SkillToolset`, skills an agent loads for itself at run time.
-- **Cloud skills live elsewhere**: Cloud Run and CLI guardrail skills come from [google-cloud](../google-cloud/SKILL.md).
+- **Framework and generator versions differ**: an SDK can support a Python release the agents-cli scaffold does not; retain the generated constraint until verified compatible.
+- **Examples can lag or lead**: compare skill examples with installed dependency source. Keep upstream warnings and prerelease dependency gaps visible.
+- **SDK contributor skills have another scope**: repository setup, Git rules, and reflection workflows do not belong in a consumer app merely because Google publishes them.
 
 ## Official Skills
 
-Upstream: `google/agents-cli`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add google/agents-cli --list
-skills add google/agents-cli --skill <name> -y
-```
+For agents-cli projects, use the ADK implementation selection from `google/agents-cli` through [agents-cli](../agents-cli/SKILL.md). For standalone ADK code, `google/adk-python` also publishes application-building guidance alongside contributor and sample skills. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md), choose the application skill and required references, and verify its version assumptions against the locked ADK dependency.
 
 ## Documentation
 
-- [ADK](https://google.github.io/adk-docs/) · [google/agents-cli](https://github.com/google/agents-cli) · [Agent Runtime](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale)
-- Companion skills: [go-stack](../go-stack/SKILL.md), [python-stack](../python-stack/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-cloud](../google-cloud/SKILL.md), [agent-mcp](../agent-mcp/SKILL.md) (tool servers), [prompt-design](../prompt-design/SKILL.md).
+- [ADK docs](https://google.github.io/adk-docs/) · [Python SDK](https://github.com/google/adk-python) · [Google CLI and skills](https://github.com/google/agents-cli)
+- Companion skills: [agents-cli](../agents-cli/SKILL.md), [prompt-design](../prompt-design/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [python-stack](../python-stack/SKILL.md).

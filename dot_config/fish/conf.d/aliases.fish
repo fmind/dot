@@ -1,3 +1,4 @@
+# Docs: https://fishshell.com/docs/current/index.html
 if status is-interactive
     # a:agy
     abbr -a a agy
@@ -5,7 +6,7 @@ if status is-interactive
     abbr -a b bat
     # c:gcloud
     abbr -a c gcloud
-    abbr -a clog "gcloud auth login --update-adc"
+    abbr -a cl "gcloud auth login --update-adc"
     # d:docker
     abbr -a d docker
     # e:lazydocker
@@ -15,48 +16,15 @@ if status is-interactive
     # g:git
     abbr -a g git
     abbr -a gd gh-dash
-    # go:go
-    abbr -a gob "go build"
-    abbr -a gom "go mod tidy"
-    abbr -a gop pkgsite
-    abbr -a gor "go run"
-    abbr -a gos "go test ./..."
-    abbr -a got "go tool"
-    abbr -a gov "govulncheck ./..."
-    abbr -a gow "go work"
-    abbr -a goz gotestsum
     # h:lazygit
     abbr -a h lazygit
     # i:agy
     abbr -a i agy
     abbr -a iq "agy --prompt"
     # j:fkf
-    abbr -a j 'fkf --base "$HOME/fmind/brain"'
-    # k:kubectl/kubecolor
-    if command -q kubecolor
-        function kubectl
-            kubecolor $argv
-        end
-        abbr -a k kubecolor
-    else
-        abbr -a k kubectl
-    end
-    abbr -a ka "kubectl apply -f"
-    abbr -a kd "kubectl describe"
-    abbr -a kdel "kubectl delete"
-    abbr -a ke "kubectl exec -it"
-    abbr -a kga "kubectl get all"
-    abbr -a kgd "kubectl get deploy"
-    function kget
-        command kubectl get $argv -o yaml | kubectl neat
-    end
-    abbr -a kgp "kubectl get pods"
-    abbr -a kgs "kubectl get svc"
-    abbr -a kl "kubectl logs"
-    abbr -a klf "kubectl logs -f"
-    abbr -a kn kubens
-    abbr -a kpf "kubectl port-forward"
-    abbr -a kx kubectx
+    abbr -a j 'fkf --base "$FKF_BASE"'
+    # k:kubectl
+    abbr -a k kubectl
     # l:lsd
     alias lsd="lsd --icon=always --git --group-directories-first --date=relative --literal"
     alias ls="lsd"

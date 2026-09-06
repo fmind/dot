@@ -1,5 +1,5 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: CD
-# Triggered when an annotated release tag (v*) is pushed to origin.
 on:
   push:
     tags:
@@ -12,27 +12,65 @@ concurrency:
 jobs:
   publish:
     name: Publish GitHub release
-    runs-on: ubuntu-latest
-    # Only this job creates the release, so the write scope stops here.
+    runs-on: ubuntu-24.04
     permissions:
       actions: read
       contents: write
-    timeout-minutes: 25
+      id-token: write
+      attestations: write
+    timeout-minutes: 30
     steps:
-      - name: Checkout tagged commit
-        uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Install toolchain
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache: false
       - name: Require successful CI for tagged commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/release-exact-sha.sh
+        run: |
+          tag_sha="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          if [ "$tag_sha" != "$GITHUB_SHA" ]; then
+            echo "Tag $GITHUB_REF_NAME resolves to $tag_sha, not $GITHUB_SHA." >&2
+            exit 1
+          fi
+          run_id=""
+          attempt=0
+          # The main and tag pushes are separate, so CD can start before GitHub
+          # has indexed the matching CI run. Wait briefly instead of failing a healthy release.
+          while [ "$attempt" -lt 30 ] && [ -z "$run_id" ]; do
+            run_id="$(gh run list --workflow ci.yml --event push --commit "$GITHUB_SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+            attempt=$((attempt + 1))
+            if [ -z "$run_id" ]; then
+              sleep 2
+            fi
+          done
+          if [ -z "$run_id" ]; then
+            echo "No push-triggered ci.yml run appeared for $GITHUB_SHA." >&2
+            exit 1
+          fi
+          gh run watch "$run_id" --exit-status
+      - name: Build distributions
+        run: mise run build
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: "dot/dist/*"
+      - name: Extract release notes
+        run: git-cliff --config dot_config/git-cliff/cliff.toml --latest --strip all > "$RUNNER_TEMP/notes.md"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; skipping."
             exit 0
           fi
-          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" dot/dist/* \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/notes.md"

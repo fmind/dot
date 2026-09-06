@@ -35,12 +35,7 @@ Use `colab` when a task needs an accelerator the workstation lacks. The official
 
 ## Official Skills
 
-Upstream: `googlecolab/google-colab-cli` (the same text `colab skill` prints). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add googlecolab/google-colab-cli --list
-skills add googlecolab/google-colab-cli --skill <name> -y
-```
+Upstream: `googlecolab/google-colab-cli`, the same source `colab skill` prints. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select only the Colab workflow needed by the project.
 
 ## Documentation
 

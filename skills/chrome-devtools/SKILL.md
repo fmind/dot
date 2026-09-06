@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Chrome DevTools
@@ -19,14 +19,14 @@ Add the `chrome-devtools` MCP server to the current agent harness using [agent-m
 
 ```bash
 # Project-scoped MCP registration (Antigravity CLI example)
-agy mcp add chrome-devtools -- npx -y chrome-devtools-mcp@latest
+agy mcp add chrome-devtools -- npx --yes chrome-devtools-mcp@1.8.0
 ```
 
 ## 2. Debugging and Auditing Workflow
 
 1. **Launch browser session**: Start Chrome with remote debugging enabled, or allow the MCP server to launch and control an isolated browser instance via Puppeteer.
 1. **Performance and LCP**: Record traces to identify slow rendering phases, server response latency, render-blocking resources, and Largest Contentful Paint culprits.
-1. **Repeatable Lighthouse report**: when needed, `pnpm add -D lighthouse` in the web project, commit the lockfile, and run `pnpm exec lighthouse <url>` against the local app.
+1. **Repeatable Lighthouse report**: run `npx --yes lighthouse@13.4.1 <url>` against the local app and record the version with the report; update the review-pinned version deliberately.
 1. **Accessibility tree audits**: Inspect computed accessible names, ARIA roles, and color contrast ratios to ensure WCAG compliance alongside [quality-assurance](../quality-assurance/SKILL.md).
 1. **Memory and cookies**: Take heap snapshots to identify detached DOM nodes and memory leaks; verify `SameSite`, `Secure`, and `Partitioned` cookie attributes.
 
@@ -38,12 +38,7 @@ agy mcp add chrome-devtools -- npx -y chrome-devtools-mcp@latest
 
 ## Official Skills
 
-Upstream: `ChromeDevTools/chrome-devtools-mcp`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add ChromeDevTools/chrome-devtools-mcp --list
-skills add ChromeDevTools/chrome-devtools-mcp --skill <name> -y
-```
+Upstream: `ChromeDevTools/chrome-devtools-mcp`; follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select its DevTools MCP guidance.
 
 ## Documentation
 

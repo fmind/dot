@@ -1,17 +1,17 @@
 ---
 name: quality-assurance
-description: Design and execute risk-based test campaigns and exercise risky feature journeys; identify what remains unproved across unit, integration, E2E, browser, accessibility, performance, resilience, and manual tests, not a diff review.
+description: Design and execute risk-based test campaigns across critical user journeys and report proof gaps. Use for cross-layer validation beyond one diff.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Quality Assurance
 
-Run a risk-based test campaign over the actual feature journey. Keep one-diff review in [diff-review](../diff-review/SKILL.md) and stochastic model comparisons in [agent-evaluation](../agent-evaluation/SKILL.md).
+Run a risk-based test campaign over the actual feature journey. Keep one-diff review in [diff-review](../diff-review/SKILL.md); project- or provider-specific stochastic model evaluation remains a separate workflow.
 
 ## Workflow
 

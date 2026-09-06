@@ -1,12 +1,12 @@
 ---
 name: repository-history
-description: Reconstruct why tracked code exists from read-only Git history. Use to trace files, symbols, or lines to introducing commits or pull requests, rationale, reverts, renames, authorship, co-change, and issues.
+description: Reconstruct why tracked code exists from read-only Git history. Use when tracing a file, symbol, line, rename, revert, co-change, or linked pull request.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Repository History

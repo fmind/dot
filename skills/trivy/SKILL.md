@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trivy
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # Trivy
@@ -34,7 +34,7 @@ description = "Scan dependencies, IaC, licenses, and secrets (Trivy)"
 run = "trivy --config trivy.yaml fs ." # mise appends extra path arguments
 ```
 
-Language-native scanners stay separate as `check:vuln` (`govulncheck`, `uv audit`, `pnpm audit`) because they know the lockfile semantics better; keep both tasks, `trivy fs` adds IaC, secrets, and licenses on top.
+Python's native dependency scanner stays separate as `check:vuln` (`uv audit`) because it understands `uv.lock` semantics; keep both tasks, while `trivy fs` adds IaC, secrets, and licenses on top.
 
 For scheduled visibility into advisories that the blocking policy intentionally excludes, use the separate [fixed and unfixed report](references/unfixed-report.md). It never replaces the blocking gate.
 

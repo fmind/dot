@@ -1,3 +1,4 @@
+# Docs: https://fishshell.com/docs/current/index.html
 # Base commands
 set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --strip-cwd-prefix --exclude .git'
 set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden --strip-cwd-prefix --exclude .git'

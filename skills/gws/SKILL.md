@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Google Workspace CLI
@@ -38,16 +38,10 @@ Use `gws` for Google Workspace automation from the shell: authentication, API di
 - **`gws auth export` prints decrypted credentials**: never run it during ordinary work.
 - **`gws auth status` is a live call**: it may refresh OAuth credentials and query scope or API state; it is not an offline config inspection.
 - **Exit code 2 is authentication**: repair it explicitly; on validation or discovery errors, refresh the schema before changing the request.
-- **Apps Script**: `gws script` manages projects; `clasp` stays only for local push and pull of script sources.
 
 ## Official Skills
 
-Upstream: `googleworkspace/cli` generates its skills from the CLI itself (a shared base skill that every service skill requires, plus one per API). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add googleworkspace/cli --list
-skills add googleworkspace/cli --skill <name> -y
-```
+Upstream: `googleworkspace/cli`, which generates a shared base skill plus one selection per API. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and include the base dependency required by the chosen service.
 
 ## Documentation
 

@@ -1,12 +1,12 @@
 ---
 name: product-loop
-description: Run the product loop — discover, specify, launch, learn — with build-or-stop calls, MVP, demand tests, PRDs, journeys, acceptance, positioning, onboarding, rollout, pricing, pivots. Use when deciding, launching, or reviewing a product bet.
+description: Run product discovery, specification, launch, and learning with explicit build-or-stop decisions. Use when deciding, launching, or reviewing a product bet.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-loop
   created: "2026-08-09"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Product Loop

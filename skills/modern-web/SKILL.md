@@ -6,22 +6,22 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/modern-web
   created: "2026-09-03"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Modern Web Guidance
 
-Modern Web Guidance embeds web platform expertise, browser compatibility data, and modern baseline practices directly into coding agents. It steers code generation away from obsolete polyfills and heavy JavaScript abstractions toward native HTML, modern CSS, and standard browser APIs. Front-end frameworks route through [angular](../angular/SKILL.md) or [typescript-stack](../typescript-stack/SKILL.md); browser automation and testing route through [playwright](../playwright/SKILL.md) and [chrome-devtools](../chrome-devtools/SKILL.md).
+Modern Web Guidance embeds web platform expertise, browser compatibility data, and modern baseline practices directly into coding agents. It steers code generation away from obsolete polyfills and heavy JavaScript abstractions toward native HTML, modern CSS, and standard browser APIs. Python web applications route through [python-stack](../python-stack/SKILL.md); browser automation and testing route through [playwright](../playwright/SKILL.md) and [chrome-devtools](../chrome-devtools/SKILL.md).
 
 ## 1. Retrieve Guidance
 
 1. **Search guidelines**: Query curated web platform recipes and modern practices using the CLI:
    ```bash
-   npx modern-web-guidance@latest search "<topic or api>"
+   npx --yes modern-web-guidance@0.0.185 search "<topic or api>"
    ```
 1. **Fetch specific pattern**: Retrieve detailed implementation guidelines and browser baselines by guide identifier:
    ```bash
-   npx modern-web-guidance@latest retrieve "<guide-id>"
+   npx --yes modern-web-guidance@0.0.185 retrieve "<guide-id>"
    ```
 
 ## 2. Adoption Workflow
@@ -33,19 +33,15 @@ Modern Web Guidance embeds web platform expertise, browser compatibility data, a
 ## Gotchas
 
 - **Preview status**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
-- **Framework integration**: When working within frameworks like Angular, align native web APIs with framework lifecycle and reactivity models per [angular](../angular/SKILL.md).
+- **Version refresh**: the CLI example is review-pinned; verify the latest stable npm release and update both commands together before adopting newer guidance.
+- **Application integration**: keep browser behavior in native HTML, CSS, and JavaScript; use [python-stack](../python-stack/SKILL.md) for server rendering, APIs, and application tests.
 - **Progressive enhancement**: Native dialogs, popovers, and top-layer elements require careful focus and accessibility management; verify keyboard navigation.
 
 ## Official Skills
 
-Upstream: `GoogleChrome/modern-web-guidance`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add GoogleChrome/modern-web-guidance --list
-skills add GoogleChrome/modern-web-guidance --skill <name> -y
-```
+Upstream: `GoogleChrome/modern-web-guidance`; follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select the relevant platform guidance.
 
 ## Documentation
 
 - [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) · [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)
-- Companion skills: [chrome-devtools](../chrome-devtools/SKILL.md), [angular](../angular/SKILL.md), [typescript-stack](../typescript-stack/SKILL.md), [playwright](../playwright/SKILL.md), [technical-research](../technical-research/SKILL.md).
+- Companion skills: [python-stack](../python-stack/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md), [playwright](../playwright/SKILL.md), [technical-research](../technical-research/SKILL.md).

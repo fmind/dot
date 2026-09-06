@@ -1,6 +1,6 @@
 # Prompt Candidate
 
-Deliverable of the [prompt-design](SKILL.md) workflow; each section is one short block, omitted only when genuinely empty.
+Deliverable of the [prompt-design](../SKILL.md) workflow; each section is one short block, omitted only when genuinely empty.
 
 - **Decision contract**: target behavior, users or segments, failure semantics, forbidden actions, and measurable acceptance criteria.
 - **Runtime map**: ordered layers, owners, trust labels, lifetimes, budgets, truncation and sanitization rules, and the actual assembly seam.

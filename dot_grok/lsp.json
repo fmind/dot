@@ -1,11 +1,4 @@
 {
-  "gopls": {
-    "args": ["serve"],
-    "command": "gopls",
-    "extensionToLanguage": {
-      ".go": "go"
-    }
-  },
   "ty": {
     "args": ["server"],
     "command": "ty",

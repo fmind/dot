@@ -10,7 +10,7 @@ Runtime wiring for consumers of sops-encrypted files; the daily workflow stays i
 
 ## OpenTofu
 
-Keep secret variables in `secrets.enc.env` as `TF_VAR_<name>=...` lines and run `sops exec-env secrets.enc.env 'tofu plan'`; state-side encryption is handled by [terraform-stack](../terraform-stack/SKILL.md).
+Keep secret variables in `secrets.enc.env` as `TF_VAR_<name>=...` lines and run `sops exec-env secrets.enc.env 'tofu plan'`; state-side encryption is handled by [terraform](../../terraform/SKILL.md).
 
 ## Runtime services
 

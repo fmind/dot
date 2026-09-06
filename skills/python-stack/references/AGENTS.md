@@ -18,7 +18,7 @@ All work goes through `mise` (see `mise.toml`); git hooks and CI call the same t
 - Test: `mise run test` — offline `pytest` suite with an 85% branch-coverage gate.
 - Integration: `mise run test:integration` — explicitly starts disposable external services such as Postgres through Docker.
 - Build: `mise run build` — `uv build` (wheel + sdist).
-- Watch: `mise run watch` — live reload for local development (web: `granian`; agent: `uvx google-agents-cli playground`).
+- Watch: `mise run watch` — live reload for local development (web: `granian`; agent: `uvx --from 'google-agents-cli==1.5.0' google-agents-cli playground`).
 
 ## Definition of done
 

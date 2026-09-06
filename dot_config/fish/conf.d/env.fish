@@ -1,3 +1,4 @@
+# Docs: https://fishshell.com/docs/current/index.html
 # Editors
 set -gx EDITOR nvim
 set -gx K9S_EDITOR nvim

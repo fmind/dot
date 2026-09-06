@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # Google Cloud CLI
 
-Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit operations. [cloud-run](../cloud-run/SKILL.md) owns deployment, [terraform-stack](../terraform-stack/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
+Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit operations. [cloud-run](../cloud-run/SKILL.md) owns deployment, [terraform](../terraform/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
 
 ## Workflow
 
@@ -43,4 +43,4 @@ Upstream: `google/skills` (`skills/cloud`), listed and installed through [google
 ## Documentation
 
 - [gcloud reference](https://cloud.google.com/sdk/gcloud/reference) · [Authorize the gcloud CLI](https://cloud.google.com/sdk/docs/authorizing)
-- Companion skills: [google-cloud](../google-cloud/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [terraform-stack](../terraform-stack/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).
+- Companion skills: [google-cloud](../google-cloud/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [terraform](../terraform/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).

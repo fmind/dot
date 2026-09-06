@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # Dot Release
@@ -26,9 +26,9 @@ The command performs every step itself; the agent checks the preconditions and r
 
 1. **Preconditions**: clean working tree on `main`, `gh` authenticated, `git-cliff` and `mise` installed, Conventional Commits history.
 1. **Fetch and prove**: the command fetches `origin` and requires `HEAD == origin/main` before any mutation.
-1. **Compute and write**: the next semver from `git-cliff`, then `dot/version.go` and `CHANGELOG.md`.
+1. **Compute and write**: the next semver from `git-cliff`, then `dot/pyproject.toml` and `CHANGELOG.md`.
 1. **Gate**: the local gate (`format`, `check`, `test`) runs; a failure aborts and resets the staged release files before any commit or tag exists.
-1. **Commit, tag, push**: the release commit, the annotated tag, the push of `main` and `refs/tags/v*` to `origin`, then the updated local `dot` binary is reapplied.
+1. **Commit, tag, push**: the release commit, the annotated tag, the push of `main` and `refs/tags/v*` to `origin`, then the updated `dot` package is installed with uv.
 1. **Publish**: the tag push triggers `.github/workflows/cd.yml`, which creates the GitHub release; verify it with the release skill's `Verify` steps.
 
 ## Gotchas

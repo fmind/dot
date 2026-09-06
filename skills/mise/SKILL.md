@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Mise
@@ -24,17 +24,17 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 
 Every project exposes the same core tasks with short aliases so agents, hooks, and CI stay portable:
 
-| Task      | Alias | Purpose                                                                                                                                                                                 |
-| --------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                                           |
-| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                            |
-| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                                  |
-| `test`    | `t`   | Run the test suite.                                                                                                                                                                     |
-| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                                   |
-| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [terraform-stack](../terraform-stack/references/mise.toml). |
-| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                                          |
+| Task      | Alias | Purpose                                                                                                                                                                     |
+| --------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                               |
+| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                |
+| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                      |
+| `test`    | `t`   | Run the test suite.                                                                                                                                                         |
+| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                       |
+| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [terraform](../terraform/references/mise.toml). |
+| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                              |
 
-Language stacks ship concrete files: [go-stack](../go-stack/references/mise.toml), [python-stack](../python-stack/references/mise.toml), and [angular](../angular/references/mise.toml) for TypeScript web applications.
+Python projects start from [python-stack](../python-stack/references/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [terraform](../terraform/references/mise.toml).
 
 ## Gotchas
 

@@ -21,12 +21,7 @@ Google's advertising developer surface has four families: the Google Ads API (ca
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/ads` group; pick by family: API quickstart or diagnostics, Data Manager ingestion, mobile SDK formats and migration, IMA client-side or DAI). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add https://github.com/google/skills/tree/main/skills/ads --list
-skills add https://github.com/google/skills/tree/main/skills/ads --skill <name> -y
-```
+Upstream: `google/skills` (`skills/ads` group); select by family: API quickstart or diagnostics, Data Manager ingestion, mobile SDK formats and migration, or IMA client-side or DAI. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 

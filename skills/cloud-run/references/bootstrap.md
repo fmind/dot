@@ -1,6 +1,6 @@
 # Cloud Run Project and Identity Setup
 
-1. **Pick the tier**: `gcloud run deploy` for one service; [service.yaml](references/service.yaml) via `gcloud run services replace` once settings accumulate; [terraform-stack](../terraform-stack/SKILL.md) for a fleet.
+1. **Pick the tier**: `gcloud run deploy` for one service; [service.yaml](service.yaml) via `gcloud run services replace` once settings accumulate; [terraform](../../terraform/SKILL.md) for a fleet.
 1. **Set up the project once**: enable the APIs, create the Artifact Registry repository, and create a dedicated runtime service account (never the default compute SA; grant it only what the app reads).
 
    ```bash
