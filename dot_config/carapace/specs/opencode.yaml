@@ -1,7 +1,0 @@
-# OpenCode exposes yargs completion candidates but does not generate Fish scripts.
-# https://carapace-sh.github.io/carapace-bin/spec/bridge.html#yargs
-name: opencode
-description: OpenCode AI coding agent
-parsing: disabled
-completion:
-  positionalany: ["$carapace.bridge.Yargs([opencode])"]

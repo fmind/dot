@@ -1,3 +1,4 @@
+-- Docs: https://www.lazyvim.org/configuration/plugins
 -- General UI overrides and editor plugin fixes
 return {
   -- Tokyo Night

@@ -1,3 +1,5 @@
+# Docs: https://clementtsang.github.io/bottom/stable/configuration/config-file/
+
 [flags]
 default_time_value = "60s"
 default_widget_count = 1

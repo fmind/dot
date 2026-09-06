@@ -1,12 +1,12 @@
 ---
 name: skill-security-review
-description: "Audit a third-party Agent Skill or extension for supply-chain risk without running it: scripts, hooks, MCP, hidden instructions, symlinks, credential and network flows, provenance. Use before installing or trusting a skill."
+description: Audit a third-party Agent Skill or extension for supply-chain risk without running it. Use before installing or trusting skills, hooks, scripts, or MCP integrations.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skill-security-review
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Skill Security Review
@@ -32,11 +32,11 @@ Review a candidate skill package as executable supply-chain code, from an immuta
    ```
 1. **Trace sensitive data**: environment variables, keychains, cloud and GitHub credentials, SSH and GPG material, and browser state from source to logs, subprocesses, network sinks, or model context. A secret read plus an outbound path is a blocking finding until disproved.
 1. **Inspect integrations**: each MCP server, plugin, hook, and tool request needs a narrow purpose, explicit consent, a pinned source, least privilege, bounded transport, and no wildcard trust.
-1. **Run only non-executing analyzers**, noting their version and coverage limits; `gh skill publish --dry-run` proves structure, not safety:
+1. **Run only non-executing analyzers**, noting their version and coverage limits; package validators prove structure, not safety:
    ```bash
    gitleaks dir <root> --redact=100
    trivy fs --scanners secret,license <root>
-   opengrep scan --config <pinned-rules> <root>   # pinned rules per the secure skill
+   rg -n '(curl|wget|eval|exec|subprocess|chmod|base64|\.ssh|credentials)' <root>
    ```
 1. **Compare updates**: diff against the last reviewed immutable version and re-review changed instructions, code, dependencies, permissions, and network destinations; a familiar name does not make an update trusted.
 1. **Decide**: Return `BLOCK`, `REVIEW REQUIRED`, or `ACCEPT WITH CONDITIONS` with the exact evidence, residual gaps, the required isolation, pin, permission, or removal, and the owner who accepts the remaining risk.
@@ -51,4 +51,4 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 
 - [Agent Skills specification](https://agentskills.io/specification) · [gitleaks](../gitleaks/SKILL.md) · [trivy](../trivy/SKILL.md)
 - Adapted from [NVIDIA SkillSpector at `2bc641f`](https://github.com/NVIDIA/SkillSpector/blob/2bc641fd0639550a1cae9557491f483e30520afb/README.md), [Waza skill scanner at `fb4e1d3`](https://github.com/tw93/Waza/blob/fb4e1d3118bb0addce65e05b43c1739aa7294cad/plugins/waza/skills/health/scripts/scan_skill_security.py).
-- Companion skills: [native skill tooling](https://skills.sh/docs/cli) (install after review), [secure](../secure/SKILL.md) (repository scans and pinned opengrep rules), [threat-model](../threat-model/SKILL.md) (attack paths beyond scanners).
+- Companion skills: [vendor-skill policy](../agent-project/references/vendor-skills.md) (install after review), [secure](../secure/SKILL.md) (repository scans), [threat-model](../threat-model/SKILL.md) (attack paths beyond scanners).

@@ -21,12 +21,7 @@ Google Analytics (GA4) exposes two developer APIs: the Admin API manages account
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/analytics` group; Admin-type skills cover configuration, Data-type skills cover reporting). List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add https://github.com/google/skills/tree/main/skills/analytics --list
-skills add https://github.com/google/skills/tree/main/skills/analytics --skill <name> -y
-```
+Upstream: `google/skills` (`skills/analytics` group), where Admin selections cover configuration and Data selections cover reporting. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 

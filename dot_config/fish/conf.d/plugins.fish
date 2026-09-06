@@ -1,3 +1,4 @@
+# Docs: https://fishshell.com/docs/current/index.html
 # PLUGINS
 if command -q mise
     if status is-interactive

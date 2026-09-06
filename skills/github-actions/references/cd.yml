@@ -2,119 +2,124 @@ name: CD
 on:
   push:
     tags:
-      - 'v*' # Trigger on semver version tags (e.g., v1.0.0)
-# Default to read-only; each deploy job widens only what it actually needs.
+      - "v*"
 permissions:
   contents: read
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  # Option 1: Go Application (build container with ko, publish to GHCR, sign keyless)
-  deploy-go:
-    runs-on: ubuntu-latest
-    if: ${{ vars.ENABLE_DEPLOY_GO == 'true' }} # set repo/org variable ENABLE_DEPLOY_GO=true to enable
+  build-python-package:
+    if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
-      packages: write # required to push to GitHub Container Registry (GHCR)
-      id-token: write # keyless cosign signing: the workflow identity signs the image digest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false # registry auth is separate; git stays read-only
+          persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
-          cache: false # a poisoned tool cache must never reach release artifacts
-      - name: Set lower-case registry path
-        run: |
-          echo "IMAGE_REPOSITORY=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+          cache: false
+      - name: Build distributions
+        run: mise run build
+      - name: Upload distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and publish OCI image
-        env:
-          KO_DOCKER_REPO: ${{ env.IMAGE_REPOSITORY }}
-        run: |
-          # build:image defaults to a local tarball; this authorized publishing job explicitly pushes.
-          # mise appends the flags below to it. $GITHUB_REF_NAME comes from the runner env: an
-          # inline github.ref_name expansion would let a crafted tag inject shell code, even in
-          # comments. --bare names the image exactly KO_DOCKER_REPO, so --tags is safe only with
-          # a single import path (ko warns it may misbehave with several).
-          mkdir -p tmp
-          mise run build:image -- --push=true \
-            --image-refs tmp/refs.txt \
-            --platform=linux/amd64,linux/arm64 \
-            --tags=latest,"$GITHUB_REF_NAME"
-          image=$(cat tmp/refs.txt)
-          [[ "$image" =~ ^[^[:space:]@]+@sha256:[[:xdigit:]]{64}$ ]]
-      - name: Sign the image digest
-        # tmp/refs.txt holds the digest reference ko published (one line for one import path);
-        # cosign is pinned in mise.toml [tools], --yes skips the interactive prompt.
-        run: cosign sign --yes "$(cat tmp/refs.txt)"
-  # Option 2: Python Package (build and publish package to PyPI)
-  deploy-python-pypi:
-    runs-on: ubuntu-latest
-    if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }} # set repo/org variable ENABLE_DEPLOY_PYPI=true to enable
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-python-package:
+    if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
+    needs: build-python-package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: pypi
     permissions:
-      contents: read
-      id-token: write # required for PyPI Trusted Publishing via OIDC
-    # environment: pypi # Configure trusted publishing on PyPI for this environment
+      id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          persist-credentials: false # PyPI auth is OIDC; git stays read-only
-      - name: Install tools using mise
-        uses: jdx/mise-action@v4
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
-          cache: false # a poisoned tool cache must never reach release artifacts
-      - name: Build Package
-        run: mise run build # task defined in mise.toml
-      - name: Publish to PyPI
-        run: mise run publish # task defined in mise.toml
-  # Option 3: Python Application (build container with Dockerfile, publish to GHCR, sign keyless)
+          packages-dir: dist/
+
   deploy-python-container:
-    runs-on: ubuntu-latest
-    if: ${{ vars.ENABLE_DEPLOY_CONTAINER == 'true' }} # set repo/org variable ENABLE_DEPLOY_CONTAINER=true to enable
+    if: ${{ vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
-      packages: write # required to push to GitHub Container Registry (GHCR)
-      id-token: write # keyless cosign signing: the workflow identity signs the image digest
+      packages: write
+      id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false # registry auth is separate; git stays read-only
+          persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
-          cache: false # a poisoned tool cache must never reach release artifacts
+          cache: false
       - name: Set lower-case registry path
-        run: |
-          echo "IMAGE_REPOSITORY=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-      - name: Set up QEMU (for multi-platform builds)
-        uses: docker/setup-qemu-action@v4
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: printf 'repository=ghcr.io/%s\n' "${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and Push Docker Image
+          password: ${{ github.token }}
+      - name: Build and publish Docker image
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.IMAGE_REPOSITORY }}:latest
-            ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}
-      - name: Sign the image digest
+            ${{ steps.image.outputs.repository }}:latest
+            ${{ steps.image.outputs.repository }}:${{ github.ref_name }}
+      - name: Scan, sign, verify, and attest image digest
         env:
-          DIGEST: ${{ steps.build.outputs.digest }} # through env, never inline in the script
-        run: cosign sign --yes "${IMAGE_REPOSITORY}@${DIGEST}"
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_REPOSITORY: ${{ steps.image.outputs.repository }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            printf 'invalid image digest: %s\n' "$DIGEST" >&2
+            exit 1
+          fi
+          image="${IMAGE_REPOSITORY}@${DIGEST}"
+          sbom="$RUNNER_TEMP/sbom.cdx.json"
+          identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd.yml@${GITHUB_REF}"
+          issuer="https://token.actions.githubusercontent.com"
+          trivy --config trivy.yaml image "$image"
+          trivy --config trivy.yaml image --format cyclonedx --output "$sbom" "$image"
+          cosign sign --yes "$image"
+          cosign verify \
+            --certificate-identity "$identity" \
+            --certificate-oidc-issuer "$issuer" \
+            "$image"
+          cosign attest --yes --type cyclonedx --predicate "$sbom" "$image"
+          cosign verify-attestation \
+            --type cyclonedx \
+            --certificate-identity "$identity" \
+            --certificate-oidc-issuer "$issuer" \
+            "$image"

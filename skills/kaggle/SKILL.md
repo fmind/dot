@@ -42,13 +42,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
 
 ## Official Skills
 
-Upstream: `Kaggle/kaggle-cli` (command guide) and `Kaggle/kaggle-skills` (competition formats). List the current releases, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
-
-```bash
-skills add Kaggle/kaggle-cli --list
-skills add Kaggle/kaggle-skills --list
-skills add <owner/repo> --skill <name> -y
-```
+Upstream: `Kaggle/kaggle-cli` for command guidance and `Kaggle/kaggle-skills` for competition formats. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and install only the source relevant to the task.
 
 ## Documentation
 

@@ -13,7 +13,7 @@
    git-cliff --bumped-version
    ```
 
-1. **Bump manifests** that are not VCS-versioned: Python `version` in `pyproject.toml` (unless `hatch-vcs` or similar), Node `npm version --no-git-tag-version X.Y.Z`; inspect Go/OpenTofu projects for explicit version constants; VCS-versioned projects need no separate manifest bump.
+1. **Bump manifests** that are not VCS-versioned: Python `version` in `pyproject.toml` (unless `hatch-vcs` or similar); inspect OpenTofu projects for explicit version constants; VCS-versioned projects need no separate manifest bump.
 1. **Generate the changelog** for that version:
 
    ```bash

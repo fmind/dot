@@ -1,22 +1,29 @@
 # Fmind Deck and Diagram Production
 
-### Decks
+## Decks
 
-1. **Scaffold with pnpm**: keep Slidev, Vue, the default theme, and `playwright-chromium` project-local; start from [package.json.template](references/package.json.template), [pnpm-workspace.yaml](references/pnpm-workspace.yaml), [slides.md](references/slides.md), and [style.css](references/style.css), then copy the logo and WOFF2 fonts into `public/brand/`.
-1. **Keep the DOMPurify override**: until Monaco no longer pins a vulnerable release; verify any removal with `pnpm audit`.
-1. **One idea per slide**: one claim, mechanism, decision, or artifact; split dense content instead of shrinking type.
-1. **Embed diagrams**: Mermaid directly for ordinary diagrams; exported LikeC4 or D2 SVGs only when their specialist boundary applies.
-1. **Run, build, export**:
+1. **Start from the local template**: copy [deck.typ](deck.typ) into the deliverable. It uses native Typst only and compiles without downloading a package.
+1. **Apply the release fonts**: copy Outfit and Inter TTF files into `fonts/`, update the two font names near the top of `deck.typ`, and pass `--font-path fonts`. The installed sans-serif default keeps drafts reproducible before those brand assets arrive.
+1. **Keep one idea per slide**: use one claim, mechanism, decision, or artifact; split dense content instead of shrinking type.
+1. **Embed diagrams as exports**: render Mermaid or D2 to SVG, keep the source beside it, and use `#image("diagram.svg", alt: "...")` in the deck.
+1. **Format, compile, and watch**:
 
    ```bash
-   pnpm exec slidev slides.md
-   pnpm exec slidev build slides.md
-   pnpm exec slidev export slides.md
+   typstyle -i deck.typ
+   typst compile deck.typ deck.pdf
+   typst watch deck.typ deck.pdf
    ```
 
-1. **Inspect every view**: browser, projector-sized, and exported; prefer Slidev's browser exporter for review PNGs or PPTX and keep CLI PDF export for automation.
+1. **Export review images**: use `typst compile deck.typ 'slide-{p}.png'` when a page-by-page review or social preview is useful.
+1. **Inspect every page**: review the PDF at projector and mobile-preview sizes; confirm font loading, contrast, clipping, and alt text before distribution.
 
-### Diagrams
+## Diagrams
 
-1. **Start with Mermaid**: apply the portable Fmind frontmatter from [fmind-theme](references/fmind-theme.md); use [d2](../d2/SKILL.md) or LikeC4 only when their composition or model advantages outweigh the loss of direct Markdown rendering.
-1. **Keep source beside exports**: near the prose or deck that owns the claim; export SVG only for destinations that cannot render Mermaid.
+1. **Start with Mermaid**: apply the portable Fmind frontmatter from [fmind-theme.md](fmind-theme.md), then render with the external Mermaid renderer when the destination cannot render source directly.
+1. **Use D2 for its specialist boundary**: start Fmind article diagrams from [diagram.d2](diagram.d2), or retain an existing D2 source for a bespoke standalone composition.
+1. **Keep source beside exports**: store `.mmd` or `.d2` with its SVG and the prose or deck that owns the claim.
+
+```bash
+mmdc -i diagram.mmd -o diagram.svg
+d2 diagram.d2 diagram.svg
+```

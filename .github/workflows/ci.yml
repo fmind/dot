@@ -1,9 +1,11 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: CI
 on:
   push:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -11,35 +13,30 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   ci:
-    name: CI (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: CI
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-15
     steps:
       # `check:leaks` scans commits, not just the working tree, and is capped at
       # the last 100 (see mise.toml). Fetch exactly that depth so CI and the local
       # task cover the same commits instead of cloning history nothing reads.
       - name: Checkout recent history
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 100
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
       - name: Trust repository
         run: mise trust -y mise.toml
       - name: Run canonical gate
         run: mise run all
-      - name: Execute starter contracts
-        run: mise run test:starters
-      - name: Exercise disposable bootstrap
-        run: mise run test:bootstrap
       - name: Verify clean tree
-        run: test -z "$(git status --porcelain)"
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Working tree is dirty after running canonical gate:"
+            git status --short
+            exit 1
+          fi

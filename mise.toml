@@ -1,12 +1,7 @@
-[env]
-# Relative to this config's directory, so the repo keeps working from any clone
-# path — the freshly built `executable_dot` is what the tasks below invoke.
-_.path = "dot_local/bin"
+# :schema https://mise.jdx.dev/schema/mise.json
+# Docs: https://mise.jdx.dev/configuration.html
 
 [settings]
-# Mirrors the per-backend provenance switches of the home config: without them
-# this config alone (CI, or any run that does not load the home config) records
-# a different provenance in mise.lock than a local run, and the lockfile flaps.
 aqua.cosign = false
 aqua.github_attestations = false
 aqua.minisign = false
@@ -23,42 +18,33 @@ slsa = false
 run_auto_install = false
 
 [task_config]
-# Every task in this file assumes the repo root. mise otherwise defaults tasks to
-# MISE_PROJECT_ROOT, which climbs to `$HOME` because `~/.config/mise/config.toml`
-# is itself a per-directory config name — so `$HOME` outranks this repo as project
-# root. Pinning to config_root (this file's directory) is cwd-independent, unlike
-# `{{cwd}}`, which breaks the moment a task is invoked from a subdirectory.
+# This repository is also the home-level mise source, so pin every task to this file.
 dir = "{{config_root}}"
 
+[env]
+COVERAGE_FILE = "{{config_root}}/dot/.coverage"
+DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
+UV_PROJECT = "{{config_root}}/dot"
+
 [tools]
-"aqua:fish-shell/fish-shell" = "4"
 actionlint = "latest"
-biome = "latest"
 chezmoi = "latest"
 dprint = "latest"
+fish = "4.9.2"
 gh = "latest"
+git-cliff = "latest"
 gitleaks = "latest"
-go = "latest"
-golangci-lint = "latest"
-gotestsum = "latest"
-jq = "latest"
 lefthook = "latest"
 neovim = "latest"
-node = "24"
-pnpm = "latest"
 python = "latest"
-ruff = "latest"
 shellcheck = "latest"
 shfmt = "latest"
-sqlite = "latest"
 stylua = "latest"
 trivy = "latest"
 uv = "latest"
 zizmor = "latest"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Common tasks — the canonical vocabulary that agents, git hooks, and CI reuse.
-# ─────────────────────────────────────────────────────────────────────────────
+# Canonical project tasks.
 
 [tasks.all]
 alias = "a"
@@ -67,10 +53,10 @@ run = ["mise run format", "mise run check", "mise run test", "mise run build"]
 
 [tasks.build]
 alias = "b"
-description = "Build the dot CLI binary"
-run = "go build -C dot -o ../dot_local/bin/executable_dot ./cmd/dot"
-sources = ["dot/go.mod", "dot/go.sum", "dot/**/*.go"]
-outputs = ["dot_local/bin/executable_dot"]
+description = "Build the dot Python source distribution and wheel"
+run = "uv build --out-dir dot/dist --clear"
+sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/src/**/*.py"]
+outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 
 [tasks.check]
 alias = "c"
@@ -78,25 +64,22 @@ description = "Run all static checks in parallel"
 depends = [
   "check:actions",
   "check:chezmoi",
-  "check:format",
   "check:docs",
   "check:fish",
-  "check:go",
-  "check:python",
-  "check:shell",
+  "check:format",
   "check:leaks",
   "check:lua",
-  "check:opencode",
+  "check:python",
   "check:scan",
+  "check:shell",
   "check:skills",
   "check:tools",
+  "check:vuln",
 ]
 
 [tasks."check:actions"]
 alias = "ca"
 description = "Validate GitHub Actions workflows and Dependabot config"
-# zizmor audits dependabot.yml too, so point it at .github/ rather than only
-# workflows/ -- the narrower path silently hid every dependabot finding.
 run = ["actionlint", "zizmor --offline .github/"]
 
 [tasks."check:chezmoi"]
@@ -110,31 +93,23 @@ chezmoi init --source "$PWD" --config-path "$render_config/chezmoi.toml" --promp
 chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destination" --config "$render_config/chezmoi.toml" --exclude=encrypted
 """
 
-[tasks."check:format"]
-alias = "cf"
-description = "Check config/markup formatting (dprint)"
-run = "dprint check"
-
 [tasks."check:docs"]
 alias = "co"
-description = "Validate agent documentation against live commands and paths"
-run = "go test -C dot -run '^TestDocumentationContract$' ."
+description = "Validate documentation against the Python CLI and repository paths"
+run = "uv run --frozen pytest -q dot/tests/test_contracts.py -k documentation"
+
+[tasks."check:format"]
+alias = "cf"
+description = "Check config and markup formatting (dprint)"
+run = "dprint check"
 
 [tasks."check:fish"]
 description = "Validate Fish syntax without loading user configuration"
-run = "scripts/check-fish.sh"
-
-[tasks."check:go"]
-alias = "cg"
-description = "Lint and vuln-scan the Go module (dot/)"
-dir = "{{config_root}}/dot"
-run = ["golangci-lint run ./...", "go tool govulncheck ./..."]
+run = "for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish; do fish --no-config --no-execute \"$file\"; done"
 
 [tasks."check:leaks"]
 alias = "cl"
 description = "Audit recent commits for leaked secrets (gitleaks)"
-# 100 commits is the window the gitleaks skill publishes and ci.yml fetches;
-# it costs ~3s, and full history stays in the scheduled security.yml job.
 run = "gitleaks git --redact=100 --log-opts=\"--max-count=100\" --verbose"
 
 [tasks."check:lua"]
@@ -142,102 +117,96 @@ alias = "cu"
 description = "Check Neovim Lua formatting (stylua)"
 run = "stylua --check dot_config/nvim"
 
-[tasks."check:opencode"]
-description = "Type-check and lint the pinned OpenCode plugin contract"
-depends = ["install:opencode"]
-run = ["pnpm --dir dot/testdata/opencode exec tsc --project tsconfig.json", "biome check"]
-
 [tasks."check:python"]
 alias = "cp"
-description = "Lint and format-check Python sources (ruff)"
-run = ["ruff check", "ruff format --check"]
+description = "Lint, format-check, type-check, and validate Python packaging"
+run = [
+  "uv run --frozen ruff check dot dot_config/ptpython/config.py",
+  "uv run --frozen ruff format --check dot dot_config/ptpython/config.py",
+  "uv run --frozen ty check dot/src dot/tests",
+  "uv run --frozen validate-pyproject dot/pyproject.toml",
+  "uv lock --check",
+]
 
 [tasks."check:scan"]
 alias = "ct"
 description = "Scan dependencies, IaC, licenses, and secrets (Trivy)"
-run = "trivy --config trivy.yaml fs --tf-vars skills/terraform-stack/references/terraform.example.tfvars ."
-
-[tasks."report:vuln"]
-description = "Write an informational fixed and unfixed vulnerability report (Trivy)"
-raw_args = true
-run = "scripts/report-vuln.sh"
+run = "trivy --config trivy.yaml fs --tf-vars skills/terraform/references/terraform.example.tfvars ."
 
 [tasks."check:shell"]
 alias = "cs"
 description = "Lint and format-check shell scripts, including rendered chezmoi sources"
-run = "scripts/check-shell.sh"
+run = """
+set -eu
+shellcheck --rcfile dot_config/shellcheckrc install.sh
+shfmt -d -i 2 -s install.sh
+for template in run_once_*.sh.tmpl; do
+  printf 'In %s:\n' "$template"
+  rendered="$(chezmoi execute-template --file "$template")"
+  printf '%s\n' "$rendered" | shellcheck --rcfile dot_config/shellcheckrc --external-sources --shell=bash -
+  printf '%s\n' "$rendered" | shfmt -d -i 2 -s -
+done
+for modifier in modify_dot_bashrc modify_dot_profile; do
+  printf 'In %s:\n' "$modifier"
+  rendered="$(printf '%s\n' '# existing shell configuration' | chezmoi execute-template --with-stdin --file "$modifier")"
+  printf '%s\n' "$rendered" | shellcheck --rcfile dot_config/shellcheckrc --external-sources --shell=bash -
+  printf '%s\n' "$rendered" | shfmt -d -i 2 -s -
+done
+"""
 
 [tasks."check:skills"]
 alias = "ck"
-description = "Validate first-party skill publisher compatibility"
-# Scoped to skills/: from the repo root, `gh skill publish` never validates
-# .agents/skills/ anyway — it only warns that the directory looks like an agent's
-# installed-skills cache and should be gitignored. Those skills are
-# first-party and deliberately tracked, so point the publisher at the directory
-# it actually publishes. Repository-owned contract and routing tests live under
-# the canonical test task so `mise run all` executes them exactly once.
-run = "gh skill publish --dry-run skills"
+description = "Validate first-party Agent Skill packages"
+run = [
+  "gh skill publish --dry-run skills",
+  "uv run --frozen pytest -q dot/tests/test_contracts.py -k skills",
+]
 
 [tasks."check:tools"]
 alias = "cw"
 description = "Validate repository task definitions"
 run = "mise tasks validate"
 
+[tasks."check:vuln"]
+alias = "cv"
+description = "Audit the locked Python dependency graph"
+run = "uv audit --preview-features audit-command --locked"
+
 [tasks."check:vuln:tools"]
-description = "Audit the installed npm and pipx tool environments"
-run = "python scripts/audit-tools.py"
+description = "Audit installed npm and pipx tool environments"
+run = "uv run --frozen python -m fmind_dot.tool_audit"
 
 [tasks."report:skills"]
-description = "Report informational skill word-overlap rankings"
-run = "go test -C dot -run '^TestLifecycleSkillRoutingDiagnostics$' -count=1 -v ."
+description = "Report informational skill routing diagnostics"
+run = "uv run --frozen python -m fmind_dot.skill_contracts --report"
 
 [tasks.format]
 alias = "f"
-description = "Format all sources and documents"
-depends = [
-  "format:dprint",
-  "format:go",
-  "format:lua",
-  "format:python",
-  "format:shell",
-  "format:typescript",
-]
+description = "Format all active sources and documents"
+depends = ["format:dprint", "format:lua", "format:python", "format:shell"]
 
 [tasks."format:dprint"]
 alias = "fd"
-description = "Format JSON, Markdown, TOML, YAML with dprint"
-# --allow-no-files: the pre-commit hook passes staged paths, and a commit that
-# stages only files dprint cannot claim (lockfiles) must not fail the hook.
+description = "Format JSON, Markdown, TOML, and YAML"
 run = "dprint fmt --allow-no-files"
-
-[tasks."format:go"]
-alias = "fg"
-description = "Format Go sources and imports (goimports + gofumpt)"
-raw_args = true
-run = "scripts/format-go.sh"
 
 [tasks."format:lua"]
 alias = "fu"
-description = "Format Neovim Lua sources (stylua)"
-raw_args = true
-run = "scripts/format-lua.sh"
+description = "Format Neovim Lua sources"
+run = "stylua dot_config/nvim"
 
 [tasks."format:python"]
 alias = "fp"
-description = "Format Python sources and imports (ruff)"
-raw_args = true
-run = "scripts/format-python.sh"
+description = "Format Python sources and imports"
+run = [
+  "uv run --frozen ruff check --select=I --fix dot dot_config/ptpython/config.py",
+  "uv run --frozen ruff format dot dot_config/ptpython/config.py",
+]
 
 [tasks."format:shell"]
 alias = "fs"
-description = "Format shell scripts (shfmt)"
-raw_args = true
-run = "scripts/format-shell.sh"
-
-[tasks."format:typescript"]
-alias = "ft"
-description = "Format and organize the OpenCode TypeScript plugin and tests"
-run = "biome check --write"
+description = "Format shell scripts"
+run = "shfmt -w -i 2 -s install.sh"
 
 [tasks.install]
 alias = "i"
@@ -250,109 +219,64 @@ run = [
   "echo '✓ First-time bootstrap complete.'",
 ]
 
-[tasks."install:opencode"]
-description = "Prepare the pinned OpenCode plugin dependencies"
-sources = ["mise.lock", "dot/testdata/opencode/package.json", "dot/testdata/opencode/pnpm-lock.yaml"]
-outputs = [
-  "dot/testdata/opencode/node_modules/.modules.yaml",
-  "dot/testdata/opencode/node_modules/.bin/tsc",
-  "dot/testdata/opencode/node_modules/.bin/vitest",
-]
-run = "pnpm --dir dot/testdata/opencode install --frozen-lockfile --ignore-scripts"
-
 [tasks.test]
 alias = "t"
-description = "Run the dot CLI test suite (skill contracts included)"
-depends = ["test:go", "test:opencode", "test:python"]
-
-[tasks."test:go"]
-description = "Run Go tests with the race detector and coverage"
-dir = "{{config_root}}/dot"
-run = "gotestsum --format pkgname -- -race -coverprofile=coverage.out ./..."
-
-[tasks."test:opencode"]
-description = "Test the pinned OpenCode plugin contract"
-depends = ["install:opencode"]
-run = "pnpm --dir dot/testdata/opencode exec vitest run"
-
-[tasks."test:python"]
-description = "Test installed-tool audit parsing and failure handling"
-run = "python -m unittest discover -s scripts -p 'test_*.py'"
+description = "Run the Python CLI and repository contract tests"
+run = "uv run --frozen pytest -q -n auto dot/tests --cov=fmind_dot --cov-config=dot/pyproject.toml --cov-report=term-missing"
 
 [tasks."test:starters"]
-description = "Materialize and execute the Go, Python, and TypeScript starter contracts"
+description = "Materialize and execute the Python CLI starter contract"
 env = { DOT_STARTER_SMOKE = "1" }
-run = "go test -C dot -run '^TestStarterSmoke$' -timeout 15m ."
-
-[tasks."test:bootstrap"]
-description = "Exercise first-install and rerun bootstrap behavior in a disposable home"
-run = "go test -C dot -run '^TestBootstrap' -timeout 2m ."
+run = "uv run --frozen pytest -q dot/tests/test_python_starter.py"
 
 [tasks.watch]
 alias = "w"
-description = "Re-run the dot CLI test suite on every change"
-dir = "{{config_root}}/dot"
-run = "gotestsum --watch --format pkgname -- -race -coverprofile=coverage.out ./..."
+description = "Re-run the Python test suite on every change"
+run = "uv run --frozen ptw dot/tests -- -q"
 
-[tasks.coverage]
-description = "Display Go test coverage"
-depends = ["test:go"]
-run = "go tool cover -func=dot/coverage.out"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Project management — chezmoi orchestration, tool sync, and bootstrap.
-# Every alias starts with `m` so it can never shadow a common task above.
-# ─────────────────────────────────────────────────────────────────────────────
+# Project management tasks. Every alias begins with m.
 
 [tasks.apply]
 alias = "ma"
-depends = ["build"]
-description = "Apply dot with chezmoi"
+description = "Apply the chezmoi source tree"
 run = "chezmoi apply --force"
 
 [tasks.completions]
 alias = "mg"
-depends = ["build"]
-description = "Generate Fish completions for core CLI tools and cached integrations"
-run = "executable_dot completion"
+description = "Generate Fish completions for installed CLI tools"
+run = '"$DOT_BIN" completion'
 
 [tasks.deploy]
 alias = "me"
-description = "Redeploy the dot CLI binary"
-run = ["mise run --force build", "chezmoi apply --force ~/.local/bin/dot"]
+description = "Build and install the dot Python CLI from its locked runtime graph"
+run = "\"$(mise which python)\" -I dot/src/fmind_dot/deploy.py \"$PWD\" \"$(mise which uv)\""
 
 [tasks.diff]
 alias = "md"
-description = "Show pending chezmoi diff"
+description = "Show the pending chezmoi diff"
 run = "chezmoi diff --force"
 
 [tasks.doctor]
 alias = "mo"
-description = "Run chezmoi/mise health and installed-tool ownership checks"
-run = ["chezmoi doctor", "mise doctor", "mise run doctor:tools"]
-
-[tasks."doctor:tools"]
-description = "Check installed tool ownership on this workstation"
-run = "scripts/doctor-tools.sh"
+description = "Run chezmoi and mise health checks"
+run = ["chezmoi doctor", "mise doctor"]
 
 [tasks.full]
 alias = "mf"
 depends = ["tools"]
-description = "Apply dot and sync global tools"
+description = "Apply dotfiles and synchronize global tools"
 run = "echo '✓ Dot deployed.'"
 
 [tasks.hooks]
 alias = "mh"
-description = "Install repository Git hooks (Lefthook)"
+description = "Install repository Git hooks"
 run = "lefthook install"
 
 [tasks.lock]
 alias = "mk"
-description = "Refresh the repo, home, and Neovim plugin lockfiles"
-# LazyVim rewrites lazy-lock.json in place whenever plugins move, so it is
-# re-added here alongside mise.lock: both are machine-written pins that only
-# reach the repo through an explicit re-add.
+description = "Refresh Python, repo, home, and Neovim lockfiles"
 run = [
+  "uv lock",
   "mise lock --yes",
   "mise lock --global --yes",
   "chezmoi re-add --source \"$PWD\" ~/.config/mise/mise.lock",
@@ -361,32 +285,29 @@ run = [
 
 [tasks.prune]
 alias = "mp"
-depends = ["build"]
 description = "Remove unused tools, containers, and development caches"
-run = "executable_dot prune --all=deep"
+run = "uv run --frozen dot prune --all --deep"
 
 [tasks.release]
 alias = "mr"
-depends = ["build"]
 description = "Prepare and dispatch an exact-head GitHub release"
-run = "executable_dot release"
+run = "uv run --frozen dot release"
 
 [tasks.tools]
 alias = "mt"
-description = "Install pinned tools for this repo and the global config"
-# Locked installs must not collapse the checked-in cross-platform lock to the
-# current host after `upgrade` has regenerated it.
+description = "Install the locked repository and global tools"
 run = [
   "mise --locked install -y",
   "mise run apply",
   "mise trust -y ~/.config/mise/config.toml",
   "mise -C \"$HOME\" --locked install -y",
+  "mise run deploy",
   "mise run completions",
 ]
 
 [tasks.trust]
 alias = "mtr"
-description = "Trust repo and home mise configs"
+description = "Trust repository and home mise configs"
 run = [
   "mise trust -y mise.toml",
   "mise trust -y ~/.config/mise/config.toml",
@@ -394,33 +315,23 @@ run = [
 
 [tasks.upgrade]
 alias = "mu"
-description = "Upgrade mise tools to latest versions"
+description = "Upgrade Python dependencies, mise tools, and Neovim plugins"
 run = [
+  "uv lock --upgrade",
   "mise -C \"$HOME\" upgrade",
   "mise upgrade --local",
-  "mise lock --yes",
-  "mise lock --global --yes",
-  "chezmoi re-add --source \"$PWD\" ~/.config/mise/mise.lock",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",
-  "chezmoi re-add --source \"$PWD\" ~/.config/nvim/lazy-lock.json",
+  "mise run lock",
   "mise run tools",
 ]
 
 [tasks.verify]
 alias = "mx"
-depends = ["build"]
-description = "Run the dot sanity check suite"
-run = "executable_dot verify"
+description = "Run the dot workstation sanity checks"
+run = '"$DOT_BIN" verify'
 
 [tasks.vim]
 alias = "mv"
-description = "Sync Neovim plugins headlessly (LazyVim)"
-run = [
-  "nvim --headless '+Lazy! restore' '+lua require(\"config.sync-parsers\")' +qa",
-  "mise run vim:verify",
-]
-
-[tasks."vim:verify"]
-description = "Verify every Lazy plugin checkout against the active lockfile"
-run = "bash scripts/verify-lazyvim-lock.sh"
+description = "Synchronize Neovim plugins headlessly"
+run = "nvim --headless '+Lazy! restore' '+Lazy! clean' '+lua require(\"config.sync-parsers\")' +qa"

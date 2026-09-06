@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "created": "2026-09-05",
-  "purpose": "Small development smoke tests for skill ownership metadata and routing-fixture structure.",
-  "construction": "Cases cover ownership, explicit invocation, multi-intent routing, abstention, security, web, workflow capture, documentation authorship and freshness, task transfer, and repository-local boundaries.",
+  "created": "2026-09-06",
+  "purpose": "Catalog-wide development boundaries for skill ownership metadata and routing-fixture structure.",
+  "construction": "Every active skill owns one realistic primary probe; nearest-neighbor exclusions are used only where responsibilities overlap, with a small set of multi-intent and abstention cases.",
   "proof_boundary": "The gate validates fixture structure and catalog references only. Host discovery and behavioral routing require separate evaluation.",
   "cases": [
     {
@@ -63,18 +63,6 @@
         "secure"
       ],
       "primary": "secure",
-      "top_k": 3
-    },
-    {
-      "id": "angular-web",
-      "categories": [
-        "web"
-      ],
-      "prompt": "Create an Angular web application with standalone components, signals, and zoneless change detection.",
-      "expected": [
-        "angular"
-      ],
-      "primary": "angular",
       "top_k": 3
     },
     {
@@ -163,18 +151,6 @@
       "top_k": 3
     },
     {
-      "id": "agent-report-generation",
-      "categories": [
-        "catalog-boundary"
-      ],
-      "prompt": "Render this repository audit evidence into a standalone HTML dashboard report and open it in my browser.",
-      "expected": [
-        "agent-report"
-      ],
-      "primary": "agent-report",
-      "top_k": 3
-    },
-    {
       "id": "google-cloud-map",
       "categories": [
         "catalog-boundary"
@@ -209,6 +185,767 @@
       ],
       "primary": "google-analytics",
       "top_k": 3
+    },
+    {
+      "id": "tool-zensical",
+      "categories": [
+        "engineering",
+        "documentation"
+      ],
+      "prompt": "Create a Zensical documentation site for this Python course and replace the old Hugo publishing workflow.",
+      "expected": [
+        "zensical"
+      ],
+      "primary": "zensical",
+      "top_k": 3
+    },
+    {
+      "id": "tool-agents-cli",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use agents-cli to scaffold a new ADK project and install the official Google workflow skills at project scope.",
+      "expected": [
+        "agents-cli"
+      ],
+      "primary": "agents-cli",
+      "top_k": 3
+    },
+    {
+      "id": "tool-pydantic",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use Pydantic constraints and custom validators for these incoming records and install its official validation skill.",
+      "expected": [
+        "pydantic"
+      ],
+      "primary": "pydantic",
+      "top_k": 3
+    },
+    {
+      "id": "tool-litestar",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use the official Litestar skills to fix dependency injection and test request validation in this Litestar app.",
+      "expected": [
+        "litestar"
+      ],
+      "primary": "litestar",
+      "top_k": 3
+    },
+    {
+      "id": "tool-typer",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use the official Typer skill to add a typed CLI option and verify help and failure exit codes.",
+      "expected": [
+        "typer"
+      ],
+      "primary": "typer",
+      "top_k": 3
+    },
+    {
+      "id": "tool-fastapi",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Keep the generated FastAPI service and install its official skill to review dependency lifetimes.",
+      "expected": [
+        "fastapi"
+      ],
+      "primary": "fastapi",
+      "top_k": 3
+    },
+    {
+      "id": "tool-uv",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use uv to sync and lock this pyproject.toml dependency graph, then build the Python package.",
+      "expected": [
+        "uv"
+      ],
+      "primary": "uv",
+      "top_k": 3
+    },
+    {
+      "id": "tool-ruff",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use the official Ruff skill to diagnose this lint configuration without reformatting unrelated files.",
+      "expected": [
+        "ruff"
+      ],
+      "primary": "ruff",
+      "top_k": 3
+    },
+    {
+      "id": "tool-ty",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Use the official ty skill to fix Python type diagnostics and verify the configured environment.",
+      "expected": [
+        "ty"
+      ],
+      "primary": "ty",
+      "top_k": 3
+    },
+    {
+      "id": "adk-sdk-code",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Implement an ADK Agent with Runner, session service, callbacks, and a pinned Gemini model.",
+      "expected": [
+        "google-adk"
+      ],
+      "primary": "google-adk",
+      "top_k": 3
+    },
+    {
+      "id": "tool-acli",
+      "categories": ["external-service"],
+      "prompt": "Use acli to list the Jira work items in the active sprint without changing them.",
+      "expected": ["acli"],
+      "primary": "acli",
+      "top_k": 3
+    },
+    {
+      "id": "agent-mcp-config",
+      "categories": ["agents"],
+      "prompt": "Configure this repository MCP server in Codex and Claude using each host's native project-scoped command.",
+      "expected": ["agent-mcp"],
+      "primary": "agent-mcp",
+      "top_k": 3,
+      "forbidden": ["mcp-server"]
+    },
+    {
+      "id": "agent-project-bootstrap",
+      "categories": ["agents"],
+      "prompt": "Set up the shared AGENTS.md and .agents layout for every supported coding-agent host in this repository.",
+      "expected": ["agent-project"],
+      "primary": "agent-project",
+      "top_k": 3,
+      "forbidden": ["agents-md"]
+    },
+    {
+      "id": "agent-usage-analysis",
+      "categories": ["agents"],
+      "prompt": "Analyze token usage across my agent harness transcripts and identify the largest cost drivers.",
+      "expected": ["agent-usage"],
+      "primary": "agent-usage",
+      "top_k": 3,
+      "forbidden": ["benchmark"]
+    },
+    {
+      "id": "antigravity-sdk-orchestration",
+      "categories": ["agents"],
+      "prompt": "Build a bounded Antigravity SDK orchestrator with static subagents, policy controls, and token budgets.",
+      "expected": ["antigravity-sdk"],
+      "primary": "antigravity-sdk",
+      "top_k": 3,
+      "forbidden": ["google-adk"]
+    },
+    {
+      "id": "ast-grep-rewrite",
+      "categories": ["engineering"],
+      "prompt": "Use an ast-grep metavariable pattern to rewrite this Python call shape without touching string matches.",
+      "expected": ["ast-grep"],
+      "primary": "ast-grep",
+      "top_k": 3
+    },
+    {
+      "id": "latency-benchmark",
+      "categories": ["quality"],
+      "prompt": "Measure command latency before and after this change with hyperfine and report the statistical comparison.",
+      "expected": ["benchmark"],
+      "primary": "benchmark",
+      "top_k": 3
+    },
+    {
+      "id": "chrome-live-profile",
+      "categories": ["browser"],
+      "prompt": "Profile Largest Contentful Paint and inspect the accessibility tree in a live Chrome DevTools session.",
+      "expected": ["chrome-devtools"],
+      "primary": "chrome-devtools",
+      "top_k": 3,
+      "forbidden": ["playwright"]
+    },
+    {
+      "id": "cli-contract-design",
+      "categories": ["design"],
+      "prompt": "Define this CLI's arguments, streams, exit codes, JSON schema, and compatibility rules before implementation.",
+      "expected": ["cli-contracts"],
+      "primary": "cli-contracts",
+      "top_k": 3,
+      "forbidden": ["typer"]
+    },
+    {
+      "id": "cloud-run-deploy",
+      "categories": ["infrastructure"],
+      "prompt": "Deploy this uv-managed Python service privately to Cloud Run with keyless CI and a dedicated runtime identity.",
+      "expected": ["cloud-run"],
+      "primary": "cloud-run",
+      "top_k": 3,
+      "forbidden": ["containerize"]
+    },
+    {
+      "id": "colab-gpu-session",
+      "categories": ["compute"],
+      "prompt": "Rent a Colab GPU session, run this script remotely, copy back its output, and stop the session.",
+      "expected": ["colab"],
+      "primary": "colab",
+      "top_k": 3
+    },
+    {
+      "id": "oci-container-build",
+      "categories": ["infrastructure"],
+      "prompt": "Build and scan a minimal non-root OCI image for this uv-managed application using a digest-pinned base.",
+      "expected": ["containerize"],
+      "primary": "containerize",
+      "top_k": 3,
+      "forbidden": ["cloud-run"]
+    },
+    {
+      "id": "commit-staged-change",
+      "categories": ["git"],
+      "prompt": "Write a Conventional Commits subject for the already staged changes and create the local commit.",
+      "expected": ["conventional-commit"],
+      "primary": "conventional-commit",
+      "top_k": 3,
+      "forbidden": ["git-add-commit-push"]
+    },
+    {
+      "id": "cosign-attestation",
+      "categories": ["security"],
+      "prompt": "Keylessly sign this container digest, attach the SBOM attestation, and verify the exact OIDC identity.",
+      "expected": ["cosign"],
+      "primary": "cosign",
+      "top_k": 3
+    },
+    {
+      "id": "course-learning-design",
+      "categories": ["education"],
+      "prompt": "Design this technical course with prerequisites, guided practice, executable labs, and release acceptance criteria.",
+      "expected": ["course-development"],
+      "primary": "course-development",
+      "top_k": 3
+    },
+    {
+      "id": "d2-architecture-diagram",
+      "categories": ["visual"],
+      "prompt": "Update this existing D2 architecture source, preserve its theme, and export the validated diagram.",
+      "expected": ["d2"],
+      "primary": "d2",
+      "top_k": 3,
+      "forbidden": ["mermaid"]
+    },
+    {
+      "id": "dependabot-config",
+      "categories": ["dependencies"],
+      "prompt": "Configure weekly Dependabot updates for uv, Docker, and SHA-pinned GitHub Actions with sensible groups.",
+      "expected": ["dependabot"],
+      "primary": "dependabot",
+      "top_k": 3,
+      "forbidden": ["upgrade-tools"]
+    },
+    {
+      "id": "dot-cli-operation",
+      "categories": ["repository"],
+      "prompt": "Use fmind/dot to sync agent transcripts and query their SQLite store.",
+      "expected": ["dot-cli"],
+      "primary": "dot-cli",
+      "top_k": 3
+    },
+    {
+      "id": "dot-release-cut",
+      "categories": ["release"],
+      "prompt": "Run the dot repository release workflow to gate, bump, tag, and push the next version.",
+      "expected": ["dot-release"],
+      "primary": "dot-release",
+      "top_k": 3,
+      "forbidden": ["release"]
+    },
+    {
+      "id": "dprint-config",
+      "categories": ["formatting"],
+      "prompt": "Configure dprint as the canonical formatter for this repository's Markdown, JSON, TOML, and YAML files.",
+      "expected": ["dprint"],
+      "primary": "dprint",
+      "top_k": 3
+    },
+    {
+      "id": "duckdb-file-query",
+      "categories": ["data"],
+      "prompt": "Query these Parquet and JSON files together with DuckDB and export the aggregate as CSV.",
+      "expected": ["duckdb"],
+      "primary": "duckdb",
+      "top_k": 3
+    },
+    {
+      "id": "feature-branch-create",
+      "categories": ["git"],
+      "prompt": "Create and switch to a conventionally named feature branch for this isolated implementation task.",
+      "expected": ["feature-branch"],
+      "primary": "feature-branch",
+      "top_k": 3
+    },
+    {
+      "id": "fkf-learn-stage",
+      "categories": ["knowledge"],
+      "prompt": "Stage these verified session findings as reviewable FKF wiki diffs without publishing them.",
+      "expected": ["fkf-learn"],
+      "primary": "fkf-learn",
+      "top_k": 3,
+      "forbidden": ["fkf-use"]
+    },
+    {
+      "id": "fkf-retrieval",
+      "categories": ["knowledge"],
+      "prompt": "Retrieve bounded context from this FKF base, resolve the cited URI, and read the exact source.",
+      "expected": ["fkf-use"],
+      "primary": "fkf-use",
+      "top_k": 3,
+      "forbidden": ["fkf-learn"]
+    },
+    {
+      "id": "fmind-visual-system",
+      "categories": ["visual"],
+      "prompt": "Apply the Fmind visual identity and choose between Typst, Mermaid, and D2 for this architecture talk.",
+      "expected": ["fmind-visuals"],
+      "primary": "fmind-visuals",
+      "top_k": 3
+    },
+    {
+      "id": "gcloud-iam-inspect",
+      "categories": ["external-service"],
+      "prompt": "Use gcloud with an explicit account, configuration, and project to inspect this service account's IAM roles.",
+      "expected": ["gcloud"],
+      "primary": "gcloud",
+      "top_k": 3,
+      "forbidden": ["google-cloud"]
+    },
+    {
+      "id": "git-delivery-flow",
+      "categories": ["git"],
+      "prompt": "Stage the requested files, create a conventional commit, heal hook failures, and push the branch.",
+      "expected": ["git-add-commit-push"],
+      "primary": "git-add-commit-push",
+      "top_k": 3,
+      "forbidden": ["conventional-commit"]
+    },
+    {
+      "id": "github-actions-python",
+      "categories": ["ci"],
+      "prompt": "Create GitHub Actions CI and release workflows for this Python package using mise and immutable action SHAs.",
+      "expected": ["github-actions"],
+      "primary": "github-actions",
+      "top_k": 3,
+      "forbidden": ["dependabot"]
+    },
+    {
+      "id": "github-agentic-workflow",
+      "categories": ["ci", "agents"],
+      "prompt": "Design and compile a secure GitHub Copilot agentic workflow that can triage repository issues.",
+      "expected": ["github-agentic-workflow"],
+      "primary": "github-agentic-workflow",
+      "top_k": 3,
+      "forbidden": ["github-actions"]
+    },
+    {
+      "id": "github-issue-edit",
+      "categories": ["external-service"],
+      "prompt": "Find the matching GitHub issue, add the new acceptance evidence, and close it if the criteria are met.",
+      "expected": ["github-issues"],
+      "primary": "github-issues",
+      "top_k": 3,
+      "forbidden": ["project-backlog"]
+    },
+    {
+      "id": "github-pr-create",
+      "categories": ["external-service"],
+      "prompt": "Open a GitHub pull request for this pushed branch with What, Why, How, and Test plan sections.",
+      "expected": ["github-pull-request"],
+      "primary": "github-pull-request",
+      "top_k": 3,
+      "forbidden": ["github-issues"]
+    },
+    {
+      "id": "github-repo-settings",
+      "categories": ["external-service"],
+      "prompt": "Align this GitHub repository's description, homepage, topics, merge policy, and eligible security settings.",
+      "expected": ["github-repository"],
+      "primary": "github-repository",
+      "top_k": 3
+    },
+    {
+      "id": "gitleaks-scan",
+      "categories": ["security"],
+      "prompt": "Scan the staged changes and recent Git history for exposed secrets with Gitleaks and redact any finding output.",
+      "expected": ["gitleaks"],
+      "primary": "gitleaks",
+      "top_k": 3
+    },
+    {
+      "id": "google-product-skill",
+      "categories": ["official-skills"],
+      "prompt": "Locate the official Google developer skill for an unfamiliar Maps API task and review it before installation.",
+      "expected": ["google-developer"],
+      "primary": "google-developer",
+      "top_k": 3
+    },
+    {
+      "id": "workspace-automation",
+      "categories": ["external-service"],
+      "prompt": "Use gws with an isolated profile to read a bounded Google Drive document and verify the returned fields.",
+      "expected": ["gws"],
+      "primary": "gws",
+      "top_k": 3
+    },
+    {
+      "id": "huggingface-assets",
+      "categories": ["ml"],
+      "prompt": "Download a specific Hugging Face model revision and dataset snapshot with the hf CLI into the project cache.",
+      "expected": ["hf"],
+      "primary": "hf",
+      "top_k": 3
+    },
+    {
+      "id": "implementation-slices",
+      "categories": ["planning"],
+      "prompt": "Turn these accepted requirements into dependency-ordered implementation slices grounded in the repository.",
+      "expected": ["implementation-plan"],
+      "primary": "implementation-plan",
+      "top_k": 3
+    },
+    {
+      "id": "incident-command",
+      "categories": ["operations"],
+      "prompt": "Coordinate this live production outage, establish incident command, contain harm, and maintain a decision timeline.",
+      "expected": ["incident-response"],
+      "primary": "incident-response",
+      "top_k": 3,
+      "forbidden": ["systematic-debugging"]
+    },
+    {
+      "id": "kaggle-competition",
+      "categories": ["ml"],
+      "prompt": "Use the Kaggle CLI to inspect this competition, download its files, and prepare a guarded submission command.",
+      "expected": ["kaggle"],
+      "primary": "kaggle",
+      "top_k": 3
+    },
+    {
+      "id": "lefthook-setup",
+      "categories": ["tooling"],
+      "prompt": "Configure Lefthook so pre-commit delegates format and check and pre-push delegates the repository test task.",
+      "expected": ["lefthook"],
+      "primary": "lefthook",
+      "top_k": 3
+    },
+    {
+      "id": "mcp-python-server",
+      "categories": ["agents"],
+      "prompt": "Implement a typed Python MCP server over stdio and verify its protocol behavior with an in-process client.",
+      "expected": ["mcp-server"],
+      "primary": "mcp-server",
+      "top_k": 3,
+      "forbidden": ["agent-mcp"]
+    },
+    {
+      "id": "mermaid-doc-diagram",
+      "categories": ["visual"],
+      "prompt": "Add a compact Mermaid sequence diagram to this Markdown document and validate its syntax.",
+      "expected": ["mermaid"],
+      "primary": "mermaid",
+      "top_k": 3,
+      "forbidden": ["d2"]
+    },
+    {
+      "id": "mise-task-contract",
+      "categories": ["tooling"],
+      "prompt": "Configure pinned mise tools and the canonical install, format, check, test, build, and watch tasks.",
+      "expected": ["mise"],
+      "primary": "mise",
+      "top_k": 3
+    },
+    {
+      "id": "modern-web-platform",
+      "categories": ["web"],
+      "prompt": "Replace this JavaScript widget with native HTML and CSS using current Baseline-compatible web platform features.",
+      "expected": ["modern-web"],
+      "primary": "modern-web",
+      "top_k": 3
+    },
+    {
+      "id": "new-repository-bootstrap",
+      "categories": ["repository"],
+      "prompt": "Bootstrap a new repository with the right stack, license, mise tasks, hooks, CI, agent files, and settings.",
+      "expected": ["new-project"],
+      "primary": "new-project",
+      "top_k": 3,
+      "forbidden": ["project-health"]
+    },
+    {
+      "id": "otel-agent-instrumentation",
+      "categories": ["operations"],
+      "prompt": "Instrument this Python agent with structured JSON logs, OpenTelemetry traces and metrics, and trace correlation.",
+      "expected": ["observability"],
+      "primary": "observability",
+      "top_k": 3
+    },
+    {
+      "id": "execute-accepted-plan",
+      "categories": ["execution"],
+      "prompt": "Execute this accepted implementation plan in bounded verified slices while preserving unrelated worktree changes.",
+      "expected": ["plan-execution"],
+      "primary": "plan-execution",
+      "top_k": 3,
+      "forbidden": ["implementation-plan"]
+    },
+    {
+      "id": "plan-red-team",
+      "categories": ["planning"],
+      "prompt": "Red-team this launch plan with a pre-mortem, challenge its assumptions, and identify missing rollback gates.",
+      "expected": ["plan-review"],
+      "primary": "plan-review",
+      "top_k": 3
+    },
+    {
+      "id": "playwright-e2e",
+      "categories": ["browser"],
+      "prompt": "Write a deterministic Playwright end-to-end test for this browser journey and retain a failure trace.",
+      "expected": ["playwright"],
+      "primary": "playwright",
+      "top_k": 3,
+      "forbidden": ["chrome-devtools"]
+    },
+    {
+      "id": "product-interface-review",
+      "categories": ["product"],
+      "prompt": "Review this customer flow for responsive interaction, visual hierarchy, keyboard use, and screen-reader accessibility.",
+      "expected": ["product-design-review"],
+      "primary": "product-design-review",
+      "top_k": 3
+    },
+    {
+      "id": "product-discovery-loop",
+      "categories": ["product"],
+      "prompt": "Run a discover, specify, launch, and learn product loop for this idea with an explicit build-or-stop decision.",
+      "expected": ["product-loop"],
+      "primary": "product-loop",
+      "top_k": 3
+    },
+    {
+      "id": "agent-loop-architecture",
+      "categories": ["agents", "design"],
+      "prompt": "Design this sustained agent workflow as inner, middle, and outer feedback loops, with judgment in skills and a small typed Python helper CLI.",
+      "expected": ["loop-engineering"],
+      "primary": "loop-engineering",
+      "top_k": 3,
+      "forbidden": ["product-loop"]
+    },
+    {
+      "id": "production-go-no-go",
+      "categories": ["operations"],
+      "prompt": "Audit this service for production go-live, including rollback, migrations, observability, recovery, and support readiness.",
+      "expected": ["production-readiness"],
+      "primary": "production-readiness",
+      "top_k": 3,
+      "forbidden": ["quality-assurance"]
+    },
+    {
+      "id": "backlog-from-findings",
+      "categories": ["planning"],
+      "prompt": "Turn these audit findings into deduplicated prioritized issue drafts with dependencies, without creating them yet.",
+      "expected": ["project-backlog"],
+      "primary": "project-backlog",
+      "top_k": 3,
+      "forbidden": ["github-issues"]
+    },
+    {
+      "id": "project-health-refresh",
+      "categories": ["repository"],
+      "prompt": "Bring this existing project up to date, internally consistent, simple, secure, and fully working.",
+      "expected": ["project-health"],
+      "primary": "project-health",
+      "top_k": 3,
+      "forbidden": ["repository-review"]
+    },
+    {
+      "id": "repository-license",
+      "categories": ["repository"],
+      "prompt": "Choose and write the correct license for this public course-content repository and align its package metadata.",
+      "expected": ["project-license"],
+      "primary": "project-license",
+      "top_k": 3
+    },
+    {
+      "id": "prompt-stack-design",
+      "categories": ["agents"],
+      "prompt": "Design the instruction, retrieved-context, tool-contract, and output-schema layers for this agent prompt stack.",
+      "expected": ["prompt-design"],
+      "primary": "prompt-design",
+      "top_k": 3
+    },
+    {
+      "id": "pep723-script",
+      "categories": ["engineering"],
+      "prompt": "Write a standalone typed Python utility with PEP 723 dependencies that runs directly through uv.",
+      "expected": ["python-script"],
+      "primary": "python-script",
+      "top_k": 3,
+      "forbidden": ["python-stack"]
+    },
+    {
+      "id": "typed-python-project",
+      "categories": ["engineering"],
+      "prompt": "Build a typed uv-managed Python package with Ruff, ty, pytest, mise tasks, and a wheel artifact.",
+      "expected": ["python-stack"],
+      "primary": "python-stack",
+      "top_k": 3,
+      "forbidden": ["python-script"]
+    },
+    {
+      "id": "qa-risk-campaign",
+      "categories": ["quality"],
+      "prompt": "Design and execute a risk-based deterministic test campaign for these critical user journeys and report proof gaps.",
+      "expected": ["quality-assurance"],
+      "primary": "quality-assurance",
+      "top_k": 3
+    },
+    {
+      "id": "generic-release",
+      "categories": ["release"],
+      "prompt": "Cut the next semantic version, generate the changelog, create the tag, and publish the GitHub release.",
+      "expected": ["release"],
+      "primary": "release",
+      "top_k": 3,
+      "forbidden": ["dot-release"]
+    },
+    {
+      "id": "git-history-rationale",
+      "categories": ["review"],
+      "prompt": "Trace this function through git history and explain which commit introduced it and why it still exists.",
+      "expected": ["repository-history"],
+      "primary": "repository-history",
+      "top_k": 3,
+      "forbidden": ["diff-review"]
+    },
+    {
+      "id": "whole-repository-audit",
+      "categories": ["review"],
+      "prompt": "Audit this entire repository across architecture, code, tests, tooling, security, CI, documentation, and release boundaries.",
+      "expected": ["repository-review"],
+      "primary": "repository-review",
+      "top_k": 3,
+      "forbidden": ["diff-review"]
+    },
+    {
+      "id": "merge-conflict-resolution",
+      "categories": ["git"],
+      "prompt": "Resolve the current rebase conflicts by preserving both sides' intent, validate the result, and continue the rebase.",
+      "expected": ["resolve-conflicts"],
+      "primary": "resolve-conflicts",
+      "top_k": 3
+    },
+    {
+      "id": "third-party-skill-audit",
+      "categories": ["security", "skills"],
+      "prompt": "Audit this third-party agent skill for scripts, hooks, MCP servers, hidden instructions, and supply-chain risk without running it.",
+      "expected": ["skill-security-review"],
+      "primary": "skill-security-review",
+      "top_k": 3
+    },
+    {
+      "id": "sops-secret-management",
+      "categories": ["security"],
+      "prompt": "Configure sops with age so encrypted secrets can live in git and reach the process without plaintext files.",
+      "expected": ["sops-secrets"],
+      "primary": "sops-secrets",
+      "top_k": 3
+    },
+    {
+      "id": "unknown-test-failure",
+      "categories": ["debugging"],
+      "prompt": "Diagnose this intermittent test failure from first principles, reproduce it, isolate the cause, and report the evidence.",
+      "expected": ["systematic-debugging"],
+      "primary": "systematic-debugging",
+      "top_k": 3,
+      "forbidden": ["test-driven-development"]
+    },
+    {
+      "id": "technical-article-publish",
+      "categories": ["publishing"],
+      "prompt": "Prepare this technical article for canonical web export and channel copies while preserving the publication ledger.",
+      "expected": ["technical-publishing"],
+      "primary": "technical-publishing",
+      "top_k": 3
+    },
+    {
+      "id": "opentofu-stack",
+      "categories": ["infrastructure"],
+      "prompt": "Create an OpenTofu-first infrastructure stack with provider locks, linting, security scans, tests, and generated docs.",
+      "expected": ["terraform"],
+      "primary": "terraform",
+      "top_k": 3
+    },
+    {
+      "id": "security-threat-model",
+      "categories": ["security"],
+      "prompt": "Model assets, actors, trust boundaries, abuse paths, controls, and residual risk for this service design.",
+      "expected": ["threat-model"],
+      "primary": "threat-model",
+      "top_k": 3,
+      "forbidden": ["secure"]
+    },
+    {
+      "id": "trivy-scan",
+      "categories": ["security"],
+      "prompt": "Scan this filesystem, IaC configuration, and container digest with Trivy and produce a CycloneDX SBOM.",
+      "expected": ["trivy"],
+      "primary": "trivy",
+      "top_k": 3
+    },
+    {
+      "id": "upgrade-ecosystems",
+      "categories": ["dependencies"],
+      "prompt": "Upgrade this repository to the latest stable tool and dependency versions one ecosystem at a time with lockfile validation.",
+      "expected": ["upgrade-tools"],
+      "primary": "upgrade-tools",
+      "top_k": 3,
+      "forbidden": ["dependabot"]
+    },
+    {
+      "id": "http-endpoint-inspection",
+      "categories": ["network"],
+      "prompt": "Inspect this HTTP endpoint's status, headers, and small JSON response with a bounded credential-safe xh request.",
+      "expected": ["xh"],
+      "primary": "xh",
+      "top_k": 3
+    },
+    {
+      "id": "zizmor-workflow-audit",
+      "categories": ["security", "ci"],
+      "prompt": "Audit these GitHub Actions workflows with Zizmor for unpinned uses, template injection, and cache poisoning.",
+      "expected": ["zizmor"],
+      "primary": "zizmor",
+      "top_k": 3,
+      "forbidden": ["github-actions"]
     }
   ]
 }

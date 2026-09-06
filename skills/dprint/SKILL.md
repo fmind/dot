@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # dprint
 
-The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); dprint formats only, linting lives in the language stacks ([go-stack](../go-stack/SKILL.md), [python-stack](../python-stack/SKILL.md), [typescript-stack](../typescript-stack/SKILL.md)).
+The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); dprint formats only, while Python formatting and linting live in [python-stack](../python-stack/SKILL.md).
 
 ## Configuration
 

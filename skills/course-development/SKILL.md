@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Develop a Technical Course
 
-Build a course learners can understand, execute, and finish. The course repository owns its platform, page schema, and task names; [hugo](../hugo/SKILL.md) owns a Hugo site and [quality-assurance](../quality-assurance/SKILL.md) owns a broader test campaign.
+Build a course learners can understand, execute, and finish. Use [zensical](../zensical/SKILL.md) as the default course publisher; an existing course repository owns its platform, page schema, and task names. Use [quality-assurance](../quality-assurance/SKILL.md) for a broader test campaign.
 
 ## Workflow
 
@@ -25,7 +25,7 @@ Build a course learners can understand, execute, and finish. The course reposito
 
 ## Optional Reference Profile
 
-Read [reference-course.md](references/reference-course.md) and its [page template](references/page.md) only for a course that adopts those Hugo shortcodes, seven exercise fields, capture manifest, and task names. Otherwise use the course's own authoring contract.
+Read [reference-course.md](references/reference-course.md) and its [page template](references/page.md) only for a course that adopts those Markdown conventions, seven exercise fields, capture manifest, and task names. Otherwise use the course's own authoring contract.
 
 ## Gotchas
 
@@ -36,6 +36,5 @@ Read [reference-course.md](references/reference-course.md) and its [page templat
 
 ## Documentation
 
-- [Hextra](https://imfing.github.io/hextra/docs/) · [Hugo](https://gohugo.io/documentation/)
 - Reference course: `~/mlops-courses/agentops-open-course` (its `AGENTS.md` owns the page frame, gates, and authoring rules).
-- Companion skills: [hugo](../hugo/SKILL.md) (site stack), [mermaid](../mermaid/SKILL.md) (diagrams), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).
+- Companion skills: [mermaid](../mermaid/SKILL.md) (diagrams), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).

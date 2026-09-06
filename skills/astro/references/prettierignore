@@ -1,9 +1,0 @@
-dist
-.astro
-coverage
-node_modules
-pnpm-lock.yaml
-*.md
-*.toml
-*.yaml
-*.yml

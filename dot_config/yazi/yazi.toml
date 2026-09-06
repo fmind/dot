@@ -1,3 +1,6 @@
+# :schema https://yazi-rs.github.io/schemas/yazi.json
+# Docs: https://yazi-rs.github.io/docs/configuration/overview/
+
 [mgr]
 linemode = "size"
 show_hidden = true

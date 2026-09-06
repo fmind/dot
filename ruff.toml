@@ -1,3 +1,4 @@
+# Docs: https://docs.astral.sh/ruff/configuration/
 line-length = 120
 # skills/*/references hold scaffold templates with <placeholder> tokens that are
 # not valid Python; every other skill script is linted like first-party code.

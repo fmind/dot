@@ -1,3 +1,5 @@
+# Docs: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#configuration-file
+
 --glob=!.git/
 --glob=!.mypy_cache/
 --glob=!.pytest_cache/

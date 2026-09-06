@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Resolve Conflicts
@@ -40,7 +40,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 ## Gotchas
 
 - **Show the ancestor**: `git config merge.conflictStyle zdiff3` puts the base version inside the markers so both sides' edits are visible.
-- **Lockfiles and generated code**: never hand-merge `go.sum`, `uv.lock`, `pnpm-lock.yaml`, or generated files; take one side, then regenerate (`go mod tidy`, `uv lock`, `pnpm install`, `sqlc generate`).
+- **Lockfiles and generated code**: never hand-merge `uv.lock` or generated files; take one side, run `uv lock`, then invoke the generator that owns each derived file.
 - **Deleted on one side**: `DU` or `UD` means one side removed the file; find out why before restoring it.
 - **Rebase repeats**: the same hunk can conflict on several commits; `git config rerere.enabled true` replays a recorded resolution.
 - **Stop when unsure**: if intent cannot be recovered from history, ask the author instead of guessing.

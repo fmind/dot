@@ -1,12 +1,12 @@
 ---
 name: production-readiness
-description: "Audit production operability and operational fitness: go/no-go, rollback, migrations, observability, recovery, support and halt thresholds; separate local, exact-head CI, runtime, deployed, and public release proof."
+description: Audit operability, rollback, migrations, observability, recovery, support, and proof boundaries. Use for a production go/no-go decision.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Production Readiness

@@ -1,0 +1,20 @@
+# Merge into the repository's existing task graph; do not replace application gates.
+[tasks.install]
+run = "uv sync --locked"
+
+[tasks.format]
+run = "dprint fmt"
+
+[tasks."check:docs"]
+run = "uv run zensical build --clean --strict"
+
+[tasks.check]
+depends = ["check:docs"]
+run = "dprint check"
+
+# Course test tasks must execute the actual labs; a docs build is not a lab test.
+[tasks.build]
+run = "uv run zensical build --clean --strict"
+
+[tasks.watch]
+run = "uv run zensical serve"

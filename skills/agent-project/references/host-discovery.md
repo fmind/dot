@@ -9,17 +9,15 @@ How each host finds the persona, global skills, and workspace skills, and the re
 | Codex       | `~/.codex/AGENTS.md`                                 | `~/.agents/skills`                                                  | `.agents/skills`                                        | `codex debug prompt-input`                  |
 | Copilot     | `~/.copilot/copilot-instructions.md`                 | `~/.copilot/skills` or `~/.agents/skills`                           | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`                        |
 | Grok        | `~/.grok/AGENTS.md`                                  | `~/.grok/skills` (link to `~/.agents/skills`)                       | `.agents/skills`                                        | `grok inspect`                              |
-| OpenCode    | `instructions` in `~/.config/opencode/opencode.json` | `~/.config/opencode/skills`, `~/.agents/skills`, `~/.claude/skills` | `.opencode/skills` or `.agents/skills`                  | `opencode debug skill`                      |
 
 ## Reading the output
 
 - `codex debug prompt-input` renders the model-visible prompt as JSON: check every expected name and front-loaded routing cue, record any description truncation, and keep the CLI version and model because the metadata budget depends on them.
-- `opencode debug skill` prints loaded skills with their `location`; validate the output as JSON because large catalogs can reach the CLI output limit. If it is incomplete, split a copied catalog across isolated temporary roots and record that bounded proof rather than treating truncated output as complete.
 - `copilot skill list` groups skills by source (project, personal, plugin); `--json` gives machine-readable output.
 - `grok inspect` lists project instructions, permissions, and every skill with its scope (`project` or `user`); `--json` is available.
 - Claude Code and Antigravity expose `/skills` in the interactive session only; explicit invocation (`/<skill-name>`) is the fallback proof in Claude.
-- A listed skill proves inclusion in the prompt, not instruction following; validate behavior in a disposable, instrumented run per [agent-evaluation](../agent-evaluation/SKILL.md).
+- A listed skill proves inclusion in the prompt, not instruction following; validate behavior against explicit acceptance cases in a disposable, instrumented run.
 
 ## Native plugin catalogs
 
-Use the installed host's native discovery before adding a plugin: `anthropics/skills` is Anthropic's skill bundle and `openai/plugins` is the Codex plugin catalog. Read the relevant package only when a task needs it, review executable integrations per [skill-security-review](../skill-security-review/SKILL.md), and preserve project versus user scope. Do not install an entire catalog into the shared personal skills directory.
+Use the installed host's native discovery before adding a plugin: `anthropics/skills` is Anthropic's skill bundle and `openai/plugins` is the Codex plugin catalog. Read the relevant package only when a task needs it, review executable integrations per [skill-security-review](../../skill-security-review/SKILL.md), and preserve project versus user scope. Do not install an entire catalog into the shared personal skills directory.

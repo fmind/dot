@@ -14,11 +14,11 @@ Every session record is stored atomically with permissions `0o600`:
 │   └── <session_id>.json
 ├── copilot/
 │   └── <session_id>.json
-├── grok/
-│   └── <session_id>.json
-└── opencode/
+└── grok/
     └── <session_id>.json
 ```
+
+The active synchronization `dot agent usage sync` writes the five verified harnesses above.
 
 Each record contains:
 

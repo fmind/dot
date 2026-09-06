@@ -2,6 +2,14 @@
 {{- $current := dict -}}
 {{- if ne (trim .stdin) "" }}{{ $current = mustFromJson .stdin }}{{ end -}}
 {{- $desired := mergeOverwrite (deepCopy $current) .managed -}}
+{{- if hasKey . "prune" -}}
+{{-   range .prune -}}
+{{-     $path := splitList "." . -}}
+{{-     $table := $desired -}}
+{{-     if gt (len $path) 1 }}{{ $table = index $desired (first $path) }}{{ end -}}
+{{-     if kindIs "map" $table }}{{ $_ := unset $table (last $path) }}{{ end -}}
+{{-   end -}}
+{{- end -}}
 {{- if and (ne (trim .stdin) "") (deepEqual $current $desired) -}}
 {{ .stdin -}}
 {{- else -}}

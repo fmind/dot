@@ -1,9 +1,12 @@
+# :schema https://mise.jdx.dev/schema/mise.json
+# Docs: https://mise.jdx.dev/configuration.html
+
 [settings]
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
 # is deliberately off across every backend, and releases are installed the day they
 # ship. The trade-off: mise.lock records a digest only for the aqua/github/http
-# backends, so a *re-install* of those is reproducible -- the `cargo:`, `go:`, `npm:` and `pipx:`
-# entries (plus registry tools such as gcloud, make, neovim, sqlc, sqlite and uv) pin a
+# backends, so a *re-install* of those is reproducible -- the `cargo:`, `npm:` and `pipx:`
+# entries (plus registry tools such as gcloud, make, neovim, sqlite and uv) pin a
 # version but no digest, and the first fetch of any new version is unverified. Upstream
 # attestation coverage is too patchy to gate routine upgrades on, and this is a
 # single-user workstation. Raise minimum_release_age (e.g. "3d") to trade upgrade
@@ -30,35 +33,20 @@ minimum_release_age = "0d"
 slsa = false
 
 [tool_alias]
+d2 = "aqua:d2lang/d2"
+fish = "aqua:fish-shell/fish-shell"
 tree-sitter = "cargo:tree-sitter-cli"
 
 [settings.hook_env]
 chpwd_only = true
 
 [tools]
-# Specialized project tools (Slidev, Genkit, LikeC4, Lighthouse, Atlas) belong in
-# each project's package.json or mise.toml so its lockfile owns their dependencies.
-# Not in the mise registry short-name list, so the aqua backend is named explicitly.
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
-"aqua:fish-shell/fish-shell" = "4" # Friendly interactive shell (Fish)
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
 "github:fmind/fkf" = "latest" # Fmind Knowledge Framework (fkf)
-"go:github.com/evanw/esbuild/cmd/esbuild" = "latest" # JavaScript/CSS bundler and minifier (GOTH assets)
-"go:github.com/fmind/fgraph/go/cmd/fgraph" = "latest" # Portable temporal Facts Graph CLI
-"go:github.com/go-delve/delve/cmd/dlv" = "latest" # Go debugger (Delve)
-"go:golang.org/x/pkgsite/cmd/pkgsite" = "latest" # Local godoc server for module documentation (fish `gop`)
-"go:golang.org/x/tools/cmd/goimports" = "latest" # Format and fix import statements in Go
-"go:golang.org/x/tools/gopls" = "latest" # Official Go language server (LSP)
-"go:golang.org/x/vuln/cmd/govulncheck" = "latest" # Scans Go code for known vulnerabilities
-"npm:@angular/cli" = "latest" # Angular web framework CLI (typescript-stack / angular skills)
-"npm:@google/clasp" = "latest" # Google Apps Script projects development tool
 "npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
-"npm:knip" = "latest" # Find unused TypeScript files, exports, and dependencies
-"npm:playwright" = "latest" # Browser automation and e2e test runner CLI (codegen, browser install)
 "npm:skills" = "latest" # Agent Skills CLI manager
-"npm:tsx" = "latest" # Run TypeScript files directly with Node
-"npm:typescript" = "latest" # TypeScript language compiler
 # Pinned dep: google-colab-cli requires jupyter-kernel-client unpinned, but 1.0.0 renamed
 # KernelClient -> JupyterKernelClient, which breaks every session (verified 2026-09-02).
 "pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab
@@ -66,15 +54,11 @@ chpwd_only = true
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
 "pipx:pip-audit" = "latest" # Scans requirements-based Python projects for CVEs; uv-managed projects use `uv audit` for check:vuln
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
-# The dedicated registry entry selects Hugo Extended on every supported platform.
-hugo-extended = "latest" # Static site generator for docs and websites
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 actionlint = "latest" # Correctness linter for GitHub Actions workflows
 age = "latest" # Simple and secure file encryption tool
-air = "latest" # Live reloading utility for Go apps
 ast-grep = "latest" # Code structural search, lint, and rewrite tool
 bat = "latest" # Cat clone with syntax highlighting and git integration
-biome = "latest" # Formatter and linter for JavaScript/TypeScript/JSON (typescript-stack)
 bottom = "latest" # Graphical system and process monitor for terminal
 carapace = "latest" # Multi-shell command argument completion generator
 chezmoi = "latest" # Dotfiles manager across diverse machines
@@ -91,23 +75,17 @@ dust = "latest" # Rust-based disk usage analyzer
 dyff = "latest" # Semantic diff for YAML/JSON (Kubernetes-aware)
 fastfetch = "latest" # Active, customizable system info fetching tool
 fd = "latest" # Simple, fast replacement for the find command
-firebase = "latest" # Firebase CLI (emulators, hosting, Firestore rules, functions)
+fish = "latest" # Friendly interactive shell (Fish)
 fzf = "latest" # Interactive general-purpose fuzzy finder
 gcloud = "latest" # Google Cloud SDK command-line utility
 gh = "latest" # GitHub official command-line tool
 git-cliff = "latest" # Generate changelogs from Conventional Commits
 git-lfs = "latest" # Git Large File Storage helper
 gitleaks = "latest" # Audits git repositories for secrets and keys
-go = "latest" # Go programming language compiler/toolchain
-gofumpt = "latest" # Stricter formatter for Go code
-golangci-lint = "latest" # Fast Go linting runner
-goreleaser = "latest" # Deliver Go binaries as fast and easily as possible
-gotestsum = "latest" # Go test runner with summary and watcher
 hadolint = "latest" # Dockerfile linter written in Haskell
 hyperfine = "latest" # Command-line benchmarking utility
 jq = "latest" # Command-line JSON processor
 jules = "latest" # Google autonomous AI coding agent CLI
-ko = "latest" # Fast container image builder for Go apps
 lazydocker = "latest" # Terminal UI for managing Docker containers
 lazygit = "latest" # Terminal UI for Git commands
 lefthook = "latest" # Fast and powerful Git hooks runner
@@ -115,12 +93,10 @@ lsd = "latest" # Modern, feature-rich replacement for ls
 lychee = "latest" # Fast link checker for Markdown, HTML, and websites
 make = "latest" # GNU Make build automation tool
 neovim = "latest" # Extensible Vim-based text editor
-node = "lts" # Node.js JavaScript runtime
+node = "lts" # Runtime for third-party npm CLIs only; active project authoring is Python.
 oha = "latest" # HTTP load generator with live TUI (hyperfine for endpoints)
-opencode = "latest" # OpenCode AI agent CLI tool
 opengrep = "latest" # Semantic SAST with cross-function taint analysis (check:sast)
 opentofu = "latest" # OpenTofu infrastructure as code CLI (open-source Terraform fork, default)
-pnpm = "latest" # Fast Node.js package manager (core backend, matching every project template)
 python = "latest" # Python programming language interpreter
 ripgrep = "latest" # Blazing-fast grep alternative
 ruff = "latest" # High-performance Python linter and formatter
@@ -128,7 +104,6 @@ rust = { version = "latest", profile = "minimal" } # Compiler for the portable T
 shellcheck = "latest" # Static analysis tool for shell scripts
 shfmt = "latest" # Parser, formatter, and interpreter for shell code
 sops = "latest" # Mozilla secrets editor (encrypts YAML/JSON/etc)
-sqlc = "latest" # Compiles SQL queries to type-safe Go code
 sqlite = "latest" # Lightweight SQL database engine CLI
 starship = "latest" # Minimal and customizable cross-shell prompt
 # step = "latest" # Tool for automating PKI and certificate management (unused)
@@ -138,8 +113,6 @@ tflint = "latest" # Terraform code linter
 tree-sitter = "latest" # Parser generator CLI backing nvim-treesitter (built from source)
 trivy = "latest" # Security vulnerability and secret scanner
 ty = "latest" # Astral's high-performance Python type checker
-typst = "latest" # Modern typesetting system for standalone documents (replaces LaTeX)
-typstyle = "latest" # Formatter for Typst sources
 uv = "latest" # Astral's high-performance Python package installer
 usage = "latest" # Specification and completion tool for CLIs (powers mise completions)
 vhs = "latest" # Records a terminal session to GIF from a .tape script
@@ -176,7 +149,7 @@ macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
 [tools."github:tailwindlabs/tailwindcss"]
 # Upstream ships glibc and musl assets side by side on Linux; name them explicitly so a
 # rename upstream cannot silently flip which one is selected.
-version = "latest" # Standalone Tailwind CSS v4 compiler (GOTH assets, no Node.js)
+version = "latest" # Standalone Tailwind CSS v4 compiler (Python web assets, no Node.js)
 
 [tools."github:tailwindlabs/tailwindcss".platforms]
 linux-x64 = { asset_pattern = "tailwindcss-linux-x64-musl" }

@@ -142,7 +142,8 @@ description = "Upgrade dependencies to latest compatible versions"
 run = "uv sync --upgrade"
 
 # Web form (granian). CLI projects: replace with `uv run <slug>`; libraries:
-# `mise run test:watch`; agent projects: `uvx google-agents-cli playground`.
+# `mise run test:watch`; agent projects:
+# `uvx --from 'google-agents-cli==1.5.0' google-agents-cli playground`.
 [tasks.watch]
 alias = "w"
 description = "Run the dev server with live reload"

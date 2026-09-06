@@ -1,6 +1,6 @@
 # Package Rules
 
-Packaging constraints that `gh skill publish --dry-run` and the catalog tests enforce; workflow extraction lives in [skillify](SKILL.md).
+Packaging constraints enforced by `gh skill publish --dry-run` and the fail-closed catalog tests; workflow extraction lives in [skillify](../SKILL.md).
 
 ## Catalog portability
 

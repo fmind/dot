@@ -17,7 +17,7 @@ Two tools, two questions. `hyperfine` answers "how long does this command take" 
 
 ```bash
 hyperfine --warmup 3 --runs 10 'old-cmd' 'new-cmd'                       # A/B with mean ± σ and a relative speed line
-hyperfine --warmup 3 --prepare 'go build ./...' 'go test ./...'          # reset state before each run
+hyperfine --warmup 3 --prepare 'uv sync --frozen' 'uv run pytest -q'     # prepare the locked environment before each run
 hyperfine --parameter-list n 10,100,1000 'tool --items {n}'               # scaling curve
 hyperfine --export-markdown bench.md --export-json bench.json 'cmd'       # tables for the PR, raw data for later
 oha -z 30s -c 50 --latency-correction http://localhost:8080/health        # 30 s, 50 connections, record the load model and correction setting

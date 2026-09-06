@@ -41,7 +41,7 @@ Read and mutate GitHub issues with `gh` from verified remote state; [project-bac
 
 ## Official Skills
 
-Upstream: `cli/cli`. List the current release, then install what the task needs at project scope after reviewing the snapshot (see [native skill tooling](https://skills.sh/docs/cli)):
+Upstream: `cli/cli`. This package uses the preview `gh skill` path described in the shared [vendor-skill policy](../agent-project/references/vendor-skills.md):
 
 ```bash
 gh skill search github --owner cli --json repo,skillName,description

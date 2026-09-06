@@ -1,0 +1,118 @@
+# :schema https://json.schemastore.org/pyproject.json
+# Docs: https://packaging.python.org/en/latest/specifications/pyproject-toml/
+
+[project]
+name = "fmind-dot"
+version = "1.26.2"
+description = "Python-first CLI for fmind's dotfiles and agent workflows"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Médéric HURIER" }]
+dependencies = [
+  "markdown-it-py>=4.0.0",
+  "pydantic>=2.13.5",
+  "pyyaml>=6.0.3",
+  "typer>=0.27.2",
+]
+
+[dependency-groups]
+dev = [
+  "pytest-cov>=7.1.0",
+  "pytest-watcher>=0.6.3",
+  "pytest-xdist>=3.8.0",
+  "pytest>=9.1.1",
+  "ruff>=0.16.6",
+  "ty>=0.0.78,<0.1",
+  "validate-pyproject>=0.26",
+]
+
+[project.scripts]
+dot = "fmind_dot.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+extend = "../ruff.toml"
+target-version = "py314"
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+quote-style = "double"
+
+[tool.ruff.lint]
+select = [
+  "A", # flake8-builtins (prevent shadowing Python builtins)
+  "ARG", # flake8-unused-arguments (clean function signatures without unused arguments)
+  "ASYNC", # flake8-async (async/await anti-patterns and pitfalls)
+  "B", # flake8-bugbear (common bugs and design detector)
+  "C4", # flake8-comprehensions (idiomatic comprehension syntax)
+  "E", # pycodestyle errors (standard Python style errors)
+  "ERA", # eradicate (clean commented-out code)
+  "F", # Pyflakes (syntax errors, undefined variables, and unused imports)
+  "FA", # flake8-future-annotations (enforce from __future__ import annotations)
+  "FURB", # refurb (modernize constructs and idioms)
+  "I", # isort (import sorting and grouping)
+  "ISC", # flake8-implicit-str-concat (catch implicit multiline string concatenation)
+  "LOG", # flake8-logging (standard logging anti-patterns)
+  "N", # pep8-naming (PEP 8 naming conventions)
+  "PERF", # Perflint (performance anti-patterns and bottlenecks)
+  "PGH", # pygrep-hooks (enforce rule-specific noqas and eval bans)
+  "PIE", # flake8-pie (code quality improvements and redundancy elimination)
+  "PT", # flake8-pytest-style (consistent pytest idiom usage in test suites)
+  "PTH", # flake8-use-pathlib (prefer modern Path objects over os.path)
+  "Q", # flake8-quotes (consistent quote usage)
+  "RET", # flake8-return (clean return statements)
+  "RSE", # flake8-raise (clean raise statements without unneeded parentheses)
+  "RUF", # Ruff-specific rules (native correctness and modernization checks)
+  "S", # flake8-bandit (security checks)
+  "SIM", # flake8-simplify (code simplification suggestions)
+  "SLF", # flake8-self (private member access restrictions)
+  "T10", # flake8-debugger (catch debugger breakpoints)
+  "T20", # flake8-print (disallow print statements in library code)
+  "TID", # flake8-tidy-imports (ban banned or relative imports)
+  "UP", # pyupgrade (modern Python syntax upgrades)
+  "W", # pycodestyle warnings (standard Python style warnings)
+]
+ignore = [
+  "ASYNC240", # blocking filesystem calls in async functions allowed for local file checks
+  "E501", # line length allowed for long URLs, strings, and templates
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "S101", # assert statements allowed in test assertions
+  "S603", # trusted subprocess calls in test fixtures
+  "S607", # executable names without absolute paths in test subprocess calls
+  "T201", # print statements allowed for test diagnostics
+]
+"tests/test_contracts.py" = [
+  "SLF001", # access internal contract helpers under test
+]
+"tests/test_deploy.py" = [
+  "SLF001", # access private deployment functions under test
+]
+
+[tool.ty.environment]
+python-version = "3.14"
+
+# No blanket [tool.ty.rules] ignores. Fix diagnostics at their source and use
+# only an evidenced, narrow line-level suppression for an upstream typing defect.
+
+[tool.pytest.ini_options]
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+filterwarnings = ["error"]
+testpaths = ["tests"]
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["fmind_dot"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+skip_empty = true

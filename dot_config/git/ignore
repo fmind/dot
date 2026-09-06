@@ -1,12 +1,10 @@
+!.claude/skills
 .agents/prompts/
 .agents/proposals/
 .agents/reports/
 .agents/skills/local-*
-.agents/skills/private-*
 .agents/tmp/
 .antigravitycli/
 .claude/*
-!.claude/skills
 .gemini/
-.opencode/
 skills/local-*

@@ -1,3 +1,4 @@
+# Docs: https://fishshell.com/docs/current/index.html
 # Syntax highlighting
 set -g fish_color_normal c8d3f5
 set -g fish_color_command 82aaff

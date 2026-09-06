@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Secrets with sops and age
@@ -55,4 +55,4 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 ## Documentation
 
 - [sops](https://getsops.io/docs/) · [age](https://age-encryption.org)
-- Companion skills: [gitleaks](../gitleaks/SKILL.md), [lefthook](../lefthook/SKILL.md), [cloud-run](../cloud-run/SKILL.md) (runtime secrets), [terraform-stack](../terraform-stack/SKILL.md), [secure](../secure/SKILL.md).
+- Companion skills: [gitleaks](../gitleaks/SKILL.md), [lefthook](../lefthook/SKILL.md), [cloud-run](../cloud-run/SKILL.md) (runtime secrets), [terraform](../terraform/SKILL.md), [secure](../secure/SKILL.md).

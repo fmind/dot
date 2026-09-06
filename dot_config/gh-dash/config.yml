@@ -1,4 +1,5 @@
 # yaml-language-server: $schema=https://gh-dash.dev/schema.json
+# Docs: https://www.gh-dash.dev/configuration/
 
 defaults:
   refetchIntervalMinutes: 10

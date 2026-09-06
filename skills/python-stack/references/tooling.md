@@ -2,11 +2,11 @@
 
 - **Python**: target latest stable; use modern syntax (pattern matching, PEP 695 generics, `typing.Annotated`).
 - **Dependencies**: `uv` exclusively — `uv add`, `uv run`, no manual venvs; commit `uv.lock` in every profile so installs and audits stay reproducible.
-- **Tasks and hooks**: [mise.toml](references/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md); [lefthook.yml](references/lefthook.yml) wires pre-commit and pre-push per [lefthook](../lefthook/SKILL.md).
-- **Linting and formatting**: Ruff (`ruff check --fix`, `ruff format`) with zero warnings and no `print` (`T201`); dprint for config and markup per [dprint](../dprint/SKILL.md).
+- **Tasks and hooks**: [mise.toml](mise.toml) exposes the canonical vocabulary per [mise](../../mise/SKILL.md); [lefthook.yml](lefthook.yml) wires pre-commit and pre-push per [lefthook](../../lefthook/SKILL.md).
+- **Linting and formatting**: Ruff (`ruff check --fix`, `ruff format`) with zero warnings and no `print` (`T201`); dprint for config and markup per [dprint](../../dprint/SKILL.md).
 - **Types**: `ty check` strict; `ty` is pre-1.0, so pin a compatible range and keep suppressions narrow and evidenced.
-- **Testing**: `pytest` in `tests/` with `anyio` and an 85% branch-coverage gate; the default suite is offline, and web integration tests opt into a disposable Postgres via [conftest.py](references/conftest.py).
-- **Security**: `uv audit` scans dependencies as `check:vuln` and `gitleaks` is `check:leaks`; SAST is opt-in per [opengrep](../opengrep/SKILL.md).
+- **Testing**: `pytest` in `tests/` with `anyio` and an 85% branch-coverage gate; the default suite is offline, and web integration tests opt into a disposable Postgres via [conftest.py](conftest.py).
+- **Security**: `uv audit` scans dependencies as `check:vuln`, `gitleaks` is `check:leaks`, and Trivy owns repository and configuration scanning.
 - **Validation and config**: Pydantic v2 and `pydantic-settings` `BaseSettings`; typed `config.py`, YAML only for cross-language needs.
 - **Logging**: `structlog` — `ConsoleRenderer` locally, `JSONRenderer` in production, stdlib loggers routed through it.
 

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dependabot
   created: "2026-07-14"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # Dependabot
@@ -17,15 +17,13 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
 
 1. **Map the ecosystems**: one `updates` entry per manifest directory, using the value Dependabot expects:
 
-   | Manifest                         | `package-ecosystem` |
-   | -------------------------------- | ------------------- |
-   | `.github/workflows/*.yml`        | `github-actions`    |
-   | `go.mod`                         | `gomod`             |
-   | `pyproject.toml` + `uv.lock`     | `uv`                |
-   | `package.json` (npm, pnpm, yarn) | `npm`               |
-   | `Dockerfile`                     | `docker`            |
-   | `*.tf` (Terraform)               | `terraform`         |
-   | `*.tf` (OpenTofu)                | `opentofu`          |
+   | Manifest                     | `package-ecosystem` |
+   | ---------------------------- | ------------------- |
+   | `.github/workflows/*.yml`    | `github-actions`    |
+   | `pyproject.toml` + `uv.lock` | `uv`                |
+   | `Dockerfile`                 | `docker`            |
+   | `*.tf` (Terraform)           | `terraform`         |
+   | `*.tf` (OpenTofu)            | `opentofu`          |
 
 1. **Write the config**: weekly schedule, `chore(deps)` commit prefix, and one group per ecosystem for `minor` and `patch` updates so majors arrive alone:
 
@@ -43,7 +41,7 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
          actions:
            patterns: ["*"]
            update-types: [minor, patch]
-     - package-ecosystem: gomod
+     - package-ecosystem: uv
        directory: /
        schedule:
          interval: weekly
@@ -51,7 +49,7 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
        commit-message:
          prefix: "chore(deps)"
        groups:
-         go-modules:
+         python:
            patterns: ["*"]
            update-types: [minor, patch]
    ```
@@ -67,8 +65,8 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
 
 ## Gotchas
 
-- **Pin to major tags, not SHAs**: `actions/checkout@v7` tracks security patches within the major; SHA pins turn every upstream patch into review noise.
-- **Directory is per manifest**: a Go module under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
+- **Immutable action refs**: pin every action to a full commit SHA with a trailing release comment; Dependabot updates both the SHA and comment, so fixes arrive as reviewable PRs without trusting a mutable tag.
+- **Directory is per manifest**: a uv project under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
 - **No tokens needed**: Dependabot is native to GitHub and free for public and private repositories; the config file alone enables it.
 - **No CLI trigger**: forcing an immediate check happens only in the repository's Dependabot tab (Insights, Dependency graph).
 

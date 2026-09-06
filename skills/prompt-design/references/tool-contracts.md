@@ -1,6 +1,6 @@
 # Tool Contracts
 
-Field list for every tool exposed to a model, referenced from the [prompt-design](SKILL.md) workflow. Enforcement stays in runtime code; the description only tells the model how to choose and call the tool.
+Field list for every tool exposed to a model, referenced from the [prompt-design](../SKILL.md) workflow. Enforcement stays in runtime code; the description only tells the model how to choose and call the tool.
 
 - **Name and purpose**: unique, action-oriented name and one concise purpose sentence.
 - **Prerequisites**: state or authority that must hold before the call.

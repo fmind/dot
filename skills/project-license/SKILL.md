@@ -1,12 +1,12 @@
 ---
 name: project-license
-description: "Write the right LICENSE and manifest field: MIT for public fmind, fmind-ai, and mlops-courses repos, CC-BY-4.0 for written courses, proprietary otherwise. Use when adding a license."
+description: "Choose and write a repository license: MIT for public code, CC-BY-4.0 for written course material, and proprietary for private work. Use when adding or correcting licensing."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-license
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-06"
 ---
 
 # Project License
@@ -15,7 +15,7 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 
 ## Workflow
 
-1. **Detect the namespace**: `git remote -v`, the manifest (`pyproject.toml`, `go.mod`, `package.json`), or the parent directory gives the owning organization or user.
+1. **Detect the namespace**: `git remote -v`, Python's `pyproject.toml`, or the parent directory gives the owning organization or user.
 1. **Read the existing license first**: `ls LICENSE*` and `gh repo view --json nameWithOwner,isPrivate,licenseInfo`; an existing license stays unless the user asked to replace it.
 1. **Select the license**:
    - Public code under `fmind`, `fmind-ai`, or `mlops-courses`: MIT, from [MIT](references/MIT).
@@ -24,13 +24,11 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 1. **Write the file** at the repository root:
    - Copyright holder from the namespace: `fmind` and `fmind-ai` use `Médéric Hurier (Fmind)`; `mlops-courses` uses `MLOps Courses`. When unsure, copy the holder from a sibling repository.
    - Resolve `<year>` to the current calendar year (`date +%Y`).
-1. **Declare it in the manifest**:
-   - Python: PEP 639 SPDX `license = "MIT"` or `license = "LicenseRef-Proprietary"` plus `license-files = ["LICENSE"]` in `pyproject.toml`.
-   - Node: `"license": "MIT"` or `"UNLICENSED"` in `package.json`; Go has no manifest field.
+1. **Declare it in Python projects**: use the PEP 639 SPDX field `license = "MIT"` or `license = "LicenseRef-Proprietary"` plus `license-files = ["LICENSE"]` in `pyproject.toml`; content-only projects keep the license file without inventing a package manifest.
 
 ## Gotchas
 
-- **Namespace is not ownership**: `mlops-courses` repositories are public and MIT although the namespace is neither `fmind` nor `fmind-ai`; a namespace-only rule would relicense them as proprietary.
+- **Namespace is not content type**: `mlops-courses` can contain public code under MIT or written course material under CC-BY-4.0; inspect what the repository publishes before choosing.
 - **`LICENSE.txt`**: a course repository may carry `LICENSE.txt`; writing `LICENSE` next to it leaves two conflicting licenses.
 - **Code and prose differ**: one course organization holds both, MIT for code repositories and CC-BY-4.0 for the written course; check what the repository publishes.
 - **SPDX only**: plain `"Proprietary"` is not a valid SPDX expression and modern build tools reject it; use `LicenseRef-Proprietary`.

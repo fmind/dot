@@ -1,12 +1,12 @@
 ---
 name: implementation-plan
-description: Turn accepted requirements into ordered dependency-aware slices and a repository-grounded implementation plan. Use before editing when work spans systems, has migration or rollout risk, needs architecture choices, or should be split.
+description: Turn accepted requirements into dependency-ordered, repository-grounded implementation slices. Use before editing cross-system, migration, or rollout-risk work.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/implementation-plan
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
 # Implementation Plan
@@ -15,7 +15,7 @@ Design the smallest sequence of independently verifiable vertical slices that sa
 
 ## Workflow
 
-1. **Read the accepted scope**: identify the outcome, constraints, authorization, and unresolved decisions; use [agent-proposal](../agent-proposal/SKILL.md) when the user still wants options.
+1. **Read the accepted scope**: identify the outcome, constraints, authorization, and unresolved decisions; stop planning when material options still need a user decision.
 1. **Inspect the implementation**: verify relevant paths, interfaces, dependencies, tests, and current work; preserve user changes and reuse existing mechanisms.
 1. **Choose useful slices**: order the smallest independently verifiable changes by dependency; identify shared files and real compatibility or migration risks.
 1. **Specify proof**: each slice names its outcome, affected files, dependencies, implementation steps, focused checks with expected results, and objective acceptance criteria.

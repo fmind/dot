@@ -1,3 +1,4 @@
+-- Docs: https://www.lazyvim.org/configuration/general
 -- Markdown: disable hard wrapping. Soft wrap/linebreak are already set globally
 -- in options.lua, so only the markdown-specific bits live here.
 vim.api.nvim_create_autocmd("FileType", {

@@ -122,24 +122,16 @@
     "defaultMode": "bypassPermissions"
   },
   "precomputeCompactionEnabled": true,
-  "promptSuggestionEnabled": false,
   "respectGitignore": false,
   "showThinkingSummaries": true,
   "skillListingBudgetFraction": 0.02,
   "skillListingMaxDescChars": 3000,
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
-  "spinnerTipsEnabled": false,
-  "statusLine": {
-    "type": "command",
-    "command": "jq -c '{recorded: now, model: .model.display_name, rate_limits}' | tee \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/usage.json\" | jq -r '\"\\(.model) | weekly tokens \\(.rate_limits.seven_day.used_percentage // \"?\")% used\"'"
-  },
   "teammateDefaultModel": "sonnet",
   "todoFeatureEnabled": true,
   "tui": "fullscreen",
   "useAutoModeDuringPlan": true,
-  "verbose": true,
-  "viewMode": "verbose",
   "workflowKeywordTriggerEnabled": true,
   "worktree": {
     "baseRef": "head"
@@ -147,4 +139,4 @@
 }
 ` -}}
 {{- $_ := set $managedConfig.permissions "additionalDirectories" (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "prune" (list "statusLine" "verbose" "viewMode" "promptSuggestionEnabled" "spinnerTipsEnabled")) -}}

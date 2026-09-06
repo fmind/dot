@@ -1,3 +1,4 @@
+# Docs: https://fishshell.com/docs/current/index.html
 if status is-interactive
     set --erase --universal fish_key_bindings
 

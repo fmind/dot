@@ -1,2 +1,6 @@
-/bin/
-/coverage.out
+.coverage*
+.pytest_cache/
+.ruff_cache/
+.venv/
+dist/
+htmlcov/

@@ -1,71 +1,55 @@
 ---
 name: containerize
-description: Build minimal, non-root OCI images with ko for Go or a pinned multi-stage Python Dockerfile, then scan, sign, and SBOM them. Use when containerizing an app.
+description: Build a minimal non-root OCI image for a uv-managed Python app with a pinned multi-stage Dockerfile, then scan, sign, and attest it. Use when containerizing Python.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-09-05"
+  updated: "2026-09-06"
 ---
 
-# Containerize an Application
+# Containerize a Python Application
 
-Build a small, non-root, reproducible OCI image and verify it before it ships; [cloud-run](../cloud-run/SKILL.md) deploys it, [trivy](../trivy/SKILL.md) scans it, and [cosign](../cosign/SKILL.md) signs it.
+Build a reproducible uv-managed Python image locally, verify it, and publish only within the user's authorized registry scope. [cloud-run](../cloud-run/SKILL.md) deploys it, [trivy](../trivy/SKILL.md) scans it, and [cosign](../cosign/SKILL.md) owns provenance.
 
 ## Workflow
 
-1. **Go: `ko` (default, no Dockerfile)**: builds a shell-less, multi-arch, reproducible image from a package path on `cgr.dev/chainguard/static`. Pin it per project (`go get -tool github.com/google/ko`, then `go tool ko`).
+1. **Adopt the templates**: copy [Dockerfile](references/Dockerfile) and [.dockerignore](references/.dockerignore). Replace `<slug>` with the installed Python console script and verify both image digests before use.
+1. **Build locally**: emit a Docker archive so the first build and scan require no registry mutation.
 
    ```bash
-   export KO_DOCKER_REPO=<registry>/<slug>
    mkdir -p tmp
-   go tool ko build ./cmd/<slug> --bare --push=false --tarball tmp/image.tar
+   docker buildx build --output type=docker,dest=tmp/image.tar .
    ```
 
-1. **Python: multi-stage Dockerfile**: copy [Dockerfile](references/Dockerfile) and [.dockerignore](references/.dockerignore), then set the image digests and the `<slug>` entry point. Other runtimes need their own lockfile-aware build stage.
-
-   ```bash
-   docker build -t <registry>/<slug>:<tag> .
-   ```
-
-1. **Wire the tasks** into `mise.toml`: `build:image` builds, `check:image` scans a local tarball so no registry push or digest is needed before the image ships.
+1. **Wire the gate** into `mise.toml`; `check:image` scans the exact archive produced by `build:image`.
 
    ```toml
-   [env]
-   KO_DOCKER_REPO = "<registry>/<slug>" # ko names images from it even when not pushing
-
    [tasks."build:image"]
-   description = "Build a local OCI image (ko)"
-   raw_args = true
-   run = [
-     "mkdir -p tmp",
-     "go tool ko build ./cmd/<slug> --bare --push=false --tarball tmp/image.tar",
-   ] # or: docker build -t <registry>/<slug>:<tag> .
+   description = "Build the Python OCI image locally"
+   run = "mkdir -p tmp && docker buildx build --output type=docker,dest=tmp/image.tar ."
 
    [tasks."check:image"]
-   description = "Scan the OCI image for vulnerabilities (trivy)"
-   run = [
-     "mkdir -p tmp",
-     "go tool ko build ./cmd/<slug> --bare --push=false --tarball tmp/image.tar",
-     "trivy --config trivy.yaml image --input tmp/image.tar",
-   ]
+   description = "Scan the local OCI image"
+   depends = ["build:image"]
+   run = "trivy --config trivy.yaml image --input tmp/image.tar"
    ```
 
-1. **Publish when authorized**: `mise run build:image -- --push=true --image-refs tmp/refs.txt`, or use `docker buildx build --push` for a reviewed registry target. Require a successful build and an exact digest in the reference file.
-1. **Verify the pushed digest**: use the registry digest for every scan, signature, SBOM, and deployment reference; scan per [trivy](../trivy/SKILL.md), then sign, verify, and attest the SBOM per [cosign](../cosign/SKILL.md).
-1. **Run locally**: load the local image with `docker load --input tmp/image.tar` (or `ko --local`), then use its local reference with `docker run --rm -p 8080:8080 -e PORT=8080 <local-image>`. For a previously published image, `docker run --rm -p 8080:8080 -e PORT=8080 <registry>/<slug>@<digest>`; project-owned environments define their own registry-loading workflow.
+1. **Exercise the container**: load it with `docker load --input tmp/image.tar`, then run the reported local reference with `docker run --rm -p 8080:8080 -e PORT=8080 <local-reference>`.
+1. **Publish when authorized**: push a reviewed tag with `docker buildx build --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .`. Parse `containerimage.digest` from that file, require `sha256:` plus 64 lowercase hex characters, and record `$IMAGE_REPOSITORY@$DIGEST`.
+1. **Verify the immutable result**: scan the recorded digest, generate a CycloneDX SBOM, sign it, pin the expected certificate identity and issuer during verification, and attest the SBOM per [trivy](../trivy/SKILL.md) and [cosign](../cosign/SKILL.md).
 
 ## Gotchas
 
-- **No shell in the image**: `cgr.dev/chainguard/static` has no shell or package manager; debug with logs or an ephemeral sidecar, never by adding a shell.
-- **cgo**: build with `CGO_ENABLED=0`; when cgo is unavoidable, set `KO_DEFAULTBASEIMAGE=cgr.dev/chainguard/glibc-dynamic` and stay in the Chainguard family.
-- **Python base**: `python:*-slim` in the [Dockerfile](references/Dockerfile) is non-root but Debian-based with a shell; the template uninstalls `pip`, and [upgrade-tools](../upgrade-tools/SKILL.md) refreshes its digest.
-- **`.dockerignore`**: exclude development artifacts, virtual environments, and secrets ([.dockerignore](references/.dockerignore)).
-- **Digests over tags**: reference images by digest in Cloud Run services and Kubernetes manifests so deploys are immutable.
-- **Pushes and signatures are registry writes**: a local packaging request does not authorize them.
+- **Lock fidelity**: `uv sync --frozen` makes a stale or absent `uv.lock` fail the build; do not resolve dependencies inside the image build.
+- **Non-root runtime**: the template runs as numeric UID/GID 10001 and copies only the locked virtual environment from the build stage. Write temporary data outside the application directory or mount an explicit writable path.
+- **Pinned bases**: both Python and uv use multi-architecture manifest digests. Refresh versions and digests together with [upgrade-tools](../upgrade-tools/SKILL.md).
+- **Small context**: keep virtual environments, caches, logs, local databases, Git state, and plaintext environment files out through [.dockerignore](references/.dockerignore).
+- **Digests over tags**: scans, signatures, attestations, deployment, and rollback all use the same immutable digest reference.
+- **Registry writes**: pushes, signatures, and attestations require explicit authority; local build and scan do not grant it.
 
 ## Documentation
 
-- [ko](https://ko.build) · [Chainguard Images](https://images.chainguard.dev) · [distroless](https://github.com/GoogleContainerTools/distroless)
-- Companion skills: [cloud-run](../cloud-run/SKILL.md) (deploys), [trivy](../trivy/SKILL.md) and [cosign](../cosign/SKILL.md) (scan, sign, attest), [github-actions](../github-actions/SKILL.md) (CD job), [secure](../secure/SKILL.md), [go-stack](../go-stack/SKILL.md), [python-stack](../python-stack/SKILL.md).
+- [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/) · [uv Docker guide](https://docs.astral.sh/uv/guides/integration/docker/)
+- Companion skills: [python-stack](../python-stack/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [trivy](../trivy/SKILL.md), [cosign](../cosign/SKILL.md), [github-actions](../github-actions/SKILL.md), and [secure](../secure/SKILL.md).

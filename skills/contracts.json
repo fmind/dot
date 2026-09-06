@@ -4,52 +4,34 @@
     "acli": [
       "acli"
     ],
-    "agent-evaluation": [],
     "agent-mcp": [
       "agy",
       "claude",
       "codex",
       "copilot",
-      "grok",
-      "opencode"
+      "grok"
     ],
     "agent-project": [],
     "agent-prompt": [
-      "git"
-    ],
-    "agent-proposal": [
-      "git"
-    ],
-    "agent-report": [
       "git"
     ],
     "agent-usage": [
       "dot",
       "duckdb"
     ],
+    "agents-cli": [
+      "agents-cli",
+      "skills",
+      "uv"
+    ],
     "agents-md": [],
-    "agy-sdk": [
+    "antigravity-sdk": [
       "gcloud",
       "skills",
       "uv"
     ],
-    "angular": [
-      "knip",
-      "ng",
-      "pnpm",
-      "skills"
-    ],
     "ast-grep": [
       "ast-grep"
-    ],
-    "astro": [
-      "knip",
-      "pnpm",
-      "skills"
-    ],
-    "atlas": [
-      "atlas",
-      "sqlc"
     ],
     "benchmark": [
       "hyperfine",
@@ -63,8 +45,10 @@
     ],
     "cli-contracts": [],
     "cloud-run": [
+      "cosign",
+      "docker",
       "gcloud",
-      "ko"
+      "trivy"
     ],
     "colab": [
       "colab"
@@ -105,12 +89,11 @@
       "duckdb",
       "sqlite3"
     ],
+    "fastapi": [
+      "skills"
+    ],
     "feature-branch": [
       "git"
-    ],
-    "firebase": [
-      "firebase",
-      "skills"
     ],
     "fkf-learn": [
       "fkf"
@@ -119,14 +102,11 @@
       "fkf"
     ],
     "fmind-visuals": [
-      "skills"
+      "typst",
+      "typstyle"
     ],
     "gcloud": [
       "gcloud"
-    ],
-    "genkit": [
-      "genkit",
-      "skills"
     ],
     "git-add-commit-push": [
       "git",
@@ -155,13 +135,8 @@
     "gitleaks": [
       "gitleaks"
     ],
-    "go-stack": [
-      "go",
-      "mise"
-    ],
     "google-adk": [
-      "skills",
-      "uv"
+      "skills"
     ],
     "google-ads": [
       "skills"
@@ -175,22 +150,11 @@
     "google-developer": [
       "skills"
     ],
-    "goreleaser": [
-      "goreleaser",
-      "git-cliff",
-      "gh",
-      "cosign"
-    ],
     "gws": [
       "gws"
     ],
     "hf": [
       "hf"
-    ],
-    "hugo": [
-      "hugo",
-      "lychee",
-      "mise"
     ],
     "implementation-plan": [],
     "incident-response": [],
@@ -201,11 +165,14 @@
       "lefthook",
       "mise"
     ],
+    "litestar": [
+      "skills"
+    ],
+    "loop-engineering": [
+      "uv"
+    ],
     "mcp-server": [
-      "go",
-      "uv",
-      "pnpm",
-      "npx"
+      "uv"
     ],
     "mermaid": [
       "mmdc"
@@ -222,10 +189,6 @@
     ],
     "observability": [
       "gcloud"
-    ],
-    "opengrep": [
-      "git",
-      "opengrep"
     ],
     "plan-execution": [
       "mise"
@@ -250,6 +213,10 @@
       "git"
     ],
     "prompt-design": [],
+    "pydantic": [
+      "skills",
+      "uv"
+    ],
     "python-script": [
       "uv"
     ],
@@ -261,12 +228,6 @@
       "mise"
     ],
     "readme-md": [],
-    "reclaim-disk": [
-      "dot"
-    ],
-    "reduce-complexity": [
-      "mise"
-    ],
     "release": [
       "gh",
       "git",
@@ -285,14 +246,17 @@
       "git",
       "mise"
     ],
+    "ruff": [
+      "ruff",
+      "skills",
+      "uv"
+    ],
     "secure": [
       "gitleaks",
-      "opengrep",
       "trivy"
     ],
     "skill-security-review": [
       "gitleaks",
-      "opengrep",
       "rg",
       "trivy"
     ],
@@ -306,7 +270,7 @@
     "systematic-debugging": [],
     "technical-publishing": [],
     "technical-research": [],
-    "terraform-stack": [
+    "terraform": [
       "mise",
       "skills",
       "terraform-docs",
@@ -321,19 +285,14 @@
     "trivy": [
       "trivy"
     ],
-    "typescript-stack": [
-      "biome",
-      "knip",
-      "mise",
-      "node",
-      "pnpm",
-      "tsc",
-      "tsx"
+    "ty": [
+      "skills",
+      "ty",
+      "uv"
     ],
-    "typst": [
-      "mise",
-      "typst",
-      "typstyle"
+    "typer": [
+      "skills",
+      "uv"
     ],
     "update-docs": [
       "dprint",
@@ -342,8 +301,16 @@
     "upgrade-tools": [
       "mise"
     ],
+    "uv": [
+      "skills",
+      "uv"
+    ],
     "xh": [
       "xh"
+    ],
+    "zensical": [
+      "uv",
+      "zensical"
     ],
     "zizmor": [
       "zizmor"

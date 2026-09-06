@@ -1,3 +1,4 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: Security
 on:
   schedule:
@@ -11,32 +12,24 @@ concurrency:
 jobs:
   scan:
     name: Full-history scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout complete history
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
       - name: Trust repository
         run: mise trust -y mise.toml
-      - name: Report fixed and unfixed advisories
-        run: mise run report:vuln -- "$RUNNER_TEMP/trivy-unfixed.json"
-      - name: Upload advisory report
-        uses: actions/upload-artifact@v7
-        with:
-          name: trivy-fixed-and-unfixed
-          path: ${{ runner.temp }}/trivy-unfixed.json
-          retention-days: 14
+      - name: Scan complete Git history
+        run: gitleaks git --redact=100 --verbose
       - name: Scan full checkout
         # Delegate to the task so this never drifts from the local gate again; the
         # hand-written copy had already lost --tf-vars and scanned the Terraform
         # module with unresolved variables.
         run: mise run check:scan
-      - name: Scan complete Git history
-        run: gitleaks git --redact=100 --verbose

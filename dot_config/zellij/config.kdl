@@ -1,3 +1,5 @@
+// Docs: https://zellij.dev/documentation/configuration
+
 default_shell "fish"
 pane_frames false
 theme "tokyonight_moon"

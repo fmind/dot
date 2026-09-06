@@ -1,3 +1,4 @@
+-- Docs: https://github.com/folke/snacks.nvim#configuration
 return {
   {
     "folke/snacks.nvim",

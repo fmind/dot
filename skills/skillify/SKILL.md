@@ -21,7 +21,7 @@ Capture what this session learned as a skill the next session can run without th
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; add its CLI names to `skills/contracts.json`, then run `mise run check:skills` and `mise run test` there.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md).
 1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the Skill Authoring Limits of the global `~/.agents/AGENTS.md` for name, description, size, shape, and placement; long configs and examples go to `references/`.
-1. **Validate**: frontmatter `name` equals the directory; every link resolves; every required tool is named in the body; `gh skill publish --dry-run <parent-dir>` passes for a global skill.
+1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is directly disclosed, every required tool is documented, and `mise run check:skills` passes for a global skill.
 1. **Test once**: exercise safe local steps in a scratch directory or the current repository; keep paid, destructive, or remote writes within the session's authority and report unexercised behavior.
 1. **Report**: the path, the description, the scope, and whether the routing probes in `dot/testdata/skills/` need a new prompt for the skill.
 
@@ -33,10 +33,10 @@ When `AGENTS.md` grows past rules and layout, move each multi-step section into 
 
 - **Descriptions route, bodies instruct**: the description decides when the skill loads; the body decides what happens. Do not summarize the workflow in the description.
 - **Dates**: set `created` and `updated` to today; bump `updated` on every later edit.
-- **Third-party content**: when the workflow came from an external skill, install it per [native skill tooling](https://skills.sh/docs/cli) instead of retyping it.
+- **Third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
 
 ## Documentation
 
 - [Agent Skills specification](https://agentskills.io/specification)
-- Native tooling: [Agent Skills](https://agentskills.io/specification), [skills CLI](https://skills.sh/docs/cli), [gh skill](https://cli.github.com/manual/gh_skill).
+- Native tooling: [Agent Skills](https://agentskills.io/specification) and the [vendor-skill policy](../agent-project/references/vendor-skills.md).
 - Companion skills: [agent-project](../agent-project/SKILL.md) (local skill layout), [update-docs](../update-docs/SKILL.md) (trim `AGENTS.md` after extraction).
