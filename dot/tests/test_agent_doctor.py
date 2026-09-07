@@ -23,7 +23,7 @@ from fmind_dot.state import State
 
 class DoctorRunner(Runner):
     def __init__(self, tools: set[str] | None = None) -> None:
-        self.tools = tools or {"agy", "claude", "codex", "copilot", "dot", "grok", "notify-send"}
+        self.tools = tools or {"agy", "claude", "codex", "copilot", "dot", "grok", "notify-send", "osascript"}
         self.unavailable_commands: set[tuple[str, ...]] = set()
         self.calls: list[tuple[str, ...]] = []
 

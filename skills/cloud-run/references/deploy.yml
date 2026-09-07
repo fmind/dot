@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$GCP_REGION" =~ ^[a-z0-9-]+$ ]]
+          [[ "$GCP_REGION" =~ ^[a-z0-9-]+$ ]] || exit 1
           gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
       - name: Build and push the Python image
         id: image
@@ -51,8 +51,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$GCP_RUNTIME_SA" =~ ^[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com$ ]]
-          [[ "$IMAGE_REPOSITORY" =~ ^[^[:space:]@]+$ ]]
+          [[ "$GCP_RUNTIME_SA" =~ ^[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com$ ]] || exit 1
+          [[ "$IMAGE_REPOSITORY" =~ ^[^[:space:]@]+$ ]] || exit 1
           metadata="$RUNNER_TEMP/image-metadata.json"
           docker buildx build --push --tag "$IMAGE_REPOSITORY:$GITHUB_REF_NAME" --metadata-file "$metadata" .
           digest="$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' "$metadata")"
@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$IMAGE" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
+          [[ "$IMAGE" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]] || exit 1
           sbom="$RUNNER_TEMP/sbom.cdx.json"
           identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd.yml@${GITHUB_REF}"
           issuer="https://token.actions.githubusercontent.com"
