@@ -602,12 +602,12 @@ def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pyte
     secret.chmod(0o644)
 
     def deny_chmod(_path: Path, _mode: int) -> None:
-        raise PermissionError("private")
+        raise PermissionError("chmod-denied-secret-marker")
 
     monkeypatch.setattr(Path, "chmod", deny_chmod)
     failed = system.run_verify(state_with(runner, config), fix=True)
     assert failed["secrets"][0]["status"] == "fail"
-    assert "private" not in json.dumps(failed)
+    assert "chmod-denied-secret-marker" not in json.dumps(failed)
 
 
 def test_verify_compares_installed_python_package_with_source(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
