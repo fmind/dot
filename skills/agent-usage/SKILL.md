@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-06"
+  updated: "2026-09-07"
 ---
 
 # Agent Usage
@@ -23,8 +23,9 @@ Analyze the shared usage archive with dot and DuckDB. Preserve the difference be
 ## Gotchas
 
 - **Only Claude reports cost**: `cost_usd` comes from Claude's `cost-state` transcript lines; `agy`, `codex`, `copilot`, and `grok` expose no price, so they always total `$0.00`. Compare those four on tokens, never on cost.
-- **Grok counts context, not consumption**: `input_tokens` reflects the final context-window size; output tokens are unobservable.
-- **Atomic rewrites prevent duplicates**: each session uses a single `<session_id>.json` file overwritten on turn updates, preventing double-counting across `Stop` and `SessionEnd` hooks.
+- **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's final context size; these values are not interchangeable.
+- **Atomic rewrites prevent duplicates**: each session uses one `<session_id>.json` file overwritten at durable capture boundaries, so aggregation counts a session once.
+- **Capture is single-pass**: the session hook derives normalized logs and usage from one transcript snapshot; the standalone `usage sync` command remains available for backfills.
 - **Both harness and agent fields exist**: queries can group by either `harness` or `agent` interchangeably.
 - **`sync` fails loud, hooks fail soft**: `dot agent usage sync` aborts on an unreadable store rather than reporting `Synced 0`, and it rewrites every record it can re-derive — so it is the way to backfill after an extractor changes.
 - **Background hooks fail soft**: hooks spool errors to `~/.agents/hook-failures` so a failure in usage tracking never aborts the agent CLI.

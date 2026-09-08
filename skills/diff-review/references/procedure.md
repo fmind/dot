@@ -12,7 +12,7 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
    - Path names alone do not prove scope creep; never stage, revert, discard, or rewrite the candidate because a detector labels a path unrelated.
 1. **Verify each finding**: Reproduce it by code tracing, a focused test, or a safe temporary experiment, and quote the file and line that make it real.
 1. **Run proportional checks**: Start with focused tests and static analysis, and record which candidate each result covers.
-1. **Gate when proportionate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Gate when proportionate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../../mise/SKILL.md)).
 1. **Calibrate**: Discard preferences and speculation; rank what remains by user impact, exploitability, data loss, regression likelihood, and confidence. Do not manufacture findings to make the review look useful.
 1. **Report**: Lead with findings ordered by severity, or say there are none and list test and proof gaps; end with the target identity, checks run, and residual risks. Other review skills reuse this scale:
    - **P0**: immediate security breach, irreversible data loss, or broad outage risk.

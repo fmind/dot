@@ -53,6 +53,7 @@ _SECTION = re.compile(r"(?m)^\[[^\n]+\]\s*$")
 _VERSION_ASSIGNMENT = re.compile(r'(?m)^version\s*=\s*"([^"\r\n]+)"\s*$')
 _LEVELS: dict[str, tuple[str, ...]] = {
     "agents": ("sessions",),
+    "agent-artifacts": ("all",),
     "docker": ("build", "system"),
     "python": ("cache", "all"),
     "mise": ("cache", "configs"),
@@ -1034,6 +1035,7 @@ def resolve_prune_targets(
     config = state.config.prune
     settings: dict[str, PruneTargetConfig | None] = {
         "agents": None,
+        "agent-artifacts": None,
         "docker": config.docker,
         "python": config.python,
         "mise": config.mise,
@@ -1060,7 +1062,9 @@ def run_prune(state: State, options: PruneOptions) -> int:
     if options.days is not None and options.days < 0:
         raise DotError("retention days cannot be negative")
     if not options.targets:
-        state.stdout.write("No target selected. Choose --agents, --docker, --python, --mise, --tools, or --all.\n")
+        state.stdout.write(
+            "No target selected. Choose --agents, --agent-artifacts, --docker, --python, --mise, --tools, or --all.\n"
+        )
         return 0
     for name, level in options.targets.items():
         if name not in _LEVELS:
@@ -1073,6 +1077,7 @@ def run_prune(state: State, options: PruneOptions) -> int:
     failures: list[str] = []
     handlers: dict[str, Callable[[str], None]] = {
         "agents": lambda _level: _prune_agents(run),
+        "agent-artifacts": lambda _level: _prune_agent_artifacts(run),
         "docker": lambda level: _prune_docker(run, level),
         "python": lambda level: _prune_python(run, level),
         "mise": lambda level: _prune_mise(run, level),
@@ -1092,6 +1097,13 @@ def run_prune(state: State, options: PruneOptions) -> int:
     if failures:
         raise DotError("prune completed with errors: " + "; ".join(failures))
     return run.reclaimed
+
+
+def _prune_agent_artifacts(run: _PruneRun) -> None:
+    # Import lazily because agent commands depend on the maintenance-free core.
+    from fmind_dot.agent import prune_agent_artifacts
+
+    run.reclaimed += prune_agent_artifacts(run.state, dry_run=run.options.dry_run)
 
 
 def human_bytes(size: int) -> str:
@@ -1786,6 +1798,10 @@ def _prune_command(
             "--agents", "-a", metavar="[=sessions]", help="Delete expired agent sessions with successor proof"
         ),
     ] = None,
+    agent_artifacts: Annotated[
+        bool,
+        typer.Option("--agent-artifacts", help="Clear generated .agents prompts, proposals, and reports"),
+    ] = False,
     docker: Annotated[
         str | None,
         typer.Option("--docker", "-d", metavar="[=build|system]", help="Prune the Docker build cache"),
@@ -1808,9 +1824,7 @@ def _prune_command(
     ] = None,
     deep: Annotated[bool, typer.Option("--deep", help="Use each selected target's deepest cleanup level")] = False,
     days: Annotated[int | None, typer.Option("--days", "-D", min=0, help="Override session retention days")] = None,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", "-N", help="Report actions without deleting or running tools")
-    ] = False,
+    apply: Annotated[bool, typer.Option("--apply", help="Delete selected data and run cleanup tools")] = False,
 ) -> None:
     state = state_from(context)
     selected = {
@@ -1824,6 +1838,8 @@ def _prune_command(
         }.items()
         if level is not None
     }
+    if agent_artifacts:
+        selected["agent-artifacts"] = "all"
     select_all = all_targets is not None
     all_level = None if all_targets == _PRUNE_LEVEL_BARE else all_targets
     targets = resolve_prune_targets(
@@ -1833,7 +1849,7 @@ def _prune_command(
         deep=deep,
         all_level=all_level,
     )
-    run_prune(state, PruneOptions(targets=targets, days=days, dry_run=dry_run))
+    run_prune(state, PruneOptions(targets=targets, days=days, dry_run=not apply))
 
 
 def _release_command(
@@ -1849,7 +1865,7 @@ chezmoi_app = typer.Typer(
 )
 
 
-@aliased_command(chezmoi_app, "clean", "c", help_text="Move previously managed orphaned files to a recoverable backup")
+@aliased_command(chezmoi_app, "clean", help_text="Move previously managed orphaned files to a recoverable backup")
 def chezmoi_clean_command(
     context: typer.Context,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Back up every orphan without prompting")] = False,
@@ -1865,10 +1881,9 @@ def register(parent: typer.Typer) -> None:
     aliased_command(
         parent,
         "prune",
-        "x",
         cls=_PruneCommand,
         help_text="Reclaim disk space from agent sessions and development caches",
     )(_prune_command)
-    aliased_command(parent, "release", "r", help_text="Prepare, tag, and push a release commit")(_release_command)
-    add_group(parent, chezmoi_app, "chezmoi", "m")
+    aliased_command(parent, "release", help_text="Prepare, tag, and push a release commit")(_release_command)
+    add_group(parent, chezmoi_app, "chezmoi")
     _REGISTERED.add(parent)

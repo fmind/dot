@@ -97,9 +97,9 @@
       ],
       "prompt": "Write a README.md explaining the project purpose, installation, authentication, and first useful example.",
       "expected": [
-        "readme-md"
+        "repository-docs"
       ],
-      "primary": "readme-md",
+      "primary": "repository-docs",
       "top_k": 3
     },
     {
@@ -109,9 +109,9 @@
       ],
       "prompt": "Write AGENTS.md with repository conventions, verified commands, constraints, and layout for coding agents.",
       "expected": [
-        "agents-md"
+        "repository-docs"
       ],
-      "primary": "agents-md",
+      "primary": "repository-docs",
       "top_k": 3
     },
     {
@@ -121,9 +121,9 @@
       ],
       "prompt": "Synchronize docs, README.md, AGENTS.md, and .agents/skills with the commands and source files changed in this repository.",
       "expected": [
-        "update-docs"
+        "repository-docs"
       ],
-      "primary": "update-docs",
+      "primary": "repository-docs",
       "top_k": 3
     },
     {
@@ -239,6 +239,23 @@
       "top_k": 3
     },
     {
+      "id": "django-project",
+      "categories": [
+        "engineering",
+        "web"
+      ],
+      "prompt": "Quickstart a server-rendered Django project with admin, ORM models, migrations, uv tooling, and production-safe settings.",
+      "expected": [
+        "django"
+      ],
+      "primary": "django",
+      "top_k": 3,
+      "forbidden": [
+        "fastapi",
+        "litestar"
+      ]
+    },
+    {
       "id": "tool-typer",
       "categories": [
         "engineering",
@@ -340,7 +357,7 @@
       "expected": ["agent-project"],
       "primary": "agent-project",
       "top_k": 3,
-      "forbidden": ["agents-md"]
+      "forbidden": ["repository-docs"]
     },
     {
       "id": "agent-usage-analysis",
@@ -516,7 +533,7 @@
     {
       "id": "fkf-retrieval",
       "categories": ["knowledge"],
-      "prompt": "Retrieve bounded context from this FKF base, resolve the cited URI, and read the exact source.",
+      "prompt": "Search my second brain in FKF_BASE for bounded project context, resolve the evidence URI, and read the source while keeping private details out of shared output.",
       "expected": ["fkf-use"],
       "primary": "fkf-use",
       "top_k": 3,
@@ -572,8 +589,7 @@
       "prompt": "Find the matching GitHub issue, add the new acceptance evidence, and close it if the criteria are met.",
       "expected": ["github-issues"],
       "primary": "github-issues",
-      "top_k": 3,
-      "forbidden": ["project-backlog"]
+      "top_k": 3
     },
     {
       "id": "github-pr-create",
@@ -709,15 +725,6 @@
       "top_k": 3
     },
     {
-      "id": "execute-accepted-plan",
-      "categories": ["execution"],
-      "prompt": "Execute this accepted implementation plan in bounded verified slices while preserving unrelated worktree changes.",
-      "expected": ["plan-execution"],
-      "primary": "plan-execution",
-      "top_k": 3,
-      "forbidden": ["implementation-plan"]
-    },
-    {
       "id": "plan-red-team",
       "categories": ["planning"],
       "prompt": "Red-team this launch plan with a pre-mortem, challenge its assumptions, and identify missing rollback gates.",
@@ -772,10 +779,10 @@
       "id": "backlog-from-findings",
       "categories": ["planning"],
       "prompt": "Turn these audit findings into deduplicated prioritized issue drafts with dependencies, without creating them yet.",
-      "expected": ["project-backlog"],
-      "primary": "project-backlog",
+      "expected": ["github-issues"],
+      "primary": "github-issues",
       "top_k": 3,
-      "forbidden": ["github-issues"]
+      "forbidden": ["repository-review"]
     },
     {
       "id": "project-health-refresh",

@@ -15,7 +15,7 @@ import stat
 import tomllib
 from collections.abc import Iterator, Mapping
 from contextlib import closing, suppress
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Annotated, Any
@@ -39,13 +39,13 @@ from fmind_dot.agent_parsers import (
     grok_cwd_from_path,
     resolve_cwd,
 )
-from fmind_dot.commands import add_group, record_alias, state_from
+from fmind_dot.commands import add_group, state_from
 from fmind_dot.config import duration_seconds, expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.session_query import (
     SessionQuery,
+    compact_session_generations,
     export_sessions,
-    migrate_legacy_sessions,
     parse_session_date,
     query_session_summaries,
     show_session,
@@ -56,7 +56,6 @@ from fmind_dot.session_store import (
     SESSION_STORE_VERSION,
     SessionManifest,
     SessionSource,
-    fingerprint_file,
     ingest_session,
     is_valid_session_id,
     read_session_manifest,
@@ -94,7 +93,7 @@ session_app = typer.Typer(help="Manage agent session logs", no_args_is_help=True
 hook_app = typer.Typer(help="Run observable agent hooks", no_args_is_help=True, context_settings=_CONTEXT_SETTINGS)
 usage_app = typer.Typer(
     help="Manage agent token usage in ~/.agents/usages",
-    invoke_without_command=True,
+    no_args_is_help=True,
     context_settings=_CONTEXT_SETTINGS,
 )
 
@@ -182,7 +181,7 @@ def _resolved_transcript(state: State, adapter: AgentAdapter, identity: HookIden
 def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: str = "", *, hook: bool = False) -> None:
     adapter = AGENT_ADAPTERS.get(agent)
     if adapter is None or adapter.parser is None:
-        raise DotError(f"unknown session hook agent {agent!r}")
+        raise DotError(f"unknown session agent {agent!r}")
     if agent == "copilot":
         if not session_id:
             raise DotError("missing session_id")
@@ -197,15 +196,16 @@ def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: st
                 state.stdout.write('{"decision":""}\n')
             return
         path = _resolved_transcript(state, adapter, identity)
-    fingerprint = fingerprint_file(path) if not adapter.database else ""
-    existing = stored_generation(agent, identity.session_id, fingerprint) if fingerprint else None
+    # Parsing owns the sole raw-source snapshot so logs, usage, and generation
+    # identity can never describe different points in a growing transcript.
+    parsed = adapter.parser(path, identity.session_id, identity.cwd)
+    existing = stored_generation(agent, identity.session_id, parsed.fingerprint)
     if existing is not None:
         from fmind_dot.session_store import SessionIngestionResult
 
         result = SessionIngestionResult("duplicate", existing.lineage_id, manifest=existing)
         state.stderr.write(report_ingestion(result) + "\n")
     else:
-        parsed = adapter.parser(path, identity.session_id, identity.cwd)
         result = ingest_session(
             agent,
             identity.session_id,
@@ -218,8 +218,16 @@ def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: st
             ),
         )
         state.stderr.write(report_ingestion(result) + "\n")
+    if existing is None or adapter.database:
         try:
-            record_agent_usage(state, agent, identity.session_id, identity.cwd, path=path)
+            if parsed.usage_error is not None:
+                raise parsed.usage_error
+            if parsed.usage is not None:
+                write_usage_record(parsed.usage)
+            else:
+                # Preserve third-party adapter compatibility while built-ins use
+                # the transcript snapshot already parsed above.
+                record_agent_usage(state, agent, identity.session_id, identity.cwd, path=path)
         except (OSError, ValueError, DotError) as error:
             state.stderr.write(f"{agent}: usage not recorded for this session: {error}\n")
     if hook and agent == "agy":
@@ -274,9 +282,14 @@ def sync_sessions(state: State) -> int:
             except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
                 raise _workflow_failure(state, adapter, "ingest session", error, session_id) from error
             state.stderr.write(report_ingestion(result) + "\n")
-            if not adapter.database and result.status != "duplicate":
+            if result.status != "duplicate":
                 try:
-                    record_agent_usage(state, adapter.name, session_id, cwd, path=path)
+                    if parsed.usage_error is not None:
+                        raise parsed.usage_error
+                    if parsed.usage is not None:
+                        write_usage_record(parsed.usage)
+                    elif not adapter.database:
+                        record_agent_usage(state, adapter.name, session_id, cwd, path=path)
                 except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
                     state.stderr.write(
                         f"{adapter.name}: usage not recorded for this session: "
@@ -346,9 +359,34 @@ def session_list(
     identity: Annotated[str, typer.Option("--session", help="Filter by session or lineage identity")] = "",
     since: Annotated[str, typer.Option("--since", help="RFC3339 timestamp or YYYY-MM-DD")] = "",
     until: Annotated[str, typer.Option("--until", help="RFC3339 timestamp or YYYY-MM-DD")] = "",
+    limit: Annotated[int, typer.Option("--limit", "-n", min=1, help="Maximum rows to return")] = 50,
+    as_json: Annotated[bool, typer.Option("--json", "-j", help="Emit a JSON array")] = False,
+    all_generations: Annotated[bool, typer.Option("--all-generations", help="Include superseded generations")] = False,
+    status: Annotated[list[str] | None, typer.Option("--status", help="Filter by generation status")] = None,
 ) -> None:
     state = state_from(context)
-    for summary in query_session_summaries(_query(agent, cwd, identity, since, until)):
+    selected_statuses = set(status or ())
+    allowed_statuses = {"current", "duplicate", "invalid", "partial", "stale", "unsupported"}
+    unknown = selected_statuses - allowed_statuses
+    if unknown:
+        raise DotError(f"unknown session status {min(unknown)!r}")
+    summaries = query_session_summaries(
+        _query(agent, cwd, identity, since, until),
+        validate_content="invalid" in selected_statuses,
+        latest_only=not all_generations,
+        statuses=selected_statuses,
+        limit=limit,
+    )
+    if as_json:
+        json.dump(
+            [summary.to_dict(include_records=False) for summary in summaries],
+            state.stdout,
+            ensure_ascii=False,
+            indent=2,
+        )
+        state.stdout.write("\n")
+        return
+    for summary in summaries:
         state.stdout.write(
             f"{summary.ingested_at} {summary.agent} {summary.session_id} records={summary.record_count} "
             f"status={','.join(summary.status)} cwd={summary.cwd}\n"
@@ -399,34 +437,26 @@ def session_sync(context: typer.Context) -> None:
     sync_sessions(state_from(context))
 
 
-@session_app.command("migrate")
-def session_migrate(
+@session_app.command(
+    "compact",
+    help="Validate and plan generation compaction; dry-run unless --apply is set",
+)
+def session_compact(
     context: typer.Context,
-    apply: Annotated[bool, typer.Option("--apply", help="Write selected transcripts to the versioned store")] = False,
+    apply: Annotated[bool, typer.Option("--apply", help="Delete superseded verified generations")] = False,
+    agent: Annotated[str, typer.Option("--agent", help="Compact only one agent archive")] = "",
 ) -> None:
-    migrate_legacy_sessions(state_from(context).stdout, apply=apply)
+    compact_session_generations(state_from(context).stdout, apply=apply, agent=agent)
 
 
-def _register_session_agent(adapter: AgentAdapter) -> None:
-    if adapter.parser is None:
-        return
-
-    def command(
-        context: typer.Context,
-        session_id: Annotated[str, typer.Argument()] = "",
-        cwd: Annotated[str, typer.Argument()] = "",
-    ) -> None:
-        ingest_agent_session(state_from(context), adapter.name, session_id, cwd)
-
-    command.__name__ = f"session_{adapter.name}"
-    session_app.command(adapter.name, help=f"Process a {adapter.label} session")(command)
-    if adapter.alias:
-        record_alias(session_app, adapter.name, adapter.alias)
-        session_app.command(adapter.alias, hidden=True)(command)
-
-
-for _adapter in agent_adapters(verified_only=True):
-    _register_session_agent(_adapter)
+@session_app.command("ingest")
+def session_ingest(
+    context: typer.Context,
+    agent: Annotated[str, typer.Argument(help="Agent adapter name")],
+    session_id: Annotated[str, typer.Argument(help="Session identity, when known")] = "",
+    cwd: Annotated[str, typer.Argument(help="Session working directory, when known")] = "",
+) -> None:
+    ingest_agent_session(state_from(context), agent, session_id, cwd)
 
 
 @hook_app.command("session")
@@ -441,41 +471,6 @@ def hook_session(
         ingest_agent_session(state, agent, session_id, cwd, hook=True)
     except Exception as error:
         _spool_hook_failure(state, agent, "session", session_id, error)
-        raise
-
-
-@hook_app.command("usage")
-def hook_usage(
-    context: typer.Context,
-    agent: Annotated[str, typer.Argument()],
-    session_id: Annotated[str, typer.Argument()] = "",
-    cwd: Annotated[str, typer.Argument()] = "",
-) -> None:
-    state = state_from(context)
-    identity: HookIdentity | None = None
-    try:
-        if agent == "copilot" and not session_id:
-            payload = decode_copilot_session_end(state.stdin)
-            identity = HookIdentity(payload["sessionId"], resolve_cwd(payload["cwd"]))
-        else:
-            identity = resolve_hook_identity(state, session_id, cwd, require_idle=agent == "agy")
-        if identity.halt:
-            if agent == "agy":
-                state.stdout.write('{"decision":""}\n')
-            return
-        path: Path | None = None
-        adapter = AGENT_ADAPTERS.get(agent)
-        if identity.transcript_path and adapter is not None and not adapter.database:
-            path = _resolved_transcript(state, adapter, identity)
-        record_agent_usage(state, agent, identity.session_id, identity.cwd, path=path)
-        if agent == "agy" and identity.from_hook:
-            state.stdout.write('{"decision":""}\n')
-        if agent == "copilot":
-            state.stdout.write("{}\n")
-    except Exception as error:
-        _spool_hook_failure(state, agent, "usage", identity.session_id if identity else session_id, error)
-        if agent == "copilot":
-            state.stdout.write("{}\n")
         raise
 
 
@@ -717,22 +712,6 @@ def _usage_rows(harness: str, since: str, until: str, by_model: bool):
     )
 
 
-@usage_app.callback(invoke_without_command=True)
-def usage_stats(
-    context: typer.Context,
-    harness: Annotated[str, typer.Option("--harness", "-a")] = "",
-    since: Annotated[str, typer.Option("--since")] = "",
-    until: Annotated[str, typer.Option("--until")] = "",
-    by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
-) -> None:
-    if context.invoked_subcommand is None:
-        state = state_from(context)
-        write_usage_stats(
-            state.stdout, _usage_rows(harness, since, until, by_model), as_json=as_json, by_model=by_model
-        )
-
-
 @usage_app.command("stats")
 def usage_stats_command(
     context: typer.Context,
@@ -813,7 +792,6 @@ _DOCTOR_INTEGRATIONS = (
         hook_commands=(
             "dot agent hook session agy",
             "dot agent hook notify agy stop",
-            "dot agent hook usage agy",
         ),
         tools=("dot", "agy"),
         hook_format="json",
@@ -827,7 +805,6 @@ _DOCTOR_INTEGRATIONS = (
         hook_commands=(
             "dot agent hook session claude",
             "dot agent hook notify claude stop",
-            "dot agent hook usage claude",
         ),
         tools=("dot", "claude"),
         hook_format="json",
@@ -840,7 +817,6 @@ _DOCTOR_INTEGRATIONS = (
         hook_commands=(
             "dot agent hook session codex",
             "dot agent hook notify codex stop",
-            "dot agent hook usage codex",
         ),
         tools=("dot", "codex"),
         hook_format="toml",
@@ -854,7 +830,6 @@ _DOCTOR_INTEGRATIONS = (
         hook_commands=(
             "dot agent hook session grok",
             "dot agent hook notify grok stop",
-            "dot agent hook usage grok",
         ),
         tools=("dot", "grok"),
         hook_format="json",
@@ -864,7 +839,7 @@ _DOCTOR_INTEGRATIONS = (
         "copilot",
         "~/.copilot/copilot-instructions.md",
         hook_path="~/.copilot/hooks/session-log.json",
-        hook_commands=("dot agent hook copilot-session-end", "dot agent hook usage copilot"),
+        hook_commands=("dot agent hook copilot-session-end",),
         tools=("dot", "copilot"),
         hook_format="json",
         source_time_query="SELECT strftime('%Y-%m-%dT%H:%M:%SZ', MAX(updated_at)) AS at FROM sessions",
@@ -1084,7 +1059,7 @@ def _source_fingerprint_at(directory_fd: int, name: str, expected: os.stat_resul
         os.close(descriptor)
 
 
-def _inspect_source(state: State, definition: DoctorIntegration) -> _SourceInspection:
+def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool = False) -> _SourceInspection:
     source_text = state.config.agent.sources.get(definition.agent, "")
     if not source_text:
         return _SourceInspection("unconfigured", None, False, False)
@@ -1100,6 +1075,8 @@ def _inspect_source(state: State, definition: DoctorIntegration) -> _SourceInspe
     if definition.source_time_query:
         if not stat.S_ISREG(info.st_mode):
             return _SourceInspection("wrong-kind", None, True, False)
+        if not deep:
+            return _SourceInspection("present", datetime.fromtimestamp(info.st_mtime, UTC), True, True)
         try:
             latest = _query_database_source_time(root, definition)
         except OSError, ValueError, sqlite3.Error:
@@ -1154,13 +1131,17 @@ def _inspect_source(state: State, definition: DoctorIntegration) -> _SourceInspe
                     continue
                 if not stat.S_ISREG(entry.st_mode):
                     continue
-                if seen >= limit:
+                if deep and seen >= limit:
                     return _SourceInspection("present", latest, True, not failed and reconciled, True)
                 seen += 1
                 if definition.agent == "agy" and name == AGY_TRANSCRIPT_NAMES[1] and AGY_TRANSCRIPT_NAMES[0] in files:
                     continue
                 session_id = _raw_session_identity(root, path, definition.agent)
                 if not session_id:
+                    continue
+                modified = datetime.fromtimestamp(entry.st_mtime, UTC)
+                latest = max(latest, modified) if latest is not None else modified
+                if not deep:
                     continue
                 try:
                     fingerprint = _source_fingerprint_at(directory_fd, name, entry)
@@ -1173,13 +1154,11 @@ def _inspect_source(state: State, definition: DoctorIntegration) -> _SourceInspe
                     continue
                 if manifest is None or manifest.completeness != "complete":
                     reconciled = False
-                modified = datetime.fromtimestamp(entry.st_mtime, UTC)
-                latest = max(latest, modified) if latest is not None else modified
     finally:
         os.close(root_fd)
     if failed:
         return _SourceInspection("unreadable", latest, True, False)
-    if not reconciled:
+    if deep and not reconciled:
         return _SourceInspection("unreconciled", latest, True, False)
     return _SourceInspection("present", latest, True, True)
 
@@ -1201,7 +1180,7 @@ def _valid_manifest_path(root: Path, path: Path, manifest: SessionManifest, agen
     )
 
 
-def _inspect_lineage(state: State, definition: DoctorIntegration) -> _LineageSummary:
+def _inspect_lineage(state: State, definition: DoctorIntegration, *, deep: bool = False) -> _LineageSummary:
     root = Path.home() / ".agents/sessions" / SESSION_STORE_VERSION / definition.agent
     summary = _LineageSummary()
     try:
@@ -1226,15 +1205,23 @@ def _inspect_lineage(state: State, definition: DoctorIntegration) -> _LineageSum
         current_path = Path(current)
         directories[:] = sorted(name for name in directories if not (current_path / name).is_symlink())
         manifests.extend(current_path / name for name in sorted(files) if name == "manifest.json")
-        if len(manifests) > state.config.agent.doctor.scan_limit:
+        if deep and len(manifests) > state.config.agent.doctor.scan_limit:
             summary.truncated = True
             break
-    for path in manifests[: state.config.agent.doctor.scan_limit]:
+    if not deep and manifests:
+        try:
+            manifests = [max(manifests, key=lambda path: path.lstat().st_mtime_ns)]
+        except OSError:
+            summary.unreadable = True
+            return summary
+    selected = manifests[: state.config.agent.doctor.scan_limit] if deep else manifests
+    for path in selected:
         try:
             manifest = read_session_manifest(path.parent)
             if not _valid_manifest_path(root, path, manifest, definition.agent):
                 raise ValueError("manifest identity does not match its lineage")
-            validate_session_generation(path.parent, manifest)
+            if deep:
+                validate_session_generation(path.parent, manifest)
             ingested = _parse_timestamp(manifest.ingested_at)
         except OSError, UnicodeError, ValueError, json.JSONDecodeError:
             summary.unreadable = True
@@ -1323,19 +1310,24 @@ def _summarize_lineage(
     return ingestion, _format_duration(lag), healthy
 
 
-def gather_agent_doctor(state: State, *, now: datetime | None = None) -> list[AgentDoctorResult]:
+def gather_agent_doctor(
+    state: State, *, now: datetime | None = None, deep: bool = False, progress: bool = False
+) -> list[AgentDoctorResult]:
     current = now or datetime.now(UTC)
     runnable = _dot_command_prober(state)
     notifier_available = _notifier_available(state)
     results: list[AgentDoctorResult] = []
-    for definition in _DOCTOR_INTEGRATIONS:
+    total = len(_DOCTOR_INTEGRATIONS)
+    for index, definition in enumerate(_DOCTOR_INTEGRATIONS, start=1):
+        if progress:
+            state.stderr.write(f"Deep doctor {index}/{total}: {definition.agent}\n")
         discovery, discovery_ok = _check_discovery(definition)
         hooks, hooks_ok = _check_hooks(definition, runnable)
         if definition.notifications and not notifier_available:
             hooks, hooks_ok = "notification-unavailable", False
         tools, tools_ok = _check_tools(state, definition)
-        source = _inspect_source(state, definition)
-        lineage = _inspect_lineage(state, definition)
+        source = _inspect_source(state, definition, deep=deep)
+        lineage = _inspect_lineage(state, definition, deep=deep)
         failure, failure_ok = _inspect_last_hook_failure(state, definition.agent)
         ingestion, lag, lineage_ok = _summarize_lineage(state, definition, current, source, lineage)
         truncated = source.truncated or lineage.truncated
@@ -1384,21 +1376,31 @@ def repair_agent_integrations(state: State, *, dry_run: bool = False) -> None:
 
 
 def run_agent_doctor(
-    state: State, *, fix: bool = False, dry_run: bool = False, now: datetime | None = None
+    state: State,
+    *,
+    fix: bool = False,
+    dry_run: bool = False,
+    deep: bool = False,
+    as_json: bool = False,
+    now: datetime | None = None,
 ) -> list[AgentDoctorResult]:
     if dry_run and not fix:
         raise DotError("--dry-run requires --fix")
     if fix:
         repair_agent_integrations(state, dry_run=dry_run)
-    results = gather_agent_doctor(state, now=now)
-    state.stdout.write("Agent doctor\n")
-    for result in results:
-        mark = "✓" if result.healthy else "✗"
-        state.stdout.write(
-            f"{mark} {result.agent}: discovery={result.discovery} hooks={result.hooks} tools={result.tools} "
-            f"source={result.source} ingestion={result.last_ingestion} failure={result.last_failure} "
-            f"lag={result.archive_lag} truncated={str(result.truncated).lower()}\n"
-        )
+    results = gather_agent_doctor(state, now=now, deep=deep, progress=deep)
+    if as_json:
+        json.dump([asdict(result) for result in results], state.stdout, ensure_ascii=False, indent=2)
+        state.stdout.write("\n")
+    else:
+        state.stdout.write("Agent doctor\n")
+        for result in results:
+            mark = "✓" if result.healthy else "✗"
+            state.stdout.write(
+                f"{mark} {result.agent}: discovery={result.discovery} hooks={result.hooks} tools={result.tools} "
+                f"source={result.source} ingestion={result.last_ingestion} failure={result.last_failure} "
+                f"lag={result.archive_lag} truncated={str(result.truncated).lower()}\n"
+            )
     if not all(result.healthy for result in results):
         raise DotError("agent doctor found unhealthy integrations")
     return results
@@ -1407,6 +1409,8 @@ def run_agent_doctor(
 @agent_app.command("doctor")
 def agent_doctor(
     context: typer.Context,
+    deep: Annotated[bool, typer.Option("--deep", help="Hash sources and validate every archived generation")] = False,
+    as_json: Annotated[bool, typer.Option("--json", "-j", help="Emit a JSON array")] = False,
     fix: Annotated[
         bool, typer.Option("--fix", "-f", help="Apply the managed agent integration targets with chezmoi")
     ] = False,
@@ -1414,27 +1418,12 @@ def agent_doctor(
         bool, typer.Option("--dry-run", "-N", help="Preview --fix without changing deployed files")
     ] = False,
 ) -> None:
-    run_agent_doctor(state_from(context), fix=fix, dry_run=dry_run)
+    run_agent_doctor(state_from(context), fix=fix, dry_run=dry_run, deep=deep, as_json=as_json)
 
 
-@agent_app.command("clean")
-def agent_clean(
-    context: typer.Context,
-    targets: Annotated[list[str] | None, typer.Argument()] = None,
-    dry_run: Annotated[bool, typer.Option("--dry-run", "-n")] = False,
-) -> None:
-    state = state_from(context)
-    requested = targets or ["prompts", "proposals", "reports"]
-    expanded: set[str] = set()
-    for raw in requested:
-        for target in raw.lower().split(","):
-            target = target.strip()
-            if target == "all":
-                expanded.update({"prompts", "proposals", "reports"})
-            elif target in {"prompts", "proposals", "reports"}:
-                expanded.add(target)
-            elif target:
-                raise DotError(f"unknown target {target!r}: must be one of all, prompts, proposals, reports")
+def prune_agent_artifacts(state: State, *, dry_run: bool) -> int:
+    expanded = {"prompts", "proposals", "reports"}
+    reclaimed = 0
     if not _safe_agent_fs_available():
         raise DotError("safe agent cleanup is unavailable on this platform")
     result = state.runner.run(["git", "rev-parse", "--show-toplevel"], check=False)
@@ -1479,6 +1468,7 @@ def agent_clean(
                         try:
                             # Pathlib would reopen the raced pathname; list the held directory instead.
                             entries = sorted(os.listdir(target_descriptor))  # noqa: PTH208
+                            reclaimed += _directory_apparent_size(target_descriptor)
                         except BaseException:
                             os.close(target_descriptor)
                             target_descriptor = None
@@ -1500,6 +1490,22 @@ def agent_clean(
                 os.close(agents_descriptor)
     finally:
         os.close(project_descriptor)
+    return reclaimed
+
+
+def _directory_apparent_size(directory: int) -> int:
+    total = 0
+    for _root, directory_names, file_names, current in os.fwalk(
+        ".", topdown=False, follow_symlinks=False, dir_fd=directory
+    ):
+        for name in [*file_names, *directory_names]:
+            try:
+                info = os.stat(name, dir_fd=current, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISDIR(info.st_mode):
+                total += info.st_size
+    return total
 
 
 def _clear_directory(directory: int, target: str) -> None:
@@ -1540,30 +1546,9 @@ def _clear_directory(directory: int, target: str) -> None:
         raise DotError(f"failed to clean .agents/{target}: {error}") from error
 
 
-add_group(agent_app, hook_app, "hook", "h")
-add_group(agent_app, session_app, "session", "s")
-add_group(agent_app, usage_app, "usage", "u")
-
-# Preserve the terse aliases used by hooks and interactive shell workflows.
-for _parent, _name, _callback, _alias in (
-    (agent_app, "clean", agent_clean, "c"),
-    (agent_app, "doctor", agent_doctor, "d"),
-    (session_app, "list", session_list, "l"),
-    (session_app, "show", session_show, "w"),
-    (session_app, "export", session_export, "e"),
-    (session_app, "sync", session_sync, "s"),
-    (session_app, "migrate", session_migrate, "m"),
-    (hook_app, "session", hook_session, "s"),
-    (hook_app, "usage", hook_usage, "u"),
-    (hook_app, "notify", hook_notify, "n"),
-    (hook_app, "copilot-session-end", copilot_session_end, "c"),
-    (usage_app, "stats", usage_stats_command, "s"),
-    (usage_app, "list", usage_list, "l"),
-    (usage_app, "show", usage_show, "w"),
-    (usage_app, "sync", usage_sync, "y"),
-):
-    record_alias(_parent, _name, _alias)
-    _parent.command(_alias, hidden=True)(_callback)
+agent_app.add_typer(hook_app, name="hook", hidden=True)
+add_group(agent_app, session_app, "session")
+add_group(agent_app, usage_app, "usage")
 
 
 __all__ = [
@@ -1573,6 +1558,7 @@ __all__ = [
     "decode_copilot_session_end",
     "gather_agent_doctor",
     "ingest_agent_session",
+    "prune_agent_artifacts",
     "record_agent_usage",
     "repair_agent_integrations",
     "resolve_hook_identity",

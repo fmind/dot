@@ -1,6 +1,6 @@
 # Learn a Product Bet
 
-Recover the original hypothesis, segment, baseline, thresholds, kill criterion, and decision date before interpreting the result. Never fabricate analytics, customer feedback, causality, sample quality, or confidence; effort, code volume, issue count, merges, and stars are not customer-value evidence. Segment before averaging, and close with the learning review from [briefs](references/briefs.md).
+Recover the original hypothesis, segment, baseline, thresholds, kill criterion, and decision date before interpreting the result. Never fabricate analytics, customer feedback, causality, sample quality, or confidence; effort, code volume, issue count, merges, and stars are not customer-value evidence. Segment before averaging, and close with the learning review from [briefs](briefs.md).
 
 1. **Reconstruct the bet**: user, job, intervention, expected behavior, mechanism, time horizon, thresholds, and assumptions as they stood before the outcome.
 1. **Validate the measurement**: event semantics, denominators, exposure, identity, missing data, contamination, novelty, selection bias, seasonality, and whether the measured candidate matches the change.

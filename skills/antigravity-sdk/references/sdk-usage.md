@@ -9,11 +9,11 @@ export GEMINI_API_KEY="$ANTIGRAVITY_SDK_API_KEY"
 gcloud auth application-default login                  # Vertex path instead: LocalAgentConfig(vertex=True, project=..., location=...)
 ```
 
-**Billing is the Gemini API, never the Antigravity subscription.** The SDK reads `ANTIGRAVITY_SDK_API_KEY` or `GEMINI_API_KEY` (or `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` with Vertex ADC); it never touches the OAuth login the `agy` CLI and IDE write to `~/.gemini`, so a Google AI Pro/Ultra plan grants it nothing. Without a key it fails closed at connect time with `AntigravityValidationError: A Gemini API key is required.` Keep the key in the environment or a secret manager per [sops-secrets](../sops-secrets/SKILL.md); never inline it in `LocalAgentConfig(api_key=...)` in committed code.
+**Billing is the Gemini API, never the Antigravity subscription.** The SDK reads `ANTIGRAVITY_SDK_API_KEY` or `GEMINI_API_KEY` (or `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` with Vertex ADC); it never touches the OAuth login the `agy` CLI and IDE write to `~/.gemini`, so a Google AI Pro/Ultra plan grants it nothing. Without a key it fails closed at connect time with `AntigravityValidationError: A Gemini API key is required.` Keep the key in the environment or a secret manager per [sops-secrets](../../sops-secrets/SKILL.md); never inline it in `LocalAgentConfig(api_key=...)` in committed code.
 
 ## 2. Orchestrate
 
-[`references/orchestrator.py`](references/orchestrator.py) is a runnable parent-plus-two-subagent fan-out; the pieces that matter:
+[`orchestrator.py`](orchestrator.py) is a runnable parent-plus-two-subagent fan-out; the pieces that matter:
 
 - **Static subagents**: `types.SubagentConfig(name, description, system_instructions, tools)` in `LocalAgentConfig(subagents=[...])` gives each worker its own context window and instructions. Prefer these — a named role is reviewable, whereas dynamic self-cloning is not.
 - **Dynamic subagents**: `types.CapabilitiesConfig(enable_subagents=True)` alone lets the parent clone itself on demand, inheriting its toolset. Use it only for open-ended decomposition.
@@ -34,5 +34,5 @@ Two independent limits, and confusing them is how an unattended run burns a quot
 
 - **Tools**: plain functions with type hints and a docstring, passed to `tools=[...]`; filter built-ins with `CapabilitiesConfig(enabled_tools=...)` or `disabled_tools=...`.
 - **Skills**: `skills_paths=["~/.agents/skills"]` loads this repository's `SKILL.md` catalog straight into an SDK agent, accepting either one skill directory or a parent of many.
-- **MCP**: `mcp_servers=[types.McpStdioServer(name=..., command=..., args=[...], env={...})]` or `McpStreamableHttpServer`; server selection and host wiring live in [agent-mcp](../agent-mcp/SKILL.md).
+- **MCP**: `mcp_servers=[types.McpStdioServer(name=..., command=..., args=[...], env={...})]` or `McpStreamableHttpServer`; server selection and host wiring live in [agent-mcp](../../agent-mcp/SKILL.md).
 - **Triggers**: `triggers.every(seconds, callback)` and `triggers.on_file_change(...)` drive background work without an external scheduler.

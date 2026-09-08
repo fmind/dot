@@ -18,4 +18,4 @@
    - Web: [test_web.py](test_web.py), [test_integration.py](test_integration.py), and root [conftest.py](conftest.py) (only `test:integration` starts Postgres).
    - CLI: [test_smoke.py](test_smoke.py) and [test_cli.py](test_cli.py). Library: [test_library.py](test_library.py).
 1. **Validate**: `git init --initial-branch=main`, then `mise run install`, `mise run format`, `mise run check`, `mise run test`; before the first commit, `check:leaks` scans the working tree.
-1. **Finish**: `README.md` per [readme-md](../../readme-md/SKILL.md), then report the verified result; if committing was requested, stage only the intended files and use [conventional-commit](../../conventional-commit/SKILL.md).
+1. **Finish**: `README.md` per [repository-docs](../../repository-docs/SKILL.md), then report the verified result; if committing was requested, stage only the intended files and use [conventional-commit](../../conventional-commit/SKILL.md).

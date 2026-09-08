@@ -358,7 +358,14 @@ def _rollback_index(state: State, root: Path, cause: BaseException) -> None:
         raise DotError(f"{cause}; failed to restore initially clean index") from rollback_error
 
 
-def run_commit(state: State, commit_type: str = "", scope: str = "", *, cwd: Path | None = None) -> str | None:
+def run_commit(
+    state: State,
+    commit_type: str = "",
+    scope: str = "",
+    *,
+    all_changes: bool = False,
+    cwd: Path | None = None,
+) -> str | None:
     """Generate a Conventional Commit message and open the git editor."""
     root = git_root(state, cwd)
     auto_staged = False
@@ -369,6 +376,8 @@ def run_commit(state: State, commit_type: str = "", scope: str = "", *, cwd: Pat
             if not status.strip():
                 state.stdout.write("No changes to commit.\n")
                 return None
+            if not all_changes:
+                raise DotError("no staged changes; stage the intended files or use --all")
             auto_staged = True
             state.runner.run(["git", "add", "-A"], cwd=root)
             complete_diff = get_cached_diff_unfiltered(state, cwd=root)
@@ -391,6 +400,14 @@ def run_commit(state: State, commit_type: str = "", scope: str = "", *, cwd: Pat
         packed = pack_diff(diff, state.config.commit.max_diff_size)
         scan_diff_for_secrets(state, packed)
         message = generate_text(state, prompt, packed, state.config.commit.max_diff_size)
+        paths = state.runner.run(["git", "diff", "--cached", "--name-only", "-z", "--", ":/"], cwd=root).stdout.split(
+            "\0"
+        )
+        selected = [path for path in paths if path]
+        state.stdout.write(f"Staged files ({len(selected)}):\n")
+        for path in selected:
+            display = path.replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+            state.stdout.write(f"  {display}\n")
         code = state.runner.interactive(
             ["git", "commit", "-e", "-m", message],
             cwd=root,
@@ -752,8 +769,11 @@ def commit_command(
     context: typer.Context,
     commit_type: Annotated[str, typer.Option("--type", "-t", help="Conventional Commit type")] = "",
     scope: Annotated[str, typer.Option("--scope", "-s", help="Conventional Commit scope")] = "",
+    all_changes: Annotated[
+        bool, typer.Option("--all", help="Stage the whole worktree when the index is empty")
+    ] = False,
 ) -> None:
-    run_commit(_state_from(context), commit_type, scope)
+    run_commit(_state_from(context), commit_type, scope, all_changes=all_changes)
 
 
 def pull_request_command(
@@ -791,12 +811,12 @@ def status_command(
 
 
 def register_repository_commands(parent: typer.Typer) -> None:
-    """Register repository commands and their compatibility aliases."""
+    """Register the repository command surface."""
     commands = (
-        (commit_command, "commit", ("c",), "Generate and apply an AI-authored Conventional Commit message"),
-        (pull_request_command, "pull-request", ("pr", "b"), "Generate a pull request body and invoke gh"),
-        (pull_command, "pull", ("p",), "Update configured Git repositories concurrently"),
-        (status_command, "status", ("s",), "Show Git repository and Docker status"),
+        (commit_command, "commit", (), "Generate and apply an AI-authored Conventional Commit message"),
+        (pull_request_command, "pull-request", ("pr",), "Generate a pull request body and invoke gh"),
+        (pull_command, "pull", (), "Update configured Git repositories concurrently"),
+        (status_command, "status", (), "Show Git repository and Docker status"),
     )
     for callback, name, aliases, help_text in commands:
         aliased_command(parent, name, *aliases, help_text=help_text)(callback)

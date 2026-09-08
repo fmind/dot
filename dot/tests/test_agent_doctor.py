@@ -84,7 +84,6 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
                 "hooks": [
                     "dot agent hook session agy",
                     "dot agent hook notify agy stop",
-                    "dot agent hook usage agy",
                 ]
             }
         ),
@@ -96,7 +95,6 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
                 "hooks": [
                     "dot agent hook session claude",
                     "dot agent hook notify claude stop",
-                    "dot agent hook usage claude",
                 ]
             }
         ),
@@ -108,7 +106,6 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
             for command in (
                 "dot agent hook session codex",
                 "dot agent hook notify codex stop",
-                "dot agent hook usage codex",
             )
         ),
     )
@@ -119,7 +116,6 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
                 "hooks": [
                     "dot agent hook session grok",
                     "dot agent hook notify grok stop",
-                    "dot agent hook usage grok",
                 ]
             }
         ),
@@ -129,7 +125,7 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
         json.dumps(
             {
                 "version": 1,
-                "hooks": ["dot agent hook copilot-session-end", "dot agent hook usage copilot"],
+                "hooks": ["dot agent hook copilot-session-end"],
             }
         ),
     )
@@ -139,8 +135,8 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
     return state, runner
 
 
-def _result(state: State, agent: str):
-    return next(result for result in gather_agent_doctor(state) if result.agent == agent)
+def _result(state: State, agent: str, *, deep: bool = False):
+    return next(result for result in gather_agent_doctor(state, deep=deep) if result.agent == agent)
 
 
 def test_doctor_reports_all_current_integrations_without_content(
@@ -159,6 +155,59 @@ def test_doctor_reports_all_current_integrations_without_content(
     assert "ingestion=none" in report
 
 
+def test_doctor_default_reads_metadata_without_hashing_or_transcript_validation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    source = tmp_path / ".claude/projects/session.jsonl"
+    _write(source, "private source\n")
+    ingest_session(
+        "claude",
+        "session",
+        [SessionLog("2026-09-01T00:00:00Z", "claude", "session", "user", "private archive")],
+        SessionSource(fingerprint="a" * 64),
+    )
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("fast doctor read session content")
+
+    monkeypatch.setattr(agent_module, "_source_fingerprint_at", fail)
+    monkeypatch.setattr(agent_module, "validate_session_generation", fail)
+
+    result = _result(state, "claude")
+
+    assert result.source == "present"
+    assert result.healthy
+
+
+def test_doctor_json_is_pure_and_deep_progress_uses_stderr(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+
+    results = run_agent_doctor(state, deep=True, as_json=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    payload = json.loads(state.stdout.getvalue())
+    assert payload == [
+        {
+            "agent": result.agent,
+            "discovery": result.discovery,
+            "hooks": result.hooks,
+            "tools": result.tools,
+            "source": result.source,
+            "last_ingestion": result.last_ingestion,
+            "last_failure": result.last_failure,
+            "archive_lag": result.archive_lag,
+            "truncated": result.truncated,
+            "healthy": result.healthy,
+        }
+        for result in results
+    ]
+    assert isinstance(state.stderr, io.StringIO)
+    progress = state.stderr.getvalue()
+    assert "Deep doctor 1/5: agy" in progress
+    assert "Deep doctor 5/5: copilot" in progress
+
+
 def test_doctor_fails_closed_across_discovery_hooks_tools_and_command_surface(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -166,7 +215,7 @@ def test_doctor_fails_closed_across_discovery_hooks_tools_and_command_surface(
     (tmp_path / ".claude/CLAUDE.md").unlink()
     _write(tmp_path / ".codex/config.toml", "[")
     runner.tools.remove("grok")
-    runner.unavailable_commands.add(("/tools/dot", "agent", "hook", "usage", "--help"))
+    runner.unavailable_commands.add(("/tools/dot", "agent", "hook", "session", "--help"))
 
     results = {result.agent: result for result in gather_agent_doctor(state)}
 
@@ -177,24 +226,24 @@ def test_doctor_fails_closed_across_discovery_hooks_tools_and_command_surface(
     assert not all(result.healthy for result in results.values())
 
 
-def test_doctor_rejects_unarchived_and_truncated_sources(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_doctor_deep_rejects_unarchived_and_truncated_sources(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state, _ = _healthy_state(monkeypatch, tmp_path)
     source = tmp_path / ".claude/projects"
     _write(source / "session-one.jsonl", "{}\n")
 
-    unarchived = _result(state, "claude")
+    unarchived = _result(state, "claude", deep=True)
 
     assert unarchived.last_ingestion == "none"
     assert not unarchived.healthy
 
     state.config.agent.doctor.scan_limit = 1
     _write(source / "session-two.jsonl", "{}\n")
-    truncated = _result(state, "claude")
+    truncated = _result(state, "claude", deep=True)
 
     assert truncated.truncated
     assert not truncated.healthy
     with pytest.raises(DotError, match="unhealthy integrations"):
-        run_agent_doctor(state)
+        run_agent_doctor(state, deep=True)
     assert isinstance(state.stdout, io.StringIO)
     assert "truncated=true" in state.stdout.getvalue()
     assert "omitted=" not in state.stdout.getvalue()
@@ -216,7 +265,7 @@ def test_doctor_reconciles_every_file_backed_source_session(monkeypatch: pytest.
         SessionSource(fingerprint=fingerprint_file(archived)),
     )
 
-    result = _result(state, "claude")
+    result = _result(state, "claude", deep=True)
 
     assert result.source == "unreconciled"
     assert result.archive_lag == "unknown"
@@ -249,7 +298,7 @@ def test_doctor_fails_closed_if_source_changes_during_archive_reconciliation(
 
     monkeypatch.setattr(agent_module, "stored_generation", mutate_source)
 
-    result = _result(state, "claude")
+    result = _result(state, "claude", deep=True)
 
     assert mutated
     assert result.source == "unreadable"
@@ -277,14 +326,14 @@ def test_doctor_validates_complete_partial_and_corrupt_archive_lineage(
         [SessionLog("2026-09-01T00:00:00Z", "claude", "complete", "user", "private")],
         SessionSource(fingerprint="a" * 64),
     )
-    assert _result(state, "claude").healthy
+    assert _result(state, "claude", deep=True).healthy
 
     generation = session_store_root() / "claude" / complete.lineage_id / complete.generation_id
     manifest_path = generation / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["lineage_id"] = "wrong"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    corrupt = _result(state, "claude")
+    corrupt = _result(state, "claude", deep=True)
     assert corrupt.last_ingestion == "unreadable"
     assert not corrupt.healthy
 
@@ -294,7 +343,7 @@ def test_doctor_validates_complete_partial_and_corrupt_archive_lineage(
         [SessionLog("2026-09-01T00:00:00Z", "codex", "partial", "user", "private")],
         SessionSource(fingerprint="b" * 64, completeness="partial"),
     )
-    partial = _result(state, "codex")
+    partial = _result(state, "codex", deep=True)
     assert partial.last_ingestion == "partial-only"
     assert not partial.healthy
 
@@ -319,7 +368,7 @@ def test_doctor_rejects_invalid_archive_transcript(
     else:
         transcript.chmod(0o644)
 
-    result = _result(state, "claude")
+    result = _result(state, "claude", deep=True)
 
     assert result.last_ingestion == "unreadable"
     assert not result.healthy
@@ -367,7 +416,7 @@ def test_doctor_calculates_stale_lag_without_exposing_archive_content(
     _write(source, "new private source")
     os.utime(source, (datetime.now(UTC).timestamp(), datetime.now(UTC).timestamp()))
 
-    doctor = _result(state, "claude")
+    doctor = _result(state, "claude", deep=True)
 
     assert doctor.archive_lag != "0s"
     assert not doctor.healthy
@@ -392,10 +441,12 @@ def test_repair_is_explicit_bounded_and_idempotent(monkeypatch: pytest.MonkeyPat
     assert str(tmp_path / ".claude/CLAUDE.md") in first
 
 
-def test_doctor_cli_exposes_fix_and_preview_flags() -> None:
+def test_doctor_cli_exposes_fast_deep_json_and_repair_flags() -> None:
     result = CliRunner().invoke(app, ["agent", "doctor", "--help"])
 
     assert result.exit_code == 0
     output = _click.utils.strip_ansi(result.stdout)
+    assert "--deep" in output
+    assert "--json" in output
     assert "--fix" in output
     assert "--dry-run" in output

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-09-05"
+  updated: "2026-09-07"
 ---
 
 # Skillify
@@ -20,14 +20,14 @@ Capture what this session learned as a skill the next session can run without th
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; add its CLI names to `skills/contracts.json`, then run `mise run check:skills` and `mise run test` there.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md).
-1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the Skill Authoring Limits of the global `~/.agents/AGENTS.md` for name, description, size, shape, and placement; long configs and examples go to `references/`.
+1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the authoring limits in [package rules](references/package-rules.md); long configs and examples go to `references/`.
 1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is directly disclosed, every required tool is documented, and `mise run check:skills` passes for a global skill.
 1. **Test once**: exercise safe local steps in a scratch directory or the current repository; keep paid, destructive, or remote writes within the session's authority and report unexercised behavior.
 1. **Report**: the path, the description, the scope, and whether the routing probes in `dot/testdata/skills/` need a new prompt for the skill.
 
 ## Extracting from AGENTS.md
 
-When `AGENTS.md` grows past rules and layout, move each multi-step section into its own local skill, leave a one-line pointer ("see `.agents/skills/<name>`"), and re-run [update-docs](../update-docs/SKILL.md).
+Keep durable preferences in the global persona and repository invariants in project `AGENTS.md`. Move procedures into the existing owning skill where possible; create a global or local skill only for a distinct reusable workflow. Leave a routing cue and re-run [repository-docs](../repository-docs/SKILL.md).
 
 ## Gotchas
 
@@ -39,4 +39,4 @@ When `AGENTS.md` grows past rules and layout, move each multi-step section into 
 
 - [Agent Skills specification](https://agentskills.io/specification)
 - Native tooling: [Agent Skills](https://agentskills.io/specification) and the [vendor-skill policy](../agent-project/references/vendor-skills.md).
-- Companion skills: [agent-project](../agent-project/SKILL.md) (local skill layout), [update-docs](../update-docs/SKILL.md) (trim `AGENTS.md` after extraction).
+- Companion skills: [agent-project](../agent-project/SKILL.md) (local skill layout), [repository-docs](../repository-docs/SKILL.md) (trim `AGENTS.md` after extraction).

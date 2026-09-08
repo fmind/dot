@@ -101,6 +101,27 @@ class HarnessConfigTests(unittest.TestCase):
                 assert data["hooks"]["SessionStart"] == original["hooks"]["SessionStart"]
                 assert self.render(template, rendered) == rendered
 
+    def test_capture_hooks_use_one_command_at_durable_boundaries(self):
+        codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))["hooks"]
+        assert [hook["command"] for hook in codex["PreCompact"][0]["hooks"]] == ["dot agent hook session codex"]
+        assert [hook["command"] for hook in codex["SessionEnd"][0]["hooks"]] == ["dot agent hook session codex"]
+        assert [hook["command"] for hook in codex["Stop"][0]["hooks"]] == ["dot agent hook notify codex stop"]
+
+        claude = json.loads(self.render("dot_claude/modify_settings.json", "{}"))["hooks"]
+        assert [hook["command"] for hook in claude["PreCompact"][0]["hooks"]] == ["dot agent hook session claude"]
+        assert [hook["command"] for hook in claude["SessionEnd"][0]["hooks"]] == ["dot agent hook session claude"]
+        assert [hook["command"] for hook in claude["Stop"][0]["hooks"]] == ["dot agent hook notify claude stop"]
+        assert [hook["command"] for hook in claude["SubagentStop"][0]["hooks"]] == ["dot agent hook session claude"]
+
+        grok = json.loads((ROOT / "dot_grok/hooks/hooks.json").read_text())["hooks"]
+        assert [hook["command"] for hook in grok["Stop"][0]["hooks"]] == ["dot agent hook notify grok stop"]
+        assert all("hook usage" not in json.dumps(value) for value in (codex, claude, grok))
+
+        agy = json.loads((ROOT / "dot_gemini/private_config/private_hooks.json").read_text())
+        assert set(agy) == {"notify", "session-log"}
+        copilot = json.loads((ROOT / "dot_copilot/hooks/session-log.json").read_text())
+        assert [hook["bash"] for hook in copilot["hooks"]["sessionEnd"]] == ["dot agent hook copilot-session-end"]
+
 
 if __name__ == "__main__":
     unittest.main()

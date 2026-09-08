@@ -37,9 +37,15 @@ Each record contains:
   "total_tokens": 99100,
   "cost_usd": 0.1425,
   "turn_count": 8,
-  "cwd": "~/project"
+  "cwd": "~/project",
+  "schema_version": "dot.agent.usage/v2",
+  "extractor_version": "1",
+  "measurement_kind": "provider-reported",
+  "source_bytes": 428000
 }
 ```
+
+`measurement_kind` is `provider-reported` for Claude, Codex, and Copilot, `estimated` for Antigravity's byte-based token approximation, and `context-only` for Grok's final context-window observation. `source_bytes` records the bytes inspected by the usage extractor and is not a token count.
 
 ## Commands
 

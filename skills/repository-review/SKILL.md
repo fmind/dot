@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-review
   created: "2026-08-01"
-  updated: "2026-09-05"
+  updated: "2026-09-07"
 ---
 
 # Repository Review
 
-Audit the whole delivery system read-only and report ranked, evidence-backed findings; [diff-review](../diff-review/SKILL.md) owns one change, [project-backlog](../project-backlog/SKILL.md) turns findings into issues, and [project-health](../project-health/SKILL.md) applies the fixes.
+Audit the whole delivery system read-only and report ranked, evidence-backed findings; [diff-review](../diff-review/SKILL.md) owns one change, [github-issues](../github-issues/SKILL.md) turns findings into issue drafts, and [project-health](../project-health/SKILL.md) applies the fixes.
 
 ## Workflow
 
@@ -36,4 +36,4 @@ Audit the whole delivery system read-only and report ranked, evidence-backed fin
 
 ## Documentation
 
-- Companion skills: [diff-review](../diff-review/SKILL.md) (one change and the `P0`–`P3` scale), [production-readiness](../production-readiness/SKILL.md) (proof ladder and go/no-go), [secure](../secure/SKILL.md) (security boundary), [project-backlog](../project-backlog/SKILL.md) (findings to issues), [project-health](../project-health/SKILL.md) (apply the fixes).
+- Companion skills: [diff-review](../diff-review/SKILL.md) (one change and the `P0`–`P3` scale), [production-readiness](../production-readiness/SKILL.md) (proof ladder and go/no-go), [secure](../secure/SKILL.md) (security boundary), [github-issues](../github-issues/SKILL.md) (findings to issue drafts), [project-health](../project-health/SKILL.md) (apply the fixes).

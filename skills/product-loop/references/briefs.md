@@ -1,6 +1,6 @@
 # Product Loop Briefs
 
-Output templates for each phase of [product-loop](SKILL.md). Scale each brief to the change: a compact, low-risk decision should not acquire empty sections merely to satisfy a template, but never omit a section because its content exposes unresolved risk.
+Output templates for each phase of [product-loop](../SKILL.md). Scale each brief to the change: a compact, low-risk decision should not acquire empty sections merely to satisfy a template, but never omit a section because its content exposes unresolved risk.
 
 ## Discovery Brief
 

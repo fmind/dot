@@ -20,7 +20,7 @@
    ```bash
    gh secret set COPILOT_GITHUB_TOKEN
    ```
-1. **Create the Markdown source**: Start with `gh aw new <workflow-name> --engine copilot`, or ask the initialized Copilot agent `agentic-workflows create ...`. Define the trigger, read permissions, tools, network, budgets, safe outputs, and precise instructions; adapt the [bounded Copilot starter](references/copilot-starter.md).
+1. **Create the Markdown source**: Start with `gh aw new <workflow-name> --engine copilot`, or ask the initialized Copilot agent `agentic-workflows create ...`. Define the trigger, read permissions, tools, network, budgets, safe outputs, and precise instructions; adapt the [bounded Copilot starter](copilot-starter.md).
    ```bash
    gh aw new <workflow-name> --engine copilot
    ```

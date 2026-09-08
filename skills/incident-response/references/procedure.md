@@ -11,7 +11,7 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
 1. **Verify recovery**: Confirm critical user journeys, error and saturation signals, data correctness, queued work, security posture, and no continued spread; a quiet alert alone is not recovery.
 1. **Communicate**: Send concise updates with impact, current state, actions, next checkpoint, and known unknowns. Do not promise recovery times or send external communications without the responsible owner.
 1. **Close carefully**: End active response only after sustained recovery, cleanup ownership, evidence retention, residual-risk review, and handoff; keep temporary safeguards until their removal has a named test and owner.
-1. **Run the postmortem**: Hold a blameless review with causal analysis, control gaps, concrete owners, and verification dates; keep the narrative inside the evidence and route security design follow-ups to [threat-model](../threat-model/SKILL.md).
+1. **Run the postmortem**: Hold a blameless review with causal analysis, control gaps, concrete owners, and verification dates; keep the narrative inside the evidence and route security design follow-ups to [threat-model](../../threat-model/SKILL.md).
 1. **Maintain the record**: Keep one incident document with:
    - severity, impact, scope, current state, role owners, and next update time;
    - the timestamped timeline and working hypotheses with confirming and disconfirming evidence;

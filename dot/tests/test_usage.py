@@ -103,6 +103,8 @@ def test_usage_record_serializes_every_explicit_field() -> None:
         total_tokens=20,
         cost_usd=0.25,
         turn_count=2,
+        measurement_kind="provider-reported",
+        source_bytes=123,
     )
 
     assert record.finalize().to_dict() == {
@@ -120,7 +122,16 @@ def test_usage_record_serializes_every_explicit_field() -> None:
         "total_tokens": 20,
         "cost_usd": 0.25,
         "turn_count": 2,
+        "schema_version": "dot.agent.usage/v2",
+        "extractor_version": "1",
+        "measurement_kind": "provider-reported",
+        "source_bytes": 123,
     }
+
+
+def test_usage_record_rejects_unknown_measurement_kind() -> None:
+    with pytest.raises(ValueError, match="measurement_kind"):
+        UsageRecord(harness="codex", session_id="session", measurement_kind="magic").finalize()
 
 
 def test_usage_rejects_missing_identity(tmp_path) -> None:

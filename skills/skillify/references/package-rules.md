@@ -1,6 +1,17 @@
 # Package Rules
 
-Packaging constraints enforced by `gh skill publish --dry-run` and the fail-closed catalog tests; workflow extraction lives in [skillify](../SKILL.md).
+Personal authoring conventions and catalog constraints; workflow extraction lives in [skillify](../SKILL.md). `gh skill publish --dry-run` and the catalog tests validate package structure, metadata budgets, links, and fixtures; they do not prove prose quality or host behavior.
+
+## Authoring limits
+
+- **One purpose**: a tool skill documents one tool; a workflow skill composes owning skills by linking instead of copying their procedures. Extend an existing owner before adding a skill.
+- **Size**: aim for fewer than 100 lines in `SKILL.md`; the hard limit is 500. Keep bullets to one short idea and move long examples, templates, and configuration into directly linked resources.
+- **Frontmatter**: `name` matches the lowercase, hyphenated directory name. `description` states capability and trigger in one sentence using "Use when ..." or an equally clear trigger; at most 240 characters, with a catalog average of 175 or less. Avoid indistinguishable descriptions.
+- **Shape**: include an H1, concise intent, and an actionable workflow. Add `Gotchas` for real failure modes, `Official Skills` for vendor routing, and primary documentation or provenance when external tools or APIs are involved.
+- **Defaults**: adapt stack defaults, coverage targets, and layouts to the project. Never restate the global persona or embed transient session facts, private prompts, or customer details.
+- **Style**: keep commands in language-tagged fences, numbered items as `1.`, and paragraphs on one line. Paths are relative or `~`-relative; config examples use official documentation comments when their format permits.
+- **Placement**: global skills are authored in the dot repository's `skills/`, exposed through `~/.agents/skills/`; project-only skills live in `.agents/skills/`.
+- **Registration**: every global skill needs `skills/contracts.json` and a primary routing probe in `dot/testdata/skills/routing-boundaries.json`. Update inbound references on renames or removal, then run `mise run check:skills` and `mise run test`.
 
 ## Catalog portability
 

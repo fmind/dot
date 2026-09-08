@@ -23,7 +23,9 @@ from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
+from fmind_dot.session_store import fingerprint_file
 from fmind_dot.state import State
+from fmind_dot.usage import UsageRecord
 
 
 class GitRootRunner(Runner):
@@ -206,7 +208,7 @@ def test_hook_failure_spool_refuses_symlinked_parent(monkeypatch: pytest.MonkeyP
     assert list(outside.iterdir()) == []
 
 
-def test_clean_dry_run_normalizes_targets_and_lists_each_entry(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_prune_agent_artifacts_dry_run_lists_each_entry(tmp_path: Path) -> None:
     prompts = tmp_path / ".agents/prompts"
     reports = tmp_path / ".agents/reports"
     prompts.mkdir(parents=True)
@@ -216,11 +218,9 @@ def test_clean_dry_run_normalizes_targets_and_lists_each_entry(monkeypatch: pyte
     prompt.write_text("prompt", encoding="utf-8")
     report.write_text("report", encoding="utf-8")
     state = _state(runner=GitRootRunner(tmp_path))
-    monkeypatch.setattr(agent_module, "state_from", lambda _context: state)
+    reclaimed = agent_module.prune_agent_artifacts(state, dry_run=True)
 
-    result = CliRunner().invoke(app, ["agent", "clean", " prompts , REPORTS ", "--dry-run"])
-
-    assert result.exit_code == 0
+    assert reclaimed > 0
     assert prompt.is_file()
     assert report.is_file()
     assert isinstance(state.stdout, io.StringIO)
@@ -330,8 +330,7 @@ def test_session_sync_preserves_source_generations_and_standalone_usage(
     parsed = [json.loads(path.read_text(encoding="utf-8")) for path in manifests]
     assert {manifest["completeness"] for manifest in parsed} == {"complete", "partial"}
     assert {manifest["source_fingerprint"] for manifest in parsed} == {
-        agent_module.fingerprint_file(tmp_path / f".claude/projects/project-{index}/{session_id}.jsonl")
-        for index in (1, 2)
+        fingerprint_file(tmp_path / f".claude/projects/project-{index}/{session_id}.jsonl") for index in (1, 2)
     }
     usage_path = tmp_path / f".agents/usages/claude/{session_id}.json"
     usage = json.loads(usage_path.read_text(encoding="utf-8"))
@@ -419,82 +418,16 @@ def test_unsupported_typed_hook_fields_fail_instead_of_changing_control_flow(
         resolve_hook_identity(state)
 
 
-def test_agy_usage_hook_waits_for_idle_and_emits_stop_decision(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    transcript = tmp_path / "agy.jsonl"
-    _write_jsonl(
-        transcript,
-        {
-            "created_at": "2026-09-06T08:00:00Z",
-            "source": "USER_EXPLICIT",
-            "type": "USER_INPUT",
-            "content": "hello",
-        },
-    )
-    active = CliRunner().invoke(
-        app,
-        ["agent", "hook", "usage", "agy"],
-        input=json.dumps(
-            {
-                "conversationId": "agy-live",
-                "transcriptPath": str(transcript),
-                "workspacePaths": ["/work/agy"],
-                "fullyIdle": False,
-            }
-        ),
-    )
-
-    assert active.exit_code == 0
-    assert active.stdout == '{"decision":""}\n'
-    assert not (tmp_path / ".agents/usages").exists()
-
-    idle = CliRunner().invoke(
-        app,
-        ["agent", "hook", "usage", "agy"],
-        input=json.dumps(
-            {
-                "conversationId": "agy-live",
-                "transcriptPath": str(transcript),
-                "workspacePaths": ["/work/agy"],
-                "fullyIdle": True,
-            }
-        ),
-    )
-
-    assert idle.exit_code == 0
-    assert idle.stdout == '{"decision":""}\n'
-    usage = json.loads((tmp_path / ".agents/usages/agy/agy-live.json").read_text(encoding="utf-8"))
-    assert usage["cwd"] == "/work/agy"
-    assert usage["turn_count"] == 1
-
-
-def test_copilot_usage_hook_spools_failure_and_keeps_neutral_output(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _create_copilot_database(tmp_path / ".copilot/session-store.db", complete_schema=False)
-
-    result = CliRunner().invoke(
-        app,
-        ["agent", "hook", "usage", "copilot"],
-        input=_copilot_payload(),
-    )
-
-    assert result.exit_code == 1
-    assert result.stdout == "{}\n"
-    assert isinstance(result.exception, sqlite3.Error)
-    failures = list((tmp_path / ".agents/hook-failures/v1").glob("*.json"))
-    assert len(failures) == 1
-    assert json.loads(failures[0].read_text(encoding="utf-8"))["operation"] == "usage"
-
-
 def test_copilot_session_end_is_idempotent_and_writes_usage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    _create_copilot_database(tmp_path / ".copilot/session-store.db")
+    database = tmp_path / ".copilot/session-store.db"
+    _create_copilot_database(database)
 
-    outputs = [
-        CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload()) for _ in range(2)
-    ]
+    outputs = [CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload())]
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute("UPDATE assistant_usage_events SET input_tokens = 20 WHERE session_id = 'copilot-live'")
+        connection.commit()
+    outputs.append(CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload()))
 
     assert all(result.exit_code == 0 and result.stdout == "{}\n" for result in outputs)
     manifests = list((tmp_path / ".agents/sessions/v1/copilot").glob("*/*/manifest.json"))
@@ -503,11 +436,11 @@ def test_copilot_session_end_is_idempotent_and_writes_usage(monkeypatch: pytest.
     assert manifest["record_count"] == 2
     usage = json.loads((tmp_path / ".agents/usages/copilot/copilot-live.json").read_text(encoding="utf-8"))
     assert usage["model"] == "gpt-test"
-    assert usage["total_tokens"] == 17
+    assert usage["total_tokens"] == 27
 
 
-def test_clean_removes_only_generated_targets_and_rejects_redirected_directories(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_prune_agent_artifacts_removes_only_generated_targets_and_rejects_redirected_directories(
+    tmp_path: Path,
 ) -> None:
     prompts = tmp_path / ".agents/prompts/nested"
     skills = tmp_path / ".agents/skills/custom"
@@ -516,11 +449,8 @@ def test_clean_removes_only_generated_targets_and_rejects_redirected_directories
     (prompts / "TASK.md").write_text("prompt", encoding="utf-8")
     (skills / "SKILL.md").write_text("preserve", encoding="utf-8")
     state = _state(runner=GitRootRunner(tmp_path))
-    monkeypatch.setattr(agent_module, "state_from", lambda _context: state)
+    agent_module.prune_agent_artifacts(state, dry_run=False)
 
-    cleaned = CliRunner().invoke(app, ["agent", "clean", "prompts"])
-
-    assert cleaned.exit_code == 0
     assert not prompts.exists()
     assert (skills / "SKILL.md").read_text(encoding="utf-8") == "preserve"
     (tmp_path / ".agents/prompts").rmdir()
@@ -529,26 +459,20 @@ def test_clean_removes_only_generated_targets_and_rejects_redirected_directories
     outside.mkdir()
     (outside / "keep.md").write_text("keep", encoding="utf-8")
     (tmp_path / ".agents/prompts").symlink_to(outside, target_is_directory=True)
-    rejected = CliRunner().invoke(app, ["agent", "clean", "prompts"])
-
-    assert rejected.exit_code == 1
-    assert isinstance(rejected.exception, DotError)
-    assert "refusing symlinked cleanup directory" in str(rejected.exception)
+    with pytest.raises(DotError, match="refusing symlinked cleanup directory"):
+        agent_module.prune_agent_artifacts(state, dry_run=False)
     assert (outside / "keep.md").read_text(encoding="utf-8") == "keep"
 
 
-def test_clean_rejects_non_directory_target_with_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_prune_agent_artifacts_rejects_non_directory_target_with_context(
+    tmp_path: Path,
+) -> None:
     agents = tmp_path / ".agents"
     agents.mkdir()
     (agents / "prompts").write_text("not a directory", encoding="utf-8")
     state = _state(runner=GitRootRunner(tmp_path))
-    monkeypatch.setattr(agent_module, "state_from", lambda _context: state)
-
-    result = CliRunner().invoke(app, ["agent", "clean", "prompts"])
-
-    assert result.exit_code == 1
-    assert isinstance(result.exception, DotError)
-    assert str(result.exception) == "cleanup target .agents/prompts is not a directory"
+    with pytest.raises(DotError, match=r"cleanup target \.agents/prompts is not a directory"):
+        agent_module.prune_agent_artifacts(state, dry_run=False)
 
 
 def test_session_and_usage_cli_surfaces_report_ingested_evidence(
@@ -628,7 +552,7 @@ def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatc
     assert str(result.exception) == "--since must not be after --until"
 
 
-def test_clean_stays_on_opened_directory_when_target_is_swapped_to_symlink(
+def test_prune_agent_artifacts_stays_on_opened_directory_when_target_is_swapped_to_symlink(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     target = tmp_path / ".agents/prompts"
@@ -669,18 +593,15 @@ def test_clean_stays_on_opened_directory_when_target_is_swapped_to_symlink(
     monkeypatch.setattr(os, "listdir", racing_listdir)
     monkeypatch.setattr(agent_module, "_safe_agent_fs_available", lambda: True)
     state = _state(runner=GitRootRunner(tmp_path))
-    monkeypatch.setattr(agent_module, "state_from", lambda _context: state)
-
-    result = CliRunner().invoke(app, ["agent", "clean", "prompts"])
+    agent_module.prune_agent_artifacts(state, dry_run=False)
 
     assert swapped
-    assert result.exit_code == 0
     assert victim.read_text(encoding="utf-8") == "preserve"
     assert list(moved.iterdir()) == []
     assert target.is_symlink()
 
 
-def test_clean_fails_closed_without_symlink_safe_recursive_delete(
+def test_prune_agent_artifacts_fails_closed_without_symlink_safe_recursive_delete(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     generated = tmp_path / ".agents/prompts/nested/generated.md"
@@ -688,13 +609,8 @@ def test_clean_fails_closed_without_symlink_safe_recursive_delete(
     generated.write_text("generated", encoding="utf-8")
     monkeypatch.delattr(agent_module.os, "fwalk")
     state = _state(runner=GitRootRunner(tmp_path))
-    monkeypatch.setattr(agent_module, "state_from", lambda _context: state)
-
-    result = CliRunner().invoke(app, ["agent", "clean", "prompts"])
-
-    assert result.exit_code == 1
-    assert isinstance(result.exception, DotError)
-    assert str(result.exception) == "safe agent cleanup is unavailable on this platform"
+    with pytest.raises(DotError, match="safe agent cleanup is unavailable on this platform"):
+        agent_module.prune_agent_artifacts(state, dry_run=False)
     assert generated.read_text(encoding="utf-8") == "generated"
 
 
@@ -859,28 +775,28 @@ def test_usage_sync_normalizes_candidate_record_failure(monkeypatch: pytest.Monk
 
 def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    migrated: list[bool] = []
-
-    def capture_migration(_stream, *, apply: bool = False) -> None:
-        migrated.append(apply)
-
-    monkeypatch.setattr(agent_module, "migrate_legacy_sessions", capture_migration)
+    compacted: list[tuple[bool, str]] = []
+    monkeypatch.setattr(
+        agent_module,
+        "compact_session_generations",
+        lambda _stream, *, apply=False, agent="": compacted.append((apply, agent)),
+    )
 
     usage = CliRunner().invoke(app, ["agent", "usage", "list"])
     shown = CliRunner().invoke(app, ["agent", "session", "show"])
-    migration = CliRunner().invoke(app, ["agent", "session", "migrate", "--apply"])
+    compaction = CliRunner().invoke(app, ["agent", "session", "compact", "--apply", "--agent", "codex"])
 
     assert usage.exit_code == 0
     assert usage.stdout == "No usage records found.\n"
     assert shown.exit_code == 1
     assert isinstance(shown.exception, DotError)
     assert str(shown.exception) == "show requires a session or lineage identity"
-    assert migration.exit_code == 0
-    assert migrated == [True]
+    assert compaction.exit_code == 0
+    assert compacted == [(True, "codex")]
 
 
-def test_clean_defaults_to_all_targets_and_unlinks_nested_symlinks(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_prune_agent_artifacts_cleans_all_targets_and_unlinks_nested_symlinks(
+    tmp_path: Path,
 ) -> None:
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -890,20 +806,12 @@ def test_clean_defaults_to_all_targets_and_unlinks_nested_symlinks(
     prompts.mkdir(parents=True)
     (prompts / "outside-link").symlink_to(outside, target_is_directory=True)
     state = _state(runner=GitRootRunner(tmp_path))
-    monkeypatch.setattr(agent_module, "state_from", lambda _context: state)
+    agent_module.prune_agent_artifacts(state, dry_run=False)
 
-    result = CliRunner().invoke(app, ["agent", "clean"])
-
-    assert result.exit_code == 0
     assert victim.read_text(encoding="utf-8") == "preserve"
     assert list(prompts.iterdir()) == []
     assert isinstance(state.stdout, io.StringIO)
     assert state.stdout.getvalue().count("✓ Cleaned") == 3
-
-    invalid = CliRunner().invoke(app, ["agent", "clean", "unknown"])
-    assert invalid.exit_code == 1
-    assert isinstance(invalid.exception, DotError)
-    assert "unknown target 'unknown'" in str(invalid.exception)
 
 
 def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts(
@@ -912,7 +820,7 @@ def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts
     monkeypatch.setenv("HOME", str(tmp_path))
     state = _state()
 
-    with pytest.raises(DotError, match="unknown session hook agent"):
+    with pytest.raises(DotError, match="unknown session agent"):
         agent_module.ingest_agent_session(state, "unknown", "session-id")
     with pytest.raises(DotError, match="missing session_id"):
         agent_module.ingest_agent_session(state, "copilot")
@@ -933,7 +841,7 @@ def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts
     state.config.agent.sources["claude"] = str(source)
     duplicate = source / "nested/duplicate-id.jsonl"
     _write_jsonl(duplicate, {"type": "user", "message": {"content": "ask"}})
-    existing = SimpleNamespace(lineage_id="lineage", source_fingerprint=agent_module.fingerprint_file(duplicate))
+    existing = SimpleNamespace(lineage_id="lineage", source_fingerprint=fingerprint_file(duplicate))
     monkeypatch.setattr(agent_module, "stored_generation", lambda *_args: existing)
     monkeypatch.setattr(agent_module, "report_ingestion", lambda _result: "agent-session: duplicate")
     state.stdin = io.StringIO()
@@ -950,9 +858,49 @@ def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts
     def fail_usage(*_args, **_kwargs) -> None:
         raise ValueError("usage unavailable")
 
-    monkeypatch.setattr(agent_module, "record_agent_usage", fail_usage)
+    monkeypatch.setattr(agent_module, "write_usage_record", fail_usage)
     agent_module.ingest_agent_session(state, "claude", "ingested-id")
     assert state.stderr.getvalue().endswith("claude: usage not recorded for this session: usage unavailable\n")
+
+
+def test_session_ingestion_writes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    source = tmp_path / "source.jsonl"
+    source.write_text("{}\n", encoding="utf-8")
+    usage = UsageRecord(
+        harness="fixture",
+        agent="fixture",
+        session_id="fixture-id",
+        measurement_kind="provider-reported",
+    ).finalize()
+    adapter = AgentAdapter(
+        "fixture",
+        "Fixture",
+        "",
+        "fixture",
+        False,
+        lambda _path, _session_id, _cwd: ParsedSession([], "a" * 64, "fixture", usage=usage),
+        lambda *_args: pytest.fail("standalone usage parser reread the transcript"),
+    )
+    monkeypatch.setitem(agent_module.AGENT_ADAPTERS, "fixture", adapter)
+    monkeypatch.setattr(agent_module, "_resolved_transcript", lambda *_args: source)
+    monkeypatch.setattr(
+        agent_module,
+        "fingerprint_file",
+        lambda _path: pytest.fail("session ingestion reread the transcript to fingerprint it"),
+        raising=False,
+    )
+    monkeypatch.setattr(agent_module, "stored_generation", lambda *_args: None)
+    monkeypatch.setattr(agent_module, "ingest_session", lambda *_args, **_kwargs: SimpleNamespace(status="ingested"))
+    monkeypatch.setattr(agent_module, "report_ingestion", lambda _result: "agent-session: ingested")
+    written = []
+    monkeypatch.setattr(agent_module, "write_usage_record", written.append)
+    state = _state()
+    state.config.agent.sources["fixture"] = str(tmp_path)
+
+    agent_module.ingest_agent_session(state, "fixture", "fixture-id")
+
+    assert written == [usage]
 
 
 def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
@@ -967,7 +915,7 @@ def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
     state.config.agent.sources["claude"] = str(source_root)
 
     agent_module.ingest_agent_session(state, "claude", session_id)
-    fingerprint = agent_module.fingerprint_file(transcript)
+    fingerprint = fingerprint_file(transcript)
     generation = (
         tmp_path
         / ".agents/sessions/v1/claude"

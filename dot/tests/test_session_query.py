@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 import io
 import json
 import shutil
-import stat
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -16,10 +13,9 @@ from fmind_dot.cli import app
 from fmind_dot.session_query import (
     SESSION_EXPORT_SCHEMA,
     SessionQuery,
-    _read_legacy,
+    compact_session_generations,
     discover_session_generations,
     export_sessions,
-    migrate_legacy_sessions,
     parse_session_date,
     query_session_summaries,
     show_session,
@@ -60,28 +56,76 @@ def _rewrite_manifest(generation: Path, **changes: object) -> None:
     path.chmod(0o600)
 
 
-def _write_legacy(path: Path, records: list[dict[str, object] | bytes]) -> bytes:
-    content = b"".join(
-        record + (b"" if record.endswith(b"\n") else b"\n")
-        if isinstance(record, bytes)
-        else json.dumps(record, separators=(",", ":")).encode() + b"\n"
-        for record in records
+def _ingest_records(agent: str, session_id: str, fingerprint: str, count: int, *, malformed: int = 0) -> Path:
+    result = ingest_session(
+        agent,
+        session_id,
+        [
+            SessionLog(f"2026-09-01T12:00:{index:02d}Z", agent, session_id, "user", f"record-{index}")
+            for index in range(count)
+        ],
+        SessionSource(fingerprint=fingerprint, type="fixture", malformed=malformed),
     )
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path.write_bytes(content)
-    path.chmod(0o600)
-    return content
+    return session_store_root() / agent / result.lineage_id / result.generation_id
 
 
-def _record(agent: str, session_id: str, content: str, *, cwd: str = "/work") -> dict[str, object]:
-    return {
-        "ts": "2026-09-01T12:00:00Z",
-        "agent": agent,
-        "sid": session_id,
-        "role": "user",
-        "content": content,
-        "cwd": cwd,
-    }
+def test_compaction_dry_run_and_apply_retain_best_complete_and_partial_progress(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    stale = _ingest_records("codex", "session-1", "a" * 64, 1)
+    complete = _ingest_records("codex", "session-1", "b" * 64, 2)
+    partial = _ingest_records("codex", "session-1", "c" * 64, 3, malformed=1)
+    output = io.StringIO()
+
+    result = compact_session_generations(output)
+
+    assert result.generations == 3
+    assert result.retained == 2
+    assert result.removed == 0
+    assert result.reclaimable_bytes > 0
+    assert all(path.exists() for path in (stale, complete, partial))
+    assert output.getvalue().count("\n") == 1
+    assert "mode=dry-run" in output.getvalue()
+
+    applied = compact_session_generations(io.StringIO(), apply=True)
+
+    assert applied.removed == 1
+    assert not stale.exists()
+    assert complete.exists()
+    assert partial.exists()
+
+
+def test_compaction_fails_closed_before_deleting_any_generation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    first = _ingest_records("codex", "session-1", "d" * 64, 1)
+    corrupt = _ingest_records("codex", "session-1", "e" * 64, 2)
+    (corrupt / "transcript.jsonl").write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="fingerprint mismatch"):
+        compact_session_generations(io.StringIO(), apply=True)
+
+    assert first.exists()
+    assert corrupt.exists()
+
+
+def test_compaction_preserves_divergent_generations(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    for fingerprint, content in (("f" * 64, "branch-left"), ("0" * 64, "branch-right")):
+        ingest_session(
+            "claude",
+            "shared-id",
+            [SessionLog("2026-09-01T12:00:00Z", "claude", "shared-id", "user", content)],
+            SessionSource(fingerprint=fingerprint, type="fixture"),
+        )
+
+    result = compact_session_generations(io.StringIO(), apply=True)
+
+    assert result.retained == 2
+    assert result.removable == 0
+    assert result.removed == 0
 
 
 def test_parse_session_date_preserves_whole_day_and_rfc3339_contract() -> None:
@@ -142,12 +186,6 @@ def test_query_filters_metadata_and_keeps_lineage_status_global(
 def test_empty_store_and_malformed_time_metadata_fail_closed(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
     assert discover_session_generations(missing) == []
-    migration = io.StringIO()
-    migrate_legacy_sessions(migration, root=missing)
-    assert migration.getvalue() == (
-        "migration: dry-run selected=0 duplicate=0 partial=0 skipped=0 malformed_files=0 legacy_preserved=true\n"
-    )
-
     with pytest.raises(ValueError, match="--since must not be after --until"):
         query_session_summaries(
             SessionQuery(
@@ -170,7 +208,8 @@ def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(
 
     assert [summary.session_id for summary in summaries] == ["selected"]
     assert summaries[0].status == ["current"]
-    assert query_session_summaries(SessionQuery(agent="claude"))[0].status == ["invalid"]
+    assert query_session_summaries(SessionQuery(agent="claude"))[0].status == ["current"]
+    assert query_session_summaries(SessionQuery(agent="claude"), include_content=True)[0].status == ["invalid"]
     assert selected.is_dir()
 
 
@@ -184,12 +223,13 @@ def test_query_surfaces_partial_unsupported_and_invalid_generations(
     summary = query_session_summaries()[0]
 
     assert summary.status == ["partial", "unsupported"]
-    assert summary.cwd == ""
+    assert summary.cwd == "/work"
     assert summary.records == []
 
     _rewrite_manifest(generation, schema_version=SESSION_SCHEMA_VERSION, parser_version=SESSION_PARSER_VERSION)
     (generation / "transcript.jsonl").write_bytes(b"not-json\n")
-    assert query_session_summaries()[0].status == ["invalid", "partial"]
+    assert query_session_summaries()[0].status == ["partial"]
+    assert query_session_summaries(include_content=True)[0].status == ["invalid", "partial"]
 
 
 def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity(
@@ -271,6 +311,44 @@ def test_cli_list_is_text_and_show_is_json_without_default_content(
     assert json.loads(shown_with_content.stdout)["records"][0]["content"] == "cli secret"
 
 
+def test_cli_list_defaults_to_latest_bounded_rows_and_supports_json_status_filters(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    old = _ingest("codex", "shared", fingerprint="a" * 64, cwd="/old")
+    current = _ingest("codex", "shared", fingerprint="b" * 64, cwd="/current")
+    other = _ingest("claude", "other", fingerprint="c" * 64, cwd="/other")
+    _rewrite_manifest(old, ingested_at="2026-09-01T10:00:00Z")
+    _rewrite_manifest(current, ingested_at="2026-09-02T10:00:00Z")
+    _rewrite_manifest(other, ingested_at="2026-09-03T10:00:00Z")
+    runner = CliRunner()
+
+    latest = runner.invoke(app, ["agent", "session", "list", "--json", "--limit", "1"])
+    stale = runner.invoke(
+        app,
+        ["agent", "session", "list", "--json", "--all-generations", "--status", "stale"],
+    )
+
+    assert latest.exit_code == 0
+    assert [row["session_id"] for row in json.loads(latest.stdout)] == ["other"]
+    assert stale.exit_code == 0
+    assert [row["cwd"] for row in json.loads(stale.stdout)] == ["/old"]
+
+
+def test_query_can_select_latest_status_and_limit_without_reading_content(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    old = _ingest("codex", "shared", fingerprint="d" * 64, cwd="/old")
+    current = _ingest("codex", "shared", fingerprint="e" * 64, cwd="/current")
+    _rewrite_manifest(old, ingested_at="2026-09-01T10:00:00Z")
+    _rewrite_manifest(current, ingested_at="2026-09-02T10:00:00Z")
+
+    summaries = query_session_summaries(latest_only=True, statuses={"current"}, limit=1)
+
+    assert [(item.cwd, item.status) for item in summaries] == [("/current", ["current"])]
+
+
 def test_discovery_rejects_broken_links_public_entries_and_unreadable_directories(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -323,153 +401,3 @@ def test_time_filter_excludes_non_rfc3339_manifest_timestamp(monkeypatch: pytest
     # A value can match the RFC3339 shape while still naming an impossible day.
     _rewrite_manifest(generation, ingested_at="2026-02-30T12:00:00Z")
     assert query_session_summaries(SessionQuery(since=datetime(2026, 2, 1, tzinfo=UTC))) == []
-
-
-def test_migrate_dry_run_and_apply_selects_best_without_removing_legacy(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = tmp_path / ".agents" / "sessions"
-    legacy = root / "2026-07-31"
-    session_id = "migration-session"
-    short_path = legacy / f"090000_codex_{session_id}.jsonl"
-    long_path = legacy / f"100000_codex_{session_id}.jsonl"
-    short_content = _write_legacy(short_path, [_record("codex", session_id, "one")])
-    long_content = _write_legacy(
-        long_path,
-        [_record("codex", session_id, "one"), _record("codex", session_id, "two")],
-    )
-    _write_legacy(legacy / "unrecognized.jsonl", [b"evidence"])
-    root.chmod(0o700)
-
-    dry_run = io.StringIO()
-    migrate_legacy_sessions(dry_run, root=root)
-
-    assert session_id not in dry_run.getvalue()
-    assert (
-        "dry-run selected=1 duplicate=1 partial=0 skipped=0 malformed_files=1 legacy_preserved=true"
-        in dry_run.getvalue()
-    )
-    assert not (root / "v1").exists()
-
-    applied = io.StringIO()
-    migrate_legacy_sessions(applied, apply=True, root=root)
-    summary = show_session(SessionQuery(identity=session_id), include_content=True)
-    assert summary.record_count == 2
-    assert [record.content for record in summary.records] == ["one", "two"]
-    assert short_path.read_bytes() == short_content
-    assert long_path.read_bytes() == long_content
-    assert "legacy_preserved=true" in applied.getvalue()
-    assert not list((root / "v1").rglob(".ingest-*"))
-    for path in (root / "v1").rglob("*"):
-        expected = 0o700 if path.is_dir() else 0o600
-        assert stat.S_IMODE(path.stat().st_mode) == expected
-
-
-def test_migrate_counts_partial_skipped_and_malformed_legacy_evidence(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = tmp_path / ".agents" / "sessions"
-    legacy = root / "2026-08-01"
-    # Missing legacy fields decode to their Go zero values; invalid UTF-8 stays
-    # malformed evidence instead of aborting the rest of the archive.
-    _write_legacy(
-        legacy / "100000_codex_partial.jsonl",
-        [{"agent": "codex", "sid": "partial"}, b"\xff", _record("codex", "partial", "valid")],
-    )
-    _write_legacy(legacy / "110000_claude_empty.jsonl", [b"not-json"])
-    _write_legacy(legacy / "bad-name.jsonl", [b"evidence"])
-    root.chmod(0o700)
-
-    output = io.StringIO()
-    migrate_legacy_sessions(output, apply=True, root=root)
-
-    assert (
-        "apply selected=2 duplicate=0 partial=2 skipped=1 malformed_files=1 legacy_preserved=true" in output.getvalue()
-    )
-    summary = show_session(SessionQuery(identity="partial"), include_content=True)
-    assert summary.record_count == 2
-    assert summary.malformed_records == 1
-    assert summary.status == ["partial"]
-    assert summary.records[0].role == ""
-    assert query_session_summaries(SessionQuery(identity="empty")) == []
-
-
-@pytest.mark.parametrize("unsafe", ["symlink", "public"])
-def test_migrate_rejects_unsafe_legacy_files(unsafe: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = tmp_path / ".agents" / "sessions"
-    legacy = root / "2026-08-02"
-    outside = tmp_path / "outside.jsonl"
-    _write_legacy(outside, [_record("codex", "unsafe", "secret")])
-    candidate = legacy / "100000_codex_unsafe.jsonl"
-    candidate.parent.mkdir(mode=0o700, parents=True)
-    root.chmod(0o700)
-    if unsafe == "symlink":
-        candidate.symlink_to(outside)
-        match = "symbolic link"
-    else:
-        shutil.copyfile(outside, candidate)
-        candidate.chmod(0o644)
-        match = "not owner-only"
-
-    with pytest.raises(ValueError, match=match):
-        migrate_legacy_sessions(io.StringIO(), apply=True, root=root)
-
-    assert not (root / "v1").exists()
-
-
-def test_migrate_scan_failure_keeps_path_context(tmp_path: Path) -> None:
-    root = tmp_path / "sessions"
-    blocked = root / "blocked"
-    blocked.mkdir(mode=0o700, parents=True)
-    root.chmod(0o700)
-    blocked.chmod(0)
-    try:
-        with pytest.raises(OSError, match=r"failed to scan legacy session archive .*Permission denied"):
-            migrate_legacy_sessions(io.StringIO(), root=root)
-    finally:
-        blocked.chmod(0o700)
-
-
-def test_legacy_fingerprint_matches_consumed_bytes_when_source_is_replaced(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    source = tmp_path / "legacy.jsonl"
-    original = _write_legacy(source, [_record("codex", "snapshot", "original")])
-    replacement = tmp_path / "replacement.jsonl"
-    _write_legacy(replacement, [_record("codex", "snapshot", "replacement with different size")])
-    parse = SessionLog.from_dict
-
-    def replace_after_parsing(value: dict[str, Any]) -> SessionLog:
-        log = parse(value)
-        replacement.replace(source)
-        return log
-
-    monkeypatch.setattr(SessionLog, "from_dict", staticmethod(replace_after_parsing))
-    candidate = _read_legacy(source, "codex", "snapshot")
-
-    assert candidate.logs[0].content == "original"
-    assert candidate.fingerprint == hashlib.sha256(original).hexdigest()
-    assert candidate.size == len(original)
-
-
-def test_migrate_apply_failure_names_the_lineage_and_preserves_source(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = tmp_path / ".agents" / "sessions"
-    source = root / "2026-08-03" / "100000_codex_conflict.jsonl"
-    legacy_content = _write_legacy(source, [_record("codex", "conflict", "evidence")])
-    root.chmod(0o700)
-    migrate_legacy_sessions(io.StringIO(), apply=True, root=root)
-    summary = show_session(SessionQuery(identity="conflict"))
-    transcript = root / "v1" / "codex" / summary.lineage_id / summary.generation_id / "transcript.jsonl"
-    transcript.write_bytes(b"corrupt\n")
-    transcript.chmod(0o600)
-
-    with pytest.raises(ValueError, match=rf"failed to migrate lineage {summary.lineage_id[:12]}:"):
-        migrate_legacy_sessions(io.StringIO(), apply=True, root=root)
-
-    assert source.read_bytes() == legacy_content

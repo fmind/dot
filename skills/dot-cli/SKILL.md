@@ -6,51 +6,49 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Dot CLI
 
-`dot` is the unified typed Python CLI of `fmind/dot`, installed at `~/.local/bin/dot`. Every command has a one-letter alias (`pull-request` also answers to `pr`); `dot <command> --help` gives the exact flags.
+`dot` is the typed Python CLI of `fmind/dot`, installed at `~/.local/bin/dot`. Use `dot <command> --help` for exact flags. `pull-request` also accepts the established `pr` alias; other commands use canonical names only.
 
 ## Commands
 
-| Command            | Alias     | Purpose                                                                                                                                                                |
-| ------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dot agent`        | `a`       | Agent integrations: `clean` (`c`), `doctor` (`d`), `hook` (`h`), `session` (`s`), `usage` (`u`)                                                                        |
-| `dot chezmoi`      | `m`       | `clean` (`c`) finds `$HOME` orphans once managed by chezmoi and moves them to timestamped recoverable backups (`--yes`, `--interactive`)                               |
-| `dot commit`       | `c`       | AI Conventional Commit from the staged diff; runs `git add -A` first when nothing is staged (`--type`, `--scope`)                                                      |
-| `dot completion`   | `g`       | Generate fish completions for `dot` and external CLIs                                                                                                                  |
-| `dot config`       | `f`       | `~/.config/dot.yaml`: `show` (`s`), `path` (`p`), `init` (`i`), `edit` (`e`), `validate` (`v`)                                                                         |
-| `dot context`      | `t`       | Bounded, redacted project context pack (`--bytes`, `--tokens`, `--format json`)                                                                                        |
-| `dot help`         | `h`       | Show help for `dot` or one nested command path                                                                                                                         |
-| `dot login`        | `l`       | OAuth login wrappers: `github` (`g`), `workspace` (`w`), `gcp` (`c`)                                                                                                   |
-| `dot notify`       | `n`       | Desktop notification: `dot notify <agent> <event>` for hooks, `dot notify <summary> [headline] [details...]` for alerts                                                |
-| `dot prune`        | `x`       | Reclaim disk space from agent session logs and caches; flags and safety flow in [references/prune-flags.md](references/prune-flags.md); preview before running it live |
-| `dot pull`         | `p`       | Concurrently pull the repositories listed in `~/.config/dot.yaml` (`--push` also pushes clean repos)                                                                   |
-| `dot pull-request` | `pr`, `b` | AI PR description then `gh pr create` (`--base`, `--title`, `--draft`, `--label`, `--reviewer`, `--assignee`)                                                          |
-| `dot release`      | `r`       | Prepare, tag, and push a dot release (`--yes`); see `.agents/skills/dot-release` inside the dot repository                                                             |
-| `dot setup`        | `u`       | `workspace` (`w`) enables GCP APIs on a project and links it to `gws`: `dot setup workspace [PROJECT_ID]`                                                              |
-| `dot status`       | `s`       | Unified Git repository and Docker status summary (`--json`)                                                                                                            |
-| `dot verify`       | `v`       | Sanity checks on environment, tools, secrets, and install freshness (`--json`, `--fix`)                                                                                |
-| `dot version`      | `i`       | Print the installed Python package version                                                                                                                             |
+| Command            | Purpose                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `dot agent`        | Inspect integrations and manage normalized sessions and token usage.                                                   |
+| `dot chezmoi`      | Find former chezmoi targets and move approved orphans to recoverable backups.                                          |
+| `dot commit`       | Generate a Conventional Commit message from an existing staged diff; `--all` explicitly stages the working tree first. |
+| `dot completion`   | Generate Fish completions for `dot` and configured external CLIs.                                                      |
+| `dot config`       | Show, locate, initialize, edit, or validate `~/.config/dot.yaml`.                                                      |
+| `dot login`        | Run GitHub, Google Workspace, or GCP authentication flows.                                                             |
+| `dot prune`        | Preview or apply cleanup for agent data and caches; see [references/prune-flags.md](references/prune-flags.md).        |
+| `dot pull`         | Pull configured repository roots concurrently; `--push` also pushes clean repositories.                                |
+| `dot pull-request` | Generate a PR description and create it with `gh`; `pr` is an alias.                                                   |
+| `dot release`      | Validate, prepare, tag, push, and refresh an `fmind/dot` release.                                                      |
+| `dot setup`        | Configure the Google Workspace GCP project used by `gws`.                                                              |
+| `dot status`       | Report Git repository and Docker status, with optional JSON.                                                           |
+| `dot verify`       | Check environment, auth, tools, secrets, and install freshness; `--fix` repairs bounded local state.                   |
 
-Global flags: `--config/-c <path>` (or `DOT_CONFIG_PATH`) and `--verbose` (or `DOT_VERBOSE`).
+Global flags are `--config/-c <path>`, `--verbose`, and `--version/-v`.
 
 ## Workflow
 
-1. **Health**: `dot verify`, then `dot agent doctor` for persona, hooks, skills, and session-store health; `dot verify --fix` repairs secret-file permissions, while `dot agent doctor --fix` reapplies managed agent integration targets with chezmoi.
-1. **Sessions**: `dot agent session sync` ingests transcripts from each verified source into `~/.agents/sessions/v1/`; `list`, `show`, and `export` read the store.
-1. **Legacy sessions**: `dot agent session migrate` dry-runs the selection of the most complete transcript per lineage; `--apply` writes it.
-1. **Disk**: `dot prune --dry-run --all --deep` to preview every selected target, inspect the candidate paths, then rerun the same selection without `--dry-run`; every target and depth is in [references/prune-flags.md](references/prune-flags.md), and long-term agent memory (`memory/`, `MEMORY.md`) is never pruned.
-1. **Reinstall after source edits**: inside the dot repository, `mise run deploy` builds the Python package and reinstalls it at `~/.local/bin/dot` with uv.
+1. **Health**: run `dot verify`, then the fast metadata check `dot agent doctor`; use `--json` for automation and `--deep` for source hashing and full archive validation.
+1. **Sessions**: run `dot agent session sync`, or ingest one adapter with `dot agent session ingest AGENT [SESSION_ID] [CWD]`.
+1. **Inspect**: `dot agent session list` returns the newest 50 current generations by default; widen it with `--limit`, `--all-generations`, repeated `--status`, or `--json`.
+1. **Compact**: `dot agent session compact` dry-runs prefix-proven generation retention; `--apply` deletes only verified superseded generations.
+1. **Disk**: preview selected cleanup with `dot prune --all --deep`; use the same selection with `--apply` only after reviewing the plan.
+1. **Reinstall after source edits**: inside the dot repository, run `mise run deploy` to rebuild and install `~/.local/bin/dot`.
 
 ## Gotchas
 
-- **Stale install**: when `dot agent doctor` reports `command-unavailable`, run `mise run deploy` inside the dot repository to sync the installed Python CLI with the deployed hooks.
-- **`dot commit` stages everything**: with nothing staged it runs `git add -A` before generating the message; stage selectively first when the tree holds unrelated changes.
+- **Commit scope**: `dot commit` requires staged changes and prints their paths before opening the editor. Use `--all` only when every working-tree change belongs in the commit.
+- **Deep doctor**: source hashing and full archive reconciliation can take time; progress is written to stderr.
+- **Compaction**: invalid identities, permissions, links, unexpected files, or transcript digests stop planning before deletion; unknown schemas are retained.
 
 ## Documentation
 
-- [fmind/dot](https://github.com/fmind/dot) — source, README, and the repository-scoped skills (`.agents/skills/dot-release`, `.agents/skills/chezmoi`).
-- Companion skills: [agent-usage](../agent-usage/SKILL.md) (token accounting behind `dot agent usage`), [mise](../mise/SKILL.md) (`mise run deploy`).
+- [fmind/dot](https://github.com/fmind/dot) — source, README, and repository-specific skills.
+- Companion skills: [agent-usage](../agent-usage/SKILL.md) and [mise](../mise/SKILL.md).

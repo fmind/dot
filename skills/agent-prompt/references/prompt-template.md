@@ -1,6 +1,6 @@
 # Agent Prompt Template
 
-Output shape for [agent-prompt](SKILL.md). Use only sections with useful content; fresh tasks normally have no current-state or failed-approach history.
+Output shape for [agent-prompt](../SKILL.md). Use only sections with useful content; fresh tasks normally have no current-state or failed-approach history.
 
 - **Objective**: the outcome in one or two sentences, stated as the goal, not the history.
 - **Context**: the repository, branch, relevant paths, and the shape of the surrounding code the work touches.

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-loop
   created: "2026-08-09"
-  updated: "2026-09-06"
+  updated: "2026-09-07"
 ---
 
 # Product Loop
@@ -38,4 +38,4 @@ Move a product bet through discovery, specification, launch, and learning. Enter
 ## Documentation
 
 - [Source methods](references/sources.md)
-- Companion skills: [technical-research](../technical-research/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [project-backlog](../project-backlog/SKILL.md).
+- Companion skills: [technical-research](../technical-research/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [github-issues](../github-issues/SKILL.md).

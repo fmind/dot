@@ -6,27 +6,29 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-06"
+  updated: "2026-09-07"
 ---
 
 # Resolve Conflicts
 
-Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Never `--abort` to make the problem disappear, and never "take ours" unless history shows the other change is obsolete. Branch naming lives in [feature-branch](../feature-branch/SKILL.md); committing and pushing in [git-add-commit-push](../git-add-commit-push/SKILL.md).
+Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Do not abort merely to hide a conflict; abort and report when the operation itself targets the wrong base or cannot safely continue. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [feature-branch](../feature-branch/SKILL.md); committing and pushing in [git-add-commit-push](../git-add-commit-push/SKILL.md).
 
 ## Workflow
 
-1. **Map the state**: which operation stopped, which files conflict, and which commits touch them.
+1. **Map the state**: identify which operation stopped, the current and incoming commits, and every conflicted file before editing.
    ```bash
    git status --short                    # UU both modified; AU, UA, DU, UD: added or deleted on one side
    git diff --name-only --diff-filter=U
-   git log --merge --oneline -- <file>   # commits from both heads that touch the file
+   git rev-parse -q --verify MERGE_HEAD  # merge only
+   git rev-parse -q --verify REBASE_HEAD # rebase only
    ```
-1. **Read both intents**: for each file, compare the working tree with the three stages and read the history behind each side (commit messages, linked pull requests and issues) before touching a hunk.
+1. **Read both intents**: inspect the three index stages and operation-specific history before touching a hunk. During a rebase, `ours` is the branch being rebased onto and `theirs` is the commit being replayed.
    ```bash
-   git diff --base <file>     # against the common ancestor
-   git diff --ours <file>     # against our side (rebase: the branch being rebased onto)
-   git diff --theirs <file>   # against their side (rebase: the commit being replayed)
-   git log -p $(git merge-base HEAD MERGE_HEAD)..MERGE_HEAD -- <file>   # rebase: REBASE_HEAD
+   git show :1:<file>                    # common ancestor
+   git show :2:<file>                    # ours; rebase target during a rebase
+   git show :3:<file>                    # theirs; replayed commit during a rebase
+   git log --merge --oneline -- <file>   # merge: commits from both heads touching the file
+   git show REBASE_HEAD -- <file>        # rebase: the commit currently being replayed
    ```
 1. **Resolve semantically**: write the code that satisfies both intents (renamed function plus new caller, both new tests, merged config keys). When intents are incompatible, keep the one matching the merge's goal and record the trade-off in the commit body. Do not invent new behavior, and remove every `<<<<<<<`, `=======`, `>>>>>>>` marker.
 1. **Continue**: stage the resolved files and resume; repeat per commit during a rebase.
@@ -40,7 +42,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 ## Gotchas
 
 - **Show the ancestor**: `git config merge.conflictStyle zdiff3` puts the base version inside the markers so both sides' edits are visible.
-- **Lockfiles and generated code**: never hand-merge `uv.lock` or generated files; take one side, run `uv lock`, then invoke the generator that owns each derived file.
+- **Lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
 - **Deleted on one side**: `DU` or `UD` means one side removed the file; find out why before restoring it.
 - **Rebase repeats**: the same hunk can conflict on several commits; `git config rerere.enabled true` replays a recorded resolution.
 - **Stop when unsure**: if intent cannot be recovered from history, ask the author instead of guessing.

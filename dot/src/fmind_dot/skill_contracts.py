@@ -378,8 +378,7 @@ def _link_findings(root: Path, directory: Path) -> list[str]:
                 # Template links become relative to the generated project after copying.
                 continue
             local = unquote(target.split("#", 1)[0].split("?", 1)[0])
-            candidates = [(document.parent / local).resolve(), (directory / local).resolve()]
-            resolved = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+            resolved = (document.parent / local).resolve()
             if not resolved.is_relative_to(resolved_root):
                 findings.append(f"{_relative(root, document)}: local link {target!r} escapes the repository")
             elif not resolved.exists():

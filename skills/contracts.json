@@ -24,7 +24,6 @@
       "skills",
       "uv"
     ],
-    "agents-md": [],
     "antigravity-sdk": [
       "gcloud",
       "skills",
@@ -88,6 +87,10 @@
     "duckdb": [
       "duckdb",
       "sqlite3"
+    ],
+    "django": [
+      "mise",
+      "uv"
     ],
     "fastapi": [
       "skills"
@@ -190,9 +193,6 @@
     "observability": [
       "gcloud"
     ],
-    "plan-execution": [
-      "mise"
-    ],
     "plan-review": [],
     "playwright": [
       "playwright"
@@ -201,10 +201,6 @@
     "product-loop": [],
     "production-readiness": [
       "mise"
-    ],
-    "project-backlog": [
-      "gh",
-      "git"
     ],
     "project-health": [
       "mise"
@@ -227,12 +223,15 @@
     "quality-assurance": [
       "mise"
     ],
-    "readme-md": [],
     "release": [
       "gh",
       "git",
       "git-cliff",
       "mise"
+    ],
+    "repository-docs": [
+      "dprint",
+      "lychee"
     ],
     "repository-history": [
       "gh",
@@ -293,10 +292,6 @@
     "typer": [
       "skills",
       "uv"
-    ],
-    "update-docs": [
-      "dprint",
-      "lychee"
     ],
     "upgrade-tools": [
       "mise"

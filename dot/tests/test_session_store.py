@@ -86,6 +86,11 @@ def test_v1_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPat
     result = ingest_session("codex", "session-1", logs, source)
     assert result.status == "ingested"
     assert result.manifest is not None
+    assert result.manifest.cwd == "/work"
+    assert result.manifest.to_dict()["cwd"] == "/work"
+    legacy = result.manifest.to_dict()
+    del legacy["cwd"]
+    assert SessionManifest.from_dict(legacy).cwd == ""
     generation = session_store_root() / "codex" / result.lineage_id / result.generation_id
     assert validate_session_generation(generation, result.manifest) == logs
     assert stat.S_IMODE(generation.stat().st_mode) == 0o700
