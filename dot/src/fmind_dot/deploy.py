@@ -231,7 +231,7 @@ def _install_locked(
             cwd=source,
             environment=environment,
         )
-        _run([str(destination / "bin" / "dot"), "version"], cwd=source, environment=environment)
+        _run([str(destination / "bin" / "dot"), "--version"], cwd=source, environment=environment)
         ready = True
 
         temporary_link = install_root / f".current-{uuid.uuid4().hex}"

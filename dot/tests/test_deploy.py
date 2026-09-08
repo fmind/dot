@@ -105,6 +105,7 @@ def test_install_uses_explicit_uv_path_and_disables_dependency_source_builds(tmp
     assert {"--no-cache", "--no-config", "--no-python-downloads", "--no-sources", "--offline"} <= set(build)
     sync = next(command for command in uv_calls if command[1:3] == ["pip", "sync"])
     assert sync[sync.index("--only-binary") + 1] == ":all:"
+    assert [str(install_root / "venv-a/bin/dot"), "--version"] in calls
 
 
 def test_install_uses_hashed_sync_and_flips_between_two_runtime_slots(tmp_path: pathlib.Path) -> None:
