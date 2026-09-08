@@ -313,10 +313,6 @@ def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
     return decoded
 
 
-def _hook_payload(state: State) -> Mapping[str, Any]:
-    return read_hook_payload(state.stdin) or {}
-
-
 def send_notification(state: State, notification: Notification) -> None:
     host = platform.system().lower()
     if host not in {"darwin", "linux"} or (host == "linux" and not os.environ.get("DBUS_SESSION_BUS_ADDRESS")):
@@ -326,29 +322,6 @@ def send_notification(state: State, notification: Notification) -> None:
         state.runner.run(command, timeout=10)
     except (DotError, OSError) as error:
         raise DotError(f"failed to send desktop notification with {command[0]}") from error
-
-
-def run_notify(state: State, args: list[str]) -> None:
-    if not args:
-        raise DotError("agent name or notification summary is required")
-    if len(args) >= 2 and (args[0] in _NOTIFY_AGENTS or args[1] in _NOTIFY_EVENTS):
-        payload = _hook_payload(state)
-        if payload.get("stop_hook_active") is True or payload.get("stopHookActive") is True:
-            return
-        if args[0] in {"agy", "antigravity"} and payload.get("fullyIdle") is not True:
-            return
-        raw_cwd = payload.get("cwd")
-        if not raw_cwd:
-            workspaces = payload.get("workspacePaths", [])
-            if isinstance(workspaces, list):
-                raw_cwd = next((item for item in workspaces if isinstance(item, str) and item), "")
-        cwd = Path(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd else None
-        send_notification(state, build_notification(args[0], args[1], cwd, Path.home()))
-        return
-    send_notification(
-        state,
-        Notification(args[0], args[1] if len(args) > 1 else "", tuple(args[2:])),
-    )
 
 
 def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
@@ -830,37 +803,30 @@ def register(app: typer.Typer) -> None:
         context_settings=_CONTEXT_SETTINGS,
     )
 
-    @aliased_command(login_app, "github", "g", help_text="Interactive OAuth login via gh")
+    @aliased_command(login_app, "github", help_text="Interactive OAuth login via gh")
     def login_github(context: typer.Context) -> None:
         run_login_github(state_from(context))
 
-    @aliased_command(login_app, "workspace", "w", help_text="Interactive OAuth login via gws")
+    @aliased_command(login_app, "workspace", help_text="Interactive OAuth login via gws")
     def login_workspace(context: typer.Context) -> None:
         run_login_workspace(state_from(context))
 
-    @aliased_command(login_app, "gcp", "c", help_text="Authenticate gcloud and ADC")
+    @aliased_command(login_app, "gcp", help_text="Authenticate gcloud and ADC")
     def login_gcp(context: typer.Context) -> None:
         run_login_gcp(state_from(context))
 
-    @aliased_command(setup_app, "workspace", "w", help_text="Configure Workspace APIs for a GCP project")
+    @aliased_command(setup_app, "workspace", help_text="Configure Workspace APIs for a GCP project")
     def setup_workspace(
         context: typer.Context,
         project_id: Annotated[str, typer.Argument(help="GCP project ID")] = "",
     ) -> None:
         run_setup_workspace(state_from(context), project_id)
 
-    @aliased_command(app, "completion", "g", help_text="Generate Fish completions for installed CLI tools")
+    @aliased_command(app, "completion", help_text="Generate Fish completions for installed CLI tools")
     def completion(context: typer.Context) -> None:
         run_completion(state_from(context))
 
-    @aliased_command(app, "notify", "n", help_text="Send an OS-independent desktop notification")
-    def notify(
-        context: typer.Context,
-        args: Annotated[list[str] | None, typer.Argument(help="Agent/event or notification fields")] = None,
-    ) -> None:
-        run_notify(state_from(context), args or [])
-
-    @aliased_command(app, "verify", "v", help_text="Run environment, authentication, service, and tool checks")
+    @aliased_command(app, "verify", help_text="Run environment, authentication, service, and tool checks")
     def verify(
         context: typer.Context,
         json_output: Annotated[bool, typer.Option("--json", "-j")] = False,
@@ -877,5 +843,5 @@ def register(app: typer.Typer) -> None:
         if not results["passed"]:
             raise typer.Exit(1)
 
-    add_group(app, login_app, "login", "l")
-    add_group(app, setup_app, "setup", "u")
+    add_group(app, login_app, "login")
+    add_group(app, setup_app, "setup")

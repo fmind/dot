@@ -246,7 +246,7 @@ def test_commit_restores_initially_clean_index_when_secret_scan_cannot_run() -> 
     )
 
     with pytest.raises(DotError, match="gitleaks"):
-        run_commit(state_with(runner))
+        run_commit(state_with(runner), all_changes=True)
 
     assert runner.calls[-1][0] == ("git", "reset", "--mixed")
 
@@ -272,13 +272,14 @@ def test_commit_restores_auto_staged_index_when_editor_is_interrupted() -> None:
             ): [result(diff)],
             ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result()],
             ("/tools/agy", "--sandbox", "--prompt", prompt): [result("fix: message")],
+            ("git", "diff", "--cached", "--name-only", "-z", "--", ":/"): [result("a.py\0")],
             ("git", "reset", "--mixed"): [result()],
         },
         {"git", "gitleaks", "agy"},
     )
 
     with pytest.raises(KeyboardInterrupt):
-        run_commit(state_with(runner))
+        run_commit(state_with(runner), all_changes=True)
 
     assert runner.calls[-1][0] == ("git", "reset", "--mixed")
 
@@ -641,6 +642,22 @@ def test_commit_no_changes_is_a_clean_noop() -> None:
     assert runner.interactive_calls == []
 
 
+def test_commit_requires_an_explicit_all_option_to_stage_the_worktree() -> None:
+    runner = RecordingRunner(
+        {
+            ("git", "rev-parse", "--show-toplevel"): [result("/repo\n")],
+            ("git", "diff", "--cached", "--", ":/"): [result()],
+            ("git", "status", "--porcelain"): [result(" M a.py\n")],
+        },
+        {"git"},
+    )
+
+    with pytest.raises(DotError, match="no staged changes; stage the intended files or use --all"):
+        run_commit(state_with(runner))
+
+    assert not any(call[0][1:3] == ("add", "-A") for call in runner.calls)
+
+
 def test_commit_scans_packed_staged_diff_and_forwards_prompt_hints() -> None:
     diff = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-a\n+b\n"
     commit_config = Config().commit
@@ -650,6 +667,7 @@ def test_commit_scans_packed_staged_diff_and_forwards_prompt_hints() -> None:
         {
             ("git", "rev-parse", "--show-toplevel"): [result("/repo\n")],
             ("git", "diff", "--cached", "--", ":/"): [result(diff)],
+            ("git", "diff", "--cached", "--name-only", "-z", "--", ":/"): [result("a.py\0")],
             (
                 "git",
                 "diff",
@@ -665,10 +683,13 @@ def test_commit_scans_packed_staged_diff_and_forwards_prompt_hints() -> None:
         {"git", "gitleaks", "agy"},
     )
 
-    message = run_commit(state_with(runner), "fix", "cli")
+    state = state_with(runner)
+    message = run_commit(state, "fix", "cli")
 
     assert message == "fix(cli): explain failure"
     assert runner.interactive_calls == [("git", "commit", "-e", "-m", message)]
+    assert isinstance(state.stdout, io.StringIO)
+    assert "Staged files (1):\n  a.py\n" in state.stdout.getvalue()
     scanned = next(call[2] for call in runner.calls if call[0][0] == "/tools/gitleaks")
     generated = next(call[2] for call in runner.calls if call[0][0] == "/tools/agy")
     assert scanned == generated
@@ -724,7 +745,7 @@ def test_commit_surfaces_failure_to_restore_auto_staged_index() -> None:
     )
 
     with pytest.raises(DotError, match="failed to restore initially clean index"):
-        run_commit(state_with(runner))
+        run_commit(state_with(runner), all_changes=True)
 
 
 def test_pull_request_no_changes_is_a_clean_noop() -> None:

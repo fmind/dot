@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/secure
   created: "2026-07-04"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Secure a Python Repository
@@ -34,7 +34,7 @@ Run one ordered gate for a uv-managed Python project. The linked tool skills own
 - List findings by severity, affected revision or digest, and the applied fix or narrow justified ignore.
 - State the proof boundary for every command: working tree, history range, lockfile, image digest, IaC tree, workflow set, signature identity, and issuer.
 - Report missing tools, databases, lockfiles, inaccessible registries, malformed output, and skipped targets as coverage gaps.
-- Never describe a suppression as a fix or one scanner as proof for another control.
+- A successful scan does not mean zero residual risk. Never describe a suppression as a fix or one scanner as proof for another control.
 
 ## Documentation
 

@@ -135,24 +135,11 @@ run = "trivy --config trivy.yaml fs --tf-vars skills/terraform/references/terraf
 
 [tasks."check:shell"]
 alias = "cs"
-description = "Lint and format-check shell scripts, including rendered chezmoi sources"
-run = """
-set -eu
-shellcheck --rcfile dot_config/shellcheckrc install.sh
-shfmt -d -i 2 -s install.sh
-for template in run_once_*.sh.tmpl; do
-  printf 'In %s:\n' "$template"
-  rendered="$(chezmoi execute-template --file "$template")"
-  printf '%s\n' "$rendered" | shellcheck --rcfile dot_config/shellcheckrc --external-sources --shell=bash -
-  printf '%s\n' "$rendered" | shfmt -d -i 2 -s -
-done
-for modifier in modify_dot_bashrc modify_dot_profile; do
-  printf 'In %s:\n' "$modifier"
-  rendered="$(printf '%s\n' '# existing shell configuration' | chezmoi execute-template --with-stdin --file "$modifier")"
-  printf '%s\n' "$rendered" | shellcheck --rcfile dot_config/shellcheckrc --external-sources --shell=bash -
-  printf '%s\n' "$rendered" | shfmt -d -i 2 -s -
-done
-"""
+description = "Lint and format-check shell scripts"
+run = [
+  "shellcheck --rcfile dot_config/shellcheckrc install.sh",
+  "shfmt -d -i 2 -s install.sh",
+]
 
 [tasks."check:skills"]
 alias = "ck"

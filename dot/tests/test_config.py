@@ -18,6 +18,9 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
     assert not hasattr(config.prune, "node")
     assert "hermes" not in config.verify.tools
     assert "go" not in config.verify.tools
+    assert not hasattr(config, "context")
+    assert not hasattr(config.release, "workflow")
+    assert not hasattr(config.completions, "concurrency")
 
 
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:
@@ -47,10 +50,8 @@ def test_retention_rejects_coerced_boolean_and_string_values(tmp_path: Path, val
 @pytest.mark.parametrize(
     ("document", "field"),
     [
-        ("completions:\n  concurrency: VALUE\n", "concurrency"),
         ("pull:\n  concurrency: VALUE\n", "concurrency"),
         ("verify:\n  probe_concurrency: VALUE\n", "probe_concurrency"),
-        ("context:\n  max_bytes: VALUE\n", "max_bytes"),
         ("commit:\n  max_diff_size: VALUE\n", "max_diff_size"),
         ("agent:\n  doctor:\n    scan_limit: VALUE\n", "scan_limit"),
         ("verify:\n  secrets:\n    - path: ~/.config/key\n      required_perms: VALUE\n", "required_perms"),
@@ -79,6 +80,22 @@ def test_config_overlay_replaces_lists_and_merges_maps(tmp_path: Path) -> None:
     assert config.verify.tools == ["python"]
     assert "uv" in config.completions.custom_commands
     assert config.completions.custom_commands["custom"].args == ["completion", "fish"]
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "context:\n  max_bytes: 1000\n",
+        "release:\n  workflow: cd.yml\n",
+        "completions:\n  concurrency: 4\n",
+    ],
+)
+def test_removed_configuration_fields_are_rejected(tmp_path: Path, document: str) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text(document, encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        load_config(path)
 
 
 def test_legacy_path_only_session_stores_load_and_preserve_source_inference(tmp_path: Path) -> None:

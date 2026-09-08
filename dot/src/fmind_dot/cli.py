@@ -13,7 +13,6 @@ from typing import Annotated
 
 import typer
 from typer import _click
-from typer.core import TyperGroup
 
 from fmind_dot import __version__
 from fmind_dot.commands import AliasedGroup, add_group, aliased_command, state_from
@@ -68,26 +67,26 @@ def root(
     context.obj = state
     # Only config repair commands may bypass a missing or malformed file. Eager
     # validation keeps a --config typo from mutating state with built-in defaults.
-    if context.invoked_subcommand not in {None, "config", "f"}:
+    if context.invoked_subcommand not in {None, "config"}:
         _ = state.config
     if context.invoked_subcommand is None:
         typer.echo(context.get_help())
 
 
 @aliased_command(
-    config_app, "show", "s", help_text="Print the effective configuration (defaults merged with the file) as YAML"
+    config_app, "show", help_text="Print the effective configuration (defaults merged with the file) as YAML"
 )
 def config_show(context: typer.Context) -> None:
     typer.echo(dump_config(state_from(context).config), nl=False)
 
 
-@aliased_command(config_app, "path", "p", help_text="Print the resolved configuration file path")
+@aliased_command(config_app, "path", help_text="Print the resolved configuration file path")
 def config_path(context: typer.Context) -> None:
     typer.echo(state_from(context).config_path)
 
 
 @aliased_command(
-    config_app, "init", "i", help_text="Write a starter configuration file populated with the built-in defaults"
+    config_app, "init", help_text="Write a starter configuration file populated with the built-in defaults"
 )
 def config_init(
     context: typer.Context,
@@ -109,9 +108,7 @@ def config_init(
     typer.echo(f"✓ Wrote default configuration to {path}")
 
 
-@aliased_command(
-    config_app, "edit", "e", help_text="Open the configuration file in $EDITOR (scaffolds it first if missing)"
-)
+@aliased_command(config_app, "edit", help_text="Open the configuration file in $EDITOR (scaffolds it first if missing)")
 def config_edit(context: typer.Context) -> None:
     state = state_from(context)
     if not state.config_path.exists():
@@ -127,7 +124,7 @@ def config_edit(context: typer.Context) -> None:
 
 
 @aliased_command(
-    config_app, "validate", "v", help_text="Validate that the configuration file parses (strict, unknown keys rejected)"
+    config_app, "validate", help_text="Validate that the configuration file parses (strict, unknown keys rejected)"
 )
 def config_validate(context: typer.Context) -> None:
     state = state_from(context)
@@ -138,46 +135,17 @@ def config_validate(context: typer.Context) -> None:
     typer.echo(f"✓ Configuration at {state.config_path} is valid.")
 
 
-@aliased_command(app, "version", "i", help_text="Print the installed package version")
-def version_command() -> None:
-    typer.echo(f"dot version {__version__}")
-
-
-def _resolve_help(context: typer.Context, path: list[str]) -> str:
-    current = context.find_root()
-    command = current.command
-    for name in path:
-        if not isinstance(command, TyperGroup):
-            raise _click.exceptions.UsageError(f"No help topic for {name!r}", current)
-        child = command.get_command(current, name)
-        if child is None:
-            raise _click.exceptions.UsageError(f"No help topic for {name!r}", current)
-        current = child.make_context(child.name, [], parent=current, resilient_parsing=True)
-        command = child
-    return command.get_help(current)
-
-
-@aliased_command(app, "help", "h", help_text="Show help for dot or one nested command path")
-def help_command(
-    context: typer.Context,
-    path: Annotated[list[str] | None, typer.Argument(help="Nested command path")] = None,
-) -> None:
-    typer.echo(_resolve_help(context, path or []))
-
-
-add_group(app, config_app, "config", "f")
+add_group(app, config_app, "config")
 
 # Command modules register after the shared helpers exist, keeping each workflow
 # independently testable without a second framework layer.
-from fmind_dot import context as context_commands  # noqa: E402
 from fmind_dot import maintenance, repository, system  # noqa: E402
 from fmind_dot.agent import agent_app  # noqa: E402
 
-add_group(app, agent_app, "agent", "a")
+add_group(app, agent_app, "agent")
 system.register(app)
 maintenance.register(app)
 repository.register_repository_commands(app)
-context_commands.register_context_command(app)
 
 
 def _invoke_app() -> int:
@@ -201,7 +169,7 @@ def main() -> None:
             raise SystemExit(1) from error
         except _click.exceptions.UsageError as error:
             error.show(file=sys.stderr)
-            missing_command = error.message.startswith(("No such command ", "No help topic for "))
+            missing_command = error.message.startswith("No such command ")
             exit_code = 3 if missing_command else 1
             raise SystemExit(exit_code) from error
         except (DotError, OSError, sqlite3.Error, ValueError) as error:

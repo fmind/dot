@@ -16,14 +16,5 @@
         "timeout": 30
       }
     ]
-  },
-  "usage-log": {
-    "Stop": [
-      {
-        "type": "command",
-        "command": "dot agent hook usage agy",
-        "timeout": 30
-      }
-    ]
   }
 }

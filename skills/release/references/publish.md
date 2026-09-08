@@ -6,7 +6,7 @@
    - Clean working tree on `main`, synced with `origin`.
    - The proposed tag is absent locally and remotely; stop if either copy exists and never move a published tag.
    - A repository workflow that owns release creation runs from the pushed tag; verify its result instead of publishing a second release from the CLI.
-1. **Gate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Gate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../../mise/SKILL.md)).
 1. **Compute the next version** from the commit types since the last tag: `feat` → minor, `fix` and others → patch, `!` or `BREAKING CHANGE` → major:
 
    ```bash

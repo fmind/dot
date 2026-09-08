@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-06"
+  updated: "2026-09-07"
 ---
 
 # Set Up Agents on a Project
 
-Author the shared project instruction and skill layer once, then add only required host bridges. [agents-md](../agents-md/SKILL.md) owns instruction conventions; [agent-mcp](../agent-mcp/SKILL.md) owns MCP configuration.
+Author the shared project instruction and skill layer once, then add only required host bridges. [repository-docs](../repository-docs/SKILL.md) owns instruction content; [agent-mcp](../agent-mcp/SKILL.md) owns MCP configuration.
 
 ## Workflow
 
@@ -20,7 +20,7 @@ Author the shared project instruction and skill layer once, then add only requir
 1. **Bridge installed hosts**: follow [host-setup.md](references/host-setup.md) for Claude links, optional configuration, and native custom-agent locations; do not create unused host files.
 1. **Verify discovery**: read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs; distinguish presence from demonstrated instruction following.
 1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary.
-1. **Keep current**: route repository changes through [update-docs](../update-docs/SKILL.md), including project-local skill references.
+1. **Keep current**: route repository changes through [repository-docs](../repository-docs/SKILL.md), including project-local skill references.
 
 ## Gotchas
 
@@ -32,4 +32,4 @@ Author the shared project instruction and skill layer once, then add only requir
 ## Documentation
 
 - [AGENTS.md standard](https://agents.md) · [Agent Skills specification](https://agentskills.io/specification)
-- Companion skills: [agent-mcp](../agent-mcp/SKILL.md) (MCP servers), [agents-md](../agents-md/SKILL.md) (instruction conventions), [update-docs](../update-docs/SKILL.md) (keeping `AGENTS.md` current), [agent-prompt](../agent-prompt/SKILL.md) (`.agents/prompts/`).
+- Companion skills: [agent-mcp](../agent-mcp/SKILL.md) (MCP servers), [repository-docs](../repository-docs/SKILL.md) (instruction conventions and freshness), [agent-prompt](../agent-prompt/SKILL.md) (`.agents/prompts/`).

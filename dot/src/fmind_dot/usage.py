@@ -13,7 +13,20 @@ from typing import IO, Any
 from fmind_dot.session_store import publish_owner_only
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
-_USAGE_STRING_FIELDS = ("timestamp", "harness", "agent", "session_id", "model", "cwd")
+USAGE_SCHEMA_VERSION = "dot.agent.usage/v2"
+USAGE_EXTRACTOR_VERSION = "1"
+_MEASUREMENT_KINDS = {"", "provider-reported", "estimated", "context-only"}
+_USAGE_STRING_FIELDS = (
+    "timestamp",
+    "harness",
+    "agent",
+    "session_id",
+    "model",
+    "cwd",
+    "schema_version",
+    "extractor_version",
+    "measurement_kind",
+)
 _USAGE_IDENTITY_FIELDS = ("timestamp", "harness", "agent", "session_id")
 _USAGE_INTEGER_FIELDS = (
     "input_tokens",
@@ -53,6 +66,10 @@ class UsageRecord:
     total_tokens: int = 0
     cost_usd: float = 0.0
     turn_count: int = 0
+    schema_version: str = USAGE_SCHEMA_VERSION
+    extractor_version: str = USAGE_EXTRACTOR_VERSION
+    measurement_kind: str = ""
+    source_bytes: int = 0
 
     def finalize(self) -> UsageRecord:
         self._validate(complete=False)
@@ -90,6 +107,12 @@ class UsageRecord:
             result["cost_usd"] = self.cost_usd
         if self.turn_count:
             result["turn_count"] = self.turn_count
+        result["schema_version"] = self.schema_version
+        result["extractor_version"] = self.extractor_version
+        if self.measurement_kind:
+            result["measurement_kind"] = self.measurement_kind
+        if self.source_bytes:
+            result["source_bytes"] = self.source_bytes
         return result
 
     @classmethod
@@ -116,6 +139,10 @@ class UsageRecord:
             item = getattr(self, name)
             if isinstance(item, bool) or not isinstance(item, int) or item < 0:
                 raise ValueError(f"usage record field {name!r} must be a non-negative integer")
+        if isinstance(self.source_bytes, bool) or not isinstance(self.source_bytes, int) or self.source_bytes < 0:
+            raise ValueError("usage record field 'source_bytes' must be a non-negative integer")
+        if self.measurement_kind not in _MEASUREMENT_KINDS:
+            raise ValueError(f"unknown usage measurement_kind {self.measurement_kind!r}")
         cost = self.cost_usd
         if isinstance(cost, bool) or not isinstance(cost, (int, float)):
             raise ValueError("usage record field 'cost_usd' must be a non-negative finite number")

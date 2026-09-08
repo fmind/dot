@@ -96,6 +96,7 @@ class SessionManifest:
     record_count: int
     malformed_records: int
     skipped_records: int
+    cwd: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         # Preserve the v1 Go manifest field order for byte-stable output.
@@ -109,6 +110,8 @@ class SessionManifest:
         }
         if self.high_water_mark:
             result["high_water_mark"] = self.high_water_mark
+        if self.cwd:
+            result["cwd"] = self.cwd
         result.update(
             {
                 "ingested_at": self.ingested_at,
@@ -143,6 +146,7 @@ class SessionManifest:
                 record_count=_integer(value, "record_count"),
                 malformed_records=_integer(value, "malformed_records"),
                 skipped_records=_integer(value, "skipped_records"),
+                cwd=_string(value, "cwd", required=False),
             )
         except (KeyError, TypeError) as error:
             raise ValueError("invalid session manifest") from error
@@ -646,6 +650,47 @@ def stored_generation(agent: str, session_id: str, source_fingerprint: str) -> S
         os.close(lineage_descriptor)
 
 
+def delete_session_generation(agent: str, lineage: str, generation: str, expected: SessionManifest) -> None:
+    """Revalidate and remove one immutable generation through stable descriptors."""
+    if not all(_is_safe_component(value) for value in (agent, lineage, generation)):
+        raise ValueError("invalid session generation identity")
+    if (
+        expected.agent != agent
+        or expected.lineage_id != lineage
+        or lineage != session_lineage_id(agent, expected.session_id)
+        or generation != session_digest(expected.parser_version, expected.source_fingerprint)
+    ):
+        raise ValueError("session generation does not match its immutable identity")
+    lineage_descriptor = _open_existing_lineage(agent, lineage)
+    if lineage_descriptor is None:
+        raise ValueError("session generation lineage disappeared before compaction")
+    path = session_store_root() / agent / lineage / generation
+    try:
+        generation_descriptor = _open_private_directory_at(lineage_descriptor, generation, path)
+        try:
+            manifest, _logs = _validate_session_generation_at(generation_descriptor, path, expected)
+            if manifest != expected:
+                raise ValueError("session generation changed before compaction")
+            names = set(os.listdir(generation_descriptor))  # noqa: PTH208 - inspect the verified descriptor.
+            if names != {"manifest.json", "transcript.jsonl"}:
+                raise ValueError(f"session generation contains unexpected entries: {path}")
+            opened = os.fstat(generation_descriptor)
+            current = os.stat(generation, dir_fd=lineage_descriptor, follow_symlinks=False)
+            if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
+                raise ValueError("session generation changed before compaction")
+            _require_current_lineage(agent, lineage, lineage_descriptor)
+            for name in ("transcript.jsonl", "manifest.json"):
+                os.unlink(name, dir_fd=generation_descriptor)
+            os.fsync(generation_descriptor)
+        finally:
+            os.close(generation_descriptor)
+        os.rmdir(generation, dir_fd=lineage_descriptor)
+        os.fsync(lineage_descriptor)
+        _require_current_lineage(agent, lineage, lineage_descriptor)
+    finally:
+        os.close(lineage_descriptor)
+
+
 def ingest_session(
     agent: str, session_id: str, logs: list[SessionLog], source: SessionSource | None = None
 ) -> SessionIngestionResult:
@@ -675,6 +720,7 @@ def ingest_session(
         return SessionIngestionResult("skipped", lineage, manifest=manifest)
 
     _normalize_logs(agent, session_id, logs)
+    cwd = next((log.cwd for log in logs if log.cwd), "")
     fingerprint = source.fingerprint or fingerprint_logs(logs)
     if len(fingerprint) != 64:
         raise ValueError("session source fingerprint must be a full SHA-256 digest")
@@ -700,6 +746,7 @@ def ingest_session(
         record_count=len(logs),
         malformed_records=source.malformed,
         skipped_records=source.skipped,
+        cwd=cwd,
     )
 
     root = session_store_root()
@@ -799,6 +846,7 @@ __all__ = [
     "SessionLog",
     "SessionManifest",
     "SessionSource",
+    "delete_session_generation",
     "fingerprint_bytes",
     "fingerprint_file",
     "fingerprint_json",

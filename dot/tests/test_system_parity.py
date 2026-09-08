@@ -342,71 +342,25 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
         system.notification_command(ScriptedRunner(), minimal, system="linux")
 
 
-def test_hook_payload_is_strict_and_run_notify_honors_idle_guards(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_hook_payload_is_strict() -> None:
     class TTYInput(StringIO):
         def isatty(self) -> bool:
             return True
 
-    tty_state = state_with(ScriptedRunner())
-    tty_state.stdin = TTYInput("ignored")
-    assert system._hook_payload(tty_state) == {}  # noqa: SLF001 - hook input is a trust boundary.
-    assert system._hook_payload(state_with(ScriptedRunner(), stdin="  \n")) == {}  # noqa: SLF001
+    assert system.read_hook_payload(TTYInput("ignored")) is None
+    assert system.read_hook_payload(StringIO("  \n")) is None
     with pytest.raises(DotError, match="failed to parse agent hook input"):
-        system._hook_payload(state_with(ScriptedRunner(), stdin="{"))  # noqa: SLF001
+        system.read_hook_payload(StringIO("{"))
     with pytest.raises(DotError, match="expected a JSON object"):
-        system._hook_payload(state_with(ScriptedRunner(), stdin="[]"))  # noqa: SLF001
-
-    delivered: list[system.Notification] = []
-    monkeypatch.setattr(system, "send_notification", lambda _state, notification: delivered.append(notification))
-    with pytest.raises(DotError, match="agent name or notification summary"):
-        system.run_notify(state_with(ScriptedRunner()), [])
-
-    system.run_notify(state_with(ScriptedRunner()), ["Summary", "Headline", "detail"])
-    system.run_notify(
-        state_with(ScriptedRunner(), stdin='{"stopHookActive":true}'),
-        ["codex", "stop"],
-    )
-    system.run_notify(
-        state_with(ScriptedRunner(), stdin='{"fullyIdle":false}'),
-        ["antigravity", "stop"],
-    )
-    system.run_notify(state_with(ScriptedRunner(), stdin="{}"), ["agy", "stop"])
+        system.read_hook_payload(StringIO("[]"))
     with pytest.raises(DotError, match="stopHookActive must be a boolean"):
-        system.run_notify(
-            state_with(ScriptedRunner(), stdin='{"stopHookActive":"false"}'),
-            ["agy", "stop"],
-        )
+        system.read_hook_payload(StringIO('{"stopHookActive":"false"}'))
     with pytest.raises(DotError, match="fullyIdle must be a boolean"):
-        system.run_notify(
-            state_with(ScriptedRunner(), stdin='{"fullyIdle":1}'),
-            ["agy", "stop"],
-        )
-    system.run_notify(
-        state_with(ScriptedRunner(), stdin='{"fullyIdle":true,"workspacePaths":[null,"","/workspace/project"]}'),
-        ["agy", "needs-input"],
-    )
-
-    assert delivered[0] == system.Notification("Summary", "Headline", ("detail",))
-    assert delivered[1].summary == "⏳ Antigravity · project"
-
-
-def test_run_notify_accepts_direct_hook_cwd_and_ignores_invalid_workspace_shape(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    delivered: list[system.Notification] = []
-    monkeypatch.setattr(system, "send_notification", lambda _state, notification: delivered.append(notification))
-
-    system.run_notify(
-        state_with(ScriptedRunner(), stdin='{"cwd":"/workspace/direct"}'),
-        ["codex", "session-end"],
-    )
-    system.run_notify(
-        state_with(ScriptedRunner(), stdin='{"workspacePaths":"invalid"}'),
-        ["codex", "stop"],
-    )
-
-    assert delivered[0].summary == "🏁 Codex · direct"
-    assert delivered[1].summary == "✅ Codex"
+        system.read_hook_payload(StringIO('{"fullyIdle":1}'))
+    assert system.read_hook_payload(StringIO('{"fullyIdle":true,"cwd":"/workspace"}')) == {
+        "fullyIdle": True,
+        "cwd": "/workspace",
+    }
 
 
 def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failure(
@@ -885,18 +839,18 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
     assert "Verification failed" in state.stdout.getvalue()
 
 
-def test_system_command_aliases_and_verify_flags_remain_compatible() -> None:
+def test_system_command_surface_and_verify_flags() -> None:
     app = typer.Typer()
     system.register(app)
     command = get_command(app)
     assert isinstance(command, TyperGroup)
-    assert {"completion", "g", "login", "l", "notify", "n", "setup", "u", "verify", "v"} <= set(command.commands)
+    assert set(command.commands) == {"completion", "login", "setup", "verify"}
     login = command.commands["login"]
     setup = command.commands["setup"]
     assert isinstance(login, TyperGroup)
     assert isinstance(setup, TyperGroup)
-    assert {"github", "g", "workspace", "w", "gcp", "c"} <= set(login.commands)
-    assert {"workspace", "w"} <= set(setup.commands)
+    assert set(login.commands) == {"github", "workspace", "gcp"}
+    assert set(setup.commands) == {"workspace"}
     option_names = {
         name
         for parameter in command.commands["verify"].params

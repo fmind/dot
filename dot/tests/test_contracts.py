@@ -225,6 +225,16 @@ def test_skills_contract_parses_nested_markdown_and_html_srcset_links(tmp_path: 
     assert any("missing-large.png" in finding for finding in findings)
 
 
+def test_skills_contract_rejects_skill_root_relative_link_from_nested_document(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    guide = root / "skills/fixture/references/guide.md"
+    guide.write_text("# Guide\n\n[Wrong root-relative link](SKILL.md)\n", encoding="utf-8")
+
+    findings = checker.repository_findings(root)
+
+    assert any("references/guide.md: missing local link 'SKILL.md'" in finding for finding in findings)
+
+
 def test_skills_contract_accepts_html_metadata_and_srcset_url_commas(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     skill = root / "skills/fixture/SKILL.md"

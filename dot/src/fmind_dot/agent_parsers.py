@@ -27,6 +27,8 @@ class ParsedSession:
     source_type: str
     malformed: int = 0
     skipped: int = 0
+    usage: UsageRecord | None = None
+    usage_error: Exception | None = None
 
 
 SessionParser = Callable[[Path, str, str], ParsedSession]
@@ -64,14 +66,9 @@ def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]
         yield value, False
 
 
-def _jsonl_snapshot(path: Path) -> tuple[Iterator[tuple[dict[str, Any] | None, bool]], str]:
+def _jsonl_snapshot(path: Path) -> tuple[Iterator[tuple[dict[str, Any] | None, bool]], str, int]:
     content = path.read_bytes()
-    return _decode_jsonl(content), fingerprint_bytes(content)
-
-
-def _iter_jsonl(path: Path) -> Iterator[tuple[dict[str, Any] | None, bool]]:
-    records, _fingerprint = _jsonl_snapshot(path)
-    yield from records
+    return _decode_jsonl(content), fingerprint_bytes(content), len(content)
 
 
 def _finalize_models(logs: list[SessionLog]) -> None:
@@ -109,10 +106,31 @@ def _usage_cost(value: object) -> float | None:
     return cost
 
 
+def _finalize_parsed_usage(
+    record: UsageRecord, error: Exception | None = None
+) -> tuple[UsageRecord | None, Exception | None]:
+    if error is not None:
+        return None, error
+    try:
+        return record.finalize(), None
+    except ValueError as usage_error:
+        # Transcript archival stays useful when a provider emits bad metrics.
+        return None, usage_error
+
+
 def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
     logs: list[SessionLog] = []
     malformed = decoded = 0
-    records, fingerprint = _jsonl_snapshot(path)
+    usage = UsageRecord(
+        harness="agy",
+        agent="agy",
+        session_id=session_id,
+        model="gemini",
+        cwd=resolve_cwd(cwd),
+        measurement_kind="estimated",
+    )
+    input_bytes = output_bytes = 0
+    records, fingerprint, source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
             malformed += 1
@@ -120,34 +138,13 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         if raw is None:
             continue
         decoded += 1
-        if raw.get("is_truncated") is True:
-            continue
-        source, kind, content = raw.get("source"), raw.get("type"), raw.get("content")
-        role = ""
-        if source == "USER_EXPLICIT" and kind == "USER_INPUT":
-            role = "user"
-        elif source == "MODEL" and kind == "PLANNER_RESPONSE":
-            role = "assistant"
-        if role and isinstance(content, str) and content.strip():
-            logs.append(SessionLog(str(raw.get("created_at", "")), "agy", session_id, role, content, resolve_cwd(cwd)))
-    return ParsedSession(logs, fingerprint, "antigravity-jsonl", malformed, decoded - len(logs))
-
-
-def extract_agy_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    record = UsageRecord(harness="agy", agent="agy", session_id=session_id, model="gemini", cwd=resolve_cwd(cwd))
-    input_bytes = output_bytes = 0
-    for raw, bad in _iter_jsonl(path):
-        if bad:
-            continue
-        if raw is None:
-            continue
         timestamp = raw.get("created_at")
         if isinstance(timestamp, str) and timestamp:
-            record.timestamp = timestamp
+            usage.timestamp = timestamp
         source, kind, content = raw.get("source"), raw.get("type"), raw.get("content")
         text = content if isinstance(content, str) else ""
         if source == "USER_EXPLICIT" and kind == "USER_INPUT":
-            record.turn_count += 1
+            usage.turn_count += 1
             input_bytes += len(text.encode())
         elif source == "MODEL" and kind == "PLANNER_RESPONSE":
             output_bytes += len(text.encode())
@@ -156,9 +153,35 @@ def extract_agy_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord
                 output_bytes += len(thinking.encode())
         elif kind in {"RUN_COMMAND", "SYSTEM_MESSAGE"}:
             input_bytes += len(text.encode())
-    record.input_tokens = (input_bytes + 3) // 4
-    record.output_tokens = (output_bytes + 3) // 4
-    return record.finalize()
+        if raw.get("is_truncated") is True:
+            continue
+        role = ""
+        if source == "USER_EXPLICIT" and kind == "USER_INPUT":
+            role = "user"
+        elif source == "MODEL" and kind == "PLANNER_RESPONSE":
+            role = "assistant"
+        if role and isinstance(content, str) and content.strip():
+            logs.append(SessionLog(str(raw.get("created_at", "")), "agy", session_id, role, content, resolve_cwd(cwd)))
+    usage.input_tokens = (input_bytes + 3) // 4
+    usage.output_tokens = (output_bytes + 3) // 4
+    usage.source_bytes = source_bytes
+    parsed_usage, usage_error = _finalize_parsed_usage(usage)
+    return ParsedSession(
+        logs,
+        fingerprint,
+        "antigravity-jsonl",
+        malformed,
+        decoded - len(logs),
+        parsed_usage,
+        usage_error,
+    )
+
+
+def extract_agy_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
+    parsed = parse_agy_session(path, session_id, cwd)
+    if parsed.usage is None:
+        raise parsed.usage_error or ValueError("agy session parser did not return usage")
+    return parsed.usage
 
 
 def claude_project_directory(cwd: str) -> str:
@@ -207,7 +230,15 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
 def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
     logs: list[SessionLog] = []
     malformed = decoded = 0
-    records, fingerprint = _jsonl_snapshot(path)
+    usage_error: Exception | None = None
+    usage = UsageRecord(
+        harness="claude",
+        agent="claude",
+        session_id=session_id,
+        cwd=resolve_cwd(cwd),
+        measurement_kind="provider-reported",
+    )
+    records, fingerprint, source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
             malformed += 1
@@ -215,6 +246,10 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         if raw is None:
             continue
         decoded += 1
+        try:
+            _observe_claude_usage(usage, raw)
+        except ValueError as error:
+            usage_error = error
         kind = raw.get("type")
         message = raw.get("message")
         if kind not in {"user", "assistant"} or not isinstance(message, dict):
@@ -248,17 +283,17 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             )
         )
     _finalize_models(logs)
-    return ParsedSession(logs, fingerprint, "claude-jsonl", malformed, decoded - len(logs))
+    usage.total_tokens = usage.input_tokens + usage.output_tokens + usage.cached_tokens + usage.cache_write_tokens
+    usage.source_bytes = source_bytes
+    parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
+    return ParsedSession(logs, fingerprint, "claude-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
 
 
 def extract_claude_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    record = UsageRecord(harness="claude", agent="claude", session_id=session_id, cwd=resolve_cwd(cwd))
-    for raw, bad in _iter_jsonl(path):
-        if not bad and raw is not None:
-            _observe_claude_usage(record, raw)
-    # Claude's cumulative cost contract always recomputes the token total.
-    record.total_tokens = record.input_tokens + record.output_tokens + record.cached_tokens + record.cache_write_tokens
-    return record.finalize()
+    parsed = parse_claude_session(path, session_id, cwd)
+    if parsed.usage is None:
+        raise parsed.usage_error or ValueError("Claude session parser did not return usage")
+    return parsed.usage
 
 
 def codex_session_id(path: Path) -> str:
@@ -356,9 +391,17 @@ def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
 def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
     logs: list[SessionLog] = []
     malformed = decoded = 0
+    usage_error: Exception | None = None
     active_model = ""
     active_cwd = resolve_cwd(cwd)
-    records, fingerprint = _jsonl_snapshot(path)
+    usage = UsageRecord(
+        harness="codex",
+        agent="codex",
+        session_id=session_id,
+        cwd=active_cwd,
+        measurement_kind="provider-reported",
+    )
+    records, fingerprint, source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
             malformed += 1
@@ -366,6 +409,10 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         if raw is None:
             continue
         decoded += 1
+        try:
+            _observe_codex_usage(usage, raw)
+        except ValueError as error:
+            usage_error = error
         if model := _codex_field(raw, "model"):
             active_model = model
         if line_cwd := _codex_field(raw, "cwd"):
@@ -390,15 +437,16 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
             )
         )
     _finalize_models(logs)
-    return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs))
+    usage.source_bytes = source_bytes
+    parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
+    return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
 
 
 def extract_codex_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    record = UsageRecord(harness="codex", agent="codex", session_id=session_id, cwd=resolve_cwd(cwd))
-    for raw, bad in _iter_jsonl(path):
-        if not bad and raw is not None:
-            _observe_codex_usage(record, raw)
-    return record.finalize()
+    parsed = parse_codex_session(path, session_id, cwd)
+    if parsed.usage is None:
+        raise parsed.usage_error or ValueError("Codex session parser did not return usage")
+    return parsed.usage
 
 
 def grok_session_directory(cwd: str) -> str:
@@ -449,7 +497,7 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
         parts = []
 
     roles = {"user_message_chunk": "user", "agent_message_chunk": "assistant"}
-    records, fingerprint = _jsonl_snapshot(path)
+    records, fingerprint, _source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
             malformed += 1
@@ -477,16 +525,30 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
         parts.append(text)
     flush()
     _finalize_models(logs)
-    return ParsedSession(logs, fingerprint, "grok-jsonl", malformed, decoded - len(logs))
+    try:
+        usage = extract_grok_usage(path.parent, session_id, cwd)
+        usage_error = None
+    except (OSError, ValueError) as error:
+        usage = None
+        usage_error = error
+    return ParsedSession(logs, fingerprint, "grok-jsonl", malformed, decoded - len(logs), usage, usage_error)
 
 
 def extract_grok_usage(session_dir: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    record = UsageRecord(harness="grok", agent="grok", session_id=session_id, cwd=resolve_cwd(cwd))
+    record = UsageRecord(
+        harness="grok",
+        agent="grok",
+        session_id=session_id,
+        cwd=resolve_cwd(cwd),
+        measurement_kind="context-only",
+    )
     signals = session_dir / "signals.json"
     if signals.exists():
+        content = signals.read_bytes()
+        record.source_bytes = len(content)
         try:
-            value = json.loads(signals.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+            value = json.loads(content)
+        except json.JSONDecodeError, UnicodeDecodeError:
             value = {}
         if isinstance(value, dict):
             model = value.get("primaryModelId")
@@ -556,21 +618,47 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
         raise ValueError(f"invalid copilot session id {session_id!r}")
     with closing(_connect_read_only(path)) as connection:
         rows = _copilot_rows(connection, session_id)
-    return ParsedSession(parse_copilot_rows(session_id, rows, cwd), fingerprint_json(rows), "copilot-db")
+        try:
+            usage = _extract_copilot_usage(connection, session_id, cwd)
+            usage_error = None
+        except (sqlite3.Error, ValueError) as error:
+            usage = None
+            usage_error = error
+    if usage is not None:
+        usage.source_bytes = path.stat().st_size
+    return ParsedSession(
+        parse_copilot_rows(session_id, rows, cwd),
+        fingerprint_json(rows),
+        "copilot-db",
+        usage=usage,
+        usage_error=usage_error,
+    )
 
 
 def extract_copilot_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
     if not is_valid_session_id(session_id):
         raise ValueError(f"invalid copilot session id {session_id!r}")
     with closing(_connect_read_only(path)) as connection:
-        rows = connection.execute(
-            """SELECT model, input_tokens, output_tokens, cache_read_tokens,
-                      cache_write_tokens, reasoning_tokens
-               FROM assistant_usage_events WHERE session_id = ?""",
-            (session_id,),
-        ).fetchall()
-        session = connection.execute("SELECT cwd, created_at FROM sessions WHERE id = ?", (session_id,)).fetchone()
-    record = UsageRecord(harness="copilot", agent="copilot", session_id=session_id, cwd=resolve_cwd(cwd))
+        record = _extract_copilot_usage(connection, session_id, cwd)
+    record.source_bytes = path.stat().st_size
+    return record
+
+
+def _extract_copilot_usage(connection: sqlite3.Connection, session_id: str, cwd: str) -> UsageRecord:
+    rows = connection.execute(
+        """SELECT model, input_tokens, output_tokens, cache_read_tokens,
+                  cache_write_tokens, reasoning_tokens
+           FROM assistant_usage_events WHERE session_id = ?""",
+        (session_id,),
+    ).fetchall()
+    session = connection.execute("SELECT cwd, created_at FROM sessions WHERE id = ?", (session_id,)).fetchone()
+    record = UsageRecord(
+        harness="copilot",
+        agent="copilot",
+        session_id=session_id,
+        cwd=resolve_cwd(cwd),
+        measurement_kind="provider-reported",
+    )
     if session is not None:
         if not record.cwd:
             record.cwd = resolve_cwd(session["cwd"] or "")

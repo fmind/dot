@@ -1,8 +1,7 @@
-"""Validated queries and migration for the normalized session archive."""
+"""Validated queries for the normalized session archive."""
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -16,21 +15,17 @@ from typing import IO, Any
 from fmind_dot.session_store import (
     SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
-    SESSION_STORE_VERSION,
     SessionLog,
     SessionManifest,
-    SessionSource,
-    ingest_session,
-    is_valid_session_id,
+    delete_session_generation,
     read_session_manifest,
-    report_ingestion,
+    session_digest,
     session_lineage_id,
     session_store_root,
     validate_session_generation,
 )
 
 SESSION_EXPORT_SCHEMA = "dot.agent.sessions/v1"
-_LEGACY_NAME = re.compile(r"^[0-9]{6}_(agy|claude|codex|copilot)_(.+)\.jsonl$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?"
@@ -97,6 +92,16 @@ class _Generation:
     path: Path
     manifest: SessionManifest
     summary: SessionSummary
+
+
+@dataclass(frozen=True)
+class SessionCompactionResult:
+    lineages: int
+    generations: int
+    retained: int
+    removable: int
+    removed: int
+    reclaimable_bytes: int
 
 
 def parse_session_date(value: str, *, end_of_day: bool = False) -> datetime | None:
@@ -177,11 +182,100 @@ def discover_session_generations(root: Path | None = None) -> list[_Generation]:
                     record_count=manifest.record_count,
                     malformed_records=manifest.malformed_records,
                     skipped_records=manifest.skipped_records,
+                    cwd=manifest.cwd,
                     source_fingerprint=manifest.source_fingerprint,
                 ),
             )
         )
     return generations
+
+
+def _allocated_bytes(path: Path) -> int:
+    return sum(entry.lstat().st_blocks * 512 for entry in (path, *path.iterdir()))
+
+
+def _validate_compaction_generation(root: Path, generation: _Generation) -> tuple[int, list[SessionLog]]:
+    manifest = generation.manifest
+    try:
+        parts = generation.path.relative_to(root).parts
+    except ValueError as error:
+        raise ValueError(f"session generation is outside the archive: {generation.path}") from error
+    expected_generation = session_digest(manifest.parser_version, manifest.source_fingerprint)
+    if (
+        len(parts) != 3
+        or parts != (manifest.agent, manifest.lineage_id, expected_generation)
+        or manifest.lineage_id != session_lineage_id(manifest.agent, manifest.session_id)
+    ):
+        raise ValueError(f"session generation does not match its immutable identity: {generation.path}")
+    records = validate_session_generation(generation.path, manifest)
+    entries = {entry.name for entry in generation.path.iterdir()}
+    if entries != {"manifest.json", "transcript.jsonl"}:
+        raise ValueError(f"session generation contains unexpected entries: {generation.path}")
+    return _allocated_bytes(generation.path), records
+
+
+def _compaction_sort_key(generation: _Generation) -> tuple[bool, int, str, str, str]:
+    manifest = generation.manifest
+    return (
+        manifest.completeness == "complete",
+        manifest.record_count,
+        manifest.high_water_mark,
+        manifest.ingested_at,
+        generation.path.name,
+    )
+
+
+def compact_session_generations(
+    output: IO[str], *, apply: bool = False, agent: str = "", root: Path | None = None
+) -> SessionCompactionResult:
+    """Retain the best verified generation per lineage and parser version."""
+    root = root or session_store_root()
+    generations = [item for item in discover_session_generations(root) if not agent or item.manifest.agent == agent]
+    verified = {item.path: _validate_compaction_generation(root, item) for item in generations}
+    groups: dict[tuple[str, str, str], list[_Generation]] = {}
+    for generation in generations:
+        manifest = generation.manifest
+        groups.setdefault((manifest.agent, manifest.lineage_id, manifest.parser_version), []).append(generation)
+
+    retained: set[Path] = set()
+    for group in groups.values():
+        # Unknown schemas remain untouched because their completeness semantics
+        # cannot be safely ranked by this implementation.
+        if any(item.manifest.schema_version != SESSION_SCHEMA_VERSION for item in group):
+            retained.update(item.path for item in group)
+            continue
+        kept: list[_Generation] = []
+        for candidate in sorted(group, key=_compaction_sort_key, reverse=True):
+            candidate_records = verified[candidate.path][1]
+            covered = any(candidate_records == verified[item.path][1][: len(candidate_records)] for item in kept)
+            if not covered:
+                # Divergent histories are not superseded merely because another
+                # generation has more records or a later timestamp.
+                kept.append(candidate)
+                retained.add(candidate.path)
+
+    removable = sorted((item for item in generations if item.path not in retained), key=lambda item: str(item.path))
+    reclaimable = sum(verified[item.path][0] for item in removable)
+    removed = 0
+    if apply:
+        for item in removable:
+            manifest = item.manifest
+            delete_session_generation(manifest.agent, manifest.lineage_id, item.path.name, manifest)
+            removed += 1
+    mode = "apply" if apply else "dry-run"
+    output.write(
+        f"session-compact: mode={mode} lineages={len(groups)} generations={len(generations)} "
+        f"retained={len(retained)} removable={len(removable)} removed={removed} "
+        f"reclaimable_bytes={reclaimable}\n"
+    )
+    return SessionCompactionResult(
+        lineages=len(groups),
+        generations=len(generations),
+        retained=len(retained),
+        removable=len(removable),
+        removed=removed,
+        reclaimable_bytes=reclaimable,
+    )
 
 
 def _manifest_matches(summary: SessionSummary, query: SessionQuery) -> bool:
@@ -201,7 +295,14 @@ def _manifest_matches(summary: SessionSummary, query: SessionQuery) -> bool:
 
 
 def query_session_summaries(
-    query: SessionQuery | None = None, *, include_content: bool = False, root: Path | None = None
+    query: SessionQuery | None = None,
+    *,
+    include_content: bool = False,
+    validate_content: bool = False,
+    latest_only: bool = False,
+    statuses: set[str] | None = None,
+    limit: int | None = None,
+    root: Path | None = None,
 ) -> list[SessionSummary]:
     query = query or SessionQuery()
     if query.since and query.until and query.since > query.until:
@@ -226,33 +327,39 @@ def query_session_summaries(
         summary = generation.summary
         manifest = generation.manifest
         records: list[SessionLog] = []
+        lineage = (summary.agent, summary.lineage_id)
+        is_latest = newest[lineage][1] == summary.generation_id
         if manifest.schema_version != SESSION_SCHEMA_VERSION or manifest.parser_version != SESSION_PARSER_VERSION:
             summary.status.append("unsupported")
-        else:
+        elif include_content or validate_content:
             try:
                 records = validate_session_generation(generation.path, manifest)
             except OSError, ValueError, json.JSONDecodeError:
                 summary.status.append("invalid")
             else:
-                summary.cwd = next((record.cwd for record in records if record.cwd), "")
                 if include_content:
                     summary.records = records
+                if not summary.cwd:
+                    summary.cwd = next((record.cwd for record in records if record.cwd), "")
         if manifest.completeness == "partial" or manifest.malformed_records or manifest.skipped_records:
             summary.status.append("partial")
-        lineage = (summary.agent, summary.lineage_id)
-        if newest[lineage][1] != summary.generation_id:
+        if not is_latest:
             summary.status.append("stale")
         if fingerprints[(*lineage, summary.source_fingerprint)] > 1:
             summary.status.append("duplicate")
         if not summary.status:
             summary.status.append("current")
         summary.status.sort()
+        if latest_only and not is_latest:
+            continue
+        if statuses and not statuses.intersection(summary.status):
+            continue
         if query.cwd and summary.cwd != query.cwd:
             continue
         summaries.append(summary)
     summaries.sort(key=lambda item: item.lineage_id + item.generation_id)
     summaries.sort(key=lambda item: item.ingested_at, reverse=True)
-    return summaries
+    return summaries if limit is None else summaries[:limit]
 
 
 def show_session(query: SessionQuery, *, include_content: bool = False) -> SessionSummary:
@@ -310,106 +417,14 @@ def export_sessions(
     raise ValueError(f"unsupported export format {format!r}: expected json or ndjson")
 
 
-@dataclass
-class _LegacyCandidate:
-    agent: str
-    session_id: str
-    path: Path
-    fingerprint: str
-    logs: list[SessionLog]
-    malformed: int
-    size: int
-
-
-def _read_legacy(path: Path, agent: str, session_id: str) -> _LegacyCandidate:
-    logs: list[SessionLog] = []
-    malformed = 0
-    digest = hashlib.sha256()
-    size = 0
-    with path.open("rb") as stream:
-        for line in stream:
-            # Bind provenance and candidate size to the exact bytes being parsed.
-            digest.update(line)
-            size += len(line)
-            try:
-                value = json.loads(line)
-                if not isinstance(value, dict):
-                    raise ValueError
-                # encoding/json populated missing legacy fields with Go zero
-                # values; retain that compatibility while rejecting wrong types.
-                normalized = {key: value.get(key, "") for key in ("ts", "agent", "sid", "role", "content")}
-                normalized.update({key: value.get(key, "") for key in ("cwd", "model")})
-                log = SessionLog.from_dict(normalized)
-                if log.agent != agent or log.sid != session_id:
-                    raise ValueError
-                logs.append(log)
-            except UnicodeDecodeError, json.JSONDecodeError, ValueError:
-                malformed += 1
-    return _LegacyCandidate(agent, session_id, path, digest.hexdigest(), logs, malformed, size)
-
-
-def migrate_legacy_sessions(output: IO[str], *, apply: bool = False, root: Path | None = None) -> None:
-    root = root or session_store_root().parent
-    lineages: dict[str, list[_LegacyCandidate]] = {}
-    malformed_files = 0
-    for current, directories, files in _walk_private_tree(root, "failed to scan legacy session archive"):
-        # The versioned store is already normalized and can contain transcripts
-        # named .jsonl; pruning it here also avoids scanning its private content.
-        directories[:] = [name for name in directories if name != SESSION_STORE_VERSION]
-        for name in files:
-            if not name.endswith(".jsonl"):
-                continue
-            path = current / name
-            match = _LEGACY_NAME.fullmatch(name)
-            if not match or not is_valid_session_id(match.group(2)):
-                malformed_files += 1
-                continue
-            try:
-                candidate = _read_legacy(path, match.group(1), match.group(2))
-            except OSError as error:
-                raise OSError(
-                    f"failed to scan legacy session archive {root}: failed to read {path}: {error}"
-                ) from error
-            lineages.setdefault(session_lineage_id(candidate.agent, candidate.session_id), []).append(candidate)
-    selected = duplicates = partial = skipped = 0
-    for lineage in sorted(lineages):
-        candidates = sorted(
-            lineages[lineage], key=lambda item: (-len(item.logs), item.malformed, -item.size, str(item.path))
-        )
-        best = candidates[0]
-        selected += 1
-        duplicates += len(candidates) - 1
-        partial += int(best.malformed > 0)
-        skipped += int(not best.logs)
-        output.write(
-            f"migration: select lineage={lineage[:12]} records={len(best.logs)} "
-            f"candidates={len(candidates)} malformed={best.malformed}\n"
-        )
-        if apply:
-            try:
-                result = ingest_session(
-                    best.agent,
-                    best.session_id,
-                    best.logs,
-                    SessionSource(type="legacy-jsonl", fingerprint=best.fingerprint, malformed=best.malformed),
-                )
-            except (OSError, ValueError) as error:
-                raise ValueError(f"failed to migrate lineage {lineage[:12]}: {error}") from error
-            output.write(report_ingestion(result) + "\n")
-    mode = "apply" if apply else "dry-run"
-    output.write(
-        f"migration: {mode} selected={selected} duplicate={duplicates} partial={partial} "
-        f"skipped={skipped} malformed_files={malformed_files} legacy_preserved=true\n"
-    )
-
-
 __all__ = [
     "SESSION_EXPORT_SCHEMA",
+    "SessionCompactionResult",
     "SessionQuery",
     "SessionSummary",
+    "compact_session_generations",
     "discover_session_generations",
     "export_sessions",
-    "migrate_legacy_sessions",
     "parse_session_date",
     "query_session_summaries",
     "show_session",

@@ -1,28 +1,27 @@
 # `dot prune` Flags
 
-Every target and depth accepted by `dot prune`; the safety-ordered workflow lives in the [dot CLI skill](../SKILL.md). Nothing runs unless a target is selected, and targets compose freely (`dot prune --agents --python`). The installed CLI's `dot prune --help` stays the live reference.
+`dot prune` is a dry-run unless `--apply` is present. No cleanup runs until a target is selected, and targets compose freely. Use `dot prune --help` as the installed reference.
 
 ## Targets
 
-| Flag       | Short | Default / deep level | Removes                                                                                 |
-| ---------- | ----- | -------------------- | --------------------------------------------------------------------------------------- |
-| `--agents` | `-a`  | `sessions`           | Expired source and archive sessions only when safe successor evidence exists            |
-| `--docker` | `-d`  | `build` / `system`   | Docker build cache; deep also removes stopped containers, networks, and dangling images |
-| `--python` | `-p`  | `cache` / `all`      | Unused uv cache entries; deep wipes the uv cache and purges pip                          |
-| `--mise`   | `-m`  | `cache` / `configs`  | Unused tool versions, cache, and downloads; deep also removes untracked config links     |
-| `--tools`  | `-t`  | `cache`              | Configured scanner caches plus the dprint cache                                          |
-| `--all`    | `-A`  | configured levels    | Every target; combine with `--deep` for the deepest level of each target                 |
+| Flag                | Short | Default / deep level | Removes |
+| ------------------- | ----- | -------------------- | ------- |
+| `--agents`          | `-a`  | `sessions`           | Expired raw and archived sessions only with verified successor evidence. |
+| `--agent-artifacts` |       | `all`                | Generated `.agents/prompts`, `.agents/proposals`, and `.agents/reports` contents. |
+| `--docker`          | `-d`  | `build` / `system`   | Docker build cache; deep also removes stopped containers, networks, and dangling images. |
+| `--python`          | `-p`  | `cache` / `all`      | Unused uv cache entries; deep clears the uv cache and purges pip. |
+| `--mise`            | `-m`  | `cache` / `configs`  | Unused tool versions, cache, and downloads; deep also removes untracked config links. |
+| `--tools`           | `-t`  | `cache`              | Configured scanner caches and the dprint cache. |
+| `--all`             | `-A`  | configured levels    | Every target, including agent artifacts; combine with `--deep` for maximum levels. |
 
 ## Modifiers
 
-| Flag        | Short | Effect                                                                                                                                                          |
-| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--deep`    |       | Select each chosen target's deepest cleanup level.                                                                                                               |
-| `--days N`  | `-D`  | Override age retention for every agent session store; `0` makes every age eligible, and source safety checks still apply. Defaults to each store's `keep_days`. |
-| `--dry-run` | `-N`  | Report what would be removed without deleting anything or running cleanup tools.                                                                                 |
+| Flag       | Short | Effect |
+| ---------- | ----- | ------ |
+| `--deep`   |       | Select each chosen target's deepest cleanup level. |
+| `--days N` | `-D`  | Override agent-session retention; source successor checks still apply. |
+| `--apply`  |       | Delete selected data and run cleanup tools. Without it, the command only reports the plan. |
 
-## Gotchas
+Preview the broadest cleanup with `dot prune --all --deep`. Apply it only with `dot prune --all --deep --apply` after reviewing the reported targets.
 
-- **Preview first**: `dot prune --dry-run --all --deep` is the safe way to see the deepest possible sweep before committing to it.
-- **Memory is never pruned**: long-term agent memory (`memory/`, `MEMORY.md`) is out of scope for every target.
-- **Deep Python cleanup is expensive to undo**: the uv cache refills on the next sync, so prefer the configured `cache` depth unless the disk is genuinely full.
+Long-term agent memory (`memory/` and `MEMORY.md`) is outside every prune target.

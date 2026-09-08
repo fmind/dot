@@ -49,11 +49,6 @@
             "command": "dot agent hook session claude",
             "timeout": 30,
             "type": "command"
-          },
-          {
-            "command": "dot agent hook usage claude",
-            "timeout": 30,
-            "type": "command"
           }
         ],
         "matcher": ""
@@ -66,11 +61,6 @@
             "command": "dot agent hook session claude",
             "timeout": 30,
             "type": "command"
-          },
-          {
-            "command": "dot agent hook usage claude",
-            "timeout": 30,
-            "type": "command"
           }
         ],
         "matcher": ""
@@ -80,17 +70,7 @@
       {
         "hooks": [
           {
-            "command": "dot agent hook session claude",
-            "timeout": 30,
-            "type": "command"
-          },
-          {
             "command": "dot agent hook notify claude stop",
-            "timeout": 30,
-            "type": "command"
-          },
-          {
-            "command": "dot agent hook usage claude",
             "timeout": 30,
             "type": "command"
           }
@@ -103,11 +83,6 @@
         "hooks": [
           {
             "command": "dot agent hook session claude",
-            "timeout": 30,
-            "type": "command"
-          },
-          {
-            "command": "dot agent hook usage claude",
             "timeout": 30,
             "type": "command"
           }

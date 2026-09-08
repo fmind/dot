@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import os
 import re
 import sqlite3
@@ -32,78 +31,81 @@ def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch
 
     assert result.exit_code == 0
     for command in (
-        "agent (a)",
-        "chezmoi (m)",
-        "commit (c)",
-        "completion (g)",
-        "config (f)",
-        "context (t)",
-        "help (h)",
-        "login (l)",
-        "notify (n)",
-        "prune (x)",
-        "pull (p)",
-        "pull-request (pr, b)",
-        "release (r)",
-        "setup (u)",
-        "status (s)",
-        "verify (v)",
-        "version (i)",
+        "agent",
+        "chezmoi",
+        "commit",
+        "completion",
+        "config",
+        "login",
+        "prune",
+        "pull",
+        "pull-request (pr)",
+        "release",
+        "setup",
+        "status",
+        "verify",
     ):
         assert command in result.stdout
+    for removed in ("context", "help", "notify", "version"):
+        assert not re.search(rf"^\s*{removed}(?:\s|$)", result.stdout, flags=re.MULTILINE)
 
 
-def test_subcommand_help_displays_nested_aliases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     result = runner.invoke(app, ["config", "--help"])
 
     assert result.exit_code == 0
-    for command in ("edit (e)", "init (i)", "path (p)", "show (s)", "validate (v)"):
+    for command in ("edit", "init", "path", "show", "validate"):
         assert command in result.stdout
+    assert not re.search(r"\([a-z]\)", result.stdout)
 
 
-def test_root_command_tree_preserves_inventory_order_and_aliases() -> None:
+def test_root_command_tree_preserves_inventory_order_and_pull_request_alias() -> None:
     command = get_command(app)
     assert isinstance(command, TyperGroup)
-    expected_aliases = {
-        "agent": {"a"},
-        "chezmoi": {"m"},
-        "commit": {"c"},
-        "completion": {"g"},
-        "config": {"f"},
-        "context": {"t"},
-        "help": {"h"},
-        "login": {"l"},
-        "notify": {"n"},
-        "prune": {"x"},
-        "pull": {"p"},
-        "pull-request": {"b", "pr"},
-        "release": {"r"},
-        "setup": {"u"},
-        "status": {"s"},
-        "verify": {"v"},
-        "version": {"i"},
+    expected = {
+        "agent",
+        "chezmoi",
+        "commit",
+        "completion",
+        "config",
+        "login",
+        "prune",
+        "pull",
+        "pull-request",
+        "release",
+        "setup",
+        "status",
+        "verify",
     }
     visible = [name for name in command.list_commands(_click.Context(command)) if not command.commands[name].hidden]
 
-    assert visible == sorted(expected_aliases)
-    assert set(command.commands) == set(expected_aliases) | {
-        alias for aliases in expected_aliases.values() for alias in aliases
+    assert visible == sorted(expected)
+    assert set(command.commands) == expected | {"pr"}
+    assert command.commands["pr"].hidden
+
+
+def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> None:
+    root = get_command(app)
+    assert isinstance(root, TyperGroup)
+    agent = root.commands["agent"]
+    assert isinstance(agent, TyperGroup)
+    assert {name for name, child in agent.commands.items() if not child.hidden} == {"doctor", "session", "usage"}
+    assert agent.commands["hook"].hidden
+
+    session = agent.commands["session"]
+    assert isinstance(session, TyperGroup)
+    assert {name for name, child in session.commands.items() if not child.hidden} == {
+        "compact",
+        "export",
+        "ingest",
+        "list",
+        "show",
+        "sync",
     }
-    for name, aliases in expected_aliases.items():
-        canonical = command.commands[name]
-        for alias in aliases:
-            aliased = command.commands[alias]
-            assert aliased.hidden
-            if isinstance(canonical, TyperGroup):
-                assert isinstance(aliased, TyperGroup)
-                assert {child_name for child_name, child in canonical.commands.items() if not child.hidden} == {
-                    child_name for child_name, child in aliased.commands.items() if not child.hidden
-                }
-            else:
-                assert aliased.callback is not None
-                assert canonical.callback is not None
-                assert inspect.unwrap(aliased.callback) is inspect.unwrap(canonical.callback)
+    usage = agent.commands["usage"]
+    assert isinstance(usage, TyperGroup)
+    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list", "show", "stats", "sync"}
 
 
 def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
@@ -117,53 +119,16 @@ def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
     assert "then rerun with `--apply`" not in content
 
 
-def test_every_command_has_a_unique_one_letter_sibling_alias() -> None:
-    def command_key(command: _click.Command) -> tuple[str, object]:
-        if isinstance(command, TyperGroup):
-            visible = tuple(name for name, child in command.commands.items() if not child.hidden)
-            return "group", visible
-        assert command.callback is not None
-        return "command", inspect.unwrap(command.callback)
-
-    def check_group(group: TyperGroup) -> None:
-        aliases = {name: child for name, child in group.commands.items() if child.hidden and len(name) == 1}
-        for name, child in group.commands.items():
-            if child.hidden:
-                continue
-            matches = [alias for alias, candidate in aliases.items() if command_key(candidate) == command_key(child)]
-            assert len(matches) == 1, f"command {name!r} has one-letter aliases {matches}"
-            if isinstance(child, TyperGroup):
-                check_group(child)
-
-    command = get_command(app)
-    assert isinstance(command, TyperGroup)
-    check_group(command)
-
-
-@pytest.mark.parametrize("arguments", [[], ["help"], ["h"]])
-def test_root_help_command_and_bare_invocation_exit_successfully(
-    arguments: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_bare_invocation_exits_successfully_with_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    result = runner.invoke(app, arguments)
+    result = runner.invoke(app, [])
 
     assert result.exit_code == 0
     assert "Usage: dot [OPTIONS] COMMAND [ARGS]..." in _click.utils.strip_ansi(result.stdout)
 
 
-def test_help_command_resolves_nested_command_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-    result = runner.invoke(app, ["help", "agent", "session"])
-
-    assert result.exit_code == 0
-    output = _click.utils.strip_ansi(result.stdout)
-    assert "Usage: dot agent session [OPTIONS] COMMAND [ARGS]..." in output
-    assert "Manage agent session logs" in output
-
-
-@pytest.mark.parametrize("arguments", [["version"], ["i"], ["--version"], ["-v"]])
+@pytest.mark.parametrize("arguments", [["--version"], ["-v"]])
 def test_version_matches_distribution(arguments: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     result = runner.invoke(app, arguments)
@@ -176,7 +141,7 @@ def test_version_matches_distribution(arguments: list[str], tmp_path: Path, monk
 def test_canonical_deep_prune_command_parses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    result = runner.invoke(app, ["prune", "--all", "--deep", "--dry-run"])
+    result = runner.invoke(app, ["prune", "--all", "--deep"])
 
     assert result.exit_code == 0
     assert "Prune (dry run)" in result.stdout
@@ -186,12 +151,12 @@ def test_canonical_deep_prune_command_parses(tmp_path: Path, monkeypatch: pytest
 def test_explicit_missing_config_fails_before_non_config_command(tmp_path: Path) -> None:
     missing = tmp_path / "missing.yaml"
 
-    result = runner.invoke(app, ["--config", str(missing), "version"])
+    result = runner.invoke(app, ["--config", str(missing), "verify"])
 
     assert result.exit_code == 1
     assert isinstance(result.exception, FileNotFoundError)
     assert "failed to read config file" in str(result.exception)
-    assert "dot version" not in result.stdout
+    assert result.stdout == ""
 
 
 def test_main_reports_malformed_explicit_yaml_without_traceback(
@@ -199,7 +164,7 @@ def test_main_reports_malformed_explicit_yaml_without_traceback(
 ) -> None:
     malformed = tmp_path / "malformed.yaml"
     malformed.write_text("prune: [\n", encoding="utf-8")
-    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(malformed), "version"])
+    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(malformed), "verify"])
 
     with pytest.raises(SystemExit) as exit_info:
         cli.main()
@@ -224,7 +189,7 @@ def test_config_show_prints_the_effective_round_trippable_yaml(tmp_path: Path) -
     path = tmp_path / "dot.yaml"
     path.write_text("pull:\n  concurrency: 3\n", encoding="utf-8")
 
-    result = runner.invoke(app, ["--config", str(path), "f", "s"])
+    result = runner.invoke(app, ["--config", str(path), "config", "show"])
 
     assert result.exit_code == 0
     rendered = yaml.safe_load(result.stdout)
@@ -251,13 +216,13 @@ def test_config_init_round_trips_refuses_clobber_and_supports_force(tmp_path: Pa
     assert yaml.safe_load(path.read_text(encoding="utf-8"))["pull"]["concurrency"] == 8
 
     path.write_text("pull:\n  concurrency: 2\n", encoding="utf-8")
-    refused = runner.invoke(app, ["--config", str(path), "f", "i"])
+    refused = runner.invoke(app, ["--config", str(path), "config", "init"])
     assert refused.exit_code == 1
     assert isinstance(refused.exception, DotError)
     assert "use --force to overwrite" in str(refused.exception)
     assert yaml.safe_load(path.read_text(encoding="utf-8"))["pull"]["concurrency"] == 2
 
-    forced = runner.invoke(app, ["--config", str(path), "f", "i", "--force"])
+    forced = runner.invoke(app, ["--config", str(path), "config", "init", "--force"])
     assert forced.exit_code == 0
     assert yaml.safe_load(path.read_text(encoding="utf-8"))["pull"]["concurrency"] == 8
 
@@ -360,7 +325,7 @@ def test_config_validate_distinguishes_defaults_explicit_missing_and_invalid(
     assert "built-in defaults are in effect" in implicit.stdout
 
     missing = tmp_path / "missing.yaml"
-    explicit = runner.invoke(app, ["--config", str(missing), "f", "v"])
+    explicit = runner.invoke(app, ["--config", str(missing), "config", "validate"])
     assert explicit.exit_code == 1
     assert isinstance(explicit.exception, FileNotFoundError)
 
@@ -439,7 +404,7 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
     [
         (["--unknown-option"], 1, "No such option: --unknown-option"),
         (["unknown-command"], 3, "No such command 'unknown-command'"),
-        (["help", "unknown-command"], 3, "No help topic for 'unknown-command'"),
+        (["help", "unknown-command"], 3, "No such command 'help'"),
     ],
 )
 def test_python_module_entrypoint_preserves_parser_exit_codes(

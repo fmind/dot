@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-09-06"
+  updated: "2026-09-07"
 ---
 
 # Python Stack Standard
 
-Use typed Python for packages, CLIs, Litestar applications, and ADK integrations. [python-script](../python-script/SKILL.md) owns single-file PEP 723 scripts; [agents-cli](../agents-cli/SKILL.md) owns agent scaffolding and deployment, and [google-adk](../google-adk/SKILL.md) owns ADK code.
+Use typed Python for packages, CLIs, Litestar applications, and ADK integrations. [django](../django/SKILL.md) owns Django applications, [python-script](../python-script/SKILL.md) owns single-file PEP 723 scripts, and [agents-cli](../agents-cli/SKILL.md) with [google-adk](../google-adk/SKILL.md) owns agent scaffolding and SDK code.
 
 ## Defaults
 
@@ -25,7 +25,7 @@ Use typed Python for packages, CLIs, Litestar applications, and ADK integrations
 1. **Choose the profile**: inspect existing conventions, then select library, CLI, data/ML, web, or agent from [profiles](references/profiles.md).
 1. **Scaffold only when needed**: follow [bootstrap](references/bootstrap.md), preserving project-specific configuration and using the matching files below.
 1. **Implement and verify**: use project-local tools through `uv run` and canonical mise tasks; run focused tests, then the required gate.
-1. **Finish**: synchronize human and agent docs through [update-docs](../update-docs/SKILL.md); report proof and leave commits to the authorized scope.
+1. **Finish**: synchronize human and agent docs through [repository-docs](../repository-docs/SKILL.md); report proof and leave commits to the authorized scope.
 
 ## References by task
 

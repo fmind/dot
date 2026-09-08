@@ -11,7 +11,7 @@ metadata:
 
 # Dot Release
 
-`dot release` (alias `dot r`, wrapped as `mise run release`) turns the Conventional Commits since the last tag into a release commit and tag of this repository; the generic process and the post-publication verification live in [release](../../../skills/release/SKILL.md).
+`dot release` (wrapped as `mise run release`) turns the Conventional Commits since the last tag into a release commit and tag of this repository; the generic process and the post-publication verification live in [release](../../../skills/release/SKILL.md).
 
 ## Commands
 

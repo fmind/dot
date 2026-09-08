@@ -1,6 +1,6 @@
 # Repository Review Matrix
 
-Use this matrix to plan a cross-cutting review. Skip a dimension only when it is genuinely out of scope, then name the omission and the rung it caps on the [proof ladder](../production-readiness/SKILL.md).
+Use this matrix to plan a cross-cutting review. Skip a dimension only when it is genuinely out of scope, then name the omission and the rung it caps on the [proof ladder](../../production-readiness/SKILL.md).
 
 | Dimension | Inspect | Strong evidence | Common residual gap |
 | --- | --- | --- | --- |
@@ -15,4 +15,4 @@ Use this matrix to plan a cross-cutting review. Skip a dimension only when it is
 | Release | version source, changelog, immutable tags, artifact/SBOM/signature publication | exact tag SHA and public artifact verification | draft release, movable tag, or unverified artifact |
 | Runtime | readiness, acceptance behavior, persistence, observability | bounded read-only probe against the authorized target | missing credential, ambiguous target, or mutation-only test |
 
-Report the highest proven rung of the [proof ladder](../production-readiness/SKILL.md) and every material gap above it.
+Report the highest proven rung of the [proof ladder](../../production-readiness/SKILL.md) and every material gap above it.

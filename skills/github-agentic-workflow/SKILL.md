@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-agentic-workflow
   created: "2026-09-03"
-  updated: "2026-09-05"
+  updated: "2026-09-07"
 ---
 
 # GitHub Agentic Workflow

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/test-driven-development
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-07"
 ---
 
 # Test-Driven Development
@@ -38,4 +38,4 @@ Prove a change with an honest red-green-refactor cycle: a failing test that dete
 ## Documentation
 
 - Adapted from [Superpowers test-driven-development](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/skills/test-driven-development/SKILL.md), [agent-skills test-driven-development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/test-driven-development/SKILL.md).
-- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (risk-based campaign), [systematic-debugging](../systematic-debugging/SKILL.md) (unexplained failure), [plan-execution](../plan-execution/SKILL.md) (planned slices), [mise](../mise/SKILL.md) (task vocabulary).
+- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (risk-based campaign), [systematic-debugging](../systematic-debugging/SKILL.md) (unexplained failure), [implementation-plan](../implementation-plan/SKILL.md) (planned slices), [mise](../mise/SKILL.md) (task vocabulary).

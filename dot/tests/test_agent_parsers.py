@@ -46,7 +46,12 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
             {"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "old", "is_truncated": True},
         ],
     )
-    assert [line.role for line in parse_agy_session(agy, "agy-id").logs] == ["user", "assistant"]
+    parsed_agy = parse_agy_session(agy, "agy-id")
+    assert [line.role for line in parsed_agy.logs] == ["user", "assistant"]
+    assert parsed_agy.usage is not None
+    assert parsed_agy.usage.total_tokens == 5
+    assert parsed_agy.usage.measurement_kind == "estimated"
+    assert parsed_agy.usage.source_bytes == agy.stat().st_size
     assert extract_agy_usage(agy, "agy-id").total_tokens == 5
 
     claude = tmp_path / "claude.jsonl"
@@ -73,6 +78,9 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     parsed = parse_claude_session(claude, "claude-id")
     assert [line.content for line in parsed.logs] == ["prompt", "answer"]
     assert all(line.model == "sonnet" for line in parsed.logs)
+    assert parsed.usage is not None
+    assert parsed.usage.total_tokens == 9
+    assert parsed.usage.measurement_kind == "provider-reported"
     assert extract_claude_usage(claude, "claude-id").total_tokens == 9
 
     codex = tmp_path / "rollout.jsonl"
@@ -117,6 +125,8 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
         ("user", "gpt", "/repo"),
         ("assistant", "gpt", "/repo"),
     ]
+    assert parsed.usage is not None
+    assert (parsed.usage.total_tokens, parsed.usage.turn_count, parsed.usage.reasoning_tokens) == (17, 1, 1)
     usage = extract_codex_usage(codex, "codex-id")
     assert (usage.total_tokens, usage.turn_count, usage.reasoning_tokens) == (17, 1, 1)
 

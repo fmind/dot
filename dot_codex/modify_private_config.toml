@@ -29,12 +29,6 @@ statusMessage = "Syncing Codex session"
 timeout = 30
 type = "command"
 
-[[hooks.PreCompact.hooks]]
-command = "dot agent hook usage codex"
-statusMessage = "Reporting Codex usage"
-timeout = 30
-type = "command"
-
 [[hooks.SessionEnd]]
 matcher = ""
 
@@ -44,30 +38,12 @@ statusMessage = "Syncing Codex session"
 timeout = 3
 type = "command"
 
-[[hooks.SessionEnd.hooks]]
-command = "dot agent hook usage codex"
-statusMessage = "Reporting Codex usage"
-timeout = 3
-type = "command"
-
 [[hooks.Stop]]
 matcher = ""
 
 [[hooks.Stop.hooks]]
-command = "dot agent hook session codex"
-statusMessage = "Syncing Codex session"
-timeout = 30
-type = "command"
-
-[[hooks.Stop.hooks]]
 command = "dot agent hook notify codex stop"
 statusMessage = "Notifying turn end"
-timeout = 30
-type = "command"
-
-[[hooks.Stop.hooks]]
-command = "dot agent hook usage codex"
-statusMessage = "Reporting Codex usage"
 timeout = 30
 type = "command"
 

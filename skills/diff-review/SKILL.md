@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diff-review
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-07"
 ---
 
 # Diff Review

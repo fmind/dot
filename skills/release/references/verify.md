@@ -28,8 +28,8 @@ Use after publication, including when a workflow or another person created the r
    gh run list -R "$repo" --commit "$release_sha" --limit 100 --json workflowName,attempt,headSha,status,conclusion,event,url
    ```
 
-1. **Verify published assets** (checksums, release attestations, build provenance) per [verify-assets](references/verify-assets.md); anything missing is a failed proof, not permission to regenerate it.
-1. **Verify the delivered boundary**: run the packaged binary or installation contract and confirm its version; [containerize](../containerize/SKILL.md) covers digest-bound OCI, Cosign, and SBOM checks.
-1. **Report a release receipt** ending with the highest proven rung of the [proof ladder](../production-readiness/SKILL.md):
+1. **Verify published assets** (checksums, release attestations, build provenance) per [verify-assets](verify-assets.md); anything missing is a failed proof, not permission to regenerate it.
+1. **Verify the delivered boundary**: run the packaged binary or installation contract and confirm its version; [containerize](../../containerize/SKILL.md) covers digest-bound OCI, Cosign, and SBOM checks.
+1. **Report a release receipt** ending with the highest proven rung of the [proof ladder](../../production-readiness/SKILL.md):
    - Expected commit, remote tag object and peeled commit, workflow names and URLs.
    - Release URL and state, expected versus downloaded assets, checksum and attestation results, packaged version.

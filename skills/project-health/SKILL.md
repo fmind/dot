@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-health
   created: "2026-09-02"
-  updated: "2026-09-06"
+  updated: "2026-09-07"
 ---
 
 # Project Health
@@ -21,7 +21,7 @@ The recurring pass that makes an existing repository current, consistent, simple
 1. **Tasks and hooks**: `mise.toml` exposes the canonical task vocabulary per [mise](../mise/SKILL.md); hooks and CI call those tasks per [lefthook](../lefthook/SKILL.md) and [github-actions](../github-actions/SKILL.md).
 1. **Complexity**: remove dead code, duplicated logic, stale config, unused dependencies, and abstractions that do not earn their maintenance cost.
 1. **Security**: run the scans the repository has adopted; use [secure](../secure/SKILL.md) for broader security work when the requested scope calls for it.
-1. **Docs**: sync `README.md` and `AGENTS.md` per [update-docs](../update-docs/SKILL.md); trim wider docs per [update-docs](../update-docs/SKILL.md).
+1. **Docs**: create or synchronize `README.md`, `AGENTS.md`, skills, and wider docs per [repository-docs](../repository-docs/SKILL.md).
 1. **Agent files**: promote repeated instructions into `.agents/skills/` per [skillify](../skillify/SKILL.md).
 1. **Final gate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
 1. **Report**: what changed per area (the tree holds only intended changes), what was left alone and why, and the highest proven rung of the [proof ladder](../production-readiness/SKILL.md).

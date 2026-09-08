@@ -15,6 +15,7 @@ import typer
 from typer import _click
 from typer.testing import CliRunner, Result
 
+import fmind_dot.agent as agent_module
 import fmind_dot.maintenance as maintenance
 from fmind_dot.config import Config, SessionStoreConfig
 from fmind_dot.errors import DotError
@@ -259,6 +260,9 @@ def test_registration_exposes_python_maintenance_contract() -> None:
     }.items():
         assert target in prune_output
         assert levels in prune_output
+    assert "--agent-artifacts" in prune_output
+    assert "--apply" in prune_output
+    assert "--dry-run" not in prune_output
     assert "--go" not in prune_output
     assert "--node" not in prune_output
 
@@ -284,7 +288,8 @@ def test_prune_cli_bare_flags_use_configured_levels(monkeypatch: pytest.MonkeyPa
                 "python": "all",
                 "mise": "configs",
                 "tools": "cache",
-            }
+            },
+            dry_run=True,
         )
     ]
 
@@ -304,11 +309,13 @@ def test_prune_cli_bare_short_flags_compose(monkeypatch: pytest.MonkeyPatch, arg
         PruneOptions(
             targets={
                 "agents": "sessions",
+                **({"agent-artifacts": "all"} if args == ["-A"] else {}),
                 "docker": "build",
                 "python": "cache",
                 "mise": "cache",
                 "tools": "cache",
-            }
+            },
+            dry_run=True,
         )
     ]
 
@@ -322,11 +329,13 @@ def test_prune_cli_all_accepts_bare_and_shallow_levels(monkeypatch: pytest.Monke
         PruneOptions(
             targets={
                 "agents": "sessions",
+                "agent-artifacts": "all",
                 "docker": "build",
                 "python": "cache",
                 "mise": "cache",
                 "tools": "cache",
-            }
+            },
+            dry_run=True,
         )
     ]
 
@@ -334,7 +343,15 @@ def test_prune_cli_all_accepts_bare_and_shallow_levels(monkeypatch: pytest.Monke
 def test_prune_cli_accepts_explicit_named_levels(monkeypatch: pytest.MonkeyPatch) -> None:
     result, captured = invoke_prune(
         monkeypatch,
-        ["--agents=sessions", "--docker=system", "--python=all", "--mise=configs", "--tools=cache"],
+        [
+            "--agents=sessions",
+            "--agent-artifacts",
+            "--docker=system",
+            "--python=all",
+            "--mise=configs",
+            "--tools=cache",
+            "--apply",
+        ],
     )
 
     assert result.exit_code == 0
@@ -342,6 +359,7 @@ def test_prune_cli_accepts_explicit_named_levels(monkeypatch: pytest.MonkeyPatch
         PruneOptions(
             targets={
                 "agents": "sessions",
+                "agent-artifacts": "all",
                 "docker": "system",
                 "python": "all",
                 "mise": "configs",
@@ -359,11 +377,13 @@ def test_prune_cli_all_deep_allows_explicit_target_override(monkeypatch: pytest.
         PruneOptions(
             targets={
                 "agents": "sessions",
+                "agent-artifacts": "all",
                 "docker": "build",
                 "python": "all",
                 "mise": "configs",
                 "tools": "cache",
-            }
+            },
+            dry_run=True,
         )
     ]
 
@@ -397,7 +417,7 @@ def test_registered_prune_command_uses_state_and_registration_is_idempotent() ->
     runner = RecordingRunner()
     state = make_state(runner)
 
-    result = CliRunner().invoke(app, ["prune", "--python", "--deep", "--dry-run"], obj=state)
+    result = CliRunner().invoke(app, ["prune", "--python", "--deep"], obj=state)
 
     assert result.exit_code == 0
     assert isinstance(state.stdout, io.StringIO)
@@ -602,6 +622,7 @@ def test_prune_validates_requests_and_resolves_configured_levels() -> None:
     }
     assert maintenance.resolve_prune_targets(state, {}, all_targets=True, deep=True) == {
         "agents": "sessions",
+        "agent-artifacts": "all",
         "docker": "system",
         "python": "all",
         "mise": "configs",
@@ -624,6 +645,26 @@ def test_prune_validates_requests_and_resolves_configured_levels() -> None:
     assert run_prune(state, PruneOptions(targets={})) == 0
     assert isinstance(state.stdout, io.StringIO)
     assert "No target selected" in state.stdout.getvalue()
+
+
+def test_prune_delegates_agent_artifacts_with_the_selected_apply_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[State, bool]] = []
+
+    def fake_prune(state: State, *, dry_run: bool) -> int:
+        calls.append((state, dry_run))
+        return 12
+
+    monkeypatch.setattr(agent_module, "prune_agent_artifacts", fake_prune)
+    state = make_state()
+
+    reclaimed = run_prune(state, PruneOptions(targets={"agent-artifacts": "all"}, dry_run=True))
+
+    assert reclaimed == 12
+    assert calls == [(state, True)]
+    assert isinstance(state.stdout, io.StringIO)
+    assert "Would reclaim 12 B" in state.stdout.getvalue()
 
 
 def test_prune_removes_files_trees_and_reports_absent_targets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

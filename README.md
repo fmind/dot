@@ -5,63 +5,58 @@ My personal dotfiles for **AI-driven, CLI-first** development on Linux and macOS
 Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.jdx.dev/) (tools & tasks).
 
 > [!IMPORTANT]
-> These are my personal dotfiles, shared in case they're useful. Feel free to fork and adapt them—but read before you run: they are opinionated and tailored to my workflow. Provided **as-is**, without warranty (see [LICENSE](LICENSE)).
+> Personal, opinionated dotfiles. Review before running; provided **as-is** without warranty (see [LICENSE](LICENSE)).
 
 ## Highlights
 
-- **Shell** — [Fish](https://fishshell.com/) with [Starship](https://starship.rs/) prompt, [Atuin](https://atuin.sh/) history, [zoxide](https://github.com/ajeetdsouza/zoxide), and [fzf](https://github.com/junegunn/fzf).
+- **Shell & Terminal** — [Fish](https://fishshell.com/) with [Starship](https://starship.rs/), [Atuin](https://atuin.sh/), [zoxide](https://github.com/ajeetdsouza/zoxide), [fzf](https://github.com/junegunn/fzf), [Ghostty](https://ghostty.org/), and [Zellij](https://zellij.dev/).
 - **Editor** — [Neovim](https://neovim.io/) powered by [LazyVim](https://www.lazyvim.org/).
-- **Terminal** — [Ghostty](https://ghostty.org/) (GPU-accelerated) and [Zellij](https://zellij.dev/) workspace multiplexer.
-- **AI-CLI Integration** — Built-in setups for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [GitHub Copilot](https://github.com/features/copilot) (`copilot`), and [Grok Build](https://x.ai/build) (`grok`), sharing a unified persona (`AGENTS.md`) and skills.
-- **Agent Skills** — A library of reusable [Agent Skills](https://agentskills.io) in [`skills/`](skills/), shared by every AI CLI above.
-- **Python-first stack** — Typed Python with uv, Ruff, ty, pytest, Litestar for web apps, and Google ADK for agents, plus OpenTofu for infrastructure.
-- **Custom `dot` CLI** — A typed Python utility for environment health checks, workspace updates, agent session and usage archives, project cleanup, commit generation, and logins. Source in [`dot/`](dot/).
-- **User-space toolchain** — `install.sh` bootstraps mise and chezmoi, while a single mise config (`~/.config/mise/config.toml`) pins and manages the development CLI toolchain without system package managers. The committed lock selects exact versions and records artifact digests where the backend supplies them; digest-free backends and live vendor installers remain explicit exceptions.
+- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [GitHub Copilot](https://github.com/features/copilot), and [Grok Build](https://x.ai/build) (`grok`).
+- **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
+- **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and logins ([`dot/`](dot/)).
+- **User-Space Toolchain** — CLIs managed declaratively in user space via [mise](https://mise.jdx.dev/) and dotfiles synced via [chezmoi](https://www.chezmoi.io/).
 
 ## Prerequisites
 
-The development CLI toolchain is installed in user space, but the bootstrap still needs Git, curl, host build tools, and native credential storage:
+### Host Packages
+
+The bootstrap installs user-space tools via mise, but requires host build tools, Git, curl, and native credential storage:
 
 ```bash
-# Linux (Debian/Ubuntu) — build tools and secret storage keyring
+# Linux (Debian/Ubuntu)
 sudo apt install -y git curl libatomic1 build-essential gnome-keyring
 
-# macOS — Git, curl, compilers, and system headers
+# macOS
 xcode-select --install
 ```
 
-Install a Docker-compatible engine if you plan to build container images. Cloud Run is the default deployment target; projects that adopt Kubernetes own and pin their cluster tooling locally.
+### GitHub Authentication
 
-The global toolchain covers everyday shell tools, Python tooling, and agent CLIs. Project-specific Python dependencies belong in `pyproject.toml` and `uv.lock`; infrastructure tools belong in the project's `mise.toml`. A small Node runtime remains solely for third-party CLIs that have no standalone distribution, including clasp and Mermaid CLI.
-
-[Ghostty](https://ghostty.org/docs/install/binary) and [FiraCode Nerd Font Mono](https://www.nerdfonts.com/font-downloads) are recommended host integrations for the configured terminal experience; they are not installed by mise.
-
-Generate an SSH key for GitHub authentication:
+Generate an SSH key and register the public key in [GitHub Settings Keys](https://github.com/settings/keys):
 
 ```bash
 ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 ```
 
-> [!TIP]
-> Register the public key at [GitHub Settings Keys](https://github.com/settings/keys).
+### Recommended Tools (Optional)
+
+- **Terminal & Font**: [Ghostty](https://ghostty.org/docs/install/binary) and [FiraCode Nerd Font Mono](https://www.nerdfonts.com/font-downloads).
+- **Containers**: A Docker-compatible container engine (Docker or Podman) if building container images.
 
 ## Installation
 
 ```bash
-# 1. Clone into the chezmoi source directory
+# Clone into the chezmoi source directory
 git clone https://github.com/fmind/dot.git ~/.local/share/chezmoi
 
-# 2. Run the installer (mise → chezmoi → apply → tools and integrations)
+# Run the installer
 bash ~/.local/share/chezmoi/install.sh
 ```
 
-Set `SKIP_GIT_PULL=true` only when intentionally bootstrapping from the existing local checkout without fetching its upstream branch.
+Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
-The agent configurations enable autonomous execution with broad tool permissions and selected experimental features. Use them in trusted workspaces; review each harness's permission settings before adopting these defaults. Shared instructions guide agent behavior but do not enforce a sandbox.
-
-The installer is idempotent: it keeps an already-installed `mise` and `chezmoi`, and otherwise installs mise from its vendor's install script and chezmoi through mise. The mise lock selects exact versions for x86-64 Linux and Apple silicon macOS and verifies recorded checksums, but registry, Cargo, npm, and pipx entries do not all carry artifact digests. A checksum proves artifact integrity, not publisher identity; provenance verification remains disabled until a tool has a proven signer contract on both platforms. Antigravity and Grok remain live vendor-script installs outside the mise lock.
-
-Tree-sitter builds from source with a minimal mise-managed Rust toolchain so current Neovim parsers work on Linux distributions whose GLIBC cannot run upstream's prebuilt CLI. The first installation takes a few minutes and requires a C compiler and linker, as do Neovim's parser builds.
+> [!WARNING]
+> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use.
 
 ## Credentials
 
@@ -69,60 +64,45 @@ Tree-sitter builds from source with a minimal mise-managed Rust toolchain so cur
 
 API keys and credentials are split between two Fish configuration files:
 
-1. **`~/.config/fish/conf.d/secrets.fish`** (shared, encrypted in repo): Decrypted automatically from `encrypted_private_secrets.fish.age`. Out of the box, it exports:
-   - `ANTIGRAVITY_SDK_API_KEY` (Antigravity SDK / Gemini API)
-   - `GEMINI_API_KEY` (Gemini Developer API)
-   - `HUGGINGFACE_API_TOKEN` (Hugging Face API)
-   - `JULES_API_KEY` (Jules CLI)
-   - `KAGGLE_API_TOKEN` (Kaggle API)
-   - `STITCH_ACCESS_TOKEN` (Stitch MCP)
-   - `STUDIO_API_KEY` (Gemini API)
-   - `UV_PUBLISH_TOKEN` (PyPI package publishing token)
+1. **`~/.config/fish/conf.d/secrets.fish`** (shared, encrypted in repo): Decrypted automatically from `encrypted_private_secrets.fish.age`. Exports keys including `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `HUGGINGFACE_API_TOKEN`, `JULES_API_KEY`, `KAGGLE_API_TOKEN`, `STITCH_ACCESS_TOKEN`, `STUDIO_API_KEY`, and `UV_PUBLISH_TOKEN`.
 
-   To decrypt it on apply, provision your private age key:
+   To decrypt on apply, provision your private age key:
 
    ```bash
    mkdir -p ~/.config/chezmoi
-   # Place your private key in key.txt and secure its permissions
+   # Place your private key in key.txt and secure permissions
    chmod 600 ~/.config/chezmoi/key.txt
    ```
 
    > [!NOTE]
-   > If the private key file is not present, `secrets.fish` is automatically ignored during `chezmoi apply` via `.chezmoiignore`. This allows you to bootstrap and run `dot` without decrypting fmind's personal secrets.
+   > If `key.txt` is missing, `secrets.fish` is skipped during `chezmoi apply` via `.chezmoiignore`, allowing unprivileged bootstrap without personal secrets.
 
    > [!WARNING]
-   > **Back up `~/.config/chezmoi/key.txt`.** It is **not** managed by chezmoi. If lost, encrypted repo files are unrecoverable.
+   > **Back up `~/.config/chezmoi/key.txt`.** It is not managed by chezmoi. If lost, encrypted repo files are unrecoverable.
 
-1. **`~/.private.fish`** (local, untracked): Sourced automatically by `config.fish` for machine/project overrides. You should manually configure variables here:
+1. **`~/.private.fish`** (local, untracked): Sourced automatically by `config.fish` for machine or project overrides:
+
    ```fish
-   set -gx ANTIGRAVITY_CLOUD_PROJECT   "my-vertex-project"     # Antigravity GCP Project
-   set -gx ANTIGRAVITY_CLOUD_LOCATION  "global"                # Antigravity GCP Location
-   set -gx GWS_PROJECT                "my-workspace-project"  # Workspace CLI Project
+   set -gx ANTIGRAVITY_CLOUD_PROJECT   "my-vertex-project"
+   set -gx ANTIGRAVITY_CLOUD_LOCATION  "global"
+   set -gx GWS_PROJECT                "my-workspace-project"
    ```
 
-### OAuth Web Logins
+### Authentication & Logins
 
-Authenticate these interactive command-line tools once via browser-based OAuth flows:
+| Tool / Service           | Command                                                        | Auth Type             |
+| ------------------------ | -------------------------------------------------------------- | --------------------- |
+| **GitHub CLI**           | `dot login github` (or `gh auth login`)                        | Browser OAuth         |
+| **Google Cloud SDK**     | `dot login gcp` (or `clog` / `gcloud auth login --update-adc`) | ADC + OAuth           |
+| **Google Workspace CLI** | `dot login workspace`                                          | Browser OAuth         |
+| **Antigravity CLI**      | `agy`                                                          | On-demand prompt      |
+| **Claude Code**          | `claude` → `/login`                                            | Interactive / browser |
+| **OpenAI Codex CLI**     | `codex login`                                                  | Interactive           |
+| **GitHub Copilot CLI**   | `copilot` → `/login`                                           | Interactive / browser |
+| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                                | Interactive / API key |
+| **Jules CLI**            | `jules auth login`                                             | Interactive           |
 
-- **GitHub CLI**: `dot login github` (or `gh auth login`)
-- **Google Cloud SDK**: `dot login gcp` (or `clog` / `gcloud auth login --update-adc`)
-- **Google Workspace CLI**: `dot login workspace`
-
-### On-Demand Logins
-
-Logins and session tokens initialized on demand or configured via local/workspace environment variables:
-
-- **Antigravity CLI**: `agy` (authenticates on-demand during use)
-- **OpenAI Codex CLI**: `codex login` (or authenticate on-demand during use)
-- **Claude Code**: start `claude`, then run `/login` when authentication is required
-- **GitHub Copilot CLI**: start `copilot`, then run `/login` when authentication is required
-- **Grok Build CLI**: `grok login` (or set `XAI_API_KEY` for headless runs)
-- **Jules CLI**: `jules auth login`
-- **Workspace MCP Integrations**: Define PATs/tokens on-demand for workspace configurations:
-  - `AIRTABLE_PAT` (Airtable)
-  - `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN` (Jira)
-  - `DATABRICKS_HOST` / `DATABRICKS_TOKEN` (Databricks)
-  - `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub)
+Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
 
 ## License
 

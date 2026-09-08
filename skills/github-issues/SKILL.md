@@ -1,17 +1,17 @@
 ---
 name: github-issues
-description: "Manage GitHub issues with gh: confirm the target, deduplicate, preserve evidence, and verify authorized creation, edits, labels, comments, or closure. Use for GitHub issues."
+description: "Plan and manage GitHub issues with gh: turn audit findings into deduplicated prioritized issue drafts, preserve acceptance evidence, and verify authorized creation, edits, dependencies, labels, comments, or closure. Use for GitHub issues."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-05"
+  updated: "2026-09-07"
 ---
 
 # GitHub Issues
 
-Read and mutate GitHub issues with `gh` from verified remote state; [project-backlog](../project-backlog/SKILL.md) owns local issue drafts and prioritization.
+Plan, read, and mutate GitHub issues from verified repository and remote state. When audit findings need prioritization, drafts, or dependency ordering, follow the [backlog workflow](references/backlog.md) before any GitHub mutation.
 
 ## Workflow
 
@@ -24,6 +24,7 @@ Read and mutate GitHub issues with `gh` from verified remote state; [project-bac
    ```
 
 1. **Deduplicate**: update the existing issue that represents the same outcome; keep reproduction, acceptance criteria, dependencies, decisions, and proof; drop stale logs and duplicate checklists.
+1. **Draft before creating**: for multiple findings or dependency-aware work, apply the [backlog workflow](references/backlog.md) and [draft contract](references/draft-contract.md), present the reviewable set, and stop unless issue creation is already authorized.
 1. **Apply one bounded mutation** the user authorized. Write substantial bodies to a temporary file and pass `--body-file`; avoid shell interpolation and interactive prompts:
 
    ```bash
@@ -37,7 +38,7 @@ Read and mutate GitHub issues with `gh` from verified remote state; [project-bac
 
 - **Green is not closed**: verify the issue's acceptance criteria and requested delivery boundary before `gh issue close`; local passing code is not delivery.
 - **People and planning fields**: assignments, comment notifications, milestones, and project changes are coordination acts; make them only when the request names them.
-- **Raw findings**: route review findings through [project-backlog](../project-backlog/SKILL.md) before creating issues from them.
+- **Raw findings**: classify, deduplicate, prioritize, and draft review findings through the [backlog workflow](references/backlog.md) before creating issues from them.
 
 ## Official Skills
 
@@ -52,4 +53,4 @@ gh skill install cli/cli <name>
 ## Documentation
 
 - [gh issue manual](https://cli.github.com/manual/gh_issue)
-- Companion skills: [project-backlog](../project-backlog/SKILL.md) (drafts and priorities), [plan-execution](../plan-execution/SKILL.md) (implement an issue), [github-pull-request](../github-pull-request/SKILL.md) (the PR).
+- Companion skills: [repository-review](../repository-review/SKILL.md) (verified findings), [implementation-plan](../implementation-plan/SKILL.md) (ordered implementation), [github-pull-request](../github-pull-request/SKILL.md) (the PR).
