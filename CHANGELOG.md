@@ -2,12 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [2.0.0] - 2026-09-08
 
-### ⚠️ Breaking Changes
+### 🐛 Bug Fixes
 
-- _(dot)_ Simplify the CLI surface: remove command aliases except `pr`, retire `context`, root `notify`, agent cleanup, hook usage, and legacy session migration, and replace agent-specific ingestion commands with `agent session ingest`
-- _(dot)_ Make commits staged-only unless `--all`, make pruning a dry-run unless `--apply`, and move full agent archive validation behind `agent doctor --deep`
+- _(test)_ Resolve darwin parity and deploy script errexit validation (#84)
+
+### ♻️ Refactor
+
+- [**breaking**] Simplify dot CLI and agent workflows
 
 ## [1.27.0] - 2026-09-06
 
