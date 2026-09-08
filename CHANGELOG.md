@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.1] - 2026-09-08
+
+### 🐛 Bug Fixes
+
+- _(deploy)_ Verify installed CLI via version option
+
 ## [2.0.0] - 2026-09-08
 
 ### 🐛 Bug Fixes
