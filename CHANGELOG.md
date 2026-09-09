@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.1.0] - 2026-09-09
+
+### 🚀 Features
+
+- Add opencode agent harness and marimo support
+
 ## [2.0.1] - 2026-09-08
 
 ### 🐛 Bug Fixes
