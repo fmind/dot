@@ -30,10 +30,12 @@ class ScriptedRunner(Runner):
         *,
         run: RunHandler | None = None,
         interactive_codes: Mapping[str, int] | None = None,
+        interactive_output: Mapping[str, Sequence[str]] | None = None,
     ) -> None:
         self.installed = installed or set()
         self.run_handler = run
         self.interactive_codes = interactive_codes or {}
+        self.interactive_output = interactive_output or {}
         self.calls: list[list[str]] = []
         self.output_limits: list[int | None] = []
         self.interactive_calls: list[list[str]] = []
@@ -82,15 +84,34 @@ class ScriptedRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env
+        del cwd, stdin, stderr, env
         command = list(args)
         self.interactive_calls.append(command)
+        lines = self.interactive_output.get(command[0], ())
+        for line in lines:
+            if stdout is not None:
+                stdout.write(line)
+            if on_stdout_line is not None:
+                on_stdout_line(line)
         return self.interactive_codes.get(command[0], 0)
 
 
-def state_with(runner: Runner, config: Config | None = None, *, stdin: str = "") -> State:
-    state = State(runner=runner, stdin=StringIO(stdin), stdout=StringIO(), stderr=StringIO())
+def state_with(
+    runner: Runner,
+    config: Config | None = None,
+    *,
+    stdin: str = "",
+    browser_open: Callable[[str], bool] | None = None,
+) -> State:
+    state = State(
+        runner=runner,
+        stdin=StringIO(stdin),
+        stdout=StringIO(),
+        stderr=StringIO(),
+        browser_open=browser_open or (lambda _url: True),
+    )
     state._config = config or Config()  # noqa: SLF001 - command boundary dependency injection.
     return state
 
@@ -263,6 +284,77 @@ def test_login_wrappers_cover_success_and_missing_tool() -> None:
     assert runner.interactive_calls[1] == ["gcloud", "auth", "login", "--update-adc"]
     assert isinstance(workspace.stdout, StringIO)
     assert "credentials successfully updated" in workspace.stdout.getvalue()
+
+
+def test_workspace_login_scopes_exclude_keep() -> None:
+    scopes = Config().login.workspace_scopes
+    assert "https://www.googleapis.com/auth/keep" not in scopes
+    assert any("calendar" in s for s in scopes)
+    assert any("gmail" in s for s in scopes)
+
+
+def test_login_workspace_opens_browser_window_on_auth_url() -> None:
+    opened_urls: list[str] = []
+    auth_url = (
+        "https://accounts.google.com/o/oauth2/auth?"
+        "scope=openid%20https://www.googleapis.com/auth/userinfo.email&redirect_uri=http://localhost:58026"
+    )
+    runner = ScriptedRunner(
+        {"gws"},
+        interactive_output={
+            "gws": [
+                "Open this URL in your browser to authenticate:\n",
+                "\n",
+                f"  {auth_url}\n",
+                "\n",
+            ]
+        },
+    )
+    state = state_with(
+        runner,
+        browser_open=lambda url: (opened_urls.append(url), True)[1],
+    )
+    system.run_login_workspace(state)
+
+    assert runner.interactive_calls[0][:3] == ["gws", "auth", "login"]
+    assert runner.interactive_calls[0][3:] == ["--scopes", ",".join(Config().login.workspace_scopes)]
+    assert opened_urls == [auth_url]
+    assert isinstance(state.stdout, StringIO)
+    assert auth_url in state.stdout.getvalue()
+
+
+def test_login_workspace_suppresses_browser_open_failure() -> None:
+    def broken_open(_url: str) -> bool:
+        raise OSError("no display available")
+
+    auth_url = "https://accounts.google.com/o/oauth2/auth?client_id=test"
+    runner = ScriptedRunner(
+        {"gws"},
+        interactive_output={"gws": [f"  {auth_url}\n"]},
+    )
+    state = state_with(runner, browser_open=broken_open)
+    system.run_login_workspace(state)
+    assert runner.interactive_calls[0][:3] == ["gws", "auth", "login"]
+
+
+def test_login_workspace_opens_browser_only_once() -> None:
+    opened_urls: list[str] = []
+    auth_url = "https://accounts.google.com/o/oauth2/auth?client_id=test"
+    runner = ScriptedRunner(
+        {"gws"},
+        interactive_output={
+            "gws": [
+                f"  {auth_url}\n",
+                f"  {auth_url}\n",
+            ]
+        },
+    )
+    state = state_with(
+        runner,
+        browser_open=lambda url: (opened_urls.append(url), True)[1],
+    )
+    system.run_login_workspace(state)
+    assert opened_urls == [auth_url]
 
 
 def test_workspace_setup_requires_project_and_configured_apis(monkeypatch: pytest.MonkeyPatch) -> None:
