@@ -118,7 +118,7 @@ wheels = [
 
 [[package]]
 name = "fmind-dot"
-version = "2.0.1"
+version = "2.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "markdown-it-py" },
