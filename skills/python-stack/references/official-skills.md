@@ -1,6 +1,8 @@
 # Official Skill Sources
 
-Checked 2026-09-06 against the managed mise tools, the dot Python dependencies, and the Python, agent, web, data, and telemetry skill references. Sources below are maintainer repositories, not marketplace rankings. Repository trees and selected skill bodies were inspected; discovery was exercised with `skills add ... --list` for the new Python routes. Recheck before installing because bundles and SDK APIs change independently.
+Baseline checked 2026-09-06 against the managed mise tools, the dot Python dependencies, and the Python, agent, web, data, and telemetry skill references. Sources below are maintainer repositories, not marketplace rankings. Repository trees and selected skill bodies were inspected; discovery was exercised with `skills add ... --list` for the new Python routes. Recheck before installing because bundles and SDK APIs change independently.
+
+The marimo authoring and pairing sources were added and checked on 2026-09-08. Other versioned rows retain their original qualification date.
 
 ## Python and documentation
 
@@ -12,6 +14,7 @@ Checked 2026-09-06 against the managed mise tools, the dot Python dependencies, 
 | Pydantic | [pydantic/skills](https://github.com/pydantic/skills/tree/9e9390ee24d44b32cf5379c58acaebd7563f5f86/skills): validation, Pydantic AI, and Logfire | [pydantic](../../pydantic/SKILL.md); agent and telemetry products are optional |
 | Litestar | [litestar-org/litestar-skills](https://github.com/litestar-org/litestar-skills/tree/84587b4ccb97e31e34230f800d4dc2f90f6ae11d/skills): web framework guidance and optional ecosystem libraries | [litestar](../../litestar/SKILL.md) |
 | Typer | [fastapi/typer](https://github.com/fastapi/typer/tree/82b83959d9e900215ed8ff2a56a766ff066e1c75/typer/.agents/skills): official CLI authoring guidance shipped inside the source package | [typer](../../typer/SKILL.md) |
+| Marimo | [marimo-team/skills](https://github.com/marimo-team/skills), [marimo-team/marimo-pair](https://github.com/marimo-team/marimo-pair): reactive notebook authoring, conversion, and live agent pairing | [marimo](../../marimo/SKILL.md) |
 | FastAPI | [fastapi/fastapi](https://github.com/fastapi/fastapi/tree/50113da16fec53b66b80d75e80a89296de4fa5a5/fastapi/.agents/skills): official API framework guidance, relevant to the agents-cli scaffold | [fastapi](../../fastapi/SKILL.md); preserve Litestar as the ordinary web default |
 | uv, Ruff, ty | [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins/tree/f3ce88a7ba830f53afd6d944c1d0278ed318e142/plugins/astral/skills): three standalone tool skills, also packaged as a Claude plugin | [uv](../../uv/SKILL.md), [ruff](../../ruff/SKILL.md), [ty](../../ty/SKILL.md) |
 | Python MCP | [anthropics/skills](https://github.com/anthropics/skills/tree/41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f/skills/mcp-builder): Anthropic's MCP builder includes Python guidance; this is not a Python SDK maintainer skill | [mcp-server](../../mcp-server/SKILL.md), with installed-SDK API verification |

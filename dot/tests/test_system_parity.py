@@ -116,6 +116,36 @@ def test_completion_falls_back_for_empty_custom_output_but_not_for_standard_fail
     assert failing.calls == [["plain", "completion", "fish"]]
 
 
+def test_marimo_completion_uses_click_fish_source_protocol() -> None:
+    runner = ScriptedRunner(
+        {"env", "marimo"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult("# marimo fish completion\n", "", 0),
+    )
+
+    assert system._generate_completion(state_with(runner), "marimo") == "# marimo fish completion\n"  # noqa: SLF001
+    assert runner.calls == [["env", "_MARIMO_COMPLETE=fish_source", "marimo"]]
+
+
+def test_dot_completion_uses_typer_fish_source_protocol() -> None:
+    runner = ScriptedRunner(
+        {"env", "dot"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult("# dot fish completion\n", "", 0),
+    )
+
+    assert system._generate_completion(state_with(runner), "dot") == "# dot fish completion\n"  # noqa: SLF001
+    assert runner.calls == [["env", "_DOT_COMPLETE=source_fish", "dot"]]
+
+
+def test_fkf_completion_uses_typer_fish_source_protocol() -> None:
+    runner = ScriptedRunner(
+        {"env", "fkf"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult("# fkf fish completion\n", "", 0),
+    )
+
+    assert system._generate_completion(state_with(runner), "fkf") == "# fkf fish completion\n"  # noqa: SLF001
+    assert runner.calls == [["env", "_FKF_COMPLETE=source_fish", "fkf"]]
+
+
 def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -192,6 +222,13 @@ def test_login_and_setup_failures_name_the_failed_operation() -> None:
         system.run_setup_workspace(state_with(setup), "project-1")
     assert setup.interactive_calls[0][-3:] == ["--project", "project-1", "--quiet"]
 
+    setup_gh = ScriptedRunner({"gh"}, interactive_codes={"gh": 9})
+    with pytest.raises(DotError, match=r"gh refresh failed \(9\)"):
+        system.run_setup_github(state_with(setup_gh))
+
+    with pytest.raises(DotError, match="required tool is not installed: gh"):
+        system.run_setup_github(state_with(ScriptedRunner()))
+
 
 def test_github_login_confirmation_defaults_to_cancel_and_preserves_argv() -> None:
     runner = ScriptedRunner({"gh"})
@@ -210,7 +247,7 @@ def test_github_login_confirmation_defaults_to_cancel_and_preserves_argv() -> No
         "--hostname",
         "github.com",
         "--scopes",
-        "gist,notifications,read:org,repo,user",
+        ",".join(Config().login.github_scopes),
     ]
 
 
@@ -850,7 +887,7 @@ def test_system_command_surface_and_verify_flags() -> None:
     assert isinstance(login, TyperGroup)
     assert isinstance(setup, TyperGroup)
     assert set(login.commands) == {"github", "workspace", "gcp"}
-    assert set(setup.commands) == {"workspace"}
+    assert set(setup.commands) == {"github", "workspace"}
     option_names = {
         name
         for parameter in command.commands["verify"].params

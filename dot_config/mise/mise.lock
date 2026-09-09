@@ -1029,6 +1029,21 @@ checksum = "sha256:5ecbfc5233e3f1d30384e142a9a8dd7ebf9d3298ab22476fabac44a8f2117
 url = "https://github.com/hatoo/oha/releases/download/v1.16.0/oha-macos-amd64"
 url_api = "https://api.github.com/repos/hatoo/oha/releases/assets/526038582"
 
+[[tools.opencode]]
+version = "1.18.29"
+backend = "aqua:anomalyco/opencode"
+specifiers = ["latest"]
+
+[tools.opencode."platforms.linux-x64"]
+checksum = "sha256:ea800b7ff56226b70952126c9fc1e2517ca4c4b5682fd9d3f9e87449697a1194"
+url = "https://github.com/anomalyco/opencode/releases/download/v1.18.29/opencode-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/anomalyco/opencode/releases/assets/545047604"
+
+[tools.opencode."platforms.macos-arm64"]
+checksum = "sha256:fe764f7f360c584a83e18dd5f23fb1a6b2725f5ee8854b0252fe558f7798e946"
+url = "https://github.com/anomalyco/opencode/releases/download/v1.18.29/opencode-darwin-arm64.zip"
+url_api = "https://api.github.com/repos/anomalyco/opencode/releases/assets/545047483"
+
 [[tools.opengrep]]
 version = "1.29.0"
 backend = "aqua:opengrep/opengrep"
@@ -1075,6 +1090,11 @@ specifiers = ["latest"]
 [[tools."pipx:kaggle"]]
 version = "2.2.4"
 backend = "pipx:kaggle"
+specifiers = ["latest"]
+
+[[tools."pipx:marimo"]]
+version = "0.24.0"
+backend = "pipx:marimo"
 specifiers = ["latest"]
 
 [[tools."pipx:pip-audit"]]

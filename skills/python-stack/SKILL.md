@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-09-07"
+  updated: "2026-09-08"
 ---
 
 # Python Stack Standard
@@ -18,13 +18,13 @@ Use typed Python for packages, CLIs, Litestar applications, and ADK integrations
 - **Toolchain**: stable Python managed by uv; lock dependencies in `uv.lock` and keep `.python-version` aligned with `requires-python`.
 - **Quality**: Ruff for code formatting/lint, ty for types, pytest for behavior, and dprint for markup/config. Keep checks warning-free.
 - **Tests**: deterministic offline tests by default; the starter's branch-coverage target is 85%, adapted to the project. Database/provider integrations require their declared environment.
-- **Boundaries**: Pydantic/settings for external input and configuration; structlog for readable local output and JSON production logs; no manual virtual environments.
+- **Boundaries**: use Pydantic/settings when external input or application configuration needs it, and structlog when structured logging is required. Libraries and small CLIs start with only the dependencies they use; uv owns project environments.
 
 ## Workflow
 
 1. **Choose the profile**: inspect existing conventions, then select library, CLI, data/ML, web, or agent from [profiles](references/profiles.md).
-1. **Scaffold only when needed**: follow [bootstrap](references/bootstrap.md), preserving project-specific configuration and using the matching files below.
-1. **Implement and verify**: use project-local tools through `uv run` and canonical mise tasks; run focused tests, then the required gate.
+1. **Scaffold only when needed**: follow [bootstrap](references/bootstrap.md), preserving project-specific configuration and using the matching files below. Adapt agent instructions and tasks to the selected profile; web database settings and health routes do not belong in a library or CLI.
+1. **Implement and verify**: use project-local tools through `uv run` and canonical mise tasks; run focused tests, then the required gate. For a starter, also build and install its wheel in a fresh environment and exercise the import or command outside the source tree.
 1. **Finish**: synchronize human and agent docs through [repository-docs](../repository-docs/SKILL.md); report proof and leave commits to the authorized scope.
 
 ## References by task
@@ -45,7 +45,7 @@ Use typed Python for packages, CLIs, Litestar applications, and ADK integrations
 
 ## Official Skills
 
-Use the tool-specific guide to list, review, and install official skills in the target project: [uv](../uv/SKILL.md), [Ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md), [Pydantic](../pydantic/SKILL.md), [Typer](../typer/SKILL.md), [Litestar](../litestar/SKILL.md), and [FastAPI](../fastapi/SKILL.md) for existing or explicitly selected FastAPI apps. [Zensical](../zensical/SKILL.md) is the documentation and course publisher.
+Use the tool-specific guide to list, review, and install official skills in the target project: [uv](../uv/SKILL.md), [Ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md), [Pydantic](../pydantic/SKILL.md), [Typer](../typer/SKILL.md), [Litestar](../litestar/SKILL.md), [marimo](../marimo/SKILL.md), and [FastAPI](../fastapi/SKILL.md) for existing or explicitly selected FastAPI apps. [Zensical](../zensical/SKILL.md) is the documentation and course publisher.
 
 Read the [official skill source audit](references/official-skills.md) when selecting additional dependencies or checking which vendors publish application skills. It records coverage and gaps; it is not an instruction to install every bundle.
 

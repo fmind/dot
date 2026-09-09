@@ -1,30 +1,10 @@
-# Editorial Voice & Publication Boundaries
+# Editorial Voice and Publication Boundaries
 
-## Author Identity & Convictions
+Read the publishing project's current identity and editorial instructions, plus the author's draft, before attributing a personal fact, belief, experience, or result. This global skill deliberately keeps no second biography or channel policy.
 
-Médéric Hurier (Fmind) is an AI Architect (PhD in AI & Security). Publications reflect practical engineering principles:
-- **Simplicity wins**: Cartesian, pragmatic, 80/20 rule. Ten lines that work over a hundred that impress.
-- **Open standards over lock-in**: POSIX, MCP, Agent Skills, open protocols.
-- **Security is part of the design**: Evaluate agent systems as attack surfaces.
-- **Build first, then claim**: Test tools, ship code, write about findings including failures.
-
-Canonical Bio:
-> AI Architect (PhD) • VC Expert Advisor • AAIF Ambassador • GCP Certified Cloud Architect • AI Agents, MLOps & Security
-
-## Editorial Boundaries
-
-1. **`draft.txt` is untouchable**: Raw notes from the author; agents never edit them. Carry the idea, stance, and specific details into clean English without inventing points.
-1. **Facts come only from identity and the draft**: Never invent experience, client names, measurements, quotations, consensus, or URLs.
-1. **Agree the register upfront**:
-   - Field note: direct, low drama, short what-I-did.
-   - Opinion piece: bold stance on industry direction under a clear title.
-   - Guide: concrete step-by-step method with the teacher's voice.
-   - Project launch: what was built, why, and where it falls short.
-   - Vendor-neutral: measured community piece with no self-promotion.
-1. **Published work is immutable**: Once published to the canonical site, the live copy is owned by the site repository. Fixes become errata, follow-ups, or site edits.
-1. **Channel automation boundary**: Only the canonical site export may be automated. Social and syndication channels (LinkedIn, X, Bluesky, Medium, Reddit, Hacker News) are prepared in `posts/` for manual copy-paste.
-
-## Anti-Slop Guidelines
-
-- **No hype-slop**: Cut bold lead-ins on every bullet, emoji headings, "game-changer", "seamlessly", throat-clearing openings ("In today's landscape"), and fake symmetry.
-- **No clinical-slop**: Preserve the direct first-person perspective ("I built", "I found"); avoid passive corporate reports and over-hedged non-statements.
+1. Preserve the author's stance, concrete details, intensity, and humor while improving the prose; raw notes remain untouched.
+1. Resolve the requested register and length through the project's drafting workflow. Avoid imposing the same first-person or provocative style on every piece.
+1. Distinguish supplied personal facts from externally verified background; never invent clients, measurements, quotations, credentials, or approval.
+1. Cut hype, throat-clearing, repeated conclusions, and empty corporate language. Use lists and headings only when they clarify the argument.
+1. Follow the project's immutable-publication rule. Prepare a proposed erratum, follow-up, or dated edition when required; site ownership alone does not authorize rewriting published copy.
+1. Prepare only the requested channel copy. Sending, scheduling, publication, and spending require the authority and workflow of the owning project.

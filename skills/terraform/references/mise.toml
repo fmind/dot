@@ -1,3 +1,5 @@
+# Docs: https://mise.jdx.dev/configuration.html
+
 [settings.task]
 run_auto_install = false
 
@@ -17,7 +19,11 @@ run = ["mise run format", "mise run check", "mise run test", "mise run build"]
 
 [tasks.build]
 alias = "b"
-description = "Produce an executable plan artifact (review, then apply manually)"
+description = "Generate module documentation without accessing cloud resources"
+run = "mise run build:docs"
+
+[tasks.plan]
+description = "Create a plan for the explicitly selected backend, workspace, and cloud target"
 run = ["mkdir -p tmp", "tofu plan -out=tmp/plan.tfplan"]
 
 [tasks."build:docs"]
@@ -64,7 +70,7 @@ run = "tflint --recursive"
 [tasks."check:scan"]
 alias = "cn"
 description = "Scan IaC for misconfigurations (trivy)"
-run = "trivy config --exit-code 1 --tf-vars terraform.example.tfvars ."
+run = "trivy --config trivy.yaml config --exit-code 1 --tf-vars terraform.example.tfvars ."
 
 [tasks."check:validate"]
 alias = "cv"

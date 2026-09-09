@@ -11,8 +11,8 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 - **Shell & Terminal** — [Fish](https://fishshell.com/) with [Starship](https://starship.rs/), [Atuin](https://atuin.sh/), [zoxide](https://github.com/ajeetdsouza/zoxide), [fzf](https://github.com/junegunn/fzf), [Ghostty](https://ghostty.org/), and [Zellij](https://zellij.dev/).
 - **Editor** — [Neovim](https://neovim.io/) powered by [LazyVim](https://www.lazyvim.org/).
-- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [GitHub Copilot](https://github.com/features/copilot), and [Grok Build](https://x.ai/build) (`grok`).
-- **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
+- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), and [Grok Build](https://x.ai/build) (`grok`).
+- **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, marimo, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
 - **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and logins ([`dot/`](dot/)).
 - **User-Space Toolchain** — CLIs managed declaratively in user space via [mise](https://mise.jdx.dev/) and dotfiles synced via [chezmoi](https://www.chezmoi.io/).
 
@@ -85,22 +85,27 @@ API keys and credentials are split between two Fish configuration files:
    ```fish
    set -gx ANTIGRAVITY_CLOUD_PROJECT   "my-vertex-project"
    set -gx ANTIGRAVITY_CLOUD_LOCATION  "global"
-   set -gx GWS_PROJECT                "my-workspace-project"
+   set -gx OPENCODE_GCP_PROJECT        "my-vertex-project"
+   set -gx VERTEX_LOCATION             "global"
+   set -gx GWS_PROJECT                 "my-workspace-project"
    ```
 
 ### Authentication & Logins
 
-| Tool / Service           | Command                                                        | Auth Type             |
-| ------------------------ | -------------------------------------------------------------- | --------------------- |
-| **GitHub CLI**           | `dot login github` (or `gh auth login`)                        | Browser OAuth         |
-| **Google Cloud SDK**     | `dot login gcp` (or `clog` / `gcloud auth login --update-adc`) | ADC + OAuth           |
-| **Google Workspace CLI** | `dot login workspace`                                          | Browser OAuth         |
-| **Antigravity CLI**      | `agy`                                                          | On-demand prompt      |
-| **Claude Code**          | `claude` → `/login`                                            | Interactive / browser |
-| **OpenAI Codex CLI**     | `codex login`                                                  | Interactive           |
-| **GitHub Copilot CLI**   | `copilot` → `/login`                                           | Interactive / browser |
-| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                                | Interactive / API key |
-| **Jules CLI**            | `jules auth login`                                             | Interactive           |
+| Tool / Service           | Command                                               | Auth Type             |
+| ------------------------ | ----------------------------------------------------- | --------------------- |
+| **GitHub CLI**           | `dot login github` (or `gh auth login`)               | Browser OAuth         |
+| **Google Cloud SDK**     | `dot login gcp` (or `gcloud auth login --update-adc`) | ADC + OAuth           |
+| **Google Workspace CLI** | `dot login workspace`                                 | Browser OAuth         |
+| **Antigravity CLI**      | `agy`                                                 | On-demand prompt      |
+| **Claude Code**          | `claude` → `/login`                                   | Interactive / browser |
+| **OpenAI Codex CLI**     | `codex login`                                         | Interactive           |
+| **OpenCode CLI**         | `dot login gcp`, then `opencode`                      | Vertex AI ADC         |
+| **GitHub Copilot CLI**   | `copilot` → `/login`                                  | Interactive / browser |
+| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                       | Interactive / API key |
+| **Jules CLI**            | `jules auth login`                                    | Interactive           |
+
+Use `dot setup github` to refresh the configured GitHub OAuth scopes, and `dot setup workspace <project-id>` to enable and configure the Workspace APIs.
 
 Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
 

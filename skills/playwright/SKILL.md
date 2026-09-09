@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Playwright
@@ -30,7 +30,7 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 
 ## Official Skills
 
-No separate agent-skill install is required for the Python test workflow; keep Playwright behavior pinned through the project's uv lockfile.
+Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) provides the official browser CLI skill. Select it through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) only for CLI-driven exploration; its commands are not the Python API. Python tests continue to use the documentation below and the project's uv lockfile.
 
 ## Documentation
 

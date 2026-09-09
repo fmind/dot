@@ -1,3 +1,5 @@
+# Docs: https://git-scm.com/docs/gitignore
+
 # Provider binaries and module cache (re-created by `tofu init`)
 .terraform/
 # State never belongs in git: it stores every attribute, secrets included
@@ -10,5 +12,6 @@ tmp/
 *.tfvars
 *.tfvars.json
 !*.example.tfvars
+!*.example.tfvars.json
 crash.log
 crash.*.log

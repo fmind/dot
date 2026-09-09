@@ -15,6 +15,7 @@ from fmind_dot.system import (
     Notification,
     build_notification,
     notification_command,
+    run_setup_github,
     run_setup_workspace,
     run_verify,
 )
@@ -99,6 +100,51 @@ def test_notification_command_prefers_notify_send() -> None:
 
     assert command[0] == "notify-send"
     assert command[-2:] == ["Done", "Turn finished\n~/dot"]
+
+
+def test_setup_github_refreshes_when_already_authenticated() -> None:
+    runner = FakeRunner({"gh"})
+    state = state_with(runner)
+
+    run_setup_github(state)
+
+    assert runner.calls[0] == ["gh", "auth", "status", "--hostname", "github.com"]
+    assert runner.calls[1][:4] == ["gh", "auth", "refresh", "--hostname"]
+    assert runner.calls[1][4] == "github.com"
+    assert runner.calls[1][5] == "--scopes"
+    assert "project" in runner.calls[1][6]
+    assert "write:packages" in runner.calls[1][6]
+
+
+def test_setup_github_logs_in_when_not_authenticated() -> None:
+    class UnauthenticatedRunner(FakeRunner):
+        def run(
+            self,
+            args: Sequence[str],
+            *,
+            cwd: Path | None = None,
+            input_text: str | None = None,
+            env: Mapping[str, str] | None = None,
+            timeout: float | None = None,
+            check: bool = True,
+        ) -> CommandResult:
+            del cwd, input_text, env, timeout, check
+            self.calls.append(list(args))
+            if list(args)[:3] == ["gh", "auth", "status"]:
+                return CommandResult(stdout="", stderr="not logged in", returncode=1)
+            return CommandResult(stdout="ok\n", stderr="", returncode=0)
+
+    runner = UnauthenticatedRunner({"gh"})
+    state = state_with(runner)
+
+    run_setup_github(state)
+
+    assert runner.calls[0] == ["gh", "auth", "status", "--hostname", "github.com"]
+    assert runner.calls[1][:4] == ["gh", "auth", "login", "--hostname"]
+    assert runner.calls[1][4] == "github.com"
+    assert runner.calls[1][5] == "--scopes"
+    assert "project" in runner.calls[1][6]
+    assert "write:packages" in runner.calls[1][6]
 
 
 def test_setup_workspace_uses_argument_then_environment(monkeypatch: pytest.MonkeyPatch) -> None:

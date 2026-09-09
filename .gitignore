@@ -1,17 +1,33 @@
-!.claude/skills
-!dot_local/bin/symlink_dot.tmpl
+# Docs: https://git-scm.com/docs/gitignore
+
+# Local agent state; shared skills remain versioned.
 .agents/prompts/
 .agents/proposals/
 .agents/reports/
+.agents/skills/local-*
 .agents/tmp/
 .antigravitycli/
 .claude/*
+!.claude/skills
 .codex/
-.coverage*
 .gemini/
 .grok/
+skills/local-*
+
+# Python environments, caches, and generated distributions at any depth.
+*.py[co]
+.cache/
+.coverage*
+.mypy_cache/
+.pytest_cache/
 .ruff_cache/
+.ty_cache/
 .venv/
 __pycache__/
+build/
+dist/
+htmlcov/
+
+# Only the managed launcher belongs in this generated bin directory.
 dot_local/bin/*
-skills/local-*
+!dot_local/bin/symlink_dot.tmpl

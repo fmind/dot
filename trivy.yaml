@@ -15,14 +15,20 @@ scan:
     - secret
     - vuln
   skip-dirs:
+    - "**/.cache"
+    - "**/.mypy_cache"
+    - "**/.pytest_cache"
+    - "**/.ruff_cache"
+    - "**/.ty_cache"
+    - "**/.venv"
+    - "**/__pycache__"
     - .agents
     - .antigravitycli
     - .claude
+    - .codex
     - .gemini
     - .git
-    - .opengrep
-    - .ruff_cache
-    - .venv
-    - dot_local
+    - .grok
+    - dot_local/bin
 vulnerability:
   ignore-unfixed: true

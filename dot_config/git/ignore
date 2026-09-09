@@ -1,4 +1,6 @@
-!.claude/skills
+# Docs: https://git-scm.com/docs/gitignore
+
+# Machine-local agent state; project code and tooling rules belong in .gitignore.
 .agents/prompts/
 .agents/proposals/
 .agents/reports/
@@ -6,5 +8,8 @@
 .agents/tmp/
 .antigravitycli/
 .claude/*
+!.claude/skills
+.codex/
 .gemini/
+.grok/
 skills/local-*

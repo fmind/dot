@@ -1,9 +1,21 @@
-**/*.pyc
+# Docs: https://www.chezmoi.io/reference/special-files/chezmoiignore/
+
+# Generated artifacts use target-path patterns, including nested tool caches.
+**/*.py[co]
+**/.cache
+**/.coverage*
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/.ty_cache
+**/.venv
 **/__pycache__
-.coverage*
-.pytest_cache
-.ruff_cache
-.venv
+**/build
+**/dist
+**/htmlcov
+
+# Repository-only sources and tooling.
+.antigravitycli
 AGENTS.md
 CHANGELOG.md
 CLAUDE.md
@@ -16,7 +28,6 @@ lefthook.yml
 mise.lock
 mise.toml
 ruff.toml
-scripts
 skills
 trivy.yaml
 

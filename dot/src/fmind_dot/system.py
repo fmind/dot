@@ -175,6 +175,21 @@ def run_login_gcp(state: State) -> None:
     typer.echo("gcloud: credentials successfully updated.", file=state.stdout)
 
 
+def run_setup_github(state: State) -> None:
+    _tool(state, "gh")
+    host = state.config.login.github_host
+    scopes = ",".join(state.config.login.github_scopes)
+    status_result = state.runner.run(["gh", "auth", "status", "--hostname", host], check=False)
+    if status_result.returncode == 0:
+        typer.echo(f"gh: refreshing OAuth scopes for {host}...", file=state.stdout)
+        _interactive(state, ["gh", "auth", "refresh", "--hostname", host, "--scopes", scopes], "gh refresh failed")
+        typer.echo(f"gh: OAuth scopes successfully updated for {host}.", file=state.stdout)
+    else:
+        typer.echo(f"gh: requesting OAuth login for {host}...", file=state.stdout)
+        _interactive(state, ["gh", "auth", "login", "--hostname", host, "--scopes", scopes], "gh login failed")
+        typer.echo(f"gh: OAuth login successful for {host}.", file=state.stdout)
+
+
 def run_setup_workspace(state: State, project_id: str = "") -> None:
     _tool(state, "gws")
     _tool(state, "gcloud")
@@ -355,6 +370,12 @@ def _generate_completion(state: State, tool: str) -> str:
     custom = state.config.completions.custom_commands.get(tool)
     binary = custom.binary if custom and custom.binary else tool
     if state.runner.which(tool) is None:
+        if tool == "dot":
+            return get_completion_script(  # noqa: S604 - Typer renders a static template; no shell is executed.
+                prog_name="dot",
+                complete_var="_DOT_COMPLETE",
+                shell="fish",
+            )
         raise FileNotFoundError(tool)
     if binary != tool and state.runner.which(binary) is None:
         raise DotError(f"completion generator for {tool} is not installed: {binary}")
@@ -400,17 +421,18 @@ def run_completion(state: State) -> None:
         except DotError as error:
             failures.append(f"{tool}: {error}")
             typer.echo(f"  ✗ Failed to generate completions for {tool}", file=state.stdout)
-    try:
-        dot_completion = get_completion_script(  # noqa: S604 - Typer renders a static template; no shell is executed.
-            prog_name="dot",
-            complete_var="_DOT_COMPLETE",
-            shell="fish",
-        )
-        _write_validated_fish(state, directory / "dot.fish", dot_completion, 0o644)
-        typer.echo("  ✓ Generated completions for dot", file=state.stdout)
-    except (DotError, OSError) as error:
-        failures.append(f"dot.fish: {error}")
-        typer.echo("  ✗ Failed to generate completions for dot", file=state.stdout)
+    if "dot" not in state.config.completions.tools:
+        try:
+            dot_completion = get_completion_script(  # noqa: S604 - Typer renders a static template; no shell is executed.
+                prog_name="dot",
+                complete_var="_DOT_COMPLETE",
+                shell="fish",
+            )
+            _write_validated_fish(state, directory / "dot.fish", dot_completion, 0o644)
+            typer.echo("  ✓ Generated completions for dot", file=state.stdout)
+        except (DotError, OSError) as error:
+            failures.append(f"dot.fish: {error}")
+            typer.echo("  ✗ Failed to generate completions for dot", file=state.stdout)
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
     try:
         cache.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -814,6 +836,10 @@ def register(app: typer.Typer) -> None:
     @aliased_command(login_app, "gcp", help_text="Authenticate gcloud and ADC")
     def login_gcp(context: typer.Context) -> None:
         run_login_gcp(state_from(context))
+
+    @aliased_command(setup_app, "github", help_text="Configure and refresh GitHub CLI OAuth scopes")
+    def setup_github(context: typer.Context) -> None:
+        run_setup_github(state_from(context))
 
     @aliased_command(setup_app, "workspace", help_text="Configure Workspace APIs for a GCP project")
     def setup_workspace(

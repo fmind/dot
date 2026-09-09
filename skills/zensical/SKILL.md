@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/zensical
   created: "2026-09-06"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Zensical Documentation
@@ -41,11 +41,11 @@ Use Zensical as the default static publisher for documentation and courses; [cou
 - **Build output is disposable**: ignore `site/`, `.cache/`, and `.venv/`; retain `pyproject.toml`, `uv.lock`, configuration, and source content.
 - **Plugin compatibility is explicit**: Zensical reimplements selected MkDocs plugins; check the supported list for the locked version before adding a plugin package.
 - **Theme**: use Tokyo Night Moon colors through documented palette/CSS customization when theming; [fmind-visuals](../fmind-visuals/SKILL.md) owns Fmind illustrations and diagrams.
-- **Reproducibility**: use `uv sync --locked` in CI and clean builds; verify the current stable release before upgrading. The local bootstrap and strict build were exercised with Zensical 0.0.59.
+- **Reproducibility**: use `uv sync --locked` in CI and clean builds; verify the current stable release before upgrading. The local bootstrap and strict build were exercised with Zensical 0.0.60.
 
 ## Official Skills
 
-No upstream authoring `SKILL.md` was found in `zensical/zensical` on 2026-09-06. This is the personal workflow; use the official documentation below for current capabilities.
+No upstream authoring `SKILL.md` was found in `zensical/zensical` on 2026-09-08. This is the personal workflow; use the official documentation below for current capabilities.
 
 ## Documentation
 

@@ -6,62 +6,38 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-09-05"
+  updated: "2026-09-08"
 ---
 
 # GitHub Pull Request
 
-Create or update the pull request for the current branch against `main` with a What, Why, How, and Test plan body; [feature-branch](../feature-branch/SKILL.md) owns branch creation and [conventional-commit](../conventional-commit/SKILL.md) the commits on it.
+Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [feature-branch](../feature-branch/SKILL.md) owns branch creation; [git-add-commit-push](../git-add-commit-push/SKILL.md) owns commit and push repair.
 
 ## Workflow
 
-1. **Stop on `main`**: a PR must come from a feature branch.
-1. **Gather context** so the PR reflects the actual work, not only the commit subjects:
+1. **Resolve the target**: inspect `git status --short --branch`, the GitHub repository, and `gh pr view --json number,state,url,baseRefName,headRefName,headRefOid`. Distinguish no open PR from authentication or network failure.
+1. **Choose the base**: use the user's explicit base, otherwise the existing PR's base, otherwise `gh repo view --json defaultBranchRef`. A PR needs different head and base branches; never assume every repository uses `main`.
+1. **Read the actual change**: fetch the selected base, inspect its three-dot diff to `HEAD`, relevant source/tests, and the commits being proposed. Separate uncommitted work from the branch that GitHub will review.
+1. **Draft the title and body**: use a short imperative title. Follow the repository PR template; otherwise use What, Why, How, and Test plan only where they add information. Explain the final behavior, reason, validation, and material limits. Write multiline content to a temporary file for `--body-file`.
+1. **Publish the current branch within scope**: when creating or updating the PR is authorized, push any intended commits missing remotely even if an upstream already exists. Preserve unrelated work and follow repository hooks.
+1. **Create or update the open PR**: pass the resolved repository and base explicitly; retain the existing base unless changing it was intended. A closed or merged PR is not the open PR for new work.
 
    ```bash
-   git fetch origin main                                   # refresh origin/main for the ranges below
-   git branch --show-current                               # current branch
-   git status --short                                      # working tree state
-   gh pr view --json number,state,url                      # existing PR for this branch (non-zero exit when none)
-   git log --reverse --oneline origin/main..HEAD           # commits since main
-   git diff --stat --find-renames origin/main...HEAD       # diff stats
-   git diff --name-only --find-renames origin/main...HEAD  # changed files
+   gh pr create -R <owner>/<repo> --base <base> --head <head> --title '<title>' --body-file <body-file>
+   gh pr edit <number> -R <owner>/<repo> --title '<title>' --body-file <body-file>
    ```
 
-1. **Write the title** in imperative mood, under 72 characters.
-1. **Write the body** into a temporary file (never inline shell quoting) with these sections:
-
-   ```markdown
-   ## What
-
-   ## Why
-
-   ## How
-
-   ## Test plan
-   ```
-
-1. **Push the branch** with an upstream when it has none: `git push -u origin "$(git branch --show-current)"`.
-1. **Create or update** depending on step 2:
-
-   ```bash
-   gh pr edit --base main --title "<title>" --body-file <tmpfile>     # a PR exists
-   gh pr create --base main --title "<title>" --body-file <tmpfile>   # no PR yet
-   ```
-
-1. **Report** the PR URL, the final title, and the final body; if `origin/main` or GitHub auth is unavailable, explain the blocker and stop.
+1. **Verify from GitHub**: re-read the PR's title, body, base, head SHA, state, and URL. Compare the head SHA with the intended local commit before reporting the PR URL and validation; local tests do not establish hosted CI.
 
 ## Official Skills
 
-Upstream: `cli/cli`. This package uses the preview `gh skill` path described in the shared [vendor-skill policy](../agent-project/references/vendor-skills.md):
+Upstream: `cli/cli`, skill `gh`, provides GitHub CLI invocation guidance. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md). Its preview `gh skill` path supports inspection before installation:
 
 ```bash
-gh skill search github --owner cli --json repo,skillName,description
-gh skill preview cli/cli <name>
-gh skill install cli/cli <name>
+gh skill preview cli/cli gh
 ```
 
 ## Documentation
 
 - [gh pr manual](https://cli.github.com/manual/gh_pr)
-- Companion skills: [feature-branch](../feature-branch/SKILL.md) (branch first), [conventional-commit](../conventional-commit/SKILL.md) (commit cadence), [github-issues](../github-issues/SKILL.md) (the issue the PR closes).
+- Companion skills: [feature-branch](../feature-branch/SKILL.md), [conventional-commit](../conventional-commit/SKILL.md), [github-issues](../github-issues/SKILL.md).

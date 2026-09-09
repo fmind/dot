@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/antigravity-sdk
   created: "2026-09-03"
-  updated: "2026-09-07"
+  updated: "2026-09-08"
 ---
 
 # Antigravity SDK
@@ -24,10 +24,13 @@ Use `google-antigravity` when embedding the Antigravity harness itself provides 
 ## Gotchas
 
 - **`BuiltinTools.read_only()` omits `START_SUBAGENT`**: passing it verbatim as `enabled_tools` silently disables delegation, and the config then rejects `max_subagent_depth` at validation. Append `types.BuiltinTools.START_SUBAGENT` explicitly.
-- **`policy.safe_defaults(handler)` takes a required handler** and routes every write to a human, so it blocks forever in an unattended run; compose explicit `allow`/`deny`/`workspace_only` policies for automation and reserve it for interactive tools.
+- **`policy.safe_defaults(handler)` takes a required handler** and routes every write to a human, so an interactive handler can stall an unattended run; compose explicit `allow`/`deny`/`workspace_only` policies for automation and reserve it for interactive tools.
 - **Policies do not gate custom tools**: the engine only sees built-ins, so a custom function is executed as written — keep destructive work out of it.
-- **Preview surface**: the SDK is pre-1.0 (`0.1.x`) and the published docs already lag the shipped API; verify signatures with `python -c "import inspect, google.antigravity"` before coding against a doc snippet.
+- **Preview surface**: the example pins `google-antigravity==0.1.16`; locate the project version with `uv pip show google-antigravity` and read its source before coding against newer docs. Imports execute code and are not a passive inspection method.
+- **Python compatibility**: the example selects Python 3.13. The reviewed `google-genai==2.22.0` dependency raises an `_UnionGenericAlias` deprecation warning on Python 3.14 under warnings-as-errors; recheck dependencies before widening the example's Python range.
 - **Two products, one name**: this SDK runs the harness locally, while the `antigravity-preview-*` agent on the Gemini Interactions API runs in a Google-hosted sandbox and is billed and configured separately.
+
+The example requires `ANTIGRAVITY_MODEL` and an API key supplied through the environment, validates its workspace and final result, and logs event metadata rather than prompts. Its local configuration checks do not prove that the provider accepts the model or that the bundled harness enforces policies; exercise those separately within authorized access.
 
 ## Official Skills
 

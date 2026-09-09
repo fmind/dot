@@ -28,7 +28,7 @@ Key routines:
 
 ## Agents
 
-- **Persona**: `dot_agents/AGENTS.md` deploys to `~/.agents/AGENTS.md`, symlinked by all agent harnesses.
+- **Persona**: `dot_agents/AGENTS.md` deploys to `~/.agents/AGENTS.md`, consumed by all agent harnesses.
 - **Skills**: `skills/` deploys to `~/.agents/skills/`. Rule: every global skill lives in `skills/`.
 
 ## Layout
@@ -36,7 +36,7 @@ Key routines:
 - `.agents/`, `.antigravitycli/`, `.claude/`, and `.gemini/` hold repository-scoped agent state, links, and local skills.
 - `.github/` owns CI, release, security, audit, and dependency-update automation.
 - `dot/` contains the Python package, CLI modules, uv lock, and pytest suite.
-- `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host.
+- `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host (with OpenCode in `dot_config/opencode/`).
 - `dot_config/` contains managed application configuration; root `dot_*` sources map directly to home targets.
 - `modify_dot_bashrc`, `modify_dot_profile`, and `run_once_*` integrate with files or installation events that chezmoi cannot own wholesale.
 - `skills/` is the global Agent Skill catalog shared by every supported host.

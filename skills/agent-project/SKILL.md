@@ -1,12 +1,12 @@
 ---
 name: agent-project
-description: Bootstrap a repository's AGENTS.md and .agents/ layout so Antigravity, Claude Code, Codex, Copilot, and Grok share one instruction set. Use when setting up agents on a repo.
+description: Bootstrap a repository's AGENTS.md and .agents/ layout so coding agent hosts share one instruction set. Use when setting up agents on a repo.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-07"
+  updated: "2026-09-08"
 ---
 
 # Set Up Agents on a Project

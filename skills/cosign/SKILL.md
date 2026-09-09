@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cosign
   created: "2026-09-02"
-  updated: "2026-09-05"
+  updated: "2026-09-08"
 ---
 
 # Cosign
@@ -30,7 +30,7 @@ cosign verify-attestation --type cyclonedx \
 
 ## GitHub Actions
 
-Pin `cosign` in `mise.toml` `[tools]` so `mise-action` installs it with the rest of the toolchain; the signing job needs `permissions: id-token: write` plus `packages: write` (or the registry's equivalent), `cache: false` on `mise-action`, and signs the digest the build step recorded (`ko build --image-refs`). The [github-actions](../github-actions/SKILL.md) `cd.yml` template implements this wiring.
+Pin `cosign` in `mise.toml` `[tools]` so `mise-action` installs it with the rest of the toolchain; the signing job needs `permissions: id-token: write` plus `packages: write` (or the registry's equivalent), `cache: false` on `mise-action`, and signs the digest the build step recorded (`containerimage.digest` from Buildx metadata or the build-push action's `digest` output). The [github-actions](../github-actions/SKILL.md) `cd.yml` template implements this wiring.
 
 ```toml
 [tools]

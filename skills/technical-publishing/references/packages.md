@@ -1,6 +1,6 @@
 # Technical Publishing Packages
 
-Technical publishing structures content into plain-file packages as the single source of truth.
+Use this as a package overview only. The publishing project's CLI and local skills own exact filenames, metadata, ordering, and acceptance. Inspect them before creating or changing a package.
 
 ## Package Layouts
 
@@ -24,7 +24,7 @@ articles/<slug>_<YYYY-MM-DD>/
 
 The directory name defines the public slug and date: `<slug>` is the URL slug and `<YYYY-MM-DD>` is the public date. `posts/seo.txt` can override the slug.
 
-Pipeline flow: `draft.txt -> article.md -> canonical site -> posts/`.
+Prepare and review article and channel deliverables through the project workflow before authorized publication.
 
 ### Announcements
 
