@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import platform
+import re
 import stat
 import tempfile
 import tomllib
@@ -129,8 +131,20 @@ def _tool(state: State, command: str) -> Path:
     return path
 
 
-def _interactive(state: State, args: list[str], failure: str) -> None:
-    code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr)
+def _interactive(
+    state: State,
+    args: list[str],
+    failure: str,
+    *,
+    on_stdout_line: Callable[[str], None] | None = None,
+) -> None:
+    code = state.runner.interactive(
+        args,
+        stdin=state.stdin,
+        stdout=state.stdout,
+        stderr=state.stderr,
+        on_stdout_line=on_stdout_line,
+    )
     if code != 0:
         raise DotError(f"{failure} ({code})")
 
@@ -162,7 +176,25 @@ def run_login_workspace(state: State) -> None:
         f"gws: requesting OAuth login ({len(state.config.login.workspace_scopes)} scopes)...",
         file=state.stdout,
     )
-    _interactive(state, ["gws", "auth", "login", "--scopes", scopes], "gws login failed")
+    opened = False
+
+    def _open_browser_url(line: str) -> None:
+        nonlocal opened
+        if opened:
+            return
+        match = re.search(r"https?://\S+", line)
+        if match and ("accounts.google.com" in match.group(0) or "oauth" in match.group(0).lower()):
+            opened = True
+            url = match.group(0).strip("'\"()<>")
+            with contextlib.suppress(Exception):
+                state.browser_open(url)
+
+    _interactive(
+        state,
+        ["gws", "auth", "login", "--scopes", scopes],
+        "gws login failed",
+        on_stdout_line=_open_browser_url,
+    )
 
 
 def run_login_gcp(state: State) -> None:

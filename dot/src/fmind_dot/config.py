@@ -131,7 +131,6 @@ class LoginConfig(StrictModel):
             "https://www.googleapis.com/auth/forms.body",
             "https://www.googleapis.com/auth/forms.responses.readonly",
             "https://www.googleapis.com/auth/gmail.modify",
-            "https://www.googleapis.com/auth/keep",
             "https://www.googleapis.com/auth/meetings.space.created",
             "https://www.googleapis.com/auth/meetings.space.readonly",
             "https://www.googleapis.com/auth/meetings.space.settings",
