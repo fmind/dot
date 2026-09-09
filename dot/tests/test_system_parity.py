@@ -157,14 +157,14 @@ def test_dot_completion_uses_typer_fish_source_protocol() -> None:
     assert runner.calls == [["env", "_DOT_COMPLETE=source_fish", "dot"]]
 
 
-def test_fkf_completion_uses_typer_fish_source_protocol() -> None:
+def test_fkf_completion_uses_standard_completion_command() -> None:
     runner = ScriptedRunner(
-        {"env", "fkf"},
+        {"fkf"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult("# fkf fish completion\n", "", 0),
     )
 
     assert system._generate_completion(state_with(runner), "fkf") == "# fkf fish completion\n"  # noqa: SLF001
-    assert runner.calls == [["env", "_FKF_COMPLETE=source_fish", "fkf"]]
+    assert runner.calls == [["fkf", "completion", "fish"]]
 
 
 def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
@@ -226,10 +226,13 @@ def test_completion_collects_both_shell_integration_failures(monkeypatch: pytest
         return CommandResult("# dot\n", "", 0) if args[0] not in {"atuin", "carapace"} else CommandResult("", "", 9)
 
     runner = ScriptedRunner({"fish", "atuin", "carapace"}, run=fail_integrations)
-    with pytest.raises(DotError) as raised:
-        system.run_completion(state_with(runner, config))
-    assert "atuin-init.fish" in str(raised.value)
-    assert "carapace-init.fish" in str(raised.value)
+    state = state_with(runner, config)
+    system.run_completion(state)
+    assert isinstance(state.stdout, StringIO)
+    output = state.stdout.getvalue()
+    assert "Failed to generate atuin-init.fish" in output
+    assert "Failed to generate carapace-init.fish" in output
+    assert "Completions updated with 2 failure(s)" in output
 
 
 def test_login_and_setup_failures_name_the_failed_operation() -> None:
@@ -406,12 +409,12 @@ def test_completion_run_skips_missing_tools_and_reports_failed_generators(
         return CommandResult("", "private", 7)
 
     state = state_with(ScriptedRunner({"fish", "broken"}, run=scripts), config)
-    with pytest.raises(DotError, match="broken: failed to generate completions for broken"):
-        system.run_completion(state)
+    system.run_completion(state)
     assert isinstance(state.stdout, StringIO)
     output = state.stdout.getvalue()
     assert "missing is not installed, skipping" in output
     assert "Failed to generate completions for broken" in output
+    assert "Completions updated with 1 failure(s)" in output
 
 
 def test_completion_rejects_empty_scripts_before_replacing_existing_file(tmp_path: Path) -> None:
