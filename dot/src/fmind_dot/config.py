@@ -252,7 +252,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "dot": ToolConfig(binary="env", args=["_DOT_COMPLETE=source_fish", "dot"]),
         "dprint": ToolConfig(args=["completions", "fish"]),
         "fd": ToolConfig(args=["--gen-completions", "fish"]),
-        "fkf": ToolConfig(binary="env", args=["_FKF_COMPLETE=source_fish", "fkf"]),
+        "fkf": ToolConfig(args=["completion", "fish"]),
         "gh": ToolConfig(args=["completion", "-s", "fish"]),
         "git-lfs": ToolConfig(binary="git", args=["lfs", "completion", "fish"]),
         "lazygit": ToolConfig(args=["completion", "fish"]),

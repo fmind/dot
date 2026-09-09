@@ -489,8 +489,9 @@ def run_completion(state: State) -> None:
                 failures.append(f"{filename}: {error}")
                 typer.echo(f"  ✗ Failed to generate {filename}", file=state.stdout)
     if failures:
-        raise DotError("completion generation failed: " + "; ".join(failures))
-    typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
+        typer.echo(f"\n⚠ Completions updated with {len(failures)} failure(s) in {directory}", file=state.stdout)
+    else:
+        typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
 
 
 def _environment_results(state: State) -> list[CheckResult]:
