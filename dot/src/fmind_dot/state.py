@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import sys
+import webbrowser
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO
@@ -23,6 +25,7 @@ class State:
     stdin: IO[str] = field(default_factory=lambda: sys.stdin)
     stdout: IO[str] = field(default_factory=lambda: sys.stdout)
     stderr: IO[str] = field(default_factory=lambda: sys.stderr)
+    browser_open: Callable[[str], bool] = field(default_factory=lambda: webbrowser.open)
     _config: Config | None = field(default=None, init=False, repr=False)
 
     @property

@@ -347,3 +347,32 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
     assert process.stdin.closed
     assert process.stdout.closed
     assert process.stderr.closed
+
+
+def test_interactive_streams_stdout_lines() -> None:
+    lines: list[str] = []
+    out = StringIO()
+    code = "import sys\nprint('line1')\nprint('line2')\n"
+    result = Runner().interactive(
+        [sys.executable, "-c", code],
+        stdout=out,
+        on_stdout_line=lines.append,
+    )
+
+    assert result == 0
+    assert lines == ["line1\n", "line2\n"]
+    assert out.getvalue() == "line1\nline2\n"
+
+
+def test_interactive_streams_stdout_lines_without_explicit_stdout(capsys: pytest.CaptureFixture[str]) -> None:
+    lines: list[str] = []
+    code = "import sys\nprint('line_a')\nprint('line_b')\n"
+    result = Runner().interactive(
+        [sys.executable, "-c", code],
+        on_stdout_line=lines.append,
+    )
+
+    assert result == 0
+    assert lines == ["line_a\n", "line_b\n"]
+    captured = capsys.readouterr()
+    assert captured.out == "line_a\nline_b\n"

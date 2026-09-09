@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import IO
 
@@ -67,14 +67,15 @@ class FakeRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env
+        del cwd, stdin, stdout, stderr, env, on_stdout_line
         self.calls.append(list(args))
         return 0
 
 
 def state_with(runner: FakeRunner, config: Config | None = None) -> State:
-    state = State(runner=runner)
+    state = State(runner=runner, browser_open=lambda _url: True)
     state._config = config or Config()  # noqa: SLF001 - explicit dependency injection for the command boundary.
     return state
 

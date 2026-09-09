@@ -93,8 +93,9 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env
+        del cwd, stdin, stdout, stderr, env, on_stdout_line
         call = tuple(args)
         self.interactive_calls.append(call)
         response = self.responses.get(call, CommandResult("", "", 0))
@@ -126,8 +127,17 @@ class VersionRevertingRunner(RecordingRunner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        code = super().interactive(args, cwd=cwd, stdin=stdin, stdout=stdout, stderr=stderr, env=env)
+        code = super().interactive(
+            args,
+            cwd=cwd,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            env=env,
+            on_stdout_line=on_stdout_line,
+        )
         if tuple(args) == ("mise", "run", "test"):
             self.pyproject.write_text(self.content)
         return code
@@ -1819,11 +1829,20 @@ class GitPushRaceRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
         if tuple(args[:2]) == ("git", "push") and not self.mutated:
             self.mutation()
             self.mutated = True
-        return super().interactive(args, cwd=cwd, stdin=stdin, stdout=stdout, stderr=stderr, env=env)
+        return super().interactive(
+            args,
+            cwd=cwd,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            env=env,
+            on_stdout_line=on_stdout_line,
+        )
 
 
 def _release_race_repository(tmp_path: Path) -> tuple[Path, Path, str, str]:

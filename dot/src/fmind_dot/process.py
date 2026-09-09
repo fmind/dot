@@ -8,8 +8,9 @@ import selectors
 import shutil
 import signal
 import subprocess
+import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
@@ -254,6 +255,7 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
         if not args:
             raise DotError("cannot run an empty command")
@@ -265,10 +267,22 @@ class Runner:
             cwd=cwd,
             env=command_env,
             stdin=stdin,
-            stdout=stdout,
+            stdout=subprocess.PIPE if on_stdout_line is not None else stdout,
             stderr=stderr,
+            text=on_stdout_line is not None,
+            encoding=locale.getencoding() if on_stdout_line is not None else None,
+            errors="replace" if on_stdout_line is not None else None,
         )
         try:
+            if on_stdout_line is not None and process.stdout is not None:
+                try:
+                    target_stdout = sys.stdout if stdout is None else stdout
+                    for line in iter(process.stdout.readline, ""):
+                        target_stdout.write(line)
+                        target_stdout.flush()
+                        on_stdout_line(line)
+                finally:
+                    process.stdout.close()
             return process.wait()
         except BaseException:
             _terminate(process)
