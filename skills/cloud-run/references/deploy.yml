@@ -1,3 +1,4 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 # Cloud Run continuous deployment. Authentication uses Workload Identity
 # Federation; the workflow stores no service-account key.
 name: CD
@@ -67,8 +68,8 @@ jobs:
           sbom="$RUNNER_TEMP/sbom.cdx.json"
           identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd.yml@${GITHUB_REF}"
           issuer="https://token.actions.githubusercontent.com"
-          trivy --config trivy.yaml image "$IMAGE"
-          trivy --config trivy.yaml image --format cyclonedx --output "$sbom" "$IMAGE"
+          trivy --config trivy.yaml image --skip-dirs '' "$IMAGE"
+          trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output "$sbom" "$IMAGE"
           cosign sign --yes "$IMAGE"
           cosign verify --certificate-identity "$identity" --certificate-oidc-issuer "$issuer" "$IMAGE"
           cosign attest --yes --type cyclonedx --predicate "$sbom" "$IMAGE"
@@ -78,4 +79,10 @@ jobs:
           service: ${{ vars.CLOUDRUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ steps.image.outputs.ref }}
+          env_vars: |
+            HOST=0.0.0.0
+            ENVIRONMENT=production
+          # Required by the Python database-backed starter; adapt to the app.
+          secrets: |
+            DATABASE_URL=database-url:latest
           flags: --service-account=${{ vars.GCP_RUNTIME_SA }} --no-allow-unauthenticated

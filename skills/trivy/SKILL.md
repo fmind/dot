@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trivy
   created: "2026-09-02"
-  updated: "2026-09-06"
+  updated: "2026-09-09"
 ---
 
 # Trivy
@@ -18,9 +18,9 @@ One scanner for the whole repository: dependencies, infrastructure as code, secr
 ```bash
 trivy --config trivy.yaml fs .                                    # repository: deps, IaC, secrets, licenses
 trivy --config trivy.yaml config .                                # IaC only: Dockerfile, Terraform, Kubernetes, GitHub Actions
-trivy --config trivy.yaml image --input tmp/image.tar             # local image tarball, before any push (check:image)
-trivy --config trivy.yaml image <registry>/<slug>@<digest>        # pushed image, by immutable digest
-trivy --config trivy.yaml image --format cyclonedx -o sbom.json <registry>/<slug>@<digest>
+trivy --config trivy.yaml image --skip-dirs '' --input tmp/image.tar             # local image tarball, before any push (check:image)
+trivy --config trivy.yaml image --skip-dirs '' <registry>/<slug>@<digest>        # pushed image, by immutable digest
+trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx -o sbom.json <registry>/<slug>@<digest>
 trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars . # OpenTofu modules need variables to evaluate
 ```
 
@@ -49,6 +49,8 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 
 - **Always pass `--config trivy.yaml`**: precedence is `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, and the owner's shell exports a global `TRIVY_CONFIG`, so a bare `trivy fs .` silently uses the global policy.
 - **Commit a project `trivy.yaml`**: copy the global one so CI, hooks, and agents share one policy.
+- **Image coverage**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.
+- **License findings remain findings**: the shared license policy can reject Debian base packages. Review the owning project's distribution requirements and explicit license policy before publication; do not disable the scanner or add blanket ignores to make an image pass.
 - **Scan digests, not tags**: a tag can move after the scan; the digest is what ships.
 - **Databases update on first run**: a scan needs network access once per day for the vulnerability database; use `--skip-db-update` in offline reruns.
 

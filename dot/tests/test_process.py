@@ -15,7 +15,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.process import Runner
 
 
-@pytest.mark.parametrize("mode", ["captured", "interactive"])
+@pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker"])
 def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str, tmp_path: Path) -> None:
     started = tmp_path / "started"
     finished = tmp_path / "finished"
@@ -28,11 +28,18 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
     launcher = (
         "import os,sys\n"
         "import fmind_dot.cli as cli\n"
+        "import fmind_dot.repository as repository\n"
+        "from fmind_dot.state import State\n"
+        "from pathlib import Path\n"
         "from fmind_dot.process import Runner\n"
         "command=[sys.executable,'-c',os.environ['DOT_CHILD'],os.environ['DOT_STARTED'],os.environ['DOT_FINISHED']]\n"
         "def invoke():\n"
         " runner=Runner()\n"
         " if os.environ['DOT_MODE']=='captured': runner.run(command)\n"
+        " elif os.environ['DOT_MODE']=='pull-worker':\n"
+        "  repository.find_git_repositories=lambda *_args: [Path('.')]\n"
+        "  repository._pull_repository=lambda *_args,**_kwargs: runner.run(command)\n"
+        "  repository.run_pull(State(runner=runner))\n"
         " else: runner.interactive(command)\n"
         " return 0\n"
         "cli._invoke_app=invoke\n"
@@ -81,6 +88,14 @@ def test_runner_validates_commands_and_output_budget() -> None:
         runner.interactive([])
     with pytest.raises(DotError, match="captured output must be positive"):
         runner.run_bounded([sys.executable], max_output_bytes=0)
+
+
+def test_cancel_prohibits_subsequent_worker_commands(tmp_path: Path) -> None:
+    runner = Runner()
+    runner.cancel()
+    with pytest.raises(DotError, match="cancelled"):
+        runner.run([sys.executable, "-c", "from pathlib import Path; Path('should-not-exist').touch()"], cwd=tmp_path)
+    assert not (tmp_path / "should-not-exist").exists()
 
 
 def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: Path) -> None:

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-07"
+  updated: "2026-09-09"
 ---
 
 # Secrets with sops and age

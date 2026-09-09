@@ -59,7 +59,8 @@ async def check_readiness(db_session: AsyncSession) -> Response[dict[str, str]]:
     try:
         await db_session.execute(text("SELECT 1"))
         return Response({"status": "ready", "database": "connected"}, status_code=200)
-    except SQLAlchemyError:
+    except (SQLAlchemyError, OSError):
+        # asyncpg can propagate connection and DNS failures before SQLAlchemy wraps them.
         logger.exception("Readiness check database error")
         return Response({"status": "not_ready", "database": "disconnected"}, status_code=503)
 

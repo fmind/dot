@@ -1,6 +1,6 @@
 # AGENTS.md (Project)
 
-Project instructions for Antigravity, Claude Code (through `CLAUDE.md`), Codex, Copilot, and Grok. Global rules and conventions come from `~/.agents/AGENTS.md`; this file adds only what is specific to this repository.
+Project instructions shared by the configured coding agent hosts. Global rules and conventions come from `~/.agents/AGENTS.md`; this file adds only what is specific to this repository.
 
 ## Identity
 

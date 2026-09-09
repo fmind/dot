@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-07"
+  updated: "2026-09-09"
 ---
 
 # Agent Usage
@@ -22,8 +22,9 @@ Analyze the shared usage archive with dot and DuckDB. Preserve the difference be
 
 ## Gotchas
 
-- **Only Claude reports cost**: `cost_usd` comes from Claude's `cost-state` transcript lines; `agy`, `codex`, `copilot`, and `grok` expose no price, so they always total `$0.00`. Compare those four on tokens, never on cost.
-- **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's final context size; these values are not interchangeable.
+- **Unknown is not free**: Claude can report cost through `cost-state`; absent prices are `null`/`unknown`, not zero. Read `cost_known_sessions` and `cost_complete` before comparing cost. A known zero is distinct from missing cost.
+- **Model attribution**: switched sessions are labeled `mixed`; older extractor records retain totals but use `unknown` model attribution. `usage sync` refreshes derivable records. Whole-session date filters use recorded session timestamps, not interval billing.
+- **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's final context size. Statistics group these separately and do not combine unlike measurements into one total.
 - **Atomic rewrites prevent duplicates**: each session uses one `<session_id>.json` file overwritten at durable capture boundaries, so aggregation counts a session once.
 - **Capture is single-pass**: the session hook derives normalized logs and usage from one transcript snapshot; the standalone `usage sync` command remains available for backfills.
 - **Both harness and agent fields exist**: queries can group by either `harness` or `agent` interchangeably.

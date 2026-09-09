@@ -53,6 +53,7 @@ class StrictModel(BaseModel):
 class ReleaseConfig(StrictModel):
     remote: str = "origin"
     default_branch: str = "main"
+    wait_timeout: Duration = "30m"
 
 
 class AIConfig(StrictModel):
@@ -252,7 +253,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "dot": ToolConfig(binary="env", args=["_DOT_COMPLETE=source_fish", "dot"]),
         "dprint": ToolConfig(args=["completions", "fish"]),
         "fd": ToolConfig(args=["--gen-completions", "fish"]),
-        "fkf": ToolConfig(args=["completion", "fish"]),
+        "fkf": ToolConfig(binary="env", args=["_FKF_COMPLETE=source_fish", "fkf"]),
         "gh": ToolConfig(args=["completion", "-s", "fish"]),
         "git-lfs": ToolConfig(binary="git", args=["lfs", "completion", "fish"]),
         "lazygit": ToolConfig(args=["completion", "fish"]),
@@ -321,7 +322,8 @@ class PullConfig(StrictModel):
 
 class AgentDoctorConfig(StrictModel):
     stale_lag: Duration = "24h0m0s"
-    scan_limit: int = Field(default=4096, gt=0)
+    scan_limit: int = Field(default=16384, gt=0)
+    example_limit: int = Field(default=5, ge=0, le=100)
 
 
 class HookFailureConfig(StrictModel):
@@ -376,6 +378,7 @@ class VerifyConfig(StrictModel):
             "copilot",
             "docker",
             "dprint",
+            "fkf",
             "gcloud",
             "gh",
             "git",
@@ -385,8 +388,10 @@ class VerifyConfig(StrictModel):
             "gws",
             "jules",
             "lefthook",
+            "marimo",
             "mise",
             "nvim",
+            "opencode",
             "python",
             "ruff",
             "sqlite3",
@@ -397,7 +402,6 @@ class VerifyConfig(StrictModel):
         ]
     )
     secrets: list[SecretConfig] = Field(default_factory=lambda: [SecretConfig(path="~/.config/chezmoi/key.txt")])
-    timeout: Duration = "30s"
     probe_timeout: Duration = "45s"
     probe_concurrency: int = Field(default=8, gt=0)
 

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-08-07"
-  updated: "2026-09-06"
+  updated: "2026-09-09"
 ---
 
 # Cloud Run Deployment
@@ -29,7 +29,7 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 
 - **One digest**: build, scan, signature, attestation, deployment, verification, and rollback must refer to the same `@sha256:` image.
 - **Private by default**: grant `roles/run.invoker` only to intended callers or use an authenticating load balancer.
-- **Listen on `$PORT`**: Cloud Run injects the port, normally 8080; a hardcoded listener fails revision health checks.
+- **Listen on `0.0.0.0:$PORT`**: Cloud Run injects the port, normally 8080; a loopback-only listener cannot receive requests. For the Python web starter, set `HOST=0.0.0.0` and `ENVIRONMENT=production`, and supply its required `DATABASE_URL` through a runtime secret. Verify this configuration in the local container before deploying.
 - **Request-scoped CPU**: background work can pause between requests. Use explicit always-on CPU only when its cost is justified, or use a Cloud Run job for batch work.
 - **Scale deliberately**: keep minimum instances at zero unless measured first-request latency justifies idle cost.
 - **Regional alignment**: keep the service and Artifact Registry repository in one region and project. Workload Identity Federation pools remain global.

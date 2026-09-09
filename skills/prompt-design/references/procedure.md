@@ -13,7 +13,7 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
 1. **Choose examples at decision boundaries**: the fewest examples that resolve an ambiguous rule, output shape, tool choice, or refusal, including hard negatives; never copy sealed evaluation cases into the prompt.
 1. **Harden dynamic insertion**: typed template parameters, explicit delimiters, length bounds, format-appropriate escaping, provenance labels, and deterministic placement; reject missing variables instead of emitting placeholders.
 1. **Run static checks**: render the candidate with representative values and inspect it in final order for contradictions, unknown tools or fields, schema-invalid examples, unresolved variables, authority inversion, and rules the runtime cannot enforce.
-1. **Hand off to evaluation**: diff and hash the baseline and candidate, state one change hypothesis with its guardrails, freeze the candidate, and deliver the [prompt candidate](prompt-candidate.md) to the project's bounded evaluation workflow for paired trials.
+1. **Hand off to evaluation**: diff and hash the baseline and candidate, state one change hypothesis with its guardrails, freeze the candidate, and deliver the [prompt candidate](prompt-candidate.md) to [agent-evaluation](../../agent-evaluation/SKILL.md) for paired trials through the project's existing runner.
 
 ## Sources
 

@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/zensical
   created: "2026-09-06"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Zensical Documentation

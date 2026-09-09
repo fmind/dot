@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-mcp
   created: "2026-06-23"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Configure Agent MCP Servers

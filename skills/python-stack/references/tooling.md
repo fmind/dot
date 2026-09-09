@@ -7,7 +7,7 @@
 - **Types**: `ty check` strict; `ty` is pre-1.0, so pin a compatible range and keep suppressions narrow and evidenced.
 - **Testing**: `pytest` in `tests/` with `anyio` and an 85% branch-coverage gate; the default suite is offline, and web integration tests opt into a disposable Postgres via [conftest.py](conftest.py).
 - **Security**: `uv audit` scans dependencies as `check:vuln`, `gitleaks` is `check:leaks`, and Trivy owns repository and configuration scanning.
-- **Validation and config**: Pydantic v2 and `pydantic-settings` `BaseSettings`; typed `config.py`, YAML only for cross-language needs.
+- **Validation and config**: use Pydantic v2 and `pydantic-settings` `BaseSettings` for typed validation in `config.py`. Respect ecosystem-native formats; otherwise prefer YAML for human-maintained configuration and JSON for program-owned data. Document defaults and override precedence.
 - **Logging**: `structlog` — `ConsoleRenderer` locally, `JSONRenderer` in production, stdlib loggers routed through it.
 
 ## Gotchas

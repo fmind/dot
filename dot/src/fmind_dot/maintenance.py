@@ -1,7 +1,5 @@
 """Safe cleanup and release workflows for the Python CLI."""
 
-from __future__ import annotations
-
 import errno
 import hashlib
 import json
@@ -15,6 +13,7 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from time import monotonic, sleep
 from typing import Annotated, BinaryIO
 
 import typer
@@ -22,7 +21,7 @@ from typer import _click
 from typer.core import TyperCommand
 
 from fmind_dot.commands import add_group, aliased_command, state_from
-from fmind_dot.config import ChezmoiCleanConfig, PruneTargetConfig, SessionStoreConfig, expand_path
+from fmind_dot.config import ChezmoiCleanConfig, PruneTargetConfig, SessionStoreConfig, duration_seconds, expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.session_store import (
     SESSION_PARSER_VERSION,
@@ -1423,6 +1422,13 @@ def run_chezmoi_clean(state: State, *, yes: bool = False, interactive: bool = Fa
             continue
         if (not target.exists() and not target.is_symlink()) or target in managed:
             continue
+        catalog = home / ".agents/skills"
+        if target.is_relative_to(catalog) and (
+            target.parent != catalog or not target.is_symlink() or target.readlink() != source / "skills" / target.name
+        ):
+            # A removed declaration does not confer ownership of its replacement
+            # or of the shared catalog itself.
+            continue
         orphans.append(target)
     if mapping_failures:
         raise DotError("failed to map deleted chezmoi source path(s): " + "; ".join(mapping_failures))
@@ -1742,7 +1748,9 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
             push_prepared_commit(state, config.remote, config.default_branch, head)
         push_release_tag(state, config.remote, prepared, head)
         _refresh_installed_cli(state, root)
-        state.stdout.write(f"✓ Prepared and tagged {prepared} at {head}.\n")
+        state.stdout.write(
+            f"✓ Publication dispatched for {prepared} at {head}.\nhttps://github.com/fmind/dot/actions/workflows/cd.yml\n"
+        )
         return prepared
 
     bumped, current = _calculate_release_version(state, root)
@@ -1786,8 +1794,71 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
     push_prepared_commit(state, config.remote, config.default_branch, head)
     push_release_tag(state, config.remote, bumped, head)
     _refresh_installed_cli(state, root)
-    state.stdout.write(f"✓ Released and tagged {bumped} at {head}.\n")
+    state.stdout.write(
+        f"✓ Publication dispatched for {bumped} at {head}.\nhttps://github.com/fmind/dot/actions/workflows/cd.yml\n"
+    )
     return bumped
+
+
+def wait_for_release(state: State, tag: str) -> str:
+    """Observe the exact release commit's CD and its published artifacts."""
+    head = _git_output(state, "rev-parse", "HEAD")
+    deadline = monotonic() + duration_seconds(state.config.release.wait_timeout)
+    while monotonic() < deadline:
+        response = state.runner.run_bounded(
+            [
+                "gh",
+                "run",
+                "list",
+                "--repo",
+                "fmind/dot",
+                "--workflow",
+                "cd.yml",
+                "--commit",
+                head,
+                "--branch",
+                tag,
+                "--limit",
+                "20",
+                "--json",
+                "headSha,status,conclusion,url",
+            ],
+            timeout=min(30, deadline - monotonic()),
+            max_output_bytes=64 * 1024,
+        )
+        if response.output_truncated:
+            raise DotError("release workflow response exceeded the output limit")
+        runs = json.loads(response.stdout)
+        if not isinstance(runs, list):
+            raise DotError("invalid release workflow response")
+        selected = next((run for run in runs if isinstance(run, dict) and run.get("headSha") == head), None)
+        if selected and selected.get("status") == "completed":
+            if selected.get("conclusion") != "success":
+                raise DotError(f"CD failed for {tag}; inspect https://github.com/fmind/dot/actions/workflows/cd.yml")
+            release_result = state.runner.run_bounded(
+                ["gh", "release", "view", tag, "--repo", "fmind/dot", "--json", "tagName,isDraft,url,assets"],
+                timeout=max(0.001, min(30, deadline - monotonic())),
+                max_output_bytes=64 * 1024,
+            )
+            if release_result.output_truncated:
+                raise DotError("release metadata exceeded the output limit")
+            release = json.loads(release_result.stdout)
+            if not isinstance(release, dict) or release.get("tagName") != tag or release.get("isDraft") is not False:
+                raise DotError("CD succeeded but the expected public release is unavailable")
+            assets = release.get("assets", [])
+            names = (
+                [asset["name"] for asset in assets if isinstance(asset, dict) and isinstance(asset.get("name"), str)]
+                if isinstance(assets, list)
+                else []
+            )
+            if not any(name.endswith(".whl") for name in names) or not any(name.endswith(".tar.gz") for name in names):
+                raise DotError("published release is missing its wheel or source distribution")
+            url = f"https://github.com/fmind/dot/releases/tag/{tag}"
+            state.stdout.write(f"✓ Published {tag}: {url}\n")
+            return url
+        state.stderr.write(f"Waiting for publication of {tag} at {head[:12]}...\n")
+        sleep(min(5, max(0, deadline - monotonic())))
+    raise DotError(f"timed out waiting for {tag}; publication may still complete")
 
 
 def _prune_command(
@@ -1855,8 +1926,12 @@ def _prune_command(
 def _release_command(
     context: typer.Context,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Approve release preparation without prompting")] = False,
+    wait: Annotated[bool, typer.Option("--wait", help="Wait for exact-commit CD and published artifacts")] = False,
 ) -> None:
-    run_release(state_from(context), yes=yes)
+    state = state_from(context)
+    tag = run_release(state, yes=yes)
+    if wait and tag:
+        wait_for_release(state, tag)
 
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -1884,6 +1959,6 @@ def register(parent: typer.Typer) -> None:
         cls=_PruneCommand,
         help_text="Reclaim disk space from agent sessions and development caches",
     )(_prune_command)
-    aliased_command(parent, "release", help_text="Prepare, tag, and push a release commit")(_release_command)
+    aliased_command(parent, "release", help_text="Prepare and dispatch a release of fmind/dot")(_release_command)
     add_group(parent, chezmoi_app, "chezmoi")
     _REGISTERED.add(parent)

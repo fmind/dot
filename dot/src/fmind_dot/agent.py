@@ -1,7 +1,5 @@
 """Typer command tree for agent transcript and usage management."""
 
-from __future__ import annotations
-
 import errno
 import hashlib
 import json
@@ -15,8 +13,9 @@ import stat
 import tomllib
 from collections.abc import Iterator, Mapping
 from contextlib import closing, suppress
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
+from itertools import islice
 from pathlib import Path
 from typing import IO, Annotated, Any
 from urllib.parse import quote
@@ -54,18 +53,20 @@ from fmind_dot.session_store import (
     SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
     SESSION_STORE_VERSION,
+    SUPPORTED_PARSER_VERSIONS,
     SessionManifest,
     SessionSource,
     ingest_session,
     is_valid_session_id,
     read_session_manifest,
     report_ingestion,
-    session_generation_id,
+    session_digest,
     session_lineage_id,
     stored_generation,
     validate_session_generation,
 )
 from fmind_dot.state import State
+from fmind_dot.statistics import prompt_statistics, session_statistics
 from fmind_dot.system import build_notification, read_hook_payload, send_notification
 from fmind_dot.usage import (
     aggregate_usage,
@@ -95,6 +96,9 @@ usage_app = typer.Typer(
     help="Manage agent token usage in ~/.agents/usages",
     no_args_is_help=True,
     context_settings=_CONTEXT_SETTINGS,
+)
+prompts_app = typer.Typer(
+    help="Statistics about archived user messages; never prints prompt text", context_settings=_CONTEXT_SETTINGS
 )
 
 
@@ -252,10 +256,22 @@ def record_agent_usage(state: State, agent: str, session_id: str, cwd: str = "",
     write_usage_record(record)
 
 
-def sync_sessions(state: State) -> int:
+def sync_sessions(
+    state: State,
+    *,
+    agent: str = "",
+    session: str = "",
+    cwd: str = "",
+    since: datetime | None = None,
+    dry_run: bool = False,
+    as_json: bool = False,
+) -> int:
+    if agent and agent not in AGENT_ADAPTERS:
+        raise DotError(f"unknown session agent {agent!r}")
     total = 0
+    outcomes: dict[str, int] = {"ingested": 0, "duplicate": 0, "skipped": 0, "selected": 0, "usage_errors": 0}
     for adapter in agent_adapters(verified_only=True):
-        if adapter.parser is None:
+        if adapter.parser is None or (agent and adapter.name != agent):
             continue
         root = _validated_source_root(state, adapter)
         if root is None:
@@ -265,9 +281,20 @@ def sync_sessions(state: State) -> int:
             candidates = enumerate_sessions(root, adapter.name)
         except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
             raise _workflow_failure(state, adapter, "scan sessions", error) from error
-        for session_id, cwd, path in candidates:
+        for session_id, source_cwd, path in candidates:
+            if session and session_id != session:
+                continue
+            if since and datetime.fromtimestamp(path.stat().st_mtime, UTC) < since:
+                continue
             try:
-                parsed = adapter.parser(path, session_id, cwd)
+                parsed = adapter.parser(path, session_id, source_cwd)
+                parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), source_cwd)
+                if cwd and resolve_cwd(parsed_cwd) != cwd:
+                    continue
+                outcomes["selected"] += 1
+                if dry_run:
+                    count += 1
+                    continue
                 result = ingest_session(
                     adapter.name,
                     session_id,
@@ -282,6 +309,7 @@ def sync_sessions(state: State) -> int:
             except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
                 raise _workflow_failure(state, adapter, "ingest session", error, session_id) from error
             state.stderr.write(report_ingestion(result) + "\n")
+            outcomes[result.status] += 1
             if result.status != "duplicate":
                 try:
                     if parsed.usage_error is not None:
@@ -289,25 +317,42 @@ def sync_sessions(state: State) -> int:
                     if parsed.usage is not None:
                         write_usage_record(parsed.usage)
                     elif not adapter.database:
-                        record_agent_usage(state, adapter.name, session_id, cwd, path=path)
+                        record_agent_usage(state, adapter.name, session_id, source_cwd, path=path)
                 except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
                     state.stderr.write(
                         f"{adapter.name}: usage not recorded for this session: "
                         f"{_bounded_failure(error, session_id, state.config.agent.hook_failures.detail_limit)}\n"
                     )
+                    outcomes["usage_errors"] += 1
             if not adapter.database or result.status == "ingested":
                 count += 1
         verb = "ingested" if adapter.database else "checked"
         state.stderr.write(f"{adapter.name}: {count} {verb}\n")
         total += count
     state.stderr.write(f"agent-session-sync: done ({total} total processed)\n")
+    if as_json:
+        state.stdout.write(
+            json.dumps(
+                {
+                    "schema": "dot.agent.session.sync/v1",
+                    "parser_version": SESSION_PARSER_VERSION,
+                    "dry_run": dry_run,
+                    **outcomes,
+                }
+            )
+            + "\n"
+        )
+    if outcomes["usage_errors"]:
+        raise DotError("session synchronization completed with usage errors; run dot agent usage sync to retry")
     return total
 
 
-def sync_usage(state: State) -> int:
+def sync_usage(state: State, *, agent: str = "", as_json: bool = False) -> int:
+    if agent and agent not in AGENT_ADAPTERS:
+        raise DotError(f"unknown usage agent {agent!r}")
     total = harnesses = 0
     for adapter in agent_adapters(verified_only=True):
-        if adapter.parser is None:
+        if adapter.parser is None or (agent and adapter.name != agent):
             continue
         root = _validated_source_root(state, adapter)
         if root is None:
@@ -327,7 +372,11 @@ def sync_usage(state: State) -> int:
             state.stderr.write(f"{adapter.name}: {written} recorded\n")
             total += written
             harnesses += 1
-    state.stdout.write(f"Synced {total} usage records across {harnesses} harnesses into ~/.agents/usages\n")
+    state.stdout.write(
+        json.dumps({"schema": "dot.agent.usage.sync/v1", "records": total, "harnesses": harnesses}) + "\n"
+        if as_json
+        else f"Synced {total} usage records across {harnesses} harnesses into ~/.agents/usages\n"
+    )
     return total
 
 
@@ -341,7 +390,7 @@ def _workflow_failure(
 def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> SessionQuery:
     query = SessionQuery(
         agent=agent,
-        cwd=cwd,
+        cwd=resolve_cwd(cwd),
         identity=identity,
         since=parse_session_date(since),
         until=parse_session_date(until, end_of_day=True),
@@ -366,7 +415,7 @@ def session_list(
 ) -> None:
     state = state_from(context)
     selected_statuses = set(status or ())
-    allowed_statuses = {"current", "duplicate", "invalid", "partial", "stale", "unsupported"}
+    allowed_statuses = {"current", "duplicate", "invalid", "partial", "stale", "unsupported", "legacy"}
     unknown = selected_statuses - allowed_statuses
     if unknown:
         raise DotError(f"unknown session status {min(unknown)!r}")
@@ -389,7 +438,7 @@ def session_list(
     for summary in summaries:
         state.stdout.write(
             f"{summary.ingested_at} {summary.agent} {summary.session_id} records={summary.record_count} "
-            f"status={','.join(summary.status)} cwd={summary.cwd}\n"
+            f"status={','.join(summary.status)} cwd={summary.cwd} generation={summary.generation_id}\n"
         )
 
 
@@ -403,10 +452,13 @@ def session_show(
     since: Annotated[str, typer.Option("--since")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
     content: Annotated[bool, typer.Option("--content", help="Include prompt and response content")] = False,
+    latest: Annotated[bool, typer.Option("--latest", help="Select the latest generation of this session")] = False,
 ) -> None:
     if not session and not identity:
         raise DotError("show requires a session or lineage identity")
-    summary = show_session(_query(agent, cwd, session or identity, since, until), include_content=content)
+    summary = show_session(
+        _query(agent, cwd, session or identity, since, until), include_content=content, latest=latest
+    )
     json.dump(summary.to_dict(include_records=content), state_from(context).stdout, ensure_ascii=False, indent=2)
     state_from(context).stdout.write("\n")
 
@@ -433,8 +485,87 @@ def session_export(
 
 
 @session_app.command("sync")
-def session_sync(context: typer.Context) -> None:
-    sync_sessions(state_from(context))
+def session_sync(
+    context: typer.Context,
+    agent: Annotated[str, typer.Option("--agent", help="Synchronize one adapter")] = "",
+    session: Annotated[str, typer.Option("--session", help="Synchronize one session identity")] = "",
+    cwd: Annotated[str, typer.Option("--project", "--cwd", help="Filter by resolved project path")] = "",
+    since: Annotated[str, typer.Option("--since", help="Only sources modified since RFC3339 or YYYY-MM-DD")] = "",
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Inspect candidates without writing archives or usage")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+) -> None:
+    sync_sessions(
+        state_from(context),
+        agent=agent,
+        session=session,
+        cwd=resolve_cwd(cwd),
+        since=parse_session_date(since),
+        dry_run=dry_run,
+        as_json=as_json,
+    )
+
+
+def _print_statistics(state: State, document: dict[str, Any], *, as_json: bool) -> None:
+    if as_json:
+        state.stdout.write(json.dumps(document, ensure_ascii=False, indent=2) + "\n")
+    else:
+        for key, value in document.items():
+            if key == "rows":
+                columns = (
+                    "agent",
+                    "project",
+                    "sessions",
+                    "prompts",
+                    "responses",
+                    "words",
+                    "characters",
+                    "active_days",
+                    "median_characters",
+                    "p95_characters",
+                    "legacy_sessions",
+                    "partial_sessions",
+                )
+                state.stdout.write("\t".join(column.upper() for column in columns) + "\n")
+                for row in value:
+                    state.stdout.write(
+                        "\t".join(str(row[column]) if row[column] != "" else "-" for column in columns) + "\n"
+                    )
+                continue
+            state.stdout.write(
+                f"{key}: {json.dumps(value, ensure_ascii=False) if isinstance(value, dict | list) else value}\n"
+            )
+
+
+@session_app.command("stats", help="Count current sessions, retained generations, archive bytes, and health")
+def session_stats(
+    context: typer.Context,
+    agent: Annotated[str, typer.Option("--agent")] = "",
+    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
+    since: Annotated[str, typer.Option("--since", help="Filter latest ingestion timestamps")] = "",
+    until: Annotated[str, typer.Option("--until")] = "",
+    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+) -> None:
+    _print_statistics(state_from(context), session_statistics(_query(agent, cwd, "", since, until)), as_json=as_json)
+
+
+@prompts_app.command("stats", help="Count archived user messages and lengths without exposing text")
+def prompts_stats(
+    context: typer.Context,
+    agent: Annotated[str, typer.Option("--agent")] = "",
+    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
+    since: Annotated[str, typer.Option("--since", help="Filter conversation timestamps, RFC3339 or YYYY-MM-DD")] = "",
+    until: Annotated[str, typer.Option("--until")] = "",
+    by_project: Annotated[bool, typer.Option("--by-project")] = False,
+    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+) -> None:
+    document = prompt_statistics(_query(agent, cwd, "", since, until), by_project=by_project)
+    _print_statistics(state_from(context), document, as_json=as_json)
+    if not document["complete"]:
+        raise DotError(
+            "prompt statistics are incomplete; inspect excluded sessions, timestamps, and legacy/partial counts"
+        )
 
 
 @session_app.command(
@@ -702,13 +833,15 @@ def _spool_hook_failure(state: State, agent: str, operation: str, session_id: st
         state.stderr.write(f"agent hook failure spool unavailable: {detail}\n")
 
 
-def _usage_rows(harness: str, since: str, until: str, by_model: bool):
+def _usage_rows(harness: str, since: str, until: str, by_model: bool, cwd: str = "", by_project: bool = False):
     return aggregate_usage(
         load_usage_records(),
         harness=harness,
         since=parse_flexible_time(since) if since else None,
         until=parse_flexible_time(until) if until else None,
         by_model=by_model,
+        cwd=resolve_cwd(cwd),
+        by_project=by_project,
     )
 
 
@@ -720,9 +853,13 @@ def usage_stats_command(
     until: Annotated[str, typer.Option("--until")] = "",
     by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
     as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
+    by_project: Annotated[bool, typer.Option("--by-project")] = False,
 ) -> None:
     state = state_from(context)
-    write_usage_stats(state.stdout, _usage_rows(harness, since, until, by_model), as_json=as_json, by_model=by_model)
+    write_usage_stats(
+        state.stdout, _usage_rows(harness, since, until, by_model, cwd, by_project), as_json=as_json, by_model=by_model
+    )
 
 
 @usage_app.command("list")
@@ -745,7 +882,7 @@ def usage_list(
     for record in records:
         state.stdout.write(
             f"{record.timestamp[:19]}\t{record.harness}\t{record.session_id}\t{record.model or '-'}\t"
-            f"{record.total_tokens:,}\t${record.cost_usd:.4f}\n"
+            f"{record.total_tokens:,}\t{f'${record.cost_usd:.4f}' if record.cost_known or record.cost_usd else 'unknown'}\n"
         )
 
 
@@ -759,8 +896,12 @@ def usage_show(
 
 
 @usage_app.command("sync")
-def usage_sync(context: typer.Context) -> None:
-    sync_usage(state_from(context))
+def usage_sync(
+    context: typer.Context,
+    agent: Annotated[str, typer.Option("--agent", "--harness")] = "",
+    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+) -> None:
+    sync_usage(state_from(context), agent=agent, as_json=as_json)
 
 
 _SHARED_PERSONA = "~/.agents/AGENTS.md"
@@ -784,6 +925,13 @@ class DoctorIntegration:
 
 # This table describes only integrations managed by the active Python-first tree.
 _DOCTOR_INTEGRATIONS = (
+    DoctorIntegration(
+        "opencode",
+        _SHARED_PERSONA,
+        skills_config="~/.config/opencode/opencode.json",
+        tools=("dot", "opencode"),
+        discovery_only=True,
+    ),
     DoctorIntegration(
         "agy",
         "~/.gemini/GEMINI.md",
@@ -859,6 +1007,9 @@ class AgentDoctorResult:
     archive_lag: str
     truncated: bool
     healthy: bool
+    issue_counts: dict[str, int] = field(default_factory=dict)
+    examples: list[dict[str, str]] = field(default_factory=list)
+    repair: str = ""
 
 
 @dataclass(frozen=True)
@@ -868,6 +1019,20 @@ class _SourceInspection:
     present: bool
     healthy: bool
     truncated: bool = False
+    issue_counts: dict[str, int] = field(default_factory=dict)
+    examples: list[dict[str, str]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class _SkillInspection:
+    status: str
+    issue_counts: dict[str, int] = field(default_factory=dict)
+    examples: list[dict[str, str]] = field(default_factory=list)
+    truncated: bool = False
+
+    @property
+    def healthy(self) -> bool:
+        return self.status == "healthy"
 
 
 @dataclass
@@ -919,12 +1084,79 @@ def _check_discovery(definition: DoctorIntegration) -> tuple[str, bool]:
         return "skills-broken", False
     if definition.skills_config:
         try:
-            config = _load_configuration(expand_path(definition.skills_config), "yaml")
+            config = _load_configuration(
+                expand_path(definition.skills_config), "json" if definition.agent == "opencode" else "yaml"
+            )
         except OSError, UnicodeError, ValueError, yaml.YAMLError:
             return "skills-broken", False
-        if _SHARED_SKILLS not in set(_structured_strings(config)):
+        strings = set(_structured_strings(config))
+        if not {_SHARED_SKILLS, str(expand_path(_SHARED_SKILLS))}.intersection(strings):
             return "skills-broken", False
+        if definition.agent == "opencode" and not {_SHARED_PERSONA, str(expand_path(_SHARED_PERSONA))}.intersection(
+            strings
+        ):
+            return "persona-broken", False
     return "healthy", True
+
+
+def _inspect_skill_catalog(state: State) -> _SkillInspection:
+    """Inspect bounded filesystem metadata, never skill instructions or resources."""
+    catalog = expand_path(_SHARED_SKILLS)
+    limit = state.config.agent.doctor.scan_limit
+    issues: dict[str, int] = {}
+    examples: list[dict[str, str]] = []
+
+    def issue(reason: str, name: str = "") -> None:
+        issues[reason] = issues.get(reason, 0) + 1
+        if name and len(examples) < state.config.agent.doctor.example_limit:
+            examples.append({"reason": reason, "skill": name})
+
+    try:
+        if catalog.is_symlink() or not catalog.is_dir():
+            return _SkillInspection("skills-missing", {"skill-catalog-not-directory": 1})
+        entries = list(islice(catalog.iterdir(), limit + 1))
+        if len(entries) > limit:
+            return _SkillInspection("skills-truncated", {"skill-scan-limit": 1}, truncated=True)
+        installed = {path.name: path for path in entries}
+        for path in sorted(entries):
+            if path.name.startswith("."):
+                continue
+            if path.is_symlink() and not path.is_dir():
+                issue("skill-broken-link", path.name)
+            elif path.is_dir() and not (path / "SKILL.md").is_file():
+                issue("skill-missing-entrypoint", path.name)
+
+        # Chezmoi owns the expected links. Other installed packages need no registry.
+        if state.runner.which("chezmoi") is not None:
+            result = state.runner.run_bounded(
+                ["chezmoi", "source-path"],
+                max_output_bytes=16 * 1024,
+                timeout=duration_seconds(state.config.verify.probe_timeout),
+            )
+            source_text = result.stdout.strip()
+            if result.output_truncated or not source_text or len(source_text.splitlines()) != 1:
+                raise ValueError("could not resolve chezmoi source")
+            source = Path(source_text)
+            if not source.is_absolute():
+                raise ValueError("chezmoi source must be absolute")
+            declarations = source / "dot_agents/skills"
+            if declarations.is_dir():
+                expected = list(islice(declarations.iterdir(), limit + 1))
+                if len(expected) > limit:
+                    return _SkillInspection("skills-truncated", {"skill-scan-limit": 1}, truncated=True)
+                for declaration in sorted(expected):
+                    if not declaration.name.startswith("symlink_") or not declaration.name.endswith(".tmpl"):
+                        continue
+                    name = declaration.name.removeprefix("symlink_").removesuffix(".tmpl")
+                    path = installed.get(name)
+                    if path is None:
+                        issue("skill-missing-link", name)
+                    elif not path.is_symlink() or path.readlink() != source / "skills" / name:
+                        issue("skill-link-conflict", name)
+    except DotError, OSError, ValueError:
+        issue("skill-inventory-unavailable")
+        return _SkillInspection("skills-unreadable", issues, examples)
+    return _SkillInspection("skills-broken" if issues else "healthy", issues, examples)
 
 
 def _command_arguments(command: str) -> tuple[str, ...]:
@@ -932,8 +1164,8 @@ def _command_arguments(command: str) -> tuple[str, ...]:
     if len(fields) < 2 or fields[0] != "dot":
         return ()
     agents = set(AGENT_ADAPTERS)
-    for index, field in enumerate(fields[1:]):
-        if field.startswith("-") or field in agents:
+    for index, argument in enumerate(fields[1:]):
+        if argument.startswith("-") or argument in agents:
             return tuple(fields[1 : index + 1])
     return tuple(fields[1:])
 
@@ -991,6 +1223,8 @@ def _check_tools(state: State, definition: DoctorIntegration) -> tuple[str, bool
 
 
 def _raw_session_identity(root: Path, path: Path, agent: str) -> str:
+    if agent in {"claude", "codex"} and path.suffix != ".jsonl":
+        return ""
     if agent == "claude":
         identity = claude_session_id(path)
     elif agent == "codex":
@@ -1060,6 +1294,8 @@ def _source_fingerprint_at(directory_fd: int, name: str, expected: os.stat_resul
 
 
 def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool = False) -> _SourceInspection:
+    if definition.discovery_only:
+        return _SourceInspection("archive-not-supported", None, False, True)
     source_text = state.config.agent.sources.get(definition.agent, "")
     if not source_text:
         return _SourceInspection("unconfigured", None, False, False)
@@ -1094,6 +1330,13 @@ def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool =
     failed = False
     reconciled = True
     limit = state.config.agent.doctor.scan_limit
+    issues: dict[str, int] = {}
+    examples: list[dict[str, str]] = []
+
+    def issue(reason: str, identity: str = "") -> None:
+        issues[reason] = issues.get(reason, 0) + 1
+        if len(examples) < state.config.agent.doctor.example_limit:
+            examples.append({"reason": reason, "session": identity})
 
     def onerror(_error: OSError) -> None:
         nonlocal failed
@@ -1131,14 +1374,15 @@ def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool =
                     continue
                 if not stat.S_ISREG(entry.st_mode):
                     continue
-                if deep and seen >= limit:
-                    return _SourceInspection("present", latest, True, not failed and reconciled, True)
-                seen += 1
                 if definition.agent == "agy" and name == AGY_TRANSCRIPT_NAMES[1] and AGY_TRANSCRIPT_NAMES[0] in files:
                     continue
                 session_id = _raw_session_identity(root, path, definition.agent)
                 if not session_id:
                     continue
+                # Count actual session sources, not adjacent caches or binary metadata.
+                if deep and seen >= limit:
+                    return _SourceInspection("present", latest, True, not failed and reconciled, True, issues, examples)
+                seen += 1
                 modified = datetime.fromtimestamp(entry.st_mtime, UTC)
                 latest = max(latest, modified) if latest is not None else modified
                 if not deep:
@@ -1151,15 +1395,17 @@ def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool =
                         raise OSError(errno.ESTALE, "session source changed during archive reconciliation", name)
                 except OSError, ValueError:
                     failed = True
+                    issue("unreadable-or-changing-source", session_id)
                     continue
                 if manifest is None or manifest.completeness != "complete":
                     reconciled = False
+                    issue("missing-current-generation" if manifest is None else "partial-generation", session_id)
     finally:
         os.close(root_fd)
     if failed:
-        return _SourceInspection("unreadable", latest, True, False)
+        return _SourceInspection("unreadable", latest, True, False, issue_counts=issues, examples=examples)
     if deep and not reconciled:
-        return _SourceInspection("unreconciled", latest, True, False)
+        return _SourceInspection("unreconciled", latest, True, False, issue_counts=issues, examples=examples)
     return _SourceInspection("present", latest, True, True)
 
 
@@ -1175,8 +1421,8 @@ def _valid_manifest_path(root: Path, path: Path, manifest: SessionManifest, agen
         manifest.agent == agent
         and manifest.lineage_id == lineage == session_lineage_id(agent, manifest.session_id)
         and manifest.schema_version == SESSION_SCHEMA_VERSION
-        and manifest.parser_version == SESSION_PARSER_VERSION
-        and generation == session_generation_id(manifest.source_fingerprint)
+        and manifest.parser_version in SUPPORTED_PARSER_VERSIONS
+        and generation == session_digest(manifest.parser_version, manifest.source_fingerprint)
     )
 
 
@@ -1311,17 +1557,30 @@ def _summarize_lineage(
 
 
 def gather_agent_doctor(
-    state: State, *, now: datetime | None = None, deep: bool = False, progress: bool = False
+    state: State,
+    *,
+    now: datetime | None = None,
+    deep: bool = False,
+    progress: bool = False,
+    agent: str = "",
+    explain: bool = False,
 ) -> list[AgentDoctorResult]:
+    if agent and agent not in {item.agent for item in _DOCTOR_INTEGRATIONS}:
+        raise DotError(f"unknown integration {agent!r}")
     current = now or datetime.now(UTC)
     runnable = _dot_command_prober(state)
     notifier_available = _notifier_available(state)
+    skills = _inspect_skill_catalog(state)
     results: list[AgentDoctorResult] = []
     total = len(_DOCTOR_INTEGRATIONS)
     for index, definition in enumerate(_DOCTOR_INTEGRATIONS, start=1):
+        if agent and definition.agent != agent:
+            continue
         if progress:
             state.stderr.write(f"Deep doctor {index}/{total}: {definition.agent}\n")
         discovery, discovery_ok = _check_discovery(definition)
+        if discovery_ok and not skills.healthy:
+            discovery, discovery_ok = skills.status, False
         hooks, hooks_ok = _check_hooks(definition, runnable)
         if definition.notifications and not notifier_available:
             hooks, hooks_ok = "notification-unavailable", False
@@ -1330,7 +1589,23 @@ def gather_agent_doctor(
         lineage = _inspect_lineage(state, definition, deep=deep)
         failure, failure_ok = _inspect_last_hook_failure(state, definition.agent)
         ingestion, lag, lineage_ok = _summarize_lineage(state, definition, current, source, lineage)
-        truncated = source.truncated or lineage.truncated
+        truncated = source.truncated or lineage.truncated or skills.truncated
+        if not skills.healthy:
+            repair = (
+                "Inspect ~/.agents/skills; restore missing repository links with a reviewed chezmoi apply, "
+                "and repair other packages at their source."
+            )
+        elif not discovery_ok or not hooks_ok:
+            repair = f"dot agent doctor --agent {definition.agent} --fix --dry-run (configuration only)"
+        elif definition.discovery_only:
+            repair = "Archive capture is not supported; discovery and installed tool only."
+        elif not source.healthy:
+            repair = (
+                f"dot agent session sync --agent {definition.agent}; "
+                f"then dot agent doctor --agent {definition.agent} --deep --explain"
+            )
+        else:
+            repair = ""
         results.append(
             AgentDoctorResult(
                 definition.agent,
@@ -1349,14 +1624,21 @@ def gather_agent_doctor(
                 and lineage_ok
                 and failure_ok
                 and not truncated,
+                issue_counts=skills.issue_counts | source.issue_counts,
+                examples=(skills.examples + source.examples)[: state.config.agent.doctor.example_limit]
+                if explain
+                else [],
+                repair=repair,
             )
         )
     return results
 
 
-def _doctor_repair_targets() -> list[Path]:
+def _doctor_repair_targets(agent: str = "") -> list[Path]:
     targets = {expand_path(_SHARED_PERSONA), expand_path(_SHARED_SKILLS)}
     for definition in _DOCTOR_INTEGRATIONS:
+        if agent and definition.agent != agent:
+            continue
         targets.add(expand_path(definition.persona_path))
         for value in (definition.skills_path, definition.skills_config, definition.hook_path):
             if value:
@@ -1364,11 +1646,11 @@ def _doctor_repair_targets() -> list[Path]:
     return sorted(targets)
 
 
-def repair_agent_integrations(state: State, *, dry_run: bool = False) -> None:
+def repair_agent_integrations(state: State, *, dry_run: bool = False, agent: str = "") -> None:
     args = ["chezmoi", "apply"]
     if dry_run:
         args.append("--dry-run")
-    args.extend(("--force", *(str(path) for path in _doctor_repair_targets())))
+    args.extend(("--force", *(str(path) for path in _doctor_repair_targets(agent))))
     try:
         state.runner.run(args)
     except (OSError, DotError) as error:
@@ -1383,12 +1665,16 @@ def run_agent_doctor(
     deep: bool = False,
     as_json: bool = False,
     now: datetime | None = None,
+    agent: str = "",
+    explain: bool = False,
 ) -> list[AgentDoctorResult]:
     if dry_run and not fix:
         raise DotError("--dry-run requires --fix")
+    if agent and agent not in {item.agent for item in _DOCTOR_INTEGRATIONS}:
+        raise DotError(f"unknown integration {agent!r}")
     if fix:
-        repair_agent_integrations(state, dry_run=dry_run)
-    results = gather_agent_doctor(state, now=now, deep=deep, progress=deep)
+        repair_agent_integrations(state, dry_run=dry_run, agent=agent)
+    results = gather_agent_doctor(state, now=now, deep=deep, progress=deep, agent=agent, explain=explain)
     if as_json:
         json.dump([asdict(result) for result in results], state.stdout, ensure_ascii=False, indent=2)
         state.stdout.write("\n")
@@ -1401,6 +1687,13 @@ def run_agent_doctor(
                 f"source={result.source} ingestion={result.last_ingestion} failure={result.last_failure} "
                 f"lag={result.archive_lag} truncated={str(result.truncated).lower()}\n"
             )
+            if result.issue_counts:
+                state.stdout.write(f"  issues={json.dumps(result.issue_counts)}\n")
+            if result.repair:
+                state.stdout.write(f"  next: {result.repair}\n")
+            for example in result.examples:
+                kind = "skill" if "skill" in example else "session"
+                state.stdout.write(f"  {example['reason']}: {kind}={example[kind]}\n")
     if not all(result.healthy for result in results):
         raise DotError("agent doctor found unhealthy integrations")
     return results
@@ -1409,6 +1702,10 @@ def run_agent_doctor(
 @agent_app.command("doctor")
 def agent_doctor(
     context: typer.Context,
+    agent: Annotated[str, typer.Option("--agent", help="Inspect or repair only one integration")] = "",
+    explain: Annotated[
+        bool, typer.Option("--explain", help="Include bounded session identities and failure reasons")
+    ] = False,
     deep: Annotated[bool, typer.Option("--deep", help="Hash sources and validate every archived generation")] = False,
     as_json: Annotated[bool, typer.Option("--json", "-j", help="Emit a JSON array")] = False,
     fix: Annotated[
@@ -1418,7 +1715,9 @@ def agent_doctor(
         bool, typer.Option("--dry-run", "-N", help="Preview --fix without changing deployed files")
     ] = False,
 ) -> None:
-    run_agent_doctor(state_from(context), fix=fix, dry_run=dry_run, deep=deep, as_json=as_json)
+    run_agent_doctor(
+        state_from(context), fix=fix, dry_run=dry_run, deep=deep, as_json=as_json, agent=agent, explain=explain
+    )
 
 
 def prune_agent_artifacts(state: State, *, dry_run: bool) -> int:
@@ -1549,6 +1848,7 @@ def _clear_directory(directory: int, target: str) -> None:
 agent_app.add_typer(hook_app, name="hook", hidden=True)
 add_group(agent_app, session_app, "session")
 add_group(agent_app, usage_app, "usage")
+add_group(agent_app, prompts_app, "prompts")
 
 
 __all__ = [

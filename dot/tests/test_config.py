@@ -21,6 +21,13 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
     assert not hasattr(config, "context")
     assert not hasattr(config.release, "workflow")
     assert not hasattr(config.completions, "concurrency")
+    assert config.agent.doctor.scan_limit == 16384
+
+
+def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
+    config = Config()
+    expected = {*config.agent.sources, "opencode", "fkf", "marimo"}
+    assert expected <= set(config.verify.tools)
 
 
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:

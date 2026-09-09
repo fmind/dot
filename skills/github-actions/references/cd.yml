@@ -1,3 +1,4 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: CD
 on:
   push:
@@ -110,8 +111,8 @@ jobs:
           sbom="$RUNNER_TEMP/sbom.cdx.json"
           identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd.yml@${GITHUB_REF}"
           issuer="https://token.actions.githubusercontent.com"
-          trivy --config trivy.yaml image "$image"
-          trivy --config trivy.yaml image --format cyclonedx --output "$sbom" "$image"
+          trivy --config trivy.yaml image --skip-dirs '' "$image"
+          trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output "$sbom" "$image"
           cosign sign --yes "$image"
           cosign verify \
             --certificate-identity "$identity" \

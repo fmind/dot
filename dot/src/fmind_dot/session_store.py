@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 SESSION_SCHEMA_VERSION = 1
-SESSION_PARSER_VERSION = "1"
+SESSION_PARSER_VERSION = "2"
+SUPPORTED_PARSER_VERSIONS = {"1", "2"}
 SESSION_STORE_VERSION = "v1"
 _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 

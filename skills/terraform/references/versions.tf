@@ -1,3 +1,4 @@
+# Docs: https://opentofu.org/docs/language/settings/
 terraform {
   # OpenTofu reads this same block; the constraint tracks the tested minor.
   required_version = ">= 1.12"

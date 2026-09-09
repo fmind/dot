@@ -18,6 +18,8 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 ## Prerequisites
 
+Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.1 or newer; it installs mise when absent but stops if an existing version is too old.
+
 ### Host Packages
 
 The bootstrap installs user-space tools via mise, but requires host build tools, Git, curl, and native credential storage:
@@ -32,7 +34,7 @@ xcode-select --install
 
 ### GitHub Authentication
 
-Generate an SSH key and register the public key in [GitHub Settings Keys](https://github.com/settings/keys):
+The managed Git configuration sends GitHub pushes over SSH, including repositories cloned over HTTPS. Generate an SSH key and register the public key in [GitHub Settings Keys](https://github.com/settings/keys) before pushing; the public clone below does not require authentication:
 
 ```bash
 ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
@@ -45,6 +47,9 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 
 ## Installation
 
+> [!WARNING]
+> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use.
+
 ```bash
 # Clone into the chezmoi source directory
 git clone https://github.com/fmind/dot.git ~/.local/share/chezmoi
@@ -55,8 +60,40 @@ bash ~/.local/share/chezmoi/install.sh
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
-> [!WARNING]
-> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use.
+The installer prompts for Git identity, applies the dotfiles and eligible installation hooks, installs the locked tools and `dot` CLI, and configures Git hooks and Neovim plugins. Open a new shell afterward, or use `~/.local/bin/dot --help` to check the installed CLI directly.
+
+### Dot configuration
+
+The CLI reads `~/.config/dot.yaml`, managed from [`dot_config/dot.yaml`](dot_config/dot.yaml), and merges its values with built-in defaults. Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
+
+Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the managed source through chezmoi. Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
+
+## Agent skills
+
+Skills use the standard `~/.agents/skills/` directory. Dotfiles setup creates a real directory and links each package from this repository's [`skills/`](skills/) catalog into it. Other packages can be directories or individual links in the same location; names must be unique. Packages in this catalog may reference sibling skills, so check dependencies before copying one folder on its own.
+
+To add a skill, create `~/skill-library/meeting-prep/SKILL.md` with a matching name, a description, and actionable instructions:
+
+```markdown
+---
+name: meeting-prep
+description: Prepare a meeting agenda from supplied notes. Use when planning a meeting.
+---
+
+# Prepare a Meeting
+
+1. Identify the meeting objective and decisions needed from the supplied notes.
+1. Draft a timed agenda and list missing information without inventing it.
+```
+
+Then install the package using an absolute, stable source path:
+
+```bash
+mkdir -p ~/.agents/skills
+ln -s ~/skill-library/meeting-prep ~/.agents/skills/
+```
+
+Run this setup on each computer. An existing name makes `ln` fail without replacing it; inspect the existing package before choosing another name. Restart the agent session to refresh discovery. `dot agent doctor --agent codex --explain` checks package links and entrypoints as part of integration health; actual selection still needs a request that exercises the skill. For changes to this repository's catalog, follow the [skill maintenance guide](.agents/skills/dot-skills/SKILL.md), including link retirement and source relocation.
 
 ## Credentials
 
@@ -98,12 +135,12 @@ API keys and credentials are split between two Fish configuration files:
 | **Google Cloud SDK**     | `dot login gcp` (or `gcloud auth login --update-adc`) | ADC + OAuth           |
 | **Google Workspace CLI** | `dot login workspace`                                 | Browser OAuth         |
 | **Antigravity CLI**      | `agy`                                                 | On-demand prompt      |
-| **Claude Code**          | `claude` → `/login`                                   | Interactive / browser |
+| **Claude Code**          | `claude auth login` (or `claude` → `/login`)          | Interactive / browser |
 | **OpenAI Codex CLI**     | `codex login`                                         | Interactive           |
 | **OpenCode CLI**         | `dot login gcp`, then `opencode`                      | Vertex AI ADC         |
-| **GitHub Copilot CLI**   | `copilot` → `/login`                                  | Interactive / browser |
+| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)             | Interactive / browser |
 | **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                       | Interactive / API key |
-| **Jules CLI**            | `jules auth login`                                    | Interactive           |
+| **Jules CLI**            | `jules login`                                         | Interactive           |
 
 Use `dot setup github` to refresh the configured GitHub OAuth scopes, and `dot setup workspace <project-id>` to enable and configure the Workspace APIs.
 

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Python Stack Standard
@@ -36,6 +36,8 @@ Use typed Python for packages, CLIs, Litestar applications, and ADK integrations
 | Library                                     | [init-library.py](references/init-library.py), [test_library.py](references/test_library.py)                                                                                   |
 | CLI and shared entry point                  | [init-cli.py](references/init-cli.py), [main.py](references/main.py), [test_smoke.py](references/test_smoke.py), [test_cli.py](references/test_cli.py)                         |
 | Web and explicit database integration       | [init.py](references/init.py), [test_web.py](references/test_web.py), [conftest.py](references/conftest.py), [test_integration.py](references/test_integration.py)             |
+
+Use [property-testing guidance](../test-driven-development/references/property-tests.md) when example tests leave meaningful parser, codec, or state-transition gaps; [test-driven-development](../test-driven-development/SKILL.md) owns that procedure. Use [api-client](../api-client/SKILL.md) for external HTTP integrations and [data-migration](../data-migration/SKILL.md) for persisted format changes.
 
 ## Gotchas
 

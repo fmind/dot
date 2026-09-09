@@ -22,7 +22,7 @@ Root `identities:` and authored pages may merge exact aliases. FKF never infers 
 Prefer, in order:
 
 1. direct provider argv in `run:`;
-1. a reviewed `.sh` or `.py` helper under `bin/` for pipelines or expansion;
+1. a reviewed `.sh` or `.py` helper under `sources/` for pipelines or expansion;
 1. another executable for structured or stateful work.
 
 `run:`, optional `test:`, `auth:`, and `body:` are direct argv. A helper's shebang chooses its interpreter. Declare every ordinary executable and non-standard interpreter in `requires:`. Source hooks live under `tests/`; FKF prepends that tree only for `test:` so fixtures cannot shadow collectors.
@@ -55,3 +55,7 @@ For a neighbourhood, `--kind` filters edge kinds such as `participant`; for `gra
 Collection is all-or-nothing per unit. Non-zero exit, timeout, excessive output, invalid or multiple JSON documents, or missing required values leaves that unit absent. Diagnostics name only reviewed source/window/argv context and never provider stderr or record-derived body arguments.
 
 One writer lock covers every mutating path for the physical base, including symlink aliases. Do not retry around it. Readers, dry runs, previews, `trust --check`, and build checks are lock-free.
+
+## App clients
+
+Declare app clients under root `clients:` with an HTTPS `url` and one `script` filename under `clients/`. Use a single Python script with inline uv dependency metadata for each app. Sources call it with explicit `uv run --script` argv and declare `uv` in `requires:`. App clients own provider access; source helpers under `sources/` own collection and projection. `clients/` stays outside PATH and published reads. Its complete tree and the app declarations are trust-covered; changes require renewed execution trust. Keep credentials out of configuration and scripts.

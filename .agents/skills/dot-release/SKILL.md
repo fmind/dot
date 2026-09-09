@@ -1,42 +1,44 @@
 ---
 name: dot-release
-description: Run dot release (or mise run release) to gate, bump, tag, and push a fmind/dot release that cd.yml publishes. Use when cutting a release of this repository.
+description: Prepare, recover, and verify fmind/dot releases through the repository task. Use when releasing this project or reconciling an interrupted release.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-09-06"
+  updated: "2026-09-09"
 ---
 
 # Dot Release
 
-`dot release` (wrapped as `mise run release`) turns the Conventional Commits since the last tag into a release commit and tag of this repository; the generic process and the post-publication verification live in [release](../../../skills/release/SKILL.md).
-
-## Commands
-
-```bash
-mise run release -- -y   # non-interactive: skips the confirmation prompt
-dot release              # interactive: confirms before mutating
-```
+Use the checkout's release task as the single owner of preparation and publication. The global [release](../../../skills/release/SKILL.md) skill owns generic versioning and publication verification; this skill owns dot's preconditions and recovery.
 
 ## Workflow
 
-The command performs every step itself; the agent checks the preconditions and reads the result.
+1. **Resolve the mode**: preparation, authorized release, or read-only reconciliation. The release command commits, pushes, and refreshes the installed CLI; a review or skill invocation alone does not authorize those actions.
+1. **Inspect preconditions**: a clean tree on the configured default branch, `gh` authenticated, and `git`, `git-cliff`, `mise`, and `uv` available. Defaults are `main` and `origin`; inspect `release` configuration before assuming them. Preserve unrelated work when a precondition fails.
+1. **Run the owner**: use the commands below from the repository. The task uses `uv run --frozen dot release`, avoiding an installed CLI that may lag source.
+1. **Read the result**: a new release requires HEAD equal to the fetched upstream branch. Preparation updates `dot/pyproject.toml`, `CHANGELOG.md`, and `dot/uv.lock`, then runs format, check, test, and build. Only those generated release files may change.
+1. **Reconcile publication**: the command commits, pushes the specific release commit, creates or validates its annotated tag, pushes that exact tag object, and verifies remote acceptance. It then runs `mise run --force deploy` to refresh the installed CLI. A retry revalidates an existing prepared release instead of creating another version.
+1. **Verify delivery**: the tag triggers [cd.yml](../../../.github/workflows/cd.yml). `dot release --wait` observes the exact head/tag CD and checks public wheel/source assets within `release.wait_timeout`; without it, success reports dispatch only. Follow the global release skill's [verification](../../../skills/release/references/verify.md) and [asset checks](../../../skills/release/references/verify-assets.md) for deeper artifact and installed-version proof. Local command success does not prove CD completion.
 
-1. **Preconditions**: clean working tree on `main`, `gh` authenticated, `git-cliff` and `mise` installed, Conventional Commits history.
-1. **Fetch and prove**: the command fetches `origin` and requires `HEAD == origin/main` before any mutation.
-1. **Compute and write**: the next semver from `git-cliff`, then `dot/pyproject.toml` and `CHANGELOG.md`.
-1. **Gate**: the local gate (`format`, `check`, `test`) runs; a failure aborts and resets the staged release files before any commit or tag exists.
-1. **Commit, tag, push**: the release commit, the annotated tag, the push of `main` and `refs/tags/v*` to `origin`, then the updated `dot` package is installed with uv.
-1. **Publish**: the tag push triggers `.github/workflows/cd.yml`, which creates the GitHub release; verify it with the release skill's `Verify` steps.
+```bash
+mise run release          # interactive preparation and publication
+mise run release -- -y     # non-interactive, within an authorized release
+```
 
-## Gotchas
+## Recovery
 
-- **No `mr`**: the fish abbreviation is interactive-only; agents call `mise run release` or `dot release`.
-- **Diverged `main`**: the command refuses a dirty tree or a `HEAD` that differs from `origin/main`; commit or stash, then sync before retrying.
+Inspect `git status --short`, the release commit, local tag, and remote state before retrying. [maintenance.py](../../../dot/src/fmind_dot/maintenance.py) owns recovery; search `run_release`, `_validate_prepared_release`, and `push_release_tag`. Its failure cases are exercised in [test_maintenance.py](../../../dot/tests/test_maintenance.py).
+
+| Failure boundary                                         | Next action                                                                                                                                                                                                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Before a release commit                                  | The command attempts to restore the version, changelog, and lockfile; commit-stage failures also attempt index recovery. Inspect remaining changes and the original failure before retrying; do not reset unrelated files. |
+| Commit prepared, branch or tag push incomplete           | Reconcile remote acceptance first. A clean prepared commit may equal upstream or be directly one commit ahead; rerunning the authorized release rechecks all four gates before retrying publication.                       |
+| Remote publication accepted, installation refresh failed | Verify remote commit/tag and CD independently, then retry `mise run --force deploy` for the same checkout. An installation error does not undo publication.                                                                |
+| Diverged branch, mismatched tag, or failed recovery      | Stop publication retries and report the conflicting state. Do not move published tags, overwrite assets, or rewrite history as an automatic repair.                                                                        |
 
 ## Documentation
 
-- [git-cliff](https://git-cliff.org) · `.github/workflows/cd.yml`
-- Companion skills: [release](../../../skills/release/SKILL.md) (generic process), [conventional-commit](../../../skills/conventional-commit/SKILL.md) (commit grammar), [dot-cli](../../../skills/dot-cli/SKILL.md) (`dot release`).
+- [Release workflow test](../../../dot/tests/test_release_workflow.py) checks the CD gate before attestation and publication.
+- Companion skills: [dot-development](../dot-development/SKILL.md) (implementation and installation proof), [conventional-commit](../../../skills/conventional-commit/SKILL.md) (commit grammar).

@@ -15,6 +15,7 @@ from typing import IO, Any
 from fmind_dot.session_store import (
     SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
+    SUPPORTED_PARSER_VERSIONS,
     SessionLog,
     SessionManifest,
     delete_session_generation,
@@ -310,14 +311,14 @@ def query_session_summaries(
     generations = discover_session_generations(root)
 
     newest: dict[tuple[str, str], tuple[str, str]] = {}
-    fingerprints: dict[tuple[str, str, str], int] = {}
+    fingerprints: dict[tuple[str, str, str, str], int] = {}
     for generation in generations:
         summary = generation.summary
         lineage = (summary.agent, summary.lineage_id)
         candidate = (summary.ingested_at, summary.generation_id)
         if lineage not in newest or candidate[0] > newest[lineage][0]:
             newest[lineage] = candidate
-        key = (*lineage, summary.source_fingerprint)
+        key = (*lineage, summary.source_fingerprint, generation.manifest.parser_version)
         fingerprints[key] = fingerprints.get(key, 0) + 1
 
     summaries: list[SessionSummary] = []
@@ -329,7 +330,16 @@ def query_session_summaries(
         records: list[SessionLog] = []
         lineage = (summary.agent, summary.lineage_id)
         is_latest = newest[lineage][1] == summary.generation_id
-        if manifest.schema_version != SESSION_SCHEMA_VERSION or manifest.parser_version != SESSION_PARSER_VERSION:
+        # Discard known nonmatches before reading and validating their transcripts.
+        # An absent manifest cwd still needs the existing content-based fallback.
+        if latest_only and not is_latest:
+            continue
+        if query.cwd and summary.cwd and summary.cwd != query.cwd:
+            continue
+        if (
+            manifest.schema_version != SESSION_SCHEMA_VERSION
+            or manifest.parser_version not in SUPPORTED_PARSER_VERSIONS
+        ):
             summary.status.append("unsupported")
         elif include_content or validate_content:
             try:
@@ -341,17 +351,17 @@ def query_session_summaries(
                     summary.records = records
                 if not summary.cwd:
                     summary.cwd = next((record.cwd for record in records if record.cwd), "")
-        if manifest.completeness == "partial" or manifest.malformed_records or manifest.skipped_records:
+        if manifest.parser_version in SUPPORTED_PARSER_VERSIONS and manifest.parser_version != SESSION_PARSER_VERSION:
+            summary.status.append("legacy")
+        if manifest.completeness == "partial" or manifest.malformed_records:
             summary.status.append("partial")
         if not is_latest:
             summary.status.append("stale")
-        if fingerprints[(*lineage, summary.source_fingerprint)] > 1:
+        if fingerprints[(*lineage, summary.source_fingerprint, manifest.parser_version)] > 1:
             summary.status.append("duplicate")
         if not summary.status:
             summary.status.append("current")
         summary.status.sort()
-        if latest_only and not is_latest:
-            continue
         if statuses and not statuses.intersection(summary.status):
             continue
         if query.cwd and summary.cwd != query.cwd:
@@ -362,8 +372,8 @@ def query_session_summaries(
     return summaries if limit is None else summaries[:limit]
 
 
-def show_session(query: SessionQuery, *, include_content: bool = False) -> SessionSummary:
-    summaries = query_session_summaries(query, include_content=include_content)
+def show_session(query: SessionQuery, *, include_content: bool = False, latest: bool = False) -> SessionSummary:
+    summaries = query_session_summaries(query, include_content=include_content, latest_only=latest)
     if not summaries:
         raise ValueError("session not found")
     if len(summaries) > 1:

@@ -284,15 +284,55 @@ def test_skills_contract_rejects_symlinked_skill_root(tmp_path: Path) -> None:
     assert any("symbolic link" in finding for finding in checker.repository_findings(root))
 
 
-def test_skills_contract_skips_untracked_foreign_skill_root(tmp_path: Path) -> None:
+def test_skills_contract_rejects_untracked_foreign_skill_root(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
-    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     target = root / "foreign"
     target.mkdir()
     (target / "SKILL.md").write_text("foreign package\n", encoding="utf-8")
     (root / "skills/foreign").symlink_to(target, target_is_directory=True)
 
-    assert checker.repository_findings(root) == []
+    assert any("symbolic link" in finding for finding in checker.repository_findings(root))
+
+
+def test_repository_skills_have_individual_chezmoi_links() -> None:
+    packages = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
+    links = ROOT / "dot_agents/skills"
+    assert {path.name for path in links.iterdir()} == {f"symlink_{name}.tmpl" for name in packages}
+    for name in packages:
+        assert (links / f"symlink_{name}.tmpl").read_text() == "{{ .chezmoi.sourceDir }}/skills/" + name + "\n"
+    assert not (ROOT / "dot_agents/symlink_skills.tmpl").exists()
+    assert not (ROOT / "dot_agents/exact_skills").exists()
+
+
+@pytest.mark.parametrize("existing_package", [False, True])
+def test_skills_documentation_installation_preserves_existing_packages(tmp_path: Path, existing_package: bool) -> None:
+    section = (ROOT / "README.md").read_text().split("## Agent skills\n", 1)[1].split("\n## ", 1)[0]
+    instructions = section.split("```markdown\n", 1)[1].split("```", 1)[0]
+    command = section.split("```bash\n", 1)[1].split("```", 1)[0]
+    package = tmp_path / "skill-library/meeting-prep"
+    package.mkdir(parents=True)
+    (package / "SKILL.md").write_text(instructions)
+    target = tmp_path / ".agents/skills/meeting-prep"
+    if existing_package:
+        target.mkdir(parents=True)
+        (target / "SKILL.md").write_text("Keep this package.\n")
+    environment = dict(os.environ, HOME=str(tmp_path))
+    result = subprocess.run(
+        ["bash", "-eu", "-c", command], env=environment, capture_output=True, text=True, check=False
+    )
+    assert result.returncode == (1 if existing_package else 0)
+    repeated = subprocess.run(
+        ["bash", "-eu", "-c", command], env=environment, capture_output=True, text=True, check=False
+    )
+    assert repeated.returncode != 0
+    if existing_package:
+        assert not target.is_symlink()
+        assert (target / "SKILL.md").read_text() == "Keep this package.\n"
+    else:
+        assert target.readlink() == package
+        assert (target / "SKILL.md").read_text() == instructions
+    assert list(package.iterdir()) == [package / "SKILL.md"]
+    assert list(target.iterdir()) == [target / "SKILL.md"]
 
 
 def test_skills_contract_enforces_catalog_and_routing_references(tmp_path: Path) -> None:

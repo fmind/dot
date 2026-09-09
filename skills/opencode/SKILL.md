@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/opencode
   created: "2026-09-08"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # OpenCode
@@ -16,6 +16,7 @@ Operate OpenCode with the project's provider, permissions, and Python tooling. P
 ## Workflow
 
 1. **Inspect the installed contract**: use `opencode --version`, `opencode run --help`, and project instructions. Resolve the intended workspace and existing session before starting or resuming work.
+1. **Refresh evolving details**: read the relevant official page and changelog before relying on new flags, provider options, or feature availability. Compare with installed help, report version gaps, and keep release-specific details upstream.
 1. **Resolve the provider**: for Vertex AI, establish the project, location, and ADC identity through [gcloud](../gcloud/SKILL.md). ADC can come from a credential file, an attached identity, or an approved impersonation setup; the presence of one file is not an authentication test.
 1. **Run the requested task** with the configured model, or an explicitly selected available `provider/model`. `--auto` approves permissions that are not explicitly denied; it preserves denials and does not expand the user's task authority.
 
@@ -39,9 +40,18 @@ Use `opencode mcp add --help` for the installed setup interface and [agent-mcp](
 
 - **Provider errors**: distinguish expired/revoked ADC, wrong project, unavailable model, IAM denial, and quota exhaustion before reauthenticating; never print an access token to diagnose them.
 - **Sharing is publication**: `--share` can expose session contents; require explicit sharing authority.
-- **Official skills**: the inspected `anomalyco/opencode` tree contains contributor skills and test fixtures, not a general consumer skill. Use official docs and installed help for this workflow.
 
-## Documentation
+## Official Skills
+
+- [Skill discovery and permissions](https://opencode.ai/docs/skills/): the official consumer-facing contract.
+- [Upstream repository](https://github.com/anomalyco/opencode): distinguish contributor skills and fixtures from consumer packages; do not install internal examples as a general OpenCode skill.
+- Use the [vendor-skill policy](../agent-project/references/vendor-skills.md) for requested third-party packages.
+
+## Top Links
+
+For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
 
 - [OpenCode CLI](https://opencode.ai/docs/cli/) · [Agents](https://opencode.ai/docs/agents/) · [Skills](https://opencode.ai/docs/skills/) · [Providers](https://opencode.ai/docs/providers/)
+- [Changelog](https://opencode.ai/changelog) · [Releases](https://github.com/anomalyco/opencode/releases)
+- [Configuration](https://opencode.ai/docs/config/) · [Permissions](https://opencode.ai/docs/permissions/) · [MCP servers](https://opencode.ai/docs/mcp-servers/)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [gcloud](../gcloud/SKILL.md), [agent-mcp](../agent-mcp/SKILL.md), [agent-project](../agent-project/SKILL.md).

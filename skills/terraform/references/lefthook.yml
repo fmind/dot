@@ -1,3 +1,4 @@
+# Docs: https://lefthook.dev/configuration/
 pre-commit:
   parallel: false
   commands:

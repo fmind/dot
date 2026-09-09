@@ -30,6 +30,8 @@ def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
+    assert "--install-completion" not in result.stdout
+    assert "--show-completion" not in result.stdout
     for command in (
         "agent",
         "chezmoi",
@@ -48,6 +50,37 @@ def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch
         assert command in result.stdout
     for removed in ("context", "help", "notify", "version"):
         assert not re.search(rf"^\s*{removed}(?:\s|$)", result.stdout, flags=re.MULTILINE)
+
+
+@pytest.mark.parametrize("option", ["--install-completion", "--show-completion"])
+def test_duplicate_completion_options_are_rejected(option: str) -> None:
+    result = runner.invoke(app, [option, "fish"])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+@pytest.mark.parametrize(
+    ("instruction", "expected"),
+    [("source_fish", "complete --command dot"), ("complete_fish", "verify")],
+)
+def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expected: str, tmp_path: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", "from fmind_dot.cli import app; app(prog_name='dot')"],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "_DOT_COMPLETE": instruction,
+            "_TYPER_COMPLETE_ARGS": "dot ver",
+            "_TYPER_COMPLETE_FISH_ACTION": "get-args",
+        },
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert expected in result.stdout
+    assert result.stderr == ""
 
 
 def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -90,7 +123,12 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
     assert isinstance(root, TyperGroup)
     agent = root.commands["agent"]
     assert isinstance(agent, TyperGroup)
-    assert {name for name, child in agent.commands.items() if not child.hidden} == {"doctor", "session", "usage"}
+    assert {name for name, child in agent.commands.items() if not child.hidden} == {
+        "doctor",
+        "prompts",
+        "session",
+        "usage",
+    }
     assert agent.commands["hook"].hidden
 
     session = agent.commands["session"]
@@ -101,6 +139,7 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
         "ingest",
         "list",
         "show",
+        "stats",
         "sync",
     }
     usage = agent.commands["usage"]

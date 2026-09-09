@@ -1,12 +1,12 @@
 ---
 name: mermaid
-description: Create, theme, validate, and embed Mermaid diagrams, the default diagram format for GitHub and Markdown documentation. Use for any new diagram unless D2 or LikeC4 applies.
+description: Create, theme, validate, and embed Mermaid diagrams, the default diagram format for GitHub and Markdown documentation. Use for new diagrams unless D2 or an existing format fits better.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mermaid
   created: "2026-07-16"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Mermaid Diagram Standard

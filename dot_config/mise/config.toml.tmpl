@@ -43,9 +43,9 @@ chpwd_only = true
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
-"github:fmind/fkf" = "latest" # Fmind Knowledge Framework (fkf)
 "npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
 "npm:skills" = "latest" # Agent Skills CLI manager
+"pipx:fkf" = "latest" # Fmind Knowledge Framework CLI
 # Pinned dep: google-colab-cli requires jupyter-kernel-client unpinned, but 1.0.0 renamed
 # KernelClient -> JupyterKernelClient, which breaks every session (verified 2026-09-02).
 "pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab

@@ -16,7 +16,6 @@ uv sync                           # install the upgraded set
 
 Raise `requires-python` and dependency floors in `pyproject.toml` by hand, only when a newer feature is needed; keep pre-1.0 tools range-pinned. See [python-stack](../../python-stack/SKILL.md).
 
-
 ## OpenTofu (`.terraform.lock.hcl`)
 
 ```sh
@@ -28,7 +27,7 @@ Validate with `tofu validate`, `tflint`, and `trivy config`. See [terraform](../
 
 ## Container images (`Dockerfile`)
 
-Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with `mise run build`, and scan with `trivy image`. See [containerize](../../containerize/SKILL.md).
+Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with `mise run build`, and scan with `trivy --config trivy.yaml image --skip-dirs ''`. See [containerize](../../containerize/SKILL.md).
 
 ## GitHub Actions (`.github/workflows/*.yml`)
 

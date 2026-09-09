@@ -80,7 +80,7 @@ def test_v1_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPat
     assert (
         session_lineage_id("codex", "session-1") == "b540336b2c776814303a05b68a90ac255ba738a435985fdb1709c224fd9416cc"
     )
-    assert session_generation_id("a" * 64) == "b58b6c93ff1f72bb13e5553fc922e6b3e34b54126fe128b34ac672488f4fa0db"
+    assert session_generation_id("a" * 64) == "77a43ace1e85cd6682e5fa17b2bd1950e240edd819b538dd5fd665589618a782"
     logs = [SessionLog("2026-08-01T12:00:00Z", "codex", "session-1", "user", "private", "/work")]
     source = SessionSource(type="codex-jsonl", fingerprint="a" * 64)
     result = ingest_session("codex", "session-1", logs, source)
@@ -517,7 +517,7 @@ def test_stored_generation_requires_exact_safe_immutable_identity(
     original = manifest.to_dict()
     for field, value in (
         ("schema_version", 2),
-        ("parser_version", "2"),
+        ("parser_version", "999"),
         ("agent", "claude"),
         ("session_id", "other"),
         ("lineage_id", "0" * 64),

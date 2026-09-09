@@ -1,9 +1,8 @@
 """Typer command tree for dot."""
 
-from __future__ import annotations
-
 import logging
 import os
+import shlex
 import signal
 import sqlite3
 import sys
@@ -13,6 +12,7 @@ from typing import Annotated
 
 import typer
 from typer import _click
+from typer.completion import completion_init
 
 from fmind_dot import __version__
 from fmind_dot.commands import AliasedGroup, add_group, aliased_command, state_from
@@ -27,12 +27,15 @@ class _AlphabeticalGroup(AliasedGroup):
     """Keep the top-level command inventory stable and easy to scan."""
 
 
+# Preserve the shell protocol used by `dot completion` without Typer's duplicate flags.
+completion_init()
 app = typer.Typer(
     name="dot",
     help="Unified CLI utility to manage dotfiles and workspaces",
     cls=_AlphabeticalGroup,
     invoke_without_command=True,
     no_args_is_help=False,
+    add_completion=False,
     pretty_exceptions_enable=False,
     context_settings=_CONTEXT_SETTINGS,
 )
@@ -93,6 +96,8 @@ def config_init(
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite an existing configuration file")] = False,
 ) -> None:
     path = state_from(context).config_path
+    if _managed_config(state_from(context)):
+        raise DotError("configuration is managed by chezmoi; use dot config edit")
     try:
         path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
     except OSError as error:
@@ -111,9 +116,21 @@ def config_init(
 @aliased_command(config_app, "edit", help_text="Open the configuration file in $EDITOR (scaffolds it first if missing)")
 def config_edit(context: typer.Context) -> None:
     state = state_from(context)
+    if _managed_config(state):
+        code = state.runner.interactive(
+            ["chezmoi", "edit", "--apply", "--force", str(state.config_path)],
+            stdin=state.stdin,
+            stdout=state.stdout,
+            stderr=state.stderr,
+        )
+        if code:
+            raise DotError(f"chezmoi editor exited with status {code}")
+        load_config(state.config_argument)
+        typer.echo("✓ Managed configuration is valid.")
+        return
     if not state.config_path.exists():
         config_init(context)
-    editor = os.environ.get("EDITOR", "").split() or ["vi"]
+    editor = shlex.split(os.environ.get("EDITOR", "")) or ["vi"]
     if state.runner.which(editor[0]) is None:
         raise DotError(f"editor {editor[0]!r} not found in PATH")
     code = state.runner.interactive(
@@ -121,6 +138,19 @@ def config_edit(context: typer.Context) -> None:
     )
     if code != 0:
         raise DotError(f"editor exited with status {code}")
+    load_config(state.config_argument)
+    typer.echo("✓ Configuration is valid.")
+
+
+def _managed_config(state: State) -> bool:
+    if state.runner.which("chezmoi") is None:
+        return False
+    result = state.runner.run(
+        ["chezmoi", "managed", "--path-style=absolute", "--nul-path-separator"],
+        timeout=30,
+    )
+    paths = result.stdout.split("\0")
+    return str(state.config_path.absolute()) in paths
 
 
 @aliased_command(

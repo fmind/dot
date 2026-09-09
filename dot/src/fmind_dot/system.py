@@ -1,7 +1,5 @@
 """System integration commands: completion, authentication, setup, notifications, and checks."""
 
-from __future__ import annotations
-
 import contextlib
 import hashlib
 import json
@@ -503,7 +501,48 @@ def _environment_results(state: State) -> list[CheckResult]:
         CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "warn", "unset (optional)")
         for name in state.config.verify.env_vars.optional
     )
+    if "opencode" in state.config.verify.tools:
+        results.append(_opencode_project_result(state))
     return results
+
+
+def _opencode_project_result(state: State) -> CheckResult:
+    name = "opencode-project"
+    if state.runner.which("opencode") is None:
+        return CheckResult(name, "skip", "opencode not installed (see Tools)")
+    try:
+        # Let OpenCode resolve JSONC, overrides, and environment substitution.
+        # Disable external plugins and never render the potentially secret output.
+        result = state.runner.run_bounded(
+            ["opencode", "debug", "config", "--pure"],
+            max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
+            timeout=duration_seconds(state.config.verify.probe_timeout),
+            check=False,
+        )
+        if result.returncode or result.output_truncated:
+            return CheckResult(name, "fail", "resolved configuration probe failed; run opencode debug config privately")
+        config = json.loads(result.stdout)
+        if not isinstance(config, dict) or not isinstance(config.get("provider", {}), dict):
+            raise ValueError("invalid configuration shape")
+        vertex = config.get("provider", {}).get("google-vertex")
+        uses_vertex = any(
+            isinstance(config.get(key), str) and config[key].startswith("google-vertex/")
+            for key in ("model", "small_model")
+        )
+        if vertex is None and not uses_vertex:
+            return CheckResult(name, "skip", "Google Vertex provider not configured")
+        if not isinstance(vertex, dict) or not isinstance(vertex.get("options", {}), dict):
+            raise ValueError("invalid provider options")
+        project = vertex.get("options", {}).get("project")
+    except DotError, OSError, ValueError:
+        return CheckResult(name, "fail", "unable to resolve configuration; run opencode debug config privately")
+    if not isinstance(project, str) or not project.strip() or "{" in project or "}" in project:
+        return CheckResult(
+            name,
+            "fail",
+            "set the Google Vertex project in OpenCode configuration or its referenced environment variable",
+        )
+    return CheckResult(name, "pass", "Google Vertex project selected (access not checked)")
 
 
 def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
@@ -586,6 +625,7 @@ def _auth_results(state: State) -> list[CheckResult]:
     results: list[CheckResult] = []
     timeout = duration_seconds(state.config.verify.probe_timeout)
     probes = dict(_AUTH_PROBES)
+    probes["gh"] = (["gh", "auth", "status", "--hostname", state.config.login.github_host], False)
     if os.environ.get("JULES_API_KEY"):
         probes["jules"] = (["jules", "remote", "list", "--repo"], False)
     for label, (command, requires_output) in probes.items():

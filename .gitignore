@@ -2,9 +2,6 @@
 
 # Local agent state; shared skills remain versioned.
 .agents/prompts/
-.agents/proposals/
-.agents/reports/
-.agents/skills/local-*
 .agents/tmp/
 .antigravitycli/
 .claude/*

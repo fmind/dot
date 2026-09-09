@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-09-06"
+  updated: "2026-09-09"
 ---
 
 # Fmind Visual Communication
@@ -22,11 +22,12 @@ Apply the Fmind identity from [fmind-theme.md](references/fmind-theme.md): reada
 
 ## Canonical Tool Choice
 
-| Need                                                        | Tool                           | Boundary                                                  |
-| ----------------------------------------------------------- | ------------------------------ | --------------------------------------------------------- |
-| Flow, sequence, state, class, ER, compact technical diagram | [Mermaid](../mermaid/SKILL.md) | Default for every new diagram                             |
-| Fmind article diagram                                       | [D2](../d2/SKILL.md)           | Import [diagram.d2](references/diagram.d2), light surface |
-| Existing D2 source or bespoke standalone composition        | [D2](../d2/SKILL.md)           | Specialist fallback                                       |
+| Need                                                        | Tool                           | Boundary                                                                 |
+| ----------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| Fmind talk or slide deck                                    | Typst                          | Start from [deck.typ](references/deck.typ); retain source and export PDF |
+| Flow, sequence, state, class, ER, compact technical diagram | [Mermaid](../mermaid/SKILL.md) | Default for every new diagram                                            |
+| Fmind article diagram                                       | [D2](../d2/SKILL.md)           | Import [diagram.d2](references/diagram.d2), light surface                |
+| Existing D2 source or bespoke standalone composition        | [D2](../d2/SKILL.md)           | Specialist fallback                                                      |
 
 ## Gotchas
 
