@@ -15,7 +15,7 @@ Run one ordered gate for a uv-managed Python project. The linked tool skills own
 
 ## Workflow
 
-1. **Leaks**: run the full-history scan and wire the staged hook per [gitleaks](../gitleaks/SKILL.md). Treat a finding as compromised and rotate it before continuing.
+1. **Leaks**: run the full-history scan and wire the staged hook per [gitleaks](../gitleaks/SKILL.md). Treat a confirmed credential exposure as an incident; prepare rotation and perform it only within the established credential and service authority.
 1. **Secrets at rest**: move plaintext credentials to environment variables or encrypted `*.enc.*` files per [sops-secrets](../sops-secrets/SKILL.md). Cloud Run receives runtime values from Secret Manager.
 1. **Dependency graphs**: run `uv audit --preview-features audit-command --locked` against `uv.lock` without the experimental-command warning. Audit exact installed `npm:` and `pipx:` tool graphs separately with [installed-tools.md](references/installed-tools.md); do not substitute a newly resolved graph for installed evidence.
 1. **Repository and IaC**: run `check:scan` per [trivy](../trivy/SKILL.md) for vulnerabilities, misconfiguration, secrets, and licenses. Fix or justify every `HIGH` or `CRITICAL` finding.

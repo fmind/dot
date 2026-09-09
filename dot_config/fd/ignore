@@ -1,7 +1,11 @@
+# Docs: https://github.com/sharkdp/fd#excluding-specific-files-or-directories
+
+.cache/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .terraform/
+.ty_cache/
 .venv/
 __pycache__/
 node_modules/

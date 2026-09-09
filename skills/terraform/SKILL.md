@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terraform
   created: "2026-08-07"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Terraform / OpenTofu Stack Standard
@@ -18,7 +18,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 - **Engine**: OpenTofu via mise (`opentofu` tool, `tofu` binary); verify provider, backend, state, and language-feature compatibility before migration; OpenTofu also supports client-side state encryption.
 - **Tasks and hooks**: [mise.toml](references/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](references/lefthook.yml) wires the hooks per [lefthook](../lefthook/SKILL.md).
 - **Docs**: `terraform-docs` injects the inputs/outputs table into `README.md` between `<!-- BEGIN_TF_DOCS -->` / `<!-- END_TF_DOCS -->` markers, configured by [terraform-docs.yml](references/terraform-docs.yml).
-- **Apply is manual**: `build` produces `tmp/plan.tfplan`; applying it requires the user-authorized target and reviewed plan (`tofu apply tmp/plan.tfplan`); keep apply out of automatic hooks and checks.
+- **Cloud planning is explicit**: `build` generates documentation; `mise run plan` creates `tmp/plan.tfplan` only for the selected backend, workspace, and cloud target. A plan can access APIs, state, and data sources. Applying it requires the authorized target and reviewed plan (`tofu apply tmp/plan.tfplan`); keep plan and apply out of automatic gates.
 
 ## 2. Project Scaffolding Workflow
 
@@ -27,13 +27,13 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
    - [mise.toml](references/mise.toml) and [lefthook.yml](references/lefthook.yml).
    - `.tflint.hcl` from [tflint.hcl](references/tflint.hcl) — pins the terraform preset and the GCP ruleset release.
    - `.terraform-docs.yml` from [terraform-docs.yml](references/terraform-docs.yml), plus the `TF_DOCS` markers in `README.md`.
-   - `dprint.json` per [dprint](../dprint/SKILL.md), `.gitignore` from [gitignore](references/gitignore), `LICENSE` per [project-license](../project-license/SKILL.md).
+   - `dprint.json` per [dprint](../dprint/SKILL.md), a reviewed project `trivy.yaml` per [trivy](../trivy/SKILL.md); `.gitignore` from [gitignore](references/gitignore), `LICENSE` per [project-license](../project-license/SKILL.md).
 1. **Sources** (flat root module; no `modules/` tree until a unit is reused):
    - [versions.tf](references/versions.tf) — version constraints, provider pins, and the commented GCS backend and encryption blocks.
    - [main.tf](references/main.tf), [variables.tf](references/variables.tf) (typed, validated inputs), [outputs.tf](references/outputs.tf).
    - [terraform.example.tfvars](references/terraform.example.tfvars) — non-secret example and static-scan values; replace the project ID before planning.
    - `tests/main.tftest.hcl` from [main.tftest.hcl](references/main.tftest.hcl) — plan-only native tests.
-1. **Validate**: `git init --initial-branch=main`, then `mise run install`, `mise run format`, `mise run check`, `mise run test` — no cloud API access for this starter because the backend is commented and the test uses `mock_provider`; downloading tools/providers still needs network access.
+1. **Validate**: `git init --initial-branch=main`, then `mise run install` and `mise run all` — no cloud API access for this starter because the backend is commented and the test uses `mock_provider`; downloading tools/providers still needs network access.
 1. **Lock providers**: commit `.terraform.lock.hcl`; on multi-platform teams run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64`.
 1. **Promote the backend**: once backend creation and state migration are authorized, create the versioned GCS bucket (commands in [versions.tf](references/versions.tf)), uncomment `backend "gcs"`, and re-run `mise run install`; `tofu init` migrates local state after a prompt.
 

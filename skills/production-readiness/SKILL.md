@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-09-07"
+  updated: "2026-09-08"
 ---
 
 # Production Readiness
@@ -28,7 +28,7 @@ Keep source readiness, local checks, CI for the exact commit, runtime behavior, 
 
 ## Gotchas
 
-- **Implicit authority**: Name any action that needs credentials, production access, external coordination, spend, or human approval instead of performing it.
+- **Implicit authority**: Reuse established authority for scoped runtime checks. Name missing authority for production mutation, external coordination, or spend; the presence of credentials alone supplies none.
 - **Borrowed evidence**: A green run, probe, or deployment for a different revision or environment proves nothing about this candidate.
 
 ## References

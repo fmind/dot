@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # DuckDB and SQLite
@@ -20,9 +20,9 @@ duckdb -c "SELECT name, score FROM 'people.csv' WHERE score > 80 ORDER BY score 
 duckdb -json -c "SELECT * FROM 'events/*.json'"                                          # JSON output for agents and jq
 duckdb lab.duckdb -c "CREATE OR REPLACE TABLE people AS FROM 'people.csv'"               # persist into a database file
 duckdb -c "COPY (FROM 'people.csv') TO 'people.parquet'"                                 # convert; Parquet is the durable format
-duckdb -c "ATTACH 'app.sqlite' AS s (TYPE sqlite); SELECT count(*) FROM s.users"         # read an application database
+duckdb -c "ATTACH 'app.sqlite' AS s (TYPE sqlite, READ_ONLY); SELECT count(*) FROM s.users"         # read an application database
 duckdb -c "SUMMARIZE FROM 'people.parquet'"                                              # column stats in one call
-sqlite3 app.sqlite ".schema" && sqlite3 app.sqlite "PRAGMA integrity_check"              # inspect the app store itself
+sqlite3 -readonly app.sqlite ".schema" && sqlite3 -readonly app.sqlite "PRAGMA integrity_check"              # inspect the app store itself
 ```
 
 The interactive shells load `~/.duckdbrc` and `~/.sqliterc` (box mode, headers, timer, `∅` for NULL); scripts pass `-json`, `-csv`, or `-markdown` explicitly so output does not depend on the rc file.
@@ -31,13 +31,13 @@ The interactive shells load `~/.duckdbrc` and `~/.sqliterc` (box mode, headers, 
 
 1. **Look before querying**: `DESCRIBE FROM '<file>'` and `SUMMARIZE` reveal types, nulls, and ranges; fix a wrong inference with `read_csv('<file>', types={'id': 'BIGINT'})`.
 1. **Keep queries in files**: `duckdb < analysis.sql` or `duckdb -f analysis.sql` for anything longer than one line, committed next to the data description.
-1. **Persist derived data as Parquet**: never commit `.duckdb` files (they change on every open); commit the SQL that rebuilds them.
+1. **Persist derived data as Parquet**: keep rebuildable `.duckdb` files out of Git and commit the SQL that produces them; use `-readonly` for inspection of an existing database.
 1. **Check results**: row counts before and after joins, `count(*) FILTER (WHERE x IS NULL)` on keys, and a spot check against the source.
 1. **Export for the reader**: `-markdown` for a report, `-json` for another tool, `COPY ... TO 'out.csv' (HEADER)` for a spreadsheet.
 
 ## Gotchas
 
-- **Do not open a live SQLite database with DuckDB while the app writes to it**: attach a copy, or use `sqlite3` directly.
+- **Do not open a live SQLite database with DuckDB while the app writes to it**: use a consistent SQLite backup or `sqlite3 -readonly` directly. A plain copy of the main file can omit committed WAL data; use SQLite's backup API or `.backup` for a snapshot.
 - **Glob paths quote as strings**: `'events/*.parquet'` works, unquoted paths do not.
 - **Memory**: large joins spill to disk automatically; set `SET memory_limit='4GB'` and `SET threads=4` on a shared machine.
 - **Extensions load on demand**: `httpfs`, `spatial`, `postgres` install once with `INSTALL <ext>; LOAD <ext>;` and need network the first time.

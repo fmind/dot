@@ -6,47 +6,30 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-add-commit-push
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-08"
 ---
 
 # Git Add, Commit, and Push
 
-Stage, commit, and push in one flow, healing lefthook pre-commit and pre-push failures on the way; [conventional-commit](../conventional-commit/SKILL.md) owns the subject grammar.
+Stage, commit, and push the authorized change, preserving existing work and repairing hook failures within that scope. [conventional-commit](../conventional-commit/SKILL.md) owns the subject grammar.
 
 ## Workflow
 
-1. **Pick the branch**: `git branch --show-current`. Direct commits to `main` are the rule for `github.com/fmind/*`; elsewhere, or for a requested PR flow, branch first with [feature-branch](../feature-branch/SKILL.md).
-1. **Stage**: `git diff --cached --name-only` shows what is staged; if nothing is, `git status --short` shows the unstaged changes to add with `git add`. A clean tree ends the flow: say so and stop.
-1. **Write the subject** with the [conventional-commit](../conventional-commit/SKILL.md) rules, but do not run its commit step: this skill commits and heals hook failures itself.
-1. **Commit and heal pre-commit**:
-
-   ```bash
-   git commit -m "<subject>"
-   ```
-
-   On a hook failure, read its output, run `mise run format` and `mise run check`, fix type or compile errors, `git add` the touched files, and retry with the same subject until it passes or a blocker needs the user.
-1. **Push and heal pre-push**:
-
-   ```bash
-   git push -u origin "$(git branch --show-current)"
-   ```
-
-   On a `mise run test` failure, read the runner output, fix the code or tests, `git add` the fix, fold it in with `git commit --amend --no-edit`, and retry until the push passes or a blocker needs the user.
-1. **Report** after a successful push:
-
-   ```text
-   Subject: <subject>
-   Commit: <hash>
-   Status: Pushed to origin/<branch>
-   ```
+1. **Resolve scope and branch**: inspect `git status --short --branch`, `git diff`, and `git diff --cached`. Direct work on `main` is allowed for `github.com/fmind/*`; follow an explicitly requested PR flow or the repository's branch policy through [feature-branch](../feature-branch/SKILL.md).
+1. **Preserve the index**: retain an existing staged selection. When staging is requested, add only the intended files or hunks; a dirty tree or an empty index does not authorize `git add -A`. Stop when there is no authorized change to commit.
+1. **Write the subject** with the [conventional-commit](../conventional-commit/SKILL.md) rules, then run `git commit -m "<subject>"` once.
+1. **Heal pre-commit**: read the failure, fix its cause, and rerun the affected check through `mise run check`. Format only the intended paths; use an isolated candidate for a whole-tree formatter when unrelated work exists. Review and restage only the authorized fixes before retrying.
+1. **Push the candidate**: verify the destination, then `git push -u origin "$(git branch --show-current)"`. A push to another repository or branch needs its own scope.
+1. **Heal pre-push**: reproduce the failing `mise run test` case and fix the cause without weakening assertions. Amend only the unpublished commit created by this flow when the authorized commit scope includes those fixes; otherwise make a separate authorized correction. Reconcile remote state before retrying an uncertain push.
+1. **Verify and report**: compare the remote branch SHA with the committed SHA, then report subject, commit, and destination. CI for that commit is a separate result.
 
 ## Gotchas
 
-- **Hooks are the gate**: Do not use `--no-verify` or bypass hooks unless the user explicitly asks; diagnose and fix the failure instead.
-- **One commit per push**: amend hook fixes into the pending commit before pushing; never amend a commit that already reached the remote.
-- **Rejected push**: branch protection on `main` means the repository wants a PR flow; switch to [feature-branch](../feature-branch/SKILL.md) and [github-pull-request](../github-pull-request/SKILL.md).
+- **Hooks remain enabled**: fix failures; do not bypass hooks or suppress failing checks.
+- **Existing commits belong to the user**: never amend an earlier or published commit as routine hook healing.
+- **Rejected push**: distinguish branch protection from a non-fast-forward race or authentication failure; use a PR for protection and preserve both histories when the remote advanced.
 
 ## Documentation
 
-- [lefthook](../lefthook/SKILL.md) — the pre-commit and pre-push hooks this flow heals.
-- Companion skills: [conventional-commit](../conventional-commit/SKILL.md) (subject rules), [feature-branch](../feature-branch/SKILL.md) (branch first), [github-pull-request](../github-pull-request/SKILL.md) (PR flow).
+- [Git push](https://git-scm.com/docs/git-push) · [lefthook](../lefthook/SKILL.md)
+- Companion skills: [conventional-commit](../conventional-commit/SKILL.md), [feature-branch](../feature-branch/SKILL.md), [github-pull-request](../github-pull-request/SKILL.md), [resolve-conflicts](../resolve-conflicts/SKILL.md).

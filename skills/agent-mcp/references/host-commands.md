@@ -14,6 +14,8 @@ grok mcp add --scope project -e KEY=value <name> -- uvx --from '<package>==<vers
 
 Resolve `<version>` to a reviewed exact release; update it deliberately rather than letting each agent start execute newly published code.
 
+OpenCode uses `opencode mcp add <name>` for its setup interface; inspect `--help` for non-interactive URL and environment options. For a local server, the project config uses `mcp.<name>` with `type: "local"`, a command array, and an `environment` mapping; for remote servers use `type: "remote"` and a URL. See [OpenCode MCP docs](https://opencode.ai/docs/mcp-servers/) before writing the matching configuration.
+
 ## Configuration files
 
 | Host        | User scope                                           | Project scope                                        |
@@ -22,4 +24,5 @@ Resolve `<version>` to a reviewed exact release; update it deliberately rather t
 | Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                      |
 | Codex       | `~/.codex/config.toml` under `[mcp_servers.<name>]`  | `.codex/config.toml` (trusted projects, hand-edited) |
 | Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited)      |
+| OpenCode | `~/.config/opencode/opencode.json` or `.jsonc` | `opencode.json` or `.jsonc` |
 | Grok        | `~/.grok/config.toml`                                | `./.grok/config.toml`                                |

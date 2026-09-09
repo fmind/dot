@@ -7,22 +7,23 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_release_workflow_requires_successful_ci_for_exact_tagged_commit() -> None:
+def test_release_workflow_runs_canonical_gate_before_publishing() -> None:
     path = ROOT / ".github/workflows/cd.yml"
     content = path.read_text(encoding="utf-8")
     workflow = yaml.safe_load(content)
     publish = workflow["jobs"]["publish"]
 
-    assert publish["permissions"]["actions"] == "read"
-    steps = publish["steps"]
-    gate_index = next(
-        index for index, step in enumerate(steps) if step["name"] == "Require successful CI for tagged commit"
-    )
-    build_index = next(index for index, step in enumerate(steps) if step["name"] == "Build distributions")
-    gate = steps[gate_index]["run"]
+    permissions = publish["permissions"]
+    assert "actions" not in permissions
+    assert permissions["contents"] == "write"
+    assert permissions["id-token"] == "write"
+    assert permissions["attestations"] == "write"
 
-    assert gate_index < build_index
-    assert 'git rev-parse "${GITHUB_REF_NAME}^{commit}"' in gate
-    assert 'while [ "$attempt" -lt 30 ] && [ -z "$run_id" ]' in gate
-    assert 'gh run list --workflow ci.yml --event push --commit "$GITHUB_SHA"' in gate
-    assert 'gh run watch "$run_id" --exit-status' in gate
+    steps = publish["steps"]
+    trust_index = next(index for index, step in enumerate(steps) if step["name"] == "Trust repository")
+    gate_index = next(index for index, step in enumerate(steps) if step["name"] == "Run canonical gate")
+    attest_index = next(index for index, step in enumerate(steps) if step["name"] == "Attest build provenance")
+
+    assert trust_index < gate_index < attest_index
+    assert steps[trust_index]["run"] == "mise trust -y mise.toml"
+    assert steps[gate_index]["run"] == "mise run all"

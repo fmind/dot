@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mermaid
   created: "2026-07-16"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Mermaid Diagram Standard
 
-Mermaid is the default diagram format because the same editable text renders in GitHub Markdown and documentation renderers with Mermaid support. Keep the source portable, reviewable, and close to the prose it explains; the choice between Mermaid, [D2](../d2/SKILL.md), LikeC4, or no diagram lives in [fmind-visuals](../fmind-visuals/SKILL.md).
+Mermaid is the default diagram format because the same editable text renders in GitHub Markdown and documentation renderers with Mermaid support. Keep the source portable, reviewable, and close to the prose it explains; the choice between Mermaid, [D2](../d2/SKILL.md), or no diagram lives in [fmind-visuals](../fmind-visuals/SKILL.md).
 
 ## Workflow
 

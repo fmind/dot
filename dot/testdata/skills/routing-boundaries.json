@@ -213,6 +213,19 @@
       "top_k": 3
     },
     {
+      "id": "tool-opencode",
+      "categories": [
+        "agent",
+        "cli"
+      ],
+      "prompt": "Run the OpenCode terminal coding agent with Google ADC on Vertex AI for autonomous Python feature development.",
+      "expected": [
+        "opencode"
+      ],
+      "primary": "opencode",
+      "top_k": 3
+    },
+    {
       "id": "tool-pydantic",
       "categories": [
         "engineering",
@@ -279,6 +292,19 @@
         "fastapi"
       ],
       "primary": "fastapi",
+      "top_k": 3
+    },
+    {
+      "id": "tool-marimo",
+      "categories": [
+        "engineering",
+        "official-skills"
+      ],
+      "prompt": "Author a reactive marimo notebook, configure agent harness pairing, and install official marimo skills.",
+      "expected": [
+        "marimo"
+      ],
+      "primary": "marimo",
       "top_k": 3
     },
     {

@@ -13,8 +13,8 @@
 ## Gotchas
 
 - **Read installed source, never import to inspect**: `uv pip show <dist>` gives version and location, then `rg -n '^(class|def) <Symbol>\b' .venv/lib/python*/site-packages/<module>` finds the definition.
-- **`uv init` Python pin**: it writes `.python-version` for whatever interpreter it resolves; run `uv python pin <major.minor>` or `uv sync` breaks.
+- **Python pin**: align the selected development interpreter with `requires-python`; `.python-version` chooses one interpreter, while `requires-python` declares the supported package range. A library may support several older minors; test the minimum supported version too.
 - **`Slug` vs `Package`**: hyphenated slugs stay for the distribution, directory, image tag, and command; imports, `[project.scripts]` targets, and `python -m` use underscores.
-- **`uv_build` upper bound**: keep `[build-system].requires` at least one minor ahead of the pinned `uv`, or `uv build` warns.
+- **`uv_build` compatibility**: use a bounded backend range supported by the selected uv release; uv uses its bundled backend when compatible and otherwise installs the requested backend. Do not widen the range just to suppress diagnostics; verify the resulting wheel and sdist. See the [uv backend contract](https://docs.astral.sh/uv/concepts/build-backend/).
 - **`ty` version key**: `[tool.ty.environment].python-version` takes `major.minor` only.
 - **Mise dotenv**: `[env]` with `_.file = ".env"` in `mise.toml` loads the environment for every task; `_.source` expects a shell script and silently loads nothing from a plain dotenv.

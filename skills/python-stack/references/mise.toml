@@ -1,3 +1,5 @@
+# Docs: https://mise.jdx.dev/configuration.html
+
 [env]
 _.file = ".env"
 
@@ -73,11 +75,7 @@ run = "uv audit --preview-features audit-command --locked"
 [tasks.clean]
 alias = "n"
 description = "Remove build artifacts and coverage files"
-run = [
-  "find . -type f -name '*.py[co]' -delete",
-  "find . -type d -name __pycache__ -exec rm -rf {} +",
-  "rm -rf .cache .pytest_cache .ruff_cache .coverage htmlcov dist docs",
-]
+run = "rm -rf .cache .pytest_cache .ruff_cache .coverage htmlcov dist"
 
 [tasks.coverage]
 alias = "v"
@@ -88,7 +86,7 @@ run = "uv run coverage html"
 [tasks.docs]
 alias = "d"
 description = "Generate HTML docs (pdoc)"
-run = "uv run pdoc -o docs <package>"
+run = "uv run pdoc -o .cache/docs <package>"
 
 [tasks.format]
 alias = "f"
@@ -143,7 +141,7 @@ run = "uv sync --upgrade"
 
 # Web form (granian). CLI projects: replace with `uv run <slug>`; libraries:
 # `mise run test:watch`; agent projects:
-# `uvx --from 'google-agents-cli==1.5.0' google-agents-cli playground`.
+# `uvx --from 'google-agents-cli==1.5.0' agents-cli playground`.
 [tasks.watch]
 alias = "w"
 description = "Run the dev server with live reload"

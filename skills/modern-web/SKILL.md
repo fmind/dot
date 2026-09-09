@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/modern-web
   created: "2026-09-03"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Modern Web Guidance
@@ -17,11 +17,11 @@ Modern Web Guidance embeds web platform expertise, browser compatibility data, a
 
 1. **Search guidelines**: Query curated web platform recipes and modern practices using the CLI:
    ```bash
-   npx --yes modern-web-guidance@0.0.185 search "<topic or api>"
+   npx --yes modern-web-guidance@0.0.187 search "<topic or api>"
    ```
 1. **Fetch specific pattern**: Retrieve detailed implementation guidelines and browser baselines by guide identifier:
    ```bash
-   npx --yes modern-web-guidance@0.0.185 retrieve "<guide-id>"
+   npx --yes modern-web-guidance@0.0.187 retrieve "<guide-id>"
    ```
 
 ## 2. Adoption Workflow

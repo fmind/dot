@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Upgrade Tools
@@ -21,7 +21,7 @@ Bump every pinned tool and dependency to its latest stable version, one ecosyste
 1. **Infrastructure and images after that** (OpenTofu providers, container base images), which consume the language artifacts.
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop at the first failing ecosystem** and fix it before continuing; bumping the rest on top of a broken one turns a short upgrade into an afternoon of bisecting.
-1. **Run the hooks once at the end**: `lefthook run pre-commit --all-files` and `lefthook run pre-push --all-files`.
+1. **Verify the final candidate**: run the repository gate; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
 1. **If commits were requested**, commit per ecosystem: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../conventional-commit/SKILL.md).
 
 ## Gotchas

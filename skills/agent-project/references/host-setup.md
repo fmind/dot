@@ -23,6 +23,7 @@
    - **Claude Code**: `.mcp.json` for project MCP servers (`claude mcp add --scope project`).
    - **Codex**: reads `AGENTS.md` and `.agents/skills`; `.codex/config.toml` holds trusted project overrides and MCP.
    - **Copilot**: reads `AGENTS.md` and `.agents/skills`; `.github/copilot-instructions.md` only for extra repository-wide Copilot instructions.
+   - **OpenCode**: reads `AGENTS.md` and `.agents/skills`; use `opencode.json` or `.jsonc` for project configuration and MCP. See [opencode](../../opencode/SKILL.md) for session operation.
    - **Grok**: reads `AGENTS.md` and `.agents/skills`; project MCP lives in `./.grok/config.toml` via `grok mcp add --scope project`.
 1. **Keep secrets and state out of git**: ignore local credentials, generated agent state, and secret-bearing overrides; commit only portable configuration.
 1. **Verify each installed CLI**: start it from the repository root and confirm instructions, skills, and configured MCP servers load, using the listing commands in [host discovery](host-discovery.md).
@@ -31,7 +32,7 @@
 
 ```text
 <repo>/
-├── AGENTS.md                          # shared instructions for all five hosts
+├── AGENTS.md                          # shared project instructions
 ├── CLAUDE.md -> AGENTS.md             # Claude bridge (or a file containing @AGENTS.md)
 ├── .agents/
 │   ├── prompts/                       # handover prompts, gitignored
@@ -53,4 +54,5 @@ Custom-agent definitions are not portable; keep them in each host's native locat
 | Claude Code | `.claude/agents/<name>.md`                              |
 | Codex       | `.codex/agents/<name>.toml`                             |
 | Copilot     | `.github/agents/<name>.agent.md`                        |
+| OpenCode | `.opencode/agents/<name>.md` |
 | Grok        | `grok --agent <definition-file>` (no project directory) |

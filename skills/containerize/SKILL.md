@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Containerize a Python Application
@@ -42,7 +42,7 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
 
 ## Gotchas
 
-- **Lock fidelity**: `uv sync --frozen` makes a stale or absent `uv.lock` fail the build; do not resolve dependencies inside the image build.
+- **Lock fidelity**: `uv sync --locked` rejects a missing or stale `uv.lock`; `--frozen` skips freshness checks. The template uses `--locked` so manifest drift fails without rewriting the graph.
 - **Non-root runtime**: the template runs as numeric UID/GID 10001 and copies only the locked virtual environment from the build stage. Write temporary data outside the application directory or mount an explicit writable path.
 - **Pinned bases**: both Python and uv use multi-architecture manifest digests. Refresh versions and digests together with [upgrade-tools](../upgrade-tools/SKILL.md).
 - **Small context**: keep virtual environments, caches, logs, local databases, Git state, and plaintext environment files out through [.dockerignore](references/.dockerignore).

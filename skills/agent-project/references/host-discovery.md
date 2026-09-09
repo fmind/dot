@@ -10,12 +10,15 @@ How each host finds the persona, global skills, and workspace skills, and the re
 | Copilot     | `~/.copilot/copilot-instructions.md`                 | `~/.copilot/skills` or `~/.agents/skills`                           | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`                        |
 | Grok        | `~/.grok/AGENTS.md`                                  | `~/.grok/skills` (link to `~/.agents/skills`)                       | `.agents/skills`                                        | `grok inspect`                              |
 
+| OpenCode | `~/.agents/AGENTS.md` via managed `instructions` | `~/.agents/skills` | `.agents/skills` or `.opencode/skills` | `opencode debug skill` |
+
 ## Reading the output
 
 - `codex debug prompt-input` renders the model-visible prompt as JSON: check every expected name and front-loaded routing cue, record any description truncation, and keep the CLI version and model because the metadata budget depends on them.
 - `copilot skill list` groups skills by source (project, personal, plugin); `--json` gives machine-readable output.
 - `grok inspect` lists project instructions, permissions, and every skill with its scope (`project` or `user`); `--json` is available.
 - Claude Code and Antigravity expose `/skills` in the interactive session only; explicit invocation (`/<skill-name>`) is the fallback proof in Claude.
+- `opencode debug skill` can include skill bodies; inspect needed names locally and keep private instruction content out of reports.
 - A listed skill proves inclusion in the prompt, not instruction following; validate behavior against explicit acceptance cases in a disposable, instrumented run.
 
 ## Native plugin catalogs

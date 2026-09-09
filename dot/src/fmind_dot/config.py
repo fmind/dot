@@ -101,14 +101,27 @@ class PruneConfig(StrictModel):
 
 class LoginConfig(StrictModel):
     github_host: str = "github.com"
-    github_scopes: list[str] = Field(default_factory=lambda: ["gist", "notifications", "read:org", "repo", "user"])
+    github_scopes: list[str] = Field(
+        default_factory=lambda: [
+            "admin:public_key",
+            "delete:packages",
+            "gist",
+            "notifications",
+            "project",
+            "read:org",
+            "read:packages",
+            "repo",
+            "user",
+            "workflow",
+            "write:packages",
+        ]
+    )
     workspace_scopes: list[str] = Field(
         default_factory=lambda: [
             "openid",
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile",
             "https://www.googleapis.com/auth/user.emails.read",
-            "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/calendar",
             "https://www.googleapis.com/auth/contacts",
             "https://www.googleapis.com/auth/contacts.other.readonly",
@@ -118,6 +131,7 @@ class LoginConfig(StrictModel):
             "https://www.googleapis.com/auth/forms.body",
             "https://www.googleapis.com/auth/forms.responses.readonly",
             "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/keep",
             "https://www.googleapis.com/auth/meetings.space.created",
             "https://www.googleapis.com/auth/meetings.space.readonly",
             "https://www.googleapis.com/auth/meetings.space.settings",
@@ -236,11 +250,14 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "codex": ToolConfig(args=["completion", "fish"]),
         "delta": ToolConfig(args=["--generate-completion", "fish"]),
         "doggo": ToolConfig(args=["completions", "fish"]),
+        "dot": ToolConfig(binary="env", args=["_DOT_COMPLETE=source_fish", "dot"]),
         "dprint": ToolConfig(args=["completions", "fish"]),
         "fd": ToolConfig(args=["--gen-completions", "fish"]),
+        "fkf": ToolConfig(binary="env", args=["_FKF_COMPLETE=source_fish", "fkf"]),
         "gh": ToolConfig(args=["completion", "-s", "fish"]),
         "git-lfs": ToolConfig(binary="git", args=["lfs", "completion", "fish"]),
         "lazygit": ToolConfig(args=["completion", "fish"]),
+        "marimo": ToolConfig(binary="env", args=["_MARIMO_COMPLETE=fish_source", "marimo"]),
         "rg": ToolConfig(args=["--generate", "complete-fish"]),
         "ruff": ToolConfig(args=["generate-shell-completion", "fish"]),
         "starship": ToolConfig(args=["completions", "fish"]),
@@ -268,15 +285,18 @@ class CompletionConfig(StrictModel):
             "cosign",
             "delta",
             "doggo",
+            "dot",
             "dprint",
             "dyff",
             "fd",
+            "fkf",
             "gh",
             "git-lfs",
             "gitleaks",
             "jules",
             "lazygit",
             "lefthook",
+            "marimo",
             "mise",
             "rg",
             "ruff",

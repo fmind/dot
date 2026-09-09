@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/d2
   created: "2026-07-16"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # D2 Diagram Standard
@@ -31,7 +31,7 @@ D2 is the specialist diagram tool: use it when the repository already owns `.d2`
 
 ## Gotchas
 
-- **Raster by default**: prefer SVG for web pages and documentation; use PNG only for raster-only destinations.
+- **Export format**: prefer SVG for web pages and documentation; use PNG only for raster-only destinations.
 - **Partial font sets**: supply all eight `--font-*` flags together with custom TTF files so missing weights do not silently fall back.
 - **PNG and PDF need a browser**: D2 rasterizes through a bundled Playwright download; when it is unavailable, keep the SVG and rasterize it with [playwright](../playwright/SKILL.md) instead of pinning an obsolete browser.
 - **Exported image as source**: keep `.d2` beside every generated artifact; the export is never the editable source.

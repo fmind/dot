@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-09-05"
+  updated: "2026-09-08"
 ---
 
 # Google Developer Catalog
 
-`google/skills` is Google's official Agent Skills monorepo, grouped as `ads`, `analytics`, `cloud`, and `developers`. The `developers` group holds two meta skills: the catalog index locates the right product skill (in a group here or in a sibling repository such as `firebase/agent-skills`, `genkit-ai/skills`, `google/agents-cli`, `googleworkspace/cli`, or `angular/skills`), and the docs skill searches official Google developer documentation. Reach for it when a Google product has no dedicated skill in this catalog.
+`google/skills` is Google's official Agent Skills monorepo, with product groups including `ads`, `analytics`, `cloud`, `developers`, and `identity`. The `developers` group holds two meta skills: the catalog index locates the right product skill (in a group here or in a sibling repository such as `firebase/agent-skills`, `genkit-ai/skills`, `google/agents-cli`, `googleworkspace/cli`, or `angular/skills`), and the docs skill searches official Google developer documentation. Reach for it when a Google product has no dedicated skill in this catalog.
 
 ## Gotchas
 

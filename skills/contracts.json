@@ -40,6 +40,8 @@
       "chezmoi"
     ],
     "chrome-devtools": [
+      "npx",
+      "npm",
       "skills"
     ],
     "cli-contracts": [],
@@ -174,6 +176,14 @@
     "loop-engineering": [
       "uv"
     ],
+    "marimo": [
+      "bash",
+      "curl",
+      "jq",
+      "marimo",
+      "skills",
+      "uv"
+    ],
     "mcp-server": [
       "uv"
     ],
@@ -192,6 +202,11 @@
     ],
     "observability": [
       "gcloud"
+    ],
+    "opencode": [
+      "gcloud",
+      "opencode",
+      "uv"
     ],
     "plan-review": [],
     "playwright": [

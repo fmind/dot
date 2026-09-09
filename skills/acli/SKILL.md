@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-08"
 ---
 
 # Atlassian CLI
@@ -29,7 +29,7 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
    acli confluence page view --id <page-id> --body-format storage --json
    ```
 
-1. **Write with authority**: creation, edits, transitions, comments, assignments, and bulk operations need explicit confirmation of the exact keys and fields; prefer `--generate-json` then `--from-json` for reproducible creations.
+1. **Write with authority**: reuse existing authority for the requested keys, fields, and effects; ask only when consequential scope is missing. Comments, assignments, and bulk operations must be included in that authority. Prefer `--generate-json` then `--from-json` for reproducible creations.
 
    ```bash
    acli jira workitem create --project TEAM --type Task --summary "<summary>" --json

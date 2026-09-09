@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-09-07"
+  updated: "2026-09-08"
 ---
 
 # Quality Assurance
@@ -23,7 +23,7 @@ Run a risk-based test campaign over the actual feature journey. Keep one-diff re
 
 ## Gotchas
 
-- **Authorization**: Real staging, paid APIs, destructive fixtures, production probes, account changes, and customer data require explicit authorization; afterwards tear every paid or externally exposed resource down.
+- **Authorization**: Real staging, paid APIs, destructive fixtures, production probes, account changes, and customer data require explicit authorization; afterwards tear down only resources created for the test and covered by its cleanup authority.
 - **Browser sessions**: A test request does not authorize reusing a logged-in browser, entering passwords or MFA, bypassing CAPTCHA, or making purchases; tool rules live in [playwright](../playwright/SKILL.md).
 - **Do not weaken assertions**: never skip a failing test, silently retry, or call an unavailable boundary green.
 - **Evidence classes**: Keep automated, manual, runtime, accessibility, performance, and public/deployed evidence separate; a passing local matrix is not deployed or public proof.

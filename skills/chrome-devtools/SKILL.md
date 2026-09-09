@@ -6,41 +6,45 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-09-06"
+  updated: "2026-09-08"
 ---
 
 # Chrome DevTools
 
-Chrome DevTools for agents connects AI coding agents to a live Chrome browser via the Model Context Protocol (MCP) or CLI. It enables automated browser inspection, performance tracing (Core Web Vitals, LCP), accessibility tree evaluation, cookie analysis, network inspection, and memory leak diagnosis. End-to-end browser journeys route through [playwright](../playwright/SKILL.md); modern web standards and native patterns route through [modern-web](../modern-web/SKILL.md).
+Use Chrome DevTools MCP or its experimental CLI for live browser diagnostics. [playwright](../playwright/SKILL.md) owns repeatable end-to-end journeys; [modern-web](../modern-web/SKILL.md) owns platform implementation guidance.
 
-## 1. Configure MCP Server
+## Setup
 
-Add the `chrome-devtools` MCP server to the current agent harness using [agent-mcp](../agent-mcp/SKILL.md):
+Require Node.js LTS, `npm`/`npx`, and supported Chrome. Reuse an available DevTools connection; otherwise follow [agent-mcp](../agent-mcp/SKILL.md) for the active harness. The launch command below uses a reviewed package pin; recheck installed help before updating it.
 
 ```bash
-# Project-scoped MCP registration (Antigravity CLI example)
-agy mcp add chrome-devtools -- npx --yes chrome-devtools-mcp@1.8.0
+npx --yes chrome-devtools-mcp@1.9.0 --isolated --headless --no-usage-statistics --no-performance-crux
 ```
 
-## 2. Debugging and Auditing Workflow
+The MCP client starts that process over stdio. Use a dedicated browser profile. Keep remote debugging on loopback; browser content, network bodies, cookies, screenshots, and traces may expose private data. The two opt-out flags disable MCP usage statistics and CrUX URL lookups respectively.
 
-1. **Launch browser session**: Start Chrome with remote debugging enabled, or allow the MCP server to launch and control an isolated browser instance via Puppeteer.
-1. **Performance and LCP**: Record traces to identify slow rendering phases, server response latency, render-blocking resources, and Largest Contentful Paint culprits.
-1. **Repeatable Lighthouse report**: run `npx --yes lighthouse@13.4.1 <url>` against the local app and record the version with the report; update the review-pinned version deliberately.
-1. **Accessibility tree audits**: Inspect computed accessible names, ARIA roles, and color contrast ratios to ensure WCAG compliance alongside [quality-assurance](../quality-assurance/SKILL.md).
-1. **Memory and cookies**: Take heap snapshots to identify detached DOM nodes and memory leaks; verify `SameSite`, `Secure`, and `Partitioned` cookie attributes.
+For shell workflows, the same package exposes `chrome-devtools`; resolve it with `npm exec --yes --package=chrome-devtools-mcp@1.9.0 -- chrome-devtools <command>`. Inspect `status` before starting a daemon, then explicitly start the task's session with `start --workspace="$PWD" --no-usage-statistics --no-performance-crux`. The CLI otherwise starts a persistent daemon automatically and enables unrestricted file access by default. Read `start --help` for the installed flags; do not stop or repurpose another task's daemon.
+
+## Workflow
+
+1. **Identify the target**: list pages and select the intended page ID, URL, viewport, and browser mode. Take a fresh accessibility snapshot before using element UIDs; navigation and rerenders can invalidate them.
+1. **Reproduce the symptom**: capture console errors and relevant failed requests, then reduce to the smallest repeatable action. Redact credentials and private request data from artifacts.
+1. **Measure performance**: record a bounded trace of the same action before and after a change; preserve CPU/network throttling, cache conditions, viewport, and tool versions. Stop traces you started and save artifacts in the authorized workspace.
+1. **Check accessibility**: inspect roles, names, focus order, keyboard operation, and visible contrast. Combine automated checks with manual interaction; an accessibility tree or Lighthouse score alone does not establish WCAG conformance.
+1. **Investigate memory and cookies**: compare repeated lifecycle actions and heap snapshots when those tools are available; inspect `HttpOnly`, `Secure`, `SameSite`, and partitioning in the request's actual context. A single heap size or cookie attribute is not a diagnosis.
+1. **Verify the fix**: repeat the reproduction and relevant measurements, then add a regression test through the owning project workflow. Close task-owned pages and stop only a daemon created for this task.
 
 ## Gotchas
 
-- **Sensitive data exposure**: The MCP server grants full inspection and execution control over the browser session; avoid using personal profiles or sharing sensitive credentials.
-- **Headless versus headed**: Automated testing runs headless by default; visual debugging and layout inspections may require headed mode.
-- **Complementary to Playwright**: Use Playwright for deterministic functional and E2E regression tests; reserve Chrome DevTools MCP for deep runtime profiling, traces, and live diagnostics.
+- **Tool availability**: inspect the live tool schema or CLI help before calling a capability; optional categories, page routing, and CLI arguments vary by version.
+- **Browser mode**: set headed or headless explicitly for reproducibility; the CLI defaults to headless, which need not match a separately configured MCP connection.
+- **Lab versus field**: a local trace measures this run. CrUX field data and lab measurements describe different populations and time windows.
 
 ## Official Skills
 
-Upstream: `ChromeDevTools/chrome-devtools-mcp`; follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select its DevTools MCP guidance.
+Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills). Use `skills add ChromeDevTools/chrome-devtools-mcp --list`, then follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) for the required guidance.
 
 ## Documentation
 
-- [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [Chrome DevTools documentation](https://developer.chrome.com/docs/devtools)
+- [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [CLI](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md) · [Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)
 - Companion skills: [agent-mcp](../agent-mcp/SKILL.md), [playwright](../playwright/SKILL.md), [modern-web](../modern-web/SKILL.md), [benchmark](../benchmark/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md).

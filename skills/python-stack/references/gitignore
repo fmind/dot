@@ -1,12 +1,16 @@
+# Docs: https://git-scm.com/docs/gitignore
+
 *.py[co]
 .cache/
-.coverage
-.env
+.coverage*
+.env*
+!.env.example
+.mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .ty_cache/
 .venv/
 __pycache__/
+build/
 dist/
-docs/
 htmlcov/
