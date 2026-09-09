@@ -2,9 +2,6 @@
 
 # Machine-local agent state; project code and tooling rules belong in .gitignore.
 .agents/prompts/
-.agents/proposals/
-.agents/reports/
-.agents/skills/local-*
 .agents/tmp/
 .antigravitycli/
 .claude/*

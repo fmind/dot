@@ -122,8 +122,9 @@ def test_usage_record_serializes_every_explicit_field() -> None:
         "total_tokens": 20,
         "cost_usd": 0.25,
         "turn_count": 2,
-        "schema_version": "dot.agent.usage/v2",
-        "extractor_version": "1",
+        "schema_version": "dot.agent.usage/v3",
+        "extractor_version": "2",
+        "cost_known": True,
         "measurement_kind": "provider-reported",
         "source_bytes": 123,
     }
@@ -413,6 +414,12 @@ def test_aggregate_usage_filters_and_sums_every_metric() -> None:
             "cost_usd": 0.25,
             "sessions": 1,
             "turns": 2,
+            "cost_known_sessions": 1,
+            "cost_complete": True,
+            "measurement_kind": "unknown",
+            "cwd": "",
+            "legacy_sessions": 0,
+            "time_basis": "whole session at recorded timestamp",
         }
     ]
 
@@ -448,6 +455,7 @@ def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
             reasoning_tokens=5,
             total_tokens=1014,
             cost_usd=0.5,
+            cost_known_sessions=1,
             sessions=1,
             turns=2,
         ),
@@ -459,6 +467,7 @@ def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
             reasoning_tokens=1,
             total_tokens=4,
             cost_usd=0.125,
+            cost_known_sessions=2,
             sessions=2,
             turns=3,
         ),
@@ -479,16 +488,17 @@ def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
     output = StringIO()
     write_usage_stats(output, rows, as_json=False, by_model=True)
     assert output.getvalue().splitlines() == [
-        "HARNESS\tMODEL\tSESSIONS\tTURNS\tINPUT TOKENS\tOUTPUT TOKENS\tCACHED TOKENS\tREASONING\tTOTAL TOKENS\tCOST (USD)",
-        "claude\tsonnet\t1\t2\t1,000\t2\t3\t5\t1,014\t$0.5000",
-        "codex\tgpt\t2\t3\t1\t2\t0\t1\t4\t$0.1250",
-        "TOTAL\t-\t3\t5\t1,001\t4\t3\t6\t1,018\t$0.6250",
+        "Whole-session totals filtered by recorded timestamp; not interval billing.",
+        "HARNESS\tMEASUREMENT\tPROJECT\tMODEL\tSESSIONS\tTURNS\tINPUT TOKENS\tOUTPUT TOKENS\tCACHED TOKENS\tREASONING\tTOTAL TOKENS\tCOST (USD)",
+        "claude\tunknown\t-\tsonnet\t1\t2\t1,000\t2\t3\t5\t1,014\t$0.5000",
+        "codex\tunknown\t-\tgpt\t2\t3\t1\t2\t0\t1\t4\t$0.1250",
+        "TOTAL\tunknown\t-\t-\t3\t5\t1,001\t4\t3\t6\t1,018\t$0.6250",
     ]
 
     output = StringIO()
     write_usage_stats(output, rows[:1], as_json=False, by_model=False)
-    assert output.getvalue().splitlines()[0].startswith("HARNESS\tSESSIONS")
-    assert output.getvalue().splitlines()[-1].startswith("TOTAL\t1\t2")
+    assert output.getvalue().splitlines()[1].startswith("HARNESS\tMEASUREMENT\tPROJECT\tSESSIONS")
+    assert output.getvalue().splitlines()[-1].startswith("TOTAL\tunknown\t-\t1\t2")
 
 
 def test_usage_cli_lists_filters_aggregates_and_shows_records(

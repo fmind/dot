@@ -1,3 +1,4 @@
+# Docs: https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket
 provider "google" {
   project = var.project
   region  = var.region

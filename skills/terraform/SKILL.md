@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terraform
   created: "2026-08-07"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Terraform / OpenTofu Stack Standard

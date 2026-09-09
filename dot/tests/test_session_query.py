@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from fmind_dot import session_query
 from fmind_dot.cli import app
 from fmind_dot.session_query import (
     SESSION_EXPORT_SCHEMA,
@@ -24,6 +25,7 @@ from fmind_dot.session_store import (
     SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
     SessionLog,
+    SessionManifest,
     SessionSource,
     ingest_session,
     session_store_root,
@@ -347,6 +349,46 @@ def test_query_can_select_latest_status_and_limit_without_reading_content(
     summaries = query_session_summaries(latest_only=True, statuses={"current"}, limit=1)
 
     assert [(item.cwd, item.status) for item in summaries] == [("/current", ["current"])]
+
+
+@pytest.mark.parametrize("include_content", [False, True])
+def test_query_reads_only_matching_transcripts_and_preserves_validation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, include_content: bool
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    old = _ingest("codex", "shared", fingerprint="a" * 64)
+    current = _ingest("codex", "shared", fingerprint="b" * 64)
+    _ingest("codex", "other-project", fingerprint="c" * 64, cwd="/other")
+    fallback = _ingest("codex", "missing-cwd", fingerprint="d" * 64)
+    invalid = _ingest("codex", "invalid", fingerprint="e" * 64)
+    _rewrite_manifest(old, ingested_at="2026-09-01T10:00:00Z")
+    _rewrite_manifest(current, ingested_at="2026-09-02T10:00:00Z")
+    _rewrite_manifest(fallback, cwd="")
+    (invalid / "transcript.jsonl").write_text("corrupt", encoding="utf-8")
+    reads: list[Path] = []
+    validate = session_query.validate_session_generation
+
+    def track_reads(path: Path, manifest: SessionManifest) -> list[SessionLog]:
+        reads.append(path)
+        return validate(path, manifest)
+
+    monkeypatch.setattr(session_query, "validate_session_generation", track_reads)
+    summaries = query_session_summaries(
+        SessionQuery(cwd="/work"),
+        latest_only=True,
+        include_content=include_content,
+        validate_content=True,
+    )
+
+    assert set(reads) == {current, fallback, invalid}
+    assert len(reads) == 3
+    assert {item.session_id: item.status for item in summaries} == {
+        "shared": ["current"],
+        "missing-cwd": ["current"],
+        "invalid": ["invalid"],
+    }
+    assert all(item.cwd == "/work" for item in summaries)
+    assert sum(len(item.records) for item in summaries) == (2 if include_content else 0)
 
 
 def test_discovery_rejects_broken_links_public_entries_and_unreadable_directories(

@@ -2,15 +2,14 @@
 
 How each host finds the persona, global skills, and workspace skills, and the read-only command that lists what it loaded. Global paths follow the dotfiles layout where every host path links back to `~/.agents/AGENTS.md` and `~/.agents/skills`.
 
-| Host        | Persona                                              | Global skills                                                       | Workspace skills                                        | Read-only listing                           |
-| ----------- | ---------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
-| Antigravity | `~/.gemini/GEMINI.md`                                | `~/.gemini/config/skills` (link to `~/.agents/skills`)              | `.agents/skills`                                        | `/skills` inside the session (unverified)   |
-| Claude Code | `~/.claude/CLAUDE.md`                                | `~/.claude/skills` (link to `~/.agents/skills`)                     | `.claude/skills` (link to `../.agents/skills`)          | `/skills` inside the session                |
-| Codex       | `~/.codex/AGENTS.md`                                 | `~/.agents/skills`                                                  | `.agents/skills`                                        | `codex debug prompt-input`                  |
-| Copilot     | `~/.copilot/copilot-instructions.md`                 | `~/.copilot/skills` or `~/.agents/skills`                           | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`                        |
-| Grok        | `~/.grok/AGENTS.md`                                  | `~/.grok/skills` (link to `~/.agents/skills`)                       | `.agents/skills`                                        | `grok inspect`                              |
-
-| OpenCode | `~/.agents/AGENTS.md` via managed `instructions` | `~/.agents/skills` | `.agents/skills` or `.opencode/skills` | `opencode debug skill` |
+| Host        | Persona                                          | Global skills                                          | Workspace skills                                        | Read-only listing                         |
+| ----------- | ------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------- | ----------------------------------------- |
+| Antigravity | `~/.gemini/GEMINI.md`                            | `~/.gemini/config/skills` (link to `~/.agents/skills`) | `.agents/skills`                                        | `/skills` inside the session (unverified) |
+| Claude Code | `~/.claude/CLAUDE.md`                            | `~/.claude/skills` (link to `~/.agents/skills`)        | `.claude/skills` (link to `../.agents/skills`)          | `/skills` inside the session              |
+| Codex       | `~/.codex/AGENTS.md`                             | `~/.agents/skills`                                     | `.agents/skills`                                        | `codex debug prompt-input`                |
+| Copilot     | `~/.copilot/copilot-instructions.md`             | `~/.copilot/skills` or `~/.agents/skills`              | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`                      |
+| Grok        | `~/.grok/AGENTS.md`                              | `~/.grok/skills` (link to `~/.agents/skills`)          | `.agents/skills`                                        | `grok inspect`                            |
+| OpenCode    | `~/.agents/AGENTS.md` via managed `instructions` | `~/.agents/skills`                                     | `.agents/skills` or `.opencode/skills`                  | `opencode debug skill`                    |
 
 ## Reading the output
 

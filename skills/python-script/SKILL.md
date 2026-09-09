@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-script
   created: "2026-07-09"
-  updated: "2026-09-03"
+  updated: "2026-09-09"
 ---
 
 # PEP 723 Standalone Python Scripts
@@ -20,6 +20,8 @@ Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by 
 1. **Handle errors at the boundary**: catch in the command, `err.print_exception(show_locals=False)` (locals can hold secrets), then `raise typer.Exit(code=1) from None`; elsewhere let errors propagate.
 1. **Run**: `chmod +x script.py && ./script.py input.txt`, or `uv run script.py input.txt`; uv resolves and caches the dependencies on first run.
 1. **Lock a durable script**: `uv lock --script script.py`, then `uv run --locked --script script.py`; lower bounds alone are not reproducible.
+
+For recurring execution of the finished command, use [scheduled-jobs](../scheduled-jobs/SKILL.md); keep scheduling outside the script.
 
 ## Gotchas
 

@@ -1,3 +1,4 @@
+# Docs: https://mise.jdx.dev/configuration.html
 # Merge into the repository's existing task graph; do not replace application gates.
 [tasks.install]
 run = "uv sync --locked"

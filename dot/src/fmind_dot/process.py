@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import codecs
+import io
 import locale
 import os
 import selectors
@@ -10,9 +12,11 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Event, Lock
 from typing import IO
 
 from fmind_dot.errors import DotError
@@ -143,8 +147,110 @@ def _terminate(process: subprocess.Popen[str] | subprocess.Popen[bytes]) -> None
         process.kill()
 
 
+def _set_foreground(terminal: int, group: int) -> None:
+    # The wrapper is in the background while its child owns the terminal.
+    previous = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTTOU})
+    try:
+        os.tcsetpgrp(terminal, group)
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous)
+
+
+@contextmanager
+def _foreground_terminal(process: subprocess.Popen[str], stream: IO[str] | None) -> Iterator[int | None]:
+    terminal = None
+    if os.name == "posix":
+        try:
+            descriptor = (stream if stream is not None else sys.stdin).fileno()
+            if os.isatty(descriptor) and os.tcgetpgrp(descriptor) == os.getpgrp():
+                terminal = descriptor
+        except OSError, ValueError:
+            pass
+    try:
+        if terminal is not None:
+            _set_foreground(terminal, process.pid)
+            # A fast child may already have stopped on SIGTTIN before the handoff.
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGCONT)
+        yield terminal
+    finally:
+        if terminal is not None:
+            _set_foreground(terminal, os.getpgrp())
+
+
+def _relay_terminal_stop(process: subprocess.Popen[str], terminal: int | None) -> None:
+    if terminal is None or process.poll() is not None:
+        return
+    stopped = os.waitid(os.P_PID, process.pid, os.WSTOPPED | os.WNOHANG)
+    if stopped is not None:
+        _set_foreground(terminal, os.getpgrp())
+        # Let the shell suspend/resume dot as a job, then return the terminal to
+        # its child. SIGSTOP also works when a host inherited ignored SIGTSTP.
+        os.kill(os.getpid(), signal.SIGSTOP)
+        _set_foreground(terminal, process.pid)
+        os.killpg(process.pid, signal.SIGCONT)
+
+
+def _wait_interactive(
+    process: subprocess.Popen[str],
+    terminal: int | None,
+    output: IO[str],
+    on_stdout_line: Callable[[str], None] | None,
+) -> int:
+    if on_stdout_line is None or process.stdout is None:
+        if terminal is None:
+            return process.wait()
+        while True:
+            _relay_terminal_stop(process, terminal)
+            try:
+                return process.wait(timeout=0.1)
+            except subprocess.TimeoutExpired:
+                pass
+    # Read chunks so a partial stdout line cannot block cancellation or job
+    # control. Preserve the text/universal-newline contract of Popen.readline.
+    decoder = io.IncrementalNewlineDecoder(codecs.getincrementaldecoder(locale.getencoding())("replace"), True)
+    pending = ""
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        while selector.get_map() or process.poll() is None:
+            _relay_terminal_stop(process, terminal)
+            for key, _events in selector.select(timeout=0.1):
+                content = os.read(key.fd, 65536)
+                pending += decoder.decode(content, final=not content)
+                while "\n" in pending:
+                    line, pending = pending.split("\n", 1)
+                    output.write(line + "\n")
+                    output.flush()
+                    on_stdout_line(line + "\n")
+                if not content:
+                    selector.unregister(key.fileobj)
+                    if pending:
+                        output.write(pending)
+                        output.flush()
+                        on_stdout_line(pending)
+                        pending = ""
+    return process.wait()
+
+
 class Runner:
     """Run external tools with timeout and process-group cleanup."""
+
+    def __init__(self) -> None:
+        self._cancelled = Event()
+        self._process_lock = Lock()
+        self._processes: set[subprocess.Popen[bytes]] = set()
+
+    def cancel(self) -> None:
+        """Stop captured worker processes and prohibit subsequent commands."""
+        self._cancelled.set()
+        with self._process_lock:
+            for process in self._processes:
+                # The communicating worker owns its pipes and reaps the child.
+                if os.name == "posix":
+                    with suppress(ProcessLookupError):
+                        os.killpg(process.pid, signal.SIGKILL)
+                elif process.poll() is None:
+                    process.kill()
 
     def which(self, command: str) -> Path | None:
         resolved = shutil.which(command)
@@ -199,6 +305,8 @@ class Runner:
             raise DotError("cannot run an empty command")
         if max_output_bytes is not None and max_output_bytes <= 0:
             raise DotError("maximum captured output must be positive")
+        if self._cancelled.is_set():
+            raise DotError("operation cancelled")
         command_env = os.environ.copy()
         if env:
             command_env.update(env)
@@ -213,6 +321,10 @@ class Runner:
             text=max_output_bytes is None,
             start_new_session=os.name == "posix",
         )
+        with self._process_lock:
+            self._processes.add(process)
+            if self._cancelled.is_set():
+                _terminate(process)
         try:
             if max_output_bytes is None:
                 stdout, stderr = process.communicate(input_text, timeout=timeout)
@@ -240,6 +352,9 @@ class Runner:
         except BaseException:
             _terminate(process)
             raise
+        finally:
+            with self._process_lock:
+                self._processes.discard(process)
         if check and result.returncode != 0:
             # Tool stderr can contain credentials or provider payloads; callers opt in
             # to rendering bounded diagnostics only after they have classified them.
@@ -269,21 +384,20 @@ class Runner:
             stdin=stdin,
             stdout=subprocess.PIPE if on_stdout_line is not None else stdout,
             stderr=stderr,
+            process_group=0 if os.name == "posix" else None,
             text=on_stdout_line is not None,
             encoding=locale.getencoding() if on_stdout_line is not None else None,
             errors="replace" if on_stdout_line is not None else None,
         )
         try:
-            if on_stdout_line is not None and process.stdout is not None:
-                try:
-                    target_stdout = sys.stdout if stdout is None else stdout
-                    for line in iter(process.stdout.readline, ""):
-                        target_stdout.write(line)
-                        target_stdout.flush()
-                        on_stdout_line(line)
-                finally:
-                    process.stdout.close()
-            return process.wait()
+            with _foreground_terminal(process, stdin) as terminal:
+                code = _wait_interactive(process, terminal, sys.stdout if stdout is None else stdout, on_stdout_line)
+                if code == -signal.SIGINT:
+                    raise KeyboardInterrupt
+                return code
         except BaseException:
             _terminate(process)
             raise
+        finally:
+            if process.stdout is not None:
+                process.stdout.close()

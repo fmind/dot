@@ -23,7 +23,17 @@ from fmind_dot.state import State
 
 class DoctorRunner(Runner):
     def __init__(self, tools: set[str] | None = None) -> None:
-        self.tools = tools or {"agy", "claude", "codex", "copilot", "dot", "grok", "notify-send", "osascript"}
+        self.tools = tools or {
+            "agy",
+            "claude",
+            "codex",
+            "copilot",
+            "dot",
+            "grok",
+            "opencode",
+            "notify-send",
+            "osascript",
+        }
         self.unavailable_commands: set[tuple[str, ...]] = set()
         self.calls: list[tuple[str, ...]] = []
 
@@ -65,6 +75,10 @@ def _healthy_state(monkeypatch: pytest.MonkeyPatch, home: Path) -> tuple[State, 
     skills = home / ".agents/skills"
     _write(persona, "# Shared persona\n")
     skills.mkdir(mode=0o700, parents=True)
+    _write(
+        home / ".config/opencode/opencode.json",
+        json.dumps({"instructions": ["~/.agents/AGENTS.md"], "skills": {"paths": ["~/.agents/skills"]}}),
+    )
 
     for path in (
         home / ".gemini/GEMINI.md",
@@ -146,7 +160,7 @@ def test_doctor_reports_all_current_integrations_without_content(
 
     results = run_agent_doctor(state)
 
-    assert [result.agent for result in results] == ["agy", "claude", "codex", "grok", "copilot"]
+    assert [result.agent for result in results] == ["opencode", "agy", "claude", "codex", "grok", "copilot"]
     assert all(result.healthy for result in results)
     assert isinstance(state.stdout, io.StringIO)
     report = state.stdout.getvalue()
@@ -180,6 +194,117 @@ def test_doctor_default_reads_metadata_without_hashing_or_transcript_validation(
     assert result.healthy
 
 
+@pytest.mark.parametrize("defect", ["broken-link", "missing-entrypoint", "entrypoint-directory"])
+def test_doctor_detects_unusable_skill_packages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, defect: str) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    package = tmp_path / ".agents/skills/meeting-prep"
+    if defect == "broken-link":
+        package.symlink_to(tmp_path / "missing-library")
+    else:
+        package.mkdir()
+        if defect == "entrypoint-directory":
+            (package / "SKILL.md").mkdir()
+    result = _result(state, "codex")
+    assert not result.healthy
+    assert result.discovery.startswith("skills-")
+
+
+def test_doctor_checks_skills_without_reading_their_bodies(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    catalog = tmp_path / ".agents/skills"
+    _write(catalog / "meeting-prep/SKILL.md", "do not read this body")
+    _write(tmp_path / "library/review/SKILL.md", "do not read this body either")
+    _link(catalog / "review", tmp_path / "library/review")
+    original_read = Path.read_bytes
+
+    def read_bytes(path: Path) -> bytes:
+        if path.name == "SKILL.md":
+            raise AssertionError("doctor must not read skill bodies")
+        return original_read(path)
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
+    assert _result(state, "codex").healthy
+    (tmp_path / "library/review/SKILL.md").unlink()
+    assert not _result(state, "codex").healthy
+
+
+def test_doctor_bounds_skill_inventory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    state.config.agent.doctor.scan_limit = 1
+    for name in ("first", "second"):
+        _write(tmp_path / ".agents/skills" / name / "SKILL.md", "# Fixture\n")
+    result = _result(state, "codex")
+    assert not result.healthy
+    assert result.discovery == "skills-truncated"
+
+
+@pytest.mark.parametrize("link_state", ["missing", "other-owner", "directory", "valid"])
+def test_doctor_checks_expected_chezmoi_skill_links(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, link_state: str
+) -> None:
+    state, runner = _healthy_state(monkeypatch, tmp_path)
+    runner.tools.add("chezmoi")
+    source = tmp_path / "dot-source"
+    _write(source / "dot_agents/skills/symlink_fixture.tmpl", "{{ .chezmoi.sourceDir }}/skills/fixture\n")
+    _write(source / "skills/fixture/SKILL.md", "# Repository skill\n")
+
+    def source_path(args: Sequence[str], **_kwargs: object) -> CommandResult:
+        assert args == ["chezmoi", "source-path"]
+        return CommandResult(str(source) + "\n", "", 0)
+
+    monkeypatch.setattr(runner, "run_bounded", source_path)
+    target = tmp_path / ".agents/skills/fixture"
+    if link_state == "other-owner":
+        _write(tmp_path / "other/fixture/SKILL.md", "# Other owner\n")
+        _link(target, tmp_path / "other/fixture")
+    elif link_state == "directory":
+        _write(target / "SKILL.md", "# Other owner\n")
+    elif link_state == "valid":
+        _link(target, source / "skills/fixture")
+    result = _result(state, "codex")
+    assert result.healthy is (link_state == "valid")
+    if link_state == "missing":
+        assert result.issue_counts == {"skill-missing-link": 1}
+    elif link_state != "valid":
+        assert result.issue_counts == {"skill-link-conflict": 1}
+
+
+@pytest.mark.parametrize("truncated", [False, True])
+def test_doctor_cannot_claim_skill_health_when_source_inventory_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, truncated: bool
+) -> None:
+    state, runner = _healthy_state(monkeypatch, tmp_path)
+    runner.tools.add("chezmoi")
+
+    def source_path(_args: Sequence[str], **_kwargs: object) -> CommandResult:
+        if truncated:
+            return CommandResult(str(tmp_path), "", 0, stdout_truncated=True)
+        raise DotError("unavailable")
+
+    monkeypatch.setattr(runner, "run_bounded", source_path)
+    result = _result(state, "codex")
+    assert not result.healthy
+    assert result.discovery == "skills-unreadable"
+    assert result.issue_counts == {"skill-inventory-unavailable": 1}
+
+
+def test_doctor_skill_examples_are_bounded_and_only_shown_on_request(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    state.config.agent.doctor.example_limit = 1
+    for name in ("first", "second"):
+        _link(tmp_path / ".agents/skills" / name, tmp_path / "missing" / name)
+    result = _result(state, "codex")
+    assert result.issue_counts == {"skill-broken-link": 2}
+    assert result.examples == []
+    with pytest.raises(DotError, match="unhealthy"):
+        run_agent_doctor(state, agent="codex", explain=True)
+    assert isinstance(state.stdout, io.StringIO)
+    assert "skill=first" in state.stdout.getvalue()
+    assert "skill=second" not in state.stdout.getvalue()
+
+
 def test_doctor_json_is_pure_and_deep_progress_uses_stderr(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state, _ = _healthy_state(monkeypatch, tmp_path)
 
@@ -199,13 +324,17 @@ def test_doctor_json_is_pure_and_deep_progress_uses_stderr(monkeypatch: pytest.M
             "archive_lag": result.archive_lag,
             "truncated": result.truncated,
             "healthy": result.healthy,
+            "issue_counts": result.issue_counts,
+            "examples": result.examples,
+            "repair": result.repair,
         }
         for result in results
     ]
     assert isinstance(state.stderr, io.StringIO)
     progress = state.stderr.getvalue()
-    assert "Deep doctor 1/5: agy" in progress
-    assert "Deep doctor 5/5: copilot" in progress
+    assert "Deep doctor 1/6: opencode" in progress
+    assert "Deep doctor 2/6: agy" in progress
+    assert "Deep doctor 6/6: copilot" in progress
 
 
 def test_doctor_fails_closed_across_discovery_hooks_tools_and_command_surface(
@@ -247,6 +376,28 @@ def test_doctor_deep_rejects_unarchived_and_truncated_sources(monkeypatch: pytes
     assert isinstance(state.stdout, io.StringIO)
     assert "truncated=true" in state.stdout.getvalue()
     assert "omitted=" not in state.stdout.getvalue()
+
+
+def test_doctor_session_budget_ignores_adjacent_non_session_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    state.config.agent.doctor.scan_limit = 1
+    source = tmp_path / ".claude/projects"
+    archived = source / "session.jsonl"
+    _write(archived, '{"session":"session"}\n')
+    for name in ("a.cache", "b.bin", "c.json"):
+        _write(source / name, "adjacent metadata")
+    ingest_session(
+        "claude",
+        "session",
+        [SessionLog("2026-09-01T00:00:00Z", "claude", "session", "user", "private")],
+        SessionSource(fingerprint=fingerprint_file(archived)),
+    )
+    result = _result(state, "claude", deep=True)
+    assert not result.truncated
+    assert result.source == "present"
+    assert result.healthy
 
 
 def test_doctor_reconciles_every_file_backed_source_session(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

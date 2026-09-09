@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/prompt-design
   created: "2026-08-08"
-  updated: "2026-09-06"
+  updated: "2026-09-09"
 ---
 
 # Prompt Design
@@ -19,7 +19,7 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 1. **Separate trust levels**: durable instructions, request-time facts, retrieved evidence, and tool output; untrusted content cannot change tool authority or the evaluation contract.
 1. **Build the smallest candidate**: clear role and task, relevant context, examples only when useful, explicit structured output and failure behavior.
 1. **Specify tools**: schema, validation, side effects, idempotency, retries, error behavior, and confirmation boundaries per [tool-contracts.md](references/tool-contracts.md).
-1. **Version and evaluate**: prepare [prompt-candidate.md](references/prompt-candidate.md), test on development cases, and use the project or provider's bounded evaluation workflow for adoption evidence before changing production.
+1. **Version and evaluate**: prepare [prompt-candidate.md](references/prompt-candidate.md), test on development cases, and use [agent-evaluation](../agent-evaluation/SKILL.md) for the comparison protocol and the project or provider's runner for execution before changing production.
 
 ## Gotchas
 

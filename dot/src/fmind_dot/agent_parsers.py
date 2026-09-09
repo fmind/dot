@@ -54,7 +54,10 @@ def resolve_cwd(value: str) -> str:
 
 
 def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]]:
-    for line in content.decode().splitlines():
+    # JSONL records end at LF, not at Unicode separators embedded in JSON strings.
+    for line in content.decode().split("\n"):
+        if not line.strip():
+            continue
         try:
             value = json.loads(line)
         except json.JSONDecodeError:
@@ -204,6 +207,7 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
         cost = _usage_cost(raw.get("totalCostUSD"))
         if cost is not None:
             record.cost_usd = cost
+            record.cost_known = True
     if kind != "assistant":
         return
     record.turn_count += 1
@@ -212,7 +216,7 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
         return
     model = message.get("model")
     if isinstance(model, str) and model:
-        record.model = model
+        record.observe_model(model)
     usage = message.get("usage")
     if not isinstance(usage, dict):
         return
@@ -367,7 +371,7 @@ def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     if kind in {"turn_context", "session_meta"}:
         model = payload.get("model")
         if kind == "turn_context" and isinstance(model, str) and model:
-            record.model = model
+            record.observe_model(model)
         cwd = payload.get("cwd")
         if isinstance(cwd, str) and cwd and not record.cwd:
             record.cwd = resolve_cwd(cwd)
@@ -664,8 +668,8 @@ def _extract_copilot_usage(connection: sqlite3.Connection, session_id: str, cwd:
             record.cwd = resolve_cwd(session["cwd"] or "")
         record.timestamp = session["created_at"] or ""
     for row in rows:
-        if not record.model and row[0]:
-            record.model = str(row[0])
+        if row[0]:
+            record.observe_model(str(row[0]))
         record.input_tokens += _usage_token_count(row[1], "input_tokens") or 0
         record.output_tokens += _usage_token_count(row[2], "output_tokens") or 0
         record.cached_tokens += _usage_token_count(row[3], "cached_tokens") or 0

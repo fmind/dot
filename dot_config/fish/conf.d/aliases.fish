@@ -53,6 +53,7 @@ if status is-interactive
     abbr -a t tofu
     # u:uv
     abbr -a u uv
+    abbr -a uf "uv run --frozen"
     abbr -a ur "uv run"
     # v:nvim
     abbr -a v nvim

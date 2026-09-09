@@ -7,7 +7,6 @@ import json
 import math
 import re
 import stat
-import subprocess
 import sys
 import unicodedata
 from html.parser import HTMLParser
@@ -188,16 +187,7 @@ def _discover_skills(root: Path) -> tuple[dict[str, Path], list[str]]:
         if not catalog.is_dir():
             continue
         for directory in sorted(catalog.iterdir()):
-            # Locally installed skills are untracked symlinked peers, outside this catalog's contract.
             if directory.is_symlink():
-                tracked = subprocess.run(  # noqa: S603
-                    ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", _relative(root, directory)],  # noqa: S607
-                    check=False,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                if tracked.returncode == 1:
-                    continue
                 findings.append(f"{_relative(root, directory)}: symbolic link is not allowed")
                 continue
             if not directory.is_dir():

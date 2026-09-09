@@ -10,8 +10,8 @@ Personal authoring conventions and catalog constraints; workflow extraction live
 - **Shape**: include an H1, concise intent, and an actionable workflow. Add `Gotchas` for real failure modes, `Official Skills` for vendor routing, and primary documentation or provenance when external tools or APIs are involved.
 - **Defaults**: adapt stack defaults, coverage targets, and layouts to the project. Never restate the global persona or embed transient session facts, private prompts, or customer details.
 - **Style**: keep commands in language-tagged fences, numbered items as `1.`, and paragraphs on one line. Paths are relative or `~`-relative; config examples use official documentation comments when their format permits.
-- **Placement**: global skills are authored in the dot repository's `skills/`, exposed through `~/.agents/skills/`; project-only skills live in `.agents/skills/`.
-- **Registration**: every global skill needs `skills/contracts.json` and a primary routing probe in `dot/testdata/skills/routing-boundaries.json`. Update inbound references on renames or removal, then run `mise run check:skills` and `mise run test`.
+- **Placement**: global skills are authored in the dot repository's standard `skills/` catalog; individual chezmoi declarations expose them in the real `~/.agents/skills/` directory. Project-only skills live in `.agents/skills/`. Other packages use the same directory and require their own setup on each computer; installed names must be unique.
+- **Registration**: every first-party skill in this repository needs `skills/contracts.json` and a primary routing probe in `dot/testdata/skills/routing-boundaries.json`. Global skills also need an individual link declaration under `dot_agents/skills/`. Independently installed packages do not need registration here. Update inbound references and link declarations on renames or removal, then run the catalog tests and full gate.
 
 ## Catalog portability
 

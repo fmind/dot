@@ -13,8 +13,8 @@ from typing import IO, Any
 from fmind_dot.session_store import publish_owner_only
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
-USAGE_SCHEMA_VERSION = "dot.agent.usage/v2"
-USAGE_EXTRACTOR_VERSION = "1"
+USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
+USAGE_EXTRACTOR_VERSION = "2"
 _MEASUREMENT_KINDS = {"", "provider-reported", "estimated", "context-only"}
 _USAGE_STRING_FIELDS = (
     "timestamp",
@@ -65,11 +65,16 @@ class UsageRecord:
     reasoning_tokens: int = 0
     total_tokens: int = 0
     cost_usd: float = 0.0
+    cost_known: bool = False
     turn_count: int = 0
     schema_version: str = USAGE_SCHEMA_VERSION
     extractor_version: str = USAGE_EXTRACTOR_VERSION
     measurement_kind: str = ""
     source_bytes: int = 0
+
+    def observe_model(self, model: str) -> None:
+        if model:
+            self.model = model if not self.model or self.model == model else "mixed"
 
     def finalize(self) -> UsageRecord:
         self._validate(complete=False)
@@ -103,8 +108,8 @@ class UsageRecord:
         if self.reasoning_tokens:
             result["reasoning_tokens"] = self.reasoning_tokens
         result["total_tokens"] = self.total_tokens
-        if self.cost_usd:
-            result["cost_usd"] = self.cost_usd
+        result["cost_usd"] = self.cost_usd if self.cost_known or self.cost_usd > 0 else None
+        result["cost_known"] = self.cost_known or self.cost_usd > 0
         if self.turn_count:
             result["turn_count"] = self.turn_count
         result["schema_version"] = self.schema_version
@@ -119,11 +124,21 @@ class UsageRecord:
     def from_dict(cls, value: dict[str, Any]) -> UsageRecord:
         fields = cls.__dataclass_fields__
         arguments = {key: value[key] for key in fields if key in value}
+        if arguments.get("cost_usd") is None:
+            arguments.pop("cost_usd", None)
+        if "cost_known" not in arguments:
+            arguments["cost_known"] = bool(arguments.get("cost_usd"))
+        arguments.setdefault("extractor_version", "1")
         record = cls(**arguments)
         record._validate(complete=True)
+        # Validate first: historical attribution must not conceal malformed input.
+        if record.extractor_version != USAGE_EXTRACTOR_VERSION:
+            record.model = "unknown"
         return record
 
     def _validate(self, *, complete: bool) -> None:
+        if not isinstance(self.cost_known, bool):
+            raise ValueError("usage cost_known must be a boolean")
         for name in _USAGE_STRING_FIELDS:
             if not isinstance(getattr(self, name), str):
                 raise ValueError(f"usage record field {name!r} must be a string")
@@ -168,6 +183,10 @@ class UsageStats:
     cost_usd: float = 0.0
     sessions: int = 0
     turns: int = 0
+    measurement_kind: str = "unknown"
+    cwd: str = ""
+    cost_known_sessions: int = 0
+    legacy_sessions: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {"harness": self.harness}
@@ -181,7 +200,13 @@ class UsageStats:
                 "cache_write_tokens": self.cache_write_tokens,
                 "reasoning_tokens": self.reasoning_tokens,
                 "total_tokens": self.total_tokens,
-                "cost_usd": self.cost_usd,
+                "cost_usd": self.cost_usd if self.cost_known_sessions else None,
+                "cost_known_sessions": self.cost_known_sessions,
+                "cost_complete": self.cost_known_sessions == self.sessions,
+                "measurement_kind": self.measurement_kind,
+                "cwd": self.cwd,
+                "legacy_sessions": self.legacy_sessions,
+                "time_basis": "whole session at recorded timestamp",
                 "sessions": self.sessions,
                 "turns": self.turns,
             }
@@ -294,10 +319,16 @@ def aggregate_usage(
     since: datetime | None = None,
     until: datetime | None = None,
     by_model: bool = False,
+    cwd: str = "",
+    by_project: bool = False,
 ) -> list[UsageStats]:
-    grouped: dict[tuple[str, str], UsageStats] = {}
+    if since and until and since > until:
+        raise ValueError("--since must not be after --until")
+    grouped: dict[tuple[str, str, str, str], UsageStats] = {}
     for record in records:
         if harness and harness not in {record.harness, record.agent}:
+            continue
+        if cwd and record.cwd != cwd:
             continue
         timestamp = _parse_usage_timestamp(record.timestamp)
         if since and timestamp < since:
@@ -305,8 +336,12 @@ def aggregate_usage(
         if until and timestamp > until:
             continue
         model = (record.model or "unknown") if by_model else ""
-        key = (record.harness, model)
-        row = grouped.setdefault(key, UsageStats(harness=record.harness, model=model))
+        kind = record.measurement_kind or "unknown"
+        project = record.cwd if by_project else ""
+        key = (record.harness, model, kind, project)
+        row = grouped.setdefault(
+            key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=project)
+        )
         row.sessions += 1
         row.turns += record.turn_count
         row.input_tokens += record.input_tokens
@@ -316,6 +351,8 @@ def aggregate_usage(
         row.reasoning_tokens += record.reasoning_tokens
         row.total_tokens += record.total_tokens
         row.cost_usd += record.cost_usd
+        row.cost_known_sessions += record.cost_known or record.cost_usd > 0
+        row.legacy_sessions += record.extractor_version != USAGE_EXTRACTOR_VERSION
     return [grouped[key] for key in sorted(grouped)]
 
 
@@ -347,7 +384,8 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
             "No usage records found in ~/.agents/usages. Run 'dot agent usage sync' to backfill existing sessions.\n"
         )
         return
-    columns = ["HARNESS"]
+    output.write("Whole-session totals filtered by recorded timestamp; not interval billing.\n")
+    columns = ["HARNESS", "MEASUREMENT", "PROJECT"]
     if by_model:
         columns.append("MODEL")
     columns.extend(
@@ -374,7 +412,8 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
         total.reasoning_tokens += row.reasoning_tokens
         total.total_tokens += row.total_tokens
         total.cost_usd += row.cost_usd
-        values = [row.harness]
+        total.cost_known_sessions += row.cost_known_sessions
+        values = [row.harness, row.measurement_kind, row.cwd or "-"]
         if by_model:
             values.append(row.model)
         values.extend(
@@ -386,11 +425,15 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
                 f"{row.cached_tokens:,}",
                 f"{row.reasoning_tokens:,}",
                 f"{row.total_tokens:,}",
-                f"${row.cost_usd:.4f}",
+                _cost_display(row),
             ]
         )
         output.write("\t".join(values) + "\n")
-    values = ["TOTAL"]
+    kinds = {row.measurement_kind for row in rows}
+    if len(kinds) > 1:
+        output.write("No combined total: measurement kinds are not comparable.\n")
+        return
+    values = ["TOTAL", next(iter(kinds)), "-"]
     if by_model:
         values.append("-")
     values.extend(
@@ -402,10 +445,17 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
             f"{total.cached_tokens:,}",
             f"{total.reasoning_tokens:,}",
             f"{total.total_tokens:,}",
-            f"${total.cost_usd:.4f}",
+            _cost_display(total),
         ]
     )
     output.write("\t".join(values) + "\n")
+
+
+def _cost_display(row: UsageStats) -> str:
+    if not row.cost_known_sessions:
+        return "unknown"
+    suffix = " (partial)" if row.cost_known_sessions < row.sessions else ""
+    return f"${row.cost_usd:.4f}{suffix}"
 
 
 __all__ = [

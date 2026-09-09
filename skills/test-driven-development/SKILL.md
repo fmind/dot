@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/test-driven-development
   created: "2026-08-08"
-  updated: "2026-09-07"
+  updated: "2026-09-09"
 ---
 
 # Test-Driven Development
@@ -34,6 +34,10 @@ Prove a change with an honest red-green-refactor cycle: a failing test that dete
 - **Test level**: Fast unit or contract tests first; integration, property, concurrency, or browser tests only where the boundary demands them; characterize legacy behavior before changing it.
 - **Real collaborators**: Prefer real parsers, databases, filesystems, and HTTP handlers at lightweight boundaries over mocks of the unit under test; fake only paid, destructive, slow, or unreliable systems behind a narrow owned interface.
 - **Readable failures**: Keep fixtures readable and assertions on outcomes; a little duplicated setup beats hidden intent, and a failure should explain the broken contract without a debugger.
+
+## References
+
+- [Property tests](references/property-tests.md): read when parsers, codecs, migrations, or state transitions need generated input coverage; use `uv` for project test dependencies.
 
 ## Documentation
 

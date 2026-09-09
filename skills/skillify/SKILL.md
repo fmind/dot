@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Skillify
@@ -22,7 +22,7 @@ Capture what this session learned as a skill the next session can run without th
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md).
 1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the authoring limits in [package rules](references/package-rules.md); long configs and examples go to `references/`.
 1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is directly disclosed, every required tool is documented, and `mise run check:skills` passes for a global skill.
-1. **Test once**: exercise safe local steps in a scratch directory or the current repository; keep paid, destructive, or remote writes within the session's authority and report unexercised behavior.
+1. **Test behavior**: follow the [adoption check](references/adoption-check.md) for substantial additions or routing changes: a natural trigger, a neighboring task, and an observable outcome in an isolated fixture. Keep paid or external effects within scope and report unavailable host validation separately.
 1. **Report**: the path, the description, the scope, and whether the routing probes in `dot/testdata/skills/` need a new prompt for the skill.
 
 ## Extracting from AGENTS.md

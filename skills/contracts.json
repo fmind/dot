@@ -4,12 +4,14 @@
     "acli": [
       "acli"
     ],
+    "agent-evaluation": [],
     "agent-mcp": [
       "agy",
       "claude",
       "codex",
       "copilot",
-      "grok"
+      "grok",
+      "opencode"
     ],
     "agent-project": [],
     "agent-prompt": [
@@ -24,9 +26,15 @@
       "skills",
       "uv"
     ],
+    "agy": [
+      "agy"
+    ],
     "antigravity-sdk": [
       "gcloud",
       "skills",
+      "uv"
+    ],
+    "api-client": [
       "uv"
     ],
     "ast-grep": [
@@ -44,12 +52,18 @@
       "npm",
       "skills"
     ],
+    "claude": [
+      "claude"
+    ],
     "cli-contracts": [],
     "cloud-run": [
       "cosign",
       "docker",
       "gcloud",
       "trivy"
+    ],
+    "codex": [
+      "codex"
     ],
     "colab": [
       "colab"
@@ -62,12 +76,18 @@
     "conventional-commit": [
       "git"
     ],
+    "copilot": [
+      "copilot"
+    ],
     "cosign": [
       "cosign"
     ],
     "course-development": [],
     "d2": [
       "d2"
+    ],
+    "data-migration": [
+      "sqlite3"
     ],
     "dependabot": [
       "gh",
@@ -79,9 +99,21 @@
       "dot",
       "mise"
     ],
+    "dot-development": [
+      "git",
+      "mise",
+      "uv"
+    ],
     "dot-release": [
       "dot",
       "gh"
+    ],
+    "dot-skills": [
+      "gh",
+      "git",
+      "mise",
+      "rg",
+      "uv"
     ],
     "dprint": [
       "dprint"
@@ -116,6 +148,9 @@
     "git-add-commit-push": [
       "git",
       "mise"
+    ],
+    "git-worktree": [
+      "git"
     ],
     "github-actions": [
       "actionlint",
@@ -155,6 +190,9 @@
     "google-developer": [
       "skills"
     ],
+    "grok": [
+      "grok"
+    ],
     "gws": [
       "gws"
     ],
@@ -163,6 +201,9 @@
     ],
     "implementation-plan": [],
     "incident-response": [],
+    "jules": [
+      "jules"
+    ],
     "kaggle": [
       "kaggle"
     ],
@@ -265,6 +306,13 @@
       "skills",
       "uv"
     ],
+    "scheduled-jobs": [
+      "systemctl",
+      "systemd-analyze",
+      "journalctl",
+      "launchctl",
+      "plutil"
+    ],
     "secure": [
       "gitleaks",
       "trivy"
@@ -281,7 +329,9 @@
       "age",
       "sops"
     ],
-    "systematic-debugging": [],
+    "systematic-debugging": [
+      "uv"
+    ],
     "technical-publishing": [],
     "technical-research": [],
     "terraform": [
@@ -293,7 +343,8 @@
       "trivy"
     ],
     "test-driven-development": [
-      "mise"
+      "mise",
+      "uv"
     ],
     "threat-model": [],
     "trivy": [

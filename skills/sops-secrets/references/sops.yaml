@@ -1,3 +1,4 @@
+# Docs: https://getsops.io/docs/
 # Encryption policy: which files sops encrypts and for whom.
 # Recipients are age PUBLIC keys — safe to commit; private keys never enter git.
 creation_rules:

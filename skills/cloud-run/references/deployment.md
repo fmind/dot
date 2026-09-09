@@ -42,21 +42,21 @@
 1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Replace the certificate identity with the authorized workflow or developer identity.
 
    ```bash
-   trivy --config trivy.yaml image "$IMAGE"
-   trivy --config trivy.yaml image --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
+   trivy --config trivy.yaml image --skip-dirs '' "$IMAGE"
+   trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
    cosign sign --yes "$IMAGE"
    cosign verify --certificate-identity '<identity>' --certificate-oidc-issuer '<issuer>' "$IMAGE"
    cosign attest --yes --type cyclonedx --predicate tmp/sbom.cdx.json "$IMAGE"
    cosign verify-attestation --type cyclonedx --certificate-identity '<identity>' --certificate-oidc-issuer '<issuer>' "$IMAGE"
    ```
 
-1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history.
+1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history. The Python web starter requires `HOST=0.0.0.0`, `ENVIRONMENT=production`, and a `DATABASE_URL` secret accessible to its runtime identity. Adapt these names to the application; Cloud Run supplies `PORT`.
 
    ```bash
    gcloud run deploy <slug> --image="$IMAGE" --region=<region> \
      --service-account="<slug>-runtime@<project>.iam.gserviceaccount.com" \
-     --set-env-vars=LOG_LEVEL=info \
-     --set-secrets=API_KEY=api-key:latest \
+     --set-env-vars=HOST=0.0.0.0,ENVIRONMENT=production,LOG_LEVEL=info \
+     --set-secrets=DATABASE_URL=database-url:latest,API_KEY=api-key:latest \
      --no-allow-unauthenticated
    ```
 

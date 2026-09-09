@@ -157,14 +157,14 @@ def test_dot_completion_uses_typer_fish_source_protocol() -> None:
     assert runner.calls == [["env", "_DOT_COMPLETE=source_fish", "dot"]]
 
 
-def test_fkf_completion_uses_standard_completion_command() -> None:
+def test_fkf_completion_uses_typer_fish_source_protocol() -> None:
     runner = ScriptedRunner(
-        {"fkf"},
+        {"env", "fkf"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult("# fkf fish completion\n", "", 0),
     )
 
     assert system._generate_completion(state_with(runner), "fkf") == "# fkf fish completion\n"  # noqa: SLF001
-    assert runner.calls == [["fkf", "completion", "fish"]]
+    assert runner.calls == [["env", "_FKF_COMPLETE=source_fish", "fkf"]]
 
 
 def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
@@ -523,6 +523,80 @@ def _minimal_verify_config() -> Config:
     return config
 
 
+def test_verify_github_auth_uses_configured_host_without_changing_scopes() -> None:
+    config = _minimal_verify_config()
+    config.login.github_host = "github.example.test"
+    original_scopes = list(config.login.github_scopes)
+    runner = ScriptedRunner({"gh"})
+    results = system.run_verify(state_with(runner, config), fix=False)
+    assert ["gh", "auth", "status", "--hostname", "github.example.test"] in runner.calls
+    assert results["auth"][0]["status"] == "pass"
+    assert config.login.github_scopes == original_scopes
+
+
+@pytest.mark.parametrize(
+    ("document", "status"),
+    [
+        ({"provider": {"google-vertex": {"options": {"project": "private-project"}}}}, "pass"),
+        ({"provider": {"google-vertex": {"options": {"project": ""}}}}, "fail"),
+        ({"provider": {"google-vertex": {"options": {"project": "   "}}}}, "fail"),
+        ({"provider": {"google-vertex": {"options": {"project": "{env:PRIVATE_PROJECT}"}}}}, "fail"),
+        ({"provider": {"google-vertex": {"options": {"project": 123}}}}, "fail"),
+        ({"provider": {"google-vertex": {"options": {}}}}, "fail"),
+        ({"provider": {"google-vertex": {"options": []}}}, "fail"),
+        ({"provider": []}, "fail"),
+        ([], "fail"),
+        ({"model": "google-vertex/model"}, "fail"),
+        ({"small_model": "google-vertex/model"}, "fail"),
+        ({"model": "other/model"}, "skip"),
+    ],
+)
+def test_verify_opencode_uses_resolved_config_and_redacts_project(document: object, status: str) -> None:
+    config = _minimal_verify_config()
+    config.verify.tools = ["opencode"]
+    runner = ScriptedRunner(
+        {"opencode"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult(json.dumps(document), "private-stderr", 0),
+    )
+    results = system.run_verify(state_with(runner, config), fix=False)
+    assert results["env_vars"][0]["name"] == "opencode-project"
+    assert results["env_vars"][0]["status"] == status
+    assert ["opencode", "debug", "config", "--pure"] in runner.calls
+    assert runner.output_limits
+    assert all(limit == 64 * 1024 for limit in runner.output_limits)
+    assert "private-project" not in json.dumps(results)
+    assert "private-stderr" not in json.dumps(results)
+    assert "PRIVATE_PROJECT" not in json.dumps(results)
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        CommandResult("private-invalid-json", "private-stderr", 0),
+        CommandResult("private-output", "private-stderr", 1),
+        CommandResult("{}", "private-stderr", 0, stdout_truncated=True),
+        DotError("private-timeout"),
+        OSError("private-error"),
+    ],
+)
+def test_verify_opencode_fails_closed_for_probe_errors(failure: CommandResult | Exception) -> None:
+    def probe(_args: list[str], _cwd: Path | None, _input: str | None, _check: bool) -> CommandResult:
+        if isinstance(failure, Exception):
+            raise failure
+        return failure
+
+    result = system._opencode_project_result(state_with(ScriptedRunner({"opencode"}, run=probe)))  # noqa: SLF001
+    assert result.status == "fail"
+    assert "private-" not in result.details
+
+
+def test_verify_opencode_missing_tool_skips_configuration_probe() -> None:
+    runner = ScriptedRunner()
+    result = system._opencode_project_result(state_with(runner))  # noqa: SLF001
+    assert result.status == "skip"
+    assert runner.calls == []
+
+
 def test_verify_probes_path_visible_tools_and_redacts_output(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("JULES_API_KEY", raising=False)
     config = _minimal_verify_config()
@@ -606,7 +680,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
             raise DotError("command timed out")
         if args[0] == "/bin/error-tool":
             raise OSError("private operating-system error")
-        if args == ["gh", "auth", "status"]:
+        if args == ["gh", "auth", "status", "--hostname", "github.com"]:
             return CommandResult("", "Login required for private-host", 1)
         if args == ["gcloud", "auth", "print-access-token"]:
             raise DotError("command timed out")

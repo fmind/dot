@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # DuckDB and SQLite
@@ -34,6 +34,8 @@ The interactive shells load `~/.duckdbrc` and `~/.sqliterc` (box mode, headers, 
 1. **Persist derived data as Parquet**: keep rebuildable `.duckdb` files out of Git and commit the SQL that produces them; use `-readonly` for inspection of an existing database.
 1. **Check results**: row counts before and after joins, `count(*) FILTER (WHERE x IS NULL)` on keys, and a spot check against the source.
 1. **Export for the reader**: `-markdown` for a report, `-json` for another tool, `COPY ... TO 'out.csv' (HEADER)` for a spreadsheet.
+
+Use [data-migration](../data-migration/SKILL.md) when changing an application schema or persisted format; analysis and export alone do not establish migration or recovery safety.
 
 ## Gotchas
 

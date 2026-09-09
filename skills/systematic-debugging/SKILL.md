@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-09"
 ---
 
 # Systematic Debugging
@@ -34,6 +34,10 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 - **Resolver failures**: Record the exact resolver, runtime or toolchain, platform, package index, manifest, lockfile, and installed source before changing any constraint.
 - **Resolver reproduction**: Reproduce with the same resolver and distinguish direct constraints, transitive conflicts, platform markers, yanked releases, build-backend or wheel failures, authentication, network reachability, and stale locks.
 - **Resolver routing**: Inspect the lock and installed source without executing it and apply the smallest constraint fix only when authorized; route upgrades to [upgrade-tools](../upgrade-tools/SKILL.md), registry facts to [technical-research](../technical-research/SKILL.md), and CVE or license triage to [secure](../secure/SKILL.md).
+
+## References
+
+- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations; use `uv` to run the project Python.
 
 ## Documentation
 

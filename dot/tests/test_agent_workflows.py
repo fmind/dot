@@ -23,7 +23,7 @@ from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
-from fmind_dot.session_store import fingerprint_file
+from fmind_dot.session_store import fingerprint_file, session_generation_id
 from fmind_dot.state import State
 from fmind_dot.usage import UsageRecord
 
@@ -738,7 +738,8 @@ def test_session_sync_keeps_ingestion_when_standalone_usage_is_invalid(
     state = _state()
     state.config.agent.sources["fixture"] = str(tmp_path)
 
-    assert sync_sessions(state) == 1
+    with pytest.raises(DotError, match="completed with usage errors"):
+        sync_sessions(state)
     assert isinstance(state.stderr, io.StringIO)
     assert "usage not recorded for this session: invalid usage for <session>" in state.stderr.getvalue()
     assert "fixture: 1 checked" in state.stderr.getvalue()
@@ -920,7 +921,7 @@ def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
         tmp_path
         / ".agents/sessions/v1/claude"
         / agent_module.session_lineage_id("claude", session_id)
-        / agent_module.session_generation_id(fingerprint)
+        / session_generation_id(fingerprint)
     )
     normalized = generation / "transcript.jsonl"
     normalized.write_text("{}\n", encoding="utf-8")

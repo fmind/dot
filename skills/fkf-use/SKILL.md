@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fkf-use
   created: "2026-09-03"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Use an FKF base
@@ -55,32 +55,17 @@ Use `find` for exhaustive lexical matches, `context` for a bounded pack, `graph`
 
 ## URIs
 
-The grammar is `<path>[?jq=<expr>][#<fragment>]`, a base-defined lowercase entity scheme, or external HTTPS (see [URI reference](references/uris.md)). Directories end in `/`.
-
-| Form              | Example                                                                            |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| Event date        | `events/2026-05-04/`                                                               |
-| Event document    | `events/2026-05-04/github-pull-requests.json`                                      |
-| Event record      | `events/2026-05-04/github-pull-requests.json#https://github.com/fmind/fkf/pull/42` |
-| Index document    | `index/github-repositories.json`                                                   |
-| Index record      | `index/github-repositories.json#fmind/fkf`                                         |
-| Task heading      | `tasks/2026-08-22/review/TASKS.md#verification`                                    |
-| Project heading   | `projects/fkf.md#decisions`                                                        |
-| Wiki heading      | `wiki/retrieval-boundary.md#decision`                                              |
-| Graph edge caches | `graph.tsv`, `graph.dst.tsv`, `graph.offsets.tsv`                                  |
-| Configuration     | `fkf.yaml`                                                                         |
-| Base instructions | `AGENTS.md`                                                                        |
-| Person entity     | `person:email/marc@example.test`                                                   |
-| Repository entity | `repo:github.com/fmind/fkf`                                                        |
-| External page     | `https://github.com/fmind/fkf/pull/42`                                             |
-
-Fragments must exist. `?jq=` is in-process, bounded, and has no environment, filesystem, network, input, or import access. Entity and HTTPS reads return only local graph neighbours; they never fetch the URL.
+Use `<path>[?jq=<expr>][#<fragment>]`, a base-defined lowercase entity scheme, or external HTTPS; directories end in `/`. The [URI reference](references/uris.md) contains examples for each form. Fragments must exist; entity and HTTPS reads return local graph neighbours and never fetch the URL.
 
 ## Maintenance and learning
 
 For setup, diagnosis, or a version mismatch, check `fkf --version`, the selected base's bundled skill and command help. The matching installed release owns behavior; these shared references and a newer checkout do not prove it. Verify `brief` specifically on older installations because its execution boundary has changed.
 
-Read [source and graph contracts](references/source-and-graph.md) before changing collection, body policies, identities, or relationships. Preview source changes and review execution trust before running them; never establish trust autonomously. Config changes and every file under `bin/` and `tests/` can affect execution trust. Provider commands use explicit argv and run from `/`; source hooks alone search `tests/`.
+Dot manages FKF through the ordinary mise `pipx:fkf` tool entry and lockfile; the [pipx backend](https://mise.jdx.dev/dev-tools/backends/pipx.html) uses uv when available. Base selection, trust, MCP registrations, and workspace hooks belong to the selected base's explicit setup, not dotfiles installation.
+
+For persistent harness or schedule configuration, select an absolute launcher with `--executable`; a mise shim provides a stable path across tool upgrades, while `mise which fkf` identifies the currently selected installation. Shims select versions from the execution directory, so verify the version from each intended workspace and scheduler working directory. When migrating from a standalone uv installation, preview and reinstall the existing base/workspace registrations with the selected launcher, then check them before removing the old tool. Never remove `~/.local/bin/fkf` while registrations or base tasks still reference it.
+
+Read [source and graph contracts](references/source-and-graph.md) before changing collection, body policies, identities, or relationships. Preview source changes and review execution trust before running them; never establish trust autonomously. Config changes and every file under `sources/`, `clients/`, and `tests/` can affect execution trust. Provider commands use explicit argv and run from `/`; source hooks alone search `tests/`.
 
 ```bash
 fkf --base <selected-base> config helpers --refresh

@@ -1,3 +1,4 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: Security
 # Push CI scans only the latest commits, so a secret committed earlier and later
 # removed would never be seen again. This is the full-history counterpart: same

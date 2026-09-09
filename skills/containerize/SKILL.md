@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Containerize a Python Application
@@ -33,10 +33,10 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
    [tasks."check:image"]
    description = "Scan the local OCI image"
    depends = ["build:image"]
-   run = "trivy --config trivy.yaml image --input tmp/image.tar"
+   run = "trivy --config trivy.yaml image --skip-dirs '' --input tmp/image.tar"
    ```
 
-1. **Exercise the container**: load it with `docker load --input tmp/image.tar`, then run the reported local reference with `docker run --rm -p 8080:8080 -e PORT=8080 <local-reference>`.
+1. **Exercise the container**: load it with `docker load --input tmp/image.tar`. For the Python web starter, supply required application settings through a reviewed local environment file, then run `docker run --rm -p 127.0.0.1:8080:8080 --env-file <runtime-env-file> -e HOST=0.0.0.0 -e PORT=8080 -e ENVIRONMENT=production <local-reference>` and request `/health` and `/ready`. For a CLI image, exercise its actual command and exit behavior instead of publishing a port.
 1. **Publish when authorized**: push a reviewed tag with `docker buildx build --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .`. Parse `containerimage.digest` from that file, require `sha256:` plus 64 lowercase hex characters, and record `$IMAGE_REPOSITORY@$DIGEST`.
 1. **Verify the immutable result**: scan the recorded digest, generate a CycloneDX SBOM, sign it, pin the expected certificate identity and issuer during verification, and attest the SBOM per [trivy](../trivy/SKILL.md) and [cosign](../cosign/SKILL.md).
 

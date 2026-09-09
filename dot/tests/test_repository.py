@@ -34,6 +34,7 @@ class RecordingRunner(Runner):
         *,
         interactive_status: int = 0,
     ) -> None:
+        super().__init__()
         self.responses = responses
         self.tools = tools
         self.interactive_status = interactive_status
@@ -300,7 +301,7 @@ def test_pull_request_scans_generated_input_and_uses_private_temporary_body() ->
             ("git", "rev-parse", "--show-toplevel"): [result("/repo\n")],
             ("git", "diff", "main...", "--", ":/"): [result(diff)],
             filtered: [result(diff)],
-            ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result(), result()],
+            ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result(), result(), result()],
             ("/tools/agy", "--sandbox", "--prompt", Config().pr.prompt): [result("PR body")],
         },
         {"git", "gh", "gitleaks", "agy"},
@@ -309,6 +310,7 @@ def test_pull_request_scans_generated_input_and_uses_private_temporary_body() ->
     description = run_pull_request(
         state_with(runner),
         title="Change",
+        yes=True,
         draft=True,
         labels=["python"],
         reviewers=["reviewer"],
@@ -342,7 +344,7 @@ def test_pull_fast_forwards_but_does_not_push_a_dirty_repository(tmp_path: Path)
     )
     config = Config(pull=PullConfig(directories=[str(workspace)], concurrency=1, timeout="1s"))
 
-    results = run_pull(state_with(runner, config), push=True)
+    results = run_pull(state_with(runner, config), push=True, dirty_policy="allow")
 
     assert results[0].commits == 2
     assert results[0].ahead == 1
@@ -511,14 +513,14 @@ def test_pull_request_uses_default_template_when_configured_list_is_empty(tmp_pa
                 ":(exclude,top)*-lock.json",
                 ":(exclude,top)uv.lock",
             ): [result(diff)],
-            ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result(), result()],
+            ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result(), result(), result()],
             ("/tools/agy", "--sandbox", "--prompt", prompt): [result("PR body")],
         },
         {"git", "gh", "gitleaks", "agy"},
     )
     config = Config(pr=PRConfig(templates=[]))
 
-    assert run_pull_request(state_with(runner, config)) == "PR body"
+    assert run_pull_request(state_with(runner, config), yes=True) == "PR body"
 
 
 def test_pull_classifies_nonzero_upstream_probe_as_no_upstream(tmp_path: Path) -> None:
@@ -550,6 +552,9 @@ def test_status_emits_machine_readable_repository_and_docker_state(tmp_path: Pat
         {
             ("git", "branch", "--show-current"): [result("main\n")],
             ("git", "status", "--porcelain"): [result("")],
+            ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main")],
+            ("git", "rev-list", "--left-right", "--count", "HEAD...@{u}"): [result("0\t0")],
+            ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
         },
         {"git"},
     )
@@ -581,7 +586,12 @@ def test_status_omits_empty_optional_json_fields(tmp_path: Path) -> None:
 
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
-    assert document == {"docker": {"installed": True, "running": False}, "repositories": []}
+    assert document == {
+        "docker": {"installed": True, "running": False},
+        "repositories": [],
+        "complete": True,
+        "remote_state": "cached",
+    }
 
 
 @pytest.mark.parametrize("invalid", ["plain text\n", "\n", "\ud800"])
@@ -791,7 +801,7 @@ def test_pull_request_rejects_relative_template_escape(tmp_path: Path) -> None:
         run_pull_request(state_with(runner, config))
 
 
-def test_pull_request_reports_cli_failure_and_removes_temporary_body() -> None:
+def test_pull_request_reports_cli_failure_and_retains_temporary_body() -> None:
     diff = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-a\n+b\n"
     runner = RecordingRunner(
         {
@@ -806,7 +816,7 @@ def test_pull_request_reports_cli_failure_and_removes_temporary_body() -> None:
                 ":(exclude,top)*-lock.json",
                 ":(exclude,top)uv.lock",
             ): [result(diff)],
-            ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result(), result()],
+            ("/tools/gitleaks", "stdin", "--no-banner", "--redact"): [result(), result(), result()],
             ("/tools/agy", "--sandbox", "--prompt", Config().pr.prompt): [result("PR body")],
         },
         {"git", "gh", "gitleaks", "agy"},
@@ -814,10 +824,12 @@ def test_pull_request_reports_cli_failure_and_removes_temporary_body() -> None:
     )
 
     with pytest.raises(DotError, match="gh pr create failed with status 2"):
-        run_pull_request(state_with(runner))
+        run_pull_request(state_with(runner), yes=True)
 
     body_path = Path(runner.interactive_calls[0][6])
-    assert not body_path.exists()
+    assert body_path.read_text() == "PR body"
+    assert body_path.stat().st_mode & 0o777 == 0o600
+    body_path.unlink()
 
 
 def test_pull_with_no_repositories_reports_a_clean_noop(tmp_path: Path) -> None:
@@ -962,6 +974,9 @@ def test_status_human_output_distinguishes_running_and_dirty_repository(tmp_path
             docker_info: [result("desktop (Containers: 3, Running: 2)\n")],
             ("git", "branch", "--show-current"): [result("main\n")],
             ("git", "status", "--porcelain"): [result(" M changed.py\n")],
+            ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main")],
+            ("git", "rev-list", "--left-right", "--count", "HEAD...@{u}"): [result("0\t0")],
+            ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
         },
         {"git", "docker"},
     )
@@ -995,12 +1010,12 @@ def test_status_json_reports_probe_and_repository_failures(tmp_path: Path) -> No
     )
     state = state_with(runner, Config(pull=PullConfig(directories=[str(workspace)])))
 
-    status = run_status(state, as_json=True)
-
-    assert status.docker.details == "inspection command failed"
-    assert status.repositories[0].error
+    with pytest.raises(DotError, match="inspection is incomplete"):
+        run_status(state, as_json=True)
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
+    assert document["docker"]["details"] == "inspection command failed"
+    assert not document["complete"]
     assert document["repositories"][0]["branch"] == ""
     assert "command failed" in document["repositories"][0]["error"]
 

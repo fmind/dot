@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-09-08"
+  updated: "2026-09-09"
 ---
 
 # Production Readiness
@@ -25,6 +25,8 @@ Decide whether the exact candidate can be operated safely. The audit produces a 
 ## Proof Boundaries
 
 Keep source readiness, local checks, CI for the exact commit, runtime behavior, target deployment, and published availability distinct. Every claim names the artifact, environment, observation, time, and source; a pass at one boundary does not establish the next.
+
+Use [data-migration](../data-migration/SKILL.md) for migration implementation and rehearsal; this skill assesses its evidence for the launch decision.
 
 ## Gotchas
 

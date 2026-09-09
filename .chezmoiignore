@@ -1,4 +1,6 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiignore/
+# Preflight shared skill ownership while rendering source state, before forced apply can replace a package.
+{{ includeTemplate "skill-catalog-check.tmpl" . }}
 
 # Generated artifacts use target-path patterns, including nested tool caches.
 **/*.py[co]

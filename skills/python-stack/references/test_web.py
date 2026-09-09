@@ -18,8 +18,11 @@ class HealthySession:
 
 
 class UnhealthySession:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
     async def execute(self, _statement: object) -> None:
-        raise SQLAlchemyError("database unavailable")
+        raise self.error
 
 
 def test_cors_is_closed_by_default() -> None:
@@ -47,8 +50,9 @@ async def test_readiness_check_success() -> None:
 
 
 @pytest.mark.anyio
-async def test_readiness_check_failure() -> None:
-    response = await check_readiness(cast(AsyncSession, UnhealthySession()))
+@pytest.mark.parametrize("error", [SQLAlchemyError("database unavailable"), ConnectionRefusedError("connection refused")])
+async def test_readiness_check_failure(error: Exception) -> None:
+    response = await check_readiness(cast(AsyncSession, UnhealthySession(error)))
 
     assert response.status_code == 503
     assert response.content == {"status": "not_ready", "database": "disconnected"}

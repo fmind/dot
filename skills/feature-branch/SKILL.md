@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/feature-branch
   created: "2026-06-23"
-  updated: "2026-09-05"
+  updated: "2026-09-09"
 ---
 
 # Feature Branch
@@ -41,6 +41,8 @@ Create and switch to a `<type>/<slug>` branch from the selected base for the wor
    Branch: <branch>
    From: <parent-branch>
    ```
+
+For a separate checkout or qualification of dirty changes, use [git-worktree](../git-worktree/SKILL.md); switching branches alone does not isolate files or test output.
 
 ## Gotchas
 

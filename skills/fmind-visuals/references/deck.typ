@@ -1,3 +1,4 @@
+// Docs: https://typst.app/docs/reference/
 // This native Typst deck stays self-contained. For release, vendor Outfit and
 // Inter TTF files, change these names, and compile with --font-path fonts.
 #let heading-font = "DejaVu Sans"

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-09-06"
+  updated: "2026-09-09"
 ---
 
 # GitHub Actions for Python

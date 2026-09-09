@@ -41,6 +41,7 @@ from fmind_dot.state import State
 
 class RecordingRunner(Runner):
     def __init__(self) -> None:
+        super().__init__()
         self.calls: list[tuple[str, ...]] = []
         self.interactive_calls: list[tuple[str, ...]] = []
         self.responses: dict[tuple[str, ...], CommandResult | Exception | KeyboardInterrupt] = {}
@@ -752,7 +753,9 @@ def _digest(*values: str) -> str:
 def _write_successor(home: Path, source: str, session_id: str, raw: Path) -> Path:
     fingerprint = hashlib.sha256(raw.read_bytes()).hexdigest()
     lineage = _digest(source, session_id)
-    generation = home / ".agents" / "sessions" / "v1" / source / lineage / _digest("1", fingerprint)
+    from fmind_dot.session_store import SESSION_PARSER_VERSION
+
+    generation = home / ".agents" / "sessions" / "v1" / source / lineage / _digest(SESSION_PARSER_VERSION, fingerprint)
     generation.mkdir(mode=0o700, parents=True)
     generation.chmod(0o700)
     transcript = json.dumps({"ts": "", "agent": source, "sid": session_id, "role": "user", "content": "saved"}) + "\n"
@@ -760,7 +763,7 @@ def _write_successor(home: Path, source: str, session_id: str, raw: Path) -> Pat
     transcript_path.write_text(transcript)
     transcript_path.chmod(0o600)
     manifest = {
-        "parser_version": "1",
+        "parser_version": SESSION_PARSER_VERSION,
         "agent": source,
         "session_id": session_id,
         "lineage_id": lineage,
@@ -1670,6 +1673,40 @@ def test_chezmoi_clean_filters_non_orphans_without_mutating_home(
     assert "No orphaned files found" in state.stdout.getvalue()
 
 
+@pytest.mark.parametrize("ownership", ["repository", "other-link", "directory"])
+def test_chezmoi_clean_respects_skill_link_ownership(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ownership: str
+) -> None:
+    home, source = tmp_path / "home", tmp_path / "source"
+    source.mkdir()
+    catalog = home / ".agents/skills"
+    catalog.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    target = catalog / "retired"
+    if ownership == "directory":
+        target.mkdir()
+        (target / "SKILL.md").write_text("# Preserve\n")
+    else:
+        target.symlink_to(source / "skills/retired" if ownership == "repository" else tmp_path / "other/retired")
+    runner = RecordingRunner()
+    relative = "dot_agents/skills/symlink_retired.tmpl"
+    runner.responses = {
+        ("chezmoi", "source-path"): CommandResult(str(source), "", 0),
+        ("chezmoi", "managed"): CommandResult("", "", 0),
+        ("git", "log", "--no-renames", "--diff-filter=D", "--name-only", "--pretty=format:"): CommandResult(
+            relative + "\n", "", 0
+        ),
+        ("chezmoi", "target-path", str(source / relative)): CommandResult(".agents/skills/retired\n", "", 0),
+    }
+    found = run_chezmoi_clean(make_state(runner), yes=True)
+    if ownership == "repository":
+        assert found == [target]
+        assert not target.is_symlink()
+    else:
+        assert found == []
+        assert target.is_symlink() or (target / "SKILL.md").read_text() == "# Preserve\n"
+
+
 def test_chezmoi_clean_rejects_invalid_mode_and_source(tmp_path: Path) -> None:
     state = make_state()
     with pytest.raises(DotError, match="mutually exclusive"):
@@ -1817,6 +1854,7 @@ def test_rejected_release_tag_push_accepts_remote_annotated_tag_at_expected_comm
 
 class GitPushRaceRunner(Runner):
     def __init__(self, mutation: Callable[[], None]) -> None:
+        super().__init__()
         self.mutation = mutation
         self.mutated = False
 
