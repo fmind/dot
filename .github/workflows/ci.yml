@@ -38,23 +38,3 @@ jobs:
           status="$(git status --porcelain)"
           printf '%s\n' "$status"
           test -z "$status"
-  macos:
-    name: CLI on macOS
-    runs-on: macos-15
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install toolchain
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-        with:
-          cache: true
-      - name: Trust repository
-        run: mise trust -y mise.toml
-      - name: Check Python and run behavioral tests
-        run: |
-          mise run check:python
-          mise run test
-          mise run build

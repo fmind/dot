@@ -68,13 +68,9 @@ Run `uv sync --locked` in each existing Python project to create its `.venv` bef
 
 For a Python REPL with the project's dependencies, run `uv run --with ptpython ptpython` from that project. The globally installed `ptpython` has its own isolated environment.
 
-### Cursor CLI
-
-Cursor CLI is installed by mise as `cursor-agent`. Create a Cursor account, then run `cursor-agent login`; installation and local configuration work before sign-in. The managed CLI configuration enables unrestricted approvals, disables sandboxing, enables Vim controls and detailed progress, and disables commit/PR attribution. Your account-selected model and explicit deny rules are retained. Global skills load from `~/.agents/skills`; a session-start hook supplies the shared persona. Cursor uses the terminal palette; no unsupported theme key is set. Account-dependent models and inference remain unverified until login.
-
 ### Dot configuration
 
-The CLI optionally reads `~/.config/dot.yaml` and merges its values with built-in defaults. The [CLI configuration guide](dot/README.md) describes version 3 and its numeric timeout settings. Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
+The CLI optionally reads `~/.config/dot.yaml` and merges its values with the [built-in defaults](dot/src/fmind_dot/config.py). Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
 
 Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the file (through its source when chezmoi manages it). Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
 
@@ -139,6 +135,8 @@ API keys and credentials are split between two Fish configuration files:
 
 ### Authentication & Logins
 
+After applying the dotfiles, run `mise run dot:login` for Workspace login followed by Google Cloud login and ADC. The sequence stops on failure. GitHub remains explicit through `mise run dot:login:github`; use `mise run dot:setup:github` to update an existing GitHub login and remove the excluded legacy scopes. These interactive tasks use the selected native account/profile. Scope policy lives in [login.toml](dot_config/mise/conf.d/login.toml), and provider setup lives in [setup.toml](dot_config/mise/conf.d/setup.toml).
+
 | Tool / Service           | Command                                           | Auth Type               |
 | ------------------------ | ------------------------------------------------- | ----------------------- |
 | **GitHub CLI**           | `gh auth login`                                   | Browser OAuth           |
@@ -154,6 +152,8 @@ API keys and credentials are split between two Fish configuration files:
 | **Jules CLI**            | `jules login`                                     | Interactive             |
 
 Use `gh auth refresh` for explicitly required GitHub scopes, and `gws auth setup --project <project-id>` for Workspace setup. Select the account, project, APIs, and scopes deliberately through each provider's native CLI.
+
+The configured policy retains repository, publishing, document, mail, calendar, contact, Chat, and Apps Script workflows. It adds Gmail settings/filter management and Chat read-state management, excludes GitHub repository/package deletion scopes, and permits SSH key creation without key administration. Gmail uses `gmail.modify`, which excludes immediate permanent message deletion; full Drive and other editing scopes can still allow destructive operations. OAuth capability does not authorize an agent to delete data or contact others. GCP resource permissions remain controlled by IAM. Applying configuration alone does not change issued tokens: authenticate again for new scopes, and use the explicit GitHub setup task to remove the listed old grants. Workspace directory lookup requires a Workspace account; personal Google accounts need a policy without `directory.readonly`.
 
 Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
 

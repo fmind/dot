@@ -29,17 +29,23 @@ Own the shared Python foundation and select the specialist for the task. Preserv
 
 ## Task owners
 
-| Need                                                 | Owner                                                                                                                                                            |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dependencies, environments, Python versions, builds  | [uv](../uv/SKILL.md)                                                                                                                                             |
-| Python lint/format or type diagnostics               | [ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md)                                                                                                                   |
-| Task definitions, hooks, markup/config formatting    | [mise](../mise/SKILL.md), [lefthook](../lefthook/SKILL.md), [dprint](../dprint/SKILL.md)                                                                         |
-| CLI scaffold and command behavior                    | [typer](../typer/SKILL.md), [cli-contracts](../cli-contracts/SKILL.md)                                                                                           |
-| Web application                                      | [litestar](../litestar/SKILL.md) by default; [django](../django/SKILL.md) or [fastapi](../fastapi/SKILL.md) when selected                                        |
-| Agent scaffold and SDK code                          | [agents-cli](../agents-cli/SKILL.md), [google-adk](../google-adk/SKILL.md)                                                                                       |
-| Single-file utility or reactive notebook             | [python-script](../python-script/SKILL.md), [marimo](../marimo/SKILL.md)                                                                                         |
-| Input validation, logging, external HTTP             | [pydantic](../pydantic/SKILL.md), [observability](../observability/SKILL.md), [api-client](../api-client/SKILL.md)                                               |
-| Test procedure, broader QA, persisted format changes | [test-driven-development](../test-driven-development/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [data-migration](../data-migration/SKILL.md) |
+| Need                                                | Owner                                                                                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dependencies, environments, Python versions, builds | [uv](../uv/SKILL.md)                                                                                                                                   |
+| Python lint/format or type diagnostics              | [ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md)                                                                                                         |
+| Task definitions, hooks, markup/config formatting   | [mise](../mise/SKILL.md), [lefthook](../lefthook/SKILL.md), [dprint](../dprint/SKILL.md)                                                               |
+| CLI scaffold and command behavior                   | [typer](../typer/SKILL.md), [cli-contracts](../cli-contracts/SKILL.md)                                                                                 |
+| Web application                                     | [litestar](../litestar/SKILL.md) by default; [django](../django/SKILL.md) or [fastapi](../fastapi/SKILL.md) when selected                              |
+| HTML, email, and text templates                     | [jinja](../jinja/SKILL.md); [cookiecutter](../cookiecutter/SKILL.md) and [cruft](../cruft/SKILL.md) own project generation and updates                 |
+| Async tasks, cancellation, deadlines, shutdown      | [python-async](../python-async/SKILL.md)                                                                                                               |
+| Relational queries, sessions, and schema migrations | [sqlalchemy](../sqlalchemy/SKILL.md); [data-migration](../data-migration/SKILL.md) owns transition and recovery safety                                 |
+| Agent scaffold and SDK code                         | [agents-cli](../agents-cli/SKILL.md), [google-adk](../google-adk/SKILL.md)                                                                             |
+| Single-file utility or reactive notebook            | [python-script](../python-script/SKILL.md), [marimo](../marimo/SKILL.md)                                                                               |
+| DataFrames, data schemas, queries, and charts       | [pandas](../pandas/SKILL.md), [polars](../polars/SKILL.md), [pandera](../pandera/SKILL.md), [duckdb](../duckdb/SKILL.md), [plotly](../plotly/SKILL.md) |
+| Input validation, logging, external HTTP            | [pydantic](../pydantic/SKILL.md), [observability](../observability/SKILL.md), [api-client](../api-client/SKILL.md)                                     |
+| Python tests and Hypothesis integration             | [pytest](../pytest/SKILL.md); [test-driven-development](../test-driven-development/SKILL.md) owns red/green procedure and the property-testing guide   |
+| Broader test campaigns                              | [quality-assurance](../quality-assurance/SKILL.md)                                                                                                     |
+| CPU and allocation profiling                        | [pyinstrument](../pyinstrument/SKILL.md), [memray](../memray/SKILL.md); [systematic-debugging](../systematic-debugging/SKILL.md) owns diagnosis        |
 
 ## Foundation resources
 

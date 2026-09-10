@@ -1,17 +1,17 @@
 ---
 name: mcp-server
-description: Author a Python MCP server with the official SDK over stdio or Streamable HTTP and verify it through in-process and stdio protocol tests. Use when building an MCP server.
+description: Build Python MCP servers and clients with the official SDK. Use for tools, resources, prompts, stdio or Streamable HTTP transport, and protocol tests.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-server
   created: "2026-09-03"
-  updated: "2026-09-06"
+  updated: "2026-09-10"
 ---
 
 # MCP Server
 
-Author a Python Model Context Protocol server with typed tools, resources, and prompts. Use the official `mcp` SDK and [python-stack](../python-stack/SKILL.md); register a finished server with [agent-mcp](../agent-mcp/SKILL.md).
+Use the official `mcp` Python SDK for typed tools, resources, prompts, and consuming clients. [python-stack](../python-stack/SKILL.md) owns shared setup; [agent-mcp](../agent-mcp/SKILL.md) owns host registration and [a2a-python-sdk](../a2a-python-sdk/SKILL.md) owns agent interoperability.
 
 ## Workflow
 
@@ -34,6 +34,7 @@ Author a Python Model Context Protocol server with typed tools, resources, and p
    uv run pytest -q
    ```
 1. **Secure HTTP before exposure**: validate `Origin`, bind local development to `127.0.0.1`, require OAuth or workload identity remotely, and authorize each tool against the caller and requested resource.
+1. **Consume an existing server**: use `async with Client(<approved-url-or-stdio-parameters>) as client`, inspect advertised schemas, and call only requested tools/resources. Bound call duration and output; test an unknown tool, invalid arguments, cancellation, and transport failure. A client-only project can install plain `mcp` without the CLI extra.
 1. **Ship and verify**: containerize a hosted server with [containerize](../containerize/SKILL.md), deploy with [cloud-run](../cloud-run/SKILL.md), register it through [agent-mcp](../agent-mcp/SKILL.md), then make one real tool call end to end.
 
 ## Gotchas

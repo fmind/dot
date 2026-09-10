@@ -1,6 +1,9 @@
 {
   "version": 1,
   "skills": {
+    "a2a-python-sdk": [
+      "uv"
+    ],
     "acli": [
       "acli"
     ],
@@ -76,6 +79,10 @@
     "conventional-commit": [
       "git"
     ],
+    "cookiecutter": [
+      "uvx",
+      "cookiecutter"
+    ],
     "copilot": [
       "copilot"
     ],
@@ -83,6 +90,10 @@
       "cosign"
     ],
     "course-development": [],
+    "cruft": [
+      "uvx",
+      "cruft"
+    ],
     "d2": [
       "d2"
     ],
@@ -95,6 +106,10 @@
       "zizmor"
     ],
     "diff-review": [],
+    "django": [
+      "mise",
+      "uv"
+    ],
     "dot-cli": [
       "dot",
       "mise"
@@ -121,10 +136,6 @@
     "duckdb": [
       "duckdb",
       "sqlite3"
-    ],
-    "django": [
-      "mise",
-      "uv"
     ],
     "fastapi": [
       "skills"
@@ -190,6 +201,10 @@
     "google-developer": [
       "skills"
     ],
+    "gradio": [
+      "skills",
+      "uv"
+    ],
     "grok": [
       "grok"
     ],
@@ -203,11 +218,26 @@
     ],
     "implementation-plan": [],
     "incident-response": [],
+    "jinja": [
+      "uv"
+    ],
     "jules": [
       "jules"
     ],
     "kaggle": [
       "kaggle"
+    ],
+    "langchain": [
+      "skills",
+      "uv"
+    ],
+    "langextract": [
+      "skills",
+      "uv"
+    ],
+    "langgraph": [
+      "skills",
+      "uv"
     ],
     "lefthook": [
       "lefthook",
@@ -217,8 +247,16 @@
       "skills",
       "uv"
     ],
+    "locust": [
+      "uv",
+      "locust"
+    ],
     "loop-engineering": [
       "uv"
+    ],
+    "manim": [
+      "uv",
+      "manim"
     ],
     "marimo": [
       "bash",
@@ -230,6 +268,10 @@
     ],
     "mcp-server": [
       "uv"
+    ],
+    "memray": [
+      "uv",
+      "memray"
     ],
     "mermaid": [
       "mmdc"
@@ -244,6 +286,9 @@
       "gh",
       "mise"
     ],
+    "nicegui": [
+      "uv"
+    ],
     "observability": [
       "gcloud"
     ],
@@ -252,9 +297,21 @@
       "opencode",
       "uv"
     ],
+    "pandas": [
+      "uv"
+    ],
+    "pandera": [
+      "uv"
+    ],
     "plan-review": [],
     "playwright": [
       "playwright"
+    ],
+    "plotly": [
+      "uv"
+    ],
+    "polars": [
+      "uv"
     ],
     "product-design-review": [],
     "product-loop": [],
@@ -270,6 +327,17 @@
     "prompt-design": [],
     "pydantic": [
       "skills",
+      "uv"
+    ],
+    "pyinstrument": [
+      "uv",
+      "pyinstrument"
+    ],
+    "pytest": [
+      "uv",
+      "pytest"
+    ],
+    "python-async": [
       "uv"
     ],
     "python-script": [
@@ -316,9 +384,17 @@
       "launchctl",
       "plutil"
     ],
+    "scrapy": [
+      "uv",
+      "scrapy"
+    ],
     "secure": [
       "gitleaks",
       "trivy"
+    ],
+    "sherlock": [
+      "uvx",
+      "sherlock"
     ],
     "skill-security-review": [
       "gitleaks",
@@ -331,6 +407,10 @@
     "sops-secrets": [
       "age",
       "sops"
+    ],
+    "sqlalchemy": [
+      "uv",
+      "alembic"
     ],
     "systematic-debugging": [
       "uv"
@@ -368,6 +448,10 @@
     "uv": [
       "skills",
       "uv"
+    ],
+    "wagtail": [
+      "uv",
+      "wagtail"
     ],
     "xh": [
       "xh"

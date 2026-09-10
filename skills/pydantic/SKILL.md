@@ -15,7 +15,9 @@ Use Pydantic for typed input boundaries and serialization; use [python-stack](..
 ## Workflow
 
 1. Inspect the locked Pydantic version and existing model configuration; add `pydantic` with `uv add pydantic` only when missing.
-1. Select the upstream data-validation guidance. Express field constraints in types and test coercion, rejected input, serialization, and error behavior at the boundary.
+1. Select the upstream `pydantic` skill. Use `BaseModel` for structured objects and `TypeAdapter` for other annotated types; express constraints in types before writing custom validators.
+1. Choose coercion versus strict validation and the policy for unknown fields explicitly. Use `model_validate` or `model_validate_json` at ingestion and `model_dump` or `model_dump_json` for output; Python and JSON representations can differ.
+1. Test accepted values, rejected input, nested errors, aliases, defaults, and serialization with [pytest](../pytest/SKILL.md). Check validators' ordering and error behavior against the locked API; use [pandera](../pandera/SKILL.md) for dataframe contracts.
 1. For environment configuration, inspect `pydantic-settings` separately; install it only when needed and keep secrets out of validation output.
 
 ## Gotchas
@@ -25,7 +27,7 @@ Use Pydantic for typed input boundaries and serialization; use [python-stack](..
 
 ## Official Skills
 
-Upstream: [pydantic/skills](https://github.com/pydantic/skills). Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select the relevant validation or serialization guidance.
+Upstream: [pydantic/skills](https://github.com/pydantic/skills), selection `pydantic`. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md); this shares a name with the local skill, so compare ownership before installation or replacement.
 
 ## Documentation
 
