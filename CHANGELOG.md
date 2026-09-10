@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [4.0.0] - 2026-09-10
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Version statistics schemas after removing legacy counters
+
+### ♻️ Refactor
+
+- _(dot)_ [**breaking**] Remove legacy formats and start a fresh archive
+
 ## [3.0.1] - 2026-09-10
 
 ### 🐛 Bug Fixes
