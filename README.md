@@ -74,7 +74,7 @@ Cursor CLI is installed by mise as `cursor-agent`. Create a Cursor account, then
 
 ### Dot configuration
 
-The CLI optionally reads `~/.config/dot.yaml` and merges its values with built-in defaults. The [CLI configuration and migration guide](dot/README.md) describes version 3 and its numeric timeout settings. Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
+The CLI optionally reads `~/.config/dot.yaml` and merges its values with built-in defaults. The [CLI configuration guide](dot/README.md) describes version 3 and its numeric timeout settings. Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
 
 Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the file (through its source when chezmoi manages it). Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
 

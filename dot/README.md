@@ -1,6 +1,6 @@
 # Dot CLI
 
-Dot 3 is a typed Python CLI for bounded multi-repository operations, workstation diagnostics, and private agent-session archives. Chezmoi and mise own workstation deployment; skills own AI judgment; native provider CLIs own authentication. The package retains the descriptor-bound filesystem and process-control guarantees of earlier releases.
+Dot 4 is a typed Python CLI for bounded multi-repository operations, workstation diagnostics, and private agent-session archives. Chezmoi and mise own workstation deployment; skills own AI judgment; native provider CLIs own authentication. The package retains the descriptor-bound filesystem and process-control guarantees of earlier releases.
 
 ## Commands and output
 
@@ -43,7 +43,7 @@ Use `dot config show` for effective defaults. Timeouts are positive finite numer
 ## Archive transaction and recovery
 
 ```text
-~/.agents/sessions/v1/<agent>/<lineage>/<generation>/
+~/.agents/sessions/v2/<agent>/<lineage>/<generation>/
   manifest.json
   transcript.jsonl
   usage.json
@@ -53,29 +53,13 @@ Parser 3 writes manifest schema 2. The manifest binds transcript and usage diges
 
 File adapters parse captured bytes. Copilot reads turns and usage inside one read transaction. Grok includes both captured transcript and signals bytes in generation identity, so changed usage cannot disappear behind an unchanged transcript. Signals-only sessions can preserve usage without transcript records. A source that changes creates a distinct generation; no old generation is rewritten.
 
-Usage queries choose one measurement per session from the latest supported bundle. They read legacy standalone usage only for sessions without a bundle and never sum retained generations. Unsupported usage in a new bundle is not replaced with an older measurement. Unknown costs are null; provider-reported, estimated, and context-only measurements remain separate.
+Usage queries choose one measurement per session from the latest bundle and never sum retained generations. Unsupported usage in a new bundle is not replaced with an older measurement. Unknown costs are null; provider-reported, estimated, and context-only measurements remain separate.
 
-Compaction is preview-first and revalidates before deletion. It compares canonical record fingerprints so full transcript content is retained for only one generation at a time. It retains divergent histories, distinct usage evidence, unknown formats, and separate parser generations. Dot does not delete provider-owned session files or unrelated tool caches. Backups and source retention are separate explicit operations.
+Compaction is preview-first and revalidates before deletion. It compares canonical record fingerprints so full transcript content is retained for only one generation at a time. It retains divergent histories and distinct usage evidence. Unsupported formats and integrity failures stop compaction before any deletion. Dot does not delete provider-owned session files or unrelated tool caches. Backups and source retention are separate explicit operations.
 
-## Version 2 migration
+## Active store boundary
 
-1. Preserve the existing configuration and archives before upgrading an installed runtime. The rewrite does not migrate a live store or apply workstation changes automatically.
-1. Replace obsolete commands using the table below. Update external scripts that consume diagnostic JSON or usage-error exit codes.
-1. Replace the retired `git g` alias with the conventional-commit skill or native `git commit`; the managed Git configuration removes the alias on the next authorized apply.
-1. Update configuration: use `schema_version: 3`, rename `verify` to `doctor`, and replace duration strings with numeric `timeout_seconds`, `probe_timeout_seconds`, and `stale_lag_seconds` fields. Move `login.github_host` to `doctor.github_host`. Remove the retired `ai`, `commit`, `pr`, `release`, `login`, `setup`, `prune`, and `chezmoi_clean` sections after retaining any policy still needed in its owning skill or provider setup.
-1. Run `dot config validate`, then preview `dot agent session sync --dry-run --json`. To migrate retained raw sources, run the same command without `--dry-run`; successful sessions create new generations and failures remain retryable. Missing raw sources remain legacy evidence and cannot be reconstructed from normalized transcripts.
-1. Inspect session, usage, and integration results. Keep the old generations and raw sources through acceptance. Deployment rollback can select the prior runtime, but older clients do not understand schema-2 bundles; preserve the pre-upgrade snapshot for a complete data rollback.
-
-| Retired runtime command       | Owner or replacement                                                                                                    |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `dot verify`                  | `dot doctor`; provider authentication probes now require `--deep`.                                                      |
-| `dot commit`                  | The conventional-commit skill and staged `git commit`.                                                                  |
-| `dot pr` / `dot pull-request` | The github-pull-request skill and reviewed `gh pr create/edit`.                                                         |
-| `dot login` / `dot setup`     | Scoped `mise run login:<provider>` and `mise run setup:<provider>` tasks below.                                         |
-| `dot release`                 | `mise run release -- [OPTIONS]` in this repository.                                                                     |
-| `dot prune`                   | `mise run prune` for local tool caches; `dot agent session compact` and `dot agent clean` for owned archives/artifacts. |
-| `dot chezmoi clean`           | Explicit inspection and recovery of retired managed links through the chezmoi and dot-skills guidance.                  |
-| `dot agent usage sync`        | `dot agent session sync`, the single transcript/usage write path.                                                       |
+Dot 4 starts a fresh `sessions/v2` store and supports only manifest schema 2, parser 3, and usage schema `dot.agent.usage/v3` with extractor 2. Queries, hooks, and compaction share this store. Earlier stores and standalone usage files are neither read nor modified, so their historical statistics are absent. Installation does not copy, convert, or delete session data. Normal hooks capture subsequent activity; explicit `dot agent session sync` can recapture retained provider sources. Do not copy older formats into the active store: unsupported formats fail with a recapture instruction. Until supported agents capture a complete session, `dot agent doctor` reports missing ingestion and provides a sync preview; this is an empty-store diagnostic, not installation failure.
 
 ## Scoped authentication and setup
 
@@ -123,7 +107,7 @@ dot agent usage stats --by-model --by-project
 dot agent prompts stats --since 2026-09-01 --json
 ```
 
-`stats` reads local archives without calling a provider or printing prompt text. Prompt counts are archived user messages (including injected context), distinct from assistant turns and API requests. Token totals retain their measurement kind: provider-reported, estimated, context-only, or unknown. Different kinds are never summed together. Prompt dates use conversation timestamps; usage dates select whole sessions at their recorded timestamp. Combined-report dates are inclusive exact UTC instants (a bare date means midnight); durations such as `7d` and `24h` are accepted. These counts describe captured evidence, not every interaction with an account. Prompt and combined statistics return usable partial results with `complete: false` and exit 1 when legacy or partial sessions prevent complete coverage; archive migration remains an explicit operation. Run session sync to refresh supported adapters; Cursor history capture is not yet supported, so Cursor activity is absent rather than estimated from invented records.
+`stats` reads local archives without calling a provider or printing prompt text. Prompt counts are archived user messages (including injected context), distinct from assistant turns and API requests. Token totals retain their measurement kind: provider-reported, estimated, context-only, or unknown. Different kinds are never summed together. Prompt dates use conversation timestamps; usage dates select whole sessions at their recorded timestamp. Combined-report dates are inclusive exact UTC instants (a bare date means midnight); durations such as `7d` and `24h` are accepted. These counts describe captured evidence, not every interaction with an account. Prompt and combined statistics return usable partial results with `complete: false` and exit 1 when partial or invalid sessions prevent complete coverage. Run session sync to refresh supported adapters; Cursor history capture is not yet supported, so Cursor activity is absent rather than estimated from invented records.
 
 The `api_equivalent_usd` estimate is separate from recorded `cost_usd`. The bundled rate card uses standard short-context USD prices verified on 2026-09-10, with 5-minute cache writes. It excludes long-context premiums, priority/fast processing, regional and tool fees, taxes, subscriptions and discounts; it applies those rates even to older sessions. Session totals cannot reconstruct per-request context lengths or cache lifetimes. See the [OpenAI rate card](https://developers.openai.com/api/docs/pricing) and [Claude rate card](https://platform.claude.com/docs/en/about-claude/pricing). This is a comparison estimate, not an invoice.
 

@@ -160,31 +160,16 @@ def test_apply_blocks_conflicting_skill_owners(installation: tuple[Path, Path, l
         assert target.read_text() == "preserve"
 
 
-@pytest.mark.parametrize("existing_catalog", [False, True])
 def test_apply_individual_skills_preserves_other_packages(
-    installation: tuple[Path, Path, list[str]], existing_catalog: bool
+    installation: tuple[Path, Path, list[str]],
 ) -> None:
     source, home, command = installation
     package = source / "skills/python-stack"
     catalog = home / ".agents/skills"
-    catalog.parent.mkdir()
+    catalog.mkdir(parents=True)
     independent = home / "independent"
     independent.mkdir()
-    if existing_catalog:
-        # Exercise replacement of the former whole-catalog symlink.
-        catalog.symlink_to(source / "skills", target_is_directory=True)
-    else:
-        catalog.mkdir()
-        (catalog / "meeting-prep").symlink_to(independent, target_is_directory=True)
-    if existing_catalog:
-        foreign = source / "skills/meeting-prep"
-        foreign.symlink_to(independent, target_is_directory=True)
-        blocked = subprocess.run(command, capture_output=True, text=True, check=False)
-        assert blocked.returncode != 0
-        assert "legacy catalog contains separately installed links" in blocked.stderr
-        assert catalog.is_symlink()
-        assert foreign.resolve() == independent
-        foreign.unlink()
+    (catalog / "meeting-prep").symlink_to(independent, target_is_directory=True)
     for _ in range(2):
         result = subprocess.run(command, capture_output=True, text=True, check=True)
         assert result.stderr == ""
@@ -192,8 +177,7 @@ def test_apply_individual_skills_preserves_other_packages(
         assert (catalog / "python-stack").is_symlink()
         assert (catalog / "python-stack").resolve() == package
         assert (package / "SKILL.md").read_text() == "# Fixture\n"
-        if not existing_catalog:
-            assert (catalog / "meeting-prep").resolve() == independent
+        assert (catalog / "meeting-prep").resolve() == independent
         assert not (source / "skills/meeting-prep").exists()
 
     # A later repository-name collision fails even with --force and preserves the owner.
@@ -203,3 +187,15 @@ def test_apply_individual_skills_preserves_other_packages(
     assert result.returncode != 0
     assert "belongs to another source" in result.stderr
     assert (catalog / "python-stack").resolve() == independent
+
+
+def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path, list[str]]) -> None:
+    source, home, command = installation
+    catalog = home / ".agents/skills"
+    catalog.parent.mkdir()
+    catalog.symlink_to(source / "skills", target_is_directory=True)
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode != 0
+    assert "must be a real directory" in result.stderr
+    assert catalog.is_symlink()
+    assert (source / "skills/python-stack/SKILL.md").read_text() == "# Fixture\n"

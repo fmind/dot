@@ -66,7 +66,7 @@ hook_app = typer.Typer(
 
 usage_app = typer.Typer(
     cls=AlphabeticalGroup,
-    help="Manage agent token usage in ~/.agents/usages",
+    help="Inspect token usage from transactional session archives",
     no_args_is_help=True,
     context_settings=_CONTEXT_SETTINGS,
 )
@@ -107,7 +107,7 @@ def session_list(
 ) -> None:
     state = state_from(context)
     selected_statuses = set(status or ())
-    allowed_statuses = {"current", "duplicate", "invalid", "partial", "stale", "unsupported", "legacy"}
+    allowed_statuses = {"current", "duplicate", "invalid", "partial", "stale"}
     unknown = selected_statuses - allowed_statuses
     if unknown:
         raise DotError(f"unknown session status {min(unknown)!r}")
@@ -216,7 +216,6 @@ def _print_statistics(state: State, document: dict[str, Any], *, as_json: bool) 
                     "active_days",
                     "median_characters",
                     "p95_characters",
-                    "legacy_sessions",
                     "partial_sessions",
                 )
                 state.stdout.write("\t".join(column.upper() for column in columns) + "\n")
@@ -255,9 +254,7 @@ def prompts_stats(
     document = prompt_statistics(_query(agent, cwd, "", since, until), by_project=by_project)
     _print_statistics(state_from(context), document, as_json=as_json)
     if not document["complete"]:
-        raise DotError(
-            "prompt statistics are incomplete; inspect excluded sessions, timestamps, and legacy/partial counts"
-        )
+        raise DotError("prompt statistics are incomplete; inspect excluded sessions, timestamps, and partial counts")
 
 
 @session_app.command(
@@ -462,7 +459,7 @@ def agent_stats(
         _print_statistics(state, prompts, as_json=False)
         write_usage_stats(state.stdout, rows, as_json=False, by_model=by_model)
     if not prompts["complete"]:
-        raise DotError("prompt statistics are incomplete; inspect excluded sessions and legacy/partial counts")
+        raise DotError("prompt statistics are incomplete; inspect excluded sessions and partial counts")
 
 
 @agent_app.command("doctor")

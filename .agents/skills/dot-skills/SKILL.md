@@ -25,7 +25,7 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 
 1. Use `rg` to find the old name and path across both catalogs, docs, host configuration, and `dot/`. For a rename, change the directory, frontmatter name, provenance path, and update date together; preserve needed guidance when consolidating packages.
 1. Update the manifest, routing entries, inbound links, and global link declaration together. Preserve historical records, then search again and validate as above.
-1. Apply leaves retired installed links in place. Use the [installed-link recovery guide](references/installed-links.md) for cleanup, collisions, source relocation, or legacy migration.
+1. Apply leaves retired installed links in place. Use the [installed-link recovery guide](references/installed-links.md) for cleanup, collisions, source relocation, or catalog ownership.
 
 ## Boundaries
 

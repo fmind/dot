@@ -94,9 +94,4 @@
 }
 ` -}}
 {{- $_ := set $managedConfig.permissions "additionalDirectories" (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "prune" (list "statusLine" "verbose" "viewMode" "promptSuggestionEnabled" "spinnerTipsEnabled"
-      "advisorModel" "agentPushNotifEnabled" "alwaysThinkingEnabled" "autoCompactEnabled" "autoDreamEnabled"
-      "fallbackModel" "fileCheckpointingEnabled" "precomputeCompactionEnabled" "showThinkingSummaries"
-      "skillListingMaxDescChars" "skipWorkflowUsageWarning" "teammateDefaultModel" "todoFeatureEnabled"
-      "useAutoModeDuringPlan" "workflowKeywordTriggerEnabled" "env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"
-      "env.MAX_MCP_OUTPUT_TOKENS" "env.TASK_MAX_OUTPUT_LENGTH")) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

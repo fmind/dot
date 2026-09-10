@@ -27,9 +27,9 @@ from fmind_dot.archive.parsers import (
     codex_session_id,
 )
 from fmind_dot.archive.store import (
+    SESSION_PARSER_VERSION,
+    SESSION_SCHEMA_VERSION,
     SESSION_STORE_VERSION,
-    SUPPORTED_PARSER_VERSIONS,
-    SUPPORTED_SCHEMA_VERSIONS,
     SessionManifest,
     fingerprint_bytes,
     fingerprint_json,
@@ -403,14 +403,6 @@ def _query_database_source_time(path: Path, definition: DoctorIntegration) -> da
     return _parse_timestamp(str(row[0]))
 
 
-def _database_source_time(path: Path, definition: DoctorIntegration, fallback: datetime) -> datetime | None:
-    """Retain the legacy conservative fallback for callers outside doctor health."""
-    try:
-        return _query_database_source_time(path, definition)
-    except OSError, ValueError, sqlite3.Error:
-        return fallback
-
-
 def _source_file_metadata(info: os.stat_result) -> tuple[int, int, int, int, int, int]:
     return info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns, info.st_ctime_ns, info.st_size
 
@@ -604,8 +596,8 @@ def _valid_manifest_path(root: Path, path: Path, manifest: SessionManifest, agen
     return (
         manifest.agent == agent
         and manifest.lineage_id == lineage == session_lineage_id(agent, manifest.session_id)
-        and manifest.schema_version in SUPPORTED_SCHEMA_VERSIONS
-        and manifest.parser_version in SUPPORTED_PARSER_VERSIONS
+        and manifest.schema_version == SESSION_SCHEMA_VERSION
+        and manifest.parser_version == SESSION_PARSER_VERSION
         and generation == session_digest(manifest.parser_version, manifest.source_fingerprint)
     )
 
@@ -783,9 +775,10 @@ def gather_agent_doctor(
             repair = f"dot agent doctor --agent {definition.agent} --fix --dry-run (configuration only)"
         elif definition.discovery_only:
             repair = "Archive capture is not supported; discovery and installed tool only."
-        elif not source.healthy:
+        elif not source.healthy or not lineage_ok:
             repair = (
-                f"dot agent session sync --agent {definition.agent}; "
+                f"dot agent session sync --agent {definition.agent} --dry-run; "
+                "remove --dry-run to capture available sources, "
                 f"then dot agent doctor --agent {definition.agent} --deep --explain"
             )
         else:

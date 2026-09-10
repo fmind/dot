@@ -109,14 +109,12 @@ def test_corrupt_usage_rejects_duplicate_and_statistics(tmp_path: Path, monkeypa
         load_usage_records()
 
 
-def test_schema_one_archive_remains_unchanged_during_parser_three_migration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fresh_store_ignores_and_preserves_retired_history(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state, source = source_session(tmp_path, monkeypatch)
     fingerprint = session_store.fingerprint_bytes(source.read_bytes())
     lineage = session_store.session_lineage_id("claude", "fixture-id")
     generation = session_store.session_digest("2", fingerprint)
-    legacy = session_store.session_store_root() / "claude" / lineage / generation
+    legacy = tmp_path / ".agents/sessions/v1" / "claude" / lineage / generation
     legacy.mkdir(parents=True, mode=0o700)
     for directory in (legacy, *legacy.parents):
         if directory == tmp_path:
@@ -160,14 +158,14 @@ def test_schema_one_archive_remains_unchanged_during_parser_three_migration(
         )
     )
     before = {path: path.read_bytes() for path in (*legacy.iterdir(), usage_path)}
-    assert len(query_session_summaries()) == 1
-    assert load_usage_records()[0].input_tokens == 999
+    assert query_session_summaries() == []
+    assert load_usage_records() == []
 
     archive_ingest_module.ingest_agent_session(state, "claude", "fixture-id")
 
     summaries = query_session_summaries()
-    assert len(summaries) == 2
-    assert {item.generation_id for item in summaries} == {generation, session_store.session_digest("3", fingerprint)}
+    assert len(summaries) == 1
+    assert summaries[0].generation_id == session_store.session_digest("3", fingerprint)
     assert load_usage_records()[0].input_tokens == 10
     assert all(path.read_bytes() == content for path, content in before.items())
     assert {path.name for path in legacy.iterdir()} == {"manifest.json", "transcript.jsonl"}
@@ -195,3 +193,61 @@ def test_recent_grok_signals_update_an_unchanged_transcript(tmp_path: Path, monk
 
     assert len(query_session_summaries()) == 2
     assert [record.total_tokens for record in load_usage_records()] == [42]
+
+
+@pytest.mark.parametrize(
+    ("field", "version"),
+    [
+        ("schema_version", 1),
+        ("schema_version", 999),
+        ("parser_version", "1"),
+        ("parser_version", "2"),
+        ("parser_version", "999"),
+    ],
+)
+def test_active_store_rejects_other_formats_before_compaction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, version: int | str
+) -> None:
+    from fmind_dot.archive.query import compact_session_generations
+
+    state, _ = source_session(tmp_path, monkeypatch)
+    archive_ingest_module.ingest_agent_session(state, "claude", "fixture-id")
+    root = session_store.session_store_root()
+    manifest_path = next(root.rglob("manifest.json"))
+    value = json.loads(manifest_path.read_text())
+    value[field] = version
+    manifest_path.write_text(json.dumps(value))
+    before = {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
+    for operation in [
+        query_session_summaries,
+        load_usage_records,
+        lambda: compact_session_generations(io.StringIO(), apply=True),
+    ]:
+        with pytest.raises(ValueError, match="unsupported session format; recapture available sources"):
+            operation()
+    assert {path: path.read_bytes() for path in root.rglob("*") if path.is_file()} == before
+
+
+@pytest.mark.parametrize("command", [["session", "list", "--json"], ["usage", "stats", "--json"]])
+def test_public_queries_report_unsupported_store_without_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
+) -> None:
+    import sys
+
+    from fmind_dot.cli import main
+
+    state, _ = source_session(tmp_path, monkeypatch)
+    archive_ingest_module.ingest_agent_session(state, "claude", "fixture-id")
+    path = next(session_store.session_store_root().rglob("manifest.json"))
+    value = json.loads(path.read_text())
+    value["schema_version"] = 1
+    path.write_text(json.dumps(value))
+    monkeypatch.setattr(sys, "argv", ["dot", "agent", *command])
+    with pytest.raises(SystemExit) as result:
+        main()
+    captured = capsys.readouterr()
+    assert result.value.code == 1
+    assert captured.out == ""
+    assert "unsupported session format" in captured.err
+    assert "dot agent session sync" in captured.err
+    assert "Traceback" not in captured.err

@@ -5,13 +5,13 @@
 New measurements live inside immutable session generations:
 
 ```text
-~/.agents/sessions/v1/<agent>/<lineage>/<generation>/
+~/.agents/sessions/v2/<agent>/<lineage>/<generation>/
   manifest.json
   transcript.jsonl
   usage.json
 ```
 
-Directories are private (`0o700`), and files are private (`0o600`). `usage.json` has schema `dot.session.usage/v1`, a status (`available` or `unsupported`), and a `record` object when available. `dot agent session sync` captures all five verified adapters. Legacy `~/.agents/usages/<agent>/<session_id>.json` records remain read-only inputs when no current bundle exists.
+Directories are private (`0o700`), and files are private (`0o600`). `usage.json` has schema `dot.session.usage/v1`, a status (`available` or `unsupported`), and a `record` object when available. `dot agent session sync` captures all five verified adapters. Only the current store is queried; earlier stores and standalone usage files are outside its scope.
 
 Query the CLI's selected projection instead of globbing every generation: otherwise older measurements would be counted repeatedly. `dot agent usage list --limit 0 --json` exports all selected usage records for local analysis.
 

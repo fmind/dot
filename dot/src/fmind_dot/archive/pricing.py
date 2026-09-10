@@ -12,12 +12,8 @@ if TYPE_CHECKING:
 
 def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float | None, str]:
     """Apply exact model rates to known accounting conventions only."""
-    from fmind_dot.archive.usage import USAGE_EXTRACTOR_VERSION
-
     if record.measurement_kind != "provider-reported":
         return None, "measurement is not provider-reported"
-    if record.extractor_version != USAGE_EXTRACTOR_VERSION:
-        return None, "legacy accounting"
     if record.harness not in {"codex", "claude", "copilot"}:
         return None, "unsupported accounting"
     if record.total_tokens and not any(

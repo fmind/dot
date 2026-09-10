@@ -2,23 +2,9 @@
 {{- $source := joinPath .chezmoi.sourceDir "skills" -}}
 {{- $catalog := joinPath .chezmoi.destDir ".agents/skills" -}}
 {{- $catalogInfo := lstat $catalog -}}
-{{- $legacy := false -}}
-{{- if $catalogInfo -}}
-  {{- if eq $catalogInfo.type "symlink" -}}
-    {{- if ne (output "readlink" $catalog | trim) $source -}}
-      {{- fail "global skills directory links elsewhere; migrate it to a real directory before applying" -}}
-    {{- end -}}
-    {{- range glob (joinPath $source "*") -}}
-      {{- if eq (lstat .).type "symlink" -}}
-        {{- fail "legacy catalog contains separately installed links; move them outside this checkout before applying" -}}
-      {{- end -}}
-    {{- end -}}
-    {{- $legacy = true -}}
-  {{- else if not $catalogInfo.isDir -}}
-    {{- fail "global skills catalog must be a directory" -}}
-  {{- end -}}
+{{- if and $catalogInfo (or (eq $catalogInfo.type "symlink") (not $catalogInfo.isDir)) -}}
+  {{- fail "global skills catalog must be a real directory; resolve its owner before applying" -}}
 {{- end -}}
-{{- if not $legacy -}}
 {{- range glob (joinPath .chezmoi.sourceDir "dot_agents/skills/symlink_*.tmpl") -}}
 {{- $name := base . | trimPrefix "symlink_" | trimSuffix ".tmpl" -}}
 {{- $target := joinPath $catalog $name -}}
@@ -31,6 +17,5 @@
   {{- if ne (output "readlink" $target | trim) $expected -}}
     {{- fail (printf "skill %s belongs to another source; resolve the name collision before applying" $name) -}}
   {{- end -}}
-{{- end -}}
 {{- end -}}
 {{- end -}}
