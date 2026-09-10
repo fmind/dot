@@ -5,6 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -56,7 +57,9 @@ def test_cloud_run_declares_image_tools() -> None:
     assert {"cosign", "docker", "gcloud", "trivy"} <= set(contracts["skills"]["cloud-run"])
 
 
-def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path) -> None:
+@pytest.mark.parametrize("errexit", [False, True])
+def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path, errexit: bool) -> None:
+    shell = ["bash", *(["-e"] if errexit else []), "-o", "pipefail", "-c"]
     steps = _workflow_steps()
     inputs = next(step for step in steps if step.get("name") == "Validate deployment inputs")
     build = next(step for step in steps if step.get("id") == "build")
@@ -91,13 +94,11 @@ def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path
             "IMAGE_REPOSITORY": "europe-docker.pkg.dev/project/app/image",
             "RUNNER_TEMP": str(case),
         }
-        validated = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", str(inputs["run"])], env=env, check=False)
+        validated = subprocess.run([*shell, str(inputs["run"])], env=env, check=False)
         # GitHub's default success condition prevents later steps after a failed action.
         code = validated.returncode or build_exit
         if code == 0:
-            code = subprocess.run(
-                ["bash", "-e", "-o", "pipefail", "-c", str(image["run"])], env=env, check=False
-            ).returncode
+            code = subprocess.run([*shell, str(image["run"])], env=env, check=False).returncode
         assert (code == 0) is expected_success, name
         assert output.read_text() == (
             f"ref=europe-docker.pkg.dev/project/app/image@{digest}\n" if expected_success else ""
