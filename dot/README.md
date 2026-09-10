@@ -18,7 +18,7 @@ Dot 4 is a typed Python CLI for bounded multi-repository operations, workstation
 | `dot agent doctor`                        | Inspect selected integration metadata; `--deep` validates source/archive evidence, and `--explain` adds bounded examples.                                     |
 | `dot agent clean`                         | Preview generated project prompts, proposals, and reports; `--apply` removes only those categories.                                                           |
 
-Global flags precede the command. Requested output goes to stdout; diagnostics and progress go to stderr. Exit codes are 0 for success, 1 for operational failure or incomplete results, 2 for invalid CLI usage, and 130 for interruption. Hook responses remain host-specific. JSON diagnostics share `dot.diagnostics/v1` with `scope`, `passed`, and `checks`; optional details remain explicit. Other JSON commands retain their documented versioned payloads. Fish completion comes from the same Typer command definitions as help.
+Global flags precede the command. Requested output goes to stdout; diagnostics and progress go to stderr. Exit codes are 0 for success, 1 for operational failure or incomplete results, 2 for invalid CLI usage, and 130 for interruption. Hook responses remain host-specific. JSON diagnostics share `dot.diagnostics/v1` with `scope`, `passed`, and `checks`; optional details remain explicit. Prompt statistics use `dot.agent.prompts.stats/v2`, and combined statistics use `dot.agent.stats/v2`; both omit retired legacy counters. Other JSON commands retain their documented versioned payloads. Fish completion comes from the same Typer command definitions as help.
 
 ## Configuration
 

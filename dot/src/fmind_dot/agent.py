@@ -444,7 +444,7 @@ def agent_stats(
         state.stdout.write(
             json.dumps(
                 {
-                    "schema": "dot.agent.stats/v1",
+                    "schema": "dot.agent.stats/v2",
                     "coverage": "Archived records only; run dot agent session sync to refresh. Prompt and usage coverage can differ.",
                     "prompts": prompts,
                     "usage": [row.to_dict() for row in rows],
