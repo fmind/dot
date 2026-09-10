@@ -6,7 +6,9 @@
 {{-   range .prune -}}
 {{-     $path := splitList "." . -}}
 {{-     $table := $desired -}}
-{{-     if gt (len $path) 1 }}{{ $table = index $desired (first $path) }}{{ end -}}
+{{-     range initial $path -}}
+{{-       if kindIs "map" $table }}{{ $table = index $table . }}{{ end -}}
+{{-     end -}}
 {{-     if kindIs "map" $table }}{{ $_ := unset $table (last $path) }}{{ end -}}
 {{-   end -}}
 {{- end -}}

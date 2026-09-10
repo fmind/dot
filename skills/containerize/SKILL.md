@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-09-09"
+  updated: "2026-09-10"
 ---
 
 # Containerize a Python Application
@@ -28,7 +28,7 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
    ```toml
    [tasks."build:image"]
    description = "Build the Python OCI image locally"
-   run = "mkdir -p tmp && docker buildx build --output type=docker,dest=tmp/image.tar ."
+   run = ["mkdir -p tmp", "docker buildx build --output type=docker,dest=tmp/image.tar ."]
 
    [tasks."check:image"]
    description = "Scan the local OCI image"

@@ -1,0 +1,11 @@
+# chezmoi:modify-template
+{{- $managedConfig := fromToml `
+# Docs: https://docs.marimo.io/guides/configuration/
+[keymap]
+preset = "vim"
+` -}}
+{{- includeTemplate "toml-merge.tmpl" (dict
+      "stdin" .chezmoi.stdin
+      "managed" $managedConfig
+      "defaults" dict
+      "prune" list) -}}

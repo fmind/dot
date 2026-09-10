@@ -1,22 +1,18 @@
-# Python Project Bootstrap
+# Python Package Foundation
 
-## Project Scaffolding Workflow
+Use this for a new package. [new-project](../../new-project/SKILL.md) owns repository creation and shared setup; this procedure supplies the Python files. Existing projects retain their conventions.
 
-1. **Information**: define `Slug`, `Description`, `Holder/Year`, and `Package` (`Slug` with underscores) — every import path uses `Package`.
-1. **Bootstrap** (agent scaffolds use [agents-cli](../../agents-cli/SKILL.md) instead):
+1. **Identify** the distribution slug, description, holder, supported Python range, and import package (`<slug>` with underscores). Select and pin a supported stable interpreter through [uv](../../uv/SKILL.md).
+1. **Initialize** the package:
    ```bash
-   uv init --app --package --build-backend uv --vcs none --description "<description>" <slug>
-   cd <slug> && uv python pin <major.minor>  # align .python-version with requires-python
+   uv init --lib --build-backend uv --vcs none --description "<description>" <slug>
+   cd <slug>
+   uv python pin <major.minor>
    ```
-1. **Manifest**: `pyproject.toml` from [pyproject.toml.template](pyproject.toml.template) with one profile — web keeps the Web block; CLI sets runtime dependencies to `typer` for the bundled greeting example and drops `testcontainers`; library sets `dependencies = []` and drops `[project.scripts]` and `testcontainers`.
-1. **Config files**:
-   - [mise.toml](mise.toml) (swap `watch` and remove the `.env` loader for non-web projects without dotenv configuration) and [lefthook.yml](lefthook.yml).
-   - `dprint.json` per [dprint](../../dprint/SKILL.md); `.env.example` from [env.example](env.example) and, for web projects, copy it to the ignored `.env` before the first import; `.gitignore` from [gitignore](gitignore).
-   - `AGENTS.md` from [AGENTS.md](AGENTS.md), removing irrelevant web, database, agent-layout, and integration instructions for the selected profile; `LICENSE` per [project-license](../../project-license/SKILL.md).
-1. **Sources**: `src/<package>/__init__.py` from [init.py](init.py) (web), [init-cli.py](init-cli.py) (CLI), or [init-library.py](init-library.py); web and CLI add `__main__.py` from [main.py](main.py).
-1. **Tests**: `tests/__init__.py`, then per profile:
-   - Web: [test_web.py](test_web.py), [test_integration.py](test_integration.py), and root [conftest.py](conftest.py) (only `test:integration` starts Postgres).
-   - CLI: [test_smoke.py](test_smoke.py) and [test_cli.py](test_cli.py). Library: [test_library.py](test_library.py).
-1. **Validate**: `git init --initial-branch=main`, then `mise run install` and `mise run all`; before the first commit, `check:leaks` scans the working tree.
-1. **Qualify packaging**: install the built wheel in a fresh uv environment and run its public import or CLI from outside the source tree; test `python -m <package>` for CLI and web profiles. A successful editable install alone does not prove packaged entry points or resources.
-1. **Finish**: `README.md` per [repository-docs](../../repository-docs/SKILL.md), then report the verified result; if committing was requested, stage only the intended files and use [conventional-commit](../../conventional-commit/SKILL.md).
+1. **Configure** `pyproject.toml` from [the shared manifest](pyproject.toml.template), replacing placeholders and preserving the selected Python support range. Start with `dependencies = []` and no console entry point. [uv](../../uv/SKILL.md) owns dependency and build-backend operations.
+1. **Add project files**: [mise.toml](mise.toml), [lefthook.yml](lefthook.yml), [gitignore](gitignore), and [AGENTS.md](AGENTS.md); configure dprint through [dprint](../../dprint/SKILL.md). Fill the README and license through [repository-docs](../../repository-docs/SKILL.md) and [project-license](../../project-license/SKILL.md) before building.
+1. **Add the library example** as `src/<package>/__init__.py` from [init-library.py](init-library.py) and `tests/test_library.py` from [test_library.py](test_library.py). Replace generated placeholder sources and tests with the selected examples; a library needs no `__main__.py` or `[project.scripts]`.
+1. **Apply the selected profile** from [profiles](profiles.md). Typer and Litestar own their application dependencies, source files, entry points, and tests; do not copy a web configuration into a library. Generated agents and Django applications use their owners' bootstrap procedures.
+1. **Qualify the final package**: after repository initialization, run `mise run install` and `mise run all`. Install the built wheel in a fresh uv environment and exercise its public import outside the source tree. Applications also exercise the installed command and `python -m <package>`; [uv](../../uv/SKILL.md) owns environment and installation commands.
+
+No publication or provider access is required to qualify the package locally.

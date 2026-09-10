@@ -1,0 +1,26 @@
+# chezmoi:modify-template
+{{- /* Docs: https://cursor.com/docs/cli/reference/configuration */ -}}
+{{- $managedConfig := fromJson `
+{
+  "version": 1,
+  "editor": {"vimMode": true},
+  "approvalMode": "unrestricted",
+  "sandbox": {"mode": "disabled"},
+  "permissions": {"allow": ["Shell(*)", "Read(**)", "Write(**)", "WebFetch(*)", "Mcp(*:*)"]},
+  "notifications": true,
+  "hints": false,
+  "rewind": true,
+  "display": {
+    "showLineNumbers": true,
+    "showThinkingBlocks": true,
+    "showStatusIndicators": true,
+    "showStatusLineRunningTime": true
+  },
+  "attribution": {"attributeCommitsToAgent": false, "attributePRsToAgent": false}
+}
+` -}}
+{{- /* Retain host-owned model, account, MCP and explicit deny settings. */ -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
+{{- if not (hasKey (get $current "permissions" | default dict) "deny") }}{{ $_ := set $managedConfig.permissions "deny" list }}{{ end -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

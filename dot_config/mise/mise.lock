@@ -1562,3 +1562,17 @@ url_api = "https://api.github.com/repos/ajeetdsouza/zoxide/releases/assets/46631
 checksum = "sha256:f465ae548f8754c8e7edbc60b45fbf58c92bfe123db83d790252d6810fa5daf1"
 url = "https://github.com/ajeetdsouza/zoxide/releases/download/v0.10.0/zoxide-0.10.0-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/ajeetdsouza/zoxide/releases/assets/466316769"
+
+[[tools.cursor-agent]]
+version = "2026.09.08-6caf4ff"
+backend = "http:cursor-agent"
+specifiers = ["latest"]
+
+[tools.cursor-agent.options]
+strip_components = "0"
+
+[tools.cursor-agent."platforms.linux-x64"]
+url = "https://downloads.cursor.com/lab/2026.09.08-6caf4ff/linux/x64/agent-cli-package.tar.gz"
+
+[tools.cursor-agent."platforms.macos-arm64"]
+url = "https://downloads.cursor.com/lab/2026.09.08-6caf4ff/darwin/arm64/agent-cli-package.tar.gz"

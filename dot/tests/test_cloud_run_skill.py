@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -24,7 +23,13 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     setup_index = next(
         index for index, step in enumerate(steps) if str(step.get("uses", "")).startswith("jdx/mise-action@")
     )
-    push_index = next(index for index, step in enumerate(steps) if "--push" in str(step.get("run", "")))
+    push_index = next(
+        index for index, step in enumerate(steps) if str(step.get("uses", "")).startswith("docker/build-push-action@")
+    )
+    build = steps[push_index]
+    assert isinstance(build["with"], dict)
+    assert build["with"]["push"] is True
+    assert "continue-on-error" not in build
     first_use_index = next(
         index for index, step in enumerate(steps) if re.search(r"\b(?:cosign|trivy)\b", str(step.get("run", "")))
     )
@@ -52,86 +57,54 @@ def test_cloud_run_declares_image_tools() -> None:
 
 
 def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path) -> None:
-    image_step = next(step for step in _workflow_steps() if step.get("id") == "image")
-    script = str(image_step["run"])
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    docker = fake_bin / "docker"
-    docker.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -eu\n"
-        'touch "$RUNNER_TEMP/build-called"\n'
-        "while [[ $# -gt 0 ]]; do\n"
-        '  if [[ $1 == --metadata-file ]]; then printf \'%s\' "$BUILD_METADATA" > "$2"; break; fi\n'
-        "  shift\n"
-        "done\n"
-        'exit "$BUILD_EXIT"\n',
-        encoding="utf-8",
-    )
-    docker.chmod(0o755)
-
+    steps = _workflow_steps()
+    inputs = next(step for step in steps if step.get("name") == "Validate deployment inputs")
+    build = next(step for step in steps if step.get("id") == "build")
+    image = next(step for step in steps if step.get("id") == "image")
+    assert steps.index(inputs) < steps.index(build) < steps.index(image)
+    assert "continue-on-error" not in build
+    assert "if" not in image
     digest = "sha256:" + "a" * 64
     cases = [
-        (
-            "success",
-            json.dumps({"containerimage.digest": digest}),
-            "0",
-            "runtime@example.iam.gserviceaccount.com",
-            True,
-        ),
-        (
-            "failed build",
-            json.dumps({"containerimage.digest": digest}),
-            "7",
-            "runtime@example.iam.gserviceaccount.com",
-            False,
-        ),
-        ("missing receipt", "{}", "0", "runtime@example.iam.gserviceaccount.com", False),
-        (
-            "tag receipt",
-            json.dumps({"containerimage.digest": "image:latest"}),
-            "0",
-            "runtime@example.iam.gserviceaccount.com",
-            False,
-        ),
-        (
-            "malformed digest",
-            json.dumps({"containerimage.digest": "sha256:short"}),
-            "0",
-            "runtime@example.iam.gserviceaccount.com",
-            False,
-        ),
-        (
-            "multiple receipts",
-            json.dumps({"containerimage.digest": [digest, digest]}),
-            "0",
-            "runtime@example.iam.gserviceaccount.com",
-            False,
-        ),
-        ("missing runtime", json.dumps({"containerimage.digest": digest}), "0", "", False),
+        ("success", digest, 0, "runtime@example.iam.gserviceaccount.com", True),
+        ("failed build", digest, 7, "runtime@example.iam.gserviceaccount.com", False),
+        ("missing receipt", "", 0, "runtime@example.iam.gserviceaccount.com", False),
+        ("tag receipt", "image:latest", 0, "runtime@example.iam.gserviceaccount.com", False),
+        ("malformed digest", "sha256:short", 0, "runtime@example.iam.gserviceaccount.com", False),
+        ("multiple receipts", json.dumps([digest, digest]), 0, "runtime@example.iam.gserviceaccount.com", False),
+        ("newline injection", digest + "\nINJECTED=value", 0, "runtime@example.iam.gserviceaccount.com", False),
+        ("missing runtime", digest, 0, "", False),
     ]
-    for name, metadata, build_exit, runtime, expected_success in cases:
+    for name, receipt, build_exit, runtime, expected_success in cases:
         case = tmp_path / name.replace(" ", "-")
         case.mkdir()
         output = case / "output"
+        environment_file = case / "environment"
         output.touch()
+        environment_file.touch()
         env = {
-            **os.environ,
-            "PATH": f"{fake_bin}:{os.environ['PATH']}",
-            "BUILD_EXIT": build_exit,
-            "BUILD_METADATA": metadata,
+            "PATH": "/usr/bin:/bin",
+            "DIGEST": receipt,
             "GCP_RUNTIME_SA": runtime,
             "GITHUB_OUTPUT": str(output),
-            "GITHUB_REF_NAME": "v1.0.0",
+            "GITHUB_ENV": str(environment_file),
             "IMAGE_REPOSITORY": "europe-docker.pkg.dev/project/app/image",
             "RUNNER_TEMP": str(case),
         }
-
-        result = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", script], env=env, check=False)
-
-        assert (result.returncode == 0) is expected_success, name
-        assert output.read_text(encoding="utf-8") == (
+        validated = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", str(inputs["run"])], env=env, check=False)
+        # GitHub's default success condition prevents later steps after a failed action.
+        code = validated.returncode or build_exit
+        if code == 0:
+            code = subprocess.run(
+                ["bash", "-e", "-o", "pipefail", "-c", str(image["run"])], env=env, check=False
+            ).returncode
+        assert (code == 0) is expected_success, name
+        assert output.read_text() == (
             f"ref=europe-docker.pkg.dev/project/app/image@{digest}\n" if expected_success else ""
         )
-        if name == "missing runtime":
-            assert not (case / "build-called").exists()
+        if expected_success:
+            values = dict(line.split("=", 1) for line in environment_file.read_text().splitlines())
+            assert values["IMAGE"] == f"europe-docker.pkg.dev/project/app/image@{digest}"
+            assert values["SBOM"] == f"{case}/sbom.cdx.json"
+        else:
+            assert environment_file.read_text() == ""

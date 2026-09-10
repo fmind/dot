@@ -15,9 +15,7 @@ from fmind_dot.system import (
     Notification,
     build_notification,
     notification_command,
-    run_setup_github,
-    run_setup_workspace,
-    run_verify,
+    run_doctor,
 )
 
 
@@ -75,7 +73,7 @@ class FakeRunner(Runner):
 
 
 def state_with(runner: FakeRunner, config: Config | None = None) -> State:
-    state = State(runner=runner, browser_open=lambda _url: True)
+    state = State(runner=runner)
     state._config = config or Config()  # noqa: SLF001 - explicit dependency injection for the command boundary.
     return state
 
@@ -103,77 +101,21 @@ def test_notification_command_prefers_notify_send() -> None:
     assert command[-2:] == ["Done", "Turn finished\n~/dot"]
 
 
-def test_setup_github_refreshes_when_already_authenticated() -> None:
-    runner = FakeRunner({"gh"})
-    state = state_with(runner)
-
-    run_setup_github(state)
-
-    assert runner.calls[0] == ["gh", "auth", "status", "--hostname", "github.com"]
-    assert runner.calls[1][:4] == ["gh", "auth", "refresh", "--hostname"]
-    assert runner.calls[1][4] == "github.com"
-    assert runner.calls[1][5] == "--scopes"
-    assert "project" in runner.calls[1][6]
-    assert "write:packages" in runner.calls[1][6]
-
-
-def test_setup_github_logs_in_when_not_authenticated() -> None:
-    class UnauthenticatedRunner(FakeRunner):
-        def run(
-            self,
-            args: Sequence[str],
-            *,
-            cwd: Path | None = None,
-            input_text: str | None = None,
-            env: Mapping[str, str] | None = None,
-            timeout: float | None = None,
-            check: bool = True,
-        ) -> CommandResult:
-            del cwd, input_text, env, timeout, check
-            self.calls.append(list(args))
-            if list(args)[:3] == ["gh", "auth", "status"]:
-                return CommandResult(stdout="", stderr="not logged in", returncode=1)
-            return CommandResult(stdout="ok\n", stderr="", returncode=0)
-
-    runner = UnauthenticatedRunner({"gh"})
-    state = state_with(runner)
-
-    run_setup_github(state)
-
-    assert runner.calls[0] == ["gh", "auth", "status", "--hostname", "github.com"]
-    assert runner.calls[1][:4] == ["gh", "auth", "login", "--hostname"]
-    assert runner.calls[1][4] == "github.com"
-    assert runner.calls[1][5] == "--scopes"
-    assert "project" in runner.calls[1][6]
-    assert "write:packages" in runner.calls[1][6]
-
-
-def test_setup_workspace_uses_argument_then_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    runner = FakeRunner({"gcloud", "gws"})
-    state = state_with(runner)
-    monkeypatch.setenv("GWS_PROJECT", "from-env")
-
-    run_setup_workspace(state, "explicit-project")
-
-    assert runner.calls[0][-3:] == ["--project", "explicit-project", "--quiet"]
-    assert runner.calls[1] == ["gws", "auth", "setup", "--project", "explicit-project"]
-
-
 def test_verify_fails_closed_for_required_environment_and_tools(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.delenv("REQUIRED_FOR_TEST", raising=False)
     config = Config()
-    config.verify.env_vars.required = ["REQUIRED_FOR_TEST"]
-    config.verify.env_vars.optional = []
-    config.verify.tools = ["python", "missing"]
+    config.doctor.env_vars.required = ["REQUIRED_FOR_TEST"]
+    config.doctor.env_vars.optional = []
+    config.doctor.tools = ["python", "missing"]
     secret = tmp_path / "key"
     secret.write_text("encrypted", encoding="utf-8")
     secret.chmod(0o600)
-    config.verify.secrets[0].path = str(secret)
+    config.doctor.secrets[0].path = str(secret)
     runner = FakeRunner({"python"})
 
-    results = run_verify(state_with(runner, config), fix=False)
+    results = run_doctor(state_with(runner, config), fix=False)
 
     assert results["passed"] is False
     assert all(limit is not None for limit in runner.output_limits)
@@ -184,16 +126,33 @@ def test_verify_fails_closed_for_required_environment_and_tools(
 
 def test_verify_omits_empty_optional_result_fields(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config()
-    config.verify.env_vars.required = []
-    config.verify.env_vars.optional = []
-    config.verify.secrets = []
-    config.verify.tools = []
+    config.doctor.env_vars.required = []
+    config.doctor.env_vars.optional = []
+    config.doctor.secrets = []
+    config.doctor.tools = []
     monkeypatch.setattr(
         system,
         "_environment_results",
         lambda _state: [system.CheckResult("minimal", "pass", "")],
     )
 
-    results = run_verify(state_with(FakeRunner(), config), fix=False)
+    results = run_doctor(state_with(FakeRunner(), config), fix=False)
 
     assert results["env_vars"] == [{"name": "minimal", "status": "pass"}]
+
+
+def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPatch) -> None:
+    probes = []
+
+    def probe(_state: State) -> list[system.CheckResult]:
+        probes.append("authentication")
+        return [system.CheckResult("fixture", "pass", "authenticated")]
+
+    monkeypatch.setattr(system, "_auth_results", probe)
+    state = state_with(FakeRunner())
+    local = run_doctor(state, fix=False)
+    assert probes == []
+    assert local["auth"][0]["status"] == "skip"
+    deep = run_doctor(state, fix=False, deep=True)
+    assert probes == ["authentication"]
+    assert deep["auth"][0]["status"] == "pass"

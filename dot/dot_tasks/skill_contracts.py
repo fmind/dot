@@ -330,11 +330,11 @@ def _document_targets(content: str) -> list[str]:
     return targets
 
 
-def _link_findings(root: Path, directory: Path) -> list[str]:
+def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] | None = None) -> list[str]:
     findings: list[str] = []
     resolved_root = root.resolve()
     resolved_directory = directory.resolve()
-    pending = [directory / "SKILL.md"]
+    pending = list(documents) if documents is not None else [directory / "SKILL.md"]
     seen: set[Path] = set()
     while pending:
         document = pending.pop()
@@ -373,7 +373,7 @@ def _link_findings(root: Path, directory: Path) -> list[str]:
                 findings.append(f"{_relative(root, document)}: local link {target!r} escapes the repository")
             elif not resolved.exists():
                 findings.append(f"{_relative(root, document)}: missing local link {target!r}")
-            elif resolved.suffix.lower() == ".md" and resolved.is_relative_to(resolved_directory):
+            elif documents is None and resolved.suffix.lower() == ".md" and resolved.is_relative_to(resolved_directory):
                 pending.append(resolved)
     return findings
 
@@ -565,7 +565,12 @@ def _routing_findings(root: Path, catalog: set[str]) -> list[str]:
 def documentation_findings(root: Path) -> list[str]:
     """Reject stale active-stack claims while allowing explicit archive or external context."""
     findings: list[str] = []
-    documents = (root / "README.md", root / "AGENTS.md", root / "dot_agents/AGENTS.md")
+    documents = tuple(
+        path
+        for path in (root / "README.md", root / "AGENTS.md", root / "dot_agents/AGENTS.md", root / "dot/README.md")
+        if path.is_file()
+    )
+    findings.extend(_link_findings(root, root, documents=documents))
     for path in documents:
         if not path.is_file():
             continue
@@ -657,7 +662,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", action="store_true", help="print informational lexical routing diagnostics")
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[2]
     findings = repository_findings(root)
     if findings:
         for finding in findings:

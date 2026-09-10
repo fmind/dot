@@ -15,24 +15,20 @@ from typer import _click
 from typer.completion import completion_init
 
 from fmind_dot import __version__
-from fmind_dot.commands import AliasedGroup, add_group, aliased_command, state_from
+from fmind_dot.command_group import AlphabeticalGroup
 from fmind_dot.config import Config, dump_config, load_config
 from fmind_dot.errors import DotError
-from fmind_dot.state import State
+from fmind_dot.state import State, state_from
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
-
-
-class _AlphabeticalGroup(AliasedGroup):
-    """Keep the top-level command inventory stable and easy to scan."""
 
 
 # Preserve the shell protocol used by `dot completion` without Typer's duplicate flags.
 completion_init()
 app = typer.Typer(
+    cls=AlphabeticalGroup,
     name="dot",
     help="Unified CLI utility to manage dotfiles and workspaces",
-    cls=_AlphabeticalGroup,
     invoke_without_command=True,
     no_args_is_help=False,
     add_completion=False,
@@ -40,7 +36,9 @@ app = typer.Typer(
     context_settings=_CONTEXT_SETTINGS,
 )
 config_app = typer.Typer(
-    help="Inspect, scaffold, edit, and validate the dot configuration file", context_settings=_CONTEXT_SETTINGS
+    cls=AlphabeticalGroup,
+    help="Inspect, scaffold, edit, and validate the dot configuration file",
+    context_settings=_CONTEXT_SETTINGS,
 )
 
 
@@ -76,21 +74,17 @@ def root(
         typer.echo(context.get_help())
 
 
-@aliased_command(
-    config_app, "show", help_text="Print the effective configuration (defaults merged with the file) as YAML"
-)
+@config_app.command("show", help="Print the effective configuration (defaults merged with the file) as YAML")
 def config_show(context: typer.Context) -> None:
     typer.echo(dump_config(state_from(context).config), nl=False)
 
 
-@aliased_command(config_app, "path", help_text="Print the resolved configuration file path")
+@config_app.command("path", help="Print the resolved configuration file path")
 def config_path(context: typer.Context) -> None:
     typer.echo(state_from(context).config_path)
 
 
-@aliased_command(
-    config_app, "init", help_text="Write a starter configuration file populated with the built-in defaults"
-)
+@config_app.command("init", help="Write a starter configuration file populated with the built-in defaults")
 def config_init(
     context: typer.Context,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite an existing configuration file")] = False,
@@ -113,7 +107,7 @@ def config_init(
     typer.echo(f"✓ Wrote default configuration to {path}")
 
 
-@aliased_command(config_app, "edit", help_text="Open the configuration file in $EDITOR (scaffolds it first if missing)")
+@config_app.command("edit", help="Open the configuration file in $EDITOR (scaffolds it first if missing)")
 def config_edit(context: typer.Context) -> None:
     state = state_from(context)
     if _managed_config(state):
@@ -153,9 +147,7 @@ def _managed_config(state: State) -> bool:
     return str(state.config_path.absolute()) in paths
 
 
-@aliased_command(
-    config_app, "validate", help_text="Validate that the configuration file parses (strict, unknown keys rejected)"
-)
+@config_app.command("validate", help="Validate that the configuration file parses (strict, unknown keys rejected)")
 def config_validate(context: typer.Context) -> None:
     state = state_from(context)
     if not state.config_path.exists() and state.config_argument is None:
@@ -165,16 +157,15 @@ def config_validate(context: typer.Context) -> None:
     typer.echo(f"✓ Configuration at {state.config_path} is valid.")
 
 
-add_group(app, config_app, "config")
+app.add_typer(config_app, name="config")
 
 # Command modules register after the shared helpers exist, keeping each workflow
 # independently testable without a second framework layer.
-from fmind_dot import maintenance, repository, system  # noqa: E402
+from fmind_dot import repository, system  # noqa: E402
 from fmind_dot.agent import agent_app  # noqa: E402
 
-add_group(app, agent_app, "agent")
+app.add_typer(agent_app, name="agent")
 system.register(app)
-maintenance.register(app)
 repository.register_repository_commands(app)
 
 
@@ -194,14 +185,9 @@ def main() -> None:
             exit_code = _invoke_app()
         except KeyboardInterrupt:
             raise SystemExit(130) from None
-        except _click.exceptions.NoSuchOption as error:
-            error.show(file=sys.stderr)
-            raise SystemExit(1) from error
         except _click.exceptions.UsageError as error:
             error.show(file=sys.stderr)
-            missing_command = error.message.startswith("No such command ")
-            exit_code = 3 if missing_command else 1
-            raise SystemExit(exit_code) from error
+            raise SystemExit(2) from error
         except (DotError, OSError, sqlite3.Error, ValueError) as error:
             typer.echo(f"dot: {error}", err=True)
             raise SystemExit(1) from error

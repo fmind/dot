@@ -550,7 +550,10 @@
         "ruff"
       ],
       "primary": "ruff",
-      "top_k": 3
+      "top_k": 3,
+      "forbidden": [
+        "python-stack"
+      ]
     },
     {
       "id": "tool-ty",
@@ -563,7 +566,10 @@
         "ty"
       ],
       "primary": "ty",
-      "top_k": 3
+      "top_k": 3,
+      "forbidden": [
+        "python-stack"
+      ]
     },
     {
       "id": "adk-sdk-code",
@@ -1257,7 +1263,7 @@
         "agents",
         "design"
       ],
-      "prompt": "Design this sustained agent workflow as inner, middle, and outer feedback loops, with judgment in skills and a small typed Python helper CLI.",
+      "prompt": "Design this sustained agent workflow around native /goal, thin prompts/ entry points, and inner, middle, and outer feedback loops; distinguish a new week from a resumed campaign.",
       "expected": [
         "loop-engineering"
       ],
@@ -1765,6 +1771,48 @@
       "forbidden": [
         "agent-evaluation"
       ]
+    },
+    {
+      "id": "python-cli-foundation",
+      "categories": [
+        "engineering"
+      ],
+      "prompt": "Create a packaged Typer command line application with an installed entry point, help, and invalid-argument tests.",
+      "expected": [
+        "typer",
+        "python-stack",
+        "cli-contracts"
+      ],
+      "primary": "typer",
+      "top_k": 3,
+      "require_all_top_k": 5
+    },
+    {
+      "id": "python-web-foundation",
+      "categories": [
+        "engineering",
+        "web"
+      ],
+      "prompt": "Scaffold a Litestar application with typed settings, database readiness, and offline request tests.",
+      "expected": [
+        "litestar",
+        "python-stack"
+      ],
+      "primary": "litestar",
+      "top_k": 3,
+      "require_all_top_k": 5
+    },
+    {
+      "id": "python-shared-defaults",
+      "categories": [
+        "engineering"
+      ],
+      "prompt": "Align this Python library with our shared package layout, dependency policy, and quality baseline.",
+      "expected": [
+        "python-stack"
+      ],
+      "primary": "python-stack",
+      "top_k": 3
     }
   ]
 }

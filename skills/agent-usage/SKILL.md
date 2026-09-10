@@ -20,15 +20,17 @@ Analyze the shared usage archive with dot and DuckDB. Preserve the difference be
 1. **Analyze comparable data**: account for missing sessions, model aliases, cache tokens, provider accounting differences, and time zones before aggregating.
 1. **Report**: include period, sources, completeness, units, assumptions, and the query or artifact supporting the result; protect prompt and account data.
 
+Use `dot agent stats --since 7d --by-model` for a combined prompt and token report, or add `--json` for analysis. API equivalents use the offline rate card in `agent.pricing`, independently of recorded cost; check `priced_sessions`, `pricing_complete` and `unpriced_reasons`. The default estimate assumes standard short context and 5-minute cache writes. Unknown models and unsupported accounting remain unpriced. Cursor session capture is not currently supported.
+
 ## Gotchas
 
 - **Unknown is not free**: Claude can report cost through `cost-state`; absent prices are `null`/`unknown`, not zero. Read `cost_known_sessions` and `cost_complete` before comparing cost. A known zero is distinct from missing cost.
-- **Model attribution**: switched sessions are labeled `mixed`; older extractor records retain totals but use `unknown` model attribution. `usage sync` refreshes derivable records. Whole-session date filters use recorded session timestamps, not interval billing.
+- **Model attribution**: switched sessions are labeled `mixed`; older extractor records retain totals but use `unknown` model attribution. `session sync` refreshes derivable records. Whole-session date filters use recorded session timestamps, not interval billing.
 - **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's final context size. Statistics group these separately and do not combine unlike measurements into one total.
-- **Atomic rewrites prevent duplicates**: each session uses one `<session_id>.json` file overwritten at durable capture boundaries, so aggregation counts a session once.
-- **Capture is single-pass**: the session hook derives normalized logs and usage from one transcript snapshot; the standalone `usage sync` command remains available for backfills.
+- **Atomic generations prevent split state**: transcript and usage publish together. Queries choose one measurement per session and do not sum retained generations.
+- **Capture uses one write path**: session hooks and `session sync` publish the same complete bundle. Legacy usage files remain read-only fallback evidence.
 - **Both harness and agent fields exist**: queries can group by either `harness` or `agent` interchangeably.
-- **`sync` fails loud, hooks fail soft**: `dot agent usage sync` aborts on an unreadable store rather than reporting `Synced 0`, and it rewrites every record it can re-derive — so it is the way to backfill after an extractor changes.
+- **`sync` fails loud, hooks fail soft**: `dot agent session sync` aborts on an unreadable store rather than reporting `Synced 0`, and creates a new generation when the source or parser changes. Reingestion backfills derivable records without rewriting history.
 - **Background hooks fail soft**: hooks spool errors to `~/.agents/hook-failures` so a failure in usage tracking never aborts the agent CLI.
 
 ## Documentation

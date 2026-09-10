@@ -3,15 +3,15 @@ from __future__ import annotations
 import io
 import json
 import shutil
+import weakref
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
-from fmind_dot import session_query
-from fmind_dot.cli import app
-from fmind_dot.session_query import (
+from fmind_dot.archive import query as session_query
+from fmind_dot.archive.query import (
     SESSION_EXPORT_SCHEMA,
     SessionQuery,
     compact_session_generations,
@@ -21,7 +21,7 @@ from fmind_dot.session_query import (
     query_session_summaries,
     show_session,
 )
-from fmind_dot.session_store import (
+from fmind_dot.archive.store import (
     SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
     SessionLog,
@@ -30,6 +30,7 @@ from fmind_dot.session_store import (
     ingest_session,
     session_store_root,
 )
+from fmind_dot.cli import app
 
 
 def _ingest(
@@ -96,6 +97,28 @@ def test_compaction_dry_run_and_apply_retain_best_complete_and_partial_progress(
     assert not stale.exists()
     assert complete.exists()
     assert partial.exists()
+
+
+def test_compaction_releases_transcript_content_between_generations(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    for index in range(3):
+        _ingest("codex", "large-session", fingerprint=str(index) * 64, content="large prompt " * 10000)
+    validate = session_query.validate_session_generation
+    previous: list[weakref.ReferenceType[SessionLog]] = []
+
+    def track_records(path: Path, manifest: SessionManifest) -> list[SessionLog]:
+        assert all(reference() is None for reference in previous), "previous transcript content remains resident"
+        records = validate(path, manifest)
+        previous[:] = [weakref.ref(record) for record in records]
+        return records
+
+    monkeypatch.setattr(session_query, "validate_session_generation", track_records)
+    result = compact_session_generations(io.StringIO())
+    assert result.retained == 1
+    assert result.removable == 2
+    assert result.removed == 0
 
 
 def test_compaction_fails_closed_before_deleting_any_generation(

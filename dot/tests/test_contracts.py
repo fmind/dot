@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from fmind_dot import skill_contracts as checker
+from dot_tasks import skill_contracts as checker
 
 ROOT = Path(__file__).parents[2]
 
@@ -381,6 +381,17 @@ def test_skills_documentation_rejects_active_polyglot_claims_but_allows_explicit
     assert "active Go or TypeScript implementation claim" in findings[0]
 
 
+def test_documentation_checks_root_and_cli_readme_links(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    (root / "README.md").write_text("[Configuration](dot_config/dot.yaml)\n")
+    (root / "dot/README.md").write_text("[Missing reference](missing.md)\n")
+
+    findings = checker.documentation_findings(root)
+
+    assert any("README.md: missing local link 'dot_config/dot.yaml'" in finding for finding in findings)
+    assert any("dot/README.md: missing local link 'missing.md'" in finding for finding in findings)
+
+
 def test_skills_overlap_report_is_informational(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     routing = json.loads((root / "dot/testdata/skills/routing-boundaries.json").read_text(encoding="utf-8"))
@@ -457,7 +468,7 @@ def test_deploy_uses_the_locked_python_runtime_graph() -> None:
     assert "from fmind_dot.system import write_install_receipt" in deploy
     assert 'DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"' in tasks
     assert "run = '\"$DOT_BIN\" completion'" in tasks
-    assert "run = '\"$DOT_BIN\" verify'" in tasks
+    assert "run = '\"$DOT_BIN\" doctor'" in tasks
     assert (
         (ROOT / "dot_local/bin/symlink_dot.tmpl")
         .read_text(encoding="utf-8")

@@ -2,23 +2,18 @@
 
 ## Directory layout and schema
 
-Every session record is stored atomically with permissions `0o600`:
+New measurements live inside immutable session generations:
 
 ```text
-~/.agents/usages/
-├── agy/
-│   └── <session_id>.json
-├── claude/
-│   └── <session_id>.json
-├── codex/
-│   └── <session_id>.json
-├── copilot/
-│   └── <session_id>.json
-└── grok/
-    └── <session_id>.json
+~/.agents/sessions/v1/<agent>/<lineage>/<generation>/
+  manifest.json
+  transcript.jsonl
+  usage.json
 ```
 
-The active synchronization `dot agent usage sync` writes the five verified harnesses above.
+Directories are private (`0o700`), and files are private (`0o600`). `usage.json` has schema `dot.session.usage/v1`, a status (`available` or `unsupported`), and a `record` object when available. `dot agent session sync` captures all five verified adapters. Legacy `~/.agents/usages/<agent>/<session_id>.json` records remain read-only inputs when no current bundle exists.
+
+Query the CLI's selected projection instead of globbing every generation: otherwise older measurements would be counted repeatedly. `dot agent usage list --limit 0 --json` exports all selected usage records for local analysis.
 
 Each record contains:
 
@@ -58,8 +53,9 @@ dot agent usage stats --harness claude                             # filter stat
 dot agent usage stats --since 24h --json                           # emit json array for scripting
 dot agent usage list -n 20                                         # list recent session records
 dot agent usage show claude <session_id>                           # inspect a specific session record
-dot agent usage sync                                               # scan raw stores and backfill missing records
-duckdb -c "SELECT harness, measurement_kind, count(*), sum(total_tokens) FROM read_json_auto('~/.agents/usages/*/*.json', union_by_name=true) GROUP BY harness, measurement_kind" # comparable groups only
+dot agent session sync                                            # capture/backfill transcript and usage together
+(umask 077; dot agent usage list --limit 0 --json > usage.json)
+duckdb -c "SELECT harness, measurement_kind, count(*), sum(total_tokens) FROM read_json_auto('usage.json', union_by_name=true) GROUP BY harness, measurement_kind"
 ```
 
 Prefer CLI statistics when archives contain old extractor records: they label historical model attribution unknown rather than trusting the last model string. Missing costs serialize as `null`. A partial group reports its known subtotal plus completeness counts; it is not an estimate of the missing bill. `--since`/`--until` include whole sessions at their recorded timestamps, never prorated interval usage.

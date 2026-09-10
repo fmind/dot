@@ -11,9 +11,9 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 - **Shell & Terminal** — [Fish](https://fishshell.com/) with [Starship](https://starship.rs/), [Atuin](https://atuin.sh/), [zoxide](https://github.com/ajeetdsouza/zoxide), [fzf](https://github.com/junegunn/fzf), [Ghostty](https://ghostty.org/), and [Zellij](https://zellij.dev/).
 - **Editor** — [Neovim](https://neovim.io/) powered by [LazyVim](https://www.lazyvim.org/).
-- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), and [Grok Build](https://x.ai/build) (`grok`).
+- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), [Grok Build](https://x.ai/build) (`grok`), and [Cursor CLI](https://cursor.com/docs/cli) (`cursor-agent`).
 - **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, marimo, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
-- **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and logins ([`dot/`](dot/)).
+- **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and diagnostics ([`dot/`](dot/)).
 - **User-Space Toolchain** — CLIs managed declaratively in user space via [mise](https://mise.jdx.dev/) and dotfiles synced via [chezmoi](https://www.chezmoi.io/).
 
 ## Prerequisites
@@ -62,11 +62,21 @@ Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout withou
 
 The installer prompts for Git identity, applies the dotfiles and eligible installation hooks, installs the locked tools and `dot` CLI, and configures Git hooks and Neovim plugins. Open a new shell afterward, or use `~/.local/bin/dot --help` to check the installed CLI directly.
 
+### Python environment
+
+Run `uv sync --locked` in each existing Python project to create its `.venv` before opening it in Neovim. LazyVim uses ty for types and navigation, Ruff for linting, formatting, and import sorting, and the project environment for pytest and debugging. mise supplies ty and Ruff ahead of Mason's tools. Python debugging uses uv to provide debugpy on demand; the first run may download it.
+
+For a Python REPL with the project's dependencies, run `uv run --with ptpython ptpython` from that project. The globally installed `ptpython` has its own isolated environment.
+
+### Cursor CLI
+
+Cursor CLI is installed by mise as `cursor-agent`. Create a Cursor account, then run `cursor-agent login`; installation and local configuration work before sign-in. The managed CLI configuration enables unrestricted approvals, disables sandboxing, enables Vim controls and detailed progress, and disables commit/PR attribution. Your account-selected model and explicit deny rules are retained. Global skills load from `~/.agents/skills`; a session-start hook supplies the shared persona. Cursor uses the terminal palette; no unsupported theme key is set. Account-dependent models and inference remain unverified until login.
+
 ### Dot configuration
 
-The CLI reads `~/.config/dot.yaml`, managed from [`dot_config/dot.yaml`](dot_config/dot.yaml), and merges its values with built-in defaults. Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
+The CLI optionally reads `~/.config/dot.yaml` and merges its values with built-in defaults. The [CLI configuration and migration guide](dot/README.md) describes version 3 and its numeric timeout settings. Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
 
-Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the managed source through chezmoi. Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
+Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the file (through its source when chezmoi manages it). Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
 
 ## Agent skills
 
@@ -129,20 +139,21 @@ API keys and credentials are split between two Fish configuration files:
 
 ### Authentication & Logins
 
-| Tool / Service           | Command                                               | Auth Type             |
-| ------------------------ | ----------------------------------------------------- | --------------------- |
-| **GitHub CLI**           | `dot login github` (or `gh auth login`)               | Browser OAuth         |
-| **Google Cloud SDK**     | `dot login gcp` (or `gcloud auth login --update-adc`) | ADC + OAuth           |
-| **Google Workspace CLI** | `dot login workspace`                                 | Browser OAuth         |
-| **Antigravity CLI**      | `agy`                                                 | On-demand prompt      |
-| **Claude Code**          | `claude auth login` (or `claude` → `/login`)          | Interactive / browser |
-| **OpenAI Codex CLI**     | `codex login`                                         | Interactive           |
-| **OpenCode CLI**         | `dot login gcp`, then `opencode`                      | Vertex AI ADC         |
-| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)             | Interactive / browser |
-| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                       | Interactive / API key |
-| **Jules CLI**            | `jules login`                                         | Interactive           |
+| Tool / Service           | Command                                           | Auth Type               |
+| ------------------------ | ------------------------------------------------- | ----------------------- |
+| **GitHub CLI**           | `gh auth login`                                   | Browser OAuth           |
+| **Google Cloud SDK**     | `gcloud auth login --update-adc`                  | ADC + OAuth             |
+| **Google Workspace CLI** | `gws auth login`                                  | Browser OAuth           |
+| **Antigravity CLI**      | `agy`                                             | On-demand prompt        |
+| **Claude Code**          | `claude auth login` (or `claude` → `/login`)      | Interactive / browser   |
+| **Cursor CLI**           | `cursor-agent login`                              | Create an account first |
+| **OpenAI Codex CLI**     | `codex login`                                     | Interactive             |
+| **OpenCode CLI**         | `gcloud auth login --update-adc`, then `opencode` | Vertex AI ADC           |
+| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)         | Interactive / browser   |
+| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                   | Interactive / API key   |
+| **Jules CLI**            | `jules login`                                     | Interactive             |
 
-Use `dot setup github` to refresh the configured GitHub OAuth scopes, and `dot setup workspace <project-id>` to enable and configure the Workspace APIs.
+Use `gh auth refresh` for explicitly required GitHub scopes, and `gws auth setup --project <project-id>` for Workspace setup. Select the account, project, APIs, and scopes deliberately through each provider's native CLI.
 
 Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
 

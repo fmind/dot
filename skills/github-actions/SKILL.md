@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-09-09"
+  updated: "2026-09-10"
 ---
 
 # GitHub Actions for Python
@@ -15,7 +15,7 @@ CI runs the canonical [mise](../mise/SKILL.md) `all` task so it stays aligned wi
 
 ## Workflow
 
-1. **CI**: copy [ci.yml](references/ci.yml) to `.github/workflows/ci.yml`; it runs `mise run all`, asserts an empty porcelain status so drift fails the build, and fetches 100 commits to match the `check:leaks` bound.
+1. **CI**: copy [ci.yml](references/ci.yml) to `.github/workflows/ci.yml`; it runs `mise run all`, asserts an empty porcelain status so drift fails the build, and fetches 100 commits to match the `check:leaks:history` bound.
 1. **Security**: copy [security.yml](references/security.yml) to `.github/workflows/security.yml`: a scheduled full-history [gitleaks](../gitleaks/SKILL.md) and [trivy](../trivy/SKILL.md) rescan where any finding fails the job.
 1. **CD**: copy [cd.yml](references/cd.yml) to `.github/workflows/cd.yml`; enable `ENABLE_DEPLOY_PYPI`, `ENABLE_DEPLOY_CONTAINER`, or both. Configure the `pypi` environment and matching PyPI Trusted Publisher before enabling package publication. The image path expects the [containerize](../containerize/SKILL.md) Dockerfile, `trivy.yaml`, and `trivy` plus `cosign` in `mise.toml`.
 1. **Lint the workflows**: pin `actionlint`, `shellcheck`, and `zizmor` in `mise.toml` `[tools]`, and expose `check:actions`:
@@ -30,6 +30,7 @@ CI runs the canonical [mise](../mise/SKILL.md) `all` task so it stays aligned wi
 
 ## Principles
 
+- **Simple steps**: use a direct command or `mise run <task>` per operation. Short multiline sequences are fine when they remain easy to read; use named steps for scan, sign, and verification. Use action outputs instead of parsing CLI output when supported. Keep branching, retries, and release reconciliation in maintained source, not a shell blob in YAML or TOML.
 - **One gate**: CI runs `mise run all`, the same tasks the hooks call plus the production build.
 - **Pinned project tools**: `jdx/mise-action` installs the `mise.toml` toolchain; commit `mise.lock` for stable caches and disable caches in release jobs.
 - **Isolated publishing**: build distributions without OIDC, transfer only `dist/`, then grant `id-token: write` to the PyPI job. `pypa/gh-action-pypi-publish` performs Trusted Publishing and creates PyPI attestations.

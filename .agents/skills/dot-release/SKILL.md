@@ -16,11 +16,11 @@ Use the checkout's release task as the single owner of preparation and publicati
 ## Workflow
 
 1. **Resolve the mode**: preparation, authorized release, or read-only reconciliation. The release command commits, pushes, and refreshes the installed CLI; a review or skill invocation alone does not authorize those actions.
-1. **Inspect preconditions**: a clean tree on the configured default branch, `gh` authenticated, and `git`, `git-cliff`, `mise`, and `uv` available. Defaults are `main` and `origin`; inspect `release` configuration before assuming them. Preserve unrelated work when a precondition fails.
-1. **Run the owner**: use the commands below from the repository. The task uses `uv run --frozen dot release`, avoiding an installed CLI that may lag source.
+1. **Inspect preconditions**: a clean tree on the configured default branch, `gh` authenticated, and `git`, `git-cliff`, `mise`, and `uv` available. Defaults are `main` and `origin`; inspect the task's `--remote` and `--branch` arguments before assuming them. Preserve unrelated work when a precondition fails.
+1. **Run the owner**: use the commands below from the repository. The task uses `uv run --frozen --directory dot python -m dot_tasks.release`, avoiding an installed CLI that may lag source.
 1. **Read the result**: a new release requires HEAD equal to the fetched upstream branch. Preparation updates `dot/pyproject.toml`, `CHANGELOG.md`, and `dot/uv.lock`, then runs format, check, test, and build. Only those generated release files may change.
 1. **Reconcile publication**: the command commits, pushes the specific release commit, creates or validates its annotated tag, pushes that exact tag object, and verifies remote acceptance. It then runs `mise run --force deploy` to refresh the installed CLI. A retry revalidates an existing prepared release instead of creating another version.
-1. **Verify delivery**: the tag triggers [cd.yml](../../../.github/workflows/cd.yml). `dot release --wait` observes the exact head/tag CD and checks public wheel/source assets within `release.wait_timeout`; without it, success reports dispatch only. Follow the global release skill's [verification](../../../skills/release/references/verify.md) and [asset checks](../../../skills/release/references/verify-assets.md) for deeper artifact and installed-version proof. Local command success does not prove CD completion.
+1. **Verify delivery**: the tag triggers [cd.yml](../../../.github/workflows/cd.yml). `mise run release -- --wait` observes the exact head/tag CD and checks public wheel/source assets within `--timeout-seconds` (default 1800); without it, success reports dispatch only. Follow the global release skill's [verification](../../../skills/release/references/verify.md) and [asset checks](../../../skills/release/references/verify-assets.md) for deeper artifact and installed-version proof. Local command success does not prove CD completion.
 
 ```bash
 mise run release          # interactive preparation and publication
@@ -29,7 +29,7 @@ mise run release -- -y     # non-interactive, within an authorized release
 
 ## Recovery
 
-Inspect `git status --short`, the release commit, local tag, and remote state before retrying. [maintenance.py](../../../dot/src/fmind_dot/maintenance.py) owns recovery; search `run_release`, `_validate_prepared_release`, and `push_release_tag`. Its failure cases are exercised in [test_maintenance.py](../../../dot/tests/test_maintenance.py).
+Inspect `git status --short`, the release commit, local tag, and remote state before retrying. [release.py](../../../dot/dot_tasks/release.py) owns recovery; search `run_release`, `_validate_prepared_release`, and `push_release_tag`. Its failure cases are exercised in [test_release.py](../../../dot/tests/test_release.py).
 
 | Failure boundary                                         | Next action                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

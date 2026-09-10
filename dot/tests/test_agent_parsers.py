@@ -6,11 +6,10 @@ from contextlib import closing
 
 import pytest
 
-from fmind_dot import agent_parsers as parser_module
-from fmind_dot.agent_parsers import (
+from fmind_dot.archive import parsers as parser_module
+from fmind_dot.archive.parsers import (
     agent_adapters,
     enumerate_sessions,
-    enumerate_usage_sessions,
     extract_agy_usage,
     extract_claude_usage,
     extract_codex_usage,
@@ -23,7 +22,7 @@ from fmind_dot.agent_parsers import (
     parse_copilot_session,
     parse_grok_session,
 )
-from fmind_dot.session_store import fingerprint_bytes, fingerprint_file
+from fmind_dot.archive.store import fingerprint_bytes, fingerprint_file, fingerprint_json
 
 
 def _jsonl(path, rows) -> None:
@@ -189,7 +188,12 @@ def test_jsonl_parser_binds_logs_and_fingerprint_to_one_snapshot(
 
     assert appended
     assert [log.content for log in parsed.logs] == ["first"]
-    assert parsed.fingerprint == fingerprint_bytes(snapshot)
+    expected = (
+        fingerprint_json({"transcript": fingerprint_bytes(snapshot), "signals": None})
+        if parser is parse_grok_session
+        else fingerprint_bytes(snapshot)
+    )
+    assert parsed.fingerprint == expected
     assert parsed.fingerprint != fingerprint_file(transcript)
 
 
@@ -347,7 +351,8 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
     }
     assert enumerate_sessions(codex_root, "codex") == [("codex-id", "", codex)]
     assert enumerate_sessions(grok_root, "grok") == [("grok-id", "/work/grok", grok)]
-    assert {candidate[0] for candidate in enumerate_usage_sessions(grok_root, "grok")} == {
+    (grok_root / "%2Fwork%2Fgrok/signals-id/signals.json").write_text("{}")
+    assert {candidate[0] for candidate in enumerate_sessions(grok_root, "grok")} == {
         "grok-id",
         "signals-id",
     }
@@ -484,6 +489,8 @@ def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path)
     grok_dir = tmp_path / "grok"
     grok_dir.mkdir()
     (grok_dir / "signals.json").write_text("{", encoding="utf-8")
-    assert extract_grok_usage(grok_dir, "grok-id").total_tokens == 0
+    with pytest.raises(json.JSONDecodeError):
+        extract_grok_usage(grok_dir, "grok-id")
     (grok_dir / "signals.json").write_text("[]", encoding="utf-8")
-    assert extract_grok_usage(grok_dir, "grok-id").total_tokens == 0
+    with pytest.raises(ValueError, match="JSON object"):
+        extract_grok_usage(grok_dir, "grok-id")

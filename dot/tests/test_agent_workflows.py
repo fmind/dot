@@ -16,16 +16,21 @@ import pytest
 from typer.testing import CliRunner
 
 from fmind_dot import agent as agent_module
+from fmind_dot import agent_doctor as agent_doctor_module
+from fmind_dot import artifacts as artifacts_module
 from fmind_dot import cli as cli_module
-from fmind_dot.agent import resolve_hook_identity, sync_sessions, sync_usage
-from fmind_dot.agent_parsers import AgentAdapter, ParsedSession
+from fmind_dot import hooks as hooks_module
+from fmind_dot import private_files as private_files_module
+from fmind_dot.archive import ingest as archive_ingest_module
+from fmind_dot.archive.ingest import resolve_hook_identity, sync_sessions
+from fmind_dot.archive.parsers import AgentAdapter, ParsedSession
+from fmind_dot.archive.store import fingerprint_file, session_generation_id, session_lineage_id
+from fmind_dot.archive.usage import UsageRecord, load_usage_records
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
-from fmind_dot.session_store import fingerprint_file, session_generation_id
 from fmind_dot.state import State
-from fmind_dot.usage import UsageRecord
 
 
 class GitRootRunner(Runner):
@@ -118,7 +123,7 @@ def _create_copilot_database(path: Path, *, complete_schema: bool = True) -> Non
             )
 
 
-@pytest.mark.parametrize("sync", [sync_sessions, sync_usage])
+@pytest.mark.parametrize("sync", [sync_sessions])
 def test_sync_rejects_configured_source_with_wrong_kind(
     sync: Callable[[State], int], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -218,7 +223,7 @@ def test_prune_agent_artifacts_dry_run_lists_each_entry(tmp_path: Path) -> None:
     prompt.write_text("prompt", encoding="utf-8")
     report.write_text("report", encoding="utf-8")
     state = _state(runner=GitRootRunner(tmp_path))
-    reclaimed = agent_module.prune_agent_artifacts(state, dry_run=True)
+    reclaimed = artifacts_module.prune_agent_artifacts(state, dry_run=True)
 
     assert reclaimed > 0
     assert prompt.is_file()
@@ -241,7 +246,7 @@ def test_failure_spool_is_private_bounded_and_redacts_session_ids(
     session_id = "01a0685e-853d-7c12-99a8-4866999e6f55"
 
     for index in range(3):
-        agent_module._spool_hook_failure(  # noqa: SLF001 - exercise the spool boundary directly.
+        hooks_module._spool_hook_failure(  # noqa: SLF001 - exercise the spool boundary directly.
             state,
             "codex",
             "session",
@@ -272,18 +277,18 @@ def test_failure_spool_retention_stays_on_opened_root_when_path_is_swapped(
     for path in outside_records:
         path.write_text("preserve\n", encoding="utf-8")
     moved = tmp_path / ".agents/hook-failures/v1-opened"
-    original_publish = agent_module._publish_owner_only_at  # noqa: SLF001 - inject a deterministic race.
+    original_publish = private_files_module._publish_owner_only_at  # noqa: SLF001 - inject a deterministic race.
 
     def publish_then_swap(directory: int, name: str, content: bytes) -> None:
         original_publish(directory, name, content)
         root.rename(moved)
         root.symlink_to(outside, target_is_directory=True)
 
-    monkeypatch.setattr(agent_module, "_publish_owner_only_at", publish_then_swap)
+    monkeypatch.setattr(hooks_module, "_publish_owner_only_at", publish_then_swap)
     state = _state()
     state.config.agent.hook_failures.limit = 1
 
-    agent_module._spool_hook_failure(  # noqa: SLF001 - exercise retention after the injected race.
+    hooks_module._spool_hook_failure(  # noqa: SLF001 - exercise retention after the injected race.
         state, "codex", "session", "private-session", DotError("failed")
     )
 
@@ -332,15 +337,12 @@ def test_session_sync_preserves_source_generations_and_standalone_usage(
     assert {manifest["source_fingerprint"] for manifest in parsed} == {
         fingerprint_file(tmp_path / f".claude/projects/project-{index}/{session_id}.jsonl") for index in (1, 2)
     }
-    usage_path = tmp_path / f".agents/usages/claude/{session_id}.json"
-    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    usage = load_usage_records()[0].to_dict()
     assert usage["total_tokens"] == 28
-    usage["total_tokens"] = 999
-    usage_path.write_text(json.dumps(usage), encoding="utf-8")
 
     assert sync_sessions(state) == 2
     assert len(list(lineage.glob("*/*/manifest.json"))) == 2
-    assert json.loads(usage_path.read_text(encoding="utf-8"))["total_tokens"] == 999
+    assert load_usage_records()[0].total_tokens == 28
     assert isinstance(state.stderr, io.StringIO)
     assert "claude: 2 checked" in state.stderr.getvalue()
     assert "agent-session-sync: done (2 total processed)" in state.stderr.getvalue()
@@ -393,19 +395,14 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
     _create_copilot_database(tmp_path / ".copilot/session-store.db")
     state = _state()
 
-    assert sync_usage(state) == 4
+    assert sync_sessions(state) == 4
 
     assert isinstance(state.stdout, io.StringIO)
-    assert state.stdout.getvalue() == "Synced 4 usage records across 4 harnesses into ~/.agents/usages\n"
-    usage_root = tmp_path / ".agents/usages"
-    assert sorted(path.relative_to(usage_root).as_posix() for path in usage_root.rglob("*.json")) == [
-        "agy/agy-sync.json",
-        "claude/claude-sync.json",
-        "copilot/copilot-live.json",
-        "grok/grok-sync.json",
-    ]
-    assert json.loads((usage_root / "agy/agy-sync.json").read_text(encoding="utf-8"))["turn_count"] == 1
-    assert json.loads((usage_root / "grok/grok-sync.json").read_text(encoding="utf-8"))["total_tokens"] == 21
+    usage = {record.harness: record for record in load_usage_records()}
+    assert set(usage) == {"agy", "claude", "copilot", "grok"}
+    assert usage["agy"].turn_count == 1
+    assert usage["grok"].total_tokens == 21
+    assert not (tmp_path / ".agents/usages").exists()
 
 
 def test_unsupported_typed_hook_fields_fail_instead_of_changing_control_flow(
@@ -431,10 +428,10 @@ def test_copilot_session_end_is_idempotent_and_writes_usage(monkeypatch: pytest.
 
     assert all(result.exit_code == 0 and result.stdout == "{}\n" for result in outputs)
     manifests = list((tmp_path / ".agents/sessions/v1/copilot").glob("*/*/manifest.json"))
-    assert len(manifests) == 1
+    assert len(manifests) == 2
     manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
     assert manifest["record_count"] == 2
-    usage = json.loads((tmp_path / ".agents/usages/copilot/copilot-live.json").read_text(encoding="utf-8"))
+    usage = load_usage_records()[0].to_dict()
     assert usage["model"] == "gpt-test"
     assert usage["total_tokens"] == 27
 
@@ -449,7 +446,7 @@ def test_prune_agent_artifacts_removes_only_generated_targets_and_rejects_redire
     (prompts / "TASK.md").write_text("prompt", encoding="utf-8")
     (skills / "SKILL.md").write_text("preserve", encoding="utf-8")
     state = _state(runner=GitRootRunner(tmp_path))
-    agent_module.prune_agent_artifacts(state, dry_run=False)
+    artifacts_module.prune_agent_artifacts(state, dry_run=False)
 
     assert not prompts.exists()
     assert (skills / "SKILL.md").read_text(encoding="utf-8") == "preserve"
@@ -460,7 +457,7 @@ def test_prune_agent_artifacts_removes_only_generated_targets_and_rejects_redire
     (outside / "keep.md").write_text("keep", encoding="utf-8")
     (tmp_path / ".agents/prompts").symlink_to(outside, target_is_directory=True)
     with pytest.raises(DotError, match="refusing symlinked cleanup directory"):
-        agent_module.prune_agent_artifacts(state, dry_run=False)
+        artifacts_module.prune_agent_artifacts(state, dry_run=False)
     assert (outside / "keep.md").read_text(encoding="utf-8") == "keep"
 
 
@@ -472,7 +469,7 @@ def test_prune_agent_artifacts_rejects_non_directory_target_with_context(
     (agents / "prompts").write_text("not a directory", encoding="utf-8")
     state = _state(runner=GitRootRunner(tmp_path))
     with pytest.raises(DotError, match=r"cleanup target \.agents/prompts is not a directory"):
-        agent_module.prune_agent_artifacts(state, dry_run=False)
+        artifacts_module.prune_agent_artifacts(state, dry_run=False)
 
 
 def test_session_and_usage_cli_surfaces_report_ingested_evidence(
@@ -591,9 +588,9 @@ def test_prune_agent_artifacts_stays_on_opened_directory_when_target_is_swapped_
 
     monkeypatch.setattr(Path, "is_symlink", racing_is_symlink)
     monkeypatch.setattr(os, "listdir", racing_listdir)
-    monkeypatch.setattr(agent_module, "_safe_agent_fs_available", lambda: True)
+    monkeypatch.setattr(artifacts_module, "_safe_agent_fs_available", lambda: True)
     state = _state(runner=GitRootRunner(tmp_path))
-    agent_module.prune_agent_artifacts(state, dry_run=False)
+    artifacts_module.prune_agent_artifacts(state, dry_run=False)
 
     assert swapped
     assert victim.read_text(encoding="utf-8") == "preserve"
@@ -607,10 +604,10 @@ def test_prune_agent_artifacts_fails_closed_without_symlink_safe_recursive_delet
     generated = tmp_path / ".agents/prompts/nested/generated.md"
     generated.parent.mkdir(parents=True)
     generated.write_text("generated", encoding="utf-8")
-    monkeypatch.delattr(agent_module.os, "fwalk")
+    monkeypatch.delattr(os, "fwalk")
     state = _state(runner=GitRootRunner(tmp_path))
     with pytest.raises(DotError, match="safe agent cleanup is unavailable on this platform"):
-        agent_module.prune_agent_artifacts(state, dry_run=False)
+        artifacts_module.prune_agent_artifacts(state, dry_run=False)
     assert generated.read_text(encoding="utf-8") == "generated"
 
 
@@ -666,12 +663,12 @@ def test_hook_identity_accepts_host_aliases_and_fails_closed_on_bad_identity(tmp
 )
 def test_copilot_session_end_decoder_rejects_every_invalid_contract_shape(payload: str) -> None:
     with pytest.raises(DotError, match="Copilot sessionEnd"):
-        agent_module.decode_copilot_session_end(io.StringIO(payload))
+        hooks_module.decode_copilot_session_end(io.StringIO(payload))
 
 
 def test_copilot_session_end_decoder_requires_a_payload() -> None:
     with pytest.raises(DotError, match="missing Copilot sessionEnd payload"):
-        agent_module.decode_copilot_session_end(None)
+        hooks_module.decode_copilot_session_end(None)
 
 
 def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
@@ -688,10 +685,10 @@ def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
         assert verified_only
         return [adapter]
 
-    monkeypatch.setattr(agent_module, "agent_adapters", adapters)
+    monkeypatch.setattr(archive_ingest_module, "agent_adapters", adapters)
     state = _state()
     state.config.agent.sources["fixture"] = str(tmp_path)
-    monkeypatch.setattr(agent_module, "enumerate_sessions", lambda _root, _agent: [(session_id, "", tmp_path)])
+    monkeypatch.setattr(archive_ingest_module, "enumerate_sessions", lambda _root, _agent: [(session_id, "", tmp_path)])
 
     with pytest.raises(DotError, match=r"failed to ingest session for Fixture: bad session <session>"):
         sync_sessions(state)
@@ -699,50 +696,34 @@ def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
     def scan_failure(_root: Path, _agent: str):
         raise sqlite3.OperationalError(f"scan exposed {session_id}")
 
-    monkeypatch.setattr(agent_module, "enumerate_usage_sessions", scan_failure)
-    with pytest.raises(DotError, match=r"failed to scan usage for Fixture: scan exposed <session>"):
-        sync_usage(state)
+    monkeypatch.setattr(archive_ingest_module, "enumerate_sessions", scan_failure)
+    with pytest.raises(DotError, match=r"failed to scan sessions for Fixture: scan exposed <session>"):
+        sync_sessions(state)
 
 
-def test_session_sync_keeps_ingestion_when_standalone_usage_is_invalid(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    session_id = "fixture-id"
+def test_session_sync_rejects_failed_usage_before_publication(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
     adapter = AgentAdapter(
         "fixture",
         "Fixture",
         "",
         "fixture",
         False,
-        lambda _path, _session_id, _cwd: ParsedSession([], "a" * 64, "fixture"),
+        lambda *_args: ParsedSession([], "a" * 64, "fixture", usage_error=ValueError("private detail")),
         None,
     )
-
-    def adapters(*, verified_only: bool = False) -> list[AgentAdapter]:
-        assert verified_only
-        return [adapter]
-
-    monkeypatch.setattr(agent_module, "agent_adapters", adapters)
-    monkeypatch.setattr(agent_module, "enumerate_sessions", lambda _root, _agent: [(session_id, "", tmp_path)])
+    monkeypatch.setattr(archive_ingest_module, "agent_adapters", lambda **_kwargs: [adapter])
+    monkeypatch.setattr(archive_ingest_module, "enumerate_sessions", lambda *_args: [("fixture-id", "", tmp_path)])
     monkeypatch.setattr(
-        agent_module,
+        archive_ingest_module,
         "ingest_session",
-        lambda *_args, **_kwargs: SimpleNamespace(status="ingested"),
+        lambda *_args, **_kwargs: pytest.fail("published incomplete extraction"),
     )
-    monkeypatch.setattr(agent_module, "report_ingestion", lambda _result: "agent-session: ingested")
-
-    def usage_failure(*_args, **_kwargs) -> None:
-        raise ValueError(f"invalid usage for {session_id}")
-
-    monkeypatch.setattr(agent_module, "record_agent_usage", usage_failure)
     state = _state()
     state.config.agent.sources["fixture"] = str(tmp_path)
-
-    with pytest.raises(DotError, match="completed with usage errors"):
+    with pytest.raises(DotError, match="usage extraction failed"):
         sync_sessions(state)
-    assert isinstance(state.stderr, io.StringIO)
-    assert "usage not recorded for this session: invalid usage for <session>" in state.stderr.getvalue()
-    assert "fixture: 1 checked" in state.stderr.getvalue()
+    assert not (tmp_path / ".agents/sessions").exists()
 
 
 def test_usage_sync_normalizes_candidate_record_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -760,18 +741,20 @@ def test_usage_sync_normalizes_candidate_record_failure(monkeypatch: pytest.Monk
         assert verified_only
         return [adapter]
 
-    monkeypatch.setattr(agent_module, "agent_adapters", adapters)
-    monkeypatch.setattr(agent_module, "enumerate_usage_sessions", lambda _root, _agent: [("fixture-id", "", tmp_path)])
+    monkeypatch.setattr(archive_ingest_module, "agent_adapters", adapters)
+    monkeypatch.setattr(
+        archive_ingest_module, "enumerate_sessions", lambda _root, _agent: [("fixture-id", "", tmp_path)]
+    )
 
     def record_failure(*_args, **_kwargs) -> None:
         raise OSError("source vanished")
 
-    monkeypatch.setattr(agent_module, "record_agent_usage", record_failure)
+    monkeypatch.setattr(archive_ingest_module, "ingest_session", record_failure)
     state = _state()
     state.config.agent.sources["fixture"] = str(tmp_path)
 
-    with pytest.raises(DotError, match="failed to record usage for Fixture: source vanished"):
-        sync_usage(state)
+    with pytest.raises(DotError, match="failed to ingest session for Fixture: source vanished"):
+        sync_sessions(state)
 
 
 def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -807,7 +790,7 @@ def test_prune_agent_artifacts_cleans_all_targets_and_unlinks_nested_symlinks(
     prompts.mkdir(parents=True)
     (prompts / "outside-link").symlink_to(outside, target_is_directory=True)
     state = _state(runner=GitRootRunner(tmp_path))
-    agent_module.prune_agent_artifacts(state, dry_run=False)
+    artifacts_module.prune_agent_artifacts(state, dry_run=False)
 
     assert victim.read_text(encoding="utf-8") == "preserve"
     assert list(prompts.iterdir()) == []
@@ -822,46 +805,31 @@ def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts
     state = _state()
 
     with pytest.raises(DotError, match="unknown session agent"):
-        agent_module.ingest_agent_session(state, "unknown", "session-id")
+        archive_ingest_module.ingest_agent_session(state, "unknown", "session-id")
     with pytest.raises(DotError, match="missing session_id"):
-        agent_module.ingest_agent_session(state, "copilot")
+        archive_ingest_module.ingest_agent_session(state, "copilot")
     with pytest.raises(DotError, match="invalid session_id format"):
-        agent_module.ingest_agent_session(state, "copilot", "invalid/id")
+        archive_ingest_module.ingest_agent_session(state, "copilot", "invalid/id")
 
     halted = _state(stdin='{"conversationId":"agy-id","fullyIdle":false}')
-    agent_module.ingest_agent_session(halted, "agy", hook=True)
+    archive_ingest_module.ingest_agent_session(halted, "agy", hook=True)
     assert isinstance(halted.stdout, io.StringIO)
     assert halted.stdout.getvalue() == '{"decision":""}\n'
 
     missing = tmp_path / "missing.jsonl"
     state.stdin = io.StringIO(json.dumps({"sessionId": "claude-id", "transcriptPath": str(missing)}))
     with pytest.raises(DotError, match="transcript from hook payload is unavailable"):
-        agent_module.ingest_agent_session(state, "claude")
+        archive_ingest_module.ingest_agent_session(state, "claude")
 
     source = tmp_path / "claude"
     state.config.agent.sources["claude"] = str(source)
     duplicate = source / "nested/duplicate-id.jsonl"
     _write_jsonl(duplicate, {"type": "user", "message": {"content": "ask"}})
-    existing = SimpleNamespace(lineage_id="lineage", source_fingerprint=fingerprint_file(duplicate))
-    monkeypatch.setattr(agent_module, "stored_generation", lambda *_args: existing)
-    monkeypatch.setattr(agent_module, "report_ingestion", lambda _result: "agent-session: duplicate")
+    monkeypatch.setattr(archive_ingest_module, "report_ingestion", lambda _result: "agent-session: duplicate")
     state.stdin = io.StringIO()
-    agent_module.ingest_agent_session(state, "claude", "duplicate-id")
+    archive_ingest_module.ingest_agent_session(state, "claude", "duplicate-id")
     assert isinstance(state.stderr, io.StringIO)
     assert state.stderr.getvalue().endswith("agent-session: duplicate\n")
-
-    ingested = source / "nested/ingested-id.jsonl"
-    _write_jsonl(ingested, {"type": "user", "message": {"content": "ask"}})
-    monkeypatch.setattr(agent_module, "stored_generation", lambda *_args: None)
-    monkeypatch.setattr(agent_module, "ingest_session", lambda *_args, **_kwargs: SimpleNamespace(status="ingested"))
-    monkeypatch.setattr(agent_module, "report_ingestion", lambda _result: "agent-session: ingested")
-
-    def fail_usage(*_args, **_kwargs) -> None:
-        raise ValueError("usage unavailable")
-
-    monkeypatch.setattr(agent_module, "write_usage_record", fail_usage)
-    agent_module.ingest_agent_session(state, "claude", "ingested-id")
-    assert state.stderr.getvalue().endswith("claude: usage not recorded for this session: usage unavailable\n")
 
 
 def test_session_ingestion_writes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -883,25 +851,31 @@ def test_session_ingestion_writes_usage_from_the_same_parse(monkeypatch: pytest.
         lambda _path, _session_id, _cwd: ParsedSession([], "a" * 64, "fixture", usage=usage),
         lambda *_args: pytest.fail("standalone usage parser reread the transcript"),
     )
-    monkeypatch.setitem(agent_module.AGENT_ADAPTERS, "fixture", adapter)
-    monkeypatch.setattr(agent_module, "_resolved_transcript", lambda *_args: source)
+    monkeypatch.setitem(archive_ingest_module.AGENT_ADAPTERS, "fixture", adapter)
+    monkeypatch.setattr(archive_ingest_module, "_resolved_transcript", lambda *_args: source)
     monkeypatch.setattr(
         agent_module,
         "fingerprint_file",
         lambda _path: pytest.fail("session ingestion reread the transcript to fingerprint it"),
         raising=False,
     )
-    monkeypatch.setattr(agent_module, "stored_generation", lambda *_args: None)
-    monkeypatch.setattr(agent_module, "ingest_session", lambda *_args, **_kwargs: SimpleNamespace(status="ingested"))
-    monkeypatch.setattr(agent_module, "report_ingestion", lambda _result: "agent-session: ingested")
+    monkeypatch.setattr(
+        archive_ingest_module, "ingest_session", lambda *_args, **_kwargs: SimpleNamespace(status="ingested")
+    )
+    monkeypatch.setattr(archive_ingest_module, "report_ingestion", lambda _result: "agent-session: ingested")
     written = []
-    monkeypatch.setattr(agent_module, "write_usage_record", written.append)
+
+    def capture(_agent, _session, _logs, _source, *, usage):
+        written.append(usage)
+        return SimpleNamespace(status="ingested")
+
+    monkeypatch.setattr(archive_ingest_module, "ingest_session", capture)
     state = _state()
     state.config.agent.sources["fixture"] = str(tmp_path)
 
-    agent_module.ingest_agent_session(state, "fixture", "fixture-id")
+    archive_ingest_module.ingest_agent_session(state, "fixture", "fixture-id")
 
-    assert written == [usage]
+    assert written == [usage.to_dict()]
 
 
 def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
@@ -915,12 +889,12 @@ def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
     state = _state()
     state.config.agent.sources["claude"] = str(source_root)
 
-    agent_module.ingest_agent_session(state, "claude", session_id)
+    archive_ingest_module.ingest_agent_session(state, "claude", session_id)
     fingerprint = fingerprint_file(transcript)
     generation = (
         tmp_path
         / ".agents/sessions/v1/claude"
-        / agent_module.session_lineage_id("claude", session_id)
+        / session_lineage_id("claude", session_id)
         / session_generation_id(fingerprint)
     )
     normalized = generation / "transcript.jsonl"
@@ -928,64 +902,26 @@ def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
     state.stderr = io.StringIO()
 
     with pytest.raises(ValueError, match="session transcript fingerprint mismatch"):
-        agent_module.ingest_agent_session(state, "claude", session_id)
+        archive_ingest_module.ingest_agent_session(state, "claude", session_id)
 
     assert state.stderr.getvalue() == ""
     assert normalized.read_text(encoding="utf-8") == "{}\n"
 
 
-def test_usage_recording_resolves_sources_and_rejects_unverified_adapters(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    state = _state()
-    written = []
-    monkeypatch.setattr(agent_module, "write_usage_record", written.append)
-
-    with pytest.raises(DotError, match="unknown usage hook agent"):
-        agent_module.record_agent_usage(state, "unknown-agent", "session-id")
-
+def test_ingestion_rejects_unverified_adapters(monkeypatch: pytest.MonkeyPatch) -> None:
     adapter = AgentAdapter(
         "fixture",
         "Fixture",
         "",
         "fixture",
         False,
-        lambda _path, _session_id, _cwd: ParsedSession([], "a" * 64, "fixture"),
+        lambda *_args: pytest.fail("unverified adapter ran"),
         None,
+        verified=False,
     )
-    monkeypatch.setitem(agent_module.AGENT_ADAPTERS, "fixture", adapter)
-    state.config.agent.sources["fixture"] = str(tmp_path)
-    with pytest.raises(DotError, match="no verified usage parser"):
-        agent_module.record_agent_usage(state, "fixture", "session-id")
-
-    grok_root = tmp_path / "grok"
-    transcript = grok_root / "%2Fwork%2Fproject/grok-id/updates.jsonl"
-    transcript.parent.mkdir(parents=True)
-    transcript.touch()
-    (transcript.parent / "signals.json").write_text(
-        '{"primaryModelId":"grok","contextTokensUsed":4,"turnCount":1}', encoding="utf-8"
-    )
-    state.config.agent.sources["grok"] = str(grok_root)
-    agent_module.record_agent_usage(state, "grok", "grok-id")
-
-    claude_root = tmp_path / "claude"
-    claude = claude_root / "nested/claude-id.jsonl"
-    _write_jsonl(
-        claude,
-        {
-            "type": "assistant",
-            "timestamp": "2026-01-01T00:00:00Z",
-            "message": {"usage": {"input_tokens": 1}},
-        },
-    )
-    state.config.agent.sources["claude"] = str(claude_root)
-    agent_module.record_agent_usage(state, "claude", "claude-id")
-
-    assert [(record.harness, record.cwd) for record in written] == [
-        ("grok", "/work/project"),
-        ("claude", ""),
-    ]
+    monkeypatch.setitem(archive_ingest_module.AGENT_ADAPTERS, "fixture", adapter)
+    with pytest.raises(DotError, match="unknown session agent"):
+        archive_ingest_module.ingest_agent_session(_state(), "fixture", "fixture-id")
 
 
 def test_doctor_configuration_and_source_checks_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -993,35 +929,37 @@ def test_doctor_configuration_and_source_checks_fail_closed(monkeypatch: pytest.
     persona = tmp_path / ".agents/AGENTS.md"
     persona.parent.mkdir(parents=True)
     persona.touch()
-    definition = agent_module.DoctorIntegration("fixture", "~/.agents/AGENTS.md")
+    definition = agent_doctor_module.DoctorIntegration("fixture", "~/.agents/AGENTS.md")
 
-    assert agent_module._check_discovery(definition) == ("skills-missing", False)  # noqa: SLF001
+    assert agent_doctor_module._check_discovery(definition) == ("skills-missing", False)  # noqa: SLF001
     skills = tmp_path / ".agents/skills"
     skills.mkdir()
-    broken_skills = agent_module.DoctorIntegration("fixture", "~/.agents/AGENTS.md", skills_path="~/.fixture/skills")
-    assert agent_module._check_discovery(broken_skills) == ("skills-broken", False)  # noqa: SLF001
+    broken_skills = agent_doctor_module.DoctorIntegration(
+        "fixture", "~/.agents/AGENTS.md", skills_path="~/.fixture/skills"
+    )
+    assert agent_doctor_module._check_discovery(broken_skills) == ("skills-broken", False)  # noqa: SLF001
     malformed = tmp_path / ".fixture/config.yaml"
     malformed.parent.mkdir()
     malformed.write_text("[", encoding="utf-8")
-    malformed_config = agent_module.DoctorIntegration(
+    malformed_config = agent_doctor_module.DoctorIntegration(
         "fixture", "~/.agents/AGENTS.md", skills_config="~/.fixture/config.yaml"
     )
-    assert agent_module._check_discovery(malformed_config) == ("skills-broken", False)  # noqa: SLF001
+    assert agent_doctor_module._check_discovery(malformed_config) == ("skills-broken", False)  # noqa: SLF001
     malformed.write_text("skills: []\n", encoding="utf-8")
-    assert agent_module._check_discovery(malformed_config) == ("skills-broken", False)  # noqa: SLF001
+    assert agent_doctor_module._check_discovery(malformed_config) == ("skills-broken", False)  # noqa: SLF001
 
     unsupported = tmp_path / "config.txt"
     unsupported.touch()
     with pytest.raises(ValueError, match="unsupported configuration format"):
-        agent_module._load_configuration(unsupported, "text")  # noqa: SLF001
-    assert agent_module._command_arguments("other command") == ()  # noqa: SLF001
+        agent_doctor_module._load_configuration(unsupported, "text")  # noqa: SLF001
+    assert agent_doctor_module._command_arguments("other command") == ()  # noqa: SLF001
 
     state = _state()
-    assert agent_module._inspect_source(state, definition).status == "unconfigured"  # noqa: SLF001
+    assert agent_doctor_module._inspect_source(state, definition).status == "unconfigured"  # noqa: SLF001
     linked = tmp_path / "linked-source"
     linked.symlink_to(tmp_path)
     state.config.agent.sources["fixture"] = str(linked)
-    assert agent_module._inspect_source(state, definition).status == "linked"  # noqa: SLF001
+    assert agent_doctor_module._inspect_source(state, definition).status == "linked"  # noqa: SLF001
 
 
 def test_doctor_database_lineage_and_failure_evidence_remain_conservative(
@@ -1032,37 +970,37 @@ def test_doctor_database_lineage_and_failure_evidence_remain_conservative(
     database = tmp_path / "source.db"
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript("CREATE TABLE sessions(updated_at TEXT); INSERT INTO sessions VALUES(NULL);")
-    definition = agent_module.DoctorIntegration(
+    definition = agent_doctor_module.DoctorIntegration(
         "fixture",
         "~/.agents/AGENTS.md",
         source_time_query="SELECT MAX(updated_at) FROM sessions",
     )
-    assert agent_module._database_source_time(database, definition, fallback) is None  # noqa: SLF001
-    broken_query = agent_module.DoctorIntegration(
+    assert agent_doctor_module._database_source_time(database, definition, fallback) is None  # noqa: SLF001
+    broken_query = agent_doctor_module.DoctorIntegration(
         "fixture",
         "~/.agents/AGENTS.md",
         source_time_query="SELECT missing FROM sessions",
     )
-    assert agent_module._database_source_time(database, broken_query, fallback) == fallback  # noqa: SLF001
+    assert agent_doctor_module._database_source_time(database, broken_query, fallback) == fallback  # noqa: SLF001
 
     lineage = tmp_path / ".agents/sessions/v1/fixture"
     lineage.parent.mkdir(parents=True)
     lineage.symlink_to(tmp_path, target_is_directory=True)
     state = _state()
-    assert agent_module._inspect_lineage(state, definition).unreadable  # noqa: SLF001
+    assert agent_doctor_module._inspect_lineage(state, definition).unreadable  # noqa: SLF001
 
     failures = tmp_path / ".agents/hook-failures/v1"
     failures.mkdir(parents=True)
     (failures / "new.json").write_text("[]", encoding="utf-8")
-    assert agent_module._inspect_last_hook_failure(state, "fixture") == ("unreadable", False)  # noqa: SLF001
+    assert agent_doctor_module._inspect_last_hook_failure(state, "fixture") == ("unreadable", False)  # noqa: SLF001
 
-    source = agent_module._SourceInspection("present", fallback + timedelta(hours=2), True, True)  # noqa: SLF001
-    summary = agent_module._LineageSummary(  # noqa: SLF001
+    source = agent_doctor_module._SourceInspection("present", fallback + timedelta(hours=2), True, True)  # noqa: SLF001
+    summary = agent_doctor_module._LineageSummary(  # noqa: SLF001
         last_complete=fallback,
         latest=fallback + timedelta(hours=1),
         latest_partial=True,
     )
-    ingestion, lag, healthy = agent_module._summarize_lineage(  # noqa: SLF001
+    ingestion, lag, healthy = agent_doctor_module._summarize_lineage(  # noqa: SLF001
         state,
         definition,
         fallback + timedelta(hours=2),

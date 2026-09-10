@@ -20,11 +20,11 @@ Read this while writing the repository-local skills for an inner, middle, and ou
 
 ## Middle loop
 
-- **Trigger**: Start or resume a campaign across one or more eligible work items for a stated horizon.
-- **Entry**: Recover portfolio and item checkpoints, developer steering, current capacity, due reports, and uncertain external operations.
+- **Trigger**: A native goal or direct invocation starts or resumes a campaign across eligible work items with an objective, time window, or combined completion contract; an entry prompt forwards scope to this skill.
+- **Entry**: Recover portfolio and item checkpoints, developer steering, session ownership, current capacity, due reports, and uncertain external operations. Distinguish a new campaign clock from an explicit resume.
 - **Choice**: Prefer completed work needing review, then the feasible action most likely to change a decision; rotate when a blocker is unchanged.
 - **Action**: Apply one inner-loop skill in the current harness. Use native bounded waits only when no other authorized work is useful.
-- **Exit**: On the horizon, explicit stop, or genuine dependency, persist the exact restart point and state what would unblock progress.
+- **Exit**: On verified objective completion or the time boundary defined by the goal, stop successors and reconcile remaining work. On explicit stop or unavoidable interruption, persist the exact restart point, remaining scope/window and actual resume mechanism; keep temporary blockers inside the active campaign when independent work or a supported evidence wait remains.
 
 ## Outer loop
 
@@ -42,3 +42,5 @@ Read this while writing the repository-local skills for an inner, middle, and ou
 - Can blocked work rotate without busy retries or invented progress?
 - Are local validation, remote execution, and domain success reported separately?
 - Does every skill inherit rather than expand the current authority?
+- Do new start, resume, expired deadline and compaction preserve the intended completion contract?
+- Are entry prompts thin, concurrent scopes disjoint, and shared writers explicit?

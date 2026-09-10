@@ -1,17 +1,10 @@
 """Repository skill links coexist with other packages in the standard catalog."""
 
-import io
 import shutil
 import subprocess
-from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 import pytest
-
-from fmind_dot.maintenance import run_chezmoi_clean
-from fmind_dot.process import CommandResult
-from fmind_dot.state import State
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -53,31 +46,9 @@ def installation(tmp_path: Path) -> tuple[Path, Path, list[str]]:
     )
 
 
-@pytest.fixture
-def cleanup_state(installation: tuple[Path, Path, list[str]], monkeypatch: pytest.MonkeyPatch) -> State:
-    source, home, command = installation
-    monkeypatch.setenv("HOME", str(home))
-    state = State(stdout=io.StringIO(), stderr=io.StringIO())
-    original_run = state.runner.run
-    for args in (
-        ["git", "init", "-q", str(source)],
-        ["git", "add", "."],
-        ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"],
-    ):
-        original_run(args, cwd=source)
-
-    def run(args: Sequence[str], **kwargs: Any) -> CommandResult:
-        if args[0] == "chezmoi":
-            args = [*command[: command.index("apply")], *args[1:]]
-        return original_run(args, **kwargs)
-
-    monkeypatch.setattr(state.runner, "run", run)
-    return state
-
-
 @pytest.mark.parametrize("rename", [False, True])
 def test_retired_repository_links_need_explicit_cleanup(
-    installation: tuple[Path, Path, list[str]], cleanup_state: State, rename: bool
+    installation: tuple[Path, Path, list[str]], rename: bool
 ) -> None:
     source, home, command = installation
     subprocess.run(command, capture_output=True, text=True, check=True)
@@ -104,20 +75,19 @@ def test_retired_repository_links_need_explicit_cleanup(
             assert (catalog / name).resolve() == source / "skills" / name
 
     target = catalog / "python-stack"
-    assert run_chezmoi_clean(cleanup_state) == [target]
+    # Removal remains an explicit, owner-checked action outside dot's runtime.
     assert target.is_symlink()
-    assert run_chezmoi_clean(cleanup_state, yes=True) == [target]
+    assert target.readlink() == source / "skills/python-stack"
+    backup = home / "retired-python-stack"
+    target.rename(backup)
+    assert backup.readlink() == source / "skills/python-stack"
     assert not target.is_symlink()
-    backups = list((home / ".cache/dot/chezmoi-clean").glob("*/.agents/skills/python-stack"))
-    assert len(backups) == 1
-    assert backups[0].readlink() == source / "skills/python-stack"
-    assert run_chezmoi_clean(cleanup_state) == []
     assert (peer / "SKILL.md").read_text() == "# Another package\n"
 
 
 @pytest.mark.parametrize("replacement", ["directory", "link", "dangling-link", "file"])
 def test_apply_preserves_retired_names_now_owned_elsewhere(
-    installation: tuple[Path, Path, list[str]], cleanup_state: State, replacement: str
+    installation: tuple[Path, Path, list[str]], replacement: str
 ) -> None:
     source, home, command = installation
     subprocess.run(command, capture_output=True, text=True, check=True)
@@ -136,7 +106,6 @@ def test_apply_preserves_retired_names_now_owned_elsewhere(
             (elsewhere / "SKILL.md").write_text("# Another owner\n")
         target.symlink_to(elsewhere)
     subprocess.run(command, capture_output=True, text=True, check=True)
-    assert run_chezmoi_clean(cleanup_state, yes=True) == []
     if replacement.endswith("link"):
         assert target.readlink() == elsewhere
     elif replacement == "directory":

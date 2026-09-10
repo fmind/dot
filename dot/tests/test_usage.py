@@ -12,8 +12,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from fmind_dot.cli import app, main
-from fmind_dot.usage import (
+from fmind_dot.archive.usage import (
     UsageRecord,
     UsageStats,
     aggregate_usage,
@@ -26,6 +25,8 @@ from fmind_dot.usage import (
     write_usage_record,
     write_usage_stats,
 )
+from fmind_dot.cli import app, main
+from fmind_dot.config import default_pricing
 
 
 def _write_raw_usage_record(root: Path, **overrides: Any) -> Path:
@@ -420,6 +421,13 @@ def test_aggregate_usage_filters_and_sums_every_metric() -> None:
             "cwd": "",
             "legacy_sessions": 0,
             "time_basis": "whole session at recorded timestamp",
+            "api_equivalent_usd": None,
+            "priced_sessions": 0,
+            "pricing_complete": False,
+            "unpriced_reasons": {"measurement is not provider-reported": 1},
+            "pricing_as_of": "2026-09-10",
+            "pricing_basis": default_pricing().basis,
+            "pricing_sources": default_pricing().sources,
         }
     ]
 
@@ -481,18 +489,16 @@ def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
 
     output = StringIO()
     write_usage_stats(output, [], as_json=False, by_model=False)
-    assert output.getvalue() == (
-        "No usage records found in ~/.agents/usages. Run 'dot agent usage sync' to backfill existing sessions.\n"
-    )
+    assert output.getvalue() == ("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
 
     output = StringIO()
     write_usage_stats(output, rows, as_json=False, by_model=True)
     assert output.getvalue().splitlines() == [
         "Whole-session totals filtered by recorded timestamp; not interval billing.",
-        "HARNESS\tMEASUREMENT\tPROJECT\tMODEL\tSESSIONS\tTURNS\tINPUT TOKENS\tOUTPUT TOKENS\tCACHED TOKENS\tREASONING\tTOTAL TOKENS\tCOST (USD)",
-        "claude\tunknown\t-\tsonnet\t1\t2\t1,000\t2\t3\t5\t1,014\t$0.5000",
-        "codex\tunknown\t-\tgpt\t2\t3\t1\t2\t0\t1\t4\t$0.1250",
-        "TOTAL\tunknown\t-\t-\t3\t5\t1,001\t4\t3\t6\t1,018\t$0.6250",
+        "HARNESS\tMEASUREMENT\tPROJECT\tMODEL\tSESSIONS\tTURNS\tINPUT TOKENS\tOUTPUT TOKENS\tCACHED TOKENS\tREASONING\tTOTAL TOKENS\tCOST (USD)\tAPI EQUIV (USD)\tPRICED SESSIONS",
+        "claude\tunknown\t-\tsonnet\t1\t2\t1,000\t2\t3\t5\t1,014\t$0.5000\tunknown\t0/1",
+        "codex\tunknown\t-\tgpt\t2\t3\t1\t2\t0\t1\t4\t$0.1250\tunknown\t0/2",
+        "TOTAL\tunknown\t-\t-\t3\t5\t1,001\t4\t3\t6\t1,018\t$0.6250\tunknown\t0/3",
     ]
 
     output = StringIO()

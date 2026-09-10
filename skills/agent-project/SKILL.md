@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-09"
+  updated: "2026-09-10"
 ---
 
 # Set Up Agents on a Project
@@ -28,6 +28,10 @@ Author the shared project instruction and skill layer once, then add only requir
 - **Smallest override**: project configuration overrides the user's global defaults; add only what the repository needs.
 - **Strict formats**: keep JSON free of comments unless the host documents JSONC, and validate TOML before launching an agent.
 - **Untrusted configuration**: review a repository's hooks, MCP servers, skills, plugins, and custom-agent definitions before enabling them.
+
+## Official source audit
+
+Read the [dated official skill source audit](references/official-skills.md) when selecting a vendor package. It records inspected sources and gaps; recheck the selected source before installation.
 
 ## Documentation
 

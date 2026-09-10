@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-adk
   created: "2026-09-02"
-  updated: "2026-09-08"
+  updated: "2026-09-10"
 ---
 
 # Google ADK
@@ -15,9 +15,10 @@ Implement Python ADK behavior within the existing project; [agents-cli](../agent
 
 ## Workflow
 
-1. **Inspect the installed SDK** and project model, tools, session service, and app entry point before coding. Use [python-stack](../python-stack/SKILL.md) for ordinary Python code.
+1. **Inspect the installed SDK** and project model, tools, session service, and app entry point before coding. Use [python-stack](../python-stack/SKILL.md) for shared project defaults only when needed; preserve the generated layout.
 1. **Choose the official guidance** below for ADK agents, tool functions, orchestration, callbacks, state, or tests; compare its supported SDK version with the project lock.
 1. **Set the runtime contract**: choose one agent unless the workflow requires orchestration; make the model, provider authentication, session persistence, run limits, and timeout explicit. Keep the runner and session service consistent on app, user, and session IDs.
+1. **Keep agent wiring explicit**: in the generated layout, `app/agent.py` defines `root_agent`; typed function signatures and docstrings describe its tools, while business logic stays in independently testable modules. Offline tests inspect agent wiring and call tool functions directly.
 1. **Implement narrow tools** with complete types, useful docstrings, bounded I/O, and explicit errors. Keep business logic independently testable and prompts in reviewable source. Enforce authorization and idempotency in the tool boundary rather than relying on model instructions.
 1. **Handle events and state**: consume the runner event stream, distinguish tool calls and errors from a final response, and handle empty or non-text parts. Update state through tool/callback context or service events so the selected session service can persist deltas.
 1. **Test locally** with deterministic tool cases and a fake model or event stream; cover invalid inputs, tool failures, final response extraction, and isolation between two user sessions; run provider smoke calls and repeated evaluations only within their authorized access and cost.

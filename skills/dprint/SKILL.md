@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-09-06"
+  updated: "2026-09-10"
 ---
 
 # dprint
 
-The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); dprint formats only, while Python formatting and linting live in [python-stack](../python-stack/SKILL.md).
+The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); dprint formats only, while Python formatting and linting live in [ruff](../ruff/SKILL.md).
 
 ## Configuration
 

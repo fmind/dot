@@ -1,11 +1,11 @@
 ---
 name: typer
-description: Build typed Python command-line applications with Typer and its official skill. Use when adding commands, arguments, options, help, or CLI tests.
+description: Build typed Python command-line applications with Typer and its official skill. Use when scaffolding a CLI or changing commands, options, help, or CLI tests.
 license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/typer
   created: "2026-09-06"
-  updated: "2026-09-06"
+  updated: "2026-09-10"
 ---
 
 # Typer
@@ -14,9 +14,15 @@ Use Typer for Python CLIs; [cli-contracts](../cli-contracts/SKILL.md) owns comma
 
 ## Workflow
 
+1. For a new CLI, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; it owns the application additions and qualification.
 1. Inspect the locked Typer version and current entry point; add `typer` with `uv add typer` for a new CLI.
 1. Load the official guidance, then implement the accepted arguments, options, output streams, and exit statuses.
 1. Test help, successful execution, invalid arguments, and failure output using the project test harness; include the installed entry point when packaging changes.
+
+## CLI resources
+
+- [init-cli.py](references/init-cli.py) supplies the application; [main.py](references/main.py) supplies the module entry point.
+- [test_smoke.py](references/test_smoke.py) and [test_cli.py](references/test_cli.py) exercise imports and command behavior.
 
 ## Gotchas
 

@@ -34,21 +34,27 @@ def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch
     assert "--show-completion" not in result.stdout
     for command in (
         "agent",
-        "chezmoi",
-        "commit",
         "completion",
         "config",
-        "login",
-        "prune",
+        "doctor",
         "pull",
-        "pull-request (pr)",
-        "release",
-        "setup",
         "status",
-        "verify",
     ):
         assert command in result.stdout
-    for removed in ("context", "help", "notify", "version"):
+    for removed in (
+        "context",
+        "help",
+        "notify",
+        "version",
+        "commit",
+        "pr",
+        "release",
+        "prune",
+        "login",
+        "setup",
+        "chezmoi",
+        "verify",
+    ):
         assert not re.search(rf"^\s*{removed}(?:\s|$)", result.stdout, flags=re.MULTILINE)
 
 
@@ -61,7 +67,7 @@ def test_duplicate_completion_options_are_rejected(option: str) -> None:
 
 @pytest.mark.parametrize(
     ("instruction", "expected"),
-    [("source_fish", "complete --command dot"), ("complete_fish", "verify")],
+    [("source_fish", "complete --command dot"), ("complete_fish", "doctor")],
 )
 def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expected: str, tmp_path: Path) -> None:
     result = subprocess.run(
@@ -70,7 +76,7 @@ def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expec
         env={
             **os.environ,
             "_DOT_COMPLETE": instruction,
-            "_TYPER_COMPLETE_ARGS": "dot ver",
+            "_TYPER_COMPLETE_ARGS": "dot doc",
             "_TYPER_COMPLETE_FISH_ACTION": "get-args",
         },
         capture_output=True,
@@ -93,29 +99,36 @@ def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch
     assert not re.search(r"\([a-z]\)", result.stdout)
 
 
-def test_root_command_tree_preserves_inventory_order_and_pull_request_alias() -> None:
+def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
     command = get_command(app)
     assert isinstance(command, TyperGroup)
-    expected = {
-        "agent",
-        "chezmoi",
-        "commit",
-        "completion",
-        "config",
-        "login",
-        "prune",
-        "pull",
-        "pull-request",
-        "release",
-        "setup",
-        "status",
-        "verify",
-    }
+    expected = {"agent", "completion", "config", "doctor", "pull", "status"}
     visible = [name for name in command.list_commands(_click.Context(command)) if not command.commands[name].hidden]
 
-    assert visible == sorted(expected)
-    assert set(command.commands) == expected | {"pr"}
-    assert command.commands["pr"].hidden
+    assert set(visible) == expected
+    assert set(command.commands) == expected
+
+
+@pytest.mark.parametrize(
+    ("path", "names"),
+    [
+        ([], ["agent", "completion", "config", "doctor", "pull", "status"]),
+        (["config"], ["edit", "init", "path", "show", "validate"]),
+        (["agent"], ["clean", "doctor", "prompts", "session", "stats", "usage"]),
+        (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),
+        (["agent", "usage"], ["list", "show", "stats"]),
+        (["agent", "prompts"], ["stats"]),
+        (["agent", "hook"], ["copilot-session-end", "notify", "session"]),
+    ],
+)
+def test_help_lists_commands_alphabetically(
+    path: list[str], names: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    result = runner.invoke(app, [*path, "--help"])
+    assert result.exit_code == 0
+    rows = [match.group(1) for match in re.finditer(r"(?m)^[│ ]+(\S+)\s", result.stdout)]
+    assert [name for name in rows if name in names] == names
 
 
 def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> None:
@@ -124,10 +137,12 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
     agent = root.commands["agent"]
     assert isinstance(agent, TyperGroup)
     assert {name for name, child in agent.commands.items() if not child.hidden} == {
+        "clean",
         "doctor",
         "prompts",
         "session",
         "usage",
+        "stats",
     }
     assert agent.commands["hook"].hidden
 
@@ -144,7 +159,7 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
     }
     usage = agent.commands["usage"]
     assert isinstance(usage, TyperGroup)
-    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list", "show", "stats", "sync"}
+    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list", "show", "stats"}
 
 
 def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
@@ -177,20 +192,10 @@ def test_version_matches_distribution(arguments: list[str], tmp_path: Path, monk
     assert result.stdout == f"dot version {manifest['project']['version']}\n"
 
 
-def test_canonical_deep_prune_command_parses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-    result = runner.invoke(app, ["prune", "--all", "--deep"])
-
-    assert result.exit_code == 0
-    assert "Prune (dry run)" in result.stdout
-    assert "docker: would prune" in result.stdout
-
-
 def test_explicit_missing_config_fails_before_non_config_command(tmp_path: Path) -> None:
     missing = tmp_path / "missing.yaml"
 
-    result = runner.invoke(app, ["--config", str(missing), "verify"])
+    result = runner.invoke(app, ["--config", str(missing), "doctor"])
 
     assert result.exit_code == 1
     assert isinstance(result.exception, FileNotFoundError)
@@ -203,7 +208,7 @@ def test_main_reports_malformed_explicit_yaml_without_traceback(
 ) -> None:
     malformed = tmp_path / "malformed.yaml"
     malformed.write_text("prune: [\n", encoding="utf-8")
-    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(malformed), "verify"])
+    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(malformed), "doctor"])
 
     with pytest.raises(SystemExit) as exit_info:
         cli.main()
@@ -234,7 +239,7 @@ def test_config_show_prints_the_effective_round_trippable_yaml(tmp_path: Path) -
     rendered = yaml.safe_load(result.stdout)
     assert rendered["pull"]["concurrency"] == 3
     assert rendered["pull"]["directories"] == ["~/fmind", "~/fmind-ai", "~/mlops-courses"]
-    assert rendered["verify"]["probe_concurrency"] == 8
+    assert rendered["doctor"]["probe_concurrency"] == 8
 
 
 def test_config_path_expands_the_current_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -441,9 +446,9 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
 @pytest.mark.parametrize(
     ("arguments", "expected_exit", "expected_error"),
     [
-        (["--unknown-option"], 1, "No such option: --unknown-option"),
-        (["unknown-command"], 3, "No such command 'unknown-command'"),
-        (["help", "unknown-command"], 3, "No such command 'help'"),
+        (["--unknown-option"], 2, "No such option: --unknown-option"),
+        (["unknown-command"], 2, "No such command 'unknown-command'"),
+        (["help", "unknown-command"], 2, "No such command 'help'"),
     ],
 )
 def test_python_module_entrypoint_preserves_parser_exit_codes(

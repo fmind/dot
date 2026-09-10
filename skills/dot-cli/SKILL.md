@@ -6,55 +6,45 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-09-09"
+  updated: "2026-09-10"
 ---
 
 # Dot CLI
 
-`dot` is the typed Python CLI of `fmind/dot`, installed at `~/.local/bin/dot`. Use `dot <command> --help` for exact flags. `pull-request` also accepts the established `pr` alias; other commands use canonical names only.
+Use `dot` for bounded repository operations, local diagnostics, and immutable agent-session archives. The installed command and its `--help` own the active interface. Version 3 removes AI writing, provider setup, release, and provider-source pruning from the runtime; use the owning skills and native CLIs.
 
 ## Commands
 
-| Command            | Purpose                                                                                                         |
-| ------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `dot agent`        | Inspect integrations and manage normalized sessions and token usage.                                            |
-| `dot chezmoi`      | Find former chezmoi targets and move approved orphans to recoverable backups.                                   |
-| `dot commit`       | Generate and commit an existing staged diff; `--all` stages the worktree only when the index is empty.          |
-| `dot completion`   | Generate Fish completions for `dot` and configured external CLIs.                                               |
-| `dot config`       | Show, locate, initialize, edit, or validate `~/.config/dot.yaml`.                                               |
-| `dot login`        | Run GitHub, Google Workspace, or GCP authentication flows.                                                      |
-| `dot prune`        | Preview or apply cleanup for agent data and caches; see [references/prune-flags.md](references/prune-flags.md). |
-| `dot pull`         | Pull configured repository roots concurrently; `--push` also pushes clean repositories.                         |
-| `dot pull-request` | Generate a PR description and create it with `gh`; `pr` is an alias.                                            |
-| `dot release`      | Validate, prepare, tag, push, and refresh an `fmind/dot` release.                                               |
-| `dot setup`        | Configure GitHub CLI OAuth scopes or the Google Workspace GCP project.                                          |
-| `dot status`       | Report Git repository and Docker status, with optional JSON.                                                    |
-| `dot verify`       | Check environment, auth, tools, secrets, and install freshness; `--fix` repairs bounded local state.            |
-
-Global flags are `--config/-c <path>`, `--verbose`, and `--version/-v`.
+| Command          | Purpose                                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `dot agent`      | Ingest, query, export, and compact session archives; inspect integrations and preview generated-artifact cleanup. |
+| `dot completion` | Generate and syntax-check Fish completions before atomic replacement.                                             |
+| `dot config`     | Show, locate, initialize, edit, and validate strict YAML configuration.                                           |
+| `dot doctor`     | Check local tools, permissions, environment, and installation; `--deep` adds provider authentication probes.      |
+| `dot pull`       | Fetch and fast-forward selected repositories with bounded concurrency and an explicit dirty-tree policy.          |
+| `dot status`     | Inspect selected repositories and Docker without fetching; optionally report attention counts.                    |
 
 ## Workflow
 
-1. **Identify the executable**: check `dot --version` and command help. The installed CLI can lag source; in the dot repository use `uv run --frozen dot <command>` to exercise the checkout.
-1. **Health when diagnosing**: use `dot verify` for the workstation or `dot agent doctor --json` for fast integration metadata; `dot agent doctor --agent codex --deep --explain --json` adds targeted hashing, archive validation, and bounded issue examples. OpenCode is discovery-only, with no archive adapter. Ordinary session queries do not require a workstation audit.
-1. **Sessions**: run `dot agent session sync`, or ingest one adapter with `dot agent session ingest AGENT [SESSION_ID] [CWD]`.
-1. **Inspect**: `dot agent session list` returns the newest 50 current generations by default; widen it with `--limit`, `--all-generations`, repeated `--status`, or `--json`.
-1. **Compact**: `dot agent session compact` dry-runs prefix-proven generation retention; `--apply` deletes only verified superseded generations.
-1. **Disk**: preview selected cleanup with `dot prune --all --deep`; use the same selection with `--apply` only after reviewing the plan.
-1. **Reinstall after source edits**: inside the dot repository, run `mise run deploy` to rebuild and install `~/.local/bin/dot`.
+1. **Inspect the installed contract**: use `dot --version`, `dot --help`, and the relevant subcommand help. Global options precede the subcommand.
+1. **Diagnose selectively**: `dot doctor --json` is local; `dot doctor --deep --json` also probes authentication. `dot agent doctor --agent codex --explain` inspects one integration; `--deep` hashes sources and validates archives. Diagnostics share the `dot.diagnostics/v1` envelope with scope, passed, and checks.
+1. **Select repositories**: use `dot status . --needs-attention`, then `dot pull . --dry-run --json` before an authorized update. Omitting paths uses configured workspace directories. `--push` requires remote-write authority.
+1. **Capture and inspect sessions**: `dot agent session sync --agent codex --dry-run --json` previews parsing; remove `--dry-run` to publish complete generations. Session, prompt, and usage statistics are offline reads. See [daily workflows](references/daily-workflows.md) for date semantics, selection, and migration.
+1. **Clean only owned data**: `dot agent session compact` previews verified redundant generations; `--apply` deletes the selected generations. `dot agent clean` previews generated project prompts, proposals, and reports; `--apply` removes those categories. Neither command prunes provider-owned sources or unrelated tool caches.
 
-For bounded metadata retrieval, use `dot agent session list --limit 10 --json`, then `dot agent session show <generation-id>`. Use `show <session-id> --latest` to explicitly choose the latest generation of an ambiguous session. `show --content` includes private prompts and responses; use it only when their contents are needed. The query owner reads immutable JSONL generations, not a derived SQLite index. [Daily workflows](references/daily-workflows.md) documents selection, statistics, migration, and publication boundaries; [agent-usage](../agent-usage/SKILL.md) owns deeper usage analysis.
+## Contracts
 
-## Gotchas
+Configuration precedence is explicit `--config`, then `DOT_CONFIG_PATH`, then `~/.config/dot.yaml`. A missing default uses built-in defaults; an explicit missing file fails. Version 3 uses `schema_version: 3` and positive finite numeric seconds in `timeout_seconds`, `probe_timeout_seconds`, and `stale_lag_seconds`. Unknown keys are rejected. Repair commands remain available with malformed configuration; chezmoi-managed edits go through their source.
 
-- **Commit scope**: `dot commit` requires staged changes and prints their paths before opening the editor. It creates a commit after message review. Use `--all` only when the index is empty and every working-tree change belongs in the authorized commit.
-- **Side effects**: session sync/ingest writes the normalized store; `verify --fix` repairs local state, `pull` changes checkouts, and `pull --push`, PR creation, release, and setup have remote effects. Reuse session authority and preview cleanup before an authorized `--apply`.
-- **Skill health**: doctor checks bounded package metadata in `~/.agents/skills/` and expected repository links when chezmoi is available. Broken links, missing entrypoints, and incomplete scans are unhealthy; `--explain` adds bounded package names without reading skill bodies. Repair independently installed packages at their source; `--fix` delegates managed integration repair to chezmoi.
-- **Deep doctor**: source hashing and full archive reconciliation can take time; progress is written to stderr.
-- **Managed config**: `dot config edit` routes chezmoi-managed configuration through `chezmoi edit --apply --force` and validates afterward; `config init --force` refuses to overwrite a managed target.
-- **Compaction**: invalid identities, permissions, links, unexpected files, or transcript digests stop planning before deletion; unknown schemas are retained.
+Requested data goes to stdout; progress and errors go to stderr. Exit codes are 0 for success, 1 for an operational failure or incomplete result, 2 for usage errors, and 130 for interruption. JSON output is versioned; failed operations never become an empty success. Hook protocols retain their host-specific neutral responses and bounded failure evidence.
+
+A generation contains transcript, usage status/measurement, and integrity manifest, published in one atomic directory operation with private permissions. Extraction or publication failure leaves no completed generation. Retry the same ingestion after repairing the cause. Existing parser 1/2 archives and standalone legacy usage remain readable; new capture uses parser 3 and manifest schema 2. Compaction compares canonical record fingerprints without retaining the full archive contents in memory; it preserves divergent transcripts, different usage evidence, and unknown schemas.
+
+## Workflow ownership
+
+Use [conventional-commit](../conventional-commit/SKILL.md) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `gh auth`, `gcloud auth`, and `gws auth` through their native contracts. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
 
 ## Documentation
 
-- [fmind/dot](https://github.com/fmind/dot) — source, README, and repository-specific skills.
-- Companion skills: [agent-usage](../agent-usage/SKILL.md) and [mise](../mise/SKILL.md).
+- [fmind/dot](https://github.com/fmind/dot) — setup, implementation, and repository tasks.
+- Companion skills: [agent-usage](../agent-usage/SKILL.md), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-09-09"
+  updated: "2026-09-10"
 ---
 
 # Mise
@@ -16,6 +16,7 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 ## Workflow
 
 1. **Inspect** the repository's existing tasks, lockfile, tool providers, hooks, and CI before changing the contract.
+1. **Keep tasks simple**: prefer direct commands, short sequential `run` arrays, and declarative dependencies. A short multiline sequence for setup and cleanup is acceptable; avoid explicit `bash -c`/`sh -c`, nested conditions, argument-dispatch wrappers, and large shell programs. Use native tool options or explicit task names first; put necessary procedural logic in a small maintained script, preferably Python.
 1. **Keep the shared vocabulary** below; read [task conventions](references/task-conventions.md) for subtask names, aliases, argument forwarding, dependency order, and tool updates.
 1. **Pin and install** the project toolchain, then validate task definitions with `mise tasks validate`; use `mise run <task>` in automation.
 1. **Verify** the changed task and its callers, then the required complete gate; record a concrete reason for held-back pins.
@@ -37,6 +38,8 @@ Every project exposes the same core tasks with short aliases so agents, hooks, a
 Python projects start from [python-stack](../python-stack/references/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [terraform](../terraform/references/mise.toml).
 
 ## Gotchas
+
+- **Dotenv**: `[env]` with `_.file = ".env"` loads dotenv values for tasks; use it only when the project needs that file. `_.source` expects a shell script.
 
 - **Local builds**: builds and checks must not publish, deploy, or spend by default; expose consequential operations only as explicit on-demand paths.
 - **Dirty trees**: `all` includes formatters. Use [git-worktree](../git-worktree/SKILL.md) to materialize the current candidate in isolation; check that the tested files match before transferring proof.

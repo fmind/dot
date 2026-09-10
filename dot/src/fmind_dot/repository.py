@@ -1,13 +1,10 @@
-"""Git repository, AI commit, pull request, pull, and status workflows."""
+"""Bounded multi-repository synchronization and status."""
 
 import json
-import os
-import shlex
 import stat
-import tempfile
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from threading import Event
 from time import monotonic
@@ -15,23 +12,9 @@ from typing import Annotated
 
 import typer
 
-from fmind_dot.commands import aliased_command
-from fmind_dot.config import CommitConfig, PRConfig, duration_seconds, expand_path
+from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
-
-DEFAULT_AI_BINARY = "agy"
-DEFAULT_MAX_DIFF_SIZE = 200_000
-_SECURITY_MARKERS = ("auth", "credential", "permission", "secret", "security", ".github/workflows/")
-
-
-@dataclass
-class _DiffFile:
-    path: str
-    preamble: str
-    hunks: list[str] = field(default_factory=list)
-    added: int = 0
-    deleted: int = 0
 
 
 @dataclass(frozen=True)
@@ -87,13 +70,6 @@ class SystemStatus:
     repositories: list[RepositoryStatus]
 
 
-def _tool(state: State, name: str) -> Path:
-    path = state.runner.which(name)
-    if path is None:
-        raise DotError(f"required tool is not installed: {name}")
-    return path
-
-
 def git_root(state: State, cwd: Path | None = None) -> Path:
     """Resolve the repository root and fail with a safe diagnostic."""
     _tool(state, "git")
@@ -106,455 +82,11 @@ def git_root(state: State, cwd: Path | None = None) -> Path:
     return Path(output)
 
 
-def build_exclude_pathspecs(excludes: Iterable[str]) -> list[str]:
-    """Build root-anchored pathspecs so AI input covers the whole repository."""
-    return [":/", *(f":(exclude,top){pattern}" for pattern in excludes)]
-
-
-def _git_diff(state: State, arguments: Sequence[str], excludes: Iterable[str], cwd: Path | None) -> str:
-    _tool(state, "git")
-    args = ["git", "diff", *arguments, "--", *build_exclude_pathspecs(excludes)]
-    return state.runner.run(args, cwd=cwd).stdout
-
-
-def get_cached_diff(state: State, *, excludes: Iterable[str] | None = None, cwd: Path | None = None) -> str:
-    """Return the staged diff, optionally excluding configured path patterns."""
-    selected = state.config.commit.exclude_diff if excludes is None else excludes
-    return _git_diff(state, ["--cached"], selected, cwd)
-
-
-def get_cached_diff_unfiltered(state: State, *, cwd: Path | None = None) -> str:
-    """Return the complete staged diff for clean-index detection."""
-    return _git_diff(state, ["--cached"], (), cwd)
-
-
-def get_unstaged_diff(state: State, *, excludes: Iterable[str] | None = None, cwd: Path | None = None) -> str:
-    """Return the unstaged tracked-file diff."""
-    selected = state.config.commit.exclude_diff if excludes is None else excludes
-    return _git_diff(state, (), selected, cwd)
-
-
-def get_unstaged_diff_unfiltered(state: State, *, cwd: Path | None = None) -> str:
-    """Return the complete unstaged tracked-file diff."""
-    return _git_diff(state, (), (), cwd)
-
-
-def get_base_diff(
-    state: State,
-    base_branch: str,
-    *,
-    excludes: Iterable[str] | None = None,
-    cwd: Path | None = None,
-) -> str:
-    """Return the merge-base diff, falling back to a direct base diff."""
-    selected = state.config.commit.exclude_diff if excludes is None else excludes
-    try:
-        return _git_diff(state, [f"{base_branch}..."], selected, cwd)
-    except DotError:
-        try:
-            return _git_diff(state, [base_branch], selected, cwd)
-        except DotError as error:
-            raise DotError(f"failed to get git diff against {base_branch}") from error
-
-
-def get_base_diff_unfiltered(state: State, base_branch: str, *, cwd: Path | None = None) -> str:
-    """Return the complete branch diff for change detection."""
-    return get_base_diff(state, base_branch, excludes=(), cwd=cwd)
-
-
-def _decode_diff_path(value: str) -> str:
-    try:
-        parts = shlex.split(value)
-    except ValueError:
-        parts = [value.strip()]
-    path = parts[-1] if parts else value.strip()
-    if path.startswith(("a/", "b/")):
-        return path[2:]
+def _tool(state: State, name: str) -> Path:
+    path = state.runner.which(name)
+    if path is None:
+        raise DotError(f"required tool is not installed: {name}")
     return path
-
-
-def _parse_diff(diff: str) -> list[_DiffFile]:
-    try:
-        diff.encode("utf-8")
-    except UnicodeEncodeError as error:
-        raise DotError("diff is not valid UTF-8") from error
-    files: list[_DiffFile] = []
-    for line in diff.splitlines(keepends=True):
-        if line.startswith("diff --git "):
-            files.append(_DiffFile(path=_decode_diff_path(line.removeprefix("diff --git ")), preamble=line))
-            continue
-        if not files:
-            if line.strip():
-                raise DotError("input is not a unified Git diff")
-            continue
-        current = files[-1]
-        if line.startswith(("@@ ", "@@@ ")):
-            current.hunks.append(line)
-            continue
-        if not current.hunks:
-            current.preamble += line
-            if line.startswith(("--- ", "+++ ")):
-                marker_path = _decode_diff_path(line[4:])
-                if marker_path != "/dev/null":
-                    current.path = marker_path
-            continue
-        current.hunks[-1] += line
-        if line.startswith("+") and not line.startswith("+++"):
-            current.added += 1
-        elif line.startswith("-") and not line.startswith("---"):
-            current.deleted += 1
-    if not files:
-        raise DotError("input contains no changed files")
-    return files
-
-
-def _security_sensitive(file: _DiffFile, unit: int) -> bool:
-    text = file.path
-    if file.hunks:
-        text += "\n" + file.hunks[unit]
-    lowered = text.lower()
-    return any(marker in lowered for marker in _SECURITY_MARKERS)
-
-
-def _diff_units(files: Sequence[_DiffFile]) -> list[tuple[int, int]]:
-    security: list[tuple[int, int]] = []
-    fair: list[tuple[int, int]] = []
-    remaining: list[tuple[int, int]] = []
-    seen: set[tuple[int, int]] = set()
-    maximum = max((max(1, len(file.hunks)) for file in files), default=0)
-    for file_index, file in enumerate(files):
-        for unit in range(max(1, len(file.hunks))):
-            candidate = (file_index, unit)
-            if _security_sensitive(file, unit):
-                security.append(candidate)
-                seen.add(candidate)
-    for unit in range(maximum):
-        for file_index, file in enumerate(files):
-            candidate = (file_index, unit)
-            if unit >= max(1, len(file.hunks)) or candidate in seen:
-                continue
-            (fair if unit == 0 else remaining).append(candidate)
-    return [*security, *fair, *remaining]
-
-
-def _int_ranges(values: Sequence[int]) -> str:
-    if not values:
-        return "none"
-    ranges: list[str] = []
-    start = previous = values[0]
-    for value in values[1:]:
-        if value == previous + 1:
-            previous = value
-            continue
-        ranges.append(str(start) if start == previous else f"{start}-{previous}")
-        start = previous = value
-    ranges.append(str(start) if start == previous else f"{start}-{previous}")
-    return ",".join(ranges)
-
-
-def _render_packed_diff(diff: str, files: Sequence[_DiffFile], selected: Sequence[set[int]]) -> str:
-    output = [
-        "# Diff summary\n",
-        f"files: {len(files)}\n",
-        f"added_lines: {sum(file.added for file in files)}\n",
-        f"deleted_lines: {sum(file.deleted for file in files)}\n",
-        f"original_bytes: {len(diff.encode())}\n\n",
-        "# Changed files\n",
-    ]
-    for index, file in enumerate(files):
-        chosen = selected[index]
-        units = file.hunks or [""]
-        total = len(file.preamble.encode()) + sum(len(hunk.encode()) for hunk in file.hunks)
-        included = 0 if not chosen else len(file.preamble.encode())
-        included += sum(len(units[unit].encode()) for unit in chosen)
-        omitted = [unit + 1 for unit in range(len(units)) if unit not in chosen]
-        if not chosen:
-            status = "omitted-file"
-        elif included == total:
-            status = "complete"
-        else:
-            status = "partial"
-        output.append(
-            f"- {file.path} | +{file.added} -{file.deleted} | status={status} | "
-            f"omitted_hunks={_int_ranges(omitted)} | omitted_bytes={total - included}\n"
-        )
-    output.append("\n# Packed patch\n")
-    for index, file in enumerate(files):
-        if not selected[index]:
-            continue
-        output.append(file.preamble)
-        output.extend(file.hunks[unit] for unit in sorted(selected[index]) if file.hunks)
-    return "".join(output)
-
-
-def pack_diff(diff: str, max_size: int = DEFAULT_MAX_DIFF_SIZE) -> str:
-    """Pack a unified diff into an auditable, fairly sampled byte budget."""
-    if max_size <= 0:
-        max_size = DEFAULT_MAX_DIFF_SIZE
-    files = _parse_diff(diff)
-    selected = [set() for _ in files]
-    payload = _render_packed_diff(diff, files, selected)
-    if len(payload.encode()) > max_size:
-        raise DotError(f"budget {max_size} bytes cannot hold the {len(payload.encode())}-byte omission manifest")
-    for file_index, unit in _diff_units(files):
-        selected[file_index].add(unit)
-        candidate = _render_packed_diff(diff, files, selected)
-        if len(candidate.encode()) <= max_size:
-            payload = candidate
-        else:
-            selected[file_index].remove(unit)
-    return payload
-
-
-def scan_payload_for_secrets(state: State, payload: str) -> None:
-    """Fail closed unless gitleaks accepts the exact outgoing payload."""
-    scanner = _tool(state, "gitleaks")
-    try:
-        state.runner.run([str(scanner), "stdin", "--no-banner", "--redact"], input_text=payload)
-    except DotError as error:
-        raise DotError("outgoing payload secret scan failed") from error
-
-
-def scan_diff_for_secrets(state: State, diff: str) -> None:
-    """Scan the exact AI-bound diff with a diff-specific error."""
-    try:
-        scan_payload_for_secrets(state, diff)
-    except DotError as error:
-        raise DotError(f"outgoing diff secret scan failed: {error}") from error
-
-
-def scan_prompt_for_secrets(state: State, prompt: str) -> None:
-    """Scan the exact AI-bound prompt without exposing its contents."""
-    try:
-        scan_payload_for_secrets(state, prompt)
-    except DotError as error:
-        raise DotError(f"outgoing prompt secret scan failed: {error}") from error
-
-
-def limit_ai_input(value: str, max_size: int) -> str:
-    """Truncate text on a UTF-8 boundary without exceeding the byte limit."""
-    limit = max_size if max_size > 0 else DEFAULT_MAX_DIFF_SIZE
-    raw = value.encode()
-    if len(raw) <= limit:
-        return value
-    return raw[:limit].decode("utf-8", errors="ignore")
-
-
-def generate_text(state: State, prompt: str, input_text: str, max_size: int = DEFAULT_MAX_DIFF_SIZE) -> str:
-    """Invoke the configured AI binary from an isolated temporary directory."""
-    binary = state.config.ai.binary or DEFAULT_AI_BINARY
-    executable = _tool(state, binary)
-    args = [str(executable), "--prompt", prompt]
-    if Path(binary).name == DEFAULT_AI_BINARY:
-        args.insert(1, "--sandbox")
-    try:
-        with tempfile.TemporaryDirectory(prefix="dot-ai-") as directory:
-            output = state.runner.run(
-                args,
-                cwd=Path(directory),
-                input_text=limit_ai_input(input_text, max_size),
-            ).stdout.strip()
-    except DotError as error:
-        raise DotError("AI invocation failed") from error
-    if not output:
-        raise DotError("AI returned empty output")
-    return output
-
-
-def _rollback_index(state: State, root: Path, cause: BaseException) -> None:
-    try:
-        state.runner.run(["git", "reset", "--mixed"], cwd=root)
-    except DotError as rollback_error:
-        raise DotError(f"{cause}; failed to restore initially clean index") from rollback_error
-
-
-def run_commit(
-    state: State,
-    commit_type: str = "",
-    scope: str = "",
-    *,
-    all_changes: bool = False,
-    cwd: Path | None = None,
-) -> str | None:
-    """Generate a Conventional Commit message and open the git editor."""
-    root = git_root(state, cwd)
-    auto_staged = False
-    try:
-        complete_diff = get_cached_diff_unfiltered(state, cwd=root)
-        if not complete_diff.strip():
-            status = state.runner.run(["git", "status", "--porcelain"], cwd=root).stdout
-            if not status.strip():
-                state.stdout.write("No changes to commit.\n")
-                return None
-            if not all_changes:
-                raise DotError("no staged changes; stage the intended files or use --all")
-            auto_staged = True
-            state.runner.run(["git", "add", "-A"], cwd=root)
-            complete_diff = get_cached_diff_unfiltered(state, cwd=root)
-            if not complete_diff.strip():
-                raise DotError("git add -A completed without producing a staged diff")
-            state.stdout.write("No staged changes found. Staged all working tree changes.\n")
-        diff = get_cached_diff(state, cwd=root)
-        if not diff.strip():
-            raise DotError("git changes exist, but every changed path is excluded from AI diff generation")
-        prompt = state.config.commit.prompt or CommitConfig().prompt
-        allowed = ", ".join(state.config.commit.allowed_types)
-        if "%s" in prompt:
-            prompt %= allowed
-        if commit_type and scope:
-            prompt += f" Use type '{commit_type}' and scope '{scope}'."
-        elif commit_type:
-            prompt += f" Suggest a scope and use '{commit_type}' as the type."
-        elif scope:
-            prompt += f" Use scope '{scope}' and suggest an appropriate type."
-        packed = pack_diff(diff, state.config.commit.max_diff_size)
-        scan_diff_for_secrets(state, packed)
-        message = generate_text(state, prompt, packed, state.config.commit.max_diff_size)
-        paths = state.runner.run(["git", "diff", "--cached", "--name-only", "-z", "--", ":/"], cwd=root).stdout.split(
-            "\0"
-        )
-        selected = [path for path in paths if path]
-        state.stdout.write(f"Staged files ({len(selected)}):\n")
-        for path in selected:
-            display = path.replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-            state.stdout.write(f"  {display}\n")
-        code = state.runner.interactive(
-            ["git", "commit", "-e", "-m", message],
-            cwd=root,
-            stdin=state.stdin,
-            stdout=state.stdout,
-            stderr=state.stderr,
-        )
-        if code:
-            raise DotError(f"git commit failed with status {code}")
-    except BaseException as error:
-        # Auto-staging is transactional even when the user interrupts the editor.
-        if auto_staged:
-            _rollback_index(state, root, error)
-        raise
-    return message
-
-
-def _pr_template(root: Path, paths: Iterable[str]) -> str:
-    for configured in paths:
-        path = Path(configured)
-        relative = not path.is_absolute()
-        path = path if not relative else root / path
-        try:
-            info = path.lstat() if relative else path.stat()
-        except FileNotFoundError:
-            continue
-        except OSError as error:
-            raise DotError(f"failed to inspect PR template {configured}") from error
-        if relative:
-            if not stat.S_ISREG(info.st_mode):
-                raise DotError(f"relative PR template must be a regular file: {configured}")
-            try:
-                resolved = path.resolve(strict=True)
-                resolved.relative_to(root.resolve(strict=True))
-            except ValueError as error:
-                raise DotError(f"relative PR template escapes repository root: {configured}") from error
-            except (OSError, RuntimeError) as error:
-                raise DotError(f"failed to inspect PR template {configured}") from error
-            path = resolved
-        if stat.S_ISDIR(info.st_mode):
-            continue
-        try:
-            return path.read_text(encoding="utf-8")
-        except OSError as error:
-            raise DotError(f"failed to read PR template {configured}") from error
-    return ""
-
-
-def run_pull_request(
-    state: State,
-    *,
-    base: str | None = None,
-    title: str = "",
-    draft: bool = False,
-    labels: Sequence[str] = (),
-    reviewers: Sequence[str] = (),
-    assignees: Sequence[str] = (),
-    cwd: Path | None = None,
-    print_only: bool = False,
-    body_file: Path | None = None,
-    yes: bool = False,
-) -> str | None:
-    """Generate a reviewed PR body and invoke ``gh pr create``."""
-    if print_only and yes:
-        raise DotError("--print and --yes are mutually exclusive")
-    root = git_root(state, cwd)
-    gh = _tool(state, "gh") if not print_only else None
-    base_branch = base or state.config.pr.base_branch
-    complete_diff = get_base_diff_unfiltered(state, base_branch, cwd=root)
-    if not complete_diff.strip():
-        state.stdout.write(f"No changes detected against base branch '{base_branch}'.\n")
-        return None
-    diff = get_base_diff(state, base_branch, cwd=root)
-    if not diff.strip():
-        raise DotError(
-            f"changes exist against base branch {base_branch!r}, but every changed path is excluded from AI diff generation"
-        )
-    prompt = state.config.pr.prompt or PRConfig().prompt
-    template = _pr_template(root, state.config.pr.templates or PRConfig().templates)
-    if template:
-        prompt += "\n\nFollow the repository pull request template below:\n\n" + template
-    packed = pack_diff(diff, state.config.commit.max_diff_size)
-    scan_prompt_for_secrets(state, prompt)
-    scan_diff_for_secrets(state, packed)
-    description = (
-        body_file.read_text(encoding="utf-8")
-        if body_file
-        else generate_text(state, prompt, packed, state.config.commit.max_diff_size)
-    )
-    if print_only:
-        state.stdout.write(description.rstrip() + "\n")
-        return description
-    if not description.strip():
-        raise DotError("pull request body is empty")
-    with tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", prefix="dot-pr-", suffix=".md", delete=False
-    ) as stream:
-        stream.write(description)
-        body_path = Path(stream.name)
-    published = False
-    try:
-        if not yes:
-            editor = shlex.split(os.environ.get("EDITOR", "vi")) or ["vi"]
-            _tool(state, editor[0])
-            code = state.runner.interactive(
-                [*editor, str(body_path)], cwd=root, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr
-            )
-            if code:
-                raise DotError(f"PR editor exited with status {code}")
-        description = body_path.read_text(encoding="utf-8")
-        if not description.strip():
-            raise DotError("pull request body is empty; publication cancelled")
-        scan_payload_for_secrets(state, description)
-        args = [str(gh), "pr", "create", "--base", base_branch, "--body-file", str(body_path)]
-        if title:
-            args.extend(["--title", title])
-        if draft:
-            args.append("--draft")
-        for option, values in (("--label", labels), ("--reviewer", reviewers), ("--assignee", assignees)):
-            for value in values:
-                args.extend([option, value])
-        code = state.runner.interactive(
-            args,
-            cwd=root,
-            stdin=state.stdin,
-            stdout=state.stdout,
-            stderr=state.stderr,
-        )
-        if code:
-            raise DotError(f"gh pr create failed with status {code}")
-        published = True
-    finally:
-        if published:
-            body_path.unlink(missing_ok=True)
-        else:
-            state.stderr.write(f"PR body retained at {body_path}; retry with dot pr --body-file {body_path}\n")
-    return description
 
 
 def find_git_repositories(state: State, paths: Sequence[Path] = ()) -> list[Path]:
@@ -724,7 +256,7 @@ def run_pull(
     if not repositories:
         state.stdout.write("[]\n" if as_json else "No git repositories found in configured pull directories.\n")
         return []
-    timeout = duration_seconds(state.config.pull.timeout)
+    timeout = state.config.pull.timeout_seconds
     cancelled = Event()
     executor = ThreadPoolExecutor(max_workers=state.config.pull.concurrency)
     try:
@@ -962,50 +494,6 @@ def _state_from(context: typer.Context) -> State:
     return state
 
 
-def commit_command(
-    context: typer.Context,
-    commit_type: Annotated[str, typer.Option("--type", "-t", help="Conventional Commit type")] = "",
-    scope: Annotated[str, typer.Option("--scope", "-s", help="Conventional Commit scope")] = "",
-    all_changes: Annotated[
-        bool, typer.Option("--all", help="Stage the whole worktree when the index is empty")
-    ] = False,
-) -> None:
-    run_commit(_state_from(context), commit_type, scope, all_changes=all_changes)
-
-
-def pull_request_command(
-    context: typer.Context,
-    base: Annotated[str | None, typer.Option("--base", "-b", help="Base branch to diff against")] = None,
-    title: Annotated[str, typer.Option("--title", "-t", help="Pull request title")] = "",
-    draft: Annotated[bool, typer.Option("--draft", "-d", help="Create a draft pull request")] = False,
-    label: Annotated[list[str] | None, typer.Option("--label", "-l", help="Label to add")] = None,
-    reviewer: Annotated[list[str] | None, typer.Option("--reviewer", "-r", help="Reviewer to request")] = None,
-    assignee: Annotated[list[str] | None, typer.Option("--assignee", "-a", help="Assignee to add")] = None,
-    print_only: Annotated[
-        bool, typer.Option("--print", help="Print the body without creating a PR or pushing")
-    ] = False,
-    body_file: Annotated[
-        Path | None,
-        typer.Option("--body-file", exists=True, dir_okay=False, help="Reuse a prepared body without AI generation"),
-    ] = None,
-    yes: Annotated[bool, typer.Option("--yes", "-y", help="Publish without opening the editor")] = False,
-) -> None:
-    if not print_only and not yes and not _state_from(context).stdin.isatty():
-        raise DotError("PR review needs a terminal; use --print or provide --yes to publish without the editor")
-    run_pull_request(
-        _state_from(context),
-        base=base,
-        title=title,
-        draft=draft,
-        labels=label or (),
-        reviewers=reviewer or (),
-        assignees=assignee or (),
-        print_only=print_only,
-        body_file=body_file,
-        yes=yes,
-    )
-
-
 def pull_command(
     context: typer.Context,
     paths: Annotated[
@@ -1038,12 +526,5 @@ def status_command(
 
 
 def register_repository_commands(parent: typer.Typer) -> None:
-    """Register the repository command surface."""
-    commands = (
-        (commit_command, "commit", (), "Generate and apply an AI-authored Conventional Commit message"),
-        (pull_request_command, "pull-request", ("pr",), "Generate a pull request body and invoke gh"),
-        (pull_command, "pull", (), "Update configured Git repositories concurrently"),
-        (status_command, "status", (), "Show Git repository and Docker status"),
-    )
-    for callback, name, aliases, help_text in commands:
-        aliased_command(parent, name, *aliases, help_text=help_text)(callback)
+    parent.command("pull", help="Update configured repositories with bounded concurrency")(pull_command)
+    parent.command("status", help="Show repository and Docker status")(status_command)

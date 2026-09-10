@@ -1,114 +1,66 @@
 # chezmoi:modify-template
 {{- $managedConfig := fromToml `
-[cli]
-# Grok automatically checks and updates itself in the background to the latest
-# version without manual version pinning in dotfiles.
-auto_update = true
-
+# Docs: https://docs.x.ai/build/settings/reference
 [features]
-active_agent_messages = true
-codebase_indexing = true
-# feedback is a separate sink from telemetry, so silencing one leaves the other on.
-# Matches Claude Code (feedbackSurveyRate = 0) and Codex (otel exporters = "none").
 feedback = false
-# lsp_tools exposes the "lsp" tool; ~/.grok/lsp.json declares the servers it drives.
+# Python code intelligence uses the ty server declared in lsp.json.
 lsp_tools = true
-mcp_auto_restart = true
-mcp_liveness_watchers = true
-subagent_worktree_snapshot = true
 telemetry = false
-# Opt-in: compaction prefires a second pass, so a long session keeps more context.
-two_pass_compaction = true
 
-# Cross-session memory is experimental and off by default. Enabling it here matches the
-# memory already on for Claude Code (autoMemoryEnabled) and Codex ([features] memories).
-# Keyword recall (FTS5) works unauthenticated; vector recall adds an embedding call.
 [memory]
 enabled = true
 
 [models]
-# Only the effort is pinned, and "default" is pruned below rather than left alone: Grok
-# persists whatever /model selects into this file, so leaving it would freeze the machine
-# on today's model instead of following Grok's own default as it tracks each new release.
 default_reasoning_effort = "xhigh"
-inference_idle_timeout_secs = 600
-max_retries = 8
-stream_tool_calls = true
-subagent_rate_limit_max_attempts = 8
 
 [ui]
 compact_mode = true
 follow_up_behavior = "steer"
-fork_secondary_model = "grok-4.5"
-max_thoughts_width = 120
-# The config surface for always-approve. The [ui] yolo bool is a second, redundant spelling
-# of the same behaviour, so it is left out rather than pinned to a contradicting value.
 permission_mode = "always-approve"
-render_mermaid = "on"
-screen_mode = "fullscreen"
-# simple_mode keeps prompt editing non-modal and responsive for immediate typing,
-# while vim_mode preserves vim navigation in scrollback history.
-simple_mode = true
+# vim_mode covers scrollback; simple_mode = false enables vim prompt editing.
+simple_mode = false
 theme = "tokyonight"
 vim_mode = true
 
-# Grok's bash defaults truncate a "mise run test" run twice over: the 120s timeout kills it
-# long before it finishes, and the 20 KB output cap cuts off the failure that matters. Both
-# are raised to the budget Claude Code already runs on (BASH_DEFAULT_TIMEOUT_MS = 300000).
+# Allow ordinary repository gates to finish and retain useful failure output.
 [toolset.bash]
 output_byte_limit = 131072
 timeout_secs = 300.0
 
-# Grok's own documentation states both true and false as the default for this key, so it
-# is pinned rather than inherited. False keeps gitignored-but-wanted files readable:
-# the built dot binary, skills/local-*, and every other ignored path in this checkout.
 [tools]
 respect_gitignore = false
 
-# web_fetch is enabled through GROK_WEB_FETCH in the fish environment. Off-allowlist
-# domains normally prompt, and always-approve answers those prompts, so the SSRF guard
-# is what actually bounds the tool: loopback stays unreachable, and private, link-local,
-# and cloud-metadata addresses stay blocked whatever this is set to.
+# GROK_WEB_FETCH enables fetching; retain its local-network boundary.
 [toolset.web_fetch]
 allow_local = false
 
-# Grok reaches the shared persona and skills through its own ~/.grok symlinks, so every
-# vendor-compatibility *scan* is off. Left on (the default), Grok would load
-# ~/.agents/AGENTS.md a second time via ~/.claude/CLAUDE.md, and would run Claude Code's
-# hooks inside a Grok turn: desktop alerts labelled "Claude Code", and a
-# "dot agent hook session claude" that cannot resolve a Grok session ID.
-# The "sessions" cell is staged upstream with no scanner behind it yet; pinning it now
-# stops foreign-session discovery from switching itself on the day a consumer ships.
-# Claude Code's *permission* rules are a different surface from compat.claude.rules (which
-# only governs ~/.claude/rules/ scanning), and they have no compat toggle at all: Grok
-# keeps reading ~/.claude/settings.json and inherits its bypassPermissions default.
+# Native symlinks supply the persona and skills. Foreign scanning duplicates
+# instructions and can run another harness's session hooks with the wrong IDs.
 [compat.claude]
 agents = false
 hooks = false
 mcps = false
 rules = false
-sessions = false
 skills = false
-
-# Codex's other cells are reserved and inert upstream, so "sessions" is the only one to pin.
-[compat.codex]
-sessions = false
 
 [compat.cursor]
 agents = false
 hooks = false
 mcps = false
 rules = false
-sessions = false
 skills = false
 
 ` -}}
-{{- /* Dropping a key from the managed block above only stops managing it -- the merge would
-       still carry whatever Grok last wrote. These have to be pruned to actually go:
-       privacy, which Grok wrote and a later version dropped; models.default, per the [models] note;
-       ui.yolo, the redundant second spelling of permission_mode; and extraneous ui keys. */ -}}
+{{- /* Prune retired managed keys so existing installations return to native defaults.
+       models.default is cleared to follow Grok's current default model. */ -}}
 {{- includeTemplate "toml-merge.tmpl" (dict
       "stdin" .chezmoi.stdin
       "managed" $managedConfig
       "defaults" dict
-      "prune" (list "models.default" "privacy" "ui.show_timeline" "ui.voice_stt_language" "ui.yolo")) -}}
+      "prune" (list "models.default" "privacy" "ui.show_timeline" "ui.voice_stt_language" "ui.yolo"
+        "cli.auto_update" "features.active_agent_messages" "features.codebase_indexing"
+        "features.mcp_auto_restart" "features.mcp_liveness_watchers" "features.subagent_worktree_snapshot"
+        "features.two_pass_compaction" "models.inference_idle_timeout_secs" "models.max_retries"
+        "models.stream_tool_calls" "models.subagent_rate_limit_max_attempts" "ui.fork_secondary_model"
+        "ui.max_thoughts_width" "ui.render_mermaid" "ui.screen_mode"
+        "compat.claude.sessions" "compat.codex.sessions" "compat.cursor.sessions")) -}}
