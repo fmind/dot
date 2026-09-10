@@ -18,11 +18,12 @@ from fmind_dot.process import Runner
 @pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker"])
 def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str, tmp_path: Path) -> None:
     started = tmp_path / "started"
+    release = tmp_path / "release"
     finished = tmp_path / "finished"
     child = (
         "import pathlib,sys,time\n"
         "pathlib.Path(sys.argv[1]).write_text('started')\n"
-        "time.sleep(0.3)\n"
+        "while not pathlib.Path(sys.argv[3]).exists(): time.sleep(0.01)\n"
         "pathlib.Path(sys.argv[2]).write_text('finished')\n"
     )
     launcher = (
@@ -32,7 +33,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         "from fmind_dot.state import State\n"
         "from pathlib import Path\n"
         "from fmind_dot.process import Runner\n"
-        "command=[sys.executable,'-c',os.environ['DOT_CHILD'],os.environ['DOT_STARTED'],os.environ['DOT_FINISHED']]\n"
+        "command=[sys.executable,'-c',os.environ['DOT_CHILD'],os.environ['DOT_STARTED'],os.environ['DOT_FINISHED'],os.environ['DOT_RELEASE']]\n"
         "def invoke():\n"
         " runner=Runner()\n"
         " if os.environ['DOT_MODE']=='captured': runner.run(command)\n"
@@ -51,6 +52,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
             "DOT_CHILD": child,
             "DOT_FINISHED": str(finished),
             "DOT_MODE": mode,
+            "DOT_RELEASE": str(release),
             "DOT_STARTED": str(started),
         }
     )
@@ -69,6 +71,9 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
 
     process.send_signal(process_module.signal.SIGTERM)
     stdout, stderr = process.communicate(timeout=5)
+    # Only permit the side effect after cancellation returned; host scheduling
+    # cannot let a short timer fire before this test delivers SIGTERM.
+    release.touch()
     time.sleep(0.4)
 
     assert process.returncode == 130

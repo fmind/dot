@@ -69,7 +69,7 @@ jobs:
           IMAGE_REPOSITORY: ${{ vars.GCP_ARTIFACT_IMAGE }}
         shell: bash
         run: |
-          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Build did not return one valid sha256 image digest" >&2; exit 1; }
           printf 'ref=%s@%s\n' "$IMAGE_REPOSITORY" "$DIGEST" >> "$GITHUB_OUTPUT"
           printf 'IMAGE=%s@%s\n' "$IMAGE_REPOSITORY" "$DIGEST" >> "$GITHUB_ENV"
           printf 'SBOM=%s/sbom.cdx.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"

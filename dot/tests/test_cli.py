@@ -127,7 +127,7 @@ def test_help_lists_commands_alphabetically(
     monkeypatch.setenv("HOME", str(tmp_path))
     result = runner.invoke(app, [*path, "--help"])
     assert result.exit_code == 0
-    rows = [match.group(1) for match in re.finditer(r"(?m)^[│ ]+(\S+)\s", result.stdout)]
+    rows = [match.group(1) for match in re.finditer(r"(?m)^[│ ]+(\S+)\s", _click.utils.strip_ansi(result.stdout))]
     assert [name for name in rows if name in names] == names
 
 
