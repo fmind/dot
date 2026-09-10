@@ -7,7 +7,7 @@
     stdin    current content of the target (.chezmoi.stdin in a modify_ template)
     managed  keys this repo owns; they always overwrite whatever the target holds
     defaults keys seeded on first write only, then left for the tool to change
-    prune    keys to delete outright, "table" or "table.key", for settings the tool
+    prune    dotted paths to delete outright, for settings the tool
              persists but that we want to fall back to its built-in default
 
   Callers must pull this in with includeTemplate rather than a template action: on
@@ -29,7 +29,9 @@
 {{- range .prune -}}
 {{-   $path := splitList "." . -}}
 {{-   $table := $desired -}}
-{{-   if gt (len $path) 1 }}{{ $table = index $desired (first $path) }}{{ end -}}
+{{-   range initial $path -}}
+{{-     if kindIs "map" $table }}{{ $table = index $table . }}{{ end -}}
+{{-   end -}}
 {{- /* A missing parent table yields nil, so an already-absent key prunes to a no-op. */ -}}
 {{-   if kindIs "map" $table }}{{ $_ := unset $table (last $path) }}{{ end -}}
 {{- end -}}

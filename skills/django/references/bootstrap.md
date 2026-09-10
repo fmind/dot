@@ -27,7 +27,7 @@ Remove uv's placeholder `main.py` after Django creates `manage.py`; replace each
 
 Keep `config/` limited to settings, root URLs, and WSGI/ASGI entry points. Put behavior in cohesive domain apps, not a generic `core`, `utils`, or premature service hierarchy.
 
-Adapt the shared [Python manifest](../../python-stack/references/pyproject.toml.template) and [mise tasks](../../python-stack/references/mise.toml): set `[tool.uv] package = false`, remove Litestar/package dependencies and build metadata, add Ruff's `DJ` rules, set `DJANGO_SETTINGS_MODULE = "config.settings"` for pytest, and keep warnings as errors. Add `pytest-django` database markers only to tests that access the database.
+Adapt the shared [Python manifest](../../python-stack/references/pyproject.toml.template) and [mise tasks](../../python-stack/references/mise.toml): set `[tool.uv] package = false`, keep only Django application dependencies and remove package build metadata, add Ruff's `DJ` rules, set `DJANGO_SETTINGS_MODULE = "config.settings"` for pytest, and keep warnings as errors. Add `pytest-django` database markers only to tests that access the database.
 
 ## Harden the Generated Project
 

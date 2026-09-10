@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-08-07"
-  updated: "2026-09-09"
+  updated: "2026-09-10"
 ---
 
 # Cloud Run Deployment
@@ -19,10 +19,10 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 1. **Configure identities once**: read [bootstrap.md](references/bootstrap.md) for APIs, registry, runtime service account, deployer service account, and Workload Identity Federation. Keep deployer and runtime identities distinct.
 1. **Install the deployment toolchain**: pin Trivy and Cosign to exact stable versions in the Python project's mise configuration, lock them, and install them before any image scan or registry push; use [deployment.md](references/deployment.md).
 1. **Validate locally**: build the pinned non-root Python image and run its tests and `check:image` scan per [containerize](../containerize/SKILL.md).
-1. **Publish and prove provenance**: after push authority is explicit, follow [deployment.md](references/deployment.md). Extract one digest from BuildKit metadata, scan it, generate an SBOM, sign it, verify the expected identity and issuer, and attest the SBOM before deployment.
+1. **Publish and prove provenance**: after push authority is explicit, follow [deployment.md](references/deployment.md). Use the build action's digest output in CI, or extract one digest from BuildKit metadata locally, scan it, generate an SBOM, sign it, verify the expected identity and issuer, and attest the SBOM before deployment.
 1. **Deploy privately**: pass the digest reference and dedicated `--service-account`; keep `--no-allow-unauthenticated`. Use [service.yaml](references/service.yaml) when settings warrant a declarative service specification.
 1. **Use infrastructure as code when needed**: manage repeatable services, IAM, registries, and fleet-level infrastructure per [terraform](../terraform/SKILL.md); review the plan before apply.
-1. **Wire CD when requested**: adapt [deploy.yml](references/deploy.yml), set its `GCP_*` variables and full `GCP_ARTIFACT_IMAGE`, then opt in with `ENABLE_DEPLOY_CLOUDRUN=true`.
+1. **Wire CD when requested**: adapt [deploy.yml](references/deploy.yml), set its `GCP_*` variables and full `GCP_ARTIFACT_IMAGE`, then opt in with `ENABLE_DEPLOY_CLOUDRUN=true`. Keep build outputs in action outputs and scans/signing as direct named steps per [github-actions](../github-actions/SKILL.md); short input-validation sequences are sufficient.
 1. **Verify the live result**: record the ready revision, deployed digest, runtime account, IAM policy, health result, and traffic split. Keep a known-good revision for rollback.
 
 ## Gotchas

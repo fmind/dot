@@ -4,7 +4,7 @@ import unittest
 
 import pytest
 
-from fmind_dot import tool_audit as audit_tools
+from dot_tasks import tool_audit as audit_tools
 
 
 class AuditToolsTest(unittest.TestCase):

@@ -8,14 +8,19 @@ pre-commit:
       priority: 10
       run: mise run format:dprint {staged_files}
       stage_fixed: true
-    format:python:
+    format:imports:
       glob: "*.py"
       priority: 10
-      run: mise run format:python {staged_files}
+      run: mise run format:imports {staged_files}
       stage_fixed: true
-    check:leaks:
+    format:ruff:
+      glob: "*.py"
+      priority: 15
+      run: mise run format:ruff {staged_files}
+      stage_fixed: true
+    check:leaks:staged:
       priority: 20
-      run: mise run check:leaks --staged
+      run: mise run check:leaks:staged
     check:
       priority: 30
       run: mise run check

@@ -1,6 +1,6 @@
 # Session Compatibility
 
-Read this before changing discovery, parser output, generation identity, or storage. [session_store.py](../../../../dot/src/fmind_dot/session_store.py), [agent_parsers.py](../../../../dot/src/fmind_dot/agent_parsers.py), and [session_query.py](../../../../dot/src/fmind_dot/session_query.py) define current behavior; do not treat a remembered version number as current.
+Read this before changing discovery, parser output, generation identity, or storage. [session_store.py](../../../../dot/src/fmind_dot/archive/store.py), [agent_parsers.py](../../../../dot/src/fmind_dot/archive/parsers.py), and [session_query.py](../../../../dot/src/fmind_dot/archive/query.py) define current behavior; do not treat a remembered version number as current.
 
 ## Change boundary
 
@@ -16,3 +16,5 @@ Read this before changing discovery, parser output, generation identity, or stor
 - [Storage tests](../../../../dot/tests/test_session_store.py): immutable identity, private permissions, atomicity, races, and corruption.
 - [Query tests](../../../../dot/tests/test_session_query.py): current generations and archive retrieval.
 - [Doctor tests](../../../../dot/tests/test_agent_doctor.py): integration and archive health. Routine queries do not require a deep workstation audit.
+
+Manifest schema 2 / parser 3 includes `usage.json` in validation, publication, and compaction. Never update usage separately from the transcript. Parser 1/2 and schema 1 remain readable; re-ingestion creates a new generation only from available sources. Provider-source pruning is removed.

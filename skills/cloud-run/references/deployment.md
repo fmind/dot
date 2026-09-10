@@ -72,6 +72,8 @@
    [tasks.deploy]
    description = "Deploy IMAGE_REF to Cloud Run"
    run = '''
+   #!/usr/bin/env bash
+   set -euo pipefail
    : "${IMAGE_REF:?Set IMAGE_REF to the reviewed digest reference}"
    [[ "$IMAGE_REF" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
    gcloud run deploy <slug> --image "$IMAGE_REF" --region <region> --service-account <slug>-runtime@<project>.iam.gserviceaccount.com --no-allow-unauthenticated

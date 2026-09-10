@@ -36,7 +36,7 @@ Key routines:
 
 - `.agents/`, `.antigravitycli/`, `.claude/`, and `.gemini/` hold repository-scoped agent state, links, and local skills.
 - `.github/` owns CI, release, security, audit, and dependency-update automation.
-- `dot/` contains the Python package, CLI modules, uv lock, and pytest suite.
+- `dot/` contains the runtime package, repository-only `dot_tasks/`, uv lock, and pytest suite.
 - `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host (with OpenCode in `dot_config/opencode/`).
 - `dot_config/` contains managed application configuration; root `dot_*` sources map directly to home targets.
 - `modify_dot_bashrc` and `modify_dot_profile` update existing shell files; `run_once_*` and `run_onchange_*` run installation hooks during apply.

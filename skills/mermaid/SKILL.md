@@ -16,7 +16,6 @@ Mermaid is the default diagram format because the same editable text renders in 
 ## Workflow
 
 1. **State the thesis**: one visual claim and the reader decision it supports; omit the diagram when prose, code, a list, or a table is more direct.
-1. **Pick a stable type**: prefer `flowchart`, `sequenceDiagram`, `stateDiagram-v2`, `classDiagram`, and `erDiagram`; avoid a newly released type until every target renderer's Mermaid version supports it (GitHub reports its version from a block containing `info`).
 1. **Write portable source**: a fenced `mermaid` block when the diagram belongs to one Markdown document, a `.mmd` file when it is reused or rendered independently; use clear, human-readable labels instead of cryptic abbreviations or raw IDs, keep direction intentional, and keep the node count readable without zooming.
 1. **Configure in frontmatter**: put configuration in Mermaid frontmatter, never in `%%{init: ...}%%` directives or renderer-specific fence options; apply the Fmind theme from [fmind-theme](../fmind-visuals/references/fmind-theme.md) when the work represents Médéric or `www.fmind.dev`.
 1. **Validate and render**:

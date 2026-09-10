@@ -5,12 +5,11 @@
   "continueOnAutoMode": true,
   "defaultMode": "autopilot",
   "defaultPermissionMode": "allow-all",
+  "editorMode": "vim",
   "effortLevel": "xhigh",
-  "experimental": true,
   "includeCoAuthoredBy": false,
   "keepAlive": "busy",
   "model": "auto",
   "remoteExport": false,
-  "respectGitignore": false,
-  "stayInAutopilot": true
+  "respectGitignore": false
 }

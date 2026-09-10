@@ -5,12 +5,12 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/pydantic
   created: "2026-09-06"
-  updated: "2026-09-06"
+  updated: "2026-09-10"
 ---
 
 # Pydantic
 
-Use Pydantic for typed input boundaries and serialization; keep application scaffolding in [python-stack](../python-stack/SKILL.md).
+Use Pydantic for typed input boundaries and serialization; use [python-stack](../python-stack/SKILL.md) for shared project defaults and the selected application skill for scaffolding.
 
 ## Workflow
 

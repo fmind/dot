@@ -194,7 +194,9 @@
       "grok"
     ],
     "gws": [
-      "gws"
+      "gws",
+      "jq",
+      "uv"
     ],
     "hf": [
       "hf"
@@ -212,7 +214,8 @@
       "mise"
     ],
     "litestar": [
-      "skills"
+      "skills",
+      "uv"
     ],
     "loop-engineering": [
       "uv"

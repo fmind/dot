@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import sys
-import webbrowser
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO
 
+import typer
+
 from fmind_dot.config import Config, config_file_path, load_config
+from fmind_dot.errors import DotError
 from fmind_dot.process import Runner
 
 
@@ -25,7 +26,6 @@ class State:
     stdin: IO[str] = field(default_factory=lambda: sys.stdin)
     stdout: IO[str] = field(default_factory=lambda: sys.stdout)
     stderr: IO[str] = field(default_factory=lambda: sys.stderr)
-    browser_open: Callable[[str], bool] = field(default_factory=lambda: webbrowser.open)
     _config: Config | None = field(default=None, init=False, repr=False)
 
     @property
@@ -37,3 +37,10 @@ class State:
         if self._config is None:
             self._config = load_config(self.config_argument)
         return self._config
+
+
+def state_from(context: typer.Context) -> State:
+    state = context.find_root().obj
+    if not isinstance(state, State):
+        raise DotError("CLI state is unavailable")
+    return state

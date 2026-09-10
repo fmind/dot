@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -12,13 +13,14 @@ from datetime import UTC, datetime, time
 from pathlib import Path
 from typing import IO, Any
 
-from fmind_dot.session_store import (
+from fmind_dot.archive.store import (
     SESSION_PARSER_VERSION,
-    SESSION_SCHEMA_VERSION,
     SUPPORTED_PARSER_VERSIONS,
+    SUPPORTED_SCHEMA_VERSIONS,
     SessionLog,
     SessionManifest,
     delete_session_generation,
+    generation_files,
     read_session_manifest,
     session_digest,
     session_lineage_id,
@@ -195,7 +197,7 @@ def _allocated_bytes(path: Path) -> int:
     return sum(entry.lstat().st_blocks * 512 for entry in (path, *path.iterdir()))
 
 
-def _validate_compaction_generation(root: Path, generation: _Generation) -> tuple[int, list[SessionLog]]:
+def _validate_compaction_generation(root: Path, generation: _Generation) -> tuple[int, list[bytes]]:
     manifest = generation.manifest
     try:
         parts = generation.path.relative_to(root).parts
@@ -210,9 +212,15 @@ def _validate_compaction_generation(root: Path, generation: _Generation) -> tupl
         raise ValueError(f"session generation does not match its immutable identity: {generation.path}")
     records = validate_session_generation(generation.path, manifest)
     entries = {entry.name for entry in generation.path.iterdir()}
-    if entries != {"manifest.json", "transcript.jsonl"}:
+    if entries != generation_files(manifest):
         raise ValueError(f"session generation contains unexpected entries: {generation.path}")
-    return _allocated_bytes(generation.path), records
+    # Retain canonical record fingerprints, not every transcript in the archive.
+    # Field boundaries and all record metadata participate in prefix comparisons.
+    fingerprints = [
+        hashlib.sha256(json.dumps(record.to_dict(), sort_keys=True, ensure_ascii=False).encode()).digest()
+        for record in records
+    ]
+    return _allocated_bytes(generation.path), fingerprints
 
 
 def _compaction_sort_key(generation: _Generation) -> tuple[bool, int, str, str, str]:
@@ -242,13 +250,17 @@ def compact_session_generations(
     for group in groups.values():
         # Unknown schemas remain untouched because their completeness semantics
         # cannot be safely ranked by this implementation.
-        if any(item.manifest.schema_version != SESSION_SCHEMA_VERSION for item in group):
+        if any(item.manifest.schema_version not in SUPPORTED_SCHEMA_VERSIONS for item in group):
             retained.update(item.path for item in group)
             continue
         kept: list[_Generation] = []
         for candidate in sorted(group, key=_compaction_sort_key, reverse=True):
             candidate_records = verified[candidate.path][1]
-            covered = any(candidate_records == verified[item.path][1][: len(candidate_records)] for item in kept)
+            covered = any(
+                candidate_records == verified[item.path][1][: len(candidate_records)]
+                and candidate.manifest.usage_sha256 == item.manifest.usage_sha256
+                for item in kept
+            )
             if not covered:
                 # Divergent histories are not superseded merely because another
                 # generation has more records or a later timestamp.
@@ -337,7 +349,7 @@ def query_session_summaries(
         if query.cwd and summary.cwd and summary.cwd != query.cwd:
             continue
         if (
-            manifest.schema_version != SESSION_SCHEMA_VERSION
+            manifest.schema_version not in SUPPORTED_SCHEMA_VERSIONS
             or manifest.parser_version not in SUPPORTED_PARSER_VERSIONS
         ):
             summary.status.append("unsupported")

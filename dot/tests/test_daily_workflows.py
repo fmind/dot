@@ -9,16 +9,21 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from fmind_dot import agent, agent_parsers, maintenance, repository, session_store
+from dot_tasks import release as maintenance
+from fmind_dot import agent_doctor as agent_doctor_module
+from fmind_dot import repository
+from fmind_dot.archive import ingest as archive_ingest_module
+from fmind_dot.archive import parsers as agent_parsers
+from fmind_dot.archive import store as session_store
+from fmind_dot.archive.query import SessionQuery, query_session_summaries, show_session
+from fmind_dot.archive.statistics import prompt_statistics, session_statistics
+from fmind_dot.archive.store import SessionLog, SessionSource, ingest_session
+from fmind_dot.archive.usage import UsageRecord, aggregate_usage, write_usage_stats
 from fmind_dot.cli import app
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
-from fmind_dot.session_query import SessionQuery, query_session_summaries, show_session
-from fmind_dot.session_store import SessionLog, SessionSource, ingest_session
 from fmind_dot.state import State
-from fmind_dot.statistics import prompt_statistics, session_statistics
-from fmind_dot.usage import UsageRecord, aggregate_usage, write_usage_stats
 
 
 def state_with(config: Config | None = None) -> State:
@@ -201,46 +206,14 @@ def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch
     )
     state = state_with()
     state.config.agent.sources["claude"] = str(source)
-    assert agent.sync_sessions(state, agent="claude", session="selected", dry_run=True, as_json=True) == 1
+    assert (
+        archive_ingest_module.sync_sessions(state, agent="claude", session="selected", dry_run=True, as_json=True) == 1
+    )
     assert isinstance(state.stdout, io.StringIO)
     assert json.loads(state.stdout.getvalue())["selected"] == 1
     assert not (tmp_path / ".agents/sessions").exists()
     with pytest.raises(DotError, match="unknown"):
-        agent.sync_sessions(state, agent="typo")
-
-
-def test_pr_print_and_editor_happen_before_publication(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    diff = "diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-old\n+new\n"
-    for name in ("get_base_diff", "get_base_diff_unfiltered"):
-        monkeypatch.setattr(repository, name, lambda *_args, **_kwargs: diff)
-    monkeypatch.setattr(repository, "git_root", lambda *_args: tmp_path)
-    monkeypatch.setattr(repository, "_pr_template", lambda *_args: "")
-    monkeypatch.setattr(repository, "generate_text", lambda *_args: "generated")
-    for name in ("scan_prompt_for_secrets", "scan_diff_for_secrets", "scan_payload_for_secrets"):
-        monkeypatch.setattr(repository, name, lambda *_args: None)
-    calls = []
-
-    class ReviewRunner(Runner):
-        def which(self, command: str) -> Path:
-            return Path("/tools") / command
-
-        def interactive(self, args, **_kwargs):
-            calls.append(args)
-            if args[0] == "fixture-editor":
-                Path(args[1]).write_text("reviewed", encoding="utf-8")
-            else:
-                assert Path(args[args.index("--body-file") + 1]).read_text(encoding="utf-8") == "reviewed"
-            return 0
-
-    state = state_with()
-    state.runner = ReviewRunner()
-    repository.run_pull_request(state, print_only=True)
-    assert isinstance(state.stdout, io.StringIO)
-    assert state.stdout.getvalue() == "generated\n"
-    assert not calls
-    monkeypatch.setenv("EDITOR", "fixture-editor")
-    repository.run_pull_request(state, title="title")
-    assert [call[0] for call in calls] == ["fixture-editor", "/tools/gh"]
+        archive_ingest_module.sync_sessions(state, agent="typo")
 
 
 def test_doctor_explanation_is_bounded_and_selectable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -254,7 +227,7 @@ def test_doctor_explanation_is_bounded_and_selectable(monkeypatch: pytest.Monkey
     for name in ("first", "second"):
         (source / f"{name}.jsonl").write_text("{}\n", encoding="utf-8")
     state.config.agent.sources["claude"] = str(source)
-    results = agent.gather_agent_doctor(state, agent="claude", deep=True, explain=True)
+    results = agent_doctor_module.gather_agent_doctor(state, agent="claude", deep=True, explain=True)
     assert len(results) == 1
     assert results[0].issue_counts == {"missing-current-generation": 2}
     assert len(results[0].examples) == 1
@@ -319,15 +292,14 @@ def test_release_wait_requires_exact_cd_and_public_artifacts(monkeypatch: pytest
             return CommandResult(json.dumps(value), "", 0, stdout_truncated=outcome == "truncated")
 
     state = state_with()
-    state.config.release.wait_timeout = "1s"
     state.runner = ReleaseRunner()
     assert isinstance(state.stdout, io.StringIO)
     if outcome == "success":
-        assert maintenance.wait_for_release(state, "v2.2.0").endswith("/v2.2.0")
+        assert maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
         assert "Published" in state.stdout.getvalue()
     else:
         with pytest.raises(DotError):
-            maintenance.wait_for_release(state, "v2.2.0")
+            maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1)
         assert "Published" not in state.stdout.getvalue()
     if outcome in {"failure", "wrong-head", "truncated"}:
         assert len(calls) == 1

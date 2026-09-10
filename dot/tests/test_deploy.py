@@ -161,8 +161,10 @@ def test_install_rebuilds_wheel_after_project_scripts_change(tmp_path: pathlib.P
     assert f"--hash=sha256:{stale_digest}" not in requirements
 
 
+@pytest.mark.parametrize("changed_file", ["dot/pyproject.toml", "dot/src/fmind_dot/api-prices.yaml"])
 def test_install_rejects_source_changed_during_wheel_build_and_preserves_active_runtime(
     tmp_path: pathlib.Path,
+    changed_file: str,
 ) -> None:
     source = _source(tmp_path / "source")
     install_root = tmp_path / "runtime"
@@ -177,7 +179,7 @@ def test_install_rejects_source_changed_during_wheel_build_and_preserves_active_
     def mutate_after_build(command: list[str], *, cwd: pathlib.Path, environment: dict[str, str]) -> None:
         base_run(command, cwd=cwd, environment=environment)
         if len(command) > 1 and command[1] == "build":
-            (source / "dot/pyproject.toml").write_text(
+            (source / changed_file).write_text(
                 '[project]\nname = "fmind-dot"\nversion = "1.0.0"\n\n[project.scripts]\ndot = "changed:main"\n',
                 encoding="utf-8",
             )

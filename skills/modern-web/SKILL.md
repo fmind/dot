@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/modern-web
   created: "2026-09-03"
-  updated: "2026-09-08"
+  updated: "2026-09-10"
 ---
 
 # Modern Web Guidance
@@ -17,11 +17,11 @@ Modern Web Guidance embeds web platform expertise, browser compatibility data, a
 
 1. **Search guidelines**: Query curated web platform recipes and modern practices using the CLI:
    ```bash
-   npx --yes modern-web-guidance@0.0.187 search "<topic or api>"
+   npx --yes modern-web-guidance search "<topic or api>"
    ```
 1. **Fetch specific pattern**: Retrieve detailed implementation guidelines and browser baselines by guide identifier:
    ```bash
-   npx --yes modern-web-guidance@0.0.187 retrieve "<guide-id>"
+   npx --yes modern-web-guidance retrieve "<guide-id>"
    ```
 
 ## 2. Adoption Workflow
@@ -34,7 +34,7 @@ Modern Web Guidance embeds web platform expertise, browser compatibility data, a
 
 - **Preview status**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
 - **Version refresh**: the CLI example is review-pinned; verify the latest stable npm release and update both commands together before adopting newer guidance.
-- **Application integration**: keep browser behavior in native HTML, CSS, and JavaScript; use [python-stack](../python-stack/SKILL.md) for server rendering, APIs, and application tests.
+- **Application integration**: keep browser behavior in native HTML, CSS, and JavaScript; use [litestar](../litestar/SKILL.md) or [django](../django/SKILL.md) for server rendering, APIs, and application tests.
 - **Progressive enhancement**: Native dialogs, popovers, and top-layer elements require careful focus and accessibility management; verify keyboard navigation.
 
 ## Official Skills

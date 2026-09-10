@@ -44,7 +44,8 @@ def _wheel(directory: pathlib.Path) -> pathlib.Path:
 
 
 def _package_digest(directory: pathlib.Path) -> str:
-    files = sorted(path for path in directory.rglob("*.py") if path.is_file())
+    # Bundled rate cards affect runtime behavior just as Python modules do.
+    files = sorted(path for path in directory.rglob("*") if path.is_file() and path.suffix in {".py", ".yaml"})
     if not files:
         raise FileNotFoundError(directory)
     digest = hashlib.sha256()

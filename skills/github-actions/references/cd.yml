@@ -58,6 +58,9 @@ jobs:
     if: ${{ vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/cd.yml@${{ github.ref }}
+      ISSUER: https://token.actions.githubusercontent.com
     permissions:
       contents: read
       packages: write
@@ -97,30 +100,24 @@ jobs:
           tags: |
             ${{ steps.image.outputs.repository }}:latest
             ${{ steps.image.outputs.repository }}:${{ github.ref_name }}
-      - name: Scan, sign, verify, and attest image digest
+      - name: Validate image digest
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
           IMAGE_REPOSITORY: ${{ steps.image.outputs.repository }}
+        shell: bash
         run: |
-          set -euo pipefail
-          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            printf 'invalid image digest: %s\n' "$DIGEST" >&2
-            exit 1
-          fi
-          image="${IMAGE_REPOSITORY}@${DIGEST}"
-          sbom="$RUNNER_TEMP/sbom.cdx.json"
-          identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd.yml@${GITHUB_REF}"
-          issuer="https://token.actions.githubusercontent.com"
-          trivy --config trivy.yaml image --skip-dirs '' "$image"
-          trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output "$sbom" "$image"
-          cosign sign --yes "$image"
-          cosign verify \
-            --certificate-identity "$identity" \
-            --certificate-oidc-issuer "$issuer" \
-            "$image"
-          cosign attest --yes --type cyclonedx --predicate "$sbom" "$image"
-          cosign verify-attestation \
-            --type cyclonedx \
-            --certificate-identity "$identity" \
-            --certificate-oidc-issuer "$issuer" \
-            "$image"
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf 'IMAGE=%s@%s\n' "$IMAGE_REPOSITORY" "$DIGEST" >> "$GITHUB_ENV"
+          printf 'SBOM=%s/sbom.cdx.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Scan image
+        run: trivy --config trivy.yaml image --skip-dirs '' "$IMAGE"
+      - name: Generate image SBOM
+        run: trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output "$SBOM" "$IMAGE"
+      - name: Sign image
+        run: cosign sign --yes "$IMAGE"
+      - name: Verify image signature
+        run: cosign verify --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE"
+      - name: Attest image SBOM
+        run: cosign attest --yes --type cyclonedx --predicate "$SBOM" "$IMAGE"
+      - name: Verify image attestation
+        run: cosign verify-attestation --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE"

@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 from statistics import median
 from typing import Any
 
-from fmind_dot.session_query import SessionQuery, discover_session_generations, query_session_summaries
-from fmind_dot.session_store import validate_session_generation
+from fmind_dot.archive.query import SessionQuery, discover_session_generations, query_session_summaries
+from fmind_dot.archive.store import generation_files, validate_session_generation
 
 
 def session_statistics(query: SessionQuery) -> dict[str, Any]:
@@ -25,7 +25,7 @@ def session_statistics(query: SessionQuery) -> dict[str, Any]:
         "generations": len(generations),
         "superseded_generations": len(generations) - len(summaries),
         "archive_bytes": sum(
-            (item.path / name).lstat().st_size for item in generations for name in ("manifest.json", "transcript.jsonl")
+            (item.path / name).lstat().st_size for item in generations for name in generation_files(item.manifest)
         ),
         "conversation_records": sum(item.record_count for item in summaries),
         "malformed_records": sum(item.malformed_records for item in summaries),

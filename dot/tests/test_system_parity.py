@@ -103,14 +103,12 @@ def state_with(
     config: Config | None = None,
     *,
     stdin: str = "",
-    browser_open: Callable[[str], bool] | None = None,
 ) -> State:
     state = State(
         runner=runner,
         stdin=StringIO(stdin),
         stdout=StringIO(),
         stderr=StringIO(),
-        browser_open=browser_open or (lambda _url: True),
     )
     state._config = config or Config()  # noqa: SLF001 - command boundary dependency injection.
     return state
@@ -233,144 +231,6 @@ def test_completion_collects_both_shell_integration_failures(monkeypatch: pytest
     assert "Failed to generate atuin-init.fish" in output
     assert "Failed to generate carapace-init.fish" in output
     assert "Completions updated with 2 failure(s)" in output
-
-
-def test_login_and_setup_failures_name_the_failed_operation() -> None:
-    gcloud = ScriptedRunner({"gcloud"}, interactive_codes={"gcloud": 7})
-    with pytest.raises(DotError, match=r"gcloud login failed \(7\)"):
-        system.run_login_gcp(state_with(gcloud))
-    assert gcloud.interactive_calls == [["gcloud", "auth", "login", "--update-adc"]]
-
-    setup = ScriptedRunner({"gcloud", "gws"}, interactive_codes={"gcloud": 8})
-    with pytest.raises(DotError, match=r"failed to enable gcloud services \(8\)"):
-        system.run_setup_workspace(state_with(setup), "project-1")
-    assert setup.interactive_calls[0][-3:] == ["--project", "project-1", "--quiet"]
-
-    setup_gh = ScriptedRunner({"gh"}, interactive_codes={"gh": 9})
-    with pytest.raises(DotError, match=r"gh refresh failed \(9\)"):
-        system.run_setup_github(state_with(setup_gh))
-
-    with pytest.raises(DotError, match="required tool is not installed: gh"):
-        system.run_setup_github(state_with(ScriptedRunner()))
-
-
-def test_github_login_confirmation_defaults_to_cancel_and_preserves_argv() -> None:
-    runner = ScriptedRunner({"gh"})
-    canceled = state_with(runner, stdin="\n")
-    system.run_login_github(canceled)
-    assert runner.interactive_calls == []
-    assert isinstance(canceled.stdout, StringIO)
-    assert "Canceled." in canceled.stdout.getvalue()
-
-    accepted = state_with(runner, stdin="yes\n")
-    system.run_login_github(accepted)
-    assert runner.interactive_calls[-1] == [
-        "gh",
-        "auth",
-        "login",
-        "--hostname",
-        "github.com",
-        "--scopes",
-        ",".join(Config().login.github_scopes),
-    ]
-
-
-def test_login_wrappers_cover_success_and_missing_tool() -> None:
-    with pytest.raises(DotError, match="required tool is not installed: gws"):
-        system.run_login_workspace(state_with(ScriptedRunner()))
-
-    runner = ScriptedRunner({"gws", "gcloud"})
-    workspace = state_with(runner)
-    system.run_login_workspace(workspace)
-    system.run_login_gcp(workspace)
-    assert runner.interactive_calls[0][:3] == ["gws", "auth", "login"]
-    assert runner.interactive_calls[1] == ["gcloud", "auth", "login", "--update-adc"]
-    assert isinstance(workspace.stdout, StringIO)
-    assert "credentials successfully updated" in workspace.stdout.getvalue()
-
-
-def test_workspace_login_scopes_exclude_keep() -> None:
-    scopes = Config().login.workspace_scopes
-    assert "https://www.googleapis.com/auth/keep" not in scopes
-    assert any("calendar" in s for s in scopes)
-    assert any("gmail" in s for s in scopes)
-
-
-def test_login_workspace_opens_browser_window_on_auth_url() -> None:
-    opened_urls: list[str] = []
-    auth_url = (
-        "https://accounts.google.com/o/oauth2/auth?"
-        "scope=openid%20https://www.googleapis.com/auth/userinfo.email&redirect_uri=http://localhost:58026"
-    )
-    runner = ScriptedRunner(
-        {"gws"},
-        interactive_output={
-            "gws": [
-                "Open this URL in your browser to authenticate:\n",
-                "\n",
-                f"  {auth_url}\n",
-                "\n",
-            ]
-        },
-    )
-    state = state_with(
-        runner,
-        browser_open=lambda url: (opened_urls.append(url), True)[1],
-    )
-    system.run_login_workspace(state)
-
-    assert runner.interactive_calls[0][:3] == ["gws", "auth", "login"]
-    assert runner.interactive_calls[0][3:] == ["--scopes", ",".join(Config().login.workspace_scopes)]
-    assert opened_urls == [auth_url]
-    assert isinstance(state.stdout, StringIO)
-    assert auth_url in state.stdout.getvalue()
-
-
-def test_login_workspace_suppresses_browser_open_failure() -> None:
-    def broken_open(_url: str) -> bool:
-        raise OSError("no display available")
-
-    auth_url = "https://accounts.google.com/o/oauth2/auth?client_id=test"
-    runner = ScriptedRunner(
-        {"gws"},
-        interactive_output={"gws": [f"  {auth_url}\n"]},
-    )
-    state = state_with(runner, browser_open=broken_open)
-    system.run_login_workspace(state)
-    assert runner.interactive_calls[0][:3] == ["gws", "auth", "login"]
-
-
-def test_login_workspace_opens_browser_only_once() -> None:
-    opened_urls: list[str] = []
-    auth_url = "https://accounts.google.com/o/oauth2/auth?client_id=test"
-    runner = ScriptedRunner(
-        {"gws"},
-        interactive_output={
-            "gws": [
-                f"  {auth_url}\n",
-                f"  {auth_url}\n",
-            ]
-        },
-    )
-    state = state_with(
-        runner,
-        browser_open=lambda url: (opened_urls.append(url), True)[1],
-    )
-    system.run_login_workspace(state)
-    assert opened_urls == [auth_url]
-
-
-def test_workspace_setup_requires_project_and_configured_apis(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("GWS_PROJECT", raising=False)
-    runner = ScriptedRunner({"gws", "gcloud"})
-    with pytest.raises(DotError, match="provide a project ID"):
-        system.run_setup_workspace(state_with(runner))
-
-    config = Config()
-    config.setup.workspace_apis = []
-    monkeypatch.setenv("GWS_PROJECT", "from-env")
-    with pytest.raises(DotError, match="no Google Workspace APIs configured"):
-        system.run_setup_workspace(state_with(runner, config))
 
 
 def test_completion_generation_reports_missing_generators_and_fallback_failures() -> None:
@@ -516,22 +376,20 @@ def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failu
 
 def _minimal_verify_config() -> Config:
     config = Config()
-    config.verify.env_vars.required = []
-    config.verify.env_vars.optional = []
-    config.verify.secrets = []
-    config.verify.tools = []
+    config.doctor.env_vars.required = []
+    config.doctor.env_vars.optional = []
+    config.doctor.secrets = []
+    config.doctor.tools = []
     return config
 
 
 def test_verify_github_auth_uses_configured_host_without_changing_scopes() -> None:
     config = _minimal_verify_config()
-    config.login.github_host = "github.example.test"
-    original_scopes = list(config.login.github_scopes)
+    config.doctor.github_host = "github.example.test"
     runner = ScriptedRunner({"gh"})
-    results = system.run_verify(state_with(runner, config), fix=False)
+    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert ["gh", "auth", "status", "--hostname", "github.example.test"] in runner.calls
     assert results["auth"][0]["status"] == "pass"
-    assert config.login.github_scopes == original_scopes
 
 
 @pytest.mark.parametrize(
@@ -553,12 +411,12 @@ def test_verify_github_auth_uses_configured_host_without_changing_scopes() -> No
 )
 def test_verify_opencode_uses_resolved_config_and_redacts_project(document: object, status: str) -> None:
     config = _minimal_verify_config()
-    config.verify.tools = ["opencode"]
+    config.doctor.tools = ["opencode"]
     runner = ScriptedRunner(
         {"opencode"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(json.dumps(document), "private-stderr", 0),
     )
-    results = system.run_verify(state_with(runner, config), fix=False)
+    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert results["env_vars"][0]["name"] == "opencode-project"
     assert results["env_vars"][0]["status"] == status
     assert ["opencode", "debug", "config", "--pure"] in runner.calls
@@ -600,7 +458,7 @@ def test_verify_opencode_missing_tool_skips_configuration_probe() -> None:
 def test_verify_probes_path_visible_tools_and_redacts_output(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("JULES_API_KEY", raising=False)
     config = _minimal_verify_config()
-    config.verify.tools = ["healthy", "broken"]
+    config.doctor.tools = ["healthy", "broken"]
 
     def probe(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
@@ -609,7 +467,7 @@ def test_verify_probes_path_visible_tools_and_redacts_output(monkeypatch: pytest
         return CommandResult("healthy", "", 0)
 
     runner = ScriptedRunner({"healthy", "broken", "docker"}, run=probe)
-    results = system.run_verify(state_with(runner, config), fix=False)
+    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     by_name = {item["name"]: item for item in results["tools"]}
     assert by_name["healthy"]["status"] == "pass"
     assert by_name["broken"]["status"] == "fail"
@@ -633,7 +491,7 @@ def test_verify_requires_nonempty_access_tokens_without_rendering_them(monkeypat
         return CommandResult("ok", "", 0)
 
     runner = ScriptedRunner({"gcloud", "docker"}, run=auth)
-    results = system.run_verify(state_with(runner, config), fix=False)
+    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     auth_results = {item["name"]: item for item in results["auth"]}
     assert auth_results["gcloud"]["status"] == "fail"
     assert auth_results["gcloud"]["condition"] == "broken"
@@ -644,7 +502,7 @@ def test_verify_requires_nonempty_access_tokens_without_rendering_them(monkeypat
 def test_verify_fails_closed_when_probe_output_is_truncated(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("JULES_API_KEY", raising=False)
     config = _minimal_verify_config()
-    config.verify.tools = ["noisy"]
+    config.doctor.tools = ["noisy"]
 
     def truncated(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
@@ -657,7 +515,7 @@ def test_verify_fails_closed_when_probe_output_is_truncated(monkeypatch: pytest.
         return CommandResult("ok", "", 0)
 
     runner = ScriptedRunner({"noisy", "gcloud", "docker"}, run=truncated)
-    results = system.run_verify(state_with(runner, config), fix=False)
+    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
 
     assert results["passed"] is False
     assert results["tools"][0]["status"] == "fail"
@@ -672,7 +530,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     monkeypatch.setenv("JULES_API_KEY", "configured")
     monkeypatch.setattr(system.Path, "home", classmethod(lambda _cls: tmp_path))
     config = _minimal_verify_config()
-    config.verify.tools = ["timeout-tool", "error-tool"]
+    config.doctor.tools = ["timeout-tool", "error-tool"]
 
     def probes(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
@@ -695,7 +553,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
         raise AssertionError(args)
 
     installed = {"timeout-tool", "error-tool", "gh", "gcloud", "gws", "jules", "docker"}
-    results = system.run_verify(state_with(ScriptedRunner(installed, run=probes), config), fix=False)
+    results = system.run_doctor(state_with(ScriptedRunner(installed, run=probes), config), fix=False, deep=True)
 
     tools = {item["name"]: item for item in results["tools"]}
     assert tools["timeout-tool"]["details"] == "capability probe timed out"
@@ -715,8 +573,8 @@ def test_verify_reports_environment_and_secret_edge_cases(monkeypatch: pytest.Mo
     monkeypatch.setenv("OPTIONAL_SET", "yes")
     monkeypatch.delenv("OPTIONAL_MISSING", raising=False)
     config = _minimal_verify_config()
-    config.verify.env_vars.required = ["REQUIRED_SET"]
-    config.verify.env_vars.optional = ["OPTIONAL_SET", "OPTIONAL_MISSING"]
+    config.doctor.env_vars.required = ["REQUIRED_SET"]
+    config.doctor.env_vars.optional = ["OPTIONAL_SET", "OPTIONAL_MISSING"]
     missing = tmp_path / "missing"
     insecure = tmp_path / "insecure"
     relaxed = tmp_path / "relaxed"
@@ -726,14 +584,14 @@ def test_verify_reports_environment_and_secret_edge_cases(monkeypatch: pytest.Mo
     relaxed.write_text("public", encoding="utf-8")
     relaxed.chmod(0o666)
     loop.symlink_to(loop)
-    config.verify.secrets = [
+    config.doctor.secrets = [
         SecretConfig(path=str(missing)),
         SecretConfig(path=str(insecure)),
         SecretConfig(path=str(relaxed), required_perms=0),
         SecretConfig(path=str(loop)),
     ]
 
-    results = system.run_verify(state_with(ScriptedRunner(), config), fix=False)
+    results = system.run_doctor(state_with(ScriptedRunner(), config), fix=False, deep=True)
 
     environment = {item["name"]: item for item in results["env_vars"]}
     assert environment["REQUIRED_SET"]["status"] == "pass"
@@ -752,10 +610,10 @@ def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pyte
     secret.write_text("encrypted", encoding="utf-8")
     secret.chmod(0o644)
     config = _minimal_verify_config()
-    config.verify.secrets = [SecretConfig(path=str(secret))]
+    config.doctor.secrets = [SecretConfig(path=str(secret))]
     runner = ScriptedRunner({"docker"})
 
-    repaired = system.run_verify(state_with(runner, config), fix=True)
+    repaired = system.run_doctor(state_with(runner, config), fix=True, deep=True)
     assert repaired["secrets"][0]["status"] == "pass"
     assert stat.S_IMODE(secret.stat().st_mode) == 0o600
 
@@ -765,12 +623,15 @@ def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pyte
         raise PermissionError("chmod-denied-secret-marker")
 
     monkeypatch.setattr(Path, "chmod", deny_chmod)
-    failed = system.run_verify(state_with(runner, config), fix=True)
+    failed = system.run_doctor(state_with(runner, config), fix=True, deep=True)
     assert failed["secrets"][0]["status"] == "fail"
     assert "chmod-denied-secret-marker" not in json.dumps(failed)
 
 
-def test_verify_compares_installed_python_package_with_source(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize("changed_file", ["module.py", "api-prices.yaml"])
+def test_verify_compares_installed_python_package_with_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, changed_file: str
+) -> None:
     source = tmp_path / "source"
     source_package = source / "dot/src/fmind_dot"
     installed_package = tmp_path / "installed/fmind_dot"
@@ -791,11 +652,11 @@ def test_verify_compares_installed_python_package_with_source(monkeypatch: pytes
         return CommandResult(f"{source}\n", "", 0) if args == ["chezmoi", "source-path"] else CommandResult("ok", "", 0)
 
     runner = ScriptedRunner({"chezmoi", "docker"}, run=source_path)
-    current = system.run_verify(state_with(runner, config), fix=False)
+    current = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert current["install"][0]["status"] == "pass"
 
-    (installed_package / "module.py").write_text("VALUE = 0\n", encoding="utf-8")
-    stale = system.run_verify(state_with(runner, config), fix=False)
+    (installed_package / changed_file).write_text("VALUE = 0\n", encoding="utf-8")
+    stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert stale["install"][0]["status"] == "fail"
     assert "STALE" in stale["install"][0]["details"]
 
@@ -895,17 +756,17 @@ def test_verify_receipt_binds_project_metadata_and_lock(monkeypatch: pytest.Monk
         '[project]\nname = "fmind-dot"\nversion = "1.26.2"\n[project.scripts]\ndot = "changed:main"\n',
         encoding="utf-8",
     )
-    metadata_stale = system.run_verify(state_with(runner, config), fix=False)
+    metadata_stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert metadata_stale["install"][0]["details"] == "STALE: install receipt differs from source"
 
     system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
     lock.write_text("version = 2\n", encoding="utf-8")
-    lock_stale = system.run_verify(state_with(runner, config), fix=False)
+    lock_stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert lock_stale["install"][0]["details"] == "STALE: install receipt differs from source"
 
     receipt = system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
     receipt.chmod(0o644)
-    exposed_receipt = system.run_verify(state_with(runner, config), fix=False)
+    exposed_receipt = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert exposed_receipt["install"][0]["details"] == "STALE: install receipt differs from source"
 
 
@@ -1022,27 +883,26 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
         "env_vars": [{"name": "REQUIRED", "status": "fail", "details": "MISSING", "path": "", "condition": ""}],
         "passed": False,
     }
-    monkeypatch.setattr(system, "run_verify", lambda _state, *, fix: passing | {"fixed": fix})
+    monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: passing)
 
-    json_result = CliRunner().invoke(app, ["verify", "--json", "--fix"], obj=state)
+    json_result = CliRunner().invoke(app, ["doctor", "--json", "--fix"], obj=state)
     assert json_result.exit_code == 0
     assert isinstance(state.stdout, StringIO)
     assert '"passed": true' in state.stdout.getvalue()
-    assert '"fixed": true' in state.stdout.getvalue()
+    assert json.loads(state.stdout.getvalue())["schema"] == "dot.diagnostics/v1"
 
     state.stdout.seek(0)
     state.stdout.truncate()
-    human_result = CliRunner().invoke(app, ["verify"], obj=state)
+    human_result = CliRunner().invoke(app, ["doctor"], obj=state)
     assert human_result.exit_code == 0
-    assert "Verification passed" in state.stdout.getvalue()
+    assert "Environment Variables" in state.stdout.getvalue()
 
-    monkeypatch.setattr(system, "run_verify", lambda _state, *, fix: failing | {"fixed": fix})
+    monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: failing)
     state.stdout.seek(0)
     state.stdout.truncate()
-    failed_result = CliRunner().invoke(app, ["verify"], obj=state)
+    failed_result = CliRunner().invoke(app, ["doctor"], obj=state)
     assert failed_result.exit_code == 1
     assert "✗ REQUIRED" in state.stdout.getvalue()
-    assert "Verification failed" in state.stdout.getvalue()
 
 
 def test_system_command_surface_and_verify_flags() -> None:
@@ -1050,17 +910,11 @@ def test_system_command_surface_and_verify_flags() -> None:
     system.register(app)
     command = get_command(app)
     assert isinstance(command, TyperGroup)
-    assert set(command.commands) == {"completion", "login", "setup", "verify"}
-    login = command.commands["login"]
-    setup = command.commands["setup"]
-    assert isinstance(login, TyperGroup)
-    assert isinstance(setup, TyperGroup)
-    assert set(login.commands) == {"github", "workspace", "gcp"}
-    assert set(setup.commands) == {"github", "workspace"}
+    assert set(command.commands) == {"completion", "doctor"}
     option_names = {
         name
-        for parameter in command.commands["verify"].params
+        for parameter in command.commands["doctor"].params
         if isinstance(parameter, TyperOption)
         for name in parameter.opts
     }
-    assert {"--json", "-j", "--fix", "-f"} <= option_names
+    assert {"--json", "-j", "--fix", "-f", "--deep"} <= option_names

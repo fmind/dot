@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote
 
-from fmind_dot.session_store import SessionLog, fingerprint_bytes, fingerprint_json, is_valid_session_id
-from fmind_dot.usage import UsageRecord
+from fmind_dot.archive.store import SessionLog, fingerprint_bytes, fingerprint_json, is_valid_session_id
+from fmind_dot.archive.usage import UsageRecord
 
 AGY_TRANSCRIPT_NAMES = ("transcript_full.jsonl", "transcript.jsonl")
 GROK_TRANSCRIPT_NAME = "updates.jsonl"
@@ -501,7 +501,21 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
         parts = []
 
     roles = {"user_message_chunk": "user", "agent_message_chunk": "assistant"}
-    records, fingerprint, _source_bytes = _jsonl_snapshot(path)
+    # Both provider files participate in the generation identity. Read each once
+    # so an updated measurement cannot be hidden by an unchanged transcript.
+    transcript = b"" if path.name == "signals.json" else path.read_bytes()
+    signals_path = path.parent / "signals.json"
+    try:
+        signals = signals_path.read_bytes()
+    except FileNotFoundError:
+        signals = None
+    records = _decode_jsonl(transcript)
+    fingerprint = fingerprint_json(
+        {
+            "transcript": fingerprint_bytes(transcript),
+            "signals": fingerprint_bytes(signals) if signals is not None else None,
+        }
+    )
     for raw, bad in records:
         if bad:
             malformed += 1
@@ -530,7 +544,7 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
     flush()
     _finalize_models(logs)
     try:
-        usage = extract_grok_usage(path.parent, session_id, cwd)
+        usage = _parse_grok_usage(signals, session_id, cwd)
         usage_error = None
     except (OSError, ValueError) as error:
         usage = None
@@ -539,31 +553,32 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
 
 
 def extract_grok_usage(session_dir: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    record = UsageRecord(
-        harness="grok",
-        agent="grok",
-        session_id=session_id,
-        cwd=resolve_cwd(cwd),
-        measurement_kind="context-only",
-    )
     signals = session_dir / "signals.json"
-    if signals.exists():
+    try:
         content = signals.read_bytes()
+    except FileNotFoundError:
+        content = None
+    return _parse_grok_usage(content, session_id, cwd)
+
+
+def _parse_grok_usage(content: bytes | None, session_id: str, cwd: str) -> UsageRecord:
+    record = UsageRecord(
+        harness="grok", agent="grok", session_id=session_id, cwd=resolve_cwd(cwd), measurement_kind="context-only"
+    )
+    if content is not None:
         record.source_bytes = len(content)
-        try:
-            value = json.loads(content)
-        except json.JSONDecodeError, UnicodeDecodeError:
-            value = {}
-        if isinstance(value, dict):
-            model = value.get("primaryModelId")
-            if isinstance(model, str):
-                record.model = model
-            tokens = _usage_token_count(value.get("contextTokensUsed"), "input_tokens")
-            if tokens is not None:
-                record.input_tokens = tokens
-            turns = _usage_token_count(value.get("turnCount"), "turn_count")
-            if turns is not None:
-                record.turn_count = turns
+        value = json.loads(content)
+        if not isinstance(value, dict):
+            raise ValueError("Grok signals must contain a JSON object")
+        model = value.get("primaryModelId")
+        if isinstance(model, str):
+            record.model = model
+        tokens = _usage_token_count(value.get("contextTokensUsed"), "input_tokens")
+        if tokens is not None:
+            record.input_tokens = tokens
+        turns = _usage_token_count(value.get("turnCount"), "turn_count")
+        if turns is not None:
+            record.turn_count = turns
     return record.finalize()
 
 
@@ -621,6 +636,7 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
     if not is_valid_session_id(session_id):
         raise ValueError(f"invalid copilot session id {session_id!r}")
     with closing(_connect_read_only(path)) as connection:
+        connection.execute("BEGIN")
         rows = _copilot_rows(connection, session_id)
         try:
             usage = _extract_copilot_usage(connection, session_id, cwd)
@@ -632,7 +648,14 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
         usage.source_bytes = path.stat().st_size
     return ParsedSession(
         parse_copilot_rows(session_id, rows, cwd),
-        fingerprint_json(rows),
+        fingerprint_json(
+            {
+                "turns": rows,
+                "usage": {key: value for key, value in usage.to_dict().items() if key != "source_bytes"}
+                if usage is not None
+                else None,
+            }
+        ),
         "copilot-db",
         usage=usage,
         usage_error=usage_error,
@@ -748,7 +771,11 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
             if is_valid_session_id(session_id):
                 candidates.append((session_id, "", path))
     elif agent == "grok":
-        for path in sorted(root.rglob(GROK_TRANSCRIPT_NAME)):
+        directories = {path.parent for name in (GROK_TRANSCRIPT_NAME, "signals.json") for path in root.rglob(name)}
+        for directory in sorted(directories):
+            path = directory / GROK_TRANSCRIPT_NAME
+            if not path.is_file():
+                path = directory / "signals.json"
             session_id = path.parent.name
             if is_valid_session_id(session_id):
                 candidates.append((session_id, grok_cwd_from_path(root, path), path))
@@ -764,22 +791,6 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
     return candidates
 
 
-def enumerate_usage_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
-    """Return candidates using each source's usage-specific discovery rules."""
-    if agent != "grok":
-        return enumerate_sessions(root, agent)
-    candidates: list[tuple[str, str, Path]] = []
-    for cwd_directory in sorted(root.iterdir()):
-        if not cwd_directory.is_dir():
-            continue
-        candidates.extend(
-            (session_directory.name, "", session_directory / GROK_TRANSCRIPT_NAME)
-            for session_directory in sorted(cwd_directory.iterdir())
-            if session_directory.is_dir() and is_valid_session_id(session_directory.name)
-        )
-    return candidates
-
-
 __all__ = [
     "AGENT_ADAPTERS",
     "AGY_TRANSCRIPT_NAMES",
@@ -791,7 +802,6 @@ __all__ = [
     "claude_session_id",
     "codex_session_id",
     "enumerate_sessions",
-    "enumerate_usage_sessions",
     "extract_agy_usage",
     "extract_claude_usage",
     "extract_codex_usage",

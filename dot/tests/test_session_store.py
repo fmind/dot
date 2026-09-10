@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-import fmind_dot.session_store as session_store
-from fmind_dot.session_store import (
+import fmind_dot.archive.store as session_store
+from fmind_dot.archive.store import (
     SessionIngestionResult,
     SessionLog,
     SessionManifest,
@@ -80,7 +80,7 @@ def test_v1_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPat
     assert (
         session_lineage_id("codex", "session-1") == "b540336b2c776814303a05b68a90ac255ba738a435985fdb1709c224fd9416cc"
     )
-    assert session_generation_id("a" * 64) == "77a43ace1e85cd6682e5fa17b2bd1950e240edd819b538dd5fd665589618a782"
+    assert session_generation_id("a" * 64) == "4e1e013469b15b98ff4d63130e22043bbd928e2175bdeb7ea512b1c61c54c29b"
     logs = [SessionLog("2026-08-01T12:00:00Z", "codex", "session-1", "user", "private", "/work")]
     source = SessionSource(type="codex-jsonl", fingerprint="a" * 64)
     result = ingest_session("codex", "session-1", logs, source)
@@ -258,26 +258,26 @@ def test_publish_owner_only_is_private_concurrent_and_cleans_failed_temps(
     assert list(target.parent.glob(f".{target.name}.*")) == []
 
 
-def test_fingerprints_preserve_file_bytes_go_json_escaping_and_log_encoding(tmp_path: Path) -> None:
+def test_fingerprints_preserve_file_bytes_and_native_unicode_json(tmp_path: Path) -> None:
     content = b"a" * (1024 * 1024 + 1)
     source = tmp_path / "source.jsonl"
     source.write_bytes(content)
     assert fingerprint_file(source) == hashlib.sha256(content).hexdigest()
 
     structured = {"html": "<&>\u2028\u2029", "utf8": "café"}
-    go_encoded = b'{"html":"\\u003c\\u0026\\u003e\\u2028\\u2029","utf8":"caf\xc3\xa9"}'
-    assert fingerprint_json(structured) == hashlib.sha256(go_encoded).hexdigest()
+    native_encoded = '{"html":"<&>\u2028\u2029","utf8":"café"}'.encode()
+    assert fingerprint_json(structured) == hashlib.sha256(native_encoded).hexdigest()
 
     logs = [SessionLog("", "codex", "session-1", "user", "café <&>\u2028\u2029", "/repo", "gpt")]
     encoded = marshal_session_logs(logs)
-    go_transcript = (
+    native_transcript = (
         b'{"ts":"","agent":"codex","sid":"session-1","role":"user","content":"caf\xc3\xa9 '
-        b'<&>\\u2028\\u2029","cwd":"/repo","model":"gpt"}\n'
+        + '<&>\u2028\u2029","cwd":"/repo","model":"gpt"}\n'.encode()
     )
-    assert encoded == go_transcript
+    assert encoded == native_transcript
     assert json.loads(encoded)["cwd"] == "/repo"
     assert json.loads(encoded)["model"] == "gpt"
-    assert fingerprint_logs(logs) == hashlib.sha256(go_transcript).hexdigest()
+    assert fingerprint_logs(logs) == hashlib.sha256(native_transcript).hexdigest()
 
 
 @pytest.mark.parametrize(
@@ -516,7 +516,7 @@ def test_stored_generation_requires_exact_safe_immutable_identity(
     manifest_path = generation / "manifest.json"
     original = manifest.to_dict()
     for field, value in (
-        ("schema_version", 2),
+        ("schema_version", 999),
         ("parser_version", "999"),
         ("agent", "claude"),
         ("session_id", "other"),

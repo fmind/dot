@@ -11,14 +11,39 @@ import pytest
 from typer import _click
 from typer.testing import CliRunner
 
-import fmind_dot.agent as agent_module
-from fmind_dot.agent import gather_agent_doctor, repair_agent_integrations, run_agent_doctor
+from fmind_dot import agent_doctor as agent_doctor_module
+from fmind_dot.agent_doctor import gather_agent_doctor, repair_agent_integrations, run_agent_doctor
+from fmind_dot.archive.parsers import GROK_TRANSCRIPT_NAME, parse_grok_session
+from fmind_dot.archive.store import SessionLog, SessionSource, fingerprint_file, ingest_session, session_store_root
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
-from fmind_dot.session_store import SessionLog, SessionSource, fingerprint_file, ingest_session, session_store_root
 from fmind_dot.state import State
+
+
+def test_grok_reconciliation_rejects_a_signals_race(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    transcript = tmp_path / GROK_TRANSCRIPT_NAME
+    transcript.write_text("")
+    signals = tmp_path / "signals.json"
+    signals.write_text('{"contextTokensUsed":21}')
+    descriptor = os.open(tmp_path, os.O_RDONLY)
+    try:
+        fingerprint = agent_doctor_module._grok_source_fingerprint_at  # noqa: SLF001 - race boundary under test.
+        assert fingerprint(descriptor) == parse_grok_session(transcript, "session-1").fingerprint
+        original = agent_doctor_module._source_fingerprint_at  # noqa: SLF001 - inject mutation after a stable read.
+
+        def changed(directory: int, name: str, expected: os.stat_result) -> str:
+            result = original(directory, name, expected)
+            if name == "signals.json":
+                signals.write_text('{"contextTokensUsed":42}')
+            return result
+
+        monkeypatch.setattr(agent_doctor_module, "_source_fingerprint_at", changed)
+        with pytest.raises(OSError, match="source changed"):
+            fingerprint(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 class DoctorRunner(Runner):
@@ -185,8 +210,8 @@ def test_doctor_default_reads_metadata_without_hashing_or_transcript_validation(
     def fail(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("fast doctor read session content")
 
-    monkeypatch.setattr(agent_module, "_source_fingerprint_at", fail)
-    monkeypatch.setattr(agent_module, "validate_session_generation", fail)
+    monkeypatch.setattr(agent_doctor_module, "_source_fingerprint_at", fail)
+    monkeypatch.setattr(agent_doctor_module, "validate_session_generation", fail)
 
     result = _result(state, "claude")
 
@@ -312,7 +337,10 @@ def test_doctor_json_is_pure_and_deep_progress_uses_stderr(monkeypatch: pytest.M
 
     assert isinstance(state.stdout, io.StringIO)
     payload = json.loads(state.stdout.getvalue())
-    assert payload == [
+    assert payload["schema"] == "dot.diagnostics/v1"
+    assert payload["scope"] == "agents"
+    assert payload["passed"] is True
+    assert [check["details"] for check in payload["checks"]] == [
         {
             "agent": result.agent,
             "discovery": result.discovery,
@@ -437,7 +465,7 @@ def test_doctor_fails_closed_if_source_changes_during_archive_reconciliation(
     )
     assert archived.status == "ingested"
     original_mtime = source.stat().st_mtime_ns
-    real_stored_generation = agent_module.stored_generation
+    real_stored_generation = agent_doctor_module.stored_generation
     mutated = False
 
     def mutate_source(agent: str, session_id: str, fingerprint: str):
@@ -447,8 +475,7 @@ def test_doctor_fails_closed_if_source_changes_during_archive_reconciliation(
         mutated = True
         return real_stored_generation(agent, session_id, fingerprint)
 
-    monkeypatch.setattr(agent_module, "stored_generation", mutate_source)
-
+    monkeypatch.setattr(agent_doctor_module, "stored_generation", mutate_source)
     result = _result(state, "claude", deep=True)
 
     assert mutated

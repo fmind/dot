@@ -1,0 +1,12 @@
+# chezmoi:modify-template
+{{- /* Docs: https://cursor.com/docs/hooks */ -}}
+{{- $personaCommand := "jq -n --rawfile context \"$HOME/.agents/AGENTS.md\" '{additional_context: $context}'" -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
+{{- $sessionStart := list -}}
+{{- range (dig "hooks" "sessionStart" list $current) -}}
+{{- if ne .command $personaCommand }}{{ $sessionStart = append $sessionStart . }}{{ end -}}
+{{- end -}}
+{{- $sessionStart = append $sessionStart (dict "command" $personaCommand "timeout" 10) -}}
+{{- $managedConfig := dict "version" 1 "hooks" (dict "sessionStart" $sessionStart) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

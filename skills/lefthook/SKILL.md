@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/lefthook
   created: "2026-07-04"
-  updated: "2026-09-06"
+  updated: "2026-09-10"
 ---
 
 # Lefthook
@@ -31,14 +31,19 @@ pre-commit:
       priority: 10
       run: mise run format:dprint {staged_files}
       stage_fixed: true
-    format:python:
+    format:imports:
       glob: "*.py"
       priority: 10
-      run: mise run format:python {staged_files}
+      run: mise run format:imports {staged_files}
       stage_fixed: true
-    check:leaks: # staged secret scan: history-mode gitleaks in `check` cannot see the incoming commit
+    format:ruff:
+      glob: "*.py"
+      priority: 15
+      run: mise run format:ruff {staged_files}
+      stage_fixed: true
+    check:leaks:staged: # staged secret scan: history-mode gitleaks in `check` cannot see the incoming commit
       priority: 20
-      run: mise run check:leaks --staged
+      run: mise run check:leaks:staged
     check:
       priority: 30
       run: mise run check
@@ -58,7 +63,7 @@ pre-push:
 
 ## Gotchas
 
-- **Ordering**: with `parallel: false`, commands run by ascending `priority` (`10` formatters, `20` `check:leaks`, `30` `check`); commands without a priority run last in unspecified order, so set it on every command.
+- **Ordering**: with `parallel: false`, commands run by ascending `priority` (`10` imports/config, `15` Python formatting, `20` `check:leaks:staged`, `30` `check`); commands without a priority run last in unspecified order, so set it on every command.
 - **Partially staged files**: during pre-commit lefthook hides the unstaged hunks of partially staged files and restores them afterwards, so formatters only see what is being committed.
 - **Bypass**: avoid `--no-verify`; fix the failure instead — [git-add-commit-push](../git-add-commit-push/SKILL.md) heals hook failures.
 

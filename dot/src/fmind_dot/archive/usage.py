@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any
 
-from fmind_dot.session_store import publish_owner_only
+from fmind_dot.archive.pricing import api_equivalent
+from fmind_dot.archive.store import publish_owner_only
+from fmind_dot.config import PricingConfig, default_pricing
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
@@ -187,6 +189,12 @@ class UsageStats:
     cwd: str = ""
     cost_known_sessions: int = 0
     legacy_sessions: int = 0
+    api_equivalent_usd: float = 0.0
+    priced_sessions: int = 0
+    unpriced_reasons: dict[str, int] = field(default_factory=dict)
+    pricing_as_of: str = ""
+    pricing_basis: str = ""
+    pricing_sources: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {"harness": self.harness}
@@ -207,6 +215,13 @@ class UsageStats:
                 "cwd": self.cwd,
                 "legacy_sessions": self.legacy_sessions,
                 "time_basis": "whole session at recorded timestamp",
+                "api_equivalent_usd": self.api_equivalent_usd if self.priced_sessions else None,
+                "priced_sessions": self.priced_sessions,
+                "pricing_complete": self.priced_sessions == self.sessions,
+                "unpriced_reasons": self.unpriced_reasons,
+                "pricing_as_of": self.pricing_as_of,
+                "pricing_basis": self.pricing_basis,
+                "pricing_sources": self.pricing_sources,
                 "sessions": self.sessions,
                 "turns": self.turns,
             }
@@ -262,7 +277,7 @@ def write_usage_record(record: UsageRecord, *, root: Path | None = None) -> Path
     return target
 
 
-def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
+def _load_legacy_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
     root = root or usage_root()
     if root.is_symlink():
         raise ValueError(f"failed to parse usage record {root}: usage root must not be a symbolic link")
@@ -280,6 +295,35 @@ def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
         except (TypeError, ValueError) as error:
             raise ValueError(f"failed to parse usage record {path}: {error}") from error
     return records
+
+
+def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
+    """Select one measurement per session, preferring atomic archive generations."""
+    from fmind_dot.archive.query import discover_session_generations
+    from fmind_dot.archive.store import read_session_usage
+
+    legacy = _load_legacy_usage_records(root=root)
+    if root is not None:
+        return legacy
+    selected = {(record.harness, record.session_id): record for record in legacy}
+    latest = {}
+    for generation in discover_session_generations():
+        manifest = generation.manifest
+        if manifest.schema_version != 2:
+            continue
+        identity = (manifest.agent, manifest.session_id)
+        previous = latest.get(identity)
+        if previous is None or (manifest.ingested_at, generation.path.name) > (
+            previous.manifest.ingested_at,
+            previous.path.name,
+        ):
+            latest[identity] = generation
+    for identity, generation in latest.items():
+        value = read_session_usage(generation.path, generation.manifest)
+        selected.pop(identity, None)
+        if value is not None:
+            selected[identity] = UsageRecord.from_dict(value)
+    return list(selected.values())
 
 
 def parse_flexible_time(value: str, *, now: datetime | None = None) -> datetime:
@@ -321,9 +365,11 @@ def aggregate_usage(
     by_model: bool = False,
     cwd: str = "",
     by_project: bool = False,
+    pricing: PricingConfig | None = None,
 ) -> list[UsageStats]:
     if since and until and since > until:
         raise ValueError("--since must not be after --until")
+    pricing = pricing if pricing is not None else default_pricing()
     grouped: dict[tuple[str, str, str, str], UsageStats] = {}
     for record in records:
         if harness and harness not in {record.harness, record.agent}:
@@ -342,6 +388,15 @@ def aggregate_usage(
         row = grouped.setdefault(
             key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=project)
         )
+        row.pricing_as_of = pricing.as_of
+        row.pricing_basis = pricing.basis
+        row.pricing_sources = pricing.sources
+        equivalent, reason = api_equivalent(record, pricing)
+        if equivalent is None:
+            row.unpriced_reasons[reason] = row.unpriced_reasons.get(reason, 0) + 1
+        else:
+            row.api_equivalent_usd += equivalent
+            row.priced_sessions += 1
         row.sessions += 1
         row.turns += record.turn_count
         row.input_tokens += record.input_tokens
@@ -365,6 +420,11 @@ def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: 
 def show_usage_record(harness: str, session_id: str, *, root: Path | None = None) -> bytes:
     if not harness or not session_id:
         raise ValueError("usage: dot agent usage show <harness> <session-id>")
+    if root is None:
+        for record in load_usage_records():
+            if record.harness == harness and record.session_id == session_id:
+                return (json.dumps(record.to_dict(), ensure_ascii=False, indent=2) + "\n").encode()
+        raise ValueError(f"usage record not found for {harness} session {session_id}")
     path = _harness_directory(root or usage_root(), harness, create=False) / f"{sanitize_filename(session_id)}.json"
     if path.is_symlink():
         raise ValueError(f"usage record must not be a symbolic link: {path}")
@@ -380,11 +440,11 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
         output.write("\n")
         return
     if not rows:
-        output.write(
-            "No usage records found in ~/.agents/usages. Run 'dot agent usage sync' to backfill existing sessions.\n"
-        )
+        output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
         return
     output.write("Whole-session totals filtered by recorded timestamp; not interval billing.\n")
+    if rows[0].pricing_as_of:
+        output.write(f"API equivalent ({rows[0].pricing_as_of}): {rows[0].pricing_basis}\n")
     columns = ["HARNESS", "MEASUREMENT", "PROJECT"]
     if by_model:
         columns.append("MODEL")
@@ -398,6 +458,8 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
             "REASONING",
             "TOTAL TOKENS",
             "COST (USD)",
+            "API EQUIV (USD)",
+            "PRICED SESSIONS",
         ]
     )
     output.write("\t".join(columns) + "\n")
@@ -411,6 +473,8 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
         total.cache_write_tokens += row.cache_write_tokens
         total.reasoning_tokens += row.reasoning_tokens
         total.total_tokens += row.total_tokens
+        total.api_equivalent_usd += row.api_equivalent_usd
+        total.priced_sessions += row.priced_sessions
         total.cost_usd += row.cost_usd
         total.cost_known_sessions += row.cost_known_sessions
         values = [row.harness, row.measurement_kind, row.cwd or "-"]
@@ -426,6 +490,8 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
                 f"{row.reasoning_tokens:,}",
                 f"{row.total_tokens:,}",
                 _cost_display(row),
+                _equivalent_display(row),
+                f"{row.priced_sessions}/{row.sessions}",
             ]
         )
         output.write("\t".join(values) + "\n")
@@ -446,9 +512,18 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
             f"{total.reasoning_tokens:,}",
             f"{total.total_tokens:,}",
             _cost_display(total),
+            _equivalent_display(total),
+            f"{total.priced_sessions}/{total.sessions}",
         ]
     )
     output.write("\t".join(values) + "\n")
+
+
+def _equivalent_display(row: UsageStats) -> str:
+    if not row.priced_sessions:
+        return "unknown"
+    suffix = " (partial)" if row.priced_sessions < row.sessions else ""
+    return f"${row.api_equivalent_usd:.4f}{suffix}"
 
 
 def _cost_display(row: UsageStats) -> str:

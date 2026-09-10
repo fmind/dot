@@ -118,10 +118,9 @@ wheels = [
 
 [[package]]
 name = "fmind-dot"
-version = "2.1.0"
+version = "3.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "markdown-it-py" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "typer" },
@@ -129,6 +128,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "markdown-it-py" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-watcher" },
@@ -140,7 +140,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "markdown-it-py", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "typer", specifier = ">=0.27.2" },
@@ -148,6 +147,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "markdown-it-py", specifier = ">=4.0.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "pytest-watcher", specifier = ">=0.6.3" },

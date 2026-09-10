@@ -25,21 +25,26 @@ dot agent prompts stats --project . --since 2026-09-01 --json
 dot agent usage stats --project . --by-model --by-project --json
 ```
 
-Sync supports `--agent`, `--session`, `--project`/`--cwd`, and `--since`; its date filter uses source modification time. Dry-run parses candidates but writes neither archives nor usage. Without dry-run, sync writes local archives and derived usage; usage failures remain nonzero even if conversation ingestion succeeded. `--json` emits outcome counts after completed processing, with progress on stderr; a source scan or ingestion failure can abort before a summary is available.
+Sync supports `--agent`, `--session`, `--project`/`--cwd`, and `--since`; its date filter uses source modification time. Dry-run parses candidates but writes neither archives nor usage. Without dry-run, sync publishes transcript and usage together. Failed extraction or publication aborts that generation; repeat the command after repairing the cause. Earlier successfully published sessions remain valid and retries deduplicate them. `--json` emits outcome counts after completed processing, with progress on stderr; a source scan or ingestion failure can abort before a summary is available.
 
 Session statistics separate latest sessions from retained generations and bytes; their date filter uses latest ingestion time. They report metadata status without claiming transcript validation. Prompt statistics read validated latest transcripts but emit only counts and length summaries, never message text. A prompt means an archived user message, possibly including injected context, not necessarily one human-authored turn. Dates use conversation timestamps in UTC; bounded queries exclude unparseable timestamps. Excluded, partial, or legacy sessions and bounded timestamp gaps report incomplete coverage with a nonzero exit while retaining the available statistics. Neither command measures productivity or answer quality.
 
-Parser generation 2 uses LF-only JSONL framing, preserving valid Unicode line separators inside text. Syncing available raw sources creates new immutable generation IDs and retains generation 1 unchanged. Existing generation 1 archives remain readable and marked legacy; missing raw sources cannot be reconstructed by migration. `session list` includes a generation ID that `show` accepts directly. `--project .` resolves the current directory. Compaction and raw-source pruning remain separate, explicitly authorized operations; migration does not delete either.
+Parser generation 3 keeps LF-only JSONL framing and publishes manifest schema 2 with `transcript.jsonl` and `usage.json`. Usage is `available` or `unsupported`; failed extraction is reported and never published as a complete generation. Copilot reads transcript and usage in one database read transaction. Grok fingerprints both transcript and signals snapshots, including signals-only sessions. A changed source creates a new immutable generation. Legacy parser 1/2 archives remain readable and marked legacy; migration cannot reconstruct missing raw sources.
 
-## Pull requests and releases
+Usage queries select one latest supported bundle per session and fall back to legacy standalone usage only when no bundle exists. They count a session once across generations. A selected bundle with unsupported usage does not silently reuse an older measurement. Use `dot agent session sync` for migration and backfills; the former standalone usage-sync writer is removed. Unknown costs remain unknown, and unlike measurement kinds remain separate.
+
+`session list` includes a generation ID accepted by `show`; `--project .` resolves the current directory. Session list/statistics date filters use ingestion timestamps, source-sync filters use source modification time, prompt statistics use conversation timestamps, and usage filters include whole sessions by the measurement timestamp (capture time when the source has no timestamp). Dates are interpreted in UTC. Explicit generation identities can select historical data.
+
+## Cleanup and recovery
 
 ```bash
-dot pr --print
-dot pr --title 'Describe the change'
-dot pr --body-file ./reviewed-body.md
-dot release --wait
+dot agent session compact
+dot agent session compact --agent codex --apply
+dot agent clean
 ```
 
-`pr --print` generates a draft without contacting GitHub for publication, but still invokes the configured AI generator and its privacy gates. Normal PR creation opens the body in `$EDITOR` even when `--title` is supplied. The edited body is scanned before `gh pr create`. Noninteractive creation requires explicit `--yes`; it bypasses editing, not secret scanning. A failed or cancelled publication retains the private temporary body and prints a retry command. A supplied body avoids regeneration. PR creation requires separate authorization for the remote write.
+Compaction validates the complete selection before deletion, retains divergent transcripts and distinct usage evidence, and groups by parser version. Legacy generations remain available through migration. `dot agent clean --apply` removes only generated `.agents/prompts`, `.agents/proposals`, and `.agents/reports` in the selected Git project. Provider sessions, private skills, and tool caches are outside both cleanup commands.
 
-Release retains its existing commit, push, tag, and local installation effects and requires explicit release authority. Without `--wait`, success says publication was dispatched, not delivered. `--wait` observes CD for the exact head and tag, then checks a public GitHub release with wheel and source assets; its timeout is `release.wait_timeout` (default 30 minutes). This does not verify installed clients on other machines or artifact attestation contents. On timeout, publication may still finish; inspect hosted state before retrying.
+## Repository publication
+
+Commit and PR authoring belong to their skills, which use staged Git changes, explicit repository/base selection, privacy checks, and reviewed publication artifacts. In fmind/dot, `mise run release -- --wait` runs the repository release service. It preserves version/lock rollback, exact commit/tag reconciliation, and bounded publication checks; it requires explicit release authority. A local dispatch is not hosted publication evidence.

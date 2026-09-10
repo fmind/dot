@@ -14,7 +14,7 @@ Split a task into `<task>:<x>` when one piece must run alone; each family keys `
 | `check:lint`    | lint rules                       | `ruff check`                                                    |
 | `check:types`   | static types                     | `ty check`                                                      |
 | `check:vuln`    | dependency CVEs                  | `uv audit`                                                      |
-| `check:leaks`   | committed secrets                | [gitleaks](../../gitleaks/SKILL.md)                                |
+| `check:leaks`   | working-tree and committed secrets                | [gitleaks](../../gitleaks/SKILL.md)                                |
 | `check:scan`    | IaC and config misconfigurations | [trivy](../../trivy/SKILL.md)                                      |
 | `check:actions` | workflow lint and audit          | `actionlint` + [zizmor](../../zizmor/SKILL.md)                     |
 
@@ -26,7 +26,8 @@ Those names are reserved: never respell one (`check:audit`, `check:dprint`) when
 - **Parallel checks**: `check` fans out with `depends = ["check:format", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
 - **Incremental tasks**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Staged vs whole-tree**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
-- **Argument passthrough**: mise appends CLI args to the last command; use `raw_args = true` and a script forwarding `"$@"` when several commands consume the same file list, or `usage` for structured arguments.
+- **Argument passthrough**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
+- **Complexity ceiling**: short command arrays and small setup/cleanup sequences are acceptable. Prefer native flags to conditions and explicit tasks to mode detection. Do not wrap commands in `bash -c` or `sh -c`, compress a program onto one line, or relocate a large shell block into TOML. Keep unavoidable branching, retries, and response parsing in maintained source.
 - **Dotenv**: `[env]` with `_.file = ".env"` auto-loads the file.
 
 ## Tool Management

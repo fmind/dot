@@ -18,7 +18,7 @@ slsa = false
 run_auto_install = false
 
 [task_config]
-# This repository is also the home-level mise source, so pin every task to this file.
+# Keep repository tasks rooted here when invoked from a child directory.
 dir = "{{config_root}}"
 
 [env]
@@ -55,7 +55,7 @@ run = ["mise run format", "mise run check", "mise run test", "mise run build"]
 alias = "b"
 description = "Build the dot Python source distribution and wheel"
 run = "uv build --out-dir dot/dist --clear"
-sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/src/**/*.py"]
+sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/src/**/*.py", "dot/src/**/*.yaml"]
 outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 
 [tasks.check]
@@ -105,12 +105,29 @@ run = "dprint check"
 
 [tasks."check:fish"]
 description = "Validate Fish syntax without loading user configuration"
-run = "for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish; do fish --no-config --no-execute \"$file\"; done"
+run = """
+for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish; do
+  fish --no-config --no-execute "$file"
+done
+"""
 
 [tasks."check:leaks"]
 alias = "cl"
-description = "Audit recent commits for leaked secrets (gitleaks)"
-run = "gitleaks git --redact=100 --log-opts=\"--max-count=100\" --verbose"
+description = "Scan the working tree and recent commits for leaked secrets"
+depends = ["check:leaks:tree", "check:leaks:history"]
+
+[tasks."check:leaks:tree"]
+description = "Scan working-tree files, including untracked files"
+run = "gitleaks dir . --redact=100 --verbose"
+
+[tasks."check:leaks:history"]
+description = "Scan the latest 100 commits reachable from HEAD"
+# An unborn HEAD has no history; check:leaks:tree still scans its files.
+run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose'
+
+[tasks."check:leaks:staged"]
+description = "Scan only staged changes before committing"
+run = "gitleaks git --redact=100 --staged --verbose"
 
 [tasks."check:lua"]
 alias = "cu"
@@ -121,9 +138,9 @@ run = "stylua --check dot_config/nvim"
 alias = "cp"
 description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
-  "uv run --frozen ruff check dot dot_config/ptpython/config.py",
-  "uv run --frozen ruff format --check dot dot_config/ptpython/config.py",
-  "uv run --frozen ty check dot/src dot/tests",
+  "uv run --frozen ruff check dot dot_config/ptpython/config.py skills/gws/scripts",
+  "uv run --frozen ruff format --check dot dot_config/ptpython/config.py skills/gws/scripts",
+  "uv run --frozen ty check dot/src dot/dot_tasks dot/tests",
   "uv run --frozen validate-pyproject dot/pyproject.toml",
   "uv lock --check",
 ]
@@ -161,11 +178,11 @@ run = "uv audit --preview-features audit-command --locked"
 
 [tasks."check:vuln:tools"]
 description = "Audit installed npm and pipx tool environments"
-run = "uv run --frozen python -m fmind_dot.tool_audit"
+run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit"
 
 [tasks."report:skills"]
 description = "Report informational skill routing diagnostics"
-run = "uv run --frozen python -m fmind_dot.skill_contracts --report"
+run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --report"
 
 [tasks.format]
 alias = "f"
@@ -186,8 +203,8 @@ run = "stylua dot_config/nvim"
 alias = "fp"
 description = "Format Python sources and imports"
 run = [
-  "uv run --frozen ruff check --select=I --fix dot dot_config/ptpython/config.py",
-  "uv run --frozen ruff format dot dot_config/ptpython/config.py",
+  "uv run --frozen ruff check --select=I --fix dot dot_config/ptpython/config.py skills/gws/scripts",
+  "uv run --frozen ruff format dot dot_config/ptpython/config.py skills/gws/scripts",
 ]
 
 [tasks."format:shell"]
@@ -209,10 +226,10 @@ run = [
 [tasks.test]
 alias = "t"
 description = "Run the Python CLI and repository contract tests"
-run = "uv run --frozen pytest -q -n auto dot/tests --cov=fmind_dot --cov-config=dot/pyproject.toml --cov-report=term-missing"
+run = "uv run --frozen pytest -q -n auto dot/tests --cov=fmind_dot --cov=dot_tasks --cov-config=dot/pyproject.toml --cov-report=term-missing"
 
 [tasks."test:starters"]
-description = "Materialize and execute the Python CLI starter contract"
+description = "Materialize and execute the Python library, CLI, and web starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
 run = "uv run --frozen pytest -q dot/tests/test_python_starter.py"
 
@@ -270,15 +287,18 @@ run = [
   "chezmoi re-add --source \"$PWD\" ~/.config/nvim/lazy-lock.json",
 ]
 
-[tasks.prune]
-alias = "mp"
-description = "Remove unused tools, containers, and development caches"
-run = "uv run --frozen dot prune --all --deep"
+[tasks."prune:sessions"]
+description = "Preview integrity-checked compaction of the dot archive"
+run = "uv run --frozen dot agent session compact"
 
 [tasks.release]
 alias = "mr"
 description = "Prepare and dispatch an exact-head GitHub release"
-run = "uv run --frozen dot release"
+run = "uv run --frozen --directory dot python -m dot_tasks.release"
+
+[tasks."release:publish"]
+description = "Publish built GitHub release assets or verify an existing release"
+run = "uv run --frozen --directory dot python -m dot_tasks.publish"
 
 [tasks.tools]
 alias = "mt"
@@ -316,7 +336,7 @@ run = [
 [tasks.verify]
 alias = "mx"
 description = "Run the dot workstation sanity checks"
-run = '"$DOT_BIN" verify'
+run = '"$DOT_BIN" doctor'
 
 [tasks.vim]
 alias = "mv"

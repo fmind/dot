@@ -28,9 +28,9 @@ pre-commit:
       priority: 10
       run: mise run format:shell
       stage_fixed: true
-    check:leaks:
+    check:leaks:staged:
       priority: 20
-      run: mise run check:leaks --staged
+      run: mise run check:leaks:staged
     check:
       priority: 30
       run: mise run check

@@ -1,11 +1,9 @@
-"""System integration commands: completion, authentication, setup, notifications, and checks."""
+"""Workstation diagnostics, notifications, completions, and installation evidence."""
 
-import contextlib
 import hashlib
 import json
 import os
 import platform
-import re
 import stat
 import tempfile
 import tomllib
@@ -19,11 +17,11 @@ import typer
 from typer.completion import get_completion_script
 
 from fmind_dot import __version__
-from fmind_dot.commands import add_group, aliased_command, state_from
-from fmind_dot.config import duration_seconds, expand_path
+from fmind_dot.config import expand_path
+from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
-from fmind_dot.state import State
+from fmind_dot.state import State, state_from
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 _NOTIFY_EVENTS = {
@@ -127,116 +125,6 @@ def _tool(state: State, command: str) -> Path:
     if path is None:
         raise DotError(f"required tool is not installed: {command}")
     return path
-
-
-def _interactive(
-    state: State,
-    args: list[str],
-    failure: str,
-    *,
-    on_stdout_line: Callable[[str], None] | None = None,
-) -> None:
-    code = state.runner.interactive(
-        args,
-        stdin=state.stdin,
-        stdout=state.stdout,
-        stderr=state.stderr,
-        on_stdout_line=on_stdout_line,
-    )
-    if code != 0:
-        raise DotError(f"{failure} ({code})")
-
-
-def _confirm(state: State, message: str) -> bool:
-    state.stdout.write(message)
-    state.stdout.flush()
-    return state.stdin.readline().strip().lower() in {"y", "yes"}
-
-
-def run_login_github(state: State) -> None:
-    _tool(state, "gh")
-    host = state.config.login.github_host
-    status_result = state.runner.run(["gh", "auth", "status", "--hostname", host], check=False)
-    if status_result.returncode == 0 and not _confirm(
-        state, f"gh: already authenticated on {host}. Re-authenticate? [y/N]: "
-    ):
-        typer.echo("Canceled.", file=state.stdout)
-        return
-    typer.echo(f"gh: requesting OAuth login for {host}...", file=state.stdout)
-    scopes = ",".join(state.config.login.github_scopes)
-    _interactive(state, ["gh", "auth", "login", "--hostname", host, "--scopes", scopes], "gh login failed")
-
-
-def run_login_workspace(state: State) -> None:
-    _tool(state, "gws")
-    scopes = ",".join(state.config.login.workspace_scopes)
-    typer.echo(
-        f"gws: requesting OAuth login ({len(state.config.login.workspace_scopes)} scopes)...",
-        file=state.stdout,
-    )
-    opened = False
-
-    def _open_browser_url(line: str) -> None:
-        nonlocal opened
-        if opened:
-            return
-        match = re.search(r"https?://\S+", line)
-        if match and ("accounts.google.com" in match.group(0) or "oauth" in match.group(0).lower()):
-            opened = True
-            url = match.group(0).strip("'\"()<>")
-            with contextlib.suppress(Exception):
-                state.browser_open(url)
-
-    _interactive(
-        state,
-        ["gws", "auth", "login", "--scopes", scopes],
-        "gws login failed",
-        on_stdout_line=_open_browser_url,
-    )
-
-
-def run_login_gcp(state: State) -> None:
-    _tool(state, "gcloud")
-    typer.echo(
-        "gcloud: authenticating user and Application Default Credentials (ADC)...",
-        file=state.stdout,
-    )
-    _interactive(state, ["gcloud", "auth", "login", "--update-adc"], "gcloud login failed")
-    typer.echo("gcloud: credentials successfully updated.", file=state.stdout)
-
-
-def run_setup_github(state: State) -> None:
-    _tool(state, "gh")
-    host = state.config.login.github_host
-    scopes = ",".join(state.config.login.github_scopes)
-    status_result = state.runner.run(["gh", "auth", "status", "--hostname", host], check=False)
-    if status_result.returncode == 0:
-        typer.echo(f"gh: refreshing OAuth scopes for {host}...", file=state.stdout)
-        _interactive(state, ["gh", "auth", "refresh", "--hostname", host, "--scopes", scopes], "gh refresh failed")
-        typer.echo(f"gh: OAuth scopes successfully updated for {host}.", file=state.stdout)
-    else:
-        typer.echo(f"gh: requesting OAuth login for {host}...", file=state.stdout)
-        _interactive(state, ["gh", "auth", "login", "--hostname", host, "--scopes", scopes], "gh login failed")
-        typer.echo(f"gh: OAuth login successful for {host}.", file=state.stdout)
-
-
-def run_setup_workspace(state: State, project_id: str = "") -> None:
-    _tool(state, "gws")
-    _tool(state, "gcloud")
-    selected = project_id or os.environ.get("GWS_PROJECT", "")
-    if not selected:
-        raise DotError("provide a project ID as an argument or set the GWS_PROJECT environment variable")
-    apis = state.config.setup.workspace_apis
-    if not apis:
-        raise DotError("no Google Workspace APIs configured to enable")
-    typer.echo(f"gws: enabling Workspace APIs on project {selected!r}...", file=state.stdout)
-    _interactive(
-        state,
-        ["gcloud", "services", "enable", *apis, "--project", selected, "--quiet"],
-        "failed to enable gcloud services",
-    )
-    typer.echo(f"gws: configuring project {selected!r}...", file=state.stdout)
-    _interactive(state, ["gws", "auth", "setup", "--project", selected], "failed to configure gws project")
 
 
 def _display_path(home: Path, path: Path) -> str:
@@ -373,7 +261,7 @@ def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> 
     if not content.strip():
         raise DotError(f"generated Fish script is empty: {path.name}")
     _tool(state, "fish")
-    timeout = duration_seconds(state.config.completions.timeout)
+    timeout = state.config.completions.timeout_seconds
     try:
         state.runner.run(["fish", "--no-config", "--no-execute"], input_text=content, timeout=timeout)
     except (DotError, OSError) as error:
@@ -412,7 +300,7 @@ def _generate_completion(state: State, tool: str) -> str:
     args = custom.args if custom and custom.args else ["completion", "fish"]
     fallback = [tool, "completion", "fish"]
     primary = [binary, *args]
-    timeout = duration_seconds(state.config.completions.timeout)
+    timeout = state.config.completions.timeout_seconds
     with tempfile.TemporaryDirectory(prefix="dot-completion-") as directory:
         try:
             result = state.runner.run(primary, cwd=Path(directory), timeout=timeout)
@@ -480,7 +368,7 @@ def run_completion(state: State) -> None:
             if state.runner.which(tool) is None:
                 continue
             try:
-                result = state.runner.run([tool, *args], timeout=duration_seconds(state.config.completions.timeout))
+                result = state.runner.run([tool, *args], timeout=state.config.completions.timeout_seconds)
                 _write_validated_fish(state, cache / filename, result.stdout, 0o600)
                 typer.echo(f"  ✓ Generated {filename}", file=state.stdout)
             except (DotError, OSError) as error:
@@ -495,13 +383,13 @@ def run_completion(state: State) -> None:
 def _environment_results(state: State) -> list[CheckResult]:
     results = [
         CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "fail", "MISSING (required)")
-        for name in state.config.verify.env_vars.required
+        for name in state.config.doctor.env_vars.required
     ]
     results.extend(
         CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "warn", "unset (optional)")
-        for name in state.config.verify.env_vars.optional
+        for name in state.config.doctor.env_vars.optional
     )
-    if "opencode" in state.config.verify.tools:
+    if "opencode" in state.config.doctor.tools:
         results.append(_opencode_project_result(state))
     return results
 
@@ -516,7 +404,7 @@ def _opencode_project_result(state: State) -> CheckResult:
         result = state.runner.run_bounded(
             ["opencode", "debug", "config", "--pure"],
             max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=duration_seconds(state.config.verify.probe_timeout),
+            timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
         if result.returncode or result.output_truncated:
@@ -547,7 +435,7 @@ def _opencode_project_result(state: State) -> CheckResult:
 
 def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
     results: list[CheckResult] = []
-    for secret in state.config.verify.secrets:
+    for secret in state.config.doctor.secrets:
         path = expand_path(secret.path)
         try:
             current = stat.S_IMODE(path.stat().st_mode)
@@ -585,7 +473,7 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
 
 
 def _tool_results(state: State) -> list[CheckResult]:
-    timeout = duration_seconds(state.config.verify.probe_timeout)
+    timeout = state.config.doctor.probe_timeout_seconds
 
     def probe(tool: str) -> CheckResult:
         path = state.runner.which(tool)
@@ -608,10 +496,10 @@ def _tool_results(state: State) -> list[CheckResult]:
             return CheckResult(tool, "fail", "capability probe failed", str(path), "broken")
         return CheckResult(tool, "pass", "capability probe passed", str(path), "healthy")
 
-    tools = state.config.verify.tools
+    tools = state.config.doctor.tools
     if not tools:
         return []
-    workers = min(state.config.verify.probe_concurrency, len(tools))
+    workers = min(state.config.doctor.probe_concurrency, len(tools))
     with ThreadPoolExecutor(max_workers=workers) as executor:
         return list(executor.map(probe, tools))
 
@@ -623,9 +511,9 @@ def _recognized_auth_failure(result: CommandResult) -> bool:
 
 def _auth_results(state: State) -> list[CheckResult]:
     results: list[CheckResult] = []
-    timeout = duration_seconds(state.config.verify.probe_timeout)
+    timeout = state.config.doctor.probe_timeout_seconds
     probes = dict(_AUTH_PROBES)
-    probes["gh"] = (["gh", "auth", "status", "--hostname", state.config.login.github_host], False)
+    probes["gh"] = (["gh", "auth", "status", "--hostname", state.config.doctor.github_host], False)
     if os.environ.get("JULES_API_KEY"):
         probes["jules"] = (["jules", "remote", "list", "--repo"], False)
     for label, (command, requires_output) in probes.items():
@@ -682,7 +570,7 @@ def _docker_results(state: State) -> list[CheckResult]:
         result = state.runner.run_bounded(
             ["docker", "info"],
             max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=duration_seconds(state.config.verify.probe_timeout),
+            timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
     except DotError, OSError:
@@ -697,7 +585,8 @@ def _docker_results(state: State) -> list[CheckResult]:
 
 
 def _package_digest(directory: Path) -> str:
-    files = sorted(path for path in directory.rglob("*.py") if path.is_file())
+    # Bundled rate cards affect runtime behavior just as Python modules do.
+    files = sorted(path for path in directory.rglob("*") if path.is_file() and path.suffix in {".py", ".yaml"})
     if not files:
         raise FileNotFoundError(directory)
     digest = hashlib.sha256()
@@ -818,7 +707,7 @@ def _install_results(state: State) -> list[CheckResult]:
         source_result = state.runner.run_bounded(
             ["chezmoi", "source-path"],
             max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=duration_seconds(state.config.verify.probe_timeout),
+            timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
     except DotError, OSError:
@@ -854,10 +743,12 @@ def _install_results(state: State) -> list[CheckResult]:
     return [CheckResult(name, "pass", "installed Python package matches source", installed_path, "healthy")]
 
 
-def run_verify(state: State, *, fix: bool) -> dict[str, Any]:
+def run_doctor(state: State, *, fix: bool, deep: bool = False) -> dict[str, Any]:
     sections = {
         "env_vars": _environment_results(state),
-        "auth": _auth_results(state),
+        "auth": _auth_results(state)
+        if deep
+        else [CheckResult("authentication", "skip", "use --deep to probe providers")],
         "secrets": _secret_results(state, fix=fix),
         "docker": _docker_results(state),
         "tools": _tool_results(state),
@@ -869,7 +760,7 @@ def run_verify(state: State, *, fix: bool) -> dict[str, Any]:
     }
 
 
-def _print_verify(state: State, results: Mapping[str, Any]) -> None:
+def _print_doctor(state: State, results: Mapping[str, Any]) -> None:
     labels = {
         "env_vars": "Environment Variables",
         "auth": "CLI Authentication",
@@ -889,58 +780,25 @@ def _print_verify(state: State, results: Mapping[str, Any]) -> None:
 
 
 def register(app: typer.Typer) -> None:
-    login_app = typer.Typer(
-        help="Authentication wrappers for external service CLI tools",
-        context_settings=_CONTEXT_SETTINGS,
-    )
-    setup_app = typer.Typer(
-        help="Setup wrappers for external services and environments",
-        context_settings=_CONTEXT_SETTINGS,
-    )
-
-    @aliased_command(login_app, "github", help_text="Interactive OAuth login via gh")
-    def login_github(context: typer.Context) -> None:
-        run_login_github(state_from(context))
-
-    @aliased_command(login_app, "workspace", help_text="Interactive OAuth login via gws")
-    def login_workspace(context: typer.Context) -> None:
-        run_login_workspace(state_from(context))
-
-    @aliased_command(login_app, "gcp", help_text="Authenticate gcloud and ADC")
-    def login_gcp(context: typer.Context) -> None:
-        run_login_gcp(state_from(context))
-
-    @aliased_command(setup_app, "github", help_text="Configure and refresh GitHub CLI OAuth scopes")
-    def setup_github(context: typer.Context) -> None:
-        run_setup_github(state_from(context))
-
-    @aliased_command(setup_app, "workspace", help_text="Configure Workspace APIs for a GCP project")
-    def setup_workspace(
-        context: typer.Context,
-        project_id: Annotated[str, typer.Argument(help="GCP project ID")] = "",
-    ) -> None:
-        run_setup_workspace(state_from(context), project_id)
-
-    @aliased_command(app, "completion", help_text="Generate Fish completions for installed CLI tools")
+    @app.command("completion", help="Generate and validate Fish completions")
     def completion(context: typer.Context) -> None:
         run_completion(state_from(context))
 
-    @aliased_command(app, "verify", help_text="Run environment, authentication, service, and tool checks")
-    def verify(
+    @app.command("doctor", help="Check local workstation health; --deep also probes authentication")
+    def doctor(
         context: typer.Context,
         json_output: Annotated[bool, typer.Option("--json", "-j")] = False,
-        fix: Annotated[bool, typer.Option("--fix", "-f")] = False,
+        fix: Annotated[bool, typer.Option("--fix", "-f", help="Repair local secret-file permissions")] = False,
+        deep: Annotated[bool, typer.Option("--deep", help="Also probe provider authentication")] = False,
     ) -> None:
         state = state_from(context)
-        results = run_verify(state, fix=fix)
+        results = run_doctor(state, fix=fix, deep=deep)
         if json_output:
-            typer.echo(json.dumps(results, indent=2), file=state.stdout)
+            checks = [
+                dict(item, group=group) for group, items in results.items() if group != "passed" for item in items
+            ]
+            typer.echo(json.dumps(diagnostic_report("workstation", checks), indent=2), file=state.stdout)
         else:
-            _print_verify(state, results)
-            message = "✓ Verification passed." if results["passed"] else "✗ Verification failed."
-            typer.echo(f"\n{message}", file=state.stdout)
+            _print_doctor(state, results)
         if not results["passed"]:
             raise typer.Exit(1)
-
-    add_group(app, login_app, "login")
-    add_group(app, setup_app, "setup")

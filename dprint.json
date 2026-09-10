@@ -16,7 +16,7 @@
     "**/htmlcov",
     "**/modify_*.json",
     "**/modify_*.yaml",
-    "**/modify_private_config.toml",
+    "**/modify_*.toml",
     "**/node_modules",
     "**/references/**"
   ],

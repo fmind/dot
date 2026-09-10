@@ -44,7 +44,7 @@ Choose the target type first, then use its allowed attributes in order from the 
 1. **Check repeatability**: for Bash/profile modifier changes, add existing-target and second-pass cases under `dot/tests/`, using the isolated rendering approach in `test_harness_config.py`. Inspect affected `run_once_*` and `run_onchange_*` hooks: changing their content can trigger installation or other commands.
 1. **Apply within scope**: `mise run apply` (`chezmoi apply --force`); `--force` is mandatory in scripts and hooks so a diverged target never blocks on a prompt, `--dry-run` previews without writing. Applying also executes eligible hooks; `--force` does not expand authorized targets or side effects.
 1. **Pull target edits back**: `chezmoi re-add` folds manual changes to a managed file (a regenerated lockfile, for example) into the source.
-1. **Diagnose**: `mise run doctor` (`chezmoi doctor` and `mise doctor`); `chezmoi managed` and `chezmoi unmanaged` list coverage; `dot chezmoi clean` previews former managed targets; approved cleanup moves them to recoverable backups. Use command help and [dot-cli](../../../skills/dot-cli/SKILL.md) for cleanup flags.
+1. **Diagnose**: `mise run doctor` (`chezmoi doctor` and `mise doctor`); `chezmoi managed` and `chezmoi unmanaged` list coverage; the [installed-link recovery guide](../dot-skills/references/installed-links.md) previews former managed targets; approved cleanup moves them to recoverable backups. Use command help and [dot-cli](../../../skills/dot-cli/SKILL.md) for cleanup flags.
 
 ## Gotchas
 
@@ -63,4 +63,4 @@ Choose the target type first, then use its allowed attributes in order from the 
 - [chezmoi reference](https://www.chezmoi.io/reference/) · [source-state attributes](https://www.chezmoi.io/reference/source-state-attributes/)
 - [templating](https://www.chezmoi.io/user-guide/templating/) · [age encryption](https://www.chezmoi.io/user-guide/encryption/age/)
 - Companion skills: [mise](../../../skills/mise/SKILL.md) (pins chezmoi, wraps apply, diff, doctor), [dprint](../../../skills/dprint/SKILL.md) (formats source configurations).
-- Also: [secure](../../../skills/secure/SKILL.md) (leak scanning around `*.age` files), [dot-cli](../../../skills/dot-cli/SKILL.md) (`dot chezmoi clean`).
+- Also: [secure](../../../skills/secure/SKILL.md) (leak scanning around `*.age` files), [dot-cli](../../../skills/dot-cli/SKILL.md) (workstation and archive commands).

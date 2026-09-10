@@ -3,6 +3,8 @@ return {
   {
     "mason-org/mason.nvim",
     opts = function(_, opts)
+      -- Keep mise/project tools ahead of Mason, including previously installed copies.
+      opts.PATH = "append"
       if type(opts.ensure_installed) == "table" then
         opts.ensure_installed = vim.tbl_filter(function(tool)
           return vim.fn.executable(tool) == 0

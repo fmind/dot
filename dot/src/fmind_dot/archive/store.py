@@ -15,9 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-SESSION_SCHEMA_VERSION = 1
-SESSION_PARSER_VERSION = "2"
-SUPPORTED_PARSER_VERSIONS = {"1", "2"}
+SESSION_SCHEMA_VERSION = 2
+SUPPORTED_SCHEMA_VERSIONS = {1, 2}
+SESSION_PARSER_VERSION = "3"
+SUPPORTED_PARSER_VERSIONS = {"1", "2", "3"}
 SESSION_STORE_VERSION = "v1"
 _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -98,9 +99,10 @@ class SessionManifest:
     malformed_records: int
     skipped_records: int
     cwd: str = ""
+    usage_sha256: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        # Preserve the v1 Go manifest field order for byte-stable output.
+        # Legacy manifests remain readable; new generations add the usage digest.
         result: dict[str, Any] = {
             "parser_version": self.parser_version,
             "agent": self.agent,
@@ -124,6 +126,8 @@ class SessionManifest:
                 "skipped_records": self.skipped_records,
             }
         )
+        if self.schema_version >= 2:
+            result["usage_sha256"] = self.usage_sha256
         return result
 
     @classmethod
@@ -148,6 +152,7 @@ class SessionManifest:
                 malformed_records=_integer(value, "malformed_records"),
                 skipped_records=_integer(value, "skipped_records"),
                 cwd=_string(value, "cwd", required=False),
+                usage_sha256=_string(value, "usage_sha256", required=value.get("schema_version") == 2),
             )
         except (KeyError, TypeError) as error:
             raise ValueError("invalid session manifest") from error
@@ -203,25 +208,18 @@ def fingerprint_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _go_json_bytes(value: object, *, escape_html: bool) -> bytes:
-    content = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    if escape_html:
-        for character, escaped in (("&", r"\u0026"), ("<", r"\u003c"), (">", r"\u003e")):
-            content = content.replace(character, escaped)
-    # encoding/json escapes these separators even when HTML escaping is disabled.
-    for character, escaped in ((chr(0x2028), r"\u2028"), (chr(0x2029), r"\u2029")):
-        content = content.replace(character, escaped)
-    return content.encode("utf-8")
-
-
 def fingerprint_json(value: object) -> str:
-    # Preserve encoding/json's default escaping because this digest is part of
-    # the existing immutable v1 identity for SQLite-backed sources.
-    return fingerprint_bytes(_go_json_bytes(value, escape_html=True))
+    """Fingerprint structured source data with canonical native JSON."""
+    return fingerprint_bytes(
+        json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()
+    )
 
 
 def marshal_session_logs(logs: list[SessionLog]) -> bytes:
-    return b"".join(_go_json_bytes(log.to_dict(), escape_html=False) + b"\n" for log in logs)
+    return b"".join(
+        (json.dumps(log.to_dict(), ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n").encode()
+        for log in logs
+    )
 
 
 def fingerprint_logs(logs: list[SessionLog]) -> str:
@@ -545,6 +543,10 @@ def validate_session_generation(path: Path, expected: SessionManifest) -> list[S
         raise ValueError("session manifest did not round-trip")
     transcript_path = path / "transcript.jsonl"
     _require_private_path(transcript_path, directory=False)
+    if manifest.schema_version == 2:
+        usage_path = path / "usage.json"
+        _require_private_path(usage_path, directory=False)
+        _validate_usage(usage_path.read_bytes(), manifest)
     return _validate_transcript(transcript_path.read_bytes(), manifest)
 
 
@@ -555,7 +557,45 @@ def _validate_session_generation_at(
     if expected is not None and manifest != expected:
         raise ValueError("session manifest did not round-trip")
     transcript = _read_owner_only_at(generation, "transcript.jsonl", path / "transcript.jsonl")
+    if manifest.schema_version == 2:
+        _validate_usage(_read_owner_only_at(generation, "usage.json", path / "usage.json"), manifest)
     return manifest, _validate_transcript(transcript, manifest)
+
+
+def generation_files(manifest: SessionManifest) -> set[str]:
+    """Known files for a supported generation; legacy archives remain untouched."""
+    names = {"manifest.json", "transcript.jsonl"}
+    if manifest.schema_version == 2:
+        names.add("usage.json")
+    return names
+
+
+def _validate_usage(content: bytes, manifest: SessionManifest) -> dict[str, Any] | None:
+    # Usage imports the archive publisher, so load its boundary model on demand.
+    from fmind_dot.archive.usage import UsageRecord
+
+    if fingerprint_bytes(content) != manifest.usage_sha256:
+        raise ValueError("session usage fingerprint mismatch")
+    value = json.loads(content)
+    if not isinstance(value, dict) or value.get("schema") != "dot.session.usage/v1":
+        raise ValueError("invalid session usage document")
+    if value.get("status") == "unsupported" and value.get("record") is None:
+        return None
+    record = value.get("record")
+    if value.get("status") != "available" or not isinstance(record, dict):
+        raise ValueError("invalid session usage status or record")
+    parsed = UsageRecord.from_dict(record)
+    if parsed.harness != manifest.agent or parsed.session_id != manifest.session_id:
+        raise ValueError("session usage has mismatched lineage")
+    return record
+
+
+def read_session_usage(path: Path, manifest: SessionManifest) -> dict[str, Any] | None:
+    """Read the usage committed with a verified generation, without legacy inference."""
+    validate_session_generation(path, manifest)
+    if manifest.schema_version != 2:
+        return None
+    return _validate_usage((path / "usage.json").read_bytes(), manifest)
 
 
 def _same_immutable_identity(existing: SessionManifest, expected: SessionManifest) -> bool:
@@ -673,14 +713,14 @@ def delete_session_generation(agent: str, lineage: str, generation: str, expecte
             if manifest != expected:
                 raise ValueError("session generation changed before compaction")
             names = set(os.listdir(generation_descriptor))  # noqa: PTH208 - inspect the verified descriptor.
-            if names != {"manifest.json", "transcript.jsonl"}:
+            if names != generation_files(manifest):
                 raise ValueError(f"session generation contains unexpected entries: {path}")
             opened = os.fstat(generation_descriptor)
             current = os.stat(generation, dir_fd=lineage_descriptor, follow_symlinks=False)
             if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
                 raise ValueError("session generation changed before compaction")
             _require_current_lineage(agent, lineage, lineage_descriptor)
-            for name in ("transcript.jsonl", "manifest.json"):
+            for name in generation_files(expected):
                 os.unlink(name, dir_fd=generation_descriptor)
             os.fsync(generation_descriptor)
         finally:
@@ -693,7 +733,12 @@ def delete_session_generation(agent: str, lineage: str, generation: str, expecte
 
 
 def ingest_session(
-    agent: str, session_id: str, logs: list[SessionLog], source: SessionSource | None = None
+    agent: str,
+    session_id: str,
+    logs: list[SessionLog],
+    source: SessionSource | None = None,
+    *,
+    usage: dict[str, Any] | None = None,
 ) -> SessionIngestionResult:
     """Validate and atomically publish one immutable transcript generation."""
     if not _is_safe_component(agent):
@@ -701,7 +746,7 @@ def ingest_session(
     source = source or SessionSource()
     lineage = session_lineage_id(agent, session_id)
     completeness: Completeness = "partial" if source.malformed else (source.completeness or "complete")
-    if not logs:
+    if not logs and usage is None:
         manifest = SessionManifest(
             parser_version="",
             agent=agent,
@@ -731,6 +776,19 @@ def ingest_session(
         raise ValueError("session source fingerprint must be a full SHA-256 digest") from error
 
     transcript = marshal_session_logs(logs)
+    usage_content = (
+        json.dumps(
+            {
+                "schema": "dot.session.usage/v1",
+                "status": "available" if usage is not None else "unsupported",
+                "record": usage,
+            },
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode()
     generation = session_generation_id(fingerprint)
     manifest = SessionManifest(
         parser_version=SESSION_PARSER_VERSION,
@@ -743,6 +801,7 @@ def ingest_session(
         ingested_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         completeness=completeness,
         transcript_sha256=fingerprint_bytes(transcript),
+        usage_sha256=fingerprint_bytes(usage_content),
         schema_version=SESSION_SCHEMA_VERSION,
         record_count=len(logs),
         malformed_records=source.malformed,
@@ -750,6 +809,7 @@ def ingest_session(
         cwd=cwd,
     )
 
+    _validate_usage(usage_content, manifest)
     root = session_store_root()
     lineage_dir = root / agent / lineage
     final = lineage_dir / generation
@@ -779,6 +839,7 @@ def ingest_session(
         temp = lineage_dir / temp_name
         temp_descriptor = _create_private_directory_at(lineage_descriptor, temp_name, temp)
         _write_owner_only_at(temp_descriptor, "transcript.jsonl", transcript)
+        _write_owner_only_at(temp_descriptor, "usage.json", usage_content)
         manifest_content = (json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2) + "\n").encode()
         _write_owner_only_at(temp_descriptor, "manifest.json", manifest_content)
         _validate_session_generation_at(temp_descriptor, temp, manifest)
@@ -805,7 +866,7 @@ def ingest_session(
         try:
             _require_current_lineage(agent, lineage, lineage_descriptor)
         except OSError, ValueError:
-            for name in ("transcript.jsonl", "manifest.json"):
+            for name in generation_files(manifest):
                 with suppress(FileNotFoundError):
                     os.unlink(name, dir_fd=temp_descriptor)
             os.rmdir(generation, dir_fd=lineage_descriptor)
@@ -814,7 +875,7 @@ def ingest_session(
     finally:
         if temp_descriptor >= 0:
             if temp_name:
-                for name in ("transcript.jsonl", "manifest.json"):
+                for name in generation_files(manifest):
                     with suppress(FileNotFoundError):
                         os.unlink(name, dir_fd=temp_descriptor)
             os.close(temp_descriptor)

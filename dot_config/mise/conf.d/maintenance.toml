@@ -1,0 +1,142 @@
+# :schema https://mise.jdx.dev/schema/mise.json
+# Docs: https://mise.jdx.dev/configuration.html
+
+[task_config]
+# Native tools use the caller's current directory and selected provider profile.
+dir = "{{cwd}}"
+
+[vars]
+# Preserve prior scope policy; TOML continuations form one native CLI argument.
+github_scopes = """
+admin:public_key,\
+delete:packages,\
+gist,\
+notifications,\
+project,\
+read:org,\
+read:packages,\
+repo,\
+user,\
+workflow,\
+write:packages"""
+workspace_scopes = """
+openid,\
+https://www.googleapis.com/auth/userinfo.email,\
+https://www.googleapis.com/auth/userinfo.profile,\
+https://www.googleapis.com/auth/user.emails.read,\
+https://www.googleapis.com/auth/calendar,\
+https://www.googleapis.com/auth/contacts,\
+https://www.googleapis.com/auth/contacts.other.readonly,\
+https://www.googleapis.com/auth/directory.readonly,\
+https://www.googleapis.com/auth/documents,\
+https://www.googleapis.com/auth/drive,\
+https://www.googleapis.com/auth/forms.body,\
+https://www.googleapis.com/auth/forms.responses.readonly,\
+https://www.googleapis.com/auth/gmail.modify,\
+https://www.googleapis.com/auth/meetings.space.created,\
+https://www.googleapis.com/auth/meetings.space.readonly,\
+https://www.googleapis.com/auth/meetings.space.settings,\
+https://www.googleapis.com/auth/presentations,\
+https://www.googleapis.com/auth/spreadsheets,\
+https://www.googleapis.com/auth/tasks,\
+https://www.googleapis.com/auth/chat.spaces,\
+https://www.googleapis.com/auth/chat.messages,\
+https://www.googleapis.com/auth/chat.memberships,\
+https://www.googleapis.com/auth/script.projects,\
+https://www.googleapis.com/auth/script.deployments,\
+https://www.googleapis.com/auth/script.processes"""
+workspace_apis = """
+calendar-json.googleapis.com \
+chat.googleapis.com \
+docs.googleapis.com \
+drive.googleapis.com \
+forms.googleapis.com \
+gmail.googleapis.com \
+keep.googleapis.com \
+meet.googleapis.com \
+people.googleapis.com \
+script.googleapis.com \
+sheets.googleapis.com \
+slides.googleapis.com \
+tasks.googleapis.com"""
+
+[tasks."login:gcp"]
+description = "Log in to Google Cloud and update Application Default Credentials"
+raw = true
+run = "gcloud auth login --update-adc"
+
+[tasks."login:github"]
+description = "Log in to GitHub with the configured OAuth scopes"
+raw = true
+usage = 'flag "--host <host>" default="github.com" env="GH_HOST"'
+env = { DOT_GITHUB_SCOPES = "{{ vars.github_scopes }}" }
+run = 'gh auth login --hostname "${usage_host?}" --scopes "$DOT_GITHUB_SCOPES"'
+
+[tasks."login:workspace"]
+description = "Log in to Google Workspace with the configured OAuth scopes"
+raw = true
+env = { DOT_WORKSPACE_SCOPES = "{{ vars.workspace_scopes }}" }
+run = 'gws auth login --scopes "$DOT_WORKSPACE_SCOPES"'
+
+[tasks.prune]
+alias = "mp"
+description = "Clean local package, formatter, scanner, and mise caches"
+depends = ["prune:dprint", "prune:mise", "prune:npm", "prune:trivy", "prune:uv"]
+
+[tasks."prune:docker"]
+description = "Remove unused build cache from the selected Docker builder (interactive)"
+raw = true
+run = "docker builder prune"
+
+[tasks."prune:dprint"]
+description = "Clear dprint's downloaded plugins and formatting cache"
+run = "dprint clear-cache"
+
+[tasks."prune:hf"]
+description = "Remove detached Hugging Face revisions and incomplete downloads (interactive)"
+raw = true
+run = "hf cache prune"
+
+[tasks."prune:mise"]
+description = "Clear mise metadata and task caches while retaining installed tools"
+run = "mise cache clear"
+
+[tasks."prune:npm"]
+description = "Garbage-collect unneeded npm cache data and verify retained entries"
+run = "npm cache verify"
+
+[tasks."prune:trivy"]
+description = "Clear Trivy scan results while retaining vulnerability databases and checks"
+run = "trivy clean --scan-cache"
+
+[tasks."prune:uv"]
+description = "Prune unused uv package entries and cached environments"
+run = "uv cache prune"
+
+[tasks."setup:github"]
+description = "Refresh configured GitHub scopes, or log in when unauthenticated"
+raw = true
+usage = 'flag "--host <host>" default="github.com" env="GH_HOST"'
+env = { DOT_GITHUB_SCOPES = "{{ vars.github_scopes }}" }
+run = '''
+if gh auth status --hostname "${usage_host?}"; then
+  gh auth refresh --hostname "${usage_host?}" --scopes "$DOT_GITHUB_SCOPES"
+else
+  gh auth login --hostname "${usage_host?}" --scopes "$DOT_GITHUB_SCOPES"
+fi
+'''
+
+[tasks."setup:workspace"]
+description = "Enable configured Workspace APIs and configure OAuth for an explicit project"
+raw = true
+usage = 'arg "<project>" env="GWS_PROJECT" help="Google Cloud project ID"'
+env = { DOT_WORKSPACE_APIS = "{{ vars.workspace_apis }}" }
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+command -v gcloud >/dev/null
+command -v gws >/dev/null
+read -r -a workspace_apis <<< "${DOT_WORKSPACE_APIS:?No Workspace APIs configured}"
+gcloud services enable "${workspace_apis[@]}" --project "${usage_project?}" --quiet
+gws auth setup --project "${usage_project?}"
+'''
