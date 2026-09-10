@@ -66,6 +66,8 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
     child = (
         "import os,pathlib,signal,sys,time\n"
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()))\n"
+        # Exercise OS signal termination rather than Python exception/shutdown timing.
+        "signal.signal(signal.SIGINT,signal.SIG_DFL)\n"
         "signal.signal(signal.SIGCONT,lambda *_args: print('RESUMED',flush=True))\n"
         "print('READY',flush=True)\n"
         "value=input()\n"
@@ -131,7 +133,7 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
             time.sleep(0.01)
         assert reaped
         assert os.WIFEXITED(status)
-        assert os.WEXITSTATUS(status) == 130
+        assert os.WEXITSTATUS(status) == 130, output.decode(errors="replace")
     finally:
         if child_pid_path.exists():
             with suppress(ProcessLookupError):

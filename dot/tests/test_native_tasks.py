@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from typer import _click
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -190,5 +191,5 @@ def test_global_gcp_login_runs_from_an_unrelated_directory(task_runner) -> None:
 def test_global_tasks_do_not_expose_repository_operations(task_runner, name: str) -> None:
     result, calls = task_runner(name)
     assert result.returncode != 0
-    assert f"no task {name} found" in result.stderr
+    assert f"no task {name} found" in _click.utils.strip_ansi(result.stderr)
     assert calls == {}
