@@ -89,6 +89,8 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert result.exit_code == 0, result.output
     assert "SECRET PROMPT" not in result.output
     report = json.loads(result.output)
+    assert report["schema"] == "dot.agent.stats/v2"
+    assert report["prompts"]["schema"] == "dot.agent.prompts.stats/v2"
     assert report["prompts"]["prompts"] == 1
     assert report["usage"][0]["api_equivalent_usd"] == 7
     assert report["usage"][0]["turns"] == 4

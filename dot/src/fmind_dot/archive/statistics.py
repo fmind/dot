@@ -122,7 +122,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         if row["sessions"]:
             rows.append(row)
     return {
-        "schema": "dot.agent.prompts.stats/v1",
+        "schema": "dot.agent.prompts.stats/v2",
         "time_basis": "conversation timestamp (UTC)",
         "unit": "archived user message; may include injected context",
         "complete": excluded == 0
