@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [3.0.0] - 2026-09-10
+
+### 🚀 Features
+
+- Expand agent harnesses and skill catalog
+- _(dot)_ [**breaking**] Simplify runtime and unify transactional session archives
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Open browser on workspace login and drop keep scope (#85)
+- _(dot)_ Fix d2 backend and make tool completions non-blocking (#86)
+- _(opencode)_ Restore template delimiters in modify_opencode.json (#87)
+
+### 🧹 Miscellaneous
+
+- Merge upstream OpenCode template repair
+
 ## [2.1.0] - 2026-09-09
 
 ### 🚀 Features
