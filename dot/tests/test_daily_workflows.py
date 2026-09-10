@@ -47,7 +47,7 @@ def test_jsonl_unicode_preserves_valid_conversation(separator: str, tmp_path: Pa
     assert [log.content for log in parsed.logs] == [content]
 
 
-def test_versioned_migration_and_statistics_do_not_double_count(
+def test_retained_generations_and_statistics_do_not_double_count(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -55,14 +55,12 @@ def test_versioned_migration_and_statistics_do_not_double_count(
         SessionLog("2026-09-01T10:00:00Z", "codex", "example", "user", "private two words", "/work"),
         SessionLog("2026-09-01T10:00:01Z", "codex", "example", "assistant", "private answer", "/work"),
     ]
-    with monkeypatch.context() as old:
-        old.setattr(session_store, "SESSION_PARSER_VERSION", "1")
-        legacy = ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64, skipped=4))
+    previous = ingest_session("codex", "example", logs, SessionSource(fingerprint="b" * 64, skipped=4))
     current = ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64, skipped=4))
-    assert legacy.generation_id != current.generation_id
+    assert previous.generation_id != current.generation_id
     assert len(query_session_summaries()) == 2
     assert show_session(SessionQuery(identity="example"), latest=True).status == ["current"]
-    assert show_session(SessionQuery(identity=legacy.generation_id), include_content=True).records == logs
+    assert show_session(SessionQuery(identity=previous.generation_id), include_content=True).records == logs
     with pytest.raises(ValueError, match="ambiguous"):
         show_session(SessionQuery(identity="example"))
     archive = session_statistics(SessionQuery())
@@ -227,6 +225,14 @@ def test_doctor_explanation_is_bounded_and_selectable(monkeypatch: pytest.Monkey
     for name in ("first", "second"):
         (source / f"{name}.jsonl").write_text("{}\n", encoding="utf-8")
     state.config.agent.sources["claude"] = str(source)
+    with monkeypatch.context() as configured:
+        configured.setattr(agent_doctor_module, "_check_discovery", lambda *_args: ("healthy", True))
+        configured.setattr(agent_doctor_module, "_check_hooks", lambda *_args: ("healthy", True))
+        configured.setattr(agent_doctor_module, "_notifier_available", lambda *_args: True)
+        initial = agent_doctor_module.gather_agent_doctor(state, agent="claude")[0]
+    assert initial.last_ingestion == "none"
+    assert not initial.healthy
+    assert "sync --agent claude --dry-run" in initial.repair
     results = agent_doctor_module.gather_agent_doctor(state, agent="claude", deep=True, explain=True)
     assert len(results) == 1
     assert results[0].issue_counts == {"missing-current-generation": 2}

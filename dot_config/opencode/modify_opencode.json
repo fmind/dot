@@ -29,10 +29,4 @@
 {{-   $_ := set (index $managedConfig.provider "google-vertex").options "location" $location -}}
 {{- end -}}
 {{- $_ := set $managedConfig "skills" (dict "paths" (list (joinPath .chezmoi.homeDir ".agents/skills"))) -}}
-{{- /* Restore native turn limits, compaction reserve and output handling.
-       Retire only dot's overrides; preserve custom agents and MCP/provider settings. */ -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig
-      "prune" (list "agent.build.steps" "agent.plan.steps" "compaction.auto"
-        "compaction.reserved" "experimental.batch_tool" "experimental.continue_loop_on_deny"
-        "experimental.mcp_timeout" "watcher.ignore" "subagent_depth"
-        "tool_output.max_bytes" "tool_output.max_lines")) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

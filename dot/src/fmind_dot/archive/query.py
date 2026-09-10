@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import IO, Any
 
 from fmind_dot.archive.store import (
-    SESSION_PARSER_VERSION,
-    SUPPORTED_PARSER_VERSIONS,
-    SUPPORTED_SCHEMA_VERSIONS,
     SessionLog,
     SessionManifest,
     delete_session_generation,
@@ -248,11 +245,6 @@ def compact_session_generations(
 
     retained: set[Path] = set()
     for group in groups.values():
-        # Unknown schemas remain untouched because their completeness semantics
-        # cannot be safely ranked by this implementation.
-        if any(item.manifest.schema_version not in SUPPORTED_SCHEMA_VERSIONS for item in group):
-            retained.update(item.path for item in group)
-            continue
         kept: list[_Generation] = []
         for candidate in sorted(group, key=_compaction_sort_key, reverse=True):
             candidate_records = verified[candidate.path][1]
@@ -348,12 +340,7 @@ def query_session_summaries(
             continue
         if query.cwd and summary.cwd and summary.cwd != query.cwd:
             continue
-        if (
-            manifest.schema_version not in SUPPORTED_SCHEMA_VERSIONS
-            or manifest.parser_version not in SUPPORTED_PARSER_VERSIONS
-        ):
-            summary.status.append("unsupported")
-        elif include_content or validate_content:
+        if include_content or validate_content:
             try:
                 records = validate_session_generation(generation.path, manifest)
             except OSError, ValueError, json.JSONDecodeError:
@@ -363,8 +350,6 @@ def query_session_summaries(
                     summary.records = records
                 if not summary.cwd:
                     summary.cwd = next((record.cwd for record in records if record.cwd), "")
-        if manifest.parser_version in SUPPORTED_PARSER_VERSIONS and manifest.parser_version != SESSION_PARSER_VERSION:
-            summary.status.append("legacy")
         if manifest.completeness == "partial" or manifest.malformed_records:
             summary.status.append("partial")
         if not is_latest:

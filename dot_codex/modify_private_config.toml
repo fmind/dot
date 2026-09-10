@@ -60,8 +60,4 @@ vim_mode_default = true
 {{- includeTemplate "toml-merge.tmpl" (dict
       "stdin" .chezmoi.stdin
       "managed" $managedConfig
-      "defaults" (dict "personality" "pragmatic")
-      "prune" (list "allow_login_shell" "agents.max_depth" "agents.max_threads" "features.fast_mode" "vim_mode_default" "tools.view_image"
-      "agents.default_subagent_reasoning_effort" "agents.max_concurrent_threads_per_session"
-      "features.code_mode" "features.concurrent_reasoning_summaries" "features.context_management"
-      "features.deferred_executor" "tools.web_search")) -}}
+      "defaults" (dict "personality" "pragmatic")) -}}

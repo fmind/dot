@@ -14,11 +14,9 @@ Apply rejects an active name owned elsewhere, including dangling links, even wit
 
 Moving this checkout leaves installed links pointing at the old location. Inspect affected links with `readlink`, then `unlink` only confirmed links to the old checkout; apply from the new source recreates them. Another checkout's links are never adopted automatically.
 
-## Legacy migration
+## Catalog ownership
 
-Apply converts a whole-catalog symlink to this checkout into a real directory. If the old source catalog contains independently installed links, record their targets and move those links outside this checkout first; after migration, reinstall them individually in `~/.agents/skills/`. A catalog linked elsewhere requires explicit migration before applying.
-
-Retain this compatibility path until supported installations are confirmed migrated or support for the old layout is explicitly retired. Completion on one workstation alone is insufficient; collision protection remains necessary afterward.
+The shared catalog must be a real directory. Apply rejects a whole-catalog symlink, including one pointing at this checkout, before changing its target. Per-name collision protection remains necessary for independently installed packages.
 
 ## Verification
 

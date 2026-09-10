@@ -245,11 +245,8 @@ def test_query_surfaces_partial_unsupported_and_invalid_generations(
     generation = _ingest("agy", "unsupported", fingerprint="f" * 64, malformed=1)
     _rewrite_manifest(generation, schema_version=SESSION_SCHEMA_VERSION + 1)
 
-    summary = query_session_summaries()[0]
-
-    assert summary.status == ["partial", "unsupported"]
-    assert summary.cwd == "/work"
-    assert summary.records == []
+    with pytest.raises(ValueError, match="unsupported session format"):
+        query_session_summaries()
 
     _rewrite_manifest(generation, schema_version=SESSION_SCHEMA_VERSION, parser_version=SESSION_PARSER_VERSION)
     (generation / "transcript.jsonl").write_bytes(b"not-json\n")

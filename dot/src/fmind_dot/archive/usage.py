@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import IO, Any
 
 from fmind_dot.archive.pricing import api_equivalent
-from fmind_dot.archive.store import publish_owner_only
+from fmind_dot.archive.store import is_valid_session_id
 from fmind_dot.config import PricingConfig, default_pricing
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
@@ -128,14 +128,15 @@ class UsageRecord:
         arguments = {key: value[key] for key in fields if key in value}
         if arguments.get("cost_usd") is None:
             arguments.pop("cost_usd", None)
-        if "cost_known" not in arguments:
-            arguments["cost_known"] = bool(arguments.get("cost_usd"))
-        arguments.setdefault("extractor_version", "1")
+        if (
+            value.get("schema_version") != USAGE_SCHEMA_VERSION
+            or value.get("extractor_version") != USAGE_EXTRACTOR_VERSION
+        ):
+            raise ValueError("unsupported usage format; recapture available sources with dot agent session sync")
+        if "cost_known" not in value:
+            raise ValueError("missing cost_known in usage record")
         record = cls(**arguments)
         record._validate(complete=True)
-        # Validate first: historical attribution must not conceal malformed input.
-        if record.extractor_version != USAGE_EXTRACTOR_VERSION:
-            record.model = "unknown"
         return record
 
     def _validate(self, *, complete: bool) -> None:
@@ -148,9 +149,11 @@ class UsageRecord:
             for name in _USAGE_IDENTITY_FIELDS:
                 if not getattr(self, name):
                     raise ValueError(f"missing {name} in usage record")
+        if self.schema_version != USAGE_SCHEMA_VERSION or self.extractor_version != USAGE_EXTRACTOR_VERSION:
+            raise ValueError("unsupported usage format")
         if self.timestamp:
             _parse_usage_timestamp(self.timestamp)
-        if self.harness and sanitize_filename(self.harness) != self.harness:
+        if self.harness and not is_valid_session_id(self.harness):
             raise ValueError(f"invalid harness {self.harness!r}; expected an ASCII name without path separators")
         for name in _USAGE_INTEGER_FIELDS:
             item = getattr(self, name)
@@ -188,7 +191,6 @@ class UsageStats:
     measurement_kind: str = "unknown"
     cwd: str = ""
     cost_known_sessions: int = 0
-    legacy_sessions: int = 0
     api_equivalent_usd: float = 0.0
     priced_sessions: int = 0
     unpriced_reasons: dict[str, int] = field(default_factory=dict)
@@ -213,7 +215,6 @@ class UsageStats:
                 "cost_complete": self.cost_known_sessions == self.sessions,
                 "measurement_kind": self.measurement_kind,
                 "cwd": self.cwd,
-                "legacy_sessions": self.legacy_sessions,
                 "time_basis": "whole session at recorded timestamp",
                 "api_equivalent_usd": self.api_equivalent_usd if self.priced_sessions else None,
                 "priced_sessions": self.priced_sessions,
@@ -229,88 +230,15 @@ class UsageStats:
         return result
 
 
-def usage_root() -> Path:
-    return Path.home() / ".agents" / "usages"
-
-
-def sanitize_filename(value: str) -> str:
-    return "".join(
-        character if character.isascii() and (character.isalnum() or character in "-_") else "_" for character in value
-    )
-
-
-def _harness_directory(root: Path, harness: str, *, create: bool) -> Path:
-    if not harness or sanitize_filename(harness) != harness:
-        raise ValueError(f"invalid harness {harness!r}; expected an ASCII name without path separators")
-    if root.is_symlink():
-        raise ValueError(f"usage root must not be a symbolic link: {root}")
-    if root.exists() and not root.is_dir():
-        raise ValueError(f"usage root must be a directory: {root}")
-    if create:
-        root.mkdir(mode=0o700, parents=True, exist_ok=True)
-        root.chmod(0o700)
-    elif not root.exists():
-        return root / harness
-    if not root.is_dir():
-        raise ValueError(f"usage root must be a directory: {root}")
-    directory = root / harness
-    if directory.is_symlink():
-        raise ValueError(f"usage harness directory must not be a symbolic link: {directory}")
-    if create:
-        directory.mkdir(mode=0o700, exist_ok=True)
-        directory.chmod(0o700)
-    elif directory.exists() and not directory.is_dir():
-        raise ValueError(f"usage harness path must be a directory: {directory}")
-    return directory
-
-
-def write_usage_record(record: UsageRecord, *, root: Path | None = None) -> Path:
-    if not record.harness:
-        raise ValueError("missing harness in usage record")
-    if not record.session_id:
-        raise ValueError("missing session_id in usage record")
-    record.finalize()
-    directory = _harness_directory(root or usage_root(), record.harness, create=True)
-    target = directory / f"{sanitize_filename(record.session_id)}.json"
-    content = (json.dumps(record.to_dict(), ensure_ascii=False, indent=2) + "\n").encode()
-    publish_owner_only(target, content)
-    return target
-
-
-def _load_legacy_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
-    root = root or usage_root()
-    if root.is_symlink():
-        raise ValueError(f"failed to parse usage record {root}: usage root must not be a symbolic link")
-    if not root.exists():
-        return []
-    records: list[UsageRecord] = []
-    for path in root.rglob("*.json"):
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(value, dict):
-                raise ValueError("usage record must be a JSON object")
-            records.append(UsageRecord.from_dict(value))
-        except FileNotFoundError:
-            continue
-        except (TypeError, ValueError) as error:
-            raise ValueError(f"failed to parse usage record {path}: {error}") from error
-    return records
-
-
 def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
-    """Select one measurement per session, preferring atomic archive generations."""
+    """Select one measurement per session from current transactional bundles."""
     from fmind_dot.archive.query import discover_session_generations
     from fmind_dot.archive.store import read_session_usage
 
-    legacy = _load_legacy_usage_records(root=root)
-    if root is not None:
-        return legacy
-    selected = {(record.harness, record.session_id): record for record in legacy}
+    selected: dict[tuple[str, str], UsageRecord] = {}
     latest = {}
-    for generation in discover_session_generations():
+    for generation in discover_session_generations(root):
         manifest = generation.manifest
-        if manifest.schema_version != 2:
-            continue
         identity = (manifest.agent, manifest.session_id)
         previous = latest.get(identity)
         if previous is None or (manifest.ingested_at, generation.path.name) > (
@@ -320,7 +248,6 @@ def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
             latest[identity] = generation
     for identity, generation in latest.items():
         value = read_session_usage(generation.path, generation.manifest)
-        selected.pop(identity, None)
         if value is not None:
             selected[identity] = UsageRecord.from_dict(value)
     return list(selected.values())
@@ -407,7 +334,6 @@ def aggregate_usage(
         row.total_tokens += record.total_tokens
         row.cost_usd += record.cost_usd
         row.cost_known_sessions += record.cost_known or record.cost_usd > 0
-        row.legacy_sessions += record.extractor_version != USAGE_EXTRACTOR_VERSION
     return [grouped[key] for key in sorted(grouped)]
 
 
@@ -420,18 +346,10 @@ def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: 
 def show_usage_record(harness: str, session_id: str, *, root: Path | None = None) -> bytes:
     if not harness or not session_id:
         raise ValueError("usage: dot agent usage show <harness> <session-id>")
-    if root is None:
-        for record in load_usage_records():
-            if record.harness == harness and record.session_id == session_id:
-                return (json.dumps(record.to_dict(), ensure_ascii=False, indent=2) + "\n").encode()
-        raise ValueError(f"usage record not found for {harness} session {session_id}")
-    path = _harness_directory(root or usage_root(), harness, create=False) / f"{sanitize_filename(session_id)}.json"
-    if path.is_symlink():
-        raise ValueError(f"usage record must not be a symbolic link: {path}")
-    try:
-        return path.read_bytes()
-    except OSError as error:
-        raise ValueError(f"usage record not found for {harness} session {session_id}: {error}") from error
+    for record in load_usage_records(root=root):
+        if record.harness == harness and record.session_id == session_id:
+            return (json.dumps(record.to_dict(), ensure_ascii=False, indent=2) + "\n").encode()
+    raise ValueError(f"usage record not found for {harness} session {session_id}")
 
 
 def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool, by_model: bool) -> None:
@@ -540,9 +458,6 @@ __all__ = [
     "list_usage_records",
     "load_usage_records",
     "parse_flexible_time",
-    "sanitize_filename",
     "show_usage_record",
-    "usage_root",
-    "write_usage_record",
     "write_usage_stats",
 ]

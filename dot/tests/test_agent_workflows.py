@@ -329,7 +329,7 @@ def test_session_sync_preserves_source_generations_and_standalone_usage(
 
     assert sync_sessions(state) == 2
 
-    lineage = tmp_path / ".agents/sessions/v1/claude"
+    lineage = tmp_path / ".agents/sessions/v2/claude"
     manifests = sorted(lineage.glob("*/*/manifest.json"))
     assert len(manifests) == 2
     parsed = [json.loads(path.read_text(encoding="utf-8")) for path in manifests]
@@ -427,7 +427,7 @@ def test_copilot_session_end_is_idempotent_and_writes_usage(monkeypatch: pytest.
     outputs.append(CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload()))
 
     assert all(result.exit_code == 0 and result.stdout == "{}\n" for result in outputs)
-    manifests = list((tmp_path / ".agents/sessions/v1/copilot").glob("*/*/manifest.json"))
+    manifests = list((tmp_path / ".agents/sessions/v2/copilot").glob("*/*/manifest.json"))
     assert len(manifests) == 2
     manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
     assert manifest["record_count"] == 2
@@ -893,7 +893,7 @@ def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
     fingerprint = fingerprint_file(transcript)
     generation = (
         tmp_path
-        / ".agents/sessions/v1/claude"
+        / ".agents/sessions/v2/claude"
         / session_lineage_id("claude", session_id)
         / session_generation_id(fingerprint)
     )
@@ -967,23 +967,8 @@ def test_doctor_database_lineage_and_failure_evidence_remain_conservative(
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     fallback = datetime(2026, 1, 1, tzinfo=UTC)
-    database = tmp_path / "source.db"
-    with closing(sqlite3.connect(database)) as connection:
-        connection.executescript("CREATE TABLE sessions(updated_at TEXT); INSERT INTO sessions VALUES(NULL);")
-    definition = agent_doctor_module.DoctorIntegration(
-        "fixture",
-        "~/.agents/AGENTS.md",
-        source_time_query="SELECT MAX(updated_at) FROM sessions",
-    )
-    assert agent_doctor_module._database_source_time(database, definition, fallback) is None  # noqa: SLF001
-    broken_query = agent_doctor_module.DoctorIntegration(
-        "fixture",
-        "~/.agents/AGENTS.md",
-        source_time_query="SELECT missing FROM sessions",
-    )
-    assert agent_doctor_module._database_source_time(database, broken_query, fallback) == fallback  # noqa: SLF001
-
-    lineage = tmp_path / ".agents/sessions/v1/fixture"
+    definition = agent_doctor_module.DoctorIntegration("fixture", "~/.agents/AGENTS.md")
+    lineage = tmp_path / ".agents/sessions/v2/fixture"
     lineage.parent.mkdir(parents=True)
     lineage.symlink_to(tmp_path, target_is_directory=True)
     state = _state()

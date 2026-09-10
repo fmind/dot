@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from fmind_dot.archive.pricing import api_equivalent
 from fmind_dot.archive.store import SessionLog, ingest_session
-from fmind_dot.archive.usage import UsageRecord, aggregate_usage, write_usage_record
+from fmind_dot.archive.usage import UsageRecord, aggregate_usage
 from fmind_dot.cli import app
 from fmind_dot.config import default_pricing
 
@@ -50,7 +50,6 @@ def test_claude_cache_is_additive_and_zero_is_known() -> None:
         {"model": "gpt-5.4-future"},
         {"measurement_kind": "estimated"},
         {"measurement_kind": "context-only"},
-        {"extractor_version": "1"},
         {"cached_tokens": 3, "input_tokens": 2},
         {"cache_write_tokens": 1},
     ],
@@ -82,7 +81,7 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     )
     usage = record(input_tokens=1_000_000, turn_count=4)
     usage.session_id = "usage-only"
-    write_usage_record(usage)
+    ingest_session(usage.harness, usage.session_id, [], usage=usage.to_dict())
     config = tmp_path / "config.yaml"
     config.write_text("agent:\n  pricing:\n    models:\n      gpt-5.4:\n        input: 7.0\n")
     runner = CliRunner()

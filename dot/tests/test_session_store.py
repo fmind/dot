@@ -46,6 +46,9 @@ def _generation(agent: str, session_id: str, fingerprint: str) -> tuple[Path, Se
 def _write_generation(path: Path, manifest: SessionManifest, transcript: bytes) -> None:
     path.mkdir(mode=0o700, parents=True)
     path.chmod(0o700)
+    usage_path = path / "usage.json"
+    usage_path.write_bytes(b'{"schema":"dot.session.usage/v1","status":"unsupported","record":null}\n')
+    usage_path.chmod(0o600)
     transcript_path = path / "transcript.jsonl"
     transcript_path.write_bytes(transcript)
     transcript_path.chmod(0o600)
@@ -58,7 +61,7 @@ def _manifest_for(
     transcript: bytes, *, record_count: int = 1, high_water: str = "2026-08-01T12:00:00Z"
 ) -> SessionManifest:
     return SessionManifest(
-        parser_version="1",
+        parser_version=session_store.SESSION_PARSER_VERSION,
         agent="codex",
         session_id="session-1",
         lineage_id=session_lineage_id("codex", "session-1"),
@@ -68,14 +71,15 @@ def _manifest_for(
         ingested_at="2026-08-01T12:00:00Z",
         completeness="complete",
         transcript_sha256=fingerprint_bytes(transcript),
-        schema_version=1,
+        schema_version=session_store.SESSION_SCHEMA_VERSION,
+        usage_sha256=fingerprint_bytes(b'{"schema":"dot.session.usage/v1","status":"unsupported","record":null}\n'),
         record_count=record_count,
         malformed_records=0,
         skipped_records=0,
     )
 
 
-def test_v1_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+def test_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     assert (
         session_lineage_id("codex", "session-1") == "b540336b2c776814303a05b68a90ac255ba738a435985fdb1709c224fd9416cc"
@@ -88,9 +92,9 @@ def test_v1_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPat
     assert result.manifest is not None
     assert result.manifest.cwd == "/work"
     assert result.manifest.to_dict()["cwd"] == "/work"
-    legacy = result.manifest.to_dict()
-    del legacy["cwd"]
-    assert SessionManifest.from_dict(legacy).cwd == ""
+    without_project = result.manifest.to_dict()
+    del without_project["cwd"]
+    assert SessionManifest.from_dict(without_project).cwd == ""
     generation = session_store_root() / "codex" / result.lineage_id / result.generation_id
     assert validate_session_generation(generation, result.manifest) == logs
     assert stat.S_IMODE(generation.stat().st_mode) == 0o700
@@ -527,7 +531,12 @@ def test_stored_generation_requires_exact_safe_immutable_identity(
         changed[field] = value
         manifest_path.write_text(json.dumps(changed) + "\n", encoding="utf-8")
         manifest_path.chmod(0o600)
-        with pytest.raises(ValueError, match="stored session generation does not match its immutable identity"):
+        message = (
+            "unsupported session format"
+            if field in {"schema_version", "parser_version"}
+            else "stored session generation does not match its immutable identity"
+        )
+        with pytest.raises(ValueError, match=message):
             stored_generation("codex", "stored", fingerprint)
 
     manifest_path.write_text("{broken\n", encoding="utf-8")

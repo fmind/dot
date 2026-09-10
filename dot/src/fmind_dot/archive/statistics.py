@@ -54,7 +54,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
     excluded = 0
     invalid_timestamps = 0
     for summary in summaries:
-        if {"invalid", "unsupported"}.intersection(summary.status):
+        if "invalid" in summary.status:
             excluded += 1
             continue
         generation = generations.get((summary.agent, summary.lineage_id, summary.generation_id))
@@ -80,7 +80,6 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
                 "characters": 0,
                 "active_days": set(),
                 "lengths": [],
-                "legacy_sessions": 0,
                 "partial_sessions": 0,
             },
         )
@@ -112,7 +111,6 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
                 row["active_days"].add(timestamp.date().isoformat())
         if included:
             row["sessions"] += 1
-            row["legacy_sessions"] += "legacy" in summary.status
             row["partial_sessions"] += "partial" in summary.status
     rows = []
     for key in sorted(groups):
@@ -129,7 +127,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         "unit": "archived user message; may include injected context",
         "complete": excluded == 0
         and not (invalid_timestamps and (query.since or query.until))
-        and not any(row["partial_sessions"] or row["legacy_sessions"] for row in rows),
+        and not any(row["partial_sessions"] for row in rows),
         "excluded_sessions": excluded,
         "invalid_timestamps": invalid_timestamps,
         "prompts": sum(row["prompts"] for row in rows),

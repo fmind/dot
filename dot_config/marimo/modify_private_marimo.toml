@@ -7,5 +7,4 @@ preset = "vim"
 {{- includeTemplate "toml-merge.tmpl" (dict
       "stdin" .chezmoi.stdin
       "managed" $managedConfig
-      "defaults" dict
-      "prune" list) -}}
+      "defaults" dict) -}}

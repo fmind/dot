@@ -16,10 +16,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 SESSION_SCHEMA_VERSION = 2
-SUPPORTED_SCHEMA_VERSIONS = {1, 2}
 SESSION_PARSER_VERSION = "3"
-SUPPORTED_PARSER_VERSIONS = {"1", "2", "3"}
-SESSION_STORE_VERSION = "v1"
+SESSION_STORE_VERSION = "v2"
 _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
 Completeness = Literal["complete", "partial"]
@@ -102,7 +100,6 @@ class SessionManifest:
     usage_sha256: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        # Legacy manifests remain readable; new generations add the usage digest.
         result: dict[str, Any] = {
             "parser_version": self.parser_version,
             "agent": self.agent,
@@ -126,8 +123,7 @@ class SessionManifest:
                 "skipped_records": self.skipped_records,
             }
         )
-        if self.schema_version >= 2:
-            result["usage_sha256"] = self.usage_sha256
+        result["usage_sha256"] = self.usage_sha256
         return result
 
     @classmethod
@@ -136,6 +132,11 @@ class SessionManifest:
             completeness = value["completeness"]
             if completeness not in {"complete", "partial"}:
                 raise ValueError("invalid completeness")
+            if (
+                _integer(value, "schema_version") != SESSION_SCHEMA_VERSION
+                or _string(value, "parser_version") != SESSION_PARSER_VERSION
+            ):
+                raise ValueError("unsupported session format; recapture available sources with dot agent session sync")
             return cls(
                 parser_version=_string(value, "parser_version"),
                 agent=_string(value, "agent"),
@@ -152,7 +153,7 @@ class SessionManifest:
                 malformed_records=_integer(value, "malformed_records"),
                 skipped_records=_integer(value, "skipped_records"),
                 cwd=_string(value, "cwd", required=False),
-                usage_sha256=_string(value, "usage_sha256", required=value.get("schema_version") == 2),
+                usage_sha256=_string(value, "usage_sha256"),
             )
         except (KeyError, TypeError) as error:
             raise ValueError("invalid session manifest") from error
@@ -543,10 +544,9 @@ def validate_session_generation(path: Path, expected: SessionManifest) -> list[S
         raise ValueError("session manifest did not round-trip")
     transcript_path = path / "transcript.jsonl"
     _require_private_path(transcript_path, directory=False)
-    if manifest.schema_version == 2:
-        usage_path = path / "usage.json"
-        _require_private_path(usage_path, directory=False)
-        _validate_usage(usage_path.read_bytes(), manifest)
+    usage_path = path / "usage.json"
+    _require_private_path(usage_path, directory=False)
+    _validate_usage(usage_path.read_bytes(), manifest)
     return _validate_transcript(transcript_path.read_bytes(), manifest)
 
 
@@ -557,21 +557,19 @@ def _validate_session_generation_at(
     if expected is not None and manifest != expected:
         raise ValueError("session manifest did not round-trip")
     transcript = _read_owner_only_at(generation, "transcript.jsonl", path / "transcript.jsonl")
-    if manifest.schema_version == 2:
-        _validate_usage(_read_owner_only_at(generation, "usage.json", path / "usage.json"), manifest)
+    _validate_usage(_read_owner_only_at(generation, "usage.json", path / "usage.json"), manifest)
     return manifest, _validate_transcript(transcript, manifest)
 
 
 def generation_files(manifest: SessionManifest) -> set[str]:
-    """Known files for a supported generation; legacy archives remain untouched."""
-    names = {"manifest.json", "transcript.jsonl"}
-    if manifest.schema_version == 2:
-        names.add("usage.json")
-    return names
+    """Require the current format before inspecting or deleting its bundle."""
+    if manifest.schema_version != SESSION_SCHEMA_VERSION or manifest.parser_version != SESSION_PARSER_VERSION:
+        raise ValueError("unsupported session format")
+    return {"manifest.json", "transcript.jsonl", "usage.json"}
 
 
 def _validate_usage(content: bytes, manifest: SessionManifest) -> dict[str, Any] | None:
-    # Usage imports the archive publisher, so load its boundary model on demand.
+    # Load the boundary model on demand to avoid a store/model import cycle.
     from fmind_dot.archive.usage import UsageRecord
 
     if fingerprint_bytes(content) != manifest.usage_sha256:
@@ -591,10 +589,8 @@ def _validate_usage(content: bytes, manifest: SessionManifest) -> dict[str, Any]
 
 
 def read_session_usage(path: Path, manifest: SessionManifest) -> dict[str, Any] | None:
-    """Read the usage committed with a verified generation, without legacy inference."""
+    """Read the usage committed with a verified generation."""
     validate_session_generation(path, manifest)
-    if manifest.schema_version != 2:
-        return None
     return _validate_usage((path / "usage.json").read_bytes(), manifest)
 
 

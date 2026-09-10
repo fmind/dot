@@ -91,7 +91,7 @@ class HarnessConfigTests(unittest.TestCase):
                 assert "fkf" not in data["mcp_servers"]
                 assert self.render(template, rendered) == rendered
 
-    def test_codex_migration_keeps_autonomy_memory_and_native_subagents(self):
+    def test_codex_merge_keeps_autonomy_memory_and_native_subagents(self):
         template = "dot_codex/modify_private_config.toml"
         original = """
 approval_policy = "on-request"
@@ -113,17 +113,23 @@ description = "Host-owned reviewer"
         assert data["sandbox_mode"] == "danger-full-access"
         assert data["features"] == {
             "browser_use": True,
+            "code_mode": {"enabled": True},
+            "concurrent_reasoning_summaries": True,
+            "context_management": True,
+            "deferred_executor": True,
             "memories": True,
             "multi_agent_v2": True,
             "prevent_idle_sleep": True,
         }
         assert data["agents"] == {
             "job_max_runtime_seconds": 10800,
+            "max_concurrent_threads_per_session": 4,
+            "default_subagent_reasoning_effort": "xhigh",
             "reviewer": {"description": "Host-owned reviewer"},
         }
         assert self.render(template, rendered) == rendered
 
-    def test_grok_migration_removes_tuning_without_restoring_foreign_hooks(self):
+    def test_grok_merge_preserves_unmanaged_tuning_and_disables_foreign_hooks(self):
         template = "dot_grok/modify_private_config.toml"
         original = """
 [features]
@@ -141,17 +147,23 @@ sessions = false
 """
         rendered = self.render(template, original)
         data = tomllib.loads(rendered)
-        assert data["features"] == {"feedback": False, "lsp_tools": True, "telemetry": False}
-        assert data["models"] == {"default_reasoning_effort": "xhigh"}
+        assert data["features"] == {
+            "feedback": False,
+            "lsp_tools": True,
+            "telemetry": False,
+            "two_pass_compaction": True,
+            "codebase_indexing": True,
+        }
+        assert data["models"] == {"default_reasoning_effort": "xhigh", "default": "old-model", "max_retries": 8}
         assert data["ui"]["permission_mode"] == "always-approve"
-        assert "fork_secondary_model" not in data["ui"]
-        assert "yolo" not in data["ui"]
+        assert data["ui"]["fork_secondary_model"] == "old-fork-model"
+        assert data["ui"]["yolo"] is False
         assert data["compat"]["claude"]["hooks"] is False
-        assert "sessions" not in data["compat"]["claude"]
+        assert data["compat"]["claude"]["sessions"] is False
         assert data["memory"]["enabled"] is True
         assert self.render(template, rendered) == rendered
 
-    def test_claude_migration_preserves_host_environment_and_permissions(self):
+    def test_claude_merge_preserves_host_environment_and_permissions(self):
         template = "dot_claude/modify_settings.json"
         original = {
             "advisorModel": "opus",
@@ -163,17 +175,15 @@ sessions = false
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
-        assert (
-            not {"advisorModel", "teammateDefaultModel", "autoDreamEnabled", "skillListingMaxDescChars"} & data.keys()
-        )
-        assert "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" not in data["env"]
+        assert {"advisorModel", "teammateDefaultModel", "autoDreamEnabled", "skillListingMaxDescChars"} <= data.keys()
+        assert data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] == "1"
         assert data["env"]["CUSTOM_SETTING"] == "preserved"
         assert data["permissions"]["deny"] == ["Read(./private)"]
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
         assert self.render(template, rendered) == rendered
 
-    def test_opencode_migration_preserves_custom_agents_and_provider_options(self):
+    def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"
         original = {
             "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
@@ -184,11 +194,11 @@ sessions = false
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         assert data["permission"] == "allow"
-        assert data["agent"] == {"build": {"prompt": "Host build instructions"}, "reviewer": {"steps": 20}}
-        assert data["compaction"] == {"protect": ["skill"], "prune": True}
+        assert data["agent"] == original["agent"]
+        assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "prune": True}
         assert data["formatter"] is True
         assert data["lsp"] is True
-        assert data["experimental"] == {}
+        assert data["experimental"] == original["experimental"]
         assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
         assert self.render(template, rendered) == rendered
 
@@ -234,7 +244,7 @@ sessions = false
                     assert data["ai"] == {"mode": "manual"}
                 assert self.render(template, rendered) == rendered
 
-    def test_grok_vim_enables_prompt_and_scrollback_after_migration(self):
+    def test_grok_vim_enables_prompt_and_scrollback_after_merge(self):
         template = "dot_grok/modify_private_config.toml"
         rendered = self.render(template, "[ui]\nsimple_mode = true\nvim_mode = false\nscroll_speed = 20\n")
         data = tomllib.loads(rendered)
