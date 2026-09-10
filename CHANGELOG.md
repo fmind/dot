@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [3.0.1] - 2026-09-10
+
+### 🐛 Bug Fixes
+
+- _(ci)_ Make signal and shell contracts portable across runners
+- _(cloud-run)_ Reject invalid inputs without relying on errexit
+
 ## [3.0.0] - 2026-09-10
 
 ### 🚀 Features
