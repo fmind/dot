@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [4.1.0] - 2026-09-10
+
+### 🚀 Features
+
+- Expand agent skills and modularize mise tasks
+
 ## [4.0.0] - 2026-09-10
 
 ### 🐛 Bug Fixes
