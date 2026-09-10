@@ -1,0 +1,50 @@
+# :schema https://mise.jdx.dev/schema/mise.json
+# Docs: https://mise.jdx.dev/configuration.html
+
+[task_config]
+# Preserve the caller directory and selected native provider profile.
+dir = "{{cwd}}"
+
+[vars]
+# Services used by login.toml's Workspace scope policy; no unrelated Keep API enablement.
+workspace_apis = """
+calendar-json.googleapis.com \
+chat.googleapis.com \
+docs.googleapis.com \
+drive.googleapis.com \
+forms.googleapis.com \
+gmail.googleapis.com \
+meet.googleapis.com \
+people.googleapis.com \
+script.googleapis.com \
+sheets.googleapis.com \
+slides.googleapis.com \
+tasks.googleapis.com"""
+
+[tasks."dot:setup:github"]
+description = "Reconcile GitHub OAuth scopes, removing excluded grants, or log in"
+raw = true
+usage = 'flag "--host <host>" default="github.com" env="GH_HOST"'
+env = { DOT_GITHUB_SCOPES = "{{ vars.github_scopes }}", DOT_GITHUB_REMOVED_SCOPES = "{{ vars.github_removed_scopes }}" }
+run = '''
+if gh auth status --hostname "${usage_host?}"; then
+  gh auth refresh --hostname "${usage_host?}" --scopes "$DOT_GITHUB_SCOPES" --remove-scopes "$DOT_GITHUB_REMOVED_SCOPES"
+else
+  gh auth login --hostname "${usage_host?}" --scopes "$DOT_GITHUB_SCOPES"
+fi
+'''
+
+[tasks."dot:setup:workspace"]
+description = "Enable configured Workspace APIs and configure OAuth for an explicit project"
+raw = true
+usage = 'arg "<project>" env="GWS_PROJECT" help="Google Cloud project ID"'
+env = { DOT_WORKSPACE_APIS = "{{ vars.workspace_apis }}" }
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+command -v gcloud >/dev/null
+command -v gws >/dev/null
+read -r -a workspace_apis <<< "${DOT_WORKSPACE_APIS:?No Workspace APIs configured}"
+gcloud services enable "${workspace_apis[@]}" --project "${usage_project?}" --quiet
+gws auth setup --project "${usage_project?}"
+'''

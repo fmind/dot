@@ -37,6 +37,17 @@ Usage queries select one latest bundle per session from the active store. They c
 
 ## Cleanup and recovery
 
+Global mise tasks live in the chezmoi source under `dot_config/mise/conf.d/`: `login.toml` owns login and OAuth scope policy, `setup.toml` owns provider setup, `cache.toml` owns inspection, and `prune.toml` owns cleanup. Chezmoi deploys them to `~/.config/mise/conf.d/`; an existing `maintenance.toml` is left in place and needs separate cleanup to avoid stale task definitions. Edit the source files; keep unrelated global configuration files. Use `mise tasks ls --global` to discover tasks. All shipped global task names and aliases use `dot:` to avoid accidental collisions with ordinary project tasks. Mise still allows a project to override the exact same prefixed name.
+
+```bash
+mise run dot:cache
+mise run dot:cache:docker
+mise run --dry-run dot:prune
+mise run dot:prune
+```
+
+`dot:cache` inspects uv and Hugging Face caches and queries disk usage on the selected Docker daemon; each `dot:cache:*` task can run independently. `dot:prune` executes native uv, npm, mise, dprint, Trivy, and Hugging Face cache cleanup; its `--dry-run` shows commands, not reclaimable bytes. Hugging Face cleanup retains its native confirmation prompt. Docker build cleanup is excluded from the aggregate and runs only through `dot:prune:docker`; `dot:prune:hf` also remains available individually. Installed tools, credentials, provider sessions, and Dot archives are outside the default cleanup aggregate. Missing tools and command failures propagate as errors. Login, setup, and cleanup run only when invoked; they are not installation hooks.
+
 ```bash
 dot agent session compact
 dot agent session compact --agent codex --apply

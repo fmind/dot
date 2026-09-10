@@ -1,0 +1,41 @@
+# :schema https://mise.jdx.dev/schema/mise.json
+# Docs: https://mise.jdx.dev/configuration.html
+
+[task_config]
+# Preserve the caller directory and selected native provider profile.
+dir = "{{cwd}}"
+
+[tasks."dot:prune"]
+alias = "dot:mp"
+description = "Clean all configured caches except Docker; Hugging Face asks for confirmation"
+depends = ["dot:prune:dprint", "dot:prune:hf", "dot:prune:mise", "dot:prune:npm", "dot:prune:trivy", "dot:prune:uv"]
+
+[tasks."dot:prune:docker"]
+description = "Remove unused build cache from the selected Docker builder (interactive)"
+raw = true
+run = "docker builder prune"
+
+[tasks."dot:prune:dprint"]
+description = "Clear dprint's downloaded plugins and formatting cache"
+run = "dprint clear-cache"
+
+[tasks."dot:prune:hf"]
+description = "Remove detached Hugging Face revisions and incomplete downloads (interactive)"
+raw = true
+run = "hf cache prune"
+
+[tasks."dot:prune:mise"]
+description = "Clear mise metadata and task caches while retaining installed tools"
+run = "mise cache clear"
+
+[tasks."dot:prune:npm"]
+description = "Garbage-collect unneeded npm cache data and verify retained entries"
+run = "npm cache verify"
+
+[tasks."dot:prune:trivy"]
+description = "Clear Trivy scan results while retaining vulnerability databases and checks"
+run = "trivy clean --scan-cache"
+
+[tasks."dot:prune:uv"]
+description = "Prune unused uv package entries and cached environments"
+run = "uv cache prune"

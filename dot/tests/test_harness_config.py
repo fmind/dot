@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class HarnessConfigTests(unittest.TestCase):
     temp: tempfile.TemporaryDirectory[str]
     home: Path
+    source: Path
     config: Path
     chezmoi: str
 
@@ -22,6 +23,10 @@ class HarnessConfigTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
+        # Rendering only needs these includes. Scanning the live checkout races
+        # with xdist coverage files being combined and removed by other workers.
+        self.source = self.home / "source"
+        shutil.copytree(ROOT / ".chezmoitemplates", self.source / ".chezmoitemplates")
         self.config = self.home / "chezmoi.toml"
         self.config.write_text("")
         chezmoi = shutil.which("chezmoi")
@@ -43,7 +48,7 @@ class HarnessConfigTests(unittest.TestCase):
         command: list[str] = [
             self.chezmoi,
             "--source",
-            str(ROOT),
+            str(self.source),
             "--destination",
             str(self.home),
             "--config",

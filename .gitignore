@@ -9,7 +9,6 @@
 .codex/
 .gemini/
 .grok/
-skills/local-*
 
 # Python environments, caches, and generated distributions at any depth.
 *.py[co]
