@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [5.0.2] - 2026-09-11
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Drop GITHUB_ACTIONS from the starter contract environment
+
 ## [5.0.1] - 2026-09-11
 
 ### 🐛 Bug Fixes
