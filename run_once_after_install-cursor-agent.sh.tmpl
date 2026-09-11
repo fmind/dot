@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+{{- /* Run only on supported platforms; upstream covers Linux and macOS. */}}
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") }}
+{{- $os := .chezmoi.os }}
+{{- $arch := "x64" }}
+{{- if eq .chezmoi.arch "arm64" }}
+{{-   $arch = "arm64" }}
+{{- end }}
+set -euo pipefail
+if [ ! -x "${HOME}/.local/share/cursor-agent/cursor-agent" ]; then
+  INSTALL_DIR="${HOME}/.local/share/cursor-agent"
+  TMP_DIR="$(mktemp -d)"
+  trap 'rm -rf "${TMP_DIR}"' EXIT
+
+  curl -fsSL -A "curl/8.7.1" "https://downloads.cursor.com/lab/2026.09.08-6caf4ff/{{ $os }}/{{ $arch }}/agent-cli-package.tar.gz" | tar -xz -C "${TMP_DIR}"
+  rm -rf "${INSTALL_DIR}"
+  mkdir -p "$(dirname "${INSTALL_DIR}")"
+  mv "${TMP_DIR}/dist-package" "${INSTALL_DIR}"
+fi
+if [ -x "${HOME}/.local/share/cursor-agent/cursor-agent" ]; then
+  mkdir -p "${HOME}/.local/bin"
+  ln -sf "${HOME}/.local/share/cursor-agent/cursor-agent" "${HOME}/.local/bin/cursor-agent"
+fi
+{{- else }}
+exit 0
+{{- end }}
