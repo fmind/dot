@@ -31,7 +31,7 @@ These maintainer repositories contain skills and already have personal entry poi
 | Ecosystem | Official source | Existing entry point |
 | --- | --- | --- |
 | Antigravity Python SDK | [Google-Antigravity/antigravity-sdk-python](https://github.com/Google-Antigravity/antigravity-sdk-python) | [antigravity-sdk](../../antigravity-sdk/SKILL.md) |
-| Google Cloud and developer products | [google/skills](https://github.com/google/skills) | [google-cloud](../../google-cloud/SKILL.md), [google-developer](../../google-developer/SKILL.md) |
+| Google Cloud and developer products | [google/skills](https://github.com/google/skills) | [google-developer](../../google-developer/SKILL.md) |
 | Workspace | [googleworkspace/cli](https://github.com/googleworkspace/cli) | [gws](../../gws/SKILL.md) |
 | Colab | [googlecolab/google-colab-cli](https://github.com/googlecolab/google-colab-cli) | [colab](../../colab/SKILL.md) |
 | Hugging Face | [huggingface/skills](https://github.com/huggingface/skills) | [hf](../../hf/SKILL.md) |

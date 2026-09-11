@@ -165,7 +165,7 @@ def test_fresh_store_ignores_and_preserves_retired_history(tmp_path: Path, monke
 
     summaries = query_session_summaries()
     assert len(summaries) == 1
-    assert summaries[0].generation_id == session_store.session_digest("3", fingerprint)
+    assert summaries[0].generation_id == session_store.session_digest(session_store.SESSION_PARSER_VERSION, fingerprint)
     assert load_usage_records()[0].input_tokens == 10
     assert all(path.read_bytes() == content for path, content in before.items())
     assert {path.name for path in legacy.iterdir()} == {"manifest.json", "transcript.jsonl"}

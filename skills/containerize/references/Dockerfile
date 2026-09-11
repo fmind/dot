@@ -3,6 +3,8 @@
 FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS build
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
+# Use the base image Python in both stages; a managed download breaks the copied .venv.
+ENV UV_PYTHON_DOWNLOADS=0
 WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.12.11@sha256:79c6f4776b851471cc73b7d21d0cc834bb94383c292e83640d27eff512864df7 /uv /uvx /bin/
 RUN --mount=type=cache,target=/root/.cache/uv \

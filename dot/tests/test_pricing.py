@@ -27,6 +27,39 @@ def test_codex_cached_and_reasoning_tokens_are_not_charged_twice() -> None:
     assert usage.cost_known is False
 
 
+def test_grok_cache_buckets_are_subsets_of_reported_input() -> None:
+    usage = UsageRecord(
+        harness="grok",
+        session_id="one",
+        model="grok-test",
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+        cached_tokens=600_000,
+        cache_write_tokens=100_000,
+        output_tokens=50_000,
+    ).finalize()
+    # Grok reports input as the whole prompt, so the session total excludes the cache subsets.
+    assert usage.total_tokens == 1_050_000
+    pricing = default_pricing()
+    pricing.models["grok-test"] = pricing.models["claude-sonnet-5"]
+    cost, reason = api_equivalent(usage, pricing)
+    # 300k uncached at $2 + 50k output at $10 + 600k cache reads at $0.20 + 100k writes at $2.50.
+    assert cost == pytest.approx(0.6 + 0.5 + 0.12 + 0.25)
+    assert reason == ""
+
+
+def test_grok_without_rates_stays_unpriced_rather_than_free() -> None:
+    usage = UsageRecord(
+        harness="grok",
+        session_id="one",
+        model="grok-4.6-build",
+        measurement_kind="provider-reported",
+        input_tokens=1_000,
+        output_tokens=10,
+    ).finalize()
+    assert api_equivalent(usage, default_pricing()) == (None, "unknown or mixed model")
+
+
 def test_claude_cache_is_additive_and_zero_is_known() -> None:
     usage = UsageRecord(
         harness="claude",

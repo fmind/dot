@@ -28,4 +28,5 @@ jobs:
       - name: Scan complete Git history
         run: gitleaks git --redact=100 --verbose
       - name: Scan full checkout
-        run: trivy --config trivy.yaml fs .
+        # Delegate to the task so the scheduled scan cannot drift from the local gate.
+        run: mise run check:scan

@@ -8,10 +8,11 @@ The bundled example uses typed settings, SQLAlchemy async sessions with asyncpg,
 
 1. Add the runtime dependencies through [uv](../../uv/SKILL.md):
    ```bash
-   uv add 'litestar[standard]>=2.24.0' 'granian[reload]>=2.8.1' 'sqlalchemy>=2.0.52' 'asyncpg>=0.31.0' 'alembic>=1.19.1' 'pydantic>=2.13.4' 'pydantic-settings>=2.15.0' 'structlog>=26.1.0'
-   uv add --dev 'anyio>=4.14.2' 'testcontainers[postgres]>=4.15.0'
+   uv add 'litestar>=2.24.0' 'granian[reload,uvloop]>=2.8.1' 'sqlalchemy>=2.0.52' 'asyncpg>=0.31.0' 'pydantic>=2.13.4' 'pydantic-settings>=2.15.0' 'structlog>=26.1.0'
+   uv add --dev 'anyio>=4.14.2' 'testcontainers>=4.15.0'
    ```
    These constraints preserve the example baseline; verify selected versions against the lock and installed APIs.
+   The base package already ships the CLI, `TestClient`, msgspec, and Polyfactory: add `[jinja]` only when the service renders templates, and avoid `[standard]`, which installs a second ASGI server (uvicorn) next to Granian. Granian selects rloop, then uvloop, then asyncio at startup, so pin `[uvloop]` explicitly instead of inheriting it from another package.
 1. Replace the foundation example with [init.py](init.py) at `src/<package>/__init__.py`. Add `src/<package>/__main__.py`:
    ```python
    from . import main
@@ -27,8 +28,10 @@ The bundled example uses typed settings, SQLAlchemy async sessions with asyncpg,
 
 ## Application conventions
 
-- Use SQLAlchemy 2 async sessions injected through `Provide`, with engine cleanup owned by application lifespan. Initialize Alembic with `uv run alembic init --template async alembic` when persisted schema migrations are needed; use `postgresql+asyncpg` URLs.
+- Use SQLAlchemy 2 async sessions injected through `Provide`, with engine cleanup owned by application lifespan and `postgresql+asyncpg` URLs. Advanced Alchemy (the `litestar[sqlalchemy]` extra) replaces hand-written sessions and repositories once the model layer earns it. When persisted schema migrations are needed, `uv add 'alembic>=1.19.1'` and initialize with `uv run alembic init --template async alembic`.
 - Keep `/health` independent of external services. The database example's `/ready` executes `SELECT 1` and handles database and connection failures.
+- A handler may be synchronous: declare `sync_to_thread=True` for blocking work or `sync_to_thread=False` when it is guaranteed non-blocking. An undeclared sync handler raises `LitestarWarning`, which `filterwarnings = ["error"]` turns into a test failure.
 - Use `httpx.AsyncClient` for outbound HTTP through [api-client](../../api-client/SKILL.md).
-- Self-host static assets under `/static/` with SHA-256 cache busting and long-lived cache headers; avoid CDN dependencies.
-- The example configures Granian with `Interfaces.ASGI`. It renders console logs in development and JSON elsewhere; [observability](../../observability/SKILL.md) owns provider fields and trace correlation.
+- Self-host static assets with `create_static_files_router(path="/static", directories=["static"], cache_control=CacheControlHeader(max_age=31_536_000, immutable=True, public=True))`. `immutable` is only safe when the content hash is in the filename, so emit hashed names. Compile CSS with the mise-pinned standalone `tailwindcss` binary; no Node.js toolchain, no CDN.
+- Server-rendered pages cost no extra runtime dependency: `HTMXPlugin` and `HTMXRequest` come from `litestar.plugins.htmx` because `litestar-htmx` is a core Litestar dependency, and `JinjaTemplateEngine` comes from `litestar.plugins.jinja` with the `[jinja]` extra (`litestar.contrib.jinja` is deprecated since 2.22.0 and removed in 3.0). Reject `litestar-vite` and `litestar-inertia`: both require a Node toolchain.
+- The example configures Granian with `Interfaces.ASGI` and installs `StructlogPlugin`, so application, framework, and library logs share one format: console on a TTY, JSON otherwise. `log_exceptions="always"` keeps unhandled 500s on the record, and request logging stays off because its defaults capture request and response bodies. [observability](../../observability/SKILL.md) owns provider fields and trace correlation.

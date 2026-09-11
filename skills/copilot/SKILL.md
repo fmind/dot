@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/copilot
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # GitHub Copilot CLI
@@ -28,7 +28,7 @@ Operate the Copilot CLI harness. Use [github-agentic-workflow](../github-agentic
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [Copilot CLI documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli) · [Command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference)
 - [CLI releases and changelog](https://github.com/github/copilot-cli/releases)

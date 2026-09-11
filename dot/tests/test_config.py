@@ -12,7 +12,16 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
     config = Config()
 
     assert config.schema_version == 3
-    assert set(Config.model_fields) == {"schema_version", "agent", "doctor", "completions", "pull"}
+    assert set(Config.model_fields) == {
+        "schema_version",
+        "agent",
+        "doctor",
+        "completions",
+        "pull",
+        "auth",
+        "cache",
+        "prune",
+    }
     assert config.agent.doctor.scan_limit == 16384
     assert config.pull.timeout_seconds == 120.0
 
@@ -140,3 +149,45 @@ def test_timeouts_accept_positive_numeric_seconds(tmp_path: Path, value: str) ->
     path = tmp_path / "dot.yaml"
     path.write_text(f"pull:\n  timeout_seconds: {value}\n")
     assert load_config(path).pull.timeout_seconds == float(value)
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "auth:\n  github:\n    scopes: [repo]\n    remove_scopes: [repo]\n",
+        "auth:\n  github:\n    scopes: ['repo,delete_repo']\n",
+        "auth:\n  github:\n    scopes: ['--help']\n",
+        "auth:\n  github:\n    host: --invalid\n",
+        "auth:\n  workspace:\n    scopes: []\n",
+        "auth:\n  workspace:\n    project: '--flags-file=oops'\n",
+        "auth:\n  workspace:\n    apis: ['--all']\n",
+        "auth:\n  probe_timeout_seconds: .nan\n",
+        "cache:\n  providers: [unknown]\n",
+        "prune:\n  providers: []\n",
+    ],
+)
+def test_workstation_policy_rejects_invalid_settings(tmp_path: Path, document: str) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text(document)
+    with pytest.raises(ValidationError):
+        load_config(path)
+
+
+def test_scope_lists_replace_defaults_and_default_instances_are_independent(tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("auth:\n  workspace:\n    scopes: [openid]\ncache:\n  providers: [uv]\n")
+    config = load_config(path)
+    assert config.auth.workspace.scopes == ["openid"]
+    assert len(config.auth.workspace.apis) == 12
+    assert config.cache.providers == ["uv"]
+    first = Config()
+    first.auth.github.scopes.append("custom")
+    assert "custom" not in Config().auth.github.scopes
+
+
+@pytest.mark.parametrize("source", ["binary: helper", "args: [completion, fish]"])
+def test_completion_sources_reject_ambiguous_configuration(tmp_path: Path, source: str) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text(f"completions:\n  custom_commands:\n    custom:\n      package: owner/tool\n      {source}\n")
+    with pytest.raises(ValidationError, match="choose either a bundled package or a completion command"):
+        load_config(path)

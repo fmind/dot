@@ -9,12 +9,15 @@ if TYPE_CHECKING:
     from fmind_dot.archive.usage import UsageRecord
     from fmind_dot.config import PricingConfig
 
+# Providers whose reported input is the whole prompt, with cache buckets as subsets.
+CACHE_INCLUSIVE_INPUT_HARNESSES = frozenset({"codex", "grok"})
+
 
 def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float | None, str]:
     """Apply exact model rates to known accounting conventions only."""
     if record.measurement_kind != "provider-reported":
         return None, "measurement is not provider-reported"
-    if record.harness not in {"codex", "claude", "copilot"}:
+    if record.harness not in {"codex", "claude", "copilot", "grok"}:
         return None, "unsupported accounting"
     if record.total_tokens and not any(
         (record.input_tokens, record.output_tokens, record.cached_tokens, record.cache_write_tokens)
@@ -29,6 +32,11 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
         input_tokens -= record.cached_tokens
         if input_tokens < 0 or record.cache_write_tokens:
             return None, "unsupported Codex cache accounting"
+    elif record.harness == "grok":
+        # Grok ACP input is the full prompt sum: both cache buckets are subsets of it.
+        input_tokens -= record.cached_tokens + record.cache_write_tokens
+        if input_tokens < 0:
+            return None, "unsupported Grok cache accounting"
     components = (
         (input_tokens, rate.input),
         (record.output_tokens, rate.output),

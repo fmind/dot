@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/threat-model
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-11"
 ---
 
 # Threat Model
@@ -23,8 +23,10 @@ Identify the few plausible abuse paths that should change the design, plan, or v
 1. **Generate abuse cases**: At each boundary walk STRIDE (spoofing, tampering, repudiation, disclosure, denial of service, elevation) plus resource or spend exhaustion, context poisoning, and insecure defaults.
 1. **Trace concrete paths**: Connect attacker capability → entry point → missing or failed control → asset impact; discard category-only concerns with no plausible path.
 1. **Assess controls**: Record prevention, detection, response, and recovery controls and how each is verified; challenge silent failures, magic values, over-flexible algorithms, stringly typed permissions, and dangerous zero values.
+1. **Respect intended authority**: distinguish an actor's authorized capabilities from an attacker gaining those capabilities. Evaluate deliberate autonomy against the declared system boundary; do not prescribe permission prompts or rewrite harness settings merely because execution is powerful.
 1. **Rank risk**: Weigh impact, exploitability, exposure, detectability, confidence, and reversibility; promote high-impact unknowns to verification tasks, not confirmed vulnerabilities.
 1. **Feed delivery**: Add required controls, tests, telemetry, rollout gates, incident actions, and residual-risk owners to the spec or implementation plan.
+1. **Exercise AI boundaries**: hand concrete agent, retrieval, and model abuse cases to [ai-security-assessment](../ai-security-assessment/SKILL.md); preserve both legitimate autonomous operation and the boundary the attacker must not cross.
 1. **Report**: Scope and architecture summary; assets, actors, entry points, and trust boundaries; a data-flow or sequence diagram when it clarifies; security invariants; ranked abuse cases with concrete paths; existing and required controls; verification plan; residual risks, assumptions, and owner decisions.
 
 ## Gotchas

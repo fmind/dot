@@ -15,7 +15,7 @@ from typer import _click
 from typer.completion import completion_init
 
 from fmind_dot import __version__
-from fmind_dot.command_group import AlphabeticalGroup
+from fmind_dot.command_group import AlphabeticalGroup, help_group
 from fmind_dot.config import Config, dump_config, load_config
 from fmind_dot.errors import DotError
 from fmind_dot.state import State, state_from
@@ -35,11 +35,7 @@ app = typer.Typer(
     pretty_exceptions_enable=False,
     context_settings=_CONTEXT_SETTINGS,
 )
-config_app = typer.Typer(
-    cls=AlphabeticalGroup,
-    help="Inspect, scaffold, edit, and validate the dot configuration file",
-    context_settings=_CONTEXT_SETTINGS,
-)
+config_app = help_group("Inspect, scaffold, edit, and validate the dot configuration file")
 
 
 def _version_option(value: bool) -> None:
@@ -161,10 +157,14 @@ app.add_typer(config_app, name="config")
 
 # Command modules register after the shared helpers exist, keeping each workflow
 # independently testable without a second framework layer.
-from fmind_dot import repository, system  # noqa: E402
+from fmind_dot import repository, system, workstation  # noqa: E402
 from fmind_dot.agent import agent_app  # noqa: E402
+from fmind_dot.auth import login_app, setup_app  # noqa: E402
 
 app.add_typer(agent_app, name="agent")
+app.add_typer(login_app, name="login")
+app.add_typer(setup_app, name="setup")
+workstation.register(app)
 system.register(app)
 repository.register_repository_commands(app)
 
@@ -184,7 +184,14 @@ def main() -> None:
         try:
             exit_code = _invoke_app()
         except KeyboardInterrupt:
+            typer.echo("Cancelled.", err=True)
             raise SystemExit(130) from None
+        except typer.Abort as error:
+            # Typer converts Ctrl+C and EOF at prompts into Abort. The context
+            # retains the distinction from a deliberate declined confirmation.
+            typer.echo("Cancelled.", err=True)
+            interrupted = isinstance(error.__context__, KeyboardInterrupt)
+            raise SystemExit(130 if interrupted else 1) from None
         except _click.exceptions.UsageError as error:
             error.show(file=sys.stderr)
             raise SystemExit(2) from error

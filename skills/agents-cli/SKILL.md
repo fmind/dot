@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agents-cli
   created: "2026-09-06"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Agents CLI
@@ -69,4 +69,4 @@ Upstream: `google/agents-cli`, with separate workflow, scaffold, ADK code, evalu
 ## Documentation
 
 - [ADK](https://google.github.io/adk-docs/) · [google/agents-cli](https://github.com/google/agents-cli) · [Agent Runtime](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale)
-- Companion skills: [python-stack](../python-stack/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [observability](../observability/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-cloud](../google-cloud/SKILL.md), [prompt-design](../prompt-design/SKILL.md).
+- Companion skills: [python-stack](../python-stack/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [observability](../observability/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [Google catalog](../google-developer/SKILL.md), [prompt-design](../prompt-design/SKILL.md).

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agy
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Antigravity (agy)
@@ -27,7 +27,7 @@ Operate the Antigravity harness; use [antigravity-sdk](../antigravity-sdk/SKILL.
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [CLI overview](https://antigravity.google/docs/cli/overview/) · [CLI reference](https://antigravity.google/docs/cli/reference/)
 - [Changelog](https://antigravity.google/changelog): choose the relevant product's release notes.

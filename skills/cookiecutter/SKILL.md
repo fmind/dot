@@ -1,17 +1,17 @@
 ---
 name: cookiecutter
-description: Generate projects with Cookiecutter. Use for Jinja templates, context variables, hooks, replayable scaffolding, and template fixture tests.
+description: Generate projects with Cookiecutter and update their templates with Cruft. Use for reviewed scaffolds, context, hooks, provenance, and preserving edits across updates.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cookiecutter
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Cookiecutter
 
-Use Cookiecutter for project generation; [cruft](../cruft/SKILL.md) owns tracking template revisions and applying later updates, and [jinja](../jinja/SKILL.md) owns reusable template language and rendering guidance.
+Generate from reviewed templates with Cookiecutter. For revision tracking, existing `.cruft.json` provenance, and updates that preserve local edits, follow [Cruft updates](references/updates.md). Ordinary application templates use the framework's installed Jinja documentation.
 
 ## Workflow
 

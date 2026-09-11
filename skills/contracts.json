@@ -32,6 +32,9 @@
     "agy": [
       "agy"
     ],
+    "ai-security-assessment": [
+      "uv"
+    ],
     "antigravity-sdk": [
       "gcloud",
       "skills",
@@ -81,7 +84,8 @@
     ],
     "cookiecutter": [
       "uvx",
-      "cookiecutter"
+      "cookiecutter",
+      "cruft"
     ],
     "copilot": [
       "copilot"
@@ -90,15 +94,13 @@
       "cosign"
     ],
     "course-development": [],
-    "cruft": [
-      "uvx",
-      "cruft"
-    ],
     "d2": [
       "d2"
     ],
     "data-migration": [
-      "sqlite3"
+      "sqlite3",
+      "uv",
+      "alembic"
     ],
     "dependabot": [
       "gh",
@@ -140,15 +142,6 @@
     "fastapi": [
       "skills"
     ],
-    "feature-branch": [
-      "git"
-    ],
-    "fkf-learn": [
-      "fkf"
-    ],
-    "fkf-use": [
-      "fkf"
-    ],
     "fmind-visuals": [
       "typst",
       "typstyle"
@@ -189,15 +182,6 @@
     "google-adk": [
       "skills"
     ],
-    "google-ads": [
-      "skills"
-    ],
-    "google-analytics": [
-      "skills"
-    ],
-    "google-cloud": [
-      "skills"
-    ],
     "google-developer": [
       "skills"
     ],
@@ -218,9 +202,6 @@
     ],
     "implementation-plan": [],
     "incident-response": [],
-    "jinja": [
-      "uv"
-    ],
     "jules": [
       "jules"
     ],
@@ -254,10 +235,6 @@
     "loop-engineering": [
       "uv"
     ],
-    "manim": [
-      "uv",
-      "manim"
-    ],
     "marimo": [
       "bash",
       "curl",
@@ -268,10 +245,6 @@
     ],
     "mcp-server": [
       "uv"
-    ],
-    "memray": [
-      "uv",
-      "memray"
     ],
     "mermaid": [
       "mmdc"
@@ -297,21 +270,9 @@
       "opencode",
       "uv"
     ],
-    "pandas": [
-      "uv"
-    ],
-    "pandera": [
-      "uv"
-    ],
     "plan-review": [],
     "playwright": [
       "playwright"
-    ],
-    "plotly": [
-      "uv"
-    ],
-    "polars": [
-      "uv"
     ],
     "product-design-review": [],
     "product-loop": [],
@@ -328,14 +289,6 @@
     "pydantic": [
       "skills",
       "uv"
-    ],
-    "pyinstrument": [
-      "uv",
-      "pyinstrument"
-    ],
-    "pytest": [
-      "uv",
-      "pytest"
     ],
     "python-async": [
       "uv"
@@ -384,13 +337,11 @@
       "launchctl",
       "plutil"
     ],
-    "scrapy": [
-      "uv",
-      "scrapy"
-    ],
     "secure": [
       "gitleaks",
-      "trivy"
+      "rg",
+      "trivy",
+      "uv"
     ],
     "sherlock": [
       "uvx",
@@ -407,10 +358,6 @@
     "sops-secrets": [
       "age",
       "sops"
-    ],
-    "sqlalchemy": [
-      "uv",
-      "alembic"
     ],
     "systematic-debugging": [
       "uv"
@@ -448,10 +395,6 @@
     "uv": [
       "skills",
       "uv"
-    ],
-    "wagtail": [
-      "uv",
-      "wagtail"
     ],
     "xh": [
       "xh"

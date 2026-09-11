@@ -14,7 +14,7 @@ import typer
 
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
-from fmind_dot.state import State
+from fmind_dot.state import State, require_tools, state_from
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class SystemStatus:
 
 def git_root(state: State, cwd: Path | None = None) -> Path:
     """Resolve the repository root and fail with a safe diagnostic."""
-    _tool(state, "git")
+    require_tools(state, [["git"]])
     try:
         output = state.runner.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd).stdout.strip()
     except DotError as error:
@@ -80,13 +80,6 @@ def git_root(state: State, cwd: Path | None = None) -> Path:
     if not output:
         raise DotError("git returned an empty repository root")
     return Path(output)
-
-
-def _tool(state: State, name: str) -> Path:
-    path = state.runner.which(name)
-    if path is None:
-        raise DotError(f"required tool is not installed: {name}")
-    return path
 
 
 def find_git_repositories(state: State, paths: Sequence[Path] = ()) -> list[Path]:
@@ -234,10 +227,10 @@ def run_pull(
     dirty_policy: str = "skip",
 ) -> list[RepoResult]:
     """Fetch and fast-forward configured repositories concurrently."""
-    _tool(state, "git")
+    require_tools(state, [["git"]])
     if dirty_policy not in {"skip", "allow"}:
         raise DotError("--dirty must be skip or allow")
-    repositories = find_git_repositories(state, paths) if paths else find_git_repositories(state)
+    repositories = find_git_repositories(state, paths)
     if dry_run:
         plan = {
             "schema": "dot.pull.plan/v1",
@@ -388,8 +381,8 @@ def _repository_status(state: State, path: Path) -> RepositoryStatus:
 
 def gather_status(state: State, paths: Sequence[Path] = ()) -> SystemStatus:
     """Collect Docker and repository status concurrently."""
-    _tool(state, "git")
-    repositories = find_git_repositories(state, paths) if paths else find_git_repositories(state)
+    require_tools(state, [["git"]])
+    repositories = find_git_repositories(state, paths)
     with ThreadPoolExecutor(max_workers=8) as executor:
         docker_future = executor.submit(_docker_status, state)
         repo_statuses = list(executor.map(lambda path: _repository_status(state, path), repositories))
@@ -405,7 +398,7 @@ def run_status(
     stats: bool = False,
 ) -> SystemStatus:
     """Render Docker and repository status for humans or scripts."""
-    status = gather_status(state, paths) if paths else gather_status(state)
+    status = gather_status(state, paths)
     failed = any(item.error for item in status.repositories)
     if stats:
         totals = {
@@ -487,13 +480,6 @@ def run_status(
     return status
 
 
-def _state_from(context: typer.Context) -> State:
-    state = context.find_root().obj
-    if not isinstance(state, State):
-        raise DotError("CLI state is unavailable")
-    return state
-
-
 def pull_command(
     context: typer.Context,
     paths: Annotated[
@@ -508,7 +494,7 @@ def pull_command(
         str, typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
     ] = "skip",
 ) -> None:
-    run_pull(_state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json, dirty_policy=dirty)
+    run_pull(state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json, dirty_policy=dirty)
 
 
 def status_command(
@@ -522,7 +508,7 @@ def status_command(
     ] = False,
     stats: Annotated[bool, typer.Option("--stats", help="Summarize repository health counts")] = False,
 ) -> None:
-    run_status(_state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention, stats=stats)
+    run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention, stats=stats)
 
 
 def register_repository_commands(parent: typer.Typer) -> None:

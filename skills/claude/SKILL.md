@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/claude
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Claude Code
@@ -29,7 +29,7 @@ Operate Claude Code's harness and session features. Application development with
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [Overview](https://code.claude.com/docs/en/overview) · [CLI reference](https://code.claude.com/docs/en/cli-reference)
 - [Changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)

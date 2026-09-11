@@ -4,7 +4,10 @@ Personal authoring conventions and catalog constraints; workflow extraction live
 
 ## Authoring limits
 
-- **One purpose**: a tool skill documents one tool; a workflow skill composes owning skills by linking instead of copying their procedures. Extend an existing owner before adding a skill.
+- **Admission**: create a global skill only when it captures a meaningful personal choice, a reusable procedure or artifact, a demonstrated failure worth preventing, or a useful route to maintained upstream guidance. General product knowledge alone is insufficient; the absence of an official skill does not justify a local substitute.
+- **One purpose**: choose one distinct task or decision boundary, not one entrypoint per tool. Extend an existing owner or add an on-demand reference when that preserves the workflow; keep project-specific guidance in the project.
+- **Useful difference**: state what a capable agent should do differently after reading the skill. Retain concrete defaults, artifacts, and failure lessons; omit product introductions, routine API tutorials, and repeated persona rules. Use the [adoption check](adoption-check.md) for borderline additions instead of assuming more instructions improve outcomes.
+- **Vendor routes**: identify the official source, relevant selection, personal deviations, and a few specific pitfalls. Link to maintained guidance instead of copying its tutorial or feature inventory; review and installation follow the shared vendor policy.
 - **Size**: aim for fewer than 100 lines in `SKILL.md`; the hard limit is 500. Keep bullets to one short idea and move long examples, templates, and configuration into directly linked resources.
 - **Frontmatter**: `name` matches the lowercase, hyphenated directory name. `description` states capability and trigger in one sentence using "Use when ..." or an equally clear trigger; at most 240 characters, with a catalog average of 175 or less. Avoid indistinguishable descriptions.
 - **Shape**: include an H1, concise intent, and an actionable workflow. Add `Gotchas` for real failure modes, `Official Skills` for vendor routing, and primary documentation or provenance when external tools or APIs are involved.

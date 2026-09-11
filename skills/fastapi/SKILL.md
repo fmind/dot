@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/fastapi
   created: "2026-09-06"
-  updated: "2026-09-06"
+  updated: "2026-09-11"
 ---
 
 # FastAPI
@@ -21,6 +21,7 @@ Use this for an existing or explicitly chosen FastAPI service, including an [age
 ## Gotchas
 
 - The skill is shipped within the framework source package and is discovered by the skills CLI. Installing the Python package alone does not establish host discovery.
+- `fastapi[standard]` pulls `fastapi-cli[standard]`, which installs the `fastapi-cloud-cli` vendor client. Use `fastapi[standard-no-fastapi-cloud-cli]` unless that client is a deliberate choice.
 - Do not convert an agents-cli FastAPI scaffold to Litestar while implementing an agent feature.
 
 ## Official Skills

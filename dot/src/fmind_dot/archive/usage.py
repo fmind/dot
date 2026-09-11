@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 import math
 import re
+from calendar import monthrange
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any
+from zoneinfo import ZoneInfo
 
-from fmind_dot.archive.pricing import api_equivalent
+from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
 from fmind_dot.archive.store import is_valid_session_id
-from fmind_dot.config import PricingConfig, default_pricing
+from fmind_dot.config import PricingConfig, SubscriptionConfig, default_pricing
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
@@ -73,6 +76,29 @@ class UsageRecord:
     extractor_version: str = USAGE_EXTRACTOR_VERSION
     measurement_kind: str = ""
     source_bytes: int = 0
+    legacy_accounting: bool = False
+    # Compact request measurements: timestamp, model, and token counters only.
+    samples: list[dict[str, Any]] = field(default_factory=list)
+
+    def set_samples(self, samples: list[UsageRecord], *, timed: bool = True) -> None:
+        """Reconcile a session to deduplicated request measurements."""
+        for name in _USAGE_INTEGER_FIELDS:
+            setattr(self, name, sum(getattr(sample, name) for sample in samples))
+        self.model = ""
+        for sample in samples:
+            self.observe_model(sample.model)
+        self.samples = (
+            [
+                {
+                    "timestamp": sample.timestamp,
+                    "model": sample.model,
+                    **{name: getattr(sample, name) for name in _USAGE_INTEGER_FIELDS},
+                }
+                for sample in samples
+            ]
+            if timed
+            else []
+        )
 
     def observe_model(self, model: str) -> None:
         if model:
@@ -84,8 +110,10 @@ class UsageRecord:
             self.agent = self.harness
         if not self.timestamp:
             self.timestamp = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-        if self.total_tokens == 0 and (self.input_tokens or self.output_tokens):
-            self.total_tokens = self.input_tokens + self.output_tokens + self.cached_tokens + self.cache_write_tokens
+        if self.total_tokens == 0:
+            self.total_tokens = self.input_tokens + self.output_tokens
+            if self.harness not in CACHE_INCLUSIVE_INPUT_HARNESSES:
+                self.total_tokens += self.cached_tokens + self.cache_write_tokens
         self._validate(complete=True)
         return self
 
@@ -120,6 +148,8 @@ class UsageRecord:
             result["measurement_kind"] = self.measurement_kind
         if self.source_bytes:
             result["source_bytes"] = self.source_bytes
+        if self.samples:
+            result["samples"] = self.samples
         return result
 
     @classmethod
@@ -173,6 +203,30 @@ class UsageRecord:
         if not math.isfinite(normalized_cost) or normalized_cost < 0:
             raise ValueError("usage record field 'cost_usd' must be a non-negative finite number")
         self.cost_usd = normalized_cost
+        if not isinstance(self.samples, list):
+            raise ValueError("usage samples must be a list")
+        for sample in self.samples:
+            if not isinstance(sample, dict) or set(sample) - {"timestamp", "model", *_USAGE_INTEGER_FIELDS}:
+                raise ValueError("invalid usage sample fields")
+            if not sample.get("timestamp"):
+                raise ValueError("usage sample requires a timestamp")
+            # Reuse the same strict boundary for compact samples and session totals.
+            _sample_record(self, sample).to_dict()
+        if self.samples and any(
+            sum(sample.get(name, 0) for sample in self.samples) != getattr(self, name) for name in _USAGE_INTEGER_FIELDS
+        ):
+            raise ValueError("usage samples do not reconcile with session totals")
+
+
+def _sample_record(record: UsageRecord, sample: dict[str, Any]) -> UsageRecord:
+    return UsageRecord(
+        harness=record.harness,
+        agent=record.agent or record.harness,
+        session_id=record.session_id,
+        cwd=record.cwd,
+        measurement_kind=record.measurement_kind,
+        **sample,
+    )
 
 
 @dataclass
@@ -197,6 +251,15 @@ class UsageStats:
     pricing_as_of: str = ""
     pricing_basis: str = ""
     pricing_sources: list[str] = field(default_factory=list)
+    first_timestamp: str = ""
+    last_timestamp: str = ""
+    period_start: str = ""
+    period_end: str = ""
+    subscription_usd: float | None = None
+    legacy_accounting_sessions: int = 0
+    session_timestamp_sessions: int = 0
+    measurements: int = 0
+    priced_measurements: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {"harness": self.harness}
@@ -215,10 +278,22 @@ class UsageStats:
                 "cost_complete": self.cost_known_sessions == self.sessions,
                 "measurement_kind": self.measurement_kind,
                 "cwd": self.cwd,
-                "time_basis": "whole session at recorded timestamp",
-                "api_equivalent_usd": self.api_equivalent_usd if self.priced_sessions else None,
+                "time_basis": "request timestamps where available; otherwise whole session at recorded timestamp",
+                "first_timestamp": self.first_timestamp or None,
+                "last_timestamp": self.last_timestamp or None,
+                "period_start": self.period_start or None,
+                "period_end": self.period_end or None,
+                "subscription_usd": self.subscription_usd,
+                "api_value_ratio": self.api_equivalent_usd / self.subscription_usd
+                if self.subscription_usd and self.priced_measurements == self.measurements
+                else None,
+                "session_timestamp_sessions": self.session_timestamp_sessions,
+                "legacy_accounting_sessions": self.legacy_accounting_sessions,
+                "measurements": self.measurements,
+                "priced_measurements": self.priced_measurements,
+                "api_equivalent_usd": self.api_equivalent_usd if self.priced_measurements else None,
                 "priced_sessions": self.priced_sessions,
-                "pricing_complete": self.priced_sessions == self.sessions,
+                "pricing_complete": self.priced_measurements == self.measurements,
                 "unpriced_reasons": self.unpriced_reasons,
                 "pricing_as_of": self.pricing_as_of,
                 "pricing_basis": self.pricing_basis,
@@ -230,27 +305,32 @@ class UsageStats:
         return result
 
 
-def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
+def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
     """Select one measurement per session from current transactional bundles."""
     from fmind_dot.archive.query import discover_session_generations
-    from fmind_dot.archive.store import read_session_usage
+    from fmind_dot.archive.store import SESSION_PARSER_VERSION, read_session_usage
 
-    selected: dict[tuple[str, str], UsageRecord] = {}
     latest = {}
     for generation in discover_session_generations(root):
         manifest = generation.manifest
         identity = (manifest.agent, manifest.session_id)
         previous = latest.get(identity)
-        if previous is None or (manifest.ingested_at, generation.path.name) > (
+        if previous is None or (int(manifest.parser_version), manifest.ingested_at, generation.path.name) > (
+            int(previous.manifest.parser_version),
             previous.manifest.ingested_at,
             previous.path.name,
         ):
             latest[identity] = generation
-    for identity, generation in latest.items():
+    for generation in latest.values():
         value = read_session_usage(generation.path, generation.manifest)
         if value is not None:
-            selected[identity] = UsageRecord.from_dict(value)
-    return list(selected.values())
+            record = UsageRecord.from_dict(value)
+            record.legacy_accounting = generation.manifest.parser_version != SESSION_PARSER_VERSION
+            yield record
+
+
+def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
+    return list(iter_usage_records(root=root))
 
 
 def parse_flexible_time(value: str, *, now: datetime | None = None) -> datetime:
@@ -283,8 +363,21 @@ def parse_flexible_time(value: str, *, now: datetime | None = None) -> datetime:
     return parsed.astimezone(UTC)
 
 
+def _period(timestamp: datetime, day: int, zone: ZoneInfo) -> tuple[str, str]:
+    local = timestamp.astimezone(zone)
+
+    def boundary(year: int, month: int) -> datetime:
+        return datetime(year, month, min(day, monthrange(year, month)[1]), tzinfo=zone)
+
+    start = boundary(local.year, local.month)
+    if local < start:
+        start = boundary(local.year - (local.month == 1), (local.month - 2) % 12 + 1)
+    end = boundary(start.year + (start.month == 12), start.month % 12 + 1)
+    return start.isoformat(), end.isoformat()
+
+
 def aggregate_usage(
-    records: list[UsageRecord],
+    records: Iterable[UsageRecord],
     *,
     harness: str = "",
     since: datetime | None = None,
@@ -293,47 +386,70 @@ def aggregate_usage(
     cwd: str = "",
     by_project: bool = False,
     pricing: PricingConfig | None = None,
+    monthly: bool = False,
+    billing: bool = False,
+    subscriptions: dict[str, SubscriptionConfig] | None = None,
 ) -> list[UsageStats]:
     if since and until and since > until:
         raise ValueError("--since must not be after --until")
+    if monthly and billing:
+        raise ValueError("choose --monthly or --billing, not both")
     pricing = pricing if pricing is not None else default_pricing()
-    grouped: dict[tuple[str, str, str, str], UsageStats] = {}
+    grouped: dict[tuple[str, str, str, str, str], UsageStats] = {}
     for record in records:
-        if harness and harness not in {record.harness, record.agent}:
+        if (harness and harness not in {record.harness, record.agent}) or (cwd and record.cwd != cwd):
             continue
-        if cwd and record.cwd != cwd:
-            continue
-        timestamp = _parse_usage_timestamp(record.timestamp)
-        if since and timestamp < since:
-            continue
-        if until and timestamp > until:
-            continue
-        model = (record.model or "unknown") if by_model else ""
-        kind = record.measurement_kind or "unknown"
-        project = record.cwd if by_project else ""
-        key = (record.harness, model, kind, project)
-        row = grouped.setdefault(
-            key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=project)
-        )
-        row.pricing_as_of = pricing.as_of
-        row.pricing_basis = pricing.basis
-        row.pricing_sources = pricing.sources
-        equivalent, reason = api_equivalent(record, pricing)
-        if equivalent is None:
-            row.unpriced_reasons[reason] = row.unpriced_reasons.get(reason, 0) + 1
-        else:
-            row.api_equivalent_usd += equivalent
-            row.priced_sessions += 1
-        row.sessions += 1
-        row.turns += record.turn_count
-        row.input_tokens += record.input_tokens
-        row.output_tokens += record.output_tokens
-        row.cached_tokens += record.cached_tokens
-        row.cache_write_tokens += record.cache_write_tokens
-        row.reasoning_tokens += record.reasoning_tokens
-        row.total_tokens += record.total_tokens
-        row.cost_usd += record.cost_usd
-        row.cost_known_sessions += record.cost_known or record.cost_usd > 0
+        subscription = (subscriptions or {}).get(record.harness)
+        zone = ZoneInfo(subscription.timezone) if billing and subscription else ZoneInfo("UTC")
+        day = subscription.renewal_day if billing and subscription else 1
+        selected: dict[tuple[str, str, str, str, str], list[UsageRecord]] = {}
+        samples = [_sample_record(record, sample) for sample in record.samples] or [record]
+        for sample in samples:
+            timestamp = _parse_usage_timestamp(sample.timestamp)
+            if (since and timestamp < since) or (until and timestamp > until):
+                continue
+            if billing and subscription is None:
+                raise ValueError(
+                    f"configure agent.subscriptions.{record.harness} before using --billing, or filter --harness"
+                )
+            period_start, period_end = _period(timestamp, day, zone) if monthly or billing else ("", "")
+            model = (sample.model or "unknown") if by_model else ""
+            kind = record.measurement_kind or "unknown"
+            project = record.cwd if by_project else ""
+            key = (period_start, record.harness, model, kind, project)
+            row = grouped.setdefault(
+                key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=project)
+            )
+            row.period_start, row.period_end = period_start, period_end
+            row.subscription_usd = (
+                subscription.monthly_usd if billing and subscription and not by_model and not by_project else None
+            )
+            row.pricing_as_of, row.pricing_basis, row.pricing_sources = pricing.as_of, pricing.basis, pricing.sources
+            stamp = timestamp.isoformat()
+            row.first_timestamp = min(row.first_timestamp, stamp) if row.first_timestamp else stamp
+            row.last_timestamp = max(row.last_timestamp, stamp)
+            selected.setdefault(key, []).append(sample)
+            equivalent, reason = api_equivalent(sample, pricing)
+            row.measurements += 1
+            if equivalent is None:
+                row.unpriced_reasons[reason] = row.unpriced_reasons.get(reason, 0) + 1
+            else:
+                row.api_equivalent_usd += equivalent
+                row.priced_measurements += 1
+            for name in _USAGE_INTEGER_FIELDS:
+                if name != "turn_count":
+                    setattr(row, name, getattr(row, name) + getattr(sample, name))
+            row.turns += sample.turn_count
+        for key, included in selected.items():
+            row = grouped[key]
+            row.sessions += 1
+            row.session_timestamp_sessions += not bool(record.samples)
+            row.legacy_accounting_sessions += record.legacy_accounting
+            row.priced_sessions += all(api_equivalent(sample, pricing)[0] is not None for sample in included)
+            # A provider's session cost cannot be apportioned between dates/models.
+            if len(selected) == 1 and len(included) == len(samples):
+                row.cost_usd += record.cost_usd
+                row.cost_known_sessions += record.cost_known or record.cost_usd > 0
     return [grouped[key] for key in sorted(grouped)]
 
 
@@ -360,87 +476,85 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
     if not rows:
         output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
         return
-    output.write("Whole-session totals filtered by recorded timestamp; not interval billing.\n")
+    output.write(
+        "Request timestamps where available; session-timestamp fallback is approximate, not interval billing.\n"
+    )
     if rows[0].pricing_as_of:
         output.write(f"API equivalent ({rows[0].pricing_as_of}): {rows[0].pricing_basis}\n")
-    columns = ["HARNESS", "MEASUREMENT", "PROJECT"]
+    first = min((row.first_timestamp for row in rows if row.first_timestamp), default="unknown")
+    last = max((row.last_timestamp for row in rows if row.last_timestamp), default="unknown")
+    output.write(f"Coverage: {first} to {last} (archived usage only).\n")
+    periods = any(row.period_start for row in rows)
+    columns = (["PERIOD START", "PERIOD END"] if periods else []) + ["HARNESS", "MEASUREMENT"]
     if by_model:
         columns.append("MODEL")
-    columns.extend(
-        [
-            "SESSIONS",
-            "TURNS",
-            "INPUT TOKENS",
-            "OUTPUT TOKENS",
-            "CACHED TOKENS",
-            "REASONING",
-            "TOTAL TOKENS",
-            "COST (USD)",
-            "API EQUIV (USD)",
-            "PRICED SESSIONS",
-        ]
-    )
+    projects = any(row.cwd for row in rows)
+    if projects:
+        columns.append("PROJECT")
+    columns.extend(["SESSIONS", "FROM", "THROUGH", "TOTAL TOKENS", "API EQUIV (USD)", "PRICED", "COST (USD)"])
     output.write("\t".join(columns) + "\n")
-    total = UsageStats(harness="TOTAL")
-    for row in rows:
-        total.sessions += row.sessions
-        total.turns += row.turns
-        total.input_tokens += row.input_tokens
-        total.output_tokens += row.output_tokens
-        total.cached_tokens += row.cached_tokens
-        total.cache_write_tokens += row.cache_write_tokens
-        total.reasoning_tokens += row.reasoning_tokens
-        total.total_tokens += row.total_tokens
-        total.api_equivalent_usd += row.api_equivalent_usd
-        total.priced_sessions += row.priced_sessions
-        total.cost_usd += row.cost_usd
-        total.cost_known_sessions += row.cost_known_sessions
-        values = [row.harness, row.measurement_kind, row.cwd or "-"]
+    total = UsageStats(harness="TOTAL", first_timestamp=first, last_timestamp=last)
+
+    def write_row(row: UsageStats) -> None:
+        values = ([row.period_start[:10], row.period_end[:10]] if periods else []) + [row.harness, row.measurement_kind]
         if by_model:
-            values.append(row.model)
+            values.append(row.model or "-")
+        if projects:
+            values.append(row.cwd or "-")
         values.extend(
             [
                 str(row.sessions),
-                str(row.turns),
-                f"{row.input_tokens:,}",
-                f"{row.output_tokens:,}",
-                f"{row.cached_tokens:,}",
-                f"{row.reasoning_tokens:,}",
+                row.first_timestamp[:10] or "-",
+                row.last_timestamp[:10] or "-",
                 f"{row.total_tokens:,}",
-                _cost_display(row),
                 _equivalent_display(row),
-                f"{row.priced_sessions}/{row.sessions}",
+                f"{row.priced_measurements}/{row.measurements}",
+                _cost_display(row),
             ]
         )
         output.write("\t".join(values) + "\n")
+
+    for row in rows:
+        write_row(row)
+        for name in (
+            "sessions",
+            "total_tokens",
+            "api_equivalent_usd",
+            "priced_sessions",
+            "measurements",
+            "priced_measurements",
+            "cost_usd",
+            "cost_known_sessions",
+        ):
+            setattr(total, name, getattr(total, name) + getattr(row, name))
+    if any(row.legacy_accounting_sessions for row in rows):
+        output.write(
+            "Legacy accounting present: recapture available sources with 'dot agent session sync'; old Claude totals may count repeated response blocks.\n"
+        )
+    if any(row.session_timestamp_sessions for row in rows):
+        output.write("Some usage has only a session timestamp; its monthly allocation is approximate.\n")
+    if periods:
+        output.write("Period ends are exclusive; sessions spanning periods may appear in more than one row.\n")
+        for row in rows:
+            if row.subscription_usd:
+                ratio = row.to_dict()["api_value_ratio"]
+                value = f"{ratio:.2f}x" if ratio is not None else "unknown (partial pricing)"
+                output.write(
+                    f"{row.harness} {row.period_start[:10]}: ${row.subscription_usd:.2f}/cycle; API value {value}. Coverage may be partial.\n"
+                )
+        return
     kinds = {row.measurement_kind for row in rows}
     if len(kinds) > 1:
         output.write("No combined total: measurement kinds are not comparable.\n")
         return
-    values = ["TOTAL", next(iter(kinds)), "-"]
-    if by_model:
-        values.append("-")
-    values.extend(
-        [
-            str(total.sessions),
-            str(total.turns),
-            f"{total.input_tokens:,}",
-            f"{total.output_tokens:,}",
-            f"{total.cached_tokens:,}",
-            f"{total.reasoning_tokens:,}",
-            f"{total.total_tokens:,}",
-            _cost_display(total),
-            _equivalent_display(total),
-            f"{total.priced_sessions}/{total.sessions}",
-        ]
-    )
-    output.write("\t".join(values) + "\n")
+    total.measurement_kind = next(iter(kinds))
+    write_row(total)
 
 
 def _equivalent_display(row: UsageStats) -> str:
-    if not row.priced_sessions:
+    if not row.priced_measurements:
         return "unknown"
-    suffix = " (partial)" if row.priced_sessions < row.sessions else ""
+    suffix = " (partial)" if row.priced_measurements < row.measurements else ""
     return f"${row.api_equivalent_usd:.4f}{suffix}"
 
 
@@ -455,6 +569,7 @@ __all__ = [
     "UsageRecord",
     "UsageStats",
     "aggregate_usage",
+    "iter_usage_records",
     "list_usage_records",
     "load_usage_records",
     "parse_flexible_time",

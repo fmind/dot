@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 SESSION_SCHEMA_VERSION = 2
-SESSION_PARSER_VERSION = "3"
+SESSION_PARSER_VERSION = "5"
+READABLE_PARSER_VERSIONS = {"3", "4", SESSION_PARSER_VERSION}
 SESSION_STORE_VERSION = "v2"
 _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -134,7 +135,7 @@ class SessionManifest:
                 raise ValueError("invalid completeness")
             if (
                 _integer(value, "schema_version") != SESSION_SCHEMA_VERSION
-                or _string(value, "parser_version") != SESSION_PARSER_VERSION
+                or _string(value, "parser_version") not in READABLE_PARSER_VERSIONS
             ):
                 raise ValueError("unsupported session format; recapture available sources with dot agent session sync")
             return cls(
@@ -563,7 +564,7 @@ def _validate_session_generation_at(
 
 def generation_files(manifest: SessionManifest) -> set[str]:
     """Require the current format before inspecting or deleting its bundle."""
-    if manifest.schema_version != SESSION_SCHEMA_VERSION or manifest.parser_version != SESSION_PARSER_VERSION:
+    if manifest.schema_version != SESSION_SCHEMA_VERSION or manifest.parser_version not in READABLE_PARSER_VERSIONS:
         raise ValueError("unsupported session format")
     return {"manifest.json", "transcript.jsonl", "usage.json"}
 
@@ -589,9 +590,18 @@ def _validate_usage(content: bytes, manifest: SessionManifest) -> dict[str, Any]
 
 
 def read_session_usage(path: Path, manifest: SessionManifest) -> dict[str, Any] | None:
-    """Read the usage committed with a verified generation."""
-    validate_session_generation(path, manifest)
-    return _validate_usage((path / "usage.json").read_bytes(), manifest)
+    """Verify bundle hashes without decoding private conversation text for token queries."""
+    if read_session_manifest(path) != manifest:
+        raise ValueError("session manifest did not round-trip")
+    transcript = path / "transcript.jsonl"
+    usage = path / "usage.json"
+    _require_private_path(transcript, directory=False)
+    _require_private_path(usage, directory=False)
+    with transcript.open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    if digest != manifest.transcript_sha256:
+        raise ValueError("session transcript fingerprint mismatch")
+    return _validate_usage(usage.read_bytes(), manifest)
 
 
 def _same_immutable_identity(existing: SessionManifest, expected: SessionManifest) -> bool:

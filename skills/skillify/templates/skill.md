@@ -11,7 +11,7 @@ metadata:
 
 # <Title>
 
-<One paragraph: the intent and the boundary. Name the neighbor skill that owns adjacent work.>
+<One paragraph: the concrete choice, procedure, artifact, failure lesson, or upstream route that changes agent behavior. State the boundary and name the neighbor that owns adjacent work; omit a general product introduction.>
 
 ## Workflow
 

@@ -44,3 +44,10 @@ def state_from(context: typer.Context) -> State:
     if not isinstance(state, State):
         raise DotError("CLI state is unavailable")
     return state
+
+
+def require_tools(state: State, commands: list[list[str]]) -> None:
+    """Fail closed with one actionable message listing every missing executable."""
+    missing = sorted({args[0] for args in commands if state.runner.which(args[0]) is None})
+    if missing:
+        raise DotError(f"required tools are missing: {', '.join(missing)}; install them with mise and retry")

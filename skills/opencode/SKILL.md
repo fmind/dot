@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/opencode
   created: "2026-09-08"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # OpenCode
@@ -49,7 +49,7 @@ Use `opencode mcp add --help` for the installed setup interface and [agent-mcp](
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [OpenCode CLI](https://opencode.ai/docs/cli/) · [Agents](https://opencode.ai/docs/agents/) · [Skills](https://opencode.ai/docs/skills/) · [Providers](https://opencode.ai/docs/providers/)
 - [Changelog](https://opencode.ai/changelog) · [Releases](https://github.com/anomalyco/opencode/releases)

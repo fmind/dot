@@ -23,6 +23,8 @@ from fmind_dot.errors import DotError
 
 _TERMINATION_TIMEOUT_SECONDS = 3
 _PIPE_WRITE_BYTES = 4096
+# Shared ceiling for every status probe captured with run_bounded.
+PROBE_OUTPUT_LIMIT_BYTES = 64 * 1024
 
 
 @dataclass(frozen=True)

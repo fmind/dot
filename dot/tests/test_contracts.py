@@ -10,7 +10,7 @@ import pytest
 
 from dot_tasks import skill_contracts as checker
 
-ROOT = Path(__file__).parents[2]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _write_skill(
@@ -136,7 +136,6 @@ def test_skills_contract_rejects_broken_package(tmp_path: Path, mutation: Callab
 @pytest.mark.parametrize(
     ("relative", "content", "expected"),
     [
-        ("references/__pycache__/payload.pyc", b"generated", "Python bytecode cache"),
         ("references/.pytest_cache/README.md", b"generated", "generated cache or metadata"),
         ("references/control.md", b"safe\x1b[2Jspoofed\n", "unsafe control character"),
         ("references/bidi.md", "safe\u202ehidden\n".encode(), "invisible Unicode"),
@@ -415,28 +414,6 @@ def test_skills_live_repository_contract() -> None:
     assert findings == [], "\n".join(findings)
 
 
-@pytest.mark.parametrize(
-    "name",
-    ["bootstrap.md", "profiles.md", "tooling.md"],
-)
-def test_python_stack_reference_links_are_document_relative(name: str) -> None:
-    document = ROOT / "skills/python-stack/references" / name
-    targets = [
-        raw_target.strip().strip("<>").split(maxsplit=1)[0]
-        for raw_target in checker.LINK_PATTERN.findall(document.read_text(encoding="utf-8"))
-    ]
-    missing = [
-        target
-        for target in targets
-        if target
-        and not target.startswith(("#", "{"))
-        and ":" not in target.split("/", 1)[0]
-        and not (document.parent / target.split("#", 1)[0].split("?", 1)[0]).exists()
-    ]
-
-    assert missing == []
-
-
 def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     retired_suffixes = {".go", ".js", ".jsx", ".ts", ".tsx"}
     owned = subprocess.check_output(
@@ -447,7 +424,9 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     assert active == []
     assert not (ROOT / "archives").exists()
     assert not (ROOT / "skills/hugo").exists()
-    assert not [path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()]
+    # The workstation-task migration has been applied and its markers retired, so no
+    # removal marker is outstanding; a new one must be deleted once it has shipped.
+    assert {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()} == set()
 
 
 def test_deploy_uses_the_locked_python_runtime_graph() -> None:

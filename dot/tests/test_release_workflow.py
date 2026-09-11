@@ -20,10 +20,13 @@ def test_release_workflow_runs_canonical_gate_before_publishing() -> None:
     assert permissions["attestations"] == "write"
 
     steps = publish["steps"]
-    trust_index = next(index for index, step in enumerate(steps) if step["name"] == "Trust repository")
+    # mise-action exports MISE_TRUSTED_CONFIG_PATHS and MISE_YES, so it is what establishes trust.
+    setup_index = next(index for index, step in enumerate(steps) if step["name"] == "Install toolchain")
     gate_index = next(index for index, step in enumerate(steps) if step["name"] == "Run canonical gate")
+    starters_index = next(index for index, step in enumerate(steps) if step["name"] == "Run starter contracts")
     attest_index = next(index for index, step in enumerate(steps) if step["name"] == "Attest build provenance")
 
-    assert trust_index < gate_index < attest_index
-    assert steps[trust_index]["run"] == "mise trust -y mise.toml"
+    assert setup_index < gate_index < starters_index < attest_index
+    assert steps[setup_index]["uses"].startswith("jdx/mise-action@")
     assert steps[gate_index]["run"] == "mise run all"
+    assert steps[starters_index]["run"] == "mise run test:starters"

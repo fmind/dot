@@ -22,7 +22,7 @@ if status is-interactive
     abbr -a i agy
     abbr -a iq "agy --prompt"
     # j:fkf
-    abbr -a j 'fkf --base "$FKF_BASE"'
+    abbr -a j fkf
     # k:kubectl
     abbr -a k kubectl
     # l:lsd

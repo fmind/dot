@@ -62,6 +62,10 @@ Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout withou
 
 The installer prompts for Git identity, applies the dotfiles and eligible installation hooks, installs the locked tools and `dot` CLI, and configures Git hooks and Neovim plugins. Open a new shell afterward, or use `~/.local/bin/dot --help` to check the installed CLI directly.
 
+### Fish completions
+
+Run `dot completion` after installing or updating tools to refresh Fish completions, including Dot and FKF, and the shell integration caches. Open a new Fish shell afterward. The selection and generators are configurable under `completions` in `dot config show`; unavailable tools are skipped.
+
 ### Python environment
 
 Run `uv sync --locked` in each existing Python project to create its `.venv` before opening it in Neovim. LazyVim uses ty for types and navigation, Ruff for linting, formatting, and import sorting, and the project environment for pytest and debugging. mise supplies ty and Ruff ahead of Mason's tools. Python debugging uses uv to provide debugpy on demand; the first run may download it.
@@ -73,6 +77,24 @@ For a Python REPL with the project's dependencies, run `uv run --with ptpython p
 The CLI optionally reads `~/.config/dot.yaml` and merges its values with the [built-in defaults](dot/src/fmind_dot/config.py). Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
 
 Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the file (through its source when chezmoi manages it). Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
+
+### Usage and subscription settings
+
+Agent usage reports show recorded tokens, coverage dates, and an offline API-equivalent value in USD. The value uses standard model rates and is separate from provider-reported costs and subscription charges. It does not measure answer quality or money actually saved. See the [usage guide](skills/agent-usage/SKILL.md) for totals, monthly reports, source coverage, and refresh instructions.
+
+Calendar months use UTC. To align reports with a subscription, add its renewal day and billing timezone to the optional Dot configuration. `monthly_usd` is optional and must be your comparable USD monthly charge; Dot does not fetch invoices or convert currencies. The example is illustrative, not an inferred subscription:
+
+```yaml
+# Docs: https://github.com/fmind/dot
+agent:
+  subscriptions:
+    codex:
+      renewal_day: 15
+      timezone: Europe/Paris
+      monthly_usd: 20
+```
+
+Configure each subscribed harness independently. Renewal days 29–31 use the month's last day when necessary. Cycles start at local midnight and end exclusively at the next renewal; daylight-saving changes follow the configured IANA timezone. Missing subscription settings remain unknown. Partial archives and incomplete pricing cannot establish a complete subscription comparison.
 
 ## Agent skills
 
@@ -102,6 +124,10 @@ ln -s ~/skill-library/meeting-prep ~/.agents/skills/
 Run this setup on each computer. An existing name makes `ln` fail without replacing it; inspect the existing package before choosing another name. Restart the agent session to refresh discovery. `dot agent doctor --agent codex --explain` checks package links and entrypoints as part of integration health; actual selection still needs a request that exercises the skill. For changes to this repository's catalog, follow the [skill maintenance guide](.agents/skills/dot-skills/SKILL.md), including link retirement and source relocation.
 
 ## Credentials
+
+### AI security assessments
+
+The global toolchain includes Microsoft's PyRIT CLI (`pyrit_scan`, `pyrit_shell`, and `pyrit_backend`). Assessment code uses a separate `uv` project and lockfile; the global CLI environment is not an application dependency. Start with the [AI security assessment skill](skills/ai-security-assessment/SKILL.md) for project setup and version-matched guidance. Configure the approved target, attack-generation, and scoring endpoints with their provider credentials in the assessment environment. Keep customer prompts, traces, and conversation databases in that project's designated evidence storage.
 
 ### Secret Management
 
@@ -135,7 +161,28 @@ API keys and credentials are split between two Fish configuration files:
 
 ### Authentication & Logins
 
-After applying the dotfiles, run `mise run dot:login` for Workspace login followed by Google Cloud login and ADC. The sequence stops on failure. GitHub remains explicit through `mise run dot:login:github`; use `mise run dot:setup:github` to update an existing GitHub login and remove the excluded legacy scopes. These interactive tasks use the selected native account/profile. Scope policy lives in [login.toml](dot_config/mise/conf.d/login.toml), and provider setup lives in [setup.toml](dot_config/mise/conf.d/setup.toml).
+Use `dot login` to see providers, `dot login workspace` for Workspace, and `dot login all` for Workspace followed by Google Cloud and ADC. The sequence stops on failure and excludes GitHub. Use `dot login github` separately; `dot setup github` also removes configured excluded OAuth grants. Login checks current authentication and scopes before opening a browser; `--force` explicitly repeats authentication, and `--dry-run` previews possible commands without executing probes. Unknown status fails with recovery guidance instead of silently starting authentication.
+
+Use `dot setup workspace <project-id>` to enable missing Workspace APIs and configure its OAuth client. The project comes from the argument, then `GWS_PROJECT`, then `auth.workspace.project`. GitHub host selection uses `--host`, then `GH_HOST`, then `auth.github.host`. Native tools retain account/profile selection and credential storage; environment-token overrides must be repaired or removed when they prevent OAuth updates.
+
+Policy is exposed by `dot config show` and configurable through `dot config edit`: `auth.github.scopes`, `auth.github.remove_scopes`, `auth.workspace.scopes`, `auth.workspace.apis`, and `auth.probe_timeout_seconds`. Maps merge with defaults; a configured list replaces the entire default list. Existing schema-version-3 configuration remains valid. The configuration file is selected by `--config`, then `DOT_CONFIG_PATH`, then `~/.config/dot.yaml`.
+
+```yaml
+# Docs: https://github.com/fmind/dot
+schema_version: 3
+auth:
+  github:
+    host: github.com
+  workspace:
+    project: my-workspace-project
+  probe_timeout_seconds: 45
+cache:
+  providers: [docker, hf, uv]
+prune:
+  providers: [dprint, hf, mise, npm, trivy, uv]
+```
+
+The former managed `login.toml`, `setup.toml`, `cache.toml`, and `prune.toml` files have been retired from `~/.config/mise/conf.d/`; other files there remain independently managed. Install the updated Dot CLI with the normal tool setup before using its new commands.
 
 | Tool / Service           | Command                                           | Auth Type               |
 | ------------------------ | ------------------------------------------------- | ----------------------- |
@@ -151,9 +198,9 @@ After applying the dotfiles, run `mise run dot:login` for Workspace login follow
 | **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                   | Interactive / API key   |
 | **Jules CLI**            | `jules login`                                     | Interactive             |
 
-Use `gh auth refresh` for explicitly required GitHub scopes, and `gws auth setup --project <project-id>` for Workspace setup. Select the account, project, APIs, and scopes deliberately through each provider's native CLI.
+Use `dot setup github` to reconcile GitHub scopes and `dot setup workspace <project-id>` for Workspace setup. Select the account, project, APIs, and scopes deliberately through each provider's native CLI.
 
-The configured policy retains repository, publishing, document, mail, calendar, contact, Chat, and Apps Script workflows. It adds Gmail settings/filter management and Chat read-state management, excludes GitHub repository/package deletion scopes, and permits SSH key creation without key administration. Gmail uses `gmail.modify`, which excludes immediate permanent message deletion; full Drive and other editing scopes can still allow destructive operations. OAuth capability does not authorize an agent to delete data or contact others. GCP resource permissions remain controlled by IAM. Applying configuration alone does not change issued tokens: authenticate again for new scopes, and use the explicit GitHub setup task to remove the listed old grants. Workspace directory lookup requires a Workspace account; personal Google accounts need a policy without `directory.readonly`.
+The configured policy retains repository, publishing, document, mail, calendar, contact, Chat, and Apps Script workflows. It adds Gmail settings/filter management and Chat read-state management, excludes GitHub repository/package deletion scopes, and permits SSH key creation without key administration. Gmail uses `gmail.modify`, which excludes immediate permanent message deletion; full Drive and other editing scopes can still allow destructive operations. OAuth capability does not authorize an agent to delete data or contact others. GCP resource permissions remain controlled by IAM. Applying configuration alone does not change issued tokens: authenticate again for new scopes, and use the explicit GitHub setup command to remove the listed old grants. Workspace directory lookup requires a Workspace account; personal Google accounts need a policy without `directory.readonly`.
 
 Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
 

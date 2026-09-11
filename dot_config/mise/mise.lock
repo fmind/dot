@@ -1029,21 +1029,6 @@ checksum = "sha256:fe764f7f360c584a83e18dd5f23fb1a6b2725f5ee8854b0252fe558f7798e
 url = "https://github.com/anomalyco/opencode/releases/download/v1.18.29/opencode-darwin-arm64.zip"
 url_api = "https://api.github.com/repos/anomalyco/opencode/releases/assets/545047483"
 
-[[tools.opengrep]]
-version = "1.29.0"
-backend = "aqua:opengrep/opengrep"
-specifiers = ["latest"]
-
-[tools.opengrep."platforms.linux-x64"]
-checksum = "sha256:3365ef49d04893e01338d85d9bbd49b2bd5261ad4c9c0df0a6a0f8d44232ae13"
-url = "https://github.com/opengrep/opengrep/releases/download/v1.29.0/opengrep_manylinux_x86"
-url_api = "https://api.github.com/repos/opengrep/opengrep/releases/assets/534179404"
-
-[tools.opengrep."platforms.macos-arm64"]
-checksum = "sha256:dacc12a24e95b22c8b1ab55be1777b6eb877a922c5571a95b9a8de30f3963438"
-url = "https://github.com/opengrep/opengrep/releases/download/v1.29.0/opengrep_osx_arm64"
-url_api = "https://api.github.com/repos/opengrep/opengrep/releases/assets/534179421"
-
 [[tools.opentofu]]
 version = "1.12.6"
 backend = "aqua:opentofu/opentofu"
@@ -1095,6 +1080,11 @@ specifiers = ["latest"]
 [[tools."pipx:ptpython"]]
 version = "3.0.32"
 backend = "pipx:ptpython"
+specifiers = ["latest"]
+
+[[tools."pipx:pyrit"]]
+version = "1.1.0"
+backend = "pipx:pyrit"
 specifiers = ["latest"]
 
 [[tools.python]]

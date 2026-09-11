@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/conventional-commit
   created: "2026-06-23"
-  updated: "2026-09-03"
+  updated: "2026-09-11"
 ---
 
 # Conventional Commit
@@ -51,4 +51,4 @@ Turn the staged changes into one Conventional Commits subject and commit them; [
 ## Documentation
 
 - [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-- Companion skills: [feature-branch](../feature-branch/SKILL.md) (branch first), [git-add-commit-push](../git-add-commit-push/SKILL.md) (stage, commit, push), [github-pull-request](../github-pull-request/SKILL.md) (open the PR).
+- Companion skills: [Git branch preparation](../git-worktree/SKILL.md) (branch first), [git-add-commit-push](../git-add-commit-push/SKILL.md) (stage, commit, push), [github-pull-request](../github-pull-request/SKILL.md) (open the PR).

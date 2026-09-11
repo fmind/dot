@@ -6,9 +6,10 @@ import copy
 import os
 from pathlib import Path
 from typing import Annotated, Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
@@ -22,79 +23,76 @@ class StrictModel(BaseModel):
 class ToolConfig(StrictModel):
     binary: str = ""
     args: list[str] = Field(default_factory=list)
+    package: str = ""
+
+    @model_validator(mode="after")
+    def one_completion_source(self) -> ToolConfig:
+        if self.package and (self.binary or self.args):
+            raise ValueError("choose either a bundled package or a completion command")
+        return self
 
 
 def _default_custom_completions() -> dict[str, ToolConfig]:
     return {
+        "acli": ToolConfig(),
         "ast-grep": ToolConfig(args=["completions", "fish"]),
-        "atlas": ToolConfig(args=["completion", "fish"]),
         "atuin": ToolConfig(args=["gen-completions", "--shell", "fish"]),
         "bat": ToolConfig(args=["--completion", "fish"]),
-        "carapace": ToolConfig(args=["_carapace", "fish"]),
+        "btm": ToolConfig(package="bottom"),
+        "carapace": ToolConfig(args=["carapace", "fish"]),
+        "chezmoi": ToolConfig(),
         "codex": ToolConfig(args=["completion", "fish"]),
+        "colab": ToolConfig(binary="env", args=["_COLAB_COMPLETE=source_fish", "colab"]),
+        "copilot": ToolConfig(),
+        "cosign": ToolConfig(),
         "delta": ToolConfig(args=["--generate-completion", "fish"]),
         "doggo": ToolConfig(args=["completions", "fish"]),
         "dot": ToolConfig(binary="env", args=["_DOT_COMPLETE=source_fish", "dot"]),
         "dprint": ToolConfig(args=["completions", "fish"]),
+        "dyff": ToolConfig(),
+        "fastfetch": ToolConfig(package="fastfetch"),
         "fd": ToolConfig(args=["--gen-completions", "fish"]),
         "fkf": ToolConfig(binary="env", args=["_FKF_COMPLETE=source_fish", "fkf"]),
         "gh": ToolConfig(args=["completion", "-s", "fish"]),
+        "git-cliff": ToolConfig(package="git-cliff"),
         "git-lfs": ToolConfig(binary="git", args=["lfs", "completion", "fish"]),
+        "gitleaks": ToolConfig(),
+        "hf": ToolConfig(binary="env", args=["_HF_COMPLETE=fish_source", "hf"]),
+        "hyperfine": ToolConfig(package="hyperfine"),
+        "jules": ToolConfig(),
         "lazygit": ToolConfig(args=["completion", "fish"]),
+        "lefthook": ToolConfig(),
+        "lsd": ToolConfig(package="lsd"),
+        "lychee": ToolConfig(args=["--generate", "complete-fish"]),
         "marimo": ToolConfig(binary="env", args=["_MARIMO_COMPLETE=fish_source", "marimo"]),
+        "mise": ToolConfig(),
         "rg": ToolConfig(args=["--generate", "complete-fish"]),
         "ruff": ToolConfig(args=["generate-shell-completion", "fish"]),
+        "rustup": ToolConfig(args=["completions", "fish"]),
         "starship": ToolConfig(args=["completions", "fish"]),
+        "terraform-docs": ToolConfig(),
+        "tree-sitter": ToolConfig(args=["complete", "--shell", "fish"]),
+        "trivy": ToolConfig(),
         "ty": ToolConfig(args=["generate-shell-completion", "fish"]),
+        "usage": ToolConfig(args=["--completions", "fish"]),
         "uv": ToolConfig(args=["generate-shell-completion", "fish"]),
+        "uvx": ToolConfig(args=["--generate-shell-completion", "fish"]),
+        "vhs": ToolConfig(package="vhs"),
         "watchexec": ToolConfig(args=["--completions", "fish"]),
         "xh": ToolConfig(args=["--generate", "complete-fish"]),
+        "ya": ToolConfig(package="github:sxyazi/yazi"),
+        "yazi": ToolConfig(package="github:sxyazi/yazi"),
         "yq": ToolConfig(args=["shell-completion", "fish"]),
         "zellij": ToolConfig(args=["setup", "--generate-completion", "fish"]),
+        "zizmor": ToolConfig(args=["--completions", "fish"]),
+        "zoxide": ToolConfig(package="zoxide"),
     }
 
 
 class CompletionConfig(StrictModel):
     path: str = "~/.config/fish/completions"
     custom_commands: dict[str, ToolConfig] = Field(default_factory=_default_custom_completions)
-    tools: list[str] = Field(
-        default_factory=lambda: [
-            "ast-grep",
-            "atlas",
-            "atuin",
-            "bat",
-            "carapace",
-            "chezmoi",
-            "codex",
-            "cosign",
-            "delta",
-            "doggo",
-            "dot",
-            "dprint",
-            "dyff",
-            "fd",
-            "fkf",
-            "gh",
-            "git-lfs",
-            "gitleaks",
-            "jules",
-            "lazygit",
-            "lefthook",
-            "marimo",
-            "mise",
-            "rg",
-            "ruff",
-            "starship",
-            "terraform-docs",
-            "trivy",
-            "ty",
-            "uv",
-            "watchexec",
-            "xh",
-            "yq",
-            "zellij",
-        ]
-    )
+    tools: list[str] = Field(default_factory=lambda: sorted(_default_custom_completions()))
     timeout_seconds: Seconds = 60.0
 
 
@@ -136,6 +134,20 @@ def default_pricing() -> PricingConfig:
     return PricingConfig.model_validate(yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text()))
 
 
+class SubscriptionConfig(StrictModel):
+    renewal_day: int = Field(ge=1, le=31)
+    timezone: str = "UTC"
+    monthly_usd: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
+
+    @model_validator(mode="after")
+    def valid_timezone(self) -> SubscriptionConfig:
+        try:
+            ZoneInfo(self.timezone)
+        except (ZoneInfoNotFoundError, ValueError) as error:
+            raise ValueError("subscription timezone must be an IANA timezone such as Europe/Paris") from error
+        return self
+
+
 class AgentConfig(StrictModel):
     sources: dict[str, str] = Field(
         default_factory=lambda: {
@@ -147,6 +159,7 @@ class AgentConfig(StrictModel):
         }
     )
     pricing: PricingConfig = Field(default_factory=default_pricing)
+    subscriptions: dict[str, SubscriptionConfig] = Field(default_factory=dict)
     doctor: AgentDoctorConfig = Field(default_factory=AgentDoctorConfig)
     hook_failures: HookFailureConfig = Field(default_factory=HookFailureConfig)
 
@@ -214,8 +227,112 @@ class DoctorConfig(StrictModel):
     probe_concurrency: int = Field(default=8, gt=0)
 
 
+# Policy values are data; native command arguments and safety boundaries stay in code.
+Scope = Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_:/.-]*$")]
+Host = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9.-]*$")]
+Project = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
+CacheProvider = Literal["docker", "hf", "uv"]
+PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
+
+
+class GitHubConfig(StrictModel):
+    host: Host = "github.com"
+    scopes: list[Scope] = Field(
+        default_factory=lambda: [
+            "gist",
+            "notifications",
+            "project",
+            "read:org",
+            "read:packages",
+            "read:user",
+            "repo",
+            "user:email",
+            "workflow",
+            "write:packages",
+            "write:public_key",
+        ]
+    )
+    remove_scopes: list[Scope] = Field(
+        default_factory=lambda: ["admin:public_key", "delete:packages", "delete_repo", "user"]
+    )
+
+    @model_validator(mode="after")
+    def distinct_scopes(self) -> GitHubConfig:
+        if set(self.scopes) & set(self.remove_scopes):
+            raise ValueError("GitHub scopes and remove_scopes must not overlap")
+        return self
+
+
+class WorkspaceConfig(StrictModel):
+    project: Project | None = None
+    scopes: list[Scope] = Field(
+        default_factory=lambda: [
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/contacts",
+            "https://www.googleapis.com/auth/contacts.other.readonly",
+            "https://www.googleapis.com/auth/directory.readonly",
+            "https://www.googleapis.com/auth/documents",
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/forms.body",
+            "https://www.googleapis.com/auth/forms.responses.readonly",
+            "https://www.googleapis.com/auth/presentations",
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.settings.basic",
+            "https://www.googleapis.com/auth/meetings.space.created",
+            "https://www.googleapis.com/auth/meetings.space.readonly",
+            "https://www.googleapis.com/auth/meetings.space.settings",
+            "https://www.googleapis.com/auth/tasks",
+            "https://www.googleapis.com/auth/chat.spaces",
+            "https://www.googleapis.com/auth/chat.messages",
+            "https://www.googleapis.com/auth/chat.memberships",
+            "https://www.googleapis.com/auth/chat.users.readstate",
+            "https://www.googleapis.com/auth/script.projects",
+            "https://www.googleapis.com/auth/script.deployments",
+            "https://www.googleapis.com/auth/script.processes",
+        ],
+        min_length=1,
+    )
+    apis: list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*\.googleapis\.com$")]] = Field(
+        default_factory=lambda: [
+            "calendar-json.googleapis.com",
+            "chat.googleapis.com",
+            "docs.googleapis.com",
+            "drive.googleapis.com",
+            "forms.googleapis.com",
+            "gmail.googleapis.com",
+            "meet.googleapis.com",
+            "people.googleapis.com",
+            "script.googleapis.com",
+            "sheets.googleapis.com",
+            "slides.googleapis.com",
+            "tasks.googleapis.com",
+        ],
+        min_length=1,
+    )
+
+
+class AuthConfig(StrictModel):
+    github: GitHubConfig = Field(default_factory=GitHubConfig)
+    workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
+    probe_timeout_seconds: Seconds = 45.0
+
+
+class CacheConfig(StrictModel):
+    providers: Annotated[list[CacheProvider], Field(min_length=1)] = ["docker", "hf", "uv"]
+
+
+class PruneConfig(StrictModel):
+    providers: Annotated[list[PruneProvider], Field(min_length=1)] = ["dprint", "hf", "mise", "npm", "trivy", "uv"]
+
+
 class Config(StrictModel):
     schema_version: Literal[3] = 3
+    auth: AuthConfig = Field(default_factory=AuthConfig)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
+    prune: PruneConfig = Field(default_factory=PruneConfig)
     completions: CompletionConfig = Field(default_factory=CompletionConfig)
     pull: PullConfig = Field(default_factory=PullConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)

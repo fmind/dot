@@ -188,7 +188,7 @@ def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.Monke
     status = repository.SystemStatus(
         repository.DockerStatus(), [repository.RepositoryStatus("repo", "work", error="inspection failed")]
     )
-    monkeypatch.setattr(repository, "gather_status", lambda _state: status)
+    monkeypatch.setattr(repository, "gather_status", lambda *_args: status)
     result = CliRunner().invoke(app, ["status", "--json"])
     assert result.exit_code != 0
     assert json.loads(result.stdout)["complete"] is False

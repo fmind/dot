@@ -1,9 +1,57 @@
 # Docs: https://docs.astral.sh/ruff/configuration/
 line-length = 120
+# Scripts outside dot/ carry no requires-python to infer the target from.
+target-version = "py314"
 # skills/*/references hold scaffold templates with <placeholder> tokens that are
 # not valid Python; every other skill script is linted like first-party code.
+# dprint owns Markdown, including the Python blocks inside it.
 extend-exclude = [
   "skills/*/references",
   ".agents",
+  "*.md",
 ]
 force-exclude = true
+
+[format]
+docstring-code-format = true
+line-ending = "lf"
+quote-style = "double"
+
+[lint]
+select = [
+  "A", # flake8-builtins (prevent shadowing Python builtins)
+  "ARG", # flake8-unused-arguments (clean function signatures without unused arguments)
+  "ASYNC", # flake8-async (async/await anti-patterns and pitfalls)
+  "B", # flake8-bugbear (common bugs and design detector)
+  "C4", # flake8-comprehensions (idiomatic comprehension syntax)
+  "DTZ", # flake8-datetimez (timezone-aware datetime construction)
+  "E", # pycodestyle errors (standard Python style errors)
+  "ERA", # eradicate (clean commented-out code)
+  "F", # Pyflakes (syntax errors, undefined variables, and unused imports)
+  "FA", # flake8-future-annotations (enforce from __future__ import annotations)
+  "FURB", # refurb (modernize constructs and idioms)
+  "I", # isort (import sorting and grouping)
+  "ISC", # flake8-implicit-str-concat (catch implicit multiline string concatenation)
+  "LOG", # flake8-logging (standard logging anti-patterns)
+  "N", # pep8-naming (PEP 8 naming conventions)
+  "PERF", # Perflint (performance anti-patterns and bottlenecks)
+  "PGH", # pygrep-hooks (enforce rule-specific noqas and eval bans)
+  "PIE", # flake8-pie (code quality improvements and redundancy elimination)
+  "PT", # flake8-pytest-style (consistent pytest idiom usage in test suites)
+  "PTH", # flake8-use-pathlib (prefer modern Path objects over os.path)
+  "Q", # flake8-quotes (consistent quote usage)
+  "RET", # flake8-return (clean return statements)
+  "RSE", # flake8-raise (clean raise statements without unneeded parentheses)
+  "RUF", # Ruff-specific rules (native correctness and modernization checks)
+  "S", # flake8-bandit (security checks)
+  "SIM", # flake8-simplify (code simplification suggestions)
+  "SLF", # flake8-self (private member access restrictions)
+  "T10", # flake8-debugger (catch debugger breakpoints)
+  "T20", # flake8-print (disallow print statements in library code)
+  "TID", # flake8-tidy-imports (ban banned or relative imports)
+  "UP", # pyupgrade (modern Python syntax upgrades)
+  "W", # pycodestyle warnings (standard Python style warnings)
+]
+ignore = [
+  "E501", # line length allowed for long URLs, strings, and templates
+]

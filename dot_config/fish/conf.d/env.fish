@@ -16,6 +16,8 @@ set -gx PAGER "bat --plain"
 
 # Tools
 set -gx CARAPACE_BRIDGES 'zsh,fish,bash'
+# Native completion owns these names; Carapace's dot command means Graphviz.
+set -gx CARAPACE_EXCLUDES 'dot,fkf'
 set -gx COPILOT_ALLOW_ALL true
 set -gx COREPACK_ENABLE_AUTO_PIN 0
 set -gx GROK_WEB_FETCH 1

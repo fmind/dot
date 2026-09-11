@@ -1,12 +1,12 @@
 ---
 name: data-migration
-description: Evolve stored schemas, file formats, and archive generations with rehearsed migration and recovery. Use when existing persisted data must survive a change.
+description: Evolve schemas, Alembic migrations, file formats, and archive generations with rehearsed recovery. Use when existing persisted data must survive a change.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/data-migration
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Data Migration
@@ -26,6 +26,7 @@ Change persisted data while preserving its declared meaning and recovery path. [
 
 ## Storage details
 
+- **Alembic**: follow [Alembic migrations](references/alembic.md) for metadata wiring, autogeneration review, revision heads, and upgrade rehearsal against the selected database.
 - **SQLite**: follow [SQLite rehearsal](references/sqlite.md) for WAL-safe snapshots, transactions, and integrity checks; a main-file copy during active writes is insufficient.
 - **Files**: stage output on the target filesystem, flush and sync as required by the durability contract, validate it, then atomically publish a manifest or pointer. Multi-file renames are not one transaction. Preserve required permissions and never overwrite an immutable generation in place.
 - **Caches**: rebuild only when the authoritative input and the selected parser/version can reproduce them. A rebuild is not a substitute for migrating unique source data.

@@ -1,11 +1,12 @@
 # Docs: https://developers.openai.com/api/docs/pricing
-as_of: "2026-09-10"
+as_of: "2026-09-11"
 basis: Standard short-context USD per million tokens; 5-minute cache writes. Excludes long-context, priority/fast,
   regional and tool fees, discounts, taxes and subscriptions. Applies current rates to historical usage; not an
   invoice.
 sources:
   - https://developers.openai.com/api/docs/pricing
   - https://platform.claude.com/docs/en/about-claude/pricing
+  - https://platform.claude.com/docs/en/models/haiku-4-5/overview
 models:
   gpt-6-astra:
     input: 10
@@ -62,6 +63,16 @@ models:
     output: 10
     cache_read: 0.125
     cache_write: null
+  claude-fable-5:
+    input: 10
+    output: 50
+    cache_read: 1
+    cache_write: 12.5
+  claude-fable-5-1:
+    input: 10
+    output: 50
+    cache_read: 0.25
+    cache_write: 12.5
   claude-opus-5:
     input: 5
     output: 25
@@ -103,6 +114,11 @@ models:
     cache_read: 0.3
     cache_write: 3.75
   claude-haiku-4-5:
+    input: 1
+    output: 5
+    cache_read: 0.1
+    cache_write: 1.25
+  claude-haiku-4-5-20251001:
     input: 1
     output: 5
     cache_read: 0.1

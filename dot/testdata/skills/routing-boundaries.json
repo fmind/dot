@@ -376,9 +376,9 @@
       ],
       "prompt": "Find the official Google Cloud product skills for compute and cloud security work.",
       "expected": [
-        "google-cloud"
+        "google-developer"
       ],
-      "primary": "google-cloud",
+      "primary": "google-developer",
       "top_k": 3
     },
     {
@@ -388,9 +388,9 @@
       ],
       "prompt": "Find Google Ads API guidance for the campaign account and planned advertising changes.",
       "expected": [
-        "google-ads"
+        "google-developer"
       ],
-      "primary": "google-ads",
+      "primary": "google-developer",
       "top_k": 3
     },
     {
@@ -400,9 +400,9 @@
       ],
       "prompt": "Find Google Analytics reporting and Admin API guidance for the selected property.",
       "expected": [
-        "google-analytics"
+        "google-developer"
       ],
-      "primary": "google-analytics",
+      "primary": "google-developer",
       "top_k": 3
     },
     {
@@ -877,46 +877,16 @@
       "top_k": 3
     },
     {
-      "id": "feature-branch-create",
+      "id": "git-branch-create",
       "categories": [
         "git"
       ],
       "prompt": "Create and switch to a conventionally named feature branch for this isolated implementation task.",
       "expected": [
-        "feature-branch"
+        "git-worktree"
       ],
-      "primary": "feature-branch",
+      "primary": "git-worktree",
       "top_k": 3
-    },
-    {
-      "id": "fkf-learn-stage",
-      "categories": [
-        "knowledge"
-      ],
-      "prompt": "Stage these verified session findings as reviewable FKF wiki diffs without publishing them.",
-      "expected": [
-        "fkf-learn"
-      ],
-      "primary": "fkf-learn",
-      "top_k": 3,
-      "forbidden": [
-        "fkf-use"
-      ]
-    },
-    {
-      "id": "fkf-retrieval",
-      "categories": [
-        "knowledge"
-      ],
-      "prompt": "Search my second brain in FKF_BASE for bounded project context, resolve the evidence URI, and read the source while keeping private details out of shared output.",
-      "expected": [
-        "fkf-use"
-      ],
-      "primary": "fkf-use",
-      "top_k": 3,
-      "forbidden": [
-        "fkf-learn"
-      ]
     },
     {
       "id": "fmind-visual-system",
@@ -942,7 +912,7 @@
       "primary": "gcloud",
       "top_k": 3,
       "forbidden": [
-        "google-cloud"
+        "google-developer"
       ]
     },
     {
@@ -1589,10 +1559,7 @@
         "git-worktree"
       ],
       "primary": "git-worktree",
-      "top_k": 3,
-      "forbidden": [
-        "feature-branch"
-      ]
+      "top_k": 3
     },
     {
       "id": "schedule-existing-command",
@@ -1663,13 +1630,10 @@
       ],
       "prompt": "Create a local fix branch from my current commit; I only need a branch name and switch.",
       "expected": [
-        "feature-branch"
-      ],
-      "primary": "feature-branch",
-      "top_k": 3,
-      "forbidden": [
         "git-worktree"
-      ]
+      ],
+      "primary": "git-worktree",
+      "top_k": 3
     },
     {
       "id": "write-one-off-script",
@@ -1851,21 +1815,6 @@
       ]
     },
     {
-      "id": "tool-wagtail",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Add an editor-managed page type with StreamField blocks, draft preview, and publishing permissions in our Wagtail CMS.",
-      "expected": [
-        "wagtail"
-      ],
-      "primary": "wagtail",
-      "top_k": 3,
-      "forbidden": [
-        "django"
-      ]
-    },
-    {
       "id": "tool-langchain",
       "categories": [
         "development"
@@ -1896,21 +1845,6 @@
       ]
     },
     {
-      "id": "tool-manim",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Render a Manim Community mathematical scene showing an equation transformation and camera motion as a video.",
-      "expected": [
-        "manim"
-      ],
-      "primary": "manim",
-      "top_k": 3,
-      "forbidden": [
-        "plotly"
-      ]
-    },
-    {
       "id": "tool-sherlock",
       "categories": [
         "development"
@@ -1923,21 +1857,6 @@
       "top_k": 3
     },
     {
-      "id": "tool-scrapy",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Build a Scrapy spider with pagination, selectors, item pipelines, throttling, and a bounded JSONL feed export.",
-      "expected": [
-        "scrapy"
-      ],
-      "primary": "scrapy",
-      "top_k": 3,
-      "forbidden": [
-        "playwright"
-      ]
-    },
-    {
       "id": "tool-cookiecutter",
       "categories": [
         "development"
@@ -1947,10 +1866,7 @@
         "cookiecutter"
       ],
       "primary": "cookiecutter",
-      "top_k": 3,
-      "forbidden": [
-        "cruft"
-      ]
+      "top_k": 3
     },
     {
       "id": "tool-cruft",
@@ -1959,13 +1875,10 @@
       ],
       "prompt": "Update a generated project from its Cruft .cruft.json template revision while preserving local changes and resolving conflicts.",
       "expected": [
-        "cruft"
-      ],
-      "primary": "cruft",
-      "top_k": 3,
-      "forbidden": [
         "cookiecutter"
-      ]
+      ],
+      "primary": "cookiecutter",
+      "top_k": 3
     },
     {
       "id": "tool-a2a-python-sdk",
@@ -1990,28 +1903,12 @@
       ],
       "prompt": "Capture a Pyinstrument sampling call tree and HTML report to explain where a slow Python request spends elapsed time.",
       "expected": [
-        "pyinstrument"
+        "systematic-debugging"
       ],
-      "primary": "pyinstrument",
+      "primary": "systematic-debugging",
       "top_k": 3,
       "forbidden": [
-        "memray",
         "benchmark"
-      ]
-    },
-    {
-      "id": "tool-pandera",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Validate incoming dataframe columns, nullability, uniqueness, and domain values with Pandera and collect schema failures.",
-      "expected": [
-        "pandera"
-      ],
-      "primary": "pandera",
-      "top_k": 3,
-      "forbidden": [
-        "pydantic"
       ]
     },
     {
@@ -2021,58 +1918,12 @@
       ],
       "prompt": "Capture native allocation stacks with Memray and compare peak and retained memory across repeated batches.",
       "expected": [
-        "memray"
+        "systematic-debugging"
       ],
-      "primary": "memray",
+      "primary": "systematic-debugging",
       "top_k": 3,
       "forbidden": [
-        "pyinstrument",
         "benchmark"
-      ]
-    },
-    {
-      "id": "tool-polars",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Optimize a Polars lazy Parquet scan with expressions, joins, group_by aggregation, and query-plan inspection.",
-      "expected": [
-        "polars"
-      ],
-      "primary": "polars",
-      "top_k": 3,
-      "forbidden": [
-        "pandas"
-      ]
-    },
-    {
-      "id": "tool-pandas",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Fix pandas index alignment, nullable dtypes, merge cardinality, and chained assignment in a dataframe transformation.",
-      "expected": [
-        "pandas"
-      ],
-      "primary": "pandas",
-      "top_k": 3,
-      "forbidden": [
-        "polars"
-      ]
-    },
-    {
-      "id": "tool-plotly",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Create a Plotly Express figure with interactive hover data and export standalone HTML plus a static chart.",
-      "expected": [
-        "plotly"
-      ],
-      "primary": "plotly",
-      "top_k": 3,
-      "forbidden": [
-        "manim"
       ]
     },
     {
@@ -2112,27 +1963,12 @@
       ],
       "prompt": "Configure pytest fixtures, parametrization, monkeypatching, and exception assertions for deterministic Python tests.",
       "expected": [
-        "pytest"
+        "test-driven-development"
       ],
-      "primary": "pytest",
+      "primary": "test-driven-development",
       "top_k": 3,
       "forbidden": [
         "quality-assurance"
-      ]
-    },
-    {
-      "id": "tool-sqlalchemy",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Implement SQLAlchemy typed ORM models, explicit transactions, relationship loading, and isolated async sessions.",
-      "expected": [
-        "sqlalchemy"
-      ],
-      "primary": "sqlalchemy",
-      "top_k": 3,
-      "forbidden": [
-        "pydantic"
       ]
     },
     {
@@ -2157,28 +1993,10 @@
       ],
       "prompt": "Show a sampled call tree explaining time spent waiting inside this slow Python request.",
       "expected": [
-        "pyinstrument"
+        "systematic-debugging"
       ],
-      "primary": "pyinstrument",
-      "top_k": 3,
-      "forbidden": [
-        "memray"
-      ]
-    },
-    {
-      "id": "validate-dataframe-boundary",
-      "categories": [
-        "workflow-boundary"
-      ],
-      "prompt": "Reject a table with duplicate keys, missing required columns, or negative prices and return all validation errors.",
-      "expected": [
-        "pandera"
-      ],
-      "primary": "pandera",
-      "top_k": 3,
-      "forbidden": [
-        "pydantic"
-      ]
+      "primary": "systematic-debugging",
+      "top_k": 3
     },
     {
       "id": "template-update-preserves-edits",
@@ -2187,28 +2005,10 @@
       ],
       "prompt": "Bring upstream template changes into this generated project while preserving its local modifications and recorded template revision.",
       "expected": [
-        "cruft"
-      ],
-      "primary": "cruft",
-      "top_k": 3,
-      "forbidden": [
         "cookiecutter"
-      ]
-    },
-    {
-      "id": "sql-transaction-rollback",
-      "categories": [
-        "workflow-boundary"
       ],
-      "prompt": "Map typed relational models and roll back the whole unit of work when a database constraint fails.",
-      "expected": [
-        "sqlalchemy"
-      ],
-      "primary": "sqlalchemy",
-      "top_k": 3,
-      "forbidden": [
-        "pydantic"
-      ]
+      "primary": "cookiecutter",
+      "top_k": 3
     },
     {
       "id": "mcp-python-client",
@@ -2223,22 +2023,6 @@
       "top_k": 3,
       "forbidden": [
         "agent-mcp"
-      ]
-    },
-    {
-      "id": "jinja-rendering",
-      "categories": [
-        "development"
-      ],
-      "prompt": "Render HTML emails from packaged templates with inheritance, macros, explicit escaping, and errors for missing values.",
-      "expected": [
-        "jinja"
-      ],
-      "primary": "jinja",
-      "top_k": 3,
-      "forbidden": [
-        "cookiecutter",
-        "cruft"
       ]
     },
     {
@@ -2258,37 +2042,31 @@
       ]
     },
     {
-      "id": "sqlalchemy-alembic",
+      "id": "alembic-migration",
       "categories": [
-        "multi-intent",
         "development"
       ],
       "prompt": "Configure Alembic target metadata, review autogenerated column renames, reconcile revision heads, and rehearse an upgrade.",
       "expected": [
-        "sqlalchemy",
         "data-migration"
       ],
-      "primary": "sqlalchemy",
-      "top_k": 3,
-      "require_all_top_k": 5
+      "primary": "data-migration",
+      "top_k": 3
     },
     {
       "id": "pytest-hypothesis",
       "categories": [
-        "multi-intent",
         "development"
       ],
       "prompt": "Integrate Hypothesis generated cases with pytest fixtures while preserving per-example state isolation and health checks.",
       "expected": [
-        "pytest",
         "test-driven-development"
       ],
-      "primary": "pytest",
-      "top_k": 3,
-      "require_all_top_k": 5
+      "primary": "test-driven-development",
+      "top_k": 3
     },
     {
-      "id": "jinja-generation-boundary",
+      "id": "template-generation-boundary",
       "categories": [
         "development"
       ],
@@ -2297,10 +2075,7 @@
         "cookiecutter"
       ],
       "primary": "cookiecutter",
-      "top_k": 3,
-      "forbidden": [
-        "jinja"
-      ]
+      "top_k": 3
     },
     {
       "id": "python-async-http-boundary",
@@ -2316,6 +2091,92 @@
       "forbidden": [
         "python-async"
       ]
+    },
+    {
+      "id": "no-route-library-syntax",
+      "categories": [
+        "no-route"
+      ],
+      "prompt": "Show the pandas syntax for selecting two dataframe columns.",
+      "route": false
+    },
+    {
+      "id": "skill-admission",
+      "categories": [
+        "agents"
+      ],
+      "prompt": "Decide whether this product overview adds enough reusable guidance to become a global skill, or belongs in existing documentation.",
+      "expected": [
+        "skillify"
+      ],
+      "primary": "skillify",
+      "top_k": 3
+    },
+    {
+      "id": "ai-security-application",
+      "categories": [
+        "security",
+        "agents"
+      ],
+      "prompt": "Assess a tool-using AI application for indirect prompt injection and cross-tenant retrieval leakage, with adversarial cases and verified effects.",
+      "expected": [
+        "ai-security-assessment"
+      ],
+      "primary": "ai-security-assessment",
+      "top_k": 3
+    },
+    {
+      "id": "ai-security-pyrit",
+      "categories": [
+        "security",
+        "agents"
+      ],
+      "prompt": "Set up a PyRIT assessment with a custom application target, repeated adversarial trials, and evidence of attempted tool actions.",
+      "expected": [
+        "ai-security-assessment"
+      ],
+      "primary": "ai-security-assessment",
+      "top_k": 3
+    },
+    {
+      "id": "security-finding-variants",
+      "categories": [
+        "security"
+      ],
+      "prompt": "Verify whether this suspected authorization bypass is exploitable, then search the codebase for other instances of its root cause.",
+      "expected": [
+        "secure"
+      ],
+      "primary": "secure",
+      "top_k": 3,
+      "forbidden": [
+        "ai-security-assessment"
+      ]
+    },
+    {
+      "id": "security-sensitive-diff",
+      "categories": [
+        "security",
+        "development"
+      ],
+      "prompt": "Review this pull request that changes tenant authorization and removes an upload path check; trace callers and test the changed boundary.",
+      "expected": [
+        "diff-review"
+      ],
+      "primary": "diff-review",
+      "top_k": 3
+    },
+    {
+      "id": "security-ai-actions",
+      "categories": [
+        "security"
+      ],
+      "prompt": "Audit this GitHub Actions workflow that passes pull request files to a coding agent and publishes the resulting artifacts.",
+      "expected": [
+        "github-actions"
+      ],
+      "primary": "github-actions",
+      "top_k": 3
     }
   ]
 }

@@ -37,7 +37,6 @@ class HarnessConfigTests(unittest.TestCase):
     def render(self, template: str, content: str, overrides: dict[str, str] | None = None) -> str:
         environment: dict[str, str] = dict(os.environ)
         environment["HOME"] = str(self.home)
-        environment.pop("FKF_BASE", None)
         for name in ("OPENCODE_GCP_PROJECT", "GOOGLE_CLOUD_PROJECT", "VERTEX_LOCATION"):
             environment.pop(name, None)
         environment.update(overrides or {})
@@ -73,27 +72,15 @@ class HarnessConfigTests(unittest.TestCase):
             ) from err
         return result.stdout
 
-    def test_toml_merge_preserves_fkf_ownership_and_hooks(self):
+    def test_toml_merge_preserves_unmanaged_settings_and_is_repeatable(self):
         for harness in ["codex", "grok"]:
             with self.subTest(harness=harness):
-                block = (
-                    f"# >>> fkf harness {harness} fkf-brain\n"
-                    '# base: "/synthetic/brain"\n'
-                    '[mcp_servers.fkf-brain]\ncommand = "/synthetic/fkf"\n'
-                    'args = ["mcp", "serve", "--base", "/synthetic/brain"]\n'
-                    '\n[[hooks.SessionStart]]\nmatcher = "startup"\n'
-                    '[[hooks.SessionStart.hooks]]\ntype = "command"\ncommand = "synthetic-hook"\n'
-                    f"# <<< fkf harness {harness} fkf-brain\n"
-                )
-                original = 'custom = "preserved"\n\n' + block
+                original = 'custom = "preserved"\n\n[mcp_servers.custom]\ncommand = "/synthetic/tool"\n'
                 template = f"dot_{harness}/modify_private_config.toml"
                 rendered = self.render(template, original)
-                assert rendered.count(block) == 1
                 data = tomllib.loads(rendered)
                 assert data["custom"] == "preserved"
-                assert data["mcp_servers"]["fkf-brain"]["command"] == "/synthetic/fkf"
-                assert data["hooks"]["SessionStart"][0]["hooks"][0]["command"] == "synthetic-hook"
-                assert "fkf" not in data["mcp_servers"]
+                assert data["mcp_servers"]["custom"]["command"] == "/synthetic/tool"
                 assert self.render(template, rendered) == rendered
 
     def test_codex_merge_keeps_autonomy_memory_and_native_subagents(self):
@@ -227,7 +214,7 @@ sessions = false
         for template in ["dot_claude/modify_settings.json", "dot_config/opencode/modify_opencode.json"]:
             with self.subTest(template=template):
                 original = {
-                    "mcp": {"fkf-team": {"command": ["/synthetic/fkf"]}},
+                    "mcp": {"custom-team": {"command": ["/synthetic/tool"]}},
                     "hooks": {"SessionStart": [{"command": "synthetic-context"}]},
                 }
                 rendered = self.render(template, json.dumps(original))
@@ -324,7 +311,3 @@ class CursorConfigTests(HarnessConfigTests):
         )
         assert json.loads(result.stdout) == {"additional_context": persona.read_text()}
         assert self.render("dot_cursor/modify_hooks.json", rendered) == rendered
-
-
-if __name__ == "__main__":
-    unittest.main()
