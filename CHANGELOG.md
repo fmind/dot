@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [5.0.1] - 2026-09-11
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Keep starter contracts color-free so CD assertions hold
+
 ## [5.0.0] - 2026-09-11
 
 ### 🚀 Features
