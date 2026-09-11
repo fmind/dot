@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [5.0.0] - 2026-09-11
+
+### 🚀 Features
+
+- [**breaking**] Overhaul the Python experience and consolidate the skill catalog
+
+### 🐛 Bug Fixes
+
+- _(cursor)_ Install cursor-agent via bootstrap hook instead of mise (#88)
+- Document every --json flag and align managed defaults
+
 ## [4.1.0] - 2026-09-10
 
 ### 🚀 Features
