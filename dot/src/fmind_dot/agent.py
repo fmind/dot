@@ -36,7 +36,7 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.artifacts import prune_agent_artifacts
-from fmind_dot.command_group import help_group
+from fmind_dot.command_group import JsonOption, help_group
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import _spool_hook_failure, decode_copilot_session_end
 from fmind_dot.state import State, state_from
@@ -71,7 +71,7 @@ def session_list(
     since: Annotated[str, typer.Option("--since", help="RFC3339 timestamp or YYYY-MM-DD")] = "",
     until: Annotated[str, typer.Option("--until", help="RFC3339 timestamp or YYYY-MM-DD")] = "",
     limit: Annotated[int, typer.Option("--limit", "-n", min=1, help="Maximum rows to return")] = 50,
-    as_json: Annotated[bool, typer.Option("--json", "-j", help="Emit structured JSON")] = False,
+    as_json: JsonOption = False,
     all_generations: Annotated[bool, typer.Option("--all-generations", help="Include superseded generations")] = False,
     status: Annotated[list[str] | None, typer.Option("--status", help="Filter by generation status")] = None,
 ) -> None:
@@ -156,7 +156,7 @@ def session_sync(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Inspect candidates without writing archives or usage")
     ] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
 ) -> None:
     sync_sessions(
         state_from(context),
@@ -206,7 +206,7 @@ def session_stats(
     cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
     since: Annotated[str, typer.Option("--since", help="Filter latest ingestion timestamps")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
 ) -> None:
     _print_statistics(state_from(context), session_statistics(_query(agent, cwd, "", since, until)), as_json=as_json)
 
@@ -219,7 +219,7 @@ def prompts_stats(
     since: Annotated[str, typer.Option("--since", help="Filter conversation timestamps, RFC3339 or YYYY-MM-DD")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
     by_project: Annotated[bool, typer.Option("--by-project")] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
 ) -> None:
     document = prompt_statistics(_query(agent, cwd, "", since, until), by_project=by_project)
     _print_statistics(state_from(context), document, as_json=as_json)
@@ -314,7 +314,7 @@ def usage_stats_command(
     since: Annotated[str, typer.Option("--since")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
     by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
     cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
     by_project: Annotated[bool, typer.Option("--by-project")] = False,
     monthly: Annotated[bool, typer.Option("--monthly", help="Group by calendar month in UTC")] = False,
@@ -342,7 +342,7 @@ def usage_list(
     context: typer.Context,
     harness: Annotated[str, typer.Option("--harness", "-a")] = "",
     limit: Annotated[int, typer.Option("--limit", "-n")] = 50,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
 ) -> None:
     state = state_from(context)
     records = list_usage_records(load_usage_records(), harness=harness, limit=limit)
@@ -379,7 +379,7 @@ def agent_stats(
     cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
     by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
     by_project: Annotated[bool, typer.Option("--by-project")] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
     monthly: Annotated[bool, typer.Option("--monthly", help="Group usage by calendar month in UTC")] = False,
     billing: Annotated[bool, typer.Option("--billing", help="Group usage by configured subscription cycles")] = False,
     tokens_only: Annotated[
@@ -438,7 +438,7 @@ def agent_doctor(
         bool, typer.Option("--explain", help="Include bounded session identities and failure reasons")
     ] = False,
     deep: Annotated[bool, typer.Option("--deep", help="Hash sources and validate every archived generation")] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j", help="Emit structured JSON")] = False,
+    as_json: JsonOption = False,
     fix: Annotated[
         bool, typer.Option("--fix", "-f", help="Apply the managed agent integration targets with chezmoi")
     ] = False,

@@ -12,6 +12,7 @@ from typing import Annotated
 
 import typer
 
+from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.state import State, require_tools, state_from
@@ -489,7 +490,7 @@ def pull_command(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="List targets without fetching or changing repositories")
     ] = False,
-    as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    as_json: JsonOption = False,
     dirty: Annotated[
         str, typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
     ] = "skip",
@@ -502,7 +503,7 @@ def status_command(
     paths: Annotated[
         list[Path] | None, typer.Argument(help="Repositories to inspect; defaults to configured workspaces")
     ] = None,
-    as_json: Annotated[bool, typer.Option("--json", "-j", help="Emit structured JSON")] = False,
+    as_json: JsonOption = False,
     needs_attention: Annotated[
         bool, typer.Option("--needs-attention", help="Only show repositories requiring attention")
     ] = False,

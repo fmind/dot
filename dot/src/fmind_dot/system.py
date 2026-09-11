@@ -17,6 +17,7 @@ import typer
 from typer.completion import get_completion_script
 
 from fmind_dot import __version__
+from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
@@ -772,7 +773,7 @@ def register(app: typer.Typer) -> None:
     @app.command("doctor", help="Check local workstation health; --deep also probes authentication")
     def doctor(
         context: typer.Context,
-        json_output: Annotated[bool, typer.Option("--json", "-j")] = False,
+        json_output: JsonOption = False,
         fix: Annotated[bool, typer.Option("--fix", "-f", help="Repair local secret-file permissions")] = False,
         deep: Annotated[bool, typer.Option("--deep", help="Also probe provider authentication")] = False,
     ) -> None:
