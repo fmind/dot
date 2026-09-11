@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/typer
   created: "2026-09-06"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Typer
@@ -27,7 +27,8 @@ Use Typer for Python CLIs; [cli-contracts](../cli-contracts/SKILL.md) owns comma
 ## Gotchas
 
 - The official skill lives inside the Python source package; `skills add fastapi/typer --list` discovers it without copying site-packages by hand.
-- Install `typer`; the old `typer-slim` and `typer-cli` distributions are deprecated.
+- Install `typer` alone: `typer-slim` and `typer-cli` are deprecated, and Typer vendors Click since 0.26.0, so never add `click` or a Click extension and test with `typer.testing.CliRunner`.
+- `Typer(no_args_is_help=True)` is inert until the app has a callback, a sub-app, or a second command; set it on `@app.command()` instead.
 
 ## Official Skills
 

@@ -34,3 +34,14 @@ Use profiling to locate a measured slowdown; [benchmark](../../benchmark/SKILL.m
 Profiles can reveal source paths and workload details. Keep them private by default and read only trusted profile files; profiler artifacts are not a safe interchange format for untrusted uploads.
 
 Sources: [Python profiling](https://docs.python.org/3/library/profile.html), [tracemalloc](https://docs.python.org/3/library/tracemalloc.html), and [time clocks](https://docs.python.org/3/library/time.html).
+
+## Optional profilers
+
+Use the project environment and installed help; add a development dependency only for a concrete diagnostic need. Keep captures private and use fresh output paths.
+
+- **Pyinstrument**: for sampled elapsed-time call trees, including waits, run `uv run pyinstrument -r html -o profile.html workload.py` (or `-m package.module`). Choose async attribution deliberately; inspect hidden frames when aggregation obscures the caller. Sampling is not an exact call counter, and short workloads can be dominated by sampling variance.
+- **Memray**: for allocation stacks, run `uv run memray run -o capture.bin workload.py`, then `uv run memray stats capture.bin` and `uv run memray flamegraph -o memory.html capture.bin`. Add `--native` at capture time when native extension allocations matter; first check platform support. Distinguish allocation volume, peak live memory, and retained allocations; high allocation volume alone is not a leak. RSS also includes allocator arenas and mapped memory.
+
+For either tool, preserve the workload and lifecycle boundaries, verify correctness after the change, and confirm improvement with an unprofiled measurement through [benchmark](../../benchmark/SKILL.md).
+
+Sources: [Pyinstrument](https://pyinstrument.readthedocs.io/en/latest/guide.html) and [Memray](https://bloomberg.github.io/memray/).

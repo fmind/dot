@@ -6,18 +6,22 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Dot CLI
 
-Use `dot` for bounded repository operations, local diagnostics, and immutable agent-session archives. The installed command and its `--help` own the active interface. Skills and native CLIs own AI writing, provider setup, release, and provider-source retention.
+Use `dot` for bounded repository operations, local diagnostics, and immutable agent-session archives. The installed command and its `--help` own the active interface. Dot also owns workstation login, setup, and cache workflows; native CLIs retain credentials and provider behavior. Skills own AI writing, release, and provider-source retention.
 
 ## Commands
 
 | Command          | Purpose                                                                                                           |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `dot agent`      | Ingest, query, export, and compact session archives; inspect integrations and preview generated-artifact cleanup. |
+| `dot cache`      | Inspect configured native caches, or select Docker, Hugging Face, or uv.                                          |
+| `dot login`      | Show providers; authenticate Workspace, GCP, GitHub, or the Workspace-then-GCP `all` sequence.                    |
+| `dot prune`      | Show providers; `dot prune all` cleans configured caches after confirmation (`--dry-run` previews).               |
+| `dot setup`      | Reconcile GitHub scopes or an explicit Workspace project and OAuth client.                                        |
 | `dot completion` | Generate and syntax-check Fish completions before atomic replacement.                                             |
 | `dot config`     | Show, locate, initialize, edit, and validate strict YAML configuration.                                           |
 | `dot doctor`     | Check local tools, permissions, environment, and installation; `--deep` adds provider authentication probes.      |
@@ -34,7 +38,7 @@ Use `dot` for bounded repository operations, local diagnostics, and immutable ag
 
 ## Contracts
 
-Configuration precedence is explicit `--config`, then `DOT_CONFIG_PATH`, then `~/.config/dot.yaml`. A missing default uses built-in defaults; an explicit missing file fails. Configuration uses `schema_version: 3` and positive finite numeric seconds in `timeout_seconds`, `probe_timeout_seconds`, and `stale_lag_seconds`. Unknown keys are rejected. Repair commands remain available with malformed configuration; chezmoi-managed edits go through their source.
+Configuration precedence is explicit `--config`, then `DOT_CONFIG_PATH`, then `~/.config/dot.yaml`. A missing default uses built-in defaults; an explicit missing file fails. Workstation policy lives under `auth`, `cache`, and `prune`; `dot config show` exposes the complete defaults. Scope lists replace defaults; native tools own credentials. Configuration uses `schema_version: 3` and positive finite numeric seconds in `timeout_seconds`, `probe_timeout_seconds`, and `stale_lag_seconds`. Unknown keys are rejected. Repair commands remain available with malformed configuration; chezmoi-managed edits go through their source.
 
 Requested data goes to stdout; progress and errors go to stderr. Exit codes are 0 for success, 1 for an operational failure or incomplete result, 2 for usage errors, and 130 for interruption. JSON output is versioned; failed operations never become an empty success. Hook protocols retain their host-specific neutral responses and bounded failure evidence.
 
@@ -42,7 +46,7 @@ A generation contains transcript, usage status/measurement, and integrity manife
 
 ## Workflow ownership
 
-Use [conventional-commit](../conventional-commit/SKILL.md) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `gh auth`, `gcloud auth`, and `gws auth` through their native contracts. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
+Use [conventional-commit](../conventional-commit/SKILL.md) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy; inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics. `dot login all` excludes GitHub. Skip decisions require usable credentials and requested scope coverage; unknown status fails, and `--force` explicitly requests authentication. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
 
 ## Documentation
 

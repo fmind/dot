@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # GitHub Actions for Python
@@ -17,13 +17,14 @@ CI runs the canonical [mise](../mise/SKILL.md) `all` task so it stays aligned wi
 
 1. **CI**: copy [ci.yml](references/ci.yml) to `.github/workflows/ci.yml`; it runs `mise run all`, asserts an empty porcelain status so drift fails the build, and fetches 100 commits to match the `check:leaks:history` bound.
 1. **Security**: copy [security.yml](references/security.yml) to `.github/workflows/security.yml`: a scheduled full-history [gitleaks](../gitleaks/SKILL.md) and [trivy](../trivy/SKILL.md) rescan where any finding fails the job.
+1. **AI steps**: use [agent workflow review](references/agent-review.md) when a workflow feeds issues, pull requests, logs, files, or tool output to an AI action; shell quoting does not remove prompt injection.
 1. **CD**: copy [cd.yml](references/cd.yml) to `.github/workflows/cd.yml`; enable `ENABLE_DEPLOY_PYPI`, `ENABLE_DEPLOY_CONTAINER`, or both. Configure the `pypi` environment and matching PyPI Trusted Publisher before enabling package publication. The image path expects the [containerize](../containerize/SKILL.md) Dockerfile, `trivy.yaml`, and `trivy` plus `cosign` in `mise.toml`.
 1. **Lint the workflows**: pin `actionlint`, `shellcheck`, and `zizmor` in `mise.toml` `[tools]`, and expose `check:actions`:
 
    ```toml
    [tasks."check:actions"]
-   description = "Lint and audit GitHub Actions workflows (actionlint + zizmor)"
-   run = ["actionlint", "zizmor --offline .github/workflows/"]
+   description = "Validate GitHub Actions workflows and Dependabot config"
+   run = ["actionlint", "zizmor --offline .github/"]
    ```
 
 1. **Verify locally**: run `mise run all`; when unrelated changes make a write-formatting gate unsafe, use an isolated working-tree copy containing the candidate edits or run `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).

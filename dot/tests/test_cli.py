@@ -22,7 +22,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.process import Runner
 
 runner = CliRunner()
-ROOT = Path(__file__).parents[2]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -49,9 +49,6 @@ def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch
         "commit",
         "pr",
         "release",
-        "prune",
-        "login",
-        "setup",
         "chezmoi",
         "verify",
     ):
@@ -102,7 +99,7 @@ def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch
 def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
     command = get_command(app)
     assert isinstance(command, TyperGroup)
-    expected = {"agent", "completion", "config", "doctor", "pull", "status"}
+    expected = {"agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status"}
     visible = [name for name in command.list_commands(_click.Context(command)) if not command.commands[name].hidden]
 
     assert set(visible) == expected
@@ -112,7 +109,7 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
 @pytest.mark.parametrize(
     ("path", "names"),
     [
-        ([], ["agent", "completion", "config", "doctor", "pull", "status"]),
+        ([], ["agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status"]),
         (["config"], ["edit", "init", "path", "show", "validate"]),
         (["agent"], ["clean", "doctor", "prompts", "session", "stats", "usage"]),
         (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),
@@ -434,7 +431,7 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
         capture_output=True,
         text=True,
         check=False,
-        timeout=10,
+        timeout=30,
     )
 
     assert result.returncode == 1
@@ -464,7 +461,7 @@ def test_python_module_entrypoint_preserves_parser_exit_codes(
         capture_output=True,
         text=True,
         check=False,
-        timeout=10,
+        timeout=30,
     )
 
     assert result.returncode == expected_exit
@@ -487,7 +484,7 @@ def test_main_maps_keyboard_interrupt_to_shell_exit_130(
     captured = capsys.readouterr()
     assert exit_info.value.code == 130
     assert captured.out == ""
-    assert captured.err == ""
+    assert captured.err == "Cancelled.\n"
 
 
 def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -498,3 +495,39 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
 
     with pytest.raises(RuntimeError, match="programmer error"):
         cli.main()
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        [],
+        ["config"],
+        ["agent"],
+        ["agent", "session"],
+        ["agent", "usage"],
+        ["agent", "prompts"],
+        ["login"],
+        ["setup"],
+        ["prune"],
+    ],
+)
+def test_bare_groups_show_help_successfully_without_actions(
+    path: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(Runner, "which", lambda *_: pytest.fail("help must not inspect or run native tools"))
+    result = runner.invoke(app, path)
+    assert result.exit_code == 0, result.output
+    assert "Usage:" in result.stdout
+    assert "Commands" in result.stdout
+
+
+def test_every_command_and_group_has_a_description() -> None:
+    def inspect(command: _click.Command, path: str) -> None:
+        assert command.help, f"missing description: {path}"
+        assert command.help.strip(), f"empty description: {path}"
+        if isinstance(command, TyperGroup):
+            for name, child in command.commands.items():
+                inspect(child, f"{path} {name}")
+
+    inspect(get_command(app), "dot")

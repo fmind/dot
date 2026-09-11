@@ -6,12 +6,16 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-09-06"
+  updated: "2026-09-11"
 ---
 
 # Google Cloud CLI
 
 Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit operations. [cloud-run](../cloud-run/SKILL.md) owns deployment, [terraform](../terraform/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
+
+## Defaults
+
+Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless the project says otherwise. Prefer Cloud Run for services; use GKE only when the project explicitly adopts Kubernetes. Existing project choices take precedence.
 
 ## Workflow
 
@@ -38,9 +42,9 @@ Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud`), listed and installed through [google-cloud](../google-cloud/SKILL.md); its CLI guardrail skill applies to every `gcloud` call.
+Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); its CLI guardrail skill applies to every `gcloud` call.
 
 ## Documentation
 
 - [gcloud reference](https://cloud.google.com/sdk/gcloud/reference) · [Authorize the gcloud CLI](https://cloud.google.com/sdk/docs/authorizing)
-- Companion skills: [google-cloud](../google-cloud/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [terraform](../terraform/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).
+- Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [terraform](../terraform/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).

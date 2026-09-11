@@ -24,6 +24,8 @@ dir = "{{config_root}}"
 [env]
 COVERAGE_FILE = "{{config_root}}/dot/.coverage"
 DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
+# uv resolves the dot project from here; tasks that need dot/ as the working
+# directory (pytest rootdir, ty first-party root) pass --directory dot instead.
 UV_PROJECT = "{{config_root}}/dot"
 
 [tools]
@@ -140,7 +142,7 @@ description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
   "uv run --frozen ruff check dot dot_config/ptpython/config.py skills/gws/scripts",
   "uv run --frozen ruff format --check dot dot_config/ptpython/config.py skills/gws/scripts",
-  "uv run --frozen ty check dot/src dot/dot_tasks dot/tests",
+  "uv run --frozen --directory dot ty check src dot_tasks tests",
   "uv run --frozen validate-pyproject dot/pyproject.toml",
   "uv lock --check",
 ]
@@ -201,9 +203,9 @@ run = "stylua dot_config/nvim"
 
 [tasks."format:python"]
 alias = "fp"
-description = "Format Python sources and imports"
+description = "Apply safe lint fixes and format Python sources"
 run = [
-  "uv run --frozen ruff check --select=I --fix dot dot_config/ptpython/config.py skills/gws/scripts",
+  "uv run --frozen ruff check --fix-only dot dot_config/ptpython/config.py skills/gws/scripts",
   "uv run --frozen ruff format dot dot_config/ptpython/config.py skills/gws/scripts",
 ]
 
@@ -226,7 +228,8 @@ run = [
 [tasks.test]
 alias = "t"
 description = "Run the Python CLI and repository contract tests"
-run = "uv run --frozen pytest -q -n auto dot/tests --cov=fmind_dot --cov=dot_tasks --cov-config=dot/pyproject.toml --cov-report=term-missing"
+# The archive tests are fsync-latency-bound, not CPU-bound; workers overlap the syncs.
+run = "uv run --frozen pytest -q -n auto dot/tests --cov --cov-config=dot/pyproject.toml"
 
 [tasks."test:starters"]
 description = "Materialize and execute the Python library, CLI, and web starter contracts"
@@ -236,7 +239,7 @@ run = "uv run --frozen pytest -q dot/tests/test_python_starter.py"
 [tasks.watch]
 alias = "w"
 description = "Re-run the Python test suite on every change"
-run = "uv run --frozen ptw dot/tests -- -q"
+run = "uv run --frozen --directory dot ptw . -q -n auto"
 
 # Project management tasks. Every alias begins with m.
 
@@ -262,8 +265,8 @@ run = "chezmoi diff --force"
 
 [tasks.doctor]
 alias = "mo"
-description = "Run chezmoi and mise health checks"
-run = ["chezmoi doctor", "mise doctor"]
+description = "Run chezmoi, mise, and installed-tool health checks"
+run = ["chezmoi doctor", "mise doctor", "mise run check:vuln:tools"]
 
 [tasks.full]
 alias = "mf"
@@ -327,6 +330,7 @@ run = [
   "uv lock --upgrade",
   "mise -C \"$HOME\" upgrade",
   "mise upgrade --local",
+  "dprint config update --yes",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",
   "mise run lock",

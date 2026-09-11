@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-07"
+  updated: "2026-09-11"
 ---
 
 # Resolve Conflicts
 
-Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Do not abort merely to hide a conflict; abort and report when the operation itself targets the wrong base or cannot safely continue. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [feature-branch](../feature-branch/SKILL.md); committing and pushing in [git-add-commit-push](../git-add-commit-push/SKILL.md).
+Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Do not abort merely to hide a conflict; abort and report when the operation itself targets the wrong base or cannot safely continue. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [Git branch preparation](../git-worktree/SKILL.md); committing and pushing in [git-add-commit-push](../git-add-commit-push/SKILL.md).
 
 ## Workflow
 

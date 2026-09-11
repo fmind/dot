@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from fmind_dot import agent_doctor as agent_doctor_module
 from fmind_dot.agent_doctor import gather_agent_doctor, repair_agent_integrations, run_agent_doctor
+from fmind_dot.archive import store as session_store
 from fmind_dot.archive.parsers import GROK_TRANSCRIPT_NAME, parse_grok_session
 from fmind_dot.archive.store import SessionLog, SessionSource, fingerprint_file, ingest_session, session_store_root
 from fmind_dot.cli import app
@@ -36,7 +37,7 @@ def test_grok_reconciliation_rejects_a_signals_race(tmp_path: Path, monkeypatch:
         def changed(directory: int, name: str, expected: os.stat_result) -> str:
             result = original(directory, name, expected)
             if name == "signals.json":
-                signals.write_text('{"contextTokensUsed":42}')
+                signals.write_text('{"contextTokensUsed":420}')
             return result
 
         monkeypatch.setattr(agent_doctor_module, "_source_fingerprint_at", changed)
@@ -494,16 +495,19 @@ def test_doctor_rejects_database_source_with_directory_kind(monkeypatch: pytest.
     assert not result.healthy
 
 
+@pytest.mark.parametrize("parser_version", ["3", "4"])
 def test_doctor_validates_complete_partial_and_corrupt_archive_lineage(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, parser_version: str
 ) -> None:
     state, _ = _healthy_state(monkeypatch, tmp_path)
-    complete = ingest_session(
-        "claude",
-        "complete",
-        [SessionLog("2026-09-01T00:00:00Z", "claude", "complete", "user", "private")],
-        SessionSource(fingerprint="a" * 64),
-    )
+    with monkeypatch.context() as parser:
+        parser.setattr(session_store, "SESSION_PARSER_VERSION", parser_version)
+        complete = ingest_session(
+            "claude",
+            "complete",
+            [SessionLog("2026-09-01T00:00:00Z", "claude", "complete", "user", "private")],
+            SessionSource(fingerprint="a" * 64),
+        )
     assert _result(state, "claude", deep=True).healthy
 
     generation = session_store_root() / "claude" / complete.lineage_id / complete.generation_id

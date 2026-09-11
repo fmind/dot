@@ -12,6 +12,10 @@ from pathlib import Path
 
 import pytest
 
+# Each case cold-starts an interpreter that imports the whole CLI, so the bound must
+# absorb a loaded `-n auto` run; a satisfied wait exits immediately and never pays it.
+ARRIVAL_DEADLINE_SECONDS = 30
+
 
 @pytest.mark.parametrize("streamed", [False, True])
 def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> None:
@@ -19,7 +23,10 @@ def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> Non
     grandchild = (
         "import os,pathlib,sys,time\n"
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()))\n"
-        "while not pathlib.Path(sys.argv[2]).exists(): time.sleep(0.01)\n"
+        "deadline=time.monotonic()+30\n"
+        "while not pathlib.Path(sys.argv[2]).exists():\n"
+        " if time.monotonic()>deadline: raise SystemExit(0)\n"
+        " time.sleep(0.01)\n"
         "pathlib.Path(sys.argv[3]).write_text('unexpected write')\n"
     )
     child = "import subprocess,sys,time\nsubprocess.Popen([sys.executable,'-c',*sys.argv[1:]])\ntime.sleep(30)\n"
@@ -38,12 +45,12 @@ def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> Non
         stderr=subprocess.DEVNULL,
     )
     try:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
         while not started.exists() and process.poll() is None and time.monotonic() < deadline:
             time.sleep(0.01)
         assert started.exists()
         process.terminate()
-        process.wait(timeout=5)
+        process.wait(timeout=ARRIVAL_DEADLINE_SECONDS)
         assert process.returncode == 130
         release.touch()
         deadline = time.monotonic() + 0.4
@@ -53,10 +60,12 @@ def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> Non
     finally:
         if process.poll() is None:
             process.kill()
-            process.wait(timeout=5)
-        if started.exists():
+            process.wait(timeout=ARRIVAL_DEADLINE_SECONDS)
+        # started may exist with no PID yet: write_text creates the file before the bytes land.
+        pid = started.read_text().strip() if started.exists() else ""
+        if pid.isdigit():
             with suppress(ProcessLookupError):
-                os.kill(int(started.read_text()), signal.SIGKILL)
+                os.kill(int(pid), signal.SIGKILL)
 
 
 @pytest.mark.parametrize("streamed", [False, True])
@@ -94,7 +103,7 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
     reaped = False
 
     def read_until(expected: bytes) -> None:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
         while expected not in output and time.monotonic() < deadline:
             if select.select([terminal], [], [], 0.05)[0]:
                 try:
@@ -108,7 +117,7 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
         os.write(terminal, b"hello\n")
         read_until(b"VALUE:hello")
         os.write(terminal, b"\x1a")
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
         status = 0
         while time.monotonic() < deadline:
             observed, status = os.waitpid(pid, os.WUNTRACED | os.WNOHANG)
@@ -124,7 +133,7 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
         else:
             os.kill(pid, signal.SIGTERM)
         read_until(b"RESTORED:True")
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
         while time.monotonic() < deadline:
             observed, status = os.waitpid(pid, os.WNOHANG)
             if observed:
@@ -138,6 +147,53 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
         if child_pid_path.exists():
             with suppress(ProcessLookupError):
                 os.killpg(int(child_pid_path.read_text()), signal.SIGKILL)
+        if not reaped:
+            with suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+        os.close(terminal)
+
+
+@pytest.mark.parametrize(("input_bytes", "expected_exit"), [(b"\x03", 130), (b"n\n", 1), (b"\x04", 1)])
+def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, expected_exit: int) -> None:
+    launcher = (
+        "import os,sys\nfrom pathlib import Path\n"
+        "from fmind_dot.process import Runner\nfrom fmind_dot.cli import main\n"
+        "Runner.which=lambda self,command: Path('/fixture') / command\n"
+        "Runner.interactive=lambda *args,**kwargs: sys.exit('UNEXPECTED CLEANUP')\n"
+        "os.environ.pop('DOT_CONFIG_PATH',None)\n"
+        "sys.argv=['dot','prune','all']\nmain()\n"
+    )
+    pid, terminal = pty.fork()
+    if pid == 0:
+        os.environ["HOME"] = str(tmp_path)
+        os.execl(sys.executable, sys.executable, "-c", launcher)  # noqa: S606
+    output = bytearray()
+    reaped = False
+    try:
+        deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
+        while b"Clean caches for" not in output and time.monotonic() < deadline:
+            if select.select([terminal], [], [], 0.05)[0]:
+                output.extend(os.read(terminal, 65536))
+        assert b"Clean caches for" in output, output.decode(errors="replace")
+        os.write(terminal, input_bytes)
+        deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
+        while time.monotonic() < deadline:
+            if select.select([terminal], [], [], 0.05)[0]:
+                with suppress(OSError):
+                    output.extend(os.read(terminal, 65536))
+            observed, status = os.waitpid(pid, os.WNOHANG)
+            if observed:
+                reaped = True
+                assert os.WIFEXITED(status)
+                assert os.WEXITSTATUS(status) == expected_exit, output.decode(errors="replace")
+                break
+        assert reaped
+        assert b"Traceback" not in output
+        assert b"Abort" not in output
+        assert b"UNEXPECTED CLEANUP" not in output
+        assert b"Cancelled" in output
+    finally:
         if not reaped:
             with suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)

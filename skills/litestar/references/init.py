@@ -12,6 +12,8 @@ from granian.constants import Interfaces
 from litestar import Litestar, Response, get
 from litestar.config.cors import CORSConfig
 from litestar.di import NamedDependency, Provide
+from litestar.logging.config import StructLoggingConfig
+from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
@@ -32,19 +34,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.dev.ConsoleRenderer()
-        if settings.environment == "development"
-        else structlog.processors.JSONRenderer(),
-    ],
-)
 logger = structlog.get_logger()
 
 
@@ -59,9 +48,9 @@ async def check_readiness(db_session: AsyncSession) -> Response[dict[str, str]]:
     try:
         await db_session.execute(text("SELECT 1"))
         return Response({"status": "ready", "database": "connected"}, status_code=200)
-    except (SQLAlchemyError, OSError):
+    except (SQLAlchemyError, OSError) as error:
         # asyncpg can propagate connection and DNS failures before SQLAlchemy wraps them.
-        logger.exception("Readiness check database error")
+        logger.warning("Readiness check database error", error=type(error).__name__)
         return Response({"status": "not_ready", "database": "disconnected"}, status_code=503)
 
 
@@ -87,11 +76,21 @@ def create_app(config: Settings) -> Litestar:
         finally:
             await engine.dispose()
 
+    logging_plugin = StructlogPlugin(
+        StructlogConfig(
+            # The "debug" default drops unhandled 500s whenever app.debug is False.
+            structlog_logging_config=StructLoggingConfig(log_exceptions="always"),
+            # Request logging is on by default and records request and response bodies.
+            enable_middleware_logging=False,
+        )
+    )
+
     return Litestar(
         route_handlers=[health_check, readiness_check],
         dependencies={"db_session": Provide(provide_db_session)},
         cors_config=CORSConfig(allow_origins=config.cors_origins),
         lifespan=[database_lifespan],
+        plugins=[logging_plugin],
     )
 
 

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diff-review
   created: "2026-08-08"
-  updated: "2026-09-07"
+  updated: "2026-09-11"
 ---
 
 # Diff Review
@@ -18,6 +18,7 @@ Review a bounded code change for concrete correctness defects and missing intent
 1. **Resolve the diff**: intended behavior, base/head or working-tree scope, affected callers, tests, and repository constraints; preserve unrelated work.
 1. **Check intent**: verify required behavior and acceptance before judging implementation quality; read surrounding code and dependency contracts.
 1. **Trace failures**: inputs, state transitions, error paths, concurrency, persistence, permissions, and compatibility only where the change affects them.
+1. **Review security-sensitive changes**: use [secure](../secure/SKILL.md) for authorization, tenant isolation, uploads, deserialization, subprocesses, credentials, or agent-tool changes. Trace removed checks through callers and relevant history; verify impact before labeling a finding and search for variants of confirmed defects.
 1. **Verify proportionally**: reproduce material findings with focused tests or source evidence; keep full-gate and runtime proof tied to the reviewed candidate.
 1. **Report actionable defects**: priority, exact location, reachable trigger, impact, and smallest correction; separate confirmed findings from uncertainty and avoid preference-only noise.
 

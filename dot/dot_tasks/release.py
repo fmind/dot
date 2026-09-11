@@ -10,6 +10,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic, sleep
+from typing import NoReturn
 
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
@@ -284,7 +285,7 @@ def _validate_prepared_release(state: State, root: Path, expected_tag: str, *, r
         )
 
 
-def _rollback_staged_release(state: State, root: Path, snapshot: _ReleaseSnapshot, cause: Exception) -> None:
+def _rollback_staged_release(state: State, root: Path, snapshot: _ReleaseSnapshot, cause: Exception) -> NoReturn:
     errors = [str(cause)]
     try:
         state.runner.run(["git", "reset", "--mixed", "HEAD"], cwd=root, timeout=10)
@@ -433,7 +434,7 @@ def wait_for_release(state: State, tag: str, *, timeout_seconds: float = 1800) -
                 "--json",
                 "headSha,status,conclusion,url",
             ],
-            timeout=min(30, deadline - monotonic()),
+            timeout=max(0.001, min(30, deadline - monotonic())),
             max_output_bytes=64 * 1024,
         )
         if response.output_truncated:

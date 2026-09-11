@@ -84,7 +84,7 @@ def test_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPatch,
     assert (
         session_lineage_id("codex", "session-1") == "b540336b2c776814303a05b68a90ac255ba738a435985fdb1709c224fd9416cc"
     )
-    assert session_generation_id("a" * 64) == "4e1e013469b15b98ff4d63130e22043bbd928e2175bdeb7ea512b1c61c54c29b"
+    assert session_generation_id("a" * 64) == "e7ec75287c5d5d293c2d669d12a355f6bb5d2629127b03571e57cbd837134b96"
     logs = [SessionLog("2026-08-01T12:00:00Z", "codex", "session-1", "user", "private", "/work")]
     source = SessionSource(type="codex-jsonl", fingerprint="a" * 64)
     result = ingest_session("codex", "session-1", logs, source)

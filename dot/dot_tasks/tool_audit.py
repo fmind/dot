@@ -134,6 +134,9 @@ def main() -> int:
     except (RuntimeError, ValueError, TypeError) as error:
         sys.stderr.write(f"{error}\n")
         return 2
+    if not inventory:
+        sys.stderr.write("no npm or pipx tool environment was audited\n")
+        return 2
     audited: list[dict[str, str]] = []
     for tool, entries in sorted(inventory.items()):
         if not isinstance(entries, list) or not entries:

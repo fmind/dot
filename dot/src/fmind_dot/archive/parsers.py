@@ -7,8 +7,9 @@ import math
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote
@@ -18,6 +19,16 @@ from fmind_dot.archive.usage import UsageRecord
 
 AGY_TRANSCRIPT_NAMES = ("transcript_full.jsonl", "transcript.jsonl")
 GROK_TRANSCRIPT_NAME = "updates.jsonl"
+# xAI reports exact integer cost ticks; its headless-mode guide defines 1 USD = 10^10 ticks.
+_GROK_TICKS_PER_USD = 10**10
+_GROK_TOKEN_FIELDS = (
+    ("inputTokens", "input_tokens"),
+    ("outputTokens", "output_tokens"),
+    ("cachedReadTokens", "cached_tokens"),
+    ("cacheCreationTokens", "cache_write_tokens"),
+    ("reasoningTokens", "reasoning_tokens"),
+    ("totalTokens", "total_tokens"),
+)
 
 
 @dataclass
@@ -55,7 +66,10 @@ def resolve_cwd(value: str) -> str:
 
 def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]]:
     # JSONL records end at LF, not at Unicode separators embedded in JSON strings.
-    for line in content.decode().split("\n"):
+    # Decode one LF-delimited record at a time: large Codex snapshots can be
+    # nearly a gigabyte, and splitting a decoded copy multiplies peak memory.
+    for raw_line in BytesIO(content):
+        line = raw_line.decode()
         if not line.strip():
             continue
         try:
@@ -242,6 +256,8 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         cwd=resolve_cwd(cwd),
         measurement_kind="provider-reported",
     )
+    messages: dict[tuple[str, str], UsageRecord] = {}
+    timed = True
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
@@ -251,7 +267,30 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             continue
         decoded += 1
         try:
-            _observe_claude_usage(usage, raw)
+            if raw.get("type") == "assistant":
+                message = _mapping(raw.get("message"))
+                sample = UsageRecord(harness="claude", session_id=session_id, measurement_kind="provider-reported")
+                _observe_claude_usage(sample, raw)
+                timed = timed and bool(sample.timestamp)
+                sample.finalize()
+                # Streaming content blocks share a message ID and repeat its usage.
+                identity = message.get("id")
+                key = (
+                    (str(raw.get("requestId", "")), identity)
+                    if isinstance(identity, str) and identity
+                    else ("row", str(decoded))
+                )
+                previous = messages.get(key)
+                if previous:
+                    # Partial blocks can report increasing output; preserve the high water.
+                    for name in ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens"):
+                        setattr(sample, name, max(getattr(previous, name), getattr(sample, name)))
+                    sample.total_tokens = (
+                        sample.input_tokens + sample.output_tokens + sample.cached_tokens + sample.cache_write_tokens
+                    )
+                messages[key] = sample
+            else:
+                _observe_claude_usage(usage, raw)
         except ValueError as error:
             usage_error = error
         kind = raw.get("type")
@@ -287,7 +326,11 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             )
         )
     _finalize_models(logs)
-    usage.total_tokens = usage.input_tokens + usage.output_tokens + usage.cached_tokens + usage.cache_write_tokens
+    if messages:
+        usage.set_samples(list(messages.values()), timed=timed)
+        usage.timestamp = max(sample.timestamp for sample in messages.values())
+        if not usage.cwd:
+            usage.cwd = next((sample.cwd for sample in messages.values() if sample.cwd), "")
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
     return ParsedSession(logs, fingerprint, "claude-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
@@ -405,6 +448,11 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         cwd=active_cwd,
         measurement_kind="provider-reported",
     )
+    samples: list[UsageRecord] = []
+    previous_counts = dict.fromkeys(
+        ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens", "reasoning_tokens", "total_tokens"), 0
+    )
+    timed = True
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
@@ -415,6 +463,24 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         decoded += 1
         try:
             _observe_codex_usage(usage, raw)
+            payload = _mapping(raw.get("payload"))
+            if (
+                raw.get("type") == "event_msg"
+                and payload.get("type") == "token_count"
+                and _mapping(payload.get("info")).get("total_token_usage")
+            ):
+                counts = {name: getattr(usage, name) for name in previous_counts}
+                if not counts["total_tokens"]:
+                    counts["total_tokens"] = counts["input_tokens"] + counts["output_tokens"]
+                delta = {name: counts[name] - previous_counts[name] for name in counts}
+                timed = timed and bool(raw.get("timestamp")) and all(value >= 0 for value in delta.values())
+                if timed and any(delta.values()):
+                    samples.append(
+                        replace(
+                            usage, model=active_model, samples=[], cost_usd=0, cost_known=False, turn_count=1, **delta
+                        )
+                    )
+                previous_counts = counts
         except ValueError as error:
             usage_error = error
         if model := _codex_field(raw, "model"):
@@ -441,6 +507,8 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
             )
         )
     _finalize_models(logs)
+    if samples and timed:
+        usage.set_samples(samples)
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
     return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
@@ -501,6 +569,9 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
         parts = []
 
     roles = {"user_message_chunk": "user", "agent_message_chunk": "assistant"}
+    samples: list[UsageRecord] = []
+    cost_ticks = 0
+    cost_complete = True
     # Both provider files participate in the generation identity. Read each once
     # so an updated measurement cannot be hidden by an unchanged transcript.
     transcript = b"" if path.name == "signals.json" else path.read_bytes()
@@ -528,6 +599,11 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
         model = _mapping(update.get("_meta")).get("modelId")
         if isinstance(model, str) and model:
             active_model = model
+        if update.get("sessionUpdate") == "turn_completed":
+            turn, ticks, complete = _grok_turn_usage(update, _grok_timestamp(raw.get("timestamp")), session_id, cwd)
+            samples.extend(turn)
+            cost_ticks += ticks
+            cost_complete = cost_complete and complete
         role = roles.get(update.get("sessionUpdate"))
         text = _mapping(update.get("content")).get("text")
         if role is None or not isinstance(text, str) or not text:
@@ -544,7 +620,9 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
     flush()
     _finalize_models(logs)
     try:
-        usage = _parse_grok_usage(signals, session_id, cwd)
+        usage = _parse_grok_usage(signals, session_id, cwd, samples, cost_ticks, cost_complete)
+        # Both provider files are inspected to produce one measurement.
+        usage.source_bytes = len(transcript) + len(signals or b"")
         usage_error = None
     except (OSError, ValueError) as error:
         usage = None
@@ -553,15 +631,59 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
 
 
 def extract_grok_usage(session_dir: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    signals = session_dir / "signals.json"
-    try:
-        content = signals.read_bytes()
-    except FileNotFoundError:
-        content = None
-    return _parse_grok_usage(content, session_id, cwd)
+    path = session_dir / GROK_TRANSCRIPT_NAME
+    if not path.is_file():
+        path = session_dir / "signals.json"
+    parsed = parse_grok_session(path, session_id, cwd)
+    if parsed.usage is None:
+        raise parsed.usage_error or ValueError("Grok session parser did not return usage")
+    return parsed.usage
 
 
-def _parse_grok_usage(content: bytes | None, session_id: str, cwd: str) -> UsageRecord:
+def _grok_turn_usage(
+    update: dict[str, Any], timestamp: str, session_id: str, cwd: str
+) -> tuple[list[UsageRecord], int, bool]:
+    """Return request measurements, reported cost ticks, and completeness for one turn."""
+    usage = _mapping(update.get("usage"))
+    if not usage:
+        return [], 0, True
+    # Per-model counters partition the turn exactly, including finished subagents.
+    models = _mapping(usage.get("modelUsage")) or {"": usage}
+    samples: list[UsageRecord] = []
+    ticks = 0
+    for index, model in enumerate(sorted(models)):
+        counters = _mapping(models[model])
+        sample = UsageRecord(
+            harness="grok",
+            session_id=session_id,
+            cwd=resolve_cwd(cwd),
+            model=model if isinstance(model, str) else "",
+            timestamp=timestamp,
+            measurement_kind="provider-reported",
+            # One completed turn is one prompt however many models billed it.
+            turn_count=1 if index == 0 else 0,
+        )
+        for source, target in _GROK_TOKEN_FIELDS:
+            count = _usage_token_count(counters.get(source), target)
+            if count is not None:
+                setattr(sample, target, count)
+        value = _usage_token_count(counters.get("costUsdTicks"), "cost_usd")
+        if value is not None:
+            ticks += value
+        samples.append(sample.finalize())
+    # xAI drops every cost float when any model call went unstamped; never sum a partial bill.
+    complete = usage.get("usageIsIncomplete") is not True and usage.get("costUsdTicks") is not None
+    return samples, ticks, complete
+
+
+def _parse_grok_usage(
+    content: bytes | None,
+    session_id: str,
+    cwd: str,
+    samples: list[UsageRecord] | None = None,
+    cost_ticks: int = 0,
+    cost_complete: bool = True,
+) -> UsageRecord:
     record = UsageRecord(
         harness="grok", agent="grok", session_id=session_id, cwd=resolve_cwd(cwd), measurement_kind="context-only"
     )
@@ -579,6 +701,15 @@ def _parse_grok_usage(content: bytes | None, session_id: str, cwd: str) -> Usage
         turns = _usage_token_count(value.get("turnCount"), "turn_count")
         if turns is not None:
             record.turn_count = turns
+    if not samples:
+        # Signals hold one final context reading, not what the session consumed.
+        return record.finalize()
+    record.measurement_kind = "provider-reported"
+    record.set_samples(samples, timed=all(sample.timestamp for sample in samples))
+    record.timestamp = max(sample.timestamp for sample in samples)
+    if cost_complete:
+        record.cost_usd = cost_ticks / _GROK_TICKS_PER_USD
+        record.cost_known = True
     return record.finalize()
 
 

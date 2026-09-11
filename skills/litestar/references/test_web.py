@@ -58,6 +58,17 @@ async def test_readiness_check_failure(error: Exception) -> None:
     assert response.content == {"status": "not_ready", "database": "disconnected"}
 
 
+@pytest.mark.anyio
+async def test_readiness_reports_503_when_the_database_is_unreachable() -> None:
+    config = Settings(database_url=SecretStr("postgresql+asyncpg://unavailable.invalid/test"), environment="test")
+
+    async with AsyncTestClient(app=create_app(config)) as client:
+        response = await client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "not_ready", "database": "disconnected"}
+
+
 def test_server_targets_the_import_package() -> None:
     server = create_server(settings)
 

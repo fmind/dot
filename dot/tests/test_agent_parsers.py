@@ -263,6 +263,120 @@ def test_grok_stream_groups_chunks_and_reports_observable_usage(tmp_path) -> Non
     assert (usage.input_tokens, usage.output_tokens, usage.total_tokens, usage.turn_count) == (21, 0, 21, 3)
 
 
+def _grok_turn(timestamp: int, usage: dict) -> dict:
+    return {"timestamp": timestamp, "params": {"update": {"sessionUpdate": "turn_completed", "usage": usage}}}
+
+
+def test_grok_turn_usage_replaces_context_reading_with_billed_requests(tmp_path) -> None:
+    updates = tmp_path / "updates.jsonl"
+    _jsonl(
+        updates,
+        [
+            _grok_turn(
+                1_760_000_000,
+                {
+                    "inputTokens": 1000,
+                    "outputTokens": 40,
+                    "totalTokens": 1040,
+                    "cachedReadTokens": 600,
+                    "cacheCreationTokens": 100,
+                    "reasoningTokens": 30,
+                    "costUsdTicks": 92_854_000,
+                    "modelUsage": {
+                        "grok-4.6-build": {
+                            "inputTokens": 800,
+                            "outputTokens": 30,
+                            "totalTokens": 830,
+                            "cachedReadTokens": 600,
+                            "cacheCreationTokens": 100,
+                            "reasoningTokens": 30,
+                            "costUsdTicks": 82_854_000,
+                        },
+                        "grok-4.6-fast": {
+                            "inputTokens": 200,
+                            "outputTokens": 10,
+                            "totalTokens": 210,
+                            "costUsdTicks": 10_000_000,
+                        },
+                    },
+                },
+            ),
+            _grok_turn(
+                1_760_000_060,
+                {
+                    "inputTokens": 500,
+                    "outputTokens": 20,
+                    "totalTokens": 520,
+                    "cachedReadTokens": 400,
+                    "costUsdTicks": 7_146_000,
+                    "modelUsage": {
+                        "grok-4.6-build": {
+                            "inputTokens": 500,
+                            "outputTokens": 20,
+                            "totalTokens": 520,
+                            "cachedReadTokens": 400,
+                            "costUsdTicks": 7_146_000,
+                        }
+                    },
+                },
+            ),
+        ],
+    )
+    (tmp_path / "signals.json").write_text(
+        '{"primaryModelId":"grok-4.6","contextTokensUsed":21,"turnCount":2}', encoding="utf-8"
+    )
+    usage = extract_grok_usage(tmp_path, "grok-id", "/work")
+    assert usage.measurement_kind == "provider-reported"
+    # Session totals are the billed requests, not the final 21-token context reading.
+    assert (usage.input_tokens, usage.output_tokens, usage.cached_tokens, usage.cache_write_tokens) == (
+        1500,
+        60,
+        1000,
+        100,
+    )
+    # Grok reports input as the whole prompt, so the total excludes the cache subsets.
+    assert usage.total_tokens == 1560
+    assert usage.reasoning_tokens == 30
+    assert usage.model == "mixed"
+    assert usage.turn_count == 2
+    assert usage.cost_known is True
+    assert usage.cost_usd == pytest.approx(0.01)  # 92,854,000 + 7,146,000 ticks at 1e10 per USD
+    assert [(sample["model"], sample["total_tokens"]) for sample in usage.samples] == [
+        ("grok-4.6-build", 830),
+        ("grok-4.6-fast", 210),
+        ("grok-4.6-build", 520),
+    ]
+    assert usage.timestamp == "2025-10-09T08:54:20Z"  # latest turn, from Unix seconds
+
+
+def test_grok_unstamped_turn_leaves_session_cost_unknown(tmp_path) -> None:
+    updates = tmp_path / "updates.jsonl"
+    _jsonl(
+        updates,
+        [
+            _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "totalTokens": 11, "costUsdTicks": 5_000_000}),
+            _grok_turn(2, {"inputTokens": 20, "outputTokens": 2, "totalTokens": 22, "usageIsIncomplete": True}),
+        ],
+    )
+    usage = extract_grok_usage(tmp_path, "grok-id")
+    assert usage.measurement_kind == "provider-reported"
+    assert (usage.input_tokens, usage.output_tokens, usage.total_tokens) == (30, 3, 33)
+    # A partial bill is never presented as a complete one.
+    assert usage.cost_known is False
+    assert usage.cost_usd == 0.0
+
+
+def test_grok_without_turn_usage_keeps_the_context_reading(tmp_path) -> None:
+    updates = tmp_path / "updates.jsonl"
+    _jsonl(updates, [{"timestamp": 1, "params": {"update": {"sessionUpdate": "agent_message_chunk"}}}])
+    (tmp_path / "signals.json").write_text(
+        '{"primaryModelId":"grok-4.6","contextTokensUsed":21,"turnCount":3}', encoding="utf-8"
+    )
+    usage = extract_grok_usage(tmp_path, "grok-id")
+    assert usage.measurement_kind == "context-only"
+    assert (usage.input_tokens, usage.total_tokens, usage.turn_count, usage.model) == (21, 21, 3, "grok-4.6")
+
+
 @pytest.mark.parametrize("timestamp", [float("nan"), float("inf"), 10**100], ids=["nan", "infinity", "out-of-range"])
 def test_grok_parser_ignores_unrepresentable_timestamps(tmp_path, timestamp: int | float) -> None:
     updates = tmp_path / "updates.jsonl"

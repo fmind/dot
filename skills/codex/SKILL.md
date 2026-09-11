@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/codex
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Codex
@@ -28,7 +28,7 @@ Operate Codex's harness, sessions, and customization. Use a host-provided OpenAI
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [Documentation](https://learn.chatgpt.com/docs) · [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
 - [Changelog](https://learn.chatgpt.com/docs/changelog): select Codex entries and the surface in use.

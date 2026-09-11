@@ -1,12 +1,12 @@
 ---
 name: systematic-debugging
-description: Diagnose unknown-cause bugs, test/build or auth failures, flakes, and runtime performance regressions. Investigate, reduce, localize, falsify hypotheses, and explain root cause before implementation.
+description: Diagnose bugs, test/build or auth failures, flakes, and Python performance regressions. Use for root-cause investigation and profiling time or memory with Pyinstrument or Memray.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Systematic Debugging
@@ -37,7 +37,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 ## References
 
-- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations; use `uv` to run the project Python.
+- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument and Memray captures; use `uv` to run the project Python.
 
 ## Documentation
 

@@ -91,16 +91,15 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             tmp_path,
             "uv",
             "add",
-            "litestar[standard]>=2.24.0",
-            "granian[reload]>=2.8.1",
+            "litestar>=2.24.0",
+            "granian[reload,uvloop]>=2.8.1",
             "sqlalchemy>=2.0.52",
             "asyncpg>=0.31.0",
-            "alembic>=1.19.1",
             "pydantic>=2.13.4",
             "pydantic-settings>=2.15.0",
             "structlog>=26.1.0",
         )
-        _run(tmp_path, "uv", "add", "--dev", "anyio>=4.14.2", "testcontainers[postgres]>=4.15.0")
+        _run(tmp_path, "uv", "add", "--dev", "anyio>=4.14.2", "testcontainers>=4.15.0")
         _write(tmp_path, "src/starter_py/__init__.py", _render("init.py", replacements, owner="litestar"))
         _write(tmp_path, "src/starter_py/__main__.py", 'from . import main\n\nif __name__ == "__main__":\n    main()\n')
         for name in ("test_web.py", "test_integration.py"):

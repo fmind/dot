@@ -1,5 +1,6 @@
 # Docs: https://lefthook.dev/configuration/
 
+output: [summary, failure, execution_out] # quiet commits: no version banner, no successful-step noise
 pre-commit:
   parallel: false
   commands:

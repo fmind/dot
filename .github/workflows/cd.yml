@@ -28,10 +28,11 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: false
-      - name: Trust repository
-        run: mise trust -y mise.toml
+          minimum_release_age: 7d
       - name: Run canonical gate
         run: mise run all
+      - name: Run starter contracts
+        run: mise run test:starters
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:

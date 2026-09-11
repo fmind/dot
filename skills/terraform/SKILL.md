@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terraform
   created: "2026-08-07"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Terraform / OpenTofu Stack Standard
@@ -64,4 +64,4 @@ Upstream: `hashicorp/agent-skills`; follow the shared [vendor-skill policy](../a
 ## Documentation
 
 - [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/latest/docs/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
-- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/SKILL.md) (CI), [secure](../secure/SKILL.md) (full-repo scans), [google-cloud](../google-cloud/SKILL.md) (product skills).
+- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/SKILL.md) (CI), [secure](../secure/SKILL.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).

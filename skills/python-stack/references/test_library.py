@@ -1,5 +1,7 @@
-from <package> import __version__
+from importlib.metadata import version
+
+import <package>
 
 
-def test_version() -> None:
-    assert __version__ == "0.1.0"
+def test_version_matches_metadata() -> None:
+    assert <package>.__version__ == version("<slug>")

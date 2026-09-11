@@ -1,17 +1,17 @@
 ---
 name: python-async
-description: Implement Python async concurrency. Use for task groups, cancellation, deadlines, bounded queues, blocking work, and graceful shutdown in asyncio or AnyIO.
+description: Decide if async fits, then implement it. Use for task groups, cancellation, deadlines, bounded queues, blocking work, and shutdown in asyncio or AnyIO.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-async
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Python Async
 
-Own concurrent task lifetime and failure behavior. [api-client](../api-client/SKILL.md) owns HTTP semantics and retries, [sqlalchemy](../sqlalchemy/SKILL.md) owns database sessions, and framework skills own application integration.
+Own concurrent task lifetime and failure behavior. Async pays off only when many operations wait on IO at the same time; reject it for CPU-bound work (use processes), behind a blocking driver (stay synchronous or `asyncio.to_thread`), and in sequential scripts and CLIs. [api-client](../api-client/SKILL.md) owns HTTP semantics and retries, framework skills own application integration.
 
 ## Workflow
 
@@ -22,13 +22,13 @@ Own concurrent task lifetime and failure behavior. [api-client](../api-client/SK
 1. Apply an operation deadline around all its work, including waiting for capacity and retries. Use `asyncio.timeout`/`timeout_at` or AnyIO `fail_after` according to the existing runtime; keep transport timeouts separate and test their interaction.
 1. Release resources with context managers or `try/finally`, and propagate cancellation after cleanup. Use [cancellation and tests](references/cancellation.md) for asyncio/AnyIO differences, bounded cleanup, and deterministic failure probes.
 1. Move blocking IO to the project's thread facility. A cancelled await does not forcibly stop its worker thread; use cooperative termination or an explicitly managed process when termination is required. Choose a process executor for CPU work only after checking workload and serialization costs.
-1. Test success, sibling failure, external cancellation, deadline expiry, producer backpressure, and shutdown with in-flight work. Assert resources close and owned tasks finish; use the existing pytest runner and native gate.
+1. Test success, sibling failure, external cancellation, deadline expiry, producer backpressure, and shutdown with in-flight work. Assert resources close and owned tasks finish; use the existing pytest runner and native gate. Dump the task tree of an already hung process with `python -m asyncio pstree <pid>` on Python 3.14+; attaching needs elevated debugger privileges on the target.
 
 ## Gotchas
 
 - `gather` does not provide TaskGroup's sibling-cancellation behavior on ordinary child failure. Preserve deliberate partial-result semantics instead of mechanically replacing either API.
 - Cancellation is cooperative: blocking calls, long code without await points, and swallowed cancellation can defeat deadlines. Timeout exit may include cleanup time; it is not a hard process kill.
-- Detached tasks need a lifecycle owner, exception observation, and shutdown handling. Request-local background work is not a durable job queue.
+- Detached tasks need a lifecycle owner, exception observation, and shutdown handling. The loop keeps only weak references, so hold each task in a set until it completes; an unreferenced task can be collected mid-flight. Request-local background work is not a durable job queue.
 - Keep AnyIO cancel scopes nested in the same task. A task's database session belongs to that task; async does not make shared mutable state safe.
 
 ## Documentation

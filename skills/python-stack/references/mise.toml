@@ -1,5 +1,8 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
+[settings]
+lockfile = true
+
 [settings.task]
 run_auto_install = false
 
@@ -33,10 +36,9 @@ depends = [
 alias = "cf"
 description = "Check formatting, project metadata, and lockfile"
 run = [
-  "uv run validate-pyproject pyproject.toml",
-  "uv run ruff format --check",
+  "uv run --locked validate-pyproject pyproject.toml",
+  "uv run --locked ruff format --check",
   "dprint check",
-  "uv lock --check",
 ]
 
 [tasks."check:leaks"]
@@ -60,12 +62,12 @@ run = "gitleaks git --redact=100 --staged --verbose"
 [tasks."check:lint"]
 alias = "cl"
 description = "Lint Python sources (ruff)"
-run = "uv run ruff check"
+run = "uv run --locked ruff check"
 
 [tasks."check:types"]
 alias = "ct"
 description = "Type-check Python sources (ty)"
-run = "uv run ty check"
+run = "uv run --locked ty check"
 
 [tasks."check:vuln"]
 alias = "cv"
@@ -122,12 +124,12 @@ run = "uv publish"
 [tasks.test]
 alias = "t"
 description = "Run offline tests with the coverage gate"
-run = 'uv run pytest -m "not integration" --cov --cov-fail-under=85'
+run = 'uv run --locked pytest -m "not integration" --cov'
 
 [tasks."test:integration"]
 alias = "ti"
 description = "Run opt-in Docker-backed integration tests"
-run = "uv run pytest -m integration"
+run = "uv run --locked pytest -m integration"
 
 [tasks."test:watch"]
 alias = "tw"

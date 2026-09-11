@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/nicegui
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # NiceGUI
@@ -15,12 +15,9 @@ Build browser utilities with Python components and event handlers. Use [gradio](
 
 ## Workflow
 
-1. Inspect the project dependency model; for a new packaged app, use `uv add nicegui`. Preserve PEP 723 metadata for an existing standalone script. Locate the installed version and its official agent reference with the command below, then read the reference when present.
-1. Build pages with `@ui.page`, keeping visitor-specific state inside the page or the appropriate `app.storage` scope. Prefer ordinary Python callbacks, bindings, and in-place element updates; reserve `@ui.refreshable` for subtrees that need rebuilding.
-1. Use rows, columns, cards, dialogs, and native components before custom HTML or JavaScript. Style with supported component properties, Tailwind classes, and scoped CSS; verify responsive behavior and keyboard interaction in the browser.
-1. Keep the shared event loop responsive. Await asynchronous I/O; use `await run.io_bound(...)` for blocking I/O and `await run.cpu_bound(...)` for CPU work, with picklable arguments and results. Return UI changes to the page context and surface task failures.
-1. Run locally with `uv run python app.py`, using `ui.run(host="127.0.0.1")` for local development. Inspect the deployment model before changing binding, proxy, or worker settings.
-1. Test callbacks and invalid inputs with the project's test harness. Use NiceGUI's `user` fixture for simulated interactions and browser tests for layout or JavaScript behavior; check state isolation with separate clients when state is involved. Run the project's normal gate.
+1. Inspect the project's locked NiceGUI version and dependency model, preserving packaged or PEP 723 setup. Locate and read its installed agent reference below before using online examples.
+1. Use that reference for components, page state, callbacks, and tests. Keep computation independently testable and local development bound to `127.0.0.1`.
+1. Verify the main browser interaction, independent client state, callback failures, and the project's native gate. An import or HTTP 200 alone does not prove UI behavior.
 
 ## Installed reference
 
@@ -32,10 +29,9 @@ If that release lacks `llms.md`, use the official documentation and installed so
 
 ## Gotchas
 
-- Module-level mutable state is shared by all users. Choose page, client, tab, user, or general storage deliberately; cookie-based storage identity does not replace application authentication.
-- Blocking a callback stalls the shared event loop. Do not call blocking model inference directly from an async UI handler.
-- NiceGUI uses a persistent Socket.IO connection and a single server worker. A static HTML export cannot preserve Python callbacks, and adding generic ASGI workers does not automatically preserve UI state.
-- Rebuilding elements can lose focus and browser state; update existing values where possible. Direct DOM mutation can diverge from NiceGUI's Python-side element model.
+- Module-level mutable state is shared across users; choose the page or storage scope deliberately. Storage identity does not replace authentication.
+- Blocking callbacks stall the shared event loop; use the installed reference's supported I/O and CPU offloading facilities.
+- Python callbacks need the running server and persistent connection. Static export or generic extra ASGI workers do not automatically preserve that model.
 
 ## Official Skills
 

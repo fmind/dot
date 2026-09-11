@@ -1,12 +1,17 @@
 # chezmoi:modify-template
+{{- /* model must match what /model persists, or apply reverts the choice.
+       effortLevel stops at xhigh: max is session-only (/effort max), and an
+       unknown value silently falls back to the default effort. */ -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "agentPushNotifEnabled": true,
   "attribution": {
     "commit": "",
     "pr": "",
     "sessionUrl": false
   },
+  "autoContinueAtUsageLimit": true,
   "autoMemoryEnabled": true,
   "autoUpdatesChannel": "stable",
   "editorMode": "vim",
@@ -80,7 +85,7 @@
     ]
   },
   "inputNeededNotifEnabled": true,
-  "model": "opus[1m]",
+  "model": "claude-fable-5-1[1m]",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
@@ -88,6 +93,7 @@
   "skillListingBudgetFraction": 0.02,
   "skipDangerousModePermissionPrompt": true,
   "tui": "fullscreen",
+  "workflowSizeGuideline": "large",
   "worktree": {
     "baseRef": "head"
   }

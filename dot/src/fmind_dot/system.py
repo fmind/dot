@@ -20,8 +20,8 @@ from fmind_dot import __version__
 from fmind_dot.config import expand_path
 from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, Runner
-from fmind_dot.state import State, state_from
+from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, Runner
+from fmind_dot.state import State, require_tools, state_from
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 _NOTIFY_EVENTS = {
@@ -38,7 +38,6 @@ _NOTIFY_AGENTS = {
     "grok": "Grok Build",
 }
 _NOTIFY_EXPIRE_MS = "10000"
-_PROBE_OUTPUT_LIMIT_BYTES = 64 * 1024
 _AUTH_PROBES = {
     "gh": (["gh", "auth", "status"], False),
     "gcloud": (["gcloud", "auth", "print-access-token"], True),
@@ -118,13 +117,6 @@ def _check_result_payload(result: CheckResult) -> dict[str, str]:
     if result.details:
         payload["details"] = result.details
     return payload
-
-
-def _tool(state: State, command: str) -> Path:
-    path = state.runner.which(command)
-    if path is None:
-        raise DotError(f"required tool is not installed: {command}")
-    return path
 
 
 def _display_path(home: Path, path: Path) -> str:
@@ -260,7 +252,7 @@ def send_notification(state: State, notification: Notification) -> None:
 def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
     if not content.strip():
         raise DotError(f"generated Fish script is empty: {path.name}")
-    _tool(state, "fish")
+    require_tools(state, [["fish"]])
     timeout = state.config.completions.timeout_seconds
     try:
         state.runner.run(["fish", "--no-config", "--no-execute"], input_text=content, timeout=timeout)
@@ -287,34 +279,34 @@ def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> 
 def _generate_completion(state: State, tool: str) -> str:
     custom = state.config.completions.custom_commands.get(tool)
     binary = custom.binary if custom and custom.binary else tool
+    if tool == "dot" and custom and custom.binary == "env" and custom.args == ["_DOT_COMPLETE=source_fish", "dot"]:
+        return get_completion_script(  # noqa: S604 - static Fish protocol template, not a shell invocation.
+            prog_name="dot", complete_var="_DOT_COMPLETE", shell="fish"
+        )
     if state.runner.which(tool) is None:
-        if tool == "dot":
-            return get_completion_script(  # noqa: S604 - Typer renders a static template; no shell is executed.
-                prog_name="dot",
-                complete_var="_DOT_COMPLETE",
-                shell="fish",
-            )
         raise FileNotFoundError(tool)
+    if custom and custom.package:
+        require_tools(state, [["mise"]])
+        root = state.runner.run(
+            ["mise", "where", "--", custom.package], timeout=state.config.completions.timeout_seconds
+        ).stdout.strip()
+        if not root or not Path(root).is_absolute() or not Path(root).is_dir():
+            raise DotError(f"mise returned an invalid completion package directory for {tool}")
+        matches = list(Path(root).rglob(f"{tool}.fish"))
+        if len(matches) != 1:
+            raise DotError(f"expected one bundled Fish completion for {tool}, found {len(matches)}")
+        return matches[0].read_text(encoding="utf-8")
     if binary != tool and state.runner.which(binary) is None:
         raise DotError(f"completion generator for {tool} is not installed: {binary}")
     args = custom.args if custom and custom.args else ["completion", "fish"]
-    fallback = [tool, "completion", "fish"]
-    primary = [binary, *args]
     timeout = state.config.completions.timeout_seconds
     with tempfile.TemporaryDirectory(prefix="dot-completion-") as directory:
         try:
-            result = state.runner.run(primary, cwd=Path(directory), timeout=timeout)
-            if not result.stdout.strip():
-                raise DotError("completion command returned no output")
-        except (DotError, OSError) as primary_error:
-            if primary == fallback:
-                raise DotError(f"failed to generate completions for {tool}") from primary_error
-            try:
-                result = state.runner.run(fallback, cwd=Path(directory), timeout=timeout)
-            except (DotError, OSError) as fallback_error:
-                raise DotError(f"failed to generate completions for {tool}") from fallback_error
-            if not result.stdout.strip():
-                raise DotError(f"failed to generate completions for {tool}: empty output") from primary_error
+            result = state.runner.run([binary, *args], cwd=Path(directory), timeout=timeout)
+        except (DotError, OSError) as error:
+            raise DotError(f"failed to generate completions for {tool}") from error
+        if not result.stdout.strip():
+            raise DotError(f"failed to generate completions for {tool}: empty output")
     return result.stdout
 
 
@@ -329,28 +321,16 @@ def run_completion(state: State) -> None:
         f"=> Generating Fish autocompletions for {len(state.config.completions.tools)} tools in {directory}...\n",
         file=state.stdout,
     )
-    for tool in state.config.completions.tools:
+    for tool in dict.fromkeys(state.config.completions.tools):
         try:
             content = _generate_completion(state, tool)
             _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
             typer.echo(f"  ✓ Generated completions for {tool}", file=state.stdout)
         except FileNotFoundError:
             typer.echo(f"  ○ {tool} is not installed, skipping", file=state.stdout)
-        except DotError as error:
+        except (DotError, OSError) as error:
             failures.append(f"{tool}: {error}")
             typer.echo(f"  ✗ Failed to generate completions for {tool}", file=state.stdout)
-    if "dot" not in state.config.completions.tools:
-        try:
-            dot_completion = get_completion_script(  # noqa: S604 - Typer renders a static template; no shell is executed.
-                prog_name="dot",
-                complete_var="_DOT_COMPLETE",
-                shell="fish",
-            )
-            _write_validated_fish(state, directory / "dot.fish", dot_completion, 0o644)
-            typer.echo("  ✓ Generated completions for dot", file=state.stdout)
-        except (DotError, OSError) as error:
-            failures.append(f"dot.fish: {error}")
-            typer.echo("  ✗ Failed to generate completions for dot", file=state.stdout)
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
     try:
         cache.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -368,16 +348,21 @@ def run_completion(state: State) -> None:
             if state.runner.which(tool) is None:
                 continue
             try:
-                result = state.runner.run([tool, *args], timeout=state.config.completions.timeout_seconds)
+                # Native scripts must win over Carapace's generic completers;
+                # in particular its "dot" completer is for Graphviz, not this CLI.
+                excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(state.config.completions.tools)
+                environment = {"CARAPACE_EXCLUDES": ",".join(sorted(excludes - {""}))} if tool == "carapace" else None
+                result = state.runner.run(
+                    [tool, *args], timeout=state.config.completions.timeout_seconds, env=environment
+                )
                 _write_validated_fish(state, cache / filename, result.stdout, 0o600)
                 typer.echo(f"  ✓ Generated {filename}", file=state.stdout)
             except (DotError, OSError) as error:
                 failures.append(f"{filename}: {error}")
                 typer.echo(f"  ✗ Failed to generate {filename}", file=state.stdout)
     if failures:
-        typer.echo(f"\n⚠ Completions updated with {len(failures)} failure(s) in {directory}", file=state.stdout)
-    else:
-        typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
+        raise DotError("completion generation failed: " + "; ".join(failures))
+    typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
 
 
 def _environment_results(state: State) -> list[CheckResult]:
@@ -403,7 +388,7 @@ def _opencode_project_result(state: State) -> CheckResult:
         # Disable external plugins and never render the potentially secret output.
         result = state.runner.run_bounded(
             ["opencode", "debug", "config", "--pure"],
-            max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
+            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
             timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
@@ -483,7 +468,7 @@ def _tool_results(state: State) -> list[CheckResult]:
         try:
             result = state.runner.run_bounded(
                 [str(path), *args],
-                max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
+                max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
                 timeout=timeout,
                 check=False,
             )
@@ -524,7 +509,7 @@ def _auth_results(state: State) -> list[CheckResult]:
         try:
             result = state.runner.run_bounded(
                 command,
-                max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
+                max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
                 timeout=timeout,
                 check=False,
             )
@@ -569,7 +554,7 @@ def _docker_results(state: State) -> list[CheckResult]:
     try:
         result = state.runner.run_bounded(
             ["docker", "info"],
-            max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
+            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
             timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
@@ -706,7 +691,7 @@ def _install_results(state: State) -> list[CheckResult]:
     try:
         source_result = state.runner.run_bounded(
             ["chezmoi", "source-path"],
-            max_output_bytes=_PROBE_OUTPUT_LIMIT_BYTES,
+            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
             timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
@@ -774,7 +759,7 @@ def _print_doctor(state: State, results: Mapping[str, Any]) -> None:
         typer.echo(f"\n{label}", file=state.stdout)
         for item in results[key]:
             typer.echo(
-                f"  {icons[item['status']]} {item['name']:<20} {item['details']}",
+                f"  {icons[item['status']]} {item['name']:<20} {item.get('details', '')}",
                 file=state.stdout,
             )
 

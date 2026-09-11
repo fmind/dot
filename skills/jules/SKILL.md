@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/jules
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Jules
@@ -28,7 +28,7 @@ Operate Jules through its CLI and hosted task workflow. Its remote workspace doe
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [CLI reference](https://jules.google/docs/cli/reference/) · [Changelog](https://jules.google/docs/changelog/)
 - [Environment setup](https://jules.google/docs/environment/): remote dependencies and setup scripts.

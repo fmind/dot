@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-08-07"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Cloud Run Deployment
@@ -37,7 +37,7 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud`), listed and installed through [google-cloud](../google-cloud/SKILL.md); select the Cloud Run and CLI guardrail skills needed for the task.
+Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); select the Cloud Run and CLI guardrail skills needed for the task.
 
 ## Documentation
 

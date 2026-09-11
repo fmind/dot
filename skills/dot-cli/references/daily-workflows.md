@@ -29,24 +29,31 @@ Sync supports `--agent`, `--session`, `--project`/`--cwd`, and `--since`; its da
 
 Session statistics separate latest sessions from retained generations and bytes; their date filter uses latest ingestion time. They report metadata status without claiming transcript validation. Prompt statistics read validated latest transcripts but emit only counts and length summaries, never message text. A prompt means an archived user message, possibly including injected context, not necessarily one human-authored turn. Dates use conversation timestamps in UTC; bounded queries exclude unparseable timestamps. Excluded or partial sessions and bounded timestamp gaps report incomplete coverage with a nonzero exit while retaining the available statistics. Neither command measures productivity or answer quality.
 
-Parser generation 3 keeps LF-only JSONL framing and publishes manifest schema 2 with `transcript.jsonl` and `usage.json`. Usage is `available` or `unsupported`; failed extraction is reported and never published as a complete generation. Copilot reads transcript and usage in one database read transaction. Grok fingerprints both transcript and signals snapshots, including signals-only sessions. A changed source creates a new immutable generation. The active `sessions/v2` store accepts only this format; earlier stores remain untouched and are not queried.
+Parser generation 4 keeps LF-only JSONL framing and publishes manifest schema 2 with `transcript.jsonl` and `usage.json`. Usage is `available` or `unsupported`; failed extraction is reported and never published as a complete generation. Copilot reads transcript and usage in one database read transaction. Grok fingerprints both transcript and signals snapshots, including signals-only sessions. A changed source creates a new immutable generation. The active `sessions/v2` store reads parser 3 and 4 bundles; parser 3 remains legacy evidence, while recapture creates parser 4 without rewriting history. Earlier stores remain untouched and are not queried.
 
-Usage queries select one latest bundle per session from the active store. They count a session once across generations. A selected bundle with unsupported usage does not silently reuse an older measurement. Use `dot agent session sync` for explicit recapture of available provider sources. Unknown costs remain unknown, and unlike measurement kinds remain separate.
+Usage queries select one bundle per session from the active store, preferring the newest admitted parser, then latest ingestion. They count a session once across generations. A selected bundle with unsupported usage does not silently reuse an older measurement. Use `dot agent session sync` for explicit recapture of available provider sources. Unknown costs remain unknown, and unlike measurement kinds remain separate.
 
-`session list` includes a generation ID accepted by `show`; `--project .` resolves the current directory. Session list/statistics date filters use ingestion timestamps, source-sync filters use source modification time, prompt statistics use conversation timestamps, and usage filters include whole sessions by the measurement timestamp (capture time when the source has no timestamp). Dates are interpreted in UTC. Explicit generation identities can select historical data.
+`session list` includes a generation ID accepted by `show`; `--project .` resolves the current directory. Session list/statistics date filters use ingestion timestamps, source-sync filters use source modification time, prompt statistics use conversation timestamps, and usage filters use request timestamps when reliable samples exist, otherwise whole sessions by measurement timestamp (capture time when the source has no timestamp). Dates are interpreted in UTC. Explicit generation identities can select historical data.
+
+For quick token totals and coverage dates, use `dot agent stats --tokens-only`; add `--monthly` for calendar months or `--billing --harness codex` for configured subscription cycles. The [usage guide](../../agent-usage/SKILL.md) owns accounting, pricing completeness, and renewal settings.
 
 ## Cleanup and recovery
 
-Global mise tasks live in the chezmoi source under `dot_config/mise/conf.d/`: `login.toml` owns login and OAuth scope policy, `setup.toml` owns provider setup, `cache.toml` owns inspection, and `prune.toml` owns cleanup. Chezmoi deploys them to `~/.config/mise/conf.d/`; an existing `maintenance.toml` is left in place and needs separate cleanup to avoid stale task definitions. Edit the source files; keep unrelated global configuration files. Use `mise tasks ls --global` to discover tasks. All shipped global task names and aliases use `dot:` to avoid accidental collisions with ordinary project tasks. Mise still allows a project to override the exact same prefixed name.
+Use the Dot CLI for cache inspection and cleanup:
 
 ```bash
-mise run dot:cache
-mise run dot:cache:docker
-mise run --dry-run dot:prune
-mise run dot:prune
+dot cache
+dot cache docker
+dot prune all --dry-run
+dot prune all --yes
+dot prune docker --yes
 ```
 
-`dot:cache` inspects uv and Hugging Face caches and queries disk usage on the selected Docker daemon; each `dot:cache:*` task can run independently. `dot:prune` executes native uv, npm, mise, dprint, Trivy, and Hugging Face cache cleanup; its `--dry-run` shows commands, not reclaimable bytes. Hugging Face cleanup retains its native confirmation prompt. Docker build cleanup is excluded from the aggregate and runs only through `dot:prune:docker`; `dot:prune:hf` also remains available individually. Installed tools, credentials, provider sessions, and Dot archives are outside the default cleanup aggregate. Missing tools and command failures propagate as errors. Login, setup, and cleanup run only when invoked; they are not installation hooks.
+`dot cache` inspects the configured `cache.providers` (Docker, Hugging Face, uv by default). `dot prune` displays help; `dot prune all` cleans `prune.providers` (dprint, Hugging Face, mise, npm, Trivy, uv by default); Docker builder cleanup requires explicit selection or inclusion in that configuration. The command confirms the selected providers once before any cleanup and needs `--yes` without a terminal. `--dry-run` displays commands, not reclaimable bytes, and executes no providers. Both aggregates preflight required tools and stop on command failure; earlier successful operations are not rolled back. Each provider can be selected independently. Native tools retain caller directory, profile, environment, and output.
+
+Installed tools, credentials, provider sessions, and Dot archives are outside the default cleanup aggregate. Login, setup, and cleanup run only when invoked; they are not installation hooks. `dot login` and `dot setup` display help without a provider. `dot login all` runs Workspace followed by Google Cloud and ADC, stopping on failure; GitHub remains explicit. Authentication checks are bounded by `auth.probe_timeout_seconds`, require usable credentials, and compare requested OAuth scopes where reported. Additional granted scopes do not force login. `dot setup github` also reconciles `auth.github.remove_scopes`. GCP checks CLI and ADC credentials separately; it does not assert they represent the same identity. No Dot credential cache is maintained.
+
+Workspace setup enables only missing configured APIs and skips OAuth client setup when the selected project already has a readable client configuration. Project selection is argument, `GWS_PROJECT`, then `auth.workspace.project`; GitHub host selection is `--host`, `GH_HOST`, then `auth.github.host`. API access and role grants remain provider-owned. `--force` on login explicitly repeats authentication; it cannot bypass an environment credential override that makes OAuth changes ineffective. Unknown or failed probes stop without printing captured tokens or provider payloads.
 
 ```bash
 dot agent session compact
@@ -59,3 +66,9 @@ Compaction validates the complete selection before deletion, retains divergent t
 ## Repository publication
 
 Commit and PR authoring belong to their skills, which use staged Git changes, explicit repository/base selection, privacy checks, and reviewed publication artifacts. In fmind/dot, `mise run release -- --wait` runs the repository release service. It preserves version/lock rollback, exact commit/tag reconciliation, and bounded publication checks; it requires explicit release authority. A local dispatch is not hosted publication evidence.
+
+## Fish completions
+
+`dot completion` refreshes native Fish completions and the Atuin/Carapace initialization caches. `completions.tools` is the explicit selection; `dot config show` lists its defaults, including `dot` and `fkf`. Each entry in `completions.custom_commands` selects a native generator (`binary` and `args`) or a mise package containing a bundled `<tool>.fish` script (`package`). These source types are mutually exclusive. Unlisted custom tools use `<tool> completion fish`.
+
+Missing executables are skipped. Failed generators or invalid Fish syntax produce a nonzero exit and preserve the previous script; successful scripts are replaced atomically. Native completions take precedence over Carapace, whose `dot` completer otherwise targets Graphviz. Tools without native Fish generators rely on Fish or Carapace support where available. The command does not delete independently installed completion files.

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Skillify
@@ -16,6 +16,7 @@ Capture what this session learned as a skill the next session can run without th
 ## Workflow
 
 1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
+1. **Apply the admission rule** in [package rules](references/package-rules.md): identify the personal choice, reusable procedure or artifact, demonstrated failure, or upstream route that changes agent behavior. If only general product knowledge remains, use documentation instead of creating a skill.
 1. **Check the catalog**: `skills list` and `skills list -g`, then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; add its CLI names to `skills/contracts.json`, then run `mise run check:skills` and `mise run test` there.

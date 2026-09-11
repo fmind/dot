@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Agent Evaluation
@@ -34,3 +34,4 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 
 - [Anthropic agent evaluation](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
 - Companion skills: [agents-cli](../agents-cli/SKILL.md) (Google evaluation execution), [observability](../observability/SKILL.md) (runtime signals), [skillify](../skillify/SKILL.md) (skill adoption checks).
+- [AI security assessment](../ai-security-assessment/SKILL.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.

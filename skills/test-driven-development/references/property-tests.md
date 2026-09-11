@@ -21,4 +21,8 @@ For stateful behavior, use `RuleBasedStateMachine` with rules, preconditions, an
 
 Keep default health checks active and bound fixture work. Diagnose deadline failures instead of disabling deadlines to conceal a slowdown; an intentionally slow integration property needs an explicit, justified test profile. Never equate more examples with complete proof.
 
+For a shrunk failure, check the input against the documented domain before changing production code. Distinguish a violated guarantee, an invalid generator, an incorrect property, and an unspecified contract. Fix the generator or property only with contract evidence; preserve a real counterexample rather than filtering it out. A function name alone is insufficient evidence for an algebraic guarantee.
+
+Security properties should constrain authority as well as return values: actions by tenant A never change tenant B's state; rejected credentials never authorize an operation; a cancelled operation cannot acquire new authority. Generate sequences with distinct principals and reset state per example. Keep successful authorized actions in the suite so a deny-everything implementation cannot pass.
+
 Sources: [Hypothesis quickstart](https://hypothesis.readthedocs.io/en/latest/quickstart.html), [stateful testing](https://hypothesis.readthedocs.io/en/latest/stateful.html), and [settings](https://hypothesis.readthedocs.io/en/latest/reference/api.html#settings).

@@ -1,7 +1,7 @@
 import asyncio
 
 from mcp import Client, StdioServerParameters
-from server import server
+from <package>.server import server
 
 
 async def assert_add_contract(client: Client) -> None:
@@ -36,6 +36,6 @@ def test_in_process_contract() -> None:
 def test_stdio_protocol() -> None:
     params = StdioServerParameters(
         command="uv",
-        args=["run", "mcp", "run", "server.py:server"],
+        args=["run", "mcp", "run", "src/<package>/server.py:server"],
     )
     asyncio.run(assert_add_contract(Client(params)))

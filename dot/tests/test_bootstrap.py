@@ -114,7 +114,3 @@ class BootstrapTest(unittest.TestCase):
             ]
             assert fixture.calls() == expected
             assert not (fixture.home / ".config" / "chezmoi" / "key.txt").exists()
-
-
-if __name__ == "__main__":
-    unittest.main()

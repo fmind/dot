@@ -24,8 +24,7 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
-      - name: Trust repository
-        run: mise trust -y mise.toml
+          minimum_release_age: 7d
       - name: Scan complete Git history
         run: gitleaks git --redact=100 --verbose
       - name: Scan full checkout

@@ -5,7 +5,7 @@ import stat
 from collections.abc import Callable, Mapping, Sequence
 from io import StringIO
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 import pytest
 import typer
@@ -16,7 +16,7 @@ from typer.testing import CliRunner
 import fmind_dot.system as system
 from fmind_dot.config import Config, SecretConfig, ToolConfig
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, Runner
 from fmind_dot.state import State
 
 RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
@@ -114,7 +114,7 @@ def state_with(
     return state
 
 
-def test_completion_falls_back_for_empty_custom_output_but_not_for_standard_failure() -> None:
+def test_completion_uses_only_the_configured_generator() -> None:
     config = Config()
     config.completions.custom_commands["custom"] = ToolConfig(args=["completions", "fish"])
 
@@ -123,8 +123,9 @@ def test_completion_falls_back_for_empty_custom_output_but_not_for_standard_fail
         return CommandResult("# fallback\n" if args[1:] == ["completion", "fish"] else "", "", 0)
 
     runner = ScriptedRunner({"custom"}, run=empty_then_fallback)
-    assert system._generate_completion(state_with(runner, config), "custom") == "# fallback\n"  # noqa: SLF001
-    assert [call[1:] for call in runner.calls] == [["completions", "fish"], ["completion", "fish"]]
+    with pytest.raises(DotError, match="empty output"):
+        system._generate_completion(state_with(runner, config), "custom")  # noqa: SLF001
+    assert [call[1:] for call in runner.calls] == [["completions", "fish"]]
 
     failing = ScriptedRunner(
         {"plain"},
@@ -151,8 +152,8 @@ def test_dot_completion_uses_typer_fish_source_protocol() -> None:
         run=lambda _args, _cwd, _input_text, _check: CommandResult("# dot fish completion\n", "", 0),
     )
 
-    assert system._generate_completion(state_with(runner), "dot") == "# dot fish completion\n"  # noqa: SLF001
-    assert runner.calls == [["env", "_DOT_COMPLETE=source_fish", "dot"]]
+    assert "_DOT_COMPLETE=complete_fish" in system._generate_completion(state_with(runner), "dot")  # noqa: SLF001
+    assert runner.calls == []
 
 
 def test_fkf_completion_uses_typer_fish_source_protocol() -> None:
@@ -173,7 +174,7 @@ def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
     config = Config()
     config.completions.path = str(completions)
-    config.completions.tools = []
+    config.completions.tools = ["dot"]
 
     def scripts(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, check
@@ -225,15 +226,16 @@ def test_completion_collects_both_shell_integration_failures(monkeypatch: pytest
 
     runner = ScriptedRunner({"fish", "atuin", "carapace"}, run=fail_integrations)
     state = state_with(runner, config)
-    system.run_completion(state)
+    with pytest.raises(DotError, match=r"atuin-init\.fish.*carapace-init\.fish"):
+        system.run_completion(state)
     assert isinstance(state.stdout, StringIO)
     output = state.stdout.getvalue()
     assert "Failed to generate atuin-init.fish" in output
     assert "Failed to generate carapace-init.fish" in output
-    assert "Completions updated with 2 failure(s)" in output
+    assert "Completions updated" not in output
 
 
-def test_completion_generation_reports_missing_generators_and_fallback_failures() -> None:
+def test_completion_generation_reports_missing_generators_and_empty_output() -> None:
     config = Config()
     config.completions.custom_commands["custom"] = ToolConfig(binary="helper", args=["generate"])
     with pytest.raises(FileNotFoundError, match="missing"):
@@ -269,12 +271,13 @@ def test_completion_run_skips_missing_tools_and_reports_failed_generators(
         return CommandResult("", "private", 7)
 
     state = state_with(ScriptedRunner({"fish", "broken"}, run=scripts), config)
-    system.run_completion(state)
+    with pytest.raises(DotError, match="broken"):
+        system.run_completion(state)
     assert isinstance(state.stdout, StringIO)
     output = state.stdout.getvalue()
     assert "missing is not installed, skipping" in output
     assert "Failed to generate completions for broken" in output
-    assert "Completions updated with 1 failure(s)" in output
+    assert "Completions updated" not in output
 
 
 def test_completion_rejects_empty_scripts_before_replacing_existing_file(tmp_path: Path) -> None:
@@ -472,7 +475,7 @@ def test_verify_probes_path_visible_tools_and_redacts_output(monkeypatch: pytest
     assert by_name["healthy"]["status"] == "pass"
     assert by_name["broken"]["status"] == "fail"
     assert by_name["broken"]["condition"] == "broken"
-    assert all(limit == system._PROBE_OUTPUT_LIMIT_BYTES for limit in runner.output_limits)  # noqa: SLF001
+    assert all(limit == PROBE_OUTPUT_LIMIT_BYTES for limit in runner.output_limits)
     encoded = json.dumps(results)
     assert "stdout-secret" not in encoded
     assert "stderr-secret" not in encoded
@@ -918,3 +921,45 @@ def test_system_command_surface_and_verify_flags() -> None:
         for name in parameter.opts
     }
     assert {"--json", "-j", "--fix", "-f", "--deep"} <= option_names
+
+
+def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path) -> None:
+    package = tmp_path / "package"
+    scripts = package / "share/fish/vendor_completions.d"
+    scripts.mkdir(parents=True)
+    (scripts / "tool.fish").write_text("complete -c tool -l example\n")
+    config = Config()
+    config.completions.custom_commands["tool"] = ToolConfig(package="github:owner/tool")
+    runner = ScriptedRunner(
+        {"tool", "mise"},
+        run=lambda _args, _cwd, _input, _check: CommandResult(str(package), "", 0),
+    )
+    assert system._generate_completion(state_with(runner, config), "tool") == "complete -c tool -l example\n"  # noqa: SLF001
+    assert runner.calls == [["mise", "where", "--", "github:owner/tool"]]
+    (package / "tool.fish").write_text("# ambiguous source\n")
+    with pytest.raises(DotError, match="expected one bundled Fish completion for tool, found 2"):
+        system._generate_completion(state_with(runner, config), "tool")  # noqa: SLF001
+
+
+def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    monkeypatch.setenv("CARAPACE_EXCLUDES", "custom")
+    config = Config()
+    config.completions.path = str(tmp_path / "completions")
+    config.completions.tools = ["fkf"]
+    runner = ScriptedRunner({"fish", "fkf", "env", "carapace"})
+    environments: list[Mapping[str, str] | None] = []
+    original = runner.run
+
+    def capture(args: Sequence[str], **kwargs: Any) -> CommandResult:
+        if args[0] == "carapace":
+            environments.append(kwargs.get("env"))
+        return original(args, **kwargs)
+
+    monkeypatch.setattr(runner, "run", capture)
+    system.run_completion(state_with(runner, config))
+    assert (tmp_path / "completions/fkf.fish").is_file()
+    assert not (tmp_path / "completions/dot.fish").exists()
+    assert environments == [{"CARAPACE_EXCLUDES": "custom,fkf"}]

@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/pydantic
   created: "2026-09-06"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Pydantic
@@ -17,7 +17,7 @@ Use Pydantic for typed input boundaries and serialization; use [python-stack](..
 1. Inspect the locked Pydantic version and existing model configuration; add `pydantic` with `uv add pydantic` only when missing.
 1. Select the upstream `pydantic` skill. Use `BaseModel` for structured objects and `TypeAdapter` for other annotated types; express constraints in types before writing custom validators.
 1. Choose coercion versus strict validation and the policy for unknown fields explicitly. Use `model_validate` or `model_validate_json` at ingestion and `model_dump` or `model_dump_json` for output; Python and JSON representations can differ.
-1. Test accepted values, rejected input, nested errors, aliases, defaults, and serialization with [pytest](../pytest/SKILL.md). Check validators' ordering and error behavior against the locked API; use [pandera](../pandera/SKILL.md) for dataframe contracts.
+1. Test accepted values, rejected input, nested errors, aliases, defaults, and serialization with [Python testing](../test-driven-development/SKILL.md). Check validators' ordering and error behavior against the locked API.
 1. For environment configuration, inspect `pydantic-settings` separately; install it only when needed and keep secrets out of validation output.
 
 ## Gotchas

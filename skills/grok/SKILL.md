@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/grok
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Grok Build
@@ -27,7 +27,7 @@ Operate the Grok Build coding harness. The Grok chat product and model API have 
 
 ## Top Links
 
-For the wider capability inventory and when to use each feature, read the [feature map](references/features.md). It covers session lifecycle, automation, integrations, customization, execution boundaries, and operations with official links.
+For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [Build overview](https://docs.x.ai/build/overview) · [CLI reference](https://docs.x.ai/build/cli/reference)
 - [Build changelog](https://x.ai/build/changelog)

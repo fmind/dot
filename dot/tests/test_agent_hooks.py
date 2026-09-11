@@ -42,13 +42,13 @@ def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest
     ]
 
 
+def _fail(_state: State, _notification: Notification) -> None:
+    raise DotError("notifier exited with status 7")
+
+
 def test_notify_hook_spools_notifier_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-
-    def fail(_state: State, _notification: Notification) -> None:
-        raise DotError("notifier exited with status 7")
-
-    monkeypatch.setattr(agent_module, "send_notification", fail)
+    monkeypatch.setattr(agent_module, "send_notification", _fail)
 
     result = CliRunner().invoke(app, ["agent", "hook", "notify", "codex", "session-end"], input="{}")
 
@@ -59,3 +59,18 @@ def test_notify_hook_spools_notifier_failure(monkeypatch: pytest.MonkeyPatch, tm
     assert failure["agent"] == "codex"
     assert failure["operation"] == "notify:session-end"
     assert failure["detail"] == "notifier exited with status 7"
+
+
+def test_notify_hook_refuses_to_spool_through_a_symlinked_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    home = tmp_path / "home"
+    home.symlink_to(real, target_is_directory=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(agent_module, "send_notification", _fail)
+
+    result = CliRunner().invoke(app, ["agent", "hook", "notify", "codex", "session-end"], input="{}")
+
+    assert result.exit_code == 1
+    assert f"agent hook failure spool unavailable: unsafe directory {home}" in result.output
+    assert not (real / ".agents").exists()

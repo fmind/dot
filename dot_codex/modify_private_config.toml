@@ -30,7 +30,7 @@ matcher = ""
 [[hooks.SessionEnd.hooks]]
 command = "dot agent hook session codex"
 statusMessage = "Syncing Codex session"
-timeout = 3
+timeout = 30
 type = "command"
 
 [[hooks.Stop]]

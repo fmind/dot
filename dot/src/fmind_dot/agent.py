@@ -28,6 +28,7 @@ from fmind_dot.archive.query import (
 from fmind_dot.archive.statistics import prompt_statistics, session_statistics
 from fmind_dot.archive.usage import (
     aggregate_usage,
+    iter_usage_records,
     list_usage_records,
     load_usage_records,
     parse_flexible_time,
@@ -35,48 +36,17 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.artifacts import prune_agent_artifacts
-from fmind_dot.command_group import AlphabeticalGroup
-from fmind_dot.config import PricingConfig
+from fmind_dot.command_group import help_group
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import _spool_hook_failure, decode_copilot_session_end
 from fmind_dot.state import State, state_from
 from fmind_dot.system import build_notification, send_notification
 
-_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
-
-
-agent_app = typer.Typer(
-    cls=AlphabeticalGroup,
-    name="agent",
-    help="Manage AI agent integrations and sessions",
-    no_args_is_help=True,
-    context_settings=_CONTEXT_SETTINGS,
-)
-
-
-session_app = typer.Typer(
-    cls=AlphabeticalGroup, help="Manage agent session logs", no_args_is_help=True, context_settings=_CONTEXT_SETTINGS
-)
-
-
-hook_app = typer.Typer(
-    cls=AlphabeticalGroup, help="Run observable agent hooks", no_args_is_help=True, context_settings=_CONTEXT_SETTINGS
-)
-
-
-usage_app = typer.Typer(
-    cls=AlphabeticalGroup,
-    help="Inspect token usage from transactional session archives",
-    no_args_is_help=True,
-    context_settings=_CONTEXT_SETTINGS,
-)
-
-
-prompts_app = typer.Typer(
-    cls=AlphabeticalGroup,
-    help="Statistics about archived user messages; never prints prompt text",
-    context_settings=_CONTEXT_SETTINGS,
-)
+agent_app = help_group("Manage AI agent integrations and sessions")
+session_app = help_group("Manage agent session logs")
+hook_app = help_group("Run observable agent hooks")
+usage_app = help_group("Inspect token usage from transactional session archives")
+prompts_app = help_group("Inspect archived user-message statistics without printing prompt text")
 
 
 def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> SessionQuery:
@@ -92,7 +62,7 @@ def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> Sessi
     return query
 
 
-@session_app.command("list")
+@session_app.command("list", help="List archived session generations")
 def session_list(
     context: typer.Context,
     agent: Annotated[str, typer.Option("--agent", help="Filter by agent")] = "",
@@ -134,7 +104,7 @@ def session_list(
         )
 
 
-@session_app.command("show")
+@session_app.command("show", help="Show one archived session generation")
 def session_show(
     context: typer.Context,
     identity: Annotated[str, typer.Argument(help="Session, lineage, or generation identity")] = "",
@@ -155,7 +125,7 @@ def session_show(
     state_from(context).stdout.write("\n")
 
 
-@session_app.command("export")
+@session_app.command("export", help="Export one archived session generation")
 def session_export(
     context: typer.Context,
     agent: Annotated[str, typer.Option("--agent")] = "",
@@ -176,7 +146,7 @@ def session_export(
     )
 
 
-@session_app.command("sync")
+@session_app.command("sync", help="Capture completed sessions from configured agent sources")
 def session_sync(
     context: typer.Context,
     agent: Annotated[str, typer.Option("--agent", help="Synchronize one adapter")] = "",
@@ -269,7 +239,7 @@ def session_compact(
     compact_session_generations(state_from(context).stdout, apply=apply, agent=agent)
 
 
-@session_app.command("ingest")
+@session_app.command("ingest", help="Capture one agent session into the archive")
 def session_ingest(
     context: typer.Context,
     agent: Annotated[str, typer.Argument(help="Agent adapter name")],
@@ -279,7 +249,7 @@ def session_ingest(
     ingest_agent_session(state_from(context), agent, session_id, cwd)
 
 
-@hook_app.command("session")
+@hook_app.command("session", help="Capture a completed agent session from a native hook")
 def hook_session(
     context: typer.Context,
     agent: Annotated[str, typer.Argument()],
@@ -294,7 +264,7 @@ def hook_session(
         raise
 
 
-@hook_app.command("copilot-session-end")
+@hook_app.command("copilot-session-end", help="Capture the Copilot session-end hook")
 def copilot_session_end(context: typer.Context) -> None:
     state = state_from(context)
     session_id = ""
@@ -317,7 +287,7 @@ def copilot_session_end(context: typer.Context) -> None:
     state.stdout.write("{}\n")
 
 
-@hook_app.command("notify")
+@hook_app.command("notify", help="Send a desktop notification for a native agent event")
 def hook_notify(
     context: typer.Context,
     agent: Annotated[str, typer.Argument()],
@@ -337,28 +307,7 @@ def hook_notify(
         raise
 
 
-def _usage_rows(
-    harness: str,
-    since: str,
-    until: str,
-    by_model: bool,
-    cwd: str = "",
-    by_project: bool = False,
-    pricing: PricingConfig | None = None,
-):
-    return aggregate_usage(
-        load_usage_records(),
-        harness=harness,
-        since=parse_flexible_time(since) if since else None,
-        until=parse_flexible_time(until) if until else None,
-        by_model=by_model,
-        cwd=resolve_cwd(cwd),
-        by_project=by_project,
-        pricing=pricing,
-    )
-
-
-@usage_app.command("stats")
+@usage_app.command("stats", help="Summarize archived token usage and costs")
 def usage_stats_command(
     context: typer.Context,
     harness: Annotated[str, typer.Option("--harness", "-a")] = "",
@@ -368,17 +317,27 @@ def usage_stats_command(
     as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
     cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
     by_project: Annotated[bool, typer.Option("--by-project")] = False,
+    monthly: Annotated[bool, typer.Option("--monthly", help="Group by calendar month in UTC")] = False,
+    billing: Annotated[bool, typer.Option("--billing", help="Group by each harness subscription cycle")] = False,
 ) -> None:
     state = state_from(context)
-    write_usage_stats(
-        state.stdout,
-        _usage_rows(harness, since, until, by_model, cwd, by_project, state.config.agent.pricing),
-        as_json=as_json,
+    rows = aggregate_usage(
+        iter_usage_records(),
+        harness=harness,
+        since=parse_flexible_time(since) if since else None,
+        until=parse_flexible_time(until) if until else None,
         by_model=by_model,
+        cwd=resolve_cwd(cwd),
+        by_project=by_project,
+        pricing=state.config.agent.pricing,
+        monthly=monthly,
+        billing=billing,
+        subscriptions=state.config.agent.subscriptions,
     )
+    write_usage_stats(state.stdout, rows, as_json=as_json, by_model=by_model)
 
 
-@usage_app.command("list")
+@usage_app.command("list", help="List archived session usage measurements")
 def usage_list(
     context: typer.Context,
     harness: Annotated[str, typer.Option("--harness", "-a")] = "",
@@ -402,7 +361,7 @@ def usage_list(
         )
 
 
-@usage_app.command("show")
+@usage_app.command("show", help="Show usage for one archived session generation")
 def usage_show(
     context: typer.Context,
     harness: Annotated[str, typer.Argument()],
@@ -421,6 +380,11 @@ def agent_stats(
     by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
     by_project: Annotated[bool, typer.Option("--by-project")] = False,
     as_json: Annotated[bool, typer.Option("--json", "-j")] = False,
+    monthly: Annotated[bool, typer.Option("--monthly", help="Group usage by calendar month in UTC")] = False,
+    billing: Annotated[bool, typer.Option("--billing", help="Group usage by configured subscription cycles")] = False,
+    tokens_only: Annotated[
+        bool, typer.Option("--tokens-only", help="Skip prompt analysis for a quick usage report")
+    ] = False,
 ) -> None:
     state = state_from(context)
     query = SessionQuery(
@@ -429,9 +393,9 @@ def agent_stats(
         since=parse_flexible_time(since) if since else None,
         until=parse_flexible_time(until) if until else None,
     )
-    prompts = prompt_statistics(query, by_project=by_project)
+    prompts = None if tokens_only else prompt_statistics(query, by_project=by_project)
     rows = aggregate_usage(
-        load_usage_records(),
+        iter_usage_records(),
         harness=agent,
         since=query.since,
         until=query.until,
@@ -439,6 +403,9 @@ def agent_stats(
         by_model=by_model,
         by_project=by_project,
         pricing=state.config.agent.pricing,
+        monthly=monthly,
+        billing=billing,
+        subscriptions=state.config.agent.subscriptions,
     )
     if as_json:
         state.stdout.write(
@@ -456,13 +423,14 @@ def agent_stats(
         )
     else:
         state.stdout.write("Archived records only; run 'dot agent session sync' to refresh.\n")
-        _print_statistics(state, prompts, as_json=False)
+        if prompts is not None:
+            _print_statistics(state, prompts, as_json=False)
         write_usage_stats(state.stdout, rows, as_json=False, by_model=by_model)
-    if not prompts["complete"]:
+    if prompts is not None and not prompts["complete"]:
         raise DotError("prompt statistics are incomplete; inspect excluded sessions and partial counts")
 
 
-@agent_app.command("doctor")
+@agent_app.command("doctor", help="Check agent integrations and archive health")
 def agent_doctor(
     context: typer.Context,
     agent: Annotated[str, typer.Option("--agent", help="Inspect or repair only one integration")] = "",

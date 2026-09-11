@@ -24,7 +24,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.9.0,<0.13"]
+requires = ["uv_build>=0.12.13,<0.13"]
 build-backend = "uv_build"
 
 [tool.ruff]
@@ -80,27 +80,23 @@ ignore = [
   "T201", # print statement allowed in tests
 ]
 
-
-[tool.ty.environment]
-python-version = "<latest_stable_version_major_minor>"
-
 # No blanket [tool.ty.rules] ignores. Fix diagnostics at their source and use
 # only an evidenced, narrow line-level suppression for an upstream typing defect.
 
-[tool.pytest.ini_options]
+[tool.pytest]
 testpaths = ["tests"]
-addopts = ["-ra", "--strict-config", "--strict-markers"]
+addopts = ["-ra"]
 filterwarnings = ["error"]
 markers = ["integration: requires local Docker and disposable external services"]
-pythonpath = ["."]
-xfail_strict = true
+# Umbrella for strict_config, strict_markers, strict_xfail, and strict_parametrization_ids.
+strict = true
 
 [tool.coverage.run]
 branch = true
-source = ["src"]
-omit = ["tests/*", "scripts/*"]
+source = ["<package>"]
 
 [tool.coverage.report]
+fail_under = 85
 show_missing = true
 skip_covered = true
 skip_empty = true

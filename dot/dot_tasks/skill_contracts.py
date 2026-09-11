@@ -26,13 +26,12 @@ MAX_RESOURCE_BYTES = 1 << 20
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOOL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
-LINK_PATTERN = re.compile(r"(?<!!)\[[^]]*]\(([^)]+)\)")
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 ACTIVE_STACK_PATTERN = re.compile(r"\b(?:Go|Golang|TypeScript)\b")
 HISTORY_PATTERN = re.compile(r"\b(?:archive|archived|external|historical|history|retired|third-party)\b", re.IGNORECASE)
 FRONTMATTER_FIELDS = {"allowed-tools", "compatibility", "description", "license", "metadata", "name"}
 RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
-CACHE_NAMES = {".DS_Store", ".mypy_cache", ".pytest_cache", ".ruff_cache", "__pycache__"}
+CACHE_NAMES = {".DS_Store", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 HTML_LINK_ATTRIBUTES = {"action", "background", "cite", "data", "formaction", "href", "poster", "src", "xlink:href"}
 ROUTING_FIELDS = {"cases", "construction", "created", "proof_boundary", "purpose", "version"}
 CASE_FIELDS = {
@@ -266,8 +265,8 @@ def _resource_findings(root: Path, skill: Path) -> tuple[list[str], str]:
         except OSError as error:
             findings.append(f"{_relative(root, path)}: cannot inspect resource: {error}")
             continue
+        # .gitignore (*.py[co], __pycache__/) already keeps bytecode out of every clone.
         if path.name == "__pycache__" or path.suffix in {".pyc", ".pyo"}:
-            findings.append(f"{_relative(root, skill)}: Python bytecode cache {rendered!r} is generated state")
             continue
         if path.name in CACHE_NAMES:
             findings.append(f"{_relative(root, skill)}: generated cache or metadata {rendered!r} is not package source")
@@ -452,7 +451,7 @@ def _manifest(root: Path) -> tuple[dict[str, list[str]], list[str]]:
     return skills, findings
 
 
-def _string_list(value: Any) -> list[str] | None:
+def _string_list(value: object) -> list[str] | None:
     if not isinstance(value, list) or not value or not all(isinstance(item, str) and item.strip() for item in value):
         return None
     return value

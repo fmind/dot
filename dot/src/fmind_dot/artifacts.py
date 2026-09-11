@@ -15,9 +15,8 @@ from fmind_dot.private_files import (
 from fmind_dot.state import State
 
 
-def prune_agent_artifacts(state: State, *, dry_run: bool) -> int:
+def prune_agent_artifacts(state: State, *, dry_run: bool) -> None:
     expanded = {"prompts", "proposals", "reports"}
-    reclaimed = 0
     if not _safe_agent_fs_available():
         raise DotError("safe agent cleanup is unavailable on this platform")
     result = state.runner.run(["git", "rev-parse", "--show-toplevel"], check=False)
@@ -62,7 +61,6 @@ def prune_agent_artifacts(state: State, *, dry_run: bool) -> int:
                         try:
                             # Pathlib would reopen the raced pathname; list the held directory instead.
                             entries = sorted(os.listdir(target_descriptor))  # noqa: PTH208
-                            reclaimed += _directory_apparent_size(target_descriptor)
                         except BaseException:
                             os.close(target_descriptor)
                             target_descriptor = None
@@ -84,22 +82,6 @@ def prune_agent_artifacts(state: State, *, dry_run: bool) -> int:
                 os.close(agents_descriptor)
     finally:
         os.close(project_descriptor)
-    return reclaimed
-
-
-def _directory_apparent_size(directory: int) -> int:
-    total = 0
-    for _root, directory_names, file_names, current in os.fwalk(
-        ".", topdown=False, follow_symlinks=False, dir_fd=directory
-    ):
-        for name in [*file_names, *directory_names]:
-            try:
-                info = os.stat(name, dir_fd=current, follow_symlinks=False)
-            except FileNotFoundError:
-                continue
-            if not stat.S_ISDIR(info.st_mode):
-                total += info.st_size
-    return total
 
 
 def _clear_directory(directory: int, target: str) -> None:

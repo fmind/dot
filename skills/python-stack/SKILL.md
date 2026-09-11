@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Python Stack Standard
@@ -15,10 +15,12 @@ Own the shared Python foundation and select the specialist for the task. Preserv
 
 ## Defaults
 
-- **Toolchain**: stable Python managed by uv; commit `uv.lock`, align `.python-version` with `requires-python`, and test the minimum supported interpreter for libraries.
+- **Toolchain**: stable Python managed by uv; commit `uv.lock`, align `.python-version` with `requires-python`, and check a library's minimum interpreter with `uv run --isolated --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
 - **Foundation**: a `src/<package>/` layout and no runtime dependencies until the application uses them. Distribution slugs may contain hyphens; import names use underscores.
 - **Quality**: Ruff for Python formatting/lint, ty for types, pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests and an initial 85% branch-coverage target adapted to the project.
 - **Boundaries**: use Pydantic/settings when external input or application configuration needs typed validation, and structlog when structured logging is required. Respect ecosystem-native formats; otherwise use YAML for human-maintained configuration and JSON for program-owned data, with explicit defaults and override precedence.
+
+For application templates, set output-appropriate escaping explicitly and prefer `StrictUndefined` in new Jinja templates when missing data is an error; review compatibility before changing existing undefined behavior. Template generation and tracked updates use [cookiecutter](../cookiecutter/SKILL.md).
 
 ## Workflow
 
@@ -29,27 +31,27 @@ Own the shared Python foundation and select the specialist for the task. Preserv
 
 ## Task owners
 
-| Need                                                | Owner                                                                                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Dependencies, environments, Python versions, builds | [uv](../uv/SKILL.md)                                                                                                                                   |
-| Python lint/format or type diagnostics              | [ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md)                                                                                                         |
-| Task definitions, hooks, markup/config formatting   | [mise](../mise/SKILL.md), [lefthook](../lefthook/SKILL.md), [dprint](../dprint/SKILL.md)                                                               |
-| CLI scaffold and command behavior                   | [typer](../typer/SKILL.md), [cli-contracts](../cli-contracts/SKILL.md)                                                                                 |
-| Web application                                     | [litestar](../litestar/SKILL.md) by default; [django](../django/SKILL.md) or [fastapi](../fastapi/SKILL.md) when selected                              |
-| HTML, email, and text templates                     | [jinja](../jinja/SKILL.md); [cookiecutter](../cookiecutter/SKILL.md) and [cruft](../cruft/SKILL.md) own project generation and updates                 |
-| Async tasks, cancellation, deadlines, shutdown      | [python-async](../python-async/SKILL.md)                                                                                                               |
-| Relational queries, sessions, and schema migrations | [sqlalchemy](../sqlalchemy/SKILL.md); [data-migration](../data-migration/SKILL.md) owns transition and recovery safety                                 |
-| Agent scaffold and SDK code                         | [agents-cli](../agents-cli/SKILL.md), [google-adk](../google-adk/SKILL.md)                                                                             |
-| Single-file utility or reactive notebook            | [python-script](../python-script/SKILL.md), [marimo](../marimo/SKILL.md)                                                                               |
-| DataFrames, data schemas, queries, and charts       | [pandas](../pandas/SKILL.md), [polars](../polars/SKILL.md), [pandera](../pandera/SKILL.md), [duckdb](../duckdb/SKILL.md), [plotly](../plotly/SKILL.md) |
-| Input validation, logging, external HTTP            | [pydantic](../pydantic/SKILL.md), [observability](../observability/SKILL.md), [api-client](../api-client/SKILL.md)                                     |
-| Python tests and Hypothesis integration             | [pytest](../pytest/SKILL.md); [test-driven-development](../test-driven-development/SKILL.md) owns red/green procedure and the property-testing guide   |
-| Broader test campaigns                              | [quality-assurance](../quality-assurance/SKILL.md)                                                                                                     |
-| CPU and allocation profiling                        | [pyinstrument](../pyinstrument/SKILL.md), [memray](../memray/SKILL.md); [systematic-debugging](../systematic-debugging/SKILL.md) owns diagnosis        |
+| Need                                                | Owner                                                                                                                                                                                                                                               |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dependencies, environments, Python versions, builds | [uv](../uv/SKILL.md)                                                                                                                                                                                                                                |
+| Python lint/format or type diagnostics              | [ruff](../ruff/SKILL.md), [ty](../ty/SKILL.md)                                                                                                                                                                                                      |
+| Task definitions, hooks, markup/config formatting   | [mise](../mise/SKILL.md), [lefthook](../lefthook/SKILL.md), [dprint](../dprint/SKILL.md)                                                                                                                                                            |
+| CLI scaffold and command behavior                   | [typer](../typer/SKILL.md), [cli-contracts](../cli-contracts/SKILL.md)                                                                                                                                                                              |
+| Web application                                     | [django](../django/SKILL.md) for ORM, admin, auth, and server-rendered pages; [litestar](../litestar/SKILL.md) for typed ASGI APIs and services; [fastapi](../fastapi/SKILL.md) for an existing or generated scaffold                               |
+| Async tasks, cancellation, deadlines, shutdown      | [python-async](../python-async/SKILL.md)                                                                                                                                                                                                            |
+| Persisted schema or data changes                    | [data-migration](../data-migration/SKILL.md), including Alembic; use installed database/framework documentation for query APIs.                                                                                                                     |
+| Agent, LLM, and MCP application code                | [agents-cli](../agents-cli/SKILL.md) and [google-adk](../google-adk/SKILL.md) for Google agents; [langchain](../langchain/SKILL.md) or [langgraph](../langgraph/SKILL.md) for framework code; [mcp-server](../mcp-server/SKILL.md) for tool servers |
+| Single-file utility or reactive notebook            | [python-script](../python-script/SKILL.md), [marimo](../marimo/SKILL.md)                                                                                                                                                                            |
+| Local data queries and exports                      | [duckdb](../duckdb/SKILL.md); use the project's dataframe and plotting libraries through their installed source and official docs.                                                                                                                  |
+| Input validation, logging, external HTTP            | [pydantic](../pydantic/SKILL.md), [observability](../observability/SKILL.md), [api-client](../api-client/SKILL.md)                                                                                                                                  |
+| Python tests and Hypothesis integration             | [test-driven-development](../test-driven-development/SKILL.md), including pytest mechanics and property-testing references.                                                                                                                         |
+| Broader test campaigns                              | [quality-assurance](../quality-assurance/SKILL.md)                                                                                                                                                                                                  |
+| CPU and allocation profiling                        | [systematic-debugging](../systematic-debugging/SKILL.md), including its Python profiler recipes.                                                                                                                                                    |
+| Security scans and dependency upgrades              | [secure](../secure/SKILL.md), [upgrade-tools](../upgrade-tools/SKILL.md)                                                                                                                                                                            |
 
 ## Foundation resources
 
-- [Tooling ownership](references/tooling.md), [pyproject.toml.template](references/pyproject.toml.template), [mise.toml](references/mise.toml), and [lefthook.yml](references/lefthook.yml) define the shared baseline.
+- [pyproject.toml.template](references/pyproject.toml.template), [mise.toml](references/mise.toml), and [lefthook.yml](references/lefthook.yml) define the shared baseline; their version constraints are a floor, not a latest-release claim, so preserve a project's supported range and lock policy.
 - [AGENTS.md](references/AGENTS.md) and [gitignore](references/gitignore) supply project conventions.
 - [init-library.py](references/init-library.py) and [test_library.py](references/test_library.py) supply the minimal library example; application code and tests live with the selected specialist.
 

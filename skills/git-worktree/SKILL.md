@@ -1,17 +1,17 @@
 ---
 name: git-worktree
-description: Isolate development or validation with Git worktrees and exact dirty-candidate copies. Use when work must leave another checkout and its staged selection intact.
+description: Prepare Git branches, worktrees, and exact dirty-candidate copies. Use for branch creation or isolated work that preserves another checkout and its staged selection.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-worktree
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Git Worktree
 
-Create the smallest isolated workspace that contains the intended candidate. [feature-branch](../feature-branch/SKILL.md) owns branch naming; this skill owns isolation, candidate identity, and cleanup.
+Choose a branch in the current checkout or an isolated workspace according to the task. Branch naming and creation follow [branches](references/branches.md); isolation, candidate identity, and cleanup follow the workflow below. A branch-only request needs no extra checkout.
 
 ## Workflow
 

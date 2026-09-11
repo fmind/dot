@@ -9,7 +9,7 @@ import shlex
 import sqlite3
 import stat
 import tomllib
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -27,7 +27,7 @@ from fmind_dot.archive.parsers import (
     codex_session_id,
 )
 from fmind_dot.archive.store import (
-    SESSION_PARSER_VERSION,
+    READABLE_PARSER_VERSIONS,
     SESSION_SCHEMA_VERSION,
     SESSION_STORE_VERSION,
     SessionManifest,
@@ -313,7 +313,7 @@ def _command_arguments(command: str) -> tuple[str, ...]:
     return tuple(fields[1:])
 
 
-def _dot_command_prober(state: State):
+def _dot_command_prober(state: State) -> Callable[[tuple[str, ...]], bool]:
     binary = state.runner.which("dot")
     cache: dict[tuple[str, ...], bool] = {}
 
@@ -334,7 +334,7 @@ def _dot_command_prober(state: State):
     return runnable
 
 
-def _check_hooks(definition: DoctorIntegration, runnable) -> tuple[str, bool]:
+def _check_hooks(definition: DoctorIntegration, runnable: Callable[[tuple[str, ...]], bool]) -> tuple[str, bool]:
     if not definition.hook_path:
         return "sync-only", True
     try:
@@ -597,7 +597,7 @@ def _valid_manifest_path(root: Path, path: Path, manifest: SessionManifest, agen
         manifest.agent == agent
         and manifest.lineage_id == lineage == session_lineage_id(agent, manifest.session_id)
         and manifest.schema_version == SESSION_SCHEMA_VERSION
-        and manifest.parser_version == SESSION_PARSER_VERSION
+        and manifest.parser_version in READABLE_PARSER_VERSIONS
         and generation == session_digest(manifest.parser_version, manifest.source_fingerprint)
     )
 

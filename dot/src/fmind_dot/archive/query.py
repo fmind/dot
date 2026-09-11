@@ -109,7 +109,7 @@ def parse_session_date(value: str, *, end_of_day: bool = False) -> datetime | No
         return None
     try:
         if _DATE.fullmatch(value):
-            day = datetime.strptime(value, "%Y-%m-%d").date()
+            day = datetime.strptime(value, "%Y-%m-%d").date()  # noqa: DTZ007 - only the date survives; the next line attaches UTC.
             return datetime.combine(day, time.max if end_of_day else time.min, tzinfo=UTC)
         if not _RFC3339.fullmatch(value):
             raise ValueError

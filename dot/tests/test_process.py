@@ -23,7 +23,10 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
     child = (
         "import pathlib,sys,time\n"
         "pathlib.Path(sys.argv[1]).write_text('started')\n"
-        "while not pathlib.Path(sys.argv[3]).exists(): time.sleep(0.01)\n"
+        "deadline=time.monotonic()+30\n"
+        "while not pathlib.Path(sys.argv[3]).exists():\n"
+        " if time.monotonic()>deadline: raise SystemExit(0)\n"
+        " time.sleep(0.01)\n"
         "pathlib.Path(sys.argv[2]).write_text('finished')\n"
     )
     launcher = (
@@ -64,22 +67,29 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         stderr=subprocess.PIPE,
         text=True,
     )
-    deadline = time.monotonic() + 5
-    while not started.exists() and process.poll() is None and time.monotonic() < deadline:
-        time.sleep(0.01)
-    assert started.exists(), process.communicate(timeout=1)
+    try:
+        deadline = time.monotonic() + 5
+        while not started.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert started.exists(), "child did not become ready before the startup deadline"
 
-    process.send_signal(process_module.signal.SIGTERM)
-    stdout, stderr = process.communicate(timeout=5)
-    # Only permit the side effect after cancellation returned; host scheduling
-    # cannot let a short timer fire before this test delivers SIGTERM.
-    release.touch()
-    time.sleep(0.4)
+        process.send_signal(process_module.signal.SIGTERM)
+        stdout, stderr = process.communicate(timeout=5)
+        # Only permit the side effect after cancellation returned; host scheduling
+        # cannot let a short timer fire before this test delivers SIGTERM.
+        release.touch()
+        time.sleep(0.4)
 
-    assert process.returncode == 130
-    assert stdout == ""
-    assert stderr == ""
-    assert not finished.exists()
+        assert process.returncode == 130
+        assert stdout == ""
+        assert stderr == "Cancelled.\n"
+        assert not finished.exists()
+    finally:
+        # Startup/assertion failures must not leak a child or pipe handles into
+        # later tests; cancellation timing is still asserted above.
+        if process.poll() is None:
+            process.terminate()
+        process.communicate(timeout=5)
 
 
 def test_runner_validates_commands_and_output_budget() -> None:

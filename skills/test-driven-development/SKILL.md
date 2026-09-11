@@ -1,17 +1,19 @@
 ---
 name: test-driven-development
-description: Implement an isolated bug fix or behavior change with an honest red-green-refactor cycle. Use when a regression test should fail before the fix, or when refactors or seams must prove correctness.
+description: Prove behavior changes with red-green-refactor and maintain pytest tests. Use for regression tests, fixture or assertion work, and property-based testing.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/test-driven-development
   created: "2026-08-08"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Test-Driven Development
 
 Prove a change with an honest red-green-refactor cycle: a failing test that detects the missing or broken behavior, then the smallest trustworthy change; [quality-assurance](../quality-assurance/SKILL.md) owns the broader campaign and [systematic-debugging](../systematic-debugging/SKILL.md) owns failures not yet understood.
+
+For pytest fixture, collection, or assertion maintenance, use [pytest mechanics](references/pytest.md) directly. Use the red-green-refactor workflow below when implementing a behavior change; test-only maintenance does not require inventing a production change.
 
 ## Workflow
 

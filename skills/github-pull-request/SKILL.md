@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # GitHub Pull Request
 
-Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [feature-branch](../feature-branch/SKILL.md) owns branch creation; [git-add-commit-push](../git-add-commit-push/SKILL.md) owns commit and push repair.
+Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [Git branch preparation](../git-worktree/SKILL.md) owns branch creation; [git-add-commit-push](../git-add-commit-push/SKILL.md) owns commit and push repair.
 
 ## Workflow
 
@@ -41,4 +41,4 @@ gh skill preview cli/cli gh
 ## Documentation
 
 - [gh pr manual](https://cli.github.com/manual/gh_pr)
-- Companion skills: [feature-branch](../feature-branch/SKILL.md), [conventional-commit](../conventional-commit/SKILL.md), [github-issues](../github-issues/SKILL.md).
+- Companion skills: [Git branch preparation](../git-worktree/SKILL.md), [conventional-commit](../conventional-commit/SKILL.md), [github-issues](../github-issues/SKILL.md).
