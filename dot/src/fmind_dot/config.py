@@ -57,6 +57,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "git-cliff": ToolConfig(package="git-cliff"),
         "git-lfs": ToolConfig(binary="git", args=["lfs", "completion", "fish"]),
         "gitleaks": ToolConfig(),
+        "grok": ToolConfig(args=["completions", "fish"]),
         "hf": ToolConfig(binary="env", args=["_HF_COMPLETE=fish_source", "hf"]),
         "hyperfine": ToolConfig(package="hyperfine"),
         "jules": ToolConfig(),

@@ -1,8 +1,13 @@
 """Consistent alphabetical discovery for every CLI command group."""
 
+from typing import Annotated
+
 import typer
 from typer import _click
 from typer.core import TyperGroup
+
+# One help string keeps every structured-output flag documented identically.
+JsonOption = Annotated[bool, typer.Option("--json", "-j", help="Emit structured JSON")]
 
 
 class AlphabeticalGroup(TyperGroup):
