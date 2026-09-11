@@ -43,10 +43,11 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
     environment.pop("UV_PROJECT", None)
     environment.pop("VIRTUAL_ENV", None)
     environment.pop("COVERAGE_FILE", None)
-    # Rich lets a forced-color variable override NO_COLOR, and it then splits option
-    # names across escape sequences ("--name" becomes "\x1b[1m-\x1b[0m\x1b[1m-name"),
-    # so help assertions only hold once the CI runner's forcing is removed.
-    for forced in ("CLICOLOR_FORCE", "FORCE_COLOR"):
+    # Typer forces a terminal whenever GITHUB_ACTIONS, FORCE_COLOR or PY_COLORS is set,
+    # and NO_COLOR does not undo it. Rich then splits option names across escape
+    # sequences ("--name" becomes "\x1b[1m-\x1b[0m\x1b[1m-name"), so help assertions
+    # only hold once every forcing variable is removed.
+    for forced in ("CLICOLOR_FORCE", "FORCE_COLOR", "GITHUB_ACTIONS", "PY_COLORS"):
         environment.pop(forced, None)
     result = subprocess.run(
         list(command),
