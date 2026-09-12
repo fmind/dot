@@ -37,3 +37,4 @@ Upstream: [fastapi/typer](https://github.com/fastapi/typer). Follow the shared [
 ## Documentation
 
 - [Typer documentation](https://typer.tiangolo.com/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [Typer release notes](https://typer.tiangolo.com/release-notes/) · [GitHub releases](https://github.com/fastapi/typer/releases)

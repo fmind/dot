@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # dprint
@@ -50,4 +50,5 @@ run = "dprint check"
 ## Documentation
 
 - [dprint](https://dprint.dev) · [Configuration](https://dprint.dev/config/) · [CLI](https://dprint.dev/cli/)
+- Releases: [dprint](https://github.com/dprint/dprint/releases)
 - Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [lefthook](../lefthook/SKILL.md) (the pre-commit hook that calls `format:dprint`).

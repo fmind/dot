@@ -32,4 +32,5 @@ Change the Python CLI while retaining its observable command, archive, and insta
 ## Documentation
 
 - [Project tasks](../../../mise.toml) and [package configuration](../../../dot/pyproject.toml) own the actual gate and dependency graph.
+- Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
 - Companion skills: [chezmoi](../chezmoi/SKILL.md) (managed configuration), [dot-release](../dot-release/SKILL.md) (release lifecycle), [systematic-debugging](../../../skills/systematic-debugging/SKILL.md) (unknown failures).

@@ -40,3 +40,4 @@ As checked on 2026-09-10, [zauberzeug/nicegui](https://github.com/zauberzeug/nic
 ## Documentation
 
 - [NiceGUI documentation](https://nicegui.io/documentation) · [Styling](https://nicegui.io/documentation/section_styling_appearance) · [Testing](https://nicegui.io/documentation/section_testing)
+- Releases: [NiceGUI](https://github.com/zauberzeug/nicegui/releases)

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/lefthook
   created: "2026-07-04"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Lefthook
@@ -70,4 +70,5 @@ pre-push:
 ## Documentation
 
 - [Lefthook](https://lefthook.dev) · [Configuration reference](https://github.com/evilmartians/lefthook/tree/master/docs/configuration)
+- Releases: [Lefthook](https://github.com/evilmartians/lefthook/releases) · [changelog](https://github.com/evilmartians/lefthook/blob/master/CHANGELOG.md)
 - Companion skills: [mise](../mise/SKILL.md) (task owner), [github-actions](../github-actions/SKILL.md) (CI runs the same tasks), [gitleaks](../gitleaks/SKILL.md) (`check:leaks --staged`).

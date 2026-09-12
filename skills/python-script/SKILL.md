@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-script
   created: "2026-07-09"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # PEP 723 Standalone Python Scripts
@@ -31,4 +31,5 @@ For recurring execution of the finished command, use [scheduled-jobs](../schedul
 ## Documentation
 
 - [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [Typer](https://typer.tiangolo.com/)
+- Releases: [uv](https://github.com/astral-sh/uv/releases) · [changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
 - Companion skills: [python-stack](../python-stack/SKILL.md) (full projects), [cli-contracts](../cli-contracts/SKILL.md) (flags, streams, exit codes).

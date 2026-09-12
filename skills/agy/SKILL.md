@@ -17,7 +17,7 @@ Operate the Antigravity harness; use [antigravity-sdk](../antigravity-sdk/SKILL.
 
 1. Inspect `agy --version` and `agy --help` in the intended workspace; distinguish CLI, desktop, and IDE features.
 1. Open the relevant official page below and check the changelog before relying on new flags, settings, models, or availability. If docs and installed help disagree, report the version gap; keep this skill as a link map instead of copying release details.
-1. For a session, resolve the project and conversation, then use the documented interactive, headless, or resume interface. For Remote Control, read its dedicated page before changing the service; starting it registers a persistent OS service and needs authority for that scope.
+1. For a session, resolve the project and conversation, then use the documented interactive, headless, or resume interface; use `/model <name> <prompt>` for one-shot consultations without altering the saved default. For Remote Control, read its dedicated page before changing the service; `agy remote-control start|status|stop` registers a persistent OS service and needs authority for that scope.
 1. Verify the requested outcome with the native session or service status and resulting artifacts; use [agent-project](../agent-project/SKILL.md) for shared skill discovery and [agent-mcp](../agent-mcp/SKILL.md) for MCP registration.
 
 ## Official Skills

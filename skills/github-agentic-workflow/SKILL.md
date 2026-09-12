@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-agentic-workflow
   created: "2026-09-03"
-  updated: "2026-09-07"
+  updated: "2026-09-11"
 ---
 
 # GitHub Agentic Workflow
@@ -37,4 +37,5 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 ## Documentation
 
 - [Overview](https://github.github.com/gh-aw/introduction/overview/) · [Copilot engine](https://github.github.com/gh-aw/engines/copilot/) · [CLI](https://github.github.com/gh-aw/setup/cli/) · [Security architecture](https://github.github.com/gh-aw/introduction/architecture/) · [Safe outputs](https://github.github.com/gh-aw/reference/safe-outputs/) · [Cost management](https://github.github.com/gh-aw/reference/cost-management/)
+- Releases: [gh-aw](https://github.com/github/gh-aw/releases)
 - Companion skills: [github-actions](../github-actions/SKILL.md) (deterministic CI/CD and workflow linting), [github-issues](../github-issues/SKILL.md) and [github-pull-request](../github-pull-request/SKILL.md) (human-controlled GitHub writes), [agent-mcp](../agent-mcp/SKILL.md) (host MCP configuration).

@@ -44,4 +44,5 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 ## Documentation
 
 - [hyperfine](https://github.com/sharkdp/hyperfine) · [oha](https://github.com/hatoo/oha)
+- Releases: [hyperfine](https://github.com/sharkdp/hyperfine/releases) · [oha](https://github.com/hatoo/oha/releases)
 - Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (performance as part of a test campaign), [production-readiness](../production-readiness/SKILL.md) (capacity evidence before promotion).

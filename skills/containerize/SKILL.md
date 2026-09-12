@@ -52,4 +52,5 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
 ## Documentation
 
 - [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/) · [uv Docker guide](https://docs.astral.sh/uv/guides/integration/docker/)
+- Releases: [Docker Engine](https://docs.docker.com/engine/release-notes/) · [uv changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [trivy](../trivy/SKILL.md), [cosign](../cosign/SKILL.md), [github-actions](../github-actions/SKILL.md), and [secure](../secure/SKILL.md).

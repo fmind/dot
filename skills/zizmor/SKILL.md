@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/zizmor
   created: "2026-09-02"
-  updated: "2026-09-03"
+  updated: "2026-09-11"
 ---
 
 # Zizmor
@@ -45,4 +45,5 @@ zizmor --fix .github/workflows/                           # experimental; the de
 ## Documentation
 
 - [zizmor](https://docs.zizmor.sh) · [Audit rules](https://docs.zizmor.sh/audits/)
+- Releases: [zizmor release notes](https://docs.zizmor.sh/release-notes/) · [GitHub releases](https://github.com/zizmorcore/zizmor/releases)
 - Companion skills: [github-actions](../github-actions/SKILL.md) (the `check:actions` task), [dependabot](../dependabot/SKILL.md) (`--collect dependabot`), [secure](../secure/SKILL.md).

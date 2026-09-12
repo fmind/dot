@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/api-client
   created: "2026-09-09"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # API Client
@@ -34,4 +34,5 @@ Integrate the needed API operation with a small, testable boundary. Prefer an ex
 ## Documentation
 
 - [HTTPX clients](https://www.python-httpx.org/advanced/clients/) · [timeouts](https://www.python-httpx.org/advanced/timeouts/) · [transports](https://www.python-httpx.org/advanced/transports/)
+- Releases: [HTTPX changelog](https://github.com/encode/httpx/blob/master/CHANGELOG.md)
 - Companion skills: [pydantic](../pydantic/SKILL.md) (schemas), [python-async](../python-async/SKILL.md) (task lifetime and cancellation), [python-stack](../python-stack/SKILL.md) (project tooling), [gws](../gws/SKILL.md) (Workspace).

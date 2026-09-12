@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dependabot
   created: "2026-07-14"
-  updated: "2026-09-06"
+  updated: "2026-09-11"
 ---
 
 # Dependabot
@@ -73,4 +73,5 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
 ## Documentation
 
 - [Dependabot](https://docs.github.com/en/code-security/dependabot) · [dependabot.yml options](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file) · [Grouping updates](https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/optimizing-pr-creation-version-updates)
+- Releases: [Dependabot changelog](https://github.blog/changelog/label/dependabot/)
 - Companion skills: [secure](../secure/SKILL.md) (security pass), [upgrade-tools](../upgrade-tools/SKILL.md) (manual bumps), [zizmor](../zizmor/SKILL.md) (offline validation).

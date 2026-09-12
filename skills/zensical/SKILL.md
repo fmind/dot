@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/zensical
   created: "2026-09-06"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Zensical Documentation
@@ -51,3 +51,4 @@ No upstream authoring `SKILL.md` was found in `zensical/zensical` on 2026-09-08.
 
 - [Zensical](https://github.com/zensical/zensical) · [Create a site](https://zensical.org/docs/create-your-site/) · [Authoring](https://zensical.org/docs/authoring/markdown/)
 - [Validation](https://zensical.org/docs/setup/validation/) · [Plugin compatibility](https://zensical.org/docs/compatibility/mkdocs/plugins/) · [Publishing](https://zensical.org/docs/publish-your-site/)
+- Releases: [Zensical](https://github.com/zensical/zensical/releases)

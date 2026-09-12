@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-adk
   created: "2026-09-02"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Google ADK
@@ -40,4 +40,5 @@ For agents-cli projects, use the ADK implementation selection from `google/agent
 
 - [Session state](https://google.github.io/adk-docs/sessions/state/) · [Runtime](https://google.github.io/adk-docs/runtime/)
 - [ADK docs](https://google.github.io/adk-docs/) · [Python SDK](https://github.com/google/adk-python) · [Google CLI and skills](https://github.com/google/agents-cli)
+- Releases: [adk-python](https://github.com/google/adk-python/releases) · [changelog](https://github.com/google/adk-python/blob/main/CHANGELOG.md)
 - Companion skills: [agents-cli](../agents-cli/SKILL.md), [prompt-design](../prompt-design/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [python-stack](../python-stack/SKILL.md).

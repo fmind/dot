@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Fmind Visual Communication
@@ -44,4 +44,5 @@ Typst is invoked directly for decks; Mermaid and D2 use their companion skills i
 ## Documentation
 
 - [Fmind website](https://www.fmind.dev/) · [Typst](https://typst.app/docs/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
+- Releases: [Typst](https://github.com/typst/typst/releases)
 - Companion skills: [mermaid](../mermaid/SKILL.md) (default diagrams), [d2](../d2/SKILL.md) (specialist diagrams), and [technical-publishing](../technical-publishing/SKILL.md) (Fmind articles).

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Observability
@@ -42,4 +42,5 @@ Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, and `grafana/sk
 ## Documentation
 
 - [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) · [Cloud Logging structured logs](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google-built OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel)
+- Releases: [OpenTelemetry Python](https://github.com/open-telemetry/opentelemetry-python/releases)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-adk](../google-adk/SKILL.md), [gcloud](../gcloud/SKILL.md), [benchmark](../benchmark/SKILL.md).

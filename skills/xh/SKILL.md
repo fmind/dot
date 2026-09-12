@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-09-05"
+  updated: "2026-09-11"
 ---
 
 # xh HTTP Inspection
@@ -45,4 +45,5 @@ xh has no upstream skill bundle. Use the installed CLI and verify flags with `xh
 ## Documentation
 
 - [xh](https://github.com/ducaale/xh) · [command reference](https://github.com/ducaale/xh#usage)
+- Releases: [xh](https://github.com/ducaale/xh/releases) · [changelog](https://github.com/ducaale/xh/blob/master/CHANGELOG.md)
 - Companion skills: [technical-research](../technical-research/SKILL.md), [systematic-debugging](../systematic-debugging/SKILL.md), [gws](../gws/SKILL.md) (authenticated Google Workspace operations).

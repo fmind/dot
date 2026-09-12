@@ -124,6 +124,15 @@ zellij = "latest" # Terminal multiplexer and workspace built in Rust
 zizmor = "latest" # Security auditor for GitHub Actions workflows
 zoxide = "latest" # Smarter cd command that learns directories
 
+[tools."github:a2aproject/a2a-cli"]
+version = "latest" # Official CLI client for Agent2Agent (A2A) agents
+
+[tools."github:a2aproject/a2a-cli".platforms]
+linux-x64 = { asset_pattern = "*linux_amd64*" }
+linux-arm64 = { asset_pattern = "*linux_arm64*" }
+macos-x64 = { asset_pattern = "*darwin_amd64*" }
+macos-arm64 = { asset_pattern = "*darwin_arm64*" }
+
 [tools."github:atuinsh/atuin"]
 # Upstream Linux glibc releases require GLIBC 2.38+; use musl assets for compatibility across Linux distributions.
 version = "latest" # Magical shell history replacement database

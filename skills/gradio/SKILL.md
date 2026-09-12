@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gradio
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Gradio
@@ -36,3 +36,4 @@ Hugging Face publishes [huggingface-gradio](https://github.com/huggingface/skill
 
 - [Quickstart](https://www.gradio.app/guides/quickstart) · [Blocks and events](https://www.gradio.app/guides/blocks-and-event-listeners) · [State](https://www.gradio.app/guides/state-in-blocks)
 - [Custom HTML](https://www.gradio.app/guides/custom-HTML-components) · [Queuing](https://www.gradio.app/guides/queuing) · [File access](https://www.gradio.app/guides/file-access)
+- Releases: [Gradio](https://github.com/gradio-app/gradio/releases) · [changelog](https://www.gradio.app/changelog)

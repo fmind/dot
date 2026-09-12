@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-mcp
   created: "2026-06-23"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Configure Agent MCP Servers
@@ -32,4 +32,5 @@ Connect only the MCP capability the task needs, using the installed host's nativ
 ## Documentation
 
 - [Model Context Protocol](https://modelcontextprotocol.io) · [MCP registry](https://registry.modelcontextprotocol.io) · [Google Cloud managed MCP](references/google-cloud-mcp.md)
+- Releases: [specification changelog](https://modelcontextprotocol.io/specification/latest/changelog) · [protocol releases](https://github.com/modelcontextprotocol/modelcontextprotocol/releases)
 - Companion skills: [agent-project](../agent-project/SKILL.md) (repository layout), [gcloud](../gcloud/SKILL.md) (project and IAM context for managed servers).

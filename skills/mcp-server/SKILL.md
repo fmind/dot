@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-server
   created: "2026-09-03"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # MCP Server
@@ -51,4 +51,5 @@ Upstream: `anthropics/skills`, an official Anthropic bundle with MCP builder gui
 ## Documentation
 
 - [MCP specification](https://modelcontextprotocol.io/specification/latest) · [Python SDK](https://github.com/modelcontextprotocol/python-sdk) · [Python SDK docs](https://py.sdk.modelcontextprotocol.io/)
+- Releases: [Python SDK](https://github.com/modelcontextprotocol/python-sdk/releases) · [specification changelog](https://modelcontextprotocol.io/specification/latest/changelog)
 - Companion skills: [agent-mcp](../agent-mcp/SKILL.md) (host registration), [python-stack](../python-stack/SKILL.md), [containerize](../containerize/SKILL.md), [cloud-run](../cloud-run/SKILL.md).

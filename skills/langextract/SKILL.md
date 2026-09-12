@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/langextract
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # LangExtract
@@ -35,3 +35,4 @@ Upstream: [google/langextract](https://github.com/google/langextract/tree/main/s
 ## Documentation
 
 - [Official project and API examples](https://github.com/google/langextract) · [Usage skill](https://github.com/google/langextract/tree/main/skills/langextract-usage)
+- Releases: [LangExtract](https://github.com/google/langextract/releases)

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-02"
-  updated: "2026-09-06"
+  updated: "2026-09-11"
 ---
 
 # Hugging Face CLI
@@ -48,4 +48,5 @@ hf skills update
 ## Documentation
 
 - [hf CLI guide](https://huggingface.co/docs/huggingface_hub/en/guides/cli) · [huggingface/skills](https://github.com/huggingface/skills)
+- Releases: [huggingface_hub](https://github.com/huggingface/huggingface_hub/releases)
 - Companion skills: [kaggle](../kaggle/SKILL.md), [colab](../colab/SKILL.md), [python-stack](../python-stack/SKILL.md).

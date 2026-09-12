@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Mise
@@ -50,4 +50,5 @@ Python projects start from [python-stack](../python-stack/references/mise.toml);
 
 - [Provenance pilot and adoption boundary](references/provenance-pilot.md)
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html)
+- Releases: [mise](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
 - Companion skills: [lefthook](../lefthook/SKILL.md) (hooks call these tasks), [github-actions](../github-actions/SKILL.md) (CI installs the toolchain with `mise-action` and runs `mise run all`).

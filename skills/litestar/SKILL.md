@@ -36,3 +36,4 @@ Upstream: [litestar-org/litestar-skills](https://github.com/litestar-org/litesta
 ## Documentation
 
 - [Litestar documentation](https://docs.litestar.dev/latest/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [Litestar release notes](https://docs.litestar.dev/latest/release-notes/) · [GitHub releases](https://github.com/litestar-org/litestar/releases)

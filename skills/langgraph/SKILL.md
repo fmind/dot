@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/langgraph
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # LangGraph
@@ -35,3 +35,4 @@ Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langch
 ## Documentation
 
 - [Overview](https://docs.langchain.com/oss/python/langgraph/overview) · [Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) · [Persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
+- Releases: [LangGraph](https://github.com/langchain-ai/langgraph/releases) · [changelog](https://changelog.langchain.com/)

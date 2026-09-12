@@ -2,6 +2,7 @@
   "version": 1,
   "skills": {
     "a2a-python-sdk": [
+      "a2a",
       "uv"
     ],
     "acli": [

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/marimo
   created: "2026-09-08"
-  updated: "2026-09-08"
+  updated: "2026-09-11"
 ---
 
 # marimo
@@ -48,4 +48,5 @@ Upstream: [marimo-team/skills](https://github.com/marimo-team/skills), for noteb
 ## Documentation
 
 - [marimo documentation](https://docs.marimo.io) · [Agent customization guide](https://docs.marimo.io/guides/generate_with_ai/customize_your_agent/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [marimo](https://github.com/marimo-team/marimo/releases)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [agent-project](../agent-project/SKILL.md), [duckdb](../duckdb/SKILL.md).

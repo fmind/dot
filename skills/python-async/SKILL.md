@@ -34,3 +34,4 @@ Own concurrent task lifetime and failure behavior. Async pays off only when many
 ## Documentation
 
 - [Asyncio tasks and cancellation](https://docs.python.org/3/library/asyncio-task.html) · [Queues](https://docs.python.org/3/library/asyncio-queue.html) · [AnyIO cancellation](https://anyio.readthedocs.io/en/stable/cancellation.html) · [AnyIO worker threads](https://anyio.readthedocs.io/en/stable/threads.html)
+- Releases: [CPython changelog](https://docs.python.org/3/whatsnew/changelog.html)

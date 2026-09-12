@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gitleaks
   created: "2026-09-02"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Gitleaks
@@ -62,4 +62,5 @@ run = "gitleaks git --redact=100 --staged --verbose"
 ## Documentation
 
 - [gitleaks](https://github.com/gitleaks/gitleaks)
+- Releases: [gitleaks](https://github.com/gitleaks/gitleaks/releases)
 - Companion skills: [secure](../secure/SKILL.md), [lefthook](../lefthook/SKILL.md), [trivy](../trivy/SKILL.md) (also reports secrets in `fs` scans).
