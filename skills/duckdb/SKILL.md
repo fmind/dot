@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # DuckDB and SQLite
@@ -52,4 +52,5 @@ Upstream: `duckdb/duckdb-skills`, with separate selections for querying, file fo
 ## Documentation
 
 - [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview) · [SQLite CLI](https://sqlite.org/cli.html)
+- Releases: [DuckDB](https://github.com/duckdb/duckdb/releases) · [SQLite changes](https://sqlite.org/changes.html)
 - Companion skills: [python-script](../python-script/SKILL.md) (a one-file pipeline when SQL is not enough), [python-stack](../python-stack/SKILL.md) (typed application data access and embedded SQLite).

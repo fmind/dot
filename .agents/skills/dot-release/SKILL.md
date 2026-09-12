@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Dot Release
@@ -41,4 +41,5 @@ Inspect `git status --short`, the release commit, local tag, and remote state be
 ## Documentation
 
 - [Release workflow test](../../../dot/tests/test_release_workflow.py) checks the CD gate before attestation and publication.
+- Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
 - Companion skills: [dot-development](../dot-development/SKILL.md) (implementation and installation proof), [conventional-commit](../../../skills/conventional-commit/SKILL.md) (commit grammar).

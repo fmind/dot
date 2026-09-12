@@ -33,3 +33,4 @@ Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-co
 ## Documentation
 
 - [ty documentation](https://docs.astral.sh/ty/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [ty](https://github.com/astral-sh/ty/releases)

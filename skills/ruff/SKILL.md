@@ -32,3 +32,4 @@ Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-co
 ## Documentation
 
 - [Ruff documentation](https://docs.astral.sh/ruff/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [Ruff](https://github.com/astral-sh/ruff/releases) · [changelog](https://github.com/astral-sh/ruff/blob/main/CHANGELOG.md)

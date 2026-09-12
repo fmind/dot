@@ -35,3 +35,4 @@ Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-co
 ## Documentation
 
 - [uv documentation](https://docs.astral.sh/uv/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [uv](https://github.com/astral-sh/uv/releases) · [changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)

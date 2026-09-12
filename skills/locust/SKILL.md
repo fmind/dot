@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/locust
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Locust
@@ -38,3 +38,4 @@ No consumer Agent Skill was found in the inspected [locustio/locust](https://git
 ## Documentation
 
 - [Writing a locustfile](https://docs.locust.io/en/stable/writing-a-locustfile.html) · [Headless runs and exit codes](https://docs.locust.io/en/stable/running-without-web-ui.html)
+- Releases: [Locust changelog](https://docs.locust.io/en/stable/changelog.html) · [GitHub releases](https://github.com/locustio/locust/releases)

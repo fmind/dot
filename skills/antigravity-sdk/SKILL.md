@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/antigravity-sdk
   created: "2026-09-03"
-  updated: "2026-09-08"
+  updated: "2026-09-11"
 ---
 
 # Antigravity SDK
@@ -40,4 +40,5 @@ Upstream: `Google-Antigravity/antigravity-sdk-python`; follow the shared [vendor
 
 - [SDK overview](https://antigravity.google/docs/sdk/overview/) · [Subagents](https://antigravity.google/docs/sdk/subagents/) · [Policies](https://antigravity.google/docs/sdk/policies/) · [Lifecycle](https://antigravity.google/docs/sdk/lifecycle/)
 - [antigravity-sdk-python](https://github.com/Google-Antigravity/antigravity-sdk-python) · [antigravity-sdk-python skills](https://github.com/google-antigravity/antigravity-sdk-python/tree/main/skills) · [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing)
+- Releases: [antigravity-sdk-python](https://github.com/google-antigravity/antigravity-sdk-python/releases)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [google-adk](../google-adk/SKILL.md), [agent-mcp](../agent-mcp/SKILL.md), [prompt-design](../prompt-design/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [observability](../observability/SKILL.md).

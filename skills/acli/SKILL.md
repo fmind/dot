@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-09-08"
+  updated: "2026-09-11"
 ---
 
 # Atlassian CLI
@@ -48,4 +48,5 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
 ## Documentation
 
 - [acli reference](https://developer.atlassian.com/cloud/acli/reference/commands/)
+- Releases: [acli changelog](https://developer.atlassian.com/cloud/acli/changelog/)
 - Companion skills: [github-issues](../github-issues/SKILL.md) (same authority rules for GitHub), [gws](../gws/SKILL.md) (Google Workspace), [agent-mcp](../agent-mcp/SKILL.md).

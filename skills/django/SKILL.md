@@ -42,4 +42,5 @@ mise run test
 ## Documentation
 
 - [Django documentation](https://docs.djangoproject.com/en/stable/) · [supported releases](https://www.djangoproject.com/download/) · [deployment checklist](https://docs.djangoproject.com/en/stable/howto/deployment/checklist/) · [security](https://docs.djangoproject.com/en/stable/topics/security/) · [async support](https://docs.djangoproject.com/en/stable/topics/async/)
+- Releases: [Django release notes](https://docs.djangoproject.com/en/stable/releases/)
 - Companion skills: [new-project](../new-project/SKILL.md) (repository-wide scaffold), [python-stack](../python-stack/SKILL.md) (uv and quality defaults), [containerize](../containerize/SKILL.md) (OCI image), [cloud-run](../cloud-run/SKILL.md) (deployment), and [secure](../secure/SKILL.md) (security pass).

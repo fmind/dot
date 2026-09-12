@@ -47,4 +47,5 @@ Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google
 ## Documentation
 
 - [gcloud reference](https://cloud.google.com/sdk/gcloud/reference) · [Authorize the gcloud CLI](https://cloud.google.com/sdk/docs/authorizing)
+- Releases: [gcloud release notes](https://cloud.google.com/sdk/docs/release-notes)
 - Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [terraform](../terraform/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).

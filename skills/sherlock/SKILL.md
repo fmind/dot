@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sherlock
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # Sherlock
@@ -37,3 +37,4 @@ No consumer Agent Skill was found in the inspected [sherlock-project/sherlock](h
 ## Documentation
 
 - [Usage](https://sherlockproject.xyz/usage) · [Source and installation](https://github.com/sherlock-project/sherlock)
+- Releases: [Sherlock](https://github.com/sherlock-project/sherlock/releases)

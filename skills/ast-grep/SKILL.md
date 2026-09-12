@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-09-06"
+  updated: "2026-09-11"
 ---
 
 # ast-grep
@@ -46,4 +46,5 @@ Upstream: `ast-grep/agent-skill`; follow the shared [vendor-skill policy](../age
 ## Documentation
 
 - [ast-grep guide](https://ast-grep.github.io/guide/introduction.html) · [Pattern syntax](https://ast-grep.github.io/guide/pattern-syntax.html) · [Rule reference](https://ast-grep.github.io/reference/rule.html) · [Languages](https://ast-grep.github.io/reference/languages.html)
+- Releases: [ast-grep](https://github.com/ast-grep/ast-grep/releases) · [changelog](https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md)
 - Companion skills: [project-health](../project-health/SKILL.md) (repository simplification), [python-stack](../python-stack/SKILL.md) (Python quality gate).

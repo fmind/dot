@@ -34,4 +34,5 @@ Change persisted data while preserving its declared meaning and recovery path. [
 ## Documentation
 
 - [SQLite backup](https://www.sqlite.org/backup.html) · [SQLite transactions](https://www.sqlite.org/lang_transaction.html) · [Django migrations](https://docs.djangoproject.com/en/stable/topics/migrations/)
+- Releases: [Alembic changelog](https://alembic.sqlalchemy.org/en/latest/changelog.html)
 - Companion skills: [test-driven-development](../test-driven-development/SKILL.md) (regression and property tests), [implementation-plan](../implementation-plan/SKILL.md) (ordered rollout).

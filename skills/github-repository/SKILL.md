@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-09-06"
+  updated: "2026-09-11"
 ---
 
 # GitHub Repository
@@ -65,4 +65,5 @@ Derive a repository's description, homepage, and topics from its codebase and ap
 ## Documentation
 
 - [gh repo edit manual](https://cli.github.com/manual/gh_repo_edit)
+- Releases: [GitHub CLI](https://github.com/cli/cli/releases)
 - Companion skills: [github-pull-request](../github-pull-request/SKILL.md) (PR titles feed the squash message), [project-license](../project-license/SKILL.md) (LICENSE), [new-project](../new-project/SKILL.md) (bootstrap).

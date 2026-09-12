@@ -44,4 +44,5 @@ For pytest fixture, collection, or assertion maintenance, use [pytest mechanics]
 ## Documentation
 
 - Adapted from [Superpowers test-driven-development](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/skills/test-driven-development/SKILL.md), [agent-skills test-driven-development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/test-driven-development/SKILL.md).
+- Releases: [pytest changelog](https://docs.pytest.org/en/stable/changelog.html)
 - Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (risk-based campaign), [systematic-debugging](../systematic-debugging/SKILL.md) (unexplained failure), [implementation-plan](../implementation-plan/SKILL.md) (planned slices), [mise](../mise/SKILL.md) (task vocabulary).

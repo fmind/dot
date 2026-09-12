@@ -34,6 +34,7 @@ class ToolConfig(StrictModel):
 
 def _default_custom_completions() -> dict[str, ToolConfig]:
     return {
+        "a2a": ToolConfig(),
         "acli": ToolConfig(),
         "ast-grep": ToolConfig(args=["completions", "fish"]),
         "atuin": ToolConfig(args=["gen-completions", "--shell", "fish"]),

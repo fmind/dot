@@ -31,3 +31,4 @@ Upstream: [fastapi/fastapi](https://github.com/fastapi/fastapi). Follow the shar
 ## Documentation
 
 - [FastAPI documentation](https://fastapi.tiangolo.com/) · [Skills CLI](https://skills.sh/docs/cli)
+- Releases: [FastAPI release notes](https://fastapi.tiangolo.com/release-notes/) · [GitHub releases](https://github.com/fastapi/fastapi/releases)

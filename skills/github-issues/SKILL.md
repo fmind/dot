@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-07"
+  updated: "2026-09-11"
 ---
 
 # GitHub Issues
@@ -53,4 +53,5 @@ gh skill install cli/cli <name>
 ## Documentation
 
 - [gh issue manual](https://cli.github.com/manual/gh_issue)
+- Releases: [GitHub CLI](https://github.com/cli/cli/releases)
 - Companion skills: [repository-review](../repository-review/SKILL.md) (verified findings), [implementation-plan](../implementation-plan/SKILL.md) (ordered implementation), [github-pull-request](../github-pull-request/SKILL.md) (the PR).

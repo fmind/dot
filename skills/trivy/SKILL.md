@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trivy
   created: "2026-09-02"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Trivy
@@ -57,4 +57,5 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 ## Documentation
 
 - [Trivy](https://trivy.dev)
+- Releases: [Trivy](https://github.com/aquasecurity/trivy/releases) · [changelog](https://github.com/aquasecurity/trivy/blob/main/CHANGELOG.md)
 - Companion skills: [secure](../secure/SKILL.md) (the repository checklist), [containerize](../containerize/SKILL.md) (image scans), [github-actions](../github-actions/SKILL.md) (`security.yml` scheduled scan).

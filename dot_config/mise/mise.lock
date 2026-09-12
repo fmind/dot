@@ -615,6 +615,32 @@ checksum = "sha256:caff76a7d070d8160c89bc39b6e85d98f24135b6fed038a3b4de2590d2510
 url = "https://github.com/git-lfs/git-lfs/releases/download/v3.8.0/git-lfs-darwin-arm64-v3.8.0.zip"
 url_api = "https://api.github.com/repos/git-lfs/git-lfs/releases/assets/532993595"
 
+[[tools."github:a2aproject/a2a-cli"]]
+version = "0.2.0"
+backend = "github:a2aproject/a2a-cli"
+specifiers = ["latest"]
+
+[tools."github:a2aproject/a2a-cli".options]
+asset_pattern = "*linux_amd64*"
+
+[tools."github:a2aproject/a2a-cli"."platforms.linux-x64"]
+checksum = "sha256:78ab1a096ad76d631f41018eae7dec00a59fdbf121bb917c7b65623f09f83988"
+url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666973"
+
+[[tools."github:a2aproject/a2a-cli"]]
+version = "0.2.0"
+backend = "github:a2aproject/a2a-cli"
+specifiers = ["latest"]
+
+[tools."github:a2aproject/a2a-cli".options]
+asset_pattern = "*darwin_arm64*"
+
+[tools."github:a2aproject/a2a-cli"."platforms.macos-arm64"]
+checksum = "sha256:3c6707a95498678ac23f938f5f7495e23de6d381d098577860ffba2da64de357"
+url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666975"
+
 [[tools."github:atuinsh/atuin"]]
 version = "18.21.0"
 backend = "github:atuinsh/atuin"

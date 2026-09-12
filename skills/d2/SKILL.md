@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/d2
   created: "2026-07-16"
-  updated: "2026-09-08"
+  updated: "2026-09-11"
 ---
 
 # D2 Diagram Standard
@@ -40,4 +40,5 @@ D2 is the specialist diagram tool: use it when the repository already owns `.d2`
 ## Documentation
 
 - [Language tour](https://d2lang.com/tour/intro/) · [CLI manual](https://d2lang.com/tour/man/) · [Themes and overrides](https://d2lang.com/tour/themes/)
+- Releases: [D2](https://github.com/d2lang/d2/releases)
 - Companion skills: [fmind-visuals](../fmind-visuals/SKILL.md) (tool choice and brand), [mermaid](../mermaid/SKILL.md) (default diagrams), [playwright](../playwright/SKILL.md) (rasterizing SVG).

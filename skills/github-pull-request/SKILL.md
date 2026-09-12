@@ -41,4 +41,5 @@ gh skill preview cli/cli gh
 ## Documentation
 
 - [gh pr manual](https://cli.github.com/manual/gh_pr)
+- Releases: [GitHub CLI](https://github.com/cli/cli/releases)
 - Companion skills: [Git branch preparation](../git-worktree/SKILL.md), [conventional-commit](../conventional-commit/SKILL.md), [github-issues](../github-issues/SKILL.md).

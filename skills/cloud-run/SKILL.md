@@ -42,4 +42,5 @@ Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google
 ## Documentation
 
 - [Cloud Run](https://cloud.google.com/run/docs) · [Artifact Registry](https://cloud.google.com/artifact-registry/docs) · [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation)
+- Releases: [Cloud Run](https://cloud.google.com/run/docs/release-notes) · [Artifact Registry](https://cloud.google.com/artifact-registry/docs/release-notes)
 - Companion skills: [containerize](../containerize/SKILL.md), [github-actions](../github-actions/SKILL.md), [sops-secrets](../sops-secrets/SKILL.md), [gcloud](../gcloud/SKILL.md), [terraform](../terraform/SKILL.md), and [secure](../secure/SKILL.md).

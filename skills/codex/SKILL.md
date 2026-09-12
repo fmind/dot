@@ -31,7 +31,7 @@ Operate Codex's harness, sessions, and customization. Use a host-provided OpenAI
 For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
 
 - [Documentation](https://learn.chatgpt.com/docs) · [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
-- [Changelog](https://learn.chatgpt.com/docs/changelog): select Codex entries and the surface in use.
+- [Changelog](https://learn.chatgpt.com/docs/changelog) · [CLI releases](https://github.com/openai/codex/releases): select Codex entries and the surface in use.
 - [Configuration](https://learn.chatgpt.com/docs/configuration) · [Configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
 - [Permissions](https://learn.chatgpt.com/docs/permissions) · [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 - [Remote connections](https://learn.chatgpt.com/docs/remote-connections) · [Hooks](https://learn.chatgpt.com/docs/hooks)

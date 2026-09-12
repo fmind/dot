@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/release
   created: "2026-07-04"
-  updated: "2026-09-07"
+  updated: "2026-09-11"
 ---
 
 # Release
@@ -32,4 +32,5 @@ Prepare or verify a versioned release with Conventional Commits, git-cliff, anno
 
 - [git-cliff](https://git-cliff.org) · [gh release manual](https://cli.github.com/manual/gh_release)
 - [GitHub release integrity](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity)
+- Releases: [git-cliff](https://github.com/orhun/git-cliff/releases) · [changelog](https://github.com/orhun/git-cliff/blob/main/CHANGELOG.md)
 - Companion skills: [conventional-commit](../conventional-commit/SKILL.md) (commit grammar), [github-pull-request](../github-pull-request/SKILL.md) (merge first), [mise](../mise/SKILL.md) (the gate).

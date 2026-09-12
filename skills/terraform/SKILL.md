@@ -64,4 +64,5 @@ Upstream: `hashicorp/agent-skills`; follow the shared [vendor-skill policy](../a
 ## Documentation
 
 - [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/latest/docs/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
+- Releases: [OpenTofu](https://github.com/opentofu/opentofu/releases) · [what's new](https://opentofu.org/docs/intro/whats-new/)
 - Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/SKILL.md) (CI), [secure](../secure/SKILL.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).

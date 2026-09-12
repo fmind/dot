@@ -50,4 +50,5 @@ CI runs the canonical [mise](../mise/SKILL.md) `all` task so it stays aligned wi
 ## Documentation
 
 - [GitHub Actions](https://docs.github.com/actions) · [PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/) · [PyPA publish action](https://github.com/pypa/gh-action-pypi-publish) · [Docker build-push action](https://github.com/docker/build-push-action)
+- Releases: [GitHub Actions changelog](https://github.blog/changelog/label/actions/)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [zizmor](../zizmor/SKILL.md), [trivy](../trivy/SKILL.md), [containerize](../containerize/SKILL.md), [cosign](../cosign/SKILL.md), and [secure](../secure/SKILL.md).

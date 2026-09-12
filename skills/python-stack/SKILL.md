@@ -59,3 +59,4 @@ For application templates, set output-appropriate escaping explicitly and prefer
 
 - [Python](https://docs.python.org/3/) · [Python packaging](https://packaging.python.org/)
 - [agent-project](../agent-project/SKILL.md) owns vendor skill discovery and the dated official-source audit; selecting a stack does not install every vendor bundle.
+- Releases: [Python versions](https://devguide.python.org/versions/) · [CPython changelog](https://docs.python.org/3/whatsnew/changelog.html)

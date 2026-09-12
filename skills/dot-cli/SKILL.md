@@ -51,4 +51,5 @@ Use [conventional-commit](../conventional-commit/SKILL.md) for staged commits, [
 ## Documentation
 
 - [fmind/dot](https://github.com/fmind/dot) — setup, implementation, and repository tasks.
+- Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
 - Companion skills: [agent-usage](../agent-usage/SKILL.md), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

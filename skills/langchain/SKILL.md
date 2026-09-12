@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/langchain
   created: "2026-09-10"
-  updated: "2026-09-10"
+  updated: "2026-09-11"
 ---
 
 # LangChain
@@ -34,3 +34,4 @@ Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langch
 ## Documentation
 
 - [Agents](https://docs.langchain.com/oss/python/langchain/agents) · [Testing](https://docs.langchain.com/oss/python/langchain/test)
+- Releases: [LangChain](https://github.com/langchain-ai/langchain/releases)

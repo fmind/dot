@@ -38,3 +38,4 @@ No consumer Agent Skill was found in the inspected [cookiecutter/cookiecutter](h
 ## Documentation
 
 - [CLI](https://cookiecutter.readthedocs.io/en/stable/cli_options.html) · [Hooks](https://cookiecutter.readthedocs.io/en/stable/advanced/hooks.html)
+- Releases: [Cookiecutter](https://github.com/cookiecutter/cookiecutter/releases) · [Cruft](https://github.com/cruft/cruft/releases)

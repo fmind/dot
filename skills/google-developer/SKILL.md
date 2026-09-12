@@ -39,3 +39,4 @@ Upstream: `google/skills`, with `cloud`, `ads`, `analytics`, `developers`, and `
 ## Documentation
 
 - [google/skills](https://github.com/google/skills) · [Google for Developers](https://developers.google.com)
+- Releases: [google/skills](https://github.com/google/skills/releases)

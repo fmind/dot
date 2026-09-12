@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cosign
   created: "2026-09-02"
-  updated: "2026-09-08"
+  updated: "2026-09-11"
 ---
 
 # Cosign
@@ -47,4 +47,5 @@ cosign = "latest"
 ## Documentation
 
 - [cosign](https://docs.sigstore.dev/cosign/)
+- Releases: [cosign](https://github.com/sigstore/cosign/releases) · [changelog](https://github.com/sigstore/cosign/blob/main/CHANGELOG.md)
 - Companion skills: [containerize](../containerize/SKILL.md) (builds the image), [github-actions](../github-actions/SKILL.md) (CD job), [secure](../secure/SKILL.md).

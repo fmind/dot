@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mermaid
   created: "2026-07-16"
-  updated: "2026-09-09"
+  updated: "2026-09-11"
 ---
 
 # Mermaid Diagram Standard
@@ -40,4 +40,5 @@ Mermaid is the default diagram format because the same editable text renders in 
 ## Documentation
 
 - [Syntax reference](https://mermaid.js.org/intro/syntax-reference.html) · [Theming](https://mermaid.js.org/config/theming) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)
+- Releases: [Mermaid](https://github.com/mermaid-js/mermaid/releases) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli/releases)
 - Companion skills: [fmind-visuals](../fmind-visuals/SKILL.md) (tool choice and Fmind theme), [d2](../d2/SKILL.md) (bespoke compositions).
