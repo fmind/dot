@@ -43,6 +43,15 @@
     url = "{{ $base }}/nvim/colors/{{ $variant }}.lua"
     refreshPeriod = "168h"
 
+# lualine carries the variant for the same reason Neovim does: its `auto` theme
+# resolves a file by vim.g.colors_name, so the name has to match the colorscheme's.
+# Nothing configures this -- lualine looks for lua/lualine/themes/<name>.lua on the
+# runtimepath and prefers a copy under the config directory, which is this one.
+[".config/nvim/lua/lualine/themes/{{ $variant }}.lua"]
+    type = "file"
+    url = "{{ $base }}/lualine/{{ $variant }}.lua"
+    refreshPeriod = "168h"
+
 [".config/git/theme.gitconfig"]
     type = "file"
     url = "{{ $base }}/delta/{{ $variant }}.gitconfig"
