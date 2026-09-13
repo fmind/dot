@@ -7,7 +7,7 @@ encryption = "age"
     # The only place a theme is named. Every wired tool derives from these two,
     # so switching palette or upstream release is one value, not five edits.
     theme_variant = {{ promptStringOnce . "theme_variant" "Which fmind/theme variant" "fmind" | quote }}
-    theme_ref = "v2.1.0"
+    theme_ref = "v2.2.0"
 
 [age]
     identity = "{{ .chezmoi.homeDir }}/.config/chezmoi/key.txt"
