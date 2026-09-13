@@ -1,11 +1,11 @@
 -- Docs: https://www.lazyvim.org/configuration/plugins
 -- General UI overrides and editor plugin fixes
 return {
-  -- Tokyo Night
+  -- Theme, named by chezmoi so the palette is chosen in one place
   {
     "LazyVim/LazyVim",
     opts = {
-      colorscheme = "tokyonight-moon",
+      colorscheme = require("config.theme"),
     },
   },
   -- Which-key preset

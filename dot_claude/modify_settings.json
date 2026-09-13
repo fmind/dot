@@ -1,7 +1,9 @@
 # chezmoi:modify-template
 {{- /* model must match what /model persists, or apply reverts the choice.
        effortLevel stops at xhigh: max is session-only (/effort max), and an
-       unknown value silently falls back to the default effort. */ -}}
+       unknown value silently falls back to the default effort.
+       theme: dark-ansi paints the TUI from the terminal's own sixteen slots,
+       which is how fmind/theme reaches a tool that takes no theme file. */ -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -92,6 +94,7 @@
   "respectGitignore": false,
   "skillListingBudgetFraction": 0.02,
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-ansi",
   "tui": "fullscreen",
   "workflowSizeGuideline": "large",
   "worktree": {

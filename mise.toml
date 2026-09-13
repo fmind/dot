@@ -134,7 +134,12 @@ run = "gitleaks git --redact=100 --staged --verbose"
 [tasks."check:lua"]
 alias = "cu"
 description = "Check Neovim Lua formatting (stylua)"
-run = "stylua --check dot_config/nvim"
+# Templated Lua stays valid Lua because every substitution sits inside a string
+# literal, so stylua checks it too rather than silently skipping the .tmpl files.
+run = [
+  "stylua --check dot_config/nvim",
+  "stylua --check --glob '**/*.lua.tmpl' dot_config/nvim",
+]
 
 [tasks."check:python"]
 alias = "cp"

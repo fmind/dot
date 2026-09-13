@@ -1,12 +1,19 @@
 # Docs: https://ghostty.org/docs/config/reference
 
-theme = tokyonight_moon
+theme = {{ .theme_variant }}
 
 # Font Configs
 font-family = "FiraCode Nerd Font Mono"
 font-feature = -calt
 font-feature = -liga
 font-size = 13
+# FiraCode ships no italic face at all, so Ghostty would synthesise one by
+# slanting upright glyphs. The theme separates roles with bold and dim instead.
+font-synthetic-style = no-italic,no-bold-italic
+# The palette spends all sixteen slots on distinct syntax roles, so the bright
+# half is not a lightened copy of the normal half: bold-is-bright would silently
+# swap six semantic colours for six others.
+bold-is-bright = false
 
 {{- if eq .chezmoi.os "darwin" }}
 macos-option-as-alt = left

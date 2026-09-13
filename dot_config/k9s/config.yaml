@@ -11,7 +11,7 @@ k9s:
   ui:
     enableMouse: true
     reactive: true
-    skin: tokyonight
+    skin: theme
   logger:
     buffer: 5000
     showTime: true

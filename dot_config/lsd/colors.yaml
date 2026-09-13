@@ -1,9 +1,14 @@
 # Docs: https://github.com/lsd-rs/lsd/blob/main/doc/colors.md
+#
+# fmind/theme spends ANSI slot 2 on `string`, which is a white, and slot 4 on
+# `function`, which is the green. So every entry below that means *ok*, *new* or
+# *readable* asks for `blue` rather than `green`: asking for green here gets a
+# white listing, which is the one thing an ls should never be.
 
 user: yellow
 group: 243
 permission:
-  read: green
+  read: blue
   write: yellow
   exec: red
   exec-sticky: magenta
@@ -14,7 +19,7 @@ date:
   older: 243
 size:
   none: 243
-  small: green
+  small: blue
   medium: yellow
   large: red
 inode:
@@ -26,8 +31,8 @@ links:
 git-status:
   unmodified: 243
   ignored: 243
-  new-in-index: green
-  new-in-workdir: green
+  new-in-index: blue
+  new-in-workdir: blue
   deleted: red
   renamed: cyan
   modified: yellow

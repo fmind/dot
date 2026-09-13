@@ -4,15 +4,21 @@
 add_newline = false
 format = "$directory$git_branch$git_state$git_status$kubernetes$cmd_duration$character"
 
-palette = "tokyonight"
+palette = "fmind"
 
-[palettes.tokyonight]
-red = "#ff757f"
-purple = "#c099ff"
-green = "#c3e88d"
-blue = "#82aaff"
-orange = "#ff966c"
-gray = "#636da6"
+# Generated block, do not hand-edit. Starship has no include mechanism, so this
+# is the one place a palette is copied rather than referenced.
+# source: https://github.com/fmind/theme/blob/v2.1.0/starship/fmind.toml
+# regenerate: uv run render.py in fmind/theme, then copy the [palettes.*] block
+[palettes.fmind]
+text = "#56ff40"
+green = "#d6d8d6"
+bright_green = "#26fed9"
+red = "#f63a4b"
+orange = "#ff7800"
+blue = "#35ab24"
+cyan = "#2ad7f5"
+gray = "#7e8a7b"
 
 [directory]
 style = "bold blue"
@@ -33,8 +39,8 @@ format = "took [$duration]($style) "
 [character]
 error_symbol = "[❯](bold red)"
 success_symbol = "[❯](bold blue)"
-vimcmd_replace_one_symbol = "[❮](bold purple)"
-vimcmd_replace_symbol = "[❮](bold purple)"
+vimcmd_replace_one_symbol = "[❮](bold bright_green)"
+vimcmd_replace_symbol = "[❮](bold bright_green)"
 vimcmd_symbol = "[❮](bold green)"
 vimcmd_visual_symbol = "[❮](bold orange)"
 
