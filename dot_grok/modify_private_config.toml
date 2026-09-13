@@ -19,10 +19,8 @@ follow_up_behavior = "steer"
 permission_mode = "always-approve"
 # vim_mode covers scrollback; simple_mode = false enables vim prompt editing.
 simple_mode = false
-# Grok ships five built-in themes and takes no custom one, so fmind/theme
-# cannot reach it. GrokNight is the only one that survives quantization to
-# sixteen colours, which keeps it closest to the terminal's own palette.
-theme = "dark"
+# Grok uses its own built-in light palette.
+theme = "grokday"
 vim_mode = true
 
 # Allow ordinary repository gates to finish and retain useful failure output.

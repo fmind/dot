@@ -1,0 +1,20 @@
+# Docs: https://docs.atuin.sh/latest/guide/theming/
+# Source: https://github.com/fmind/theme/blob/main/atuin/fmind.toml
+[theme]
+name = "fmind"
+[colors]
+AlertInfo = "#00636d"
+AlertWarn = "#934900"
+AlertError = "#a50e0e"
+Annotation = "#595d62"
+Base = "#202124"
+Guidance = "#174ea6"
+Important = "#0d652d"
+Title = "#174ea6"
+Muted = "#595d62"
+SyntaxCommand = "#174ea6"
+SyntaxFlag = "#681da8"
+SyntaxString = "#0d652d"
+SyntaxVariable = "#202124"
+SyntaxOperator = "#202124"
+SyntaxComment = "#595d62"

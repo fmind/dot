@@ -2,29 +2,34 @@
 # Docs: https://starship.rs/config/
 
 add_newline = false
-format = "$directory$git_branch$git_state$git_status$kubernetes$cmd_duration$character"
+format = "$directory$git_branch$git_state$git_status$cmd_duration$character"
 
 palette = "fmind"
 
-# Generated block, do not hand-edit. Starship has no include mechanism, so this
-# is the one place a palette is copied rather than referenced.
-# source: https://github.com/fmind/theme/blob/v2.1.0/starship/fmind.toml
-# regenerate: uv run render.py in fmind/theme, then copy the [palettes.*] block
+# Native theme block copied from fmind/theme.
+# source: https://github.com/fmind/theme/blob/main/starship/fmind.toml
+# Update from starship/fmind.toml after changing the upstream theme.
 [palettes.fmind]
-text = "#56ff40"
-green = "#d6d8d6"
-bright_green = "#26fed9"
-red = "#f63a4b"
-orange = "#ff7800"
-blue = "#35ab24"
-cyan = "#2ad7f5"
-gray = "#7e8a7b"
+text = "#202124"
+green = "#0d652d"
+bright_green = "#0d652d"
+red = "#a50e0e"
+orange = "#934900"
+blue = "#174ea6"
+cyan = "#00636d"
+gray = "#595d62"
+purple = "#681da8"
+magenta = "#681da8"
+yellow = "#934900"
+white = "#202124"
+black = "#202124"
 
 [directory]
 style = "bold blue"
 
 [git_branch]
-style = "bold red"
+# Branch identity is green; red is reserved for a failed command.
+style = "bold green"
 format = "on [$symbol$branch]($style) "
 
 [git_status]
@@ -38,16 +43,8 @@ format = "took [$duration]($style) "
 
 [character]
 error_symbol = "[❯](bold red)"
-success_symbol = "[❯](bold blue)"
+success_symbol = "[❯](bold green)"
 vimcmd_replace_one_symbol = "[❮](bold bright_green)"
 vimcmd_replace_symbol = "[❮](bold bright_green)"
 vimcmd_symbol = "[❮](bold green)"
 vimcmd_visual_symbol = "[❮](bold orange)"
-
-[kubernetes]
-disabled = false
-format = 'on [☸  $context (\($namespace\))](bold blue) '
-
-[[kubernetes.contexts]]
-context_pattern = "gke_.*_prod-.*"
-context_alias = "prod-gke"

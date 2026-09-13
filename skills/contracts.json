@@ -14,6 +14,7 @@
       "claude",
       "codex",
       "copilot",
+      "cursor-agent",
       "grok",
       "opencode"
     ],
@@ -95,6 +96,9 @@
       "cosign"
     ],
     "course-development": [],
+    "cursor": [
+      "cursor-agent"
+    ],
     "d2": [
       "d2"
     ],
@@ -143,9 +147,17 @@
     "fastapi": [
       "skills"
     ],
+    "fkf-use": [
+      "fkf",
+      "uv"
+    ],
     "fmind-visuals": [
+      "ffmpeg",
+      "ttyd",
       "typst",
-      "typstyle"
+      "typstyle",
+      "uv",
+      "vhs"
     ],
     "gcloud": [
       "gcloud"
@@ -254,7 +266,10 @@
       "mise"
     ],
     "modern-web": [
-      "skills"
+      "mise",
+      "npx",
+      "skills",
+      "tailwindcss"
     ],
     "new-project": [
       "gh",
@@ -361,7 +376,9 @@
       "sops"
     ],
     "systematic-debugging": [
-      "uv"
+      "doggo",
+      "uv",
+      "xh"
     ],
     "technical-publishing": [],
     "technical-research": [],

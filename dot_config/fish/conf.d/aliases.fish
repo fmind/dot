@@ -23,8 +23,6 @@ if status is-interactive
     abbr -a iq "agy --prompt"
     # j:fkf
     abbr -a j fkf
-    # k:kubectl
-    abbr -a k kubectl
     # l:lsd
     alias lsd="lsd --icon=always --git --group-directories-first --date=relative --literal"
     alias ls="lsd"

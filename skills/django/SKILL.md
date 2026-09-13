@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/django
   created: "2026-09-07"
-  updated: "2026-09-11"
+  updated: "2026-09-13"
 ---
 
 # Django
@@ -18,6 +18,7 @@ Use Django when its integrated ORM, migrations, forms, templates, authentication
 1. **Establish the framework contract**: inspect the installed Django version, settings, URL configuration, apps, migrations, database, and deployment target before editing; for a new application, read [bootstrap](references/bootstrap.md).
 1. **Model the domain first**: keep apps cohesive, encode invariants with fields, constraints, forms, and transactions, and decide whether a custom user model is needed before the first migration.
 1. **Prefer Django's integrated path**: start with server-rendered templates, forms, authentication, and admin; add an API framework, task backend, cache, or JavaScript layer only for a demonstrated requirement.
+1. **Build template styles deliberately**: keep an existing asset pipeline; for standalone Tailwind, follow [modern-web's asset workflow](../modern-web/references/tailwind.md) and build CSS before `collectstatic`.
 1. **Keep control flow visible**: use thin views and explicit functions for multi-step use cases; avoid signals, custom middleware, managers, or repository/service layers when ordinary Django code is clearer.
 1. **Choose sync deliberately**: default to synchronous request and transaction code; use async only for measured concurrent I/O and verify the ASGI, middleware, ORM, connection-pooling, and transaction boundaries end to end.
 1. **Treat schema changes as code**: review generated migrations, preserve applied migration history, test data migrations in both directions when reversible, and never infer production schema state from models alone.

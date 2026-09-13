@@ -9,6 +9,9 @@ import tomllib
 import unittest
 from pathlib import Path
 
+import pytest
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -40,7 +43,13 @@ class HarnessConfigTests(unittest.TestCase):
     def render(self, template: str, content: str, overrides: dict[str, str] | None = None) -> str:
         environment: dict[str, str] = dict(os.environ)
         environment["HOME"] = str(self.home)
-        for name in ("OPENCODE_GCP_PROJECT", "GOOGLE_CLOUD_PROJECT", "VERTEX_LOCATION"):
+        for name in (
+            "OPENCODE_GCP_PROJECT",
+            "GOOGLE_CLOUD_PROJECT",
+            "VERTEX_LOCATION",
+            "ANTIGRAVITY_CLOUD_PROJECT",
+            "ANTIGRAVITY_CLOUD_LOCATION",
+        ):
             environment.pop(name, None)
         environment.update(overrides or {})
         # apply consumes the modify-template directive before rendering; execute-template
@@ -225,6 +234,103 @@ sessions = false
                 assert data["mcp"] == original["mcp"]
                 assert data["hooks"]["SessionStart"] == original["hooks"]["SessionStart"]
                 assert self.render(template, rendered) == rendered
+
+    def test_copilot_merge_preserves_preferences_and_enforces_policy(self):
+        template = "dot_copilot/modify_settings.json"
+        original = {
+            "model": "account-model",
+            "effortLevel": "medium",
+            "banner": "always",
+            "notifications": False,
+            "autoUpdate": True,
+            "includeCoAuthoredBy": True,
+            "trusted_folders": [],
+            "customOption": False,
+        }
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        assert data["model"] == original["model"]
+        assert data["effortLevel"] == original["effortLevel"]
+        assert data["banner"] == original["banner"]
+        assert data["trusted_folders"] == []
+        assert data["customOption"] is False
+        assert data["notifications"] is True
+        assert data["autoUpdate"] is False
+        assert data["includeCoAuthoredBy"] is False
+        assert data["editorMode"] == "vim"
+        assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert fresh["model"] == "auto"
+        assert fresh["effortLevel"] == "xhigh"
+
+    def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
+        template = "dot_gemini/antigravity-cli/modify_settings.json"
+        original = {
+            "model": "account-model",
+            "gcp": {"project": "host-project", "location": "host-location", "extra": "preserved"},
+            "trustedWorkspaces": [],
+            "pickerGrouping": "flat",
+            "accountOption": False,
+        }
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        for key, value in original.items():
+            assert data[key] == value
+        assert data["editorMode"] == "vim"
+        assert data["notifications"] is True
+        assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert fresh["model"] == "Gemini 3.8 Flash (High)"
+        assert fresh["trustedWorkspaces"] == [str(self.home), str(self.home / ".local/share/chezmoi")]
+
+    def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
+        template = "dot_gemini/antigravity-cli/modify_settings.json"
+        original = json.dumps({"gcp": {"project": "host", "location": "region", "extra": True}})
+        location_only = self.render(template, original, {"ANTIGRAVITY_CLOUD_LOCATION": "ignored"})
+        assert json.loads(location_only)["gcp"] == json.loads(original)["gcp"]
+        for overrides, location in [
+            ({}, "global"),
+            ({"ANTIGRAVITY_CLOUD_LOCATION": "explicit-region"}, "explicit-region"),
+        ]:
+            with self.subTest(location=location):
+                overrides["ANTIGRAVITY_CLOUD_PROJECT"] = 'project-with-"quote'
+                data = json.loads(self.render(template, original, overrides))
+                assert data["gcp"] == {"project": 'project-with-"quote', "location": location, "extra": True}
+
+    def test_copilot_lsp_merge_keeps_other_servers_and_ty_options(self):
+        template = "dot_copilot/modify_lsp-config.json"
+        original = {"lspServers": {"custom": {"command": "fixture"}, "ty": {"env": {"CUSTOM": "value"}}}}
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)["lspServers"]
+        assert data["custom"] == original["lspServers"]["custom"]
+        assert data["ty"]["env"] == {"CUSTOM": "value"}
+        assert data["ty"]["command"] == "ty"
+        assert data["ty"]["args"] == ["server"]
+        assert data["ty"]["fileExtensions"][".py"] == "python"
+        assert self.render(template, rendered) == rendered
+
+    def test_json_merge_rejects_malformed_or_non_object_host_state(self):
+        for content in ['{"unfinished":', "[]", "null", '"string"']:
+            with self.subTest(content=content), pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
+                self.render("dot_copilot/modify_settings.json", content)
+
+    def test_gh_dash_commands_reach_repo_paths_with_spaces(self):
+        self.home = self.home / "home with spaces"
+        self.home.mkdir()
+        data = yaml.safe_load(self.render("dot_config/gh-dash/config.yml.tmpl", ""))
+        mappings = data["repoPaths"]
+        assert mappings["fmind/dot"] == str(self.home / ".local/share/chezmoi")
+        assert mappings[":owner/:repo"] == str(self.home / ":owner/:repo")
+        binding = next(item["command"] for item in data["keybindings"]["prs"] if item["key"] == "O")
+        for repo in ["fmind/dot", "synthetic/project"]:
+            with self.subTest(repo=repo):
+                owner, name = repo.split("/")
+                path = mappings.get(repo, mappings[":owner/:repo"].replace(":owner", owner).replace(":repo", name))
+                Path(path).mkdir(parents=True)
+                # Observe the working directory reached by the native shell binding.
+                command = binding.replace("{{.RepoPath}}", path).replace("&& lazygit", "&& pwd")
+                result = subprocess.run(["sh", "-c", command], capture_output=True, text=True, check=True)
+                assert result.stdout.strip() == path
 
     def test_marimo_vim_merge_preserves_host_settings_and_is_repeatable(self):
         template = "dot_config/marimo/modify_private_marimo.toml"

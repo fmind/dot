@@ -1,25 +1,23 @@
 # Docs: https://github.com/lsd-rs/lsd/blob/main/doc/colors.md
-#
-# fmind/theme spends ANSI slot 2 on `string`, which is a white, and slot 4 on
-# `function`, which is the green. So every entry below that means *ok*, *new* or
-# *readable* asks for `blue` rather than `green`: asking for green here gets a
-# white listing, which is the one thing an ls should never be.
+# Source: https://github.com/fmind/theme/blob/main/lsd/fmind.yaml
+# Update this file after changing the upstream theme.
+# Green means success/new/readable; red means an error or deletion.
 
 user: yellow
-group: 243
+group: dark_grey
 permission:
-  read: blue
+  read: green
   write: yellow
-  exec: red
+  exec: green
   exec-sticky: magenta
-  no-access: 240
+  no-access: dark_grey
 date:
   hour-old: cyan
-  day-old: blue
-  older: 243
+  day-old: green
+  older: dark_grey
 size:
-  none: 243
-  small: blue
+  none: dark_grey
+  small: green
   medium: yellow
   large: red
 inode:
@@ -29,10 +27,10 @@ links:
   valid: cyan
   invalid: red
 git-status:
-  unmodified: 243
-  ignored: 243
-  new-in-index: blue
-  new-in-workdir: blue
+  unmodified: dark_grey
+  ignored: dark_grey
+  new-in-index: green
+  new-in-workdir: green
   deleted: red
   renamed: cyan
   modified: yellow

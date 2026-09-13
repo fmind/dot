@@ -23,6 +23,7 @@
    - **Claude Code**: `.mcp.json` for project MCP servers (`claude mcp add --scope project`).
    - **Codex**: reads `AGENTS.md` and `.agents/skills`; `.codex/config.toml` holds trusted project overrides and MCP.
    - **Copilot**: reads `AGENTS.md` and `.agents/skills`; `.github/copilot-instructions.md` only for extra repository-wide Copilot instructions.
+   - **Cursor**: reads project `AGENTS.md`, `CLAUDE.md`, and `.agents/skills` directly; add `.cursor/rules` only for Cursor-specific rules. `.cursor/cli.json` owns project permissions and `.cursor/mcp.json` owns project MCP. Global CLI settings remain in the managed user configuration; see [cursor](../../cursor/SKILL.md).
    - **OpenCode**: reads `AGENTS.md` and `.agents/skills`; use `opencode.json` or `.jsonc` for project configuration and MCP. See [opencode](../../opencode/SKILL.md) for session operation.
    - **Grok**: reads `AGENTS.md` and `.agents/skills`; project MCP lives in `./.grok/config.toml` via `grok mcp add --scope project`.
 1. **Keep secrets and state out of git**: ignore local credentials, generated agent state, and secret-bearing overrides; commit only portable configuration.

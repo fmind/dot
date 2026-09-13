@@ -2177,6 +2177,72 @@
       ],
       "primary": "github-actions",
       "top_k": 3
+    },
+    {
+      "id": "cursor-cli-workflow",
+      "categories": [
+        "agents"
+      ],
+      "prompt": "Resume a Cursor CLI chat, inspect headless permissions, and verify the available local skills without changing approvals.",
+      "expected": [
+        "cursor"
+      ],
+      "primary": "cursor",
+      "top_k": 3
+    },
+    {
+      "id": "fkf-evidence-retrieval",
+      "categories": [
+        "knowledge"
+      ],
+      "prompt": "Find the accepted decision in my local FKF base and cite the exact evidence, without refreshing providers.",
+      "expected": [
+        "fkf-use"
+      ],
+      "primary": "fkf-use",
+      "top_k": 3,
+      "forbidden": [
+        "gws"
+      ]
+    },
+    {
+      "id": "standalone-tailwind-assets",
+      "categories": [
+        "web"
+      ],
+      "prompt": "Our Python templates use the standalone Tailwind compiler. Fix missing conditional CSS classes and wire a production stylesheet build.",
+      "expected": [
+        "modern-web"
+      ],
+      "primary": "modern-web",
+      "top_k": 3
+    },
+    {
+      "id": "network-dns-tls-diagnosis",
+      "categories": [
+        "debugging"
+      ],
+      "prompt": "A Python service reaches an endpoint locally but fails behind a proxy in CI. Trace DNS, TCP, TLS and HTTP to identify the failing layer.",
+      "expected": [
+        "systematic-debugging"
+      ],
+      "primary": "systematic-debugging",
+      "top_k": 3,
+      "forbidden": [
+        "incident-response"
+      ]
+    },
+    {
+      "id": "terminal-demo-recording",
+      "categories": [
+        "publishing"
+      ],
+      "prompt": "Record a short terminal GIF for my tutorial with synthetic data, a reusable tape and the configured terminal colors.",
+      "expected": [
+        "fmind-visuals"
+      ],
+      "primary": "fmind-visuals",
+      "top_k": 3
     }
   ]
 }

@@ -1,0 +1,13 @@
+# Docs: https://docs.astral.sh/ruff/configuration/
+# Fallback for scratch scripts outside projects with their own Ruff configuration.
+# Projects retain their own rules; this subset allows prints and one-off scripts.
+line-length = 120
+target-version = "py313"
+
+[format]
+docstring-code-format = true
+line-ending = "lf"
+quote-style = "double"
+
+[lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "PTH", "PERF", "RUF"]

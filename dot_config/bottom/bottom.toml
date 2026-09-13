@@ -17,3 +17,40 @@ default_grouped = false
 default_memory_value = true
 default_tree = true
 disable_advanced_kill = true
+
+# Docs: https://clementtsang.github.io/bottom/stable/configuration/config-file/styling/
+# Source: https://github.com/fmind/theme/blob/main/bottom/fmind.toml
+[styles]
+theme = "default-light"
+[styles.widgets]
+bg_colour = "#ffffff"
+text = "#202124"
+selected_text = { colour = "#202124", bg_colour = "#d2e3fc", bold = true }
+disabled_text = "#595d62"
+thread_text = "#595d62"
+border_colour = "#9aa0a6"
+selected_border_colour = "#4285f4"
+widget_title = { colour = "#174ea6", bold = true }
+[styles.tables]
+headers = { colour = "#174ea6", bold = true }
+[styles.graphs]
+graph_colour = "#9aa0a6"
+legend_text = "#202124"
+[styles.cpu]
+all_entry_colour = "#0d652d"
+avg_entry_colour = "#174ea6"
+cpu_core_colours = ["#174ea6", "#0d652d", "#934900", "#681da8", "#a50e0e"]
+[styles.memory]
+ram_colour = "#174ea6"
+cache_colour = "#0d652d"
+swap_colour = "#934900"
+arc_colour = "#681da8"
+[styles.network]
+rx_colour = "#174ea6"
+tx_colour = "#0d652d"
+rx_total_colour = "#174ea6"
+tx_total_colour = "#0d652d"
+[styles.battery]
+high_battery_colour = "#0d652d"
+medium_battery_colour = "#934900"
+low_battery_colour = "#a50e0e"

@@ -24,3 +24,6 @@ filter_mode = "directory"
 
 # Up-arrow scoped to the session
 filter_mode_shell_up_key_binding = "session"
+
+[theme]
+name = "fmind"

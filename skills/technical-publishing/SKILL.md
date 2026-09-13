@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/technical-publishing
   created: "2026-08-30"
-  updated: "2026-09-08"
+  updated: "2026-09-13"
 ---
 
 # Publish Technical Articles
@@ -26,6 +26,7 @@ pub publish <package> --site <site-directory>    # export to canonical site; --d
 1. **Package pipeline**: prepare and review the article and channel deliverables inside the package before publication; `draft.txt` contains raw notes that agents never edit; see [Package layout](references/packages.md).
 1. **Voice and boundaries**: adhere to the editorial voice in [Voice and identity](references/voice.md); agree the register before drafting; never invent anecdotes, clients, or metrics; keep published articles immutable.
 1. **Visuals**: explanatory diagrams follow [fmind-visuals](../fmind-visuals/SKILL.md) and [d2](../d2/SKILL.md) using the light-surface theme; store `.d2` sources beside rendered PNGs.
+1. **Terminal demos**: use the shared [VHS workflow](../fmind-visuals/references/recording.md), retain the tape and synthetic inputs beside the export, and provide a transcript or static alternative; recording does not publish the asset.
 1. **Canonical export**: export to the canonical site only when authorized; prepare corrections through the site's explicit erratum or edition workflow; ownership does not authorize rewriting published text.
 1. **Channel copy**: prepare channel adaptations in `posts/` (LinkedIn, X, Bluesky, Medium); channels are posted by hand, never automated or scheduled.
 

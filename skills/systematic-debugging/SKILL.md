@@ -1,12 +1,12 @@
 ---
 name: systematic-debugging
-description: Diagnose bugs, test/build or auth failures, flakes, and Python performance regressions. Use for root-cause investigation and profiling time or memory with Pyinstrument or Memray.
+description: Diagnose bugs, build/auth/network failures, flakes, and Python performance. Use for root-cause investigation, DNS/TLS/HTTP troubleshooting, or Pyinstrument/Memray profiling.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-09-11"
+  updated: "2026-09-13"
 ---
 
 # Systematic Debugging
@@ -37,6 +37,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 ## References
 
+- [Network troubleshooting](references/network.md): isolate DNS, connection, TLS, HTTP, proxy, and authentication failures with `doggo`, Python, and `xh` before changing configuration.
 - [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument and Memray captures; use `uv` to run the project Python.
 
 ## Documentation

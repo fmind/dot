@@ -10,11 +10,10 @@
   "display": {
     "separator": "  ",
     "color": {
-      // Slot 6 `type` and slot 4 `function`: the greeting is the first thing a
-      // shell shows, so it stays on the cool tier and the green rather than on
-      // the keyword violet.
-      "keys": "cyan",
-      "title": "blue"
+      // Source: https://github.com/fmind/theme/blob/main/fastfetch/fmind.json
+      // Update this block after changing the upstream theme.
+      "keys": "blue",
+      "title": "green"
     },
     "key": {
       "width": 12

@@ -1,15 +1,16 @@
 // Docs: https://typst.app/docs/reference/
-// This native Typst deck stays self-contained. For release, vendor Outfit and
-// Inter TTF files, change these names, and compile with --font-path fonts.
-#let heading-font = "DejaVu Sans"
-#let body-font = "DejaVu Sans"
+// Palette: https://github.com/fmind/theme/blob/main/README.md
+// Supply Google Sans and Google Sans Code TTF files with --font-path fonts.
+#let heading-font = "Google Sans"
+#let body-font = "Google Sans"
+#show raw: set text(font: "Google Sans Code")
 
-#let background = rgb("#0F172A")
-#let panel = rgb("#1E293B")
-#let foreground = rgb("#F8FAFC")
-#let muted = rgb("#CBD5E1")
-#let primary = rgb("#646CFF")
-#let border = rgb("#334155")
+#let background = rgb("#FFFFFF")
+#let panel = rgb("#F1F3F4")
+#let foreground = rgb("#202124")
+#let muted = rgb("#595D62")
+#let primary = rgb("#174EA6")
+#let border = rgb("#9AA0A6")
 
 #set document(title: "Presentation title", author: "Médéric Hurier (Fmind)")
 #set page(

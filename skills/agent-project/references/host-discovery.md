@@ -8,6 +8,7 @@ How each host finds the persona, global skills, and workspace skills, and the re
 | Claude Code | `~/.claude/CLAUDE.md`                            | `~/.claude/skills` (link to `~/.agents/skills`)        | `.claude/skills` (link to `../.agents/skills`)          | `/skills` inside the session              |
 | Codex       | `~/.codex/AGENTS.md`                             | `~/.agents/skills`                                     | `.agents/skills`                                        | `codex debug prompt-input`                |
 | Copilot     | `~/.copilot/copilot-instructions.md`             | `~/.copilot/skills` or `~/.agents/skills`              | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`                      |
+| Cursor | Project `AGENTS.md`, `CLAUDE.md`, and Cursor rules | `~/.agents/skills` or `~/.cursor/skills` | `.agents/skills` or `.cursor/skills` | Skills in Customize; no standalone skill-list command in the inspected CLI |
 | Grok        | `~/.grok/AGENTS.md`                              | `~/.grok/skills` (link to `~/.agents/skills`)          | `.agents/skills`                                        | `grok inspect`                            |
 | OpenCode    | `~/.agents/AGENTS.md` via managed `instructions` | `~/.agents/skills`                                     | `.agents/skills` or `.opencode/skills`                  | `opencode debug skill`                    |
 
@@ -19,6 +20,7 @@ How each host finds the persona, global skills, and workspace skills, and the re
 - Claude Code and Antigravity expose `/skills` in the interactive session only; explicit invocation (`/<skill-name>`) is the fallback proof in Claude.
 - `opencode debug skill` can include skill bodies; inspect needed names locally and keep private instruction content out of reports.
 - A listed skill proves inclusion in the prompt, not instruction following; validate behavior against explicit acceptance cases in a disposable, instrumented run.
+- Cursor also discovers compatibility directories documented in [its skills guide](https://cursor.com/docs/skills). User-level packages remain local unless explicitly distributed to a remote execution environment; use project packages or worker-image installation for Cloud Agents and self-hosted workers. [cursor](../../cursor/SKILL.md) owns version-specific operation.
 
 ## Native plugin catalogs
 

@@ -4,8 +4,8 @@
 [settings]
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
 # is deliberately off across every backend, and releases are installed the day they
-# ship. The trade-off: mise.lock records a digest only for the aqua/github/http
-# backends, so a *re-install* of those is reproducible -- the `cargo:`, `npm:` and `pipx:`
+# ship. The trade-off: mise.lock records digests for aqua/github/http downloads
+# and the newly locked conda dependency graphs. The `cargo:`, `npm:` and `pipx:`
 # entries (plus registry tools such as gcloud, make, neovim, sqlite and uv) pin a
 # version but no digest, and the first fetch of any new version is unverified. Upstream
 # attestation coverage is too patchy to gate routine upgrades on, and this is a
@@ -43,9 +43,11 @@ tree-sitter = "cargo:tree-sitter-cli"
 chpwd_only = true
 
 [tools]
+"7zip" = "latest" # Archive listing and extraction in Yazi
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
+"conda:poppler" = "latest" # PDF previews in Yazi (pdftoppm and pdfinfo)
 "npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
 "npm:skills" = "latest" # Agent Skills CLI manager
 "pipx:fkf" = "latest" # Fmind Knowledge Framework CLI
@@ -89,6 +91,7 @@ git-lfs = "latest" # Git Large File Storage helper
 gitleaks = "latest" # Audits git repositories for secrets and keys
 hadolint = "latest" # Dockerfile linter written in Haskell
 hyperfine = "latest" # Command-line benchmarking utility
+imagemagick = "latest" # Additional image formats and thumbnails in Yazi
 jq = "latest" # Command-line JSON processor
 jules = "latest" # Google autonomous AI coding agent CLI
 lazydocker = "latest" # Terminal UI for managing Docker containers
@@ -103,6 +106,7 @@ oha = "latest" # HTTP load generator with live TUI (hyperfine for endpoints)
 opencode = "latest" # OpenCode AI agent CLI tool
 opentofu = "latest" # OpenTofu infrastructure as code CLI (open-source Terraform fork, default)
 python = "latest" # Python programming language interpreter
+resvg = "latest" # SVG previews in Yazi
 ripgrep = "latest" # Blazing-fast grep alternative
 ruff = "latest" # High-performance Python linter and formatter
 rust = { version = "latest", profile = "minimal" } # Compiler for the portable Tree-sitter CLI
@@ -117,6 +121,7 @@ terraform-docs = "latest" # Generate documentation from Terraform modules
 tflint = "latest" # Terraform code linter
 tree-sitter = "latest" # Parser generator CLI backing nvim-treesitter (built from source)
 trivy = "latest" # Security vulnerability and secret scanner
+ttyd = { version = "latest", os = ["linux"] } # VHS terminal backend; upstream binaries are Linux-only
 ty = "latest" # Astral's high-performance Python type checker
 uv = "latest" # Astral's high-performance Python package installer
 usage = "latest" # Specification and completion tool for CLIs (powers mise completions)
