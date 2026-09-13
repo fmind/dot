@@ -28,7 +28,10 @@ class HarnessConfigTests(unittest.TestCase):
         self.source = self.home / "source"
         shutil.copytree(ROOT / ".chezmoitemplates", self.source / ".chezmoitemplates")
         self.config = self.home / "chezmoi.toml"
-        self.config.write_text("")
+        # `.chezmoi.toml.tmpl` is not part of the copied source, so any prompt value
+        # a template reads has to be supplied here. opencode resolves its theme by
+        # name, so rendering it without `theme_variant` fails on a missing map key.
+        self.config.write_text('[data]\ntheme_variant = "fmind"\n')
         chezmoi = shutil.which("chezmoi")
         if chezmoi is None:
             raise RuntimeError("chezmoi is required for harness configuration tests")
