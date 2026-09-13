@@ -1075,6 +1075,11 @@ version = "6.0.2"
 backend = "pipx:fkf"
 specifiers = ["latest"]
 
+[[tools."pipx:fmind"]]
+version = "0.1.0"
+backend = "pipx:fmind"
+specifiers = ["latest"]
+
 [[tools."pipx:google-colab-cli"]]
 version = "0.6.0"
 backend = "pipx:google-colab-cli"

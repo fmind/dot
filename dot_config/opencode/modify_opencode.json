@@ -28,5 +28,8 @@
 {{- if $location -}}
 {{-   $_ := set (index $managedConfig.provider "google-vertex").options "location" $location -}}
 {{- end -}}
+{{- /* The theme JSON is fetched into ~/.config/opencode/themes/ by
+       .chezmoiexternal.toml.tmpl; opencode resolves it by file name. */ -}}
+{{- $_ := set $managedConfig "theme" .theme_variant -}}
 {{- $_ := set $managedConfig "skills" (dict "paths" (list (joinPath .chezmoi.homeDir ".agents/skills"))) -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

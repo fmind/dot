@@ -10,7 +10,10 @@
   "display": {
     "separator": "  ",
     "color": {
-      "keys": "magenta",
+      // Slot 6 `type` and slot 4 `function`: the greeting is the first thing a
+      // shell shows, so it stays on the cool tier and the green rather than on
+      // the keyword violet.
+      "keys": "cyan",
       "title": "blue"
     },
     "key": {

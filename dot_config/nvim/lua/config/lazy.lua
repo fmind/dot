@@ -44,7 +44,7 @@ require("lazy").setup({
     -- checkout can exceed Lazy's two-minute default on ordinary connections.
     timeout = 600,
   },
-  install = { colorscheme = { "tokyonight-moon" } },
+  install = { colorscheme = { require("config.theme") } },
   checker = {
     enabled = true,
     notify = false,

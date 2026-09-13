@@ -51,11 +51,15 @@ keybindings:
       name: open in octo
       command: >-
         nvim "+Octo https://github.com/{{.RepoName}}/issues/{{.IssueNumber}}"
+# Generated block, do not hand-edit. gh-dash has no include mechanism, so this
+# is copied rather than referenced.
+# source: https://github.com/fmind/theme/blob/v2.1.0/gh-dash/fmind.yml
+# regenerate: uv run render.py in fmind/theme, then copy the theme: block
 theme:
   colors:
-    primary: "#82aaff"
-    secondary: "#c099ff"
-    faint: "#636da6"
-    warning: "#ffc777"
-    error: "#ff757f"
-    success: "#c3e88d"
+    primary: "#26fed9"
+    secondary: "#2ad7f5"
+    faint: "#7e8a7b"
+    warning: "#ff7800"
+    error: "#f63a4b"
+    success: "#35ab24"

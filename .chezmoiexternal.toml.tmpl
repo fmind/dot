@@ -1,0 +1,72 @@
+# Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
+# Theme files are fetched from github.com/fmind/theme rather than copied here, so
+# this repository never carries a palette it does not own. Both the variant and the
+# upstream release come from [data] in .chezmoi.toml.tmpl, so retheming the whole
+# machine is one value in one file.
+#
+# Ghostty, Zellij and Neovim destinations carry the variant because the name is load
+# bearing there: Ghostty resolves the theme by file name, Zellij by the name declared
+# inside the file, and the Neovim file sets a matching `vim.g.colors_name`.
+#
+# refreshPeriod keeps `chezmoi apply --force` off the network on every run. The ref
+# is a tag, so the content behind these URLs never changes; refreshing only matters
+# after theme_ref is bumped, which chezmoi detects as a URL change.
+{{ $base := printf "https://raw.githubusercontent.com/fmind/theme/%s" .theme_ref -}}
+{{ $variant := .theme_variant }}
+
+[".config/ghostty/themes/{{ $variant }}"]
+    type = "file"
+    url = "{{ $base }}/ghostty/{{ $variant }}"
+    refreshPeriod = "168h"
+
+[".config/zellij/themes/{{ $variant }}.kdl"]
+    type = "file"
+    url = "{{ $base }}/zellij/{{ $variant }}.kdl"
+    refreshPeriod = "168h"
+
+# fish keeps the generic name: conf.d is sourced by directory, not by lookup, so a
+# variant-named file would leave the previous theme behind and load both.
+[".config/fish/conf.d/theme.fish"]
+    type = "file"
+    url = "{{ $base }}/fish/{{ $variant }}.fish"
+    refreshPeriod = "168h"
+
+# k9s and delta take the generic name: k9s resolves `skin:` from the file name and
+# delta is included by path, so neither needs the variant spelled into its config.
+[".config/k9s/skins/theme.yaml"]
+    type = "file"
+    url = "{{ $base }}/k9s/{{ $variant }}.yaml"
+    refreshPeriod = "168h"
+
+[".config/nvim/colors/{{ $variant }}.lua"]
+    type = "file"
+    url = "{{ $base }}/nvim/colors/{{ $variant }}.lua"
+    refreshPeriod = "168h"
+
+[".config/git/theme.gitconfig"]
+    type = "file"
+    url = "{{ $base }}/delta/{{ $variant }}.gitconfig"
+    refreshPeriod = "168h"
+
+# fzf reads this through FZF_DEFAULT_OPTS_FILE, which is evaluated before
+# FZF_DEFAULT_OPTS -- so the theme owns the colours and conf.d/fzf.fish keeps
+# owning layout, key bindings and previews.
+[".config/fzf/theme.conf"]
+    type = "file"
+    url = "{{ $base }}/fzf/{{ $variant }}.conf"
+    refreshPeriod = "168h"
+
+# opencode resolves `theme` by file name, like Ghostty, so this one carries the
+# variant too.
+[".config/opencode/themes/{{ $variant }}.json"]
+    type = "file"
+    url = "{{ $base }}/opencode/{{ $variant }}.json"
+    refreshPeriod = "168h"
+
+# ptpython has no theme file: config.py imports this module from beside itself
+# and installs the two dicts it exports, so the name has to stay what that
+# import expects.
+[".config/ptpython/theme.py"]
+    type = "file"
+    url = "{{ $base }}/ptpython/{{ $variant }}.py"
+    refreshPeriod = "168h"

@@ -43,11 +43,12 @@
     line-numbers = true
     navigate = true
     side-by-side = true
-    syntax-theme = "ansi"
-    minus-style = syntax "#3a273a"
-    minus-emph-style = syntax "#552f43"
-    plus-style = syntax "#273849"
-    plus-emph-style = syntax "#2c5064"
+
+# Colours only. Fetched from github.com/fmind/theme by .chezmoiexternal.toml.tmpl,
+# and included after [delta] so the theme owns syntax-theme and the diff styles
+# while the block above keeps the behaviour settings.
+[include]
+    path = {{ .chezmoi.homeDir }}/.config/git/theme.gitconfig
 
 [diff]
     algorithm = histogram

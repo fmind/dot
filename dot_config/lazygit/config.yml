@@ -13,6 +13,23 @@ gui:
   scrollPastBottom: false
   showCommandLog: false
   nerdFontsVersion: "3"
+  # lazygit reads the terminal's sixteen slots, which is what we want -- but its
+  # defaults assume a conventional palette and fmind/theme is not one. Slot 2 is
+  # `string` (a white) and `default` is the body green, so out of the box the
+  # focused border is white, every unfocused border is neon green, and the
+  # selected line is a solid green bar. Only the names change below; no hex, so
+  # the panel still follows whatever Ghostty is loading.
+  theme:
+    activeBorderColor: [blue, bold] # slot 4, `function` -- the green
+    inactiveBorderColor: [black] # slot 0, a dark green that stays out of the way
+    searchingActiveBorderColor: [cyan, bold] # slot 6, `type`
+    optionsTextColor: [white] # slot 7, `punctuation` -- chrome recedes
+    selectedLineBgColor: [black] # a band, not a lit bar
+    cherryPickedCommitFgColor: [black] # default is green on the cyan below
+    cherryPickedCommitBgColor: [cyan]
+    markedBaseCommitFgColor: [black] # default is green on the orange below
+    markedBaseCommitBgColor: [yellow]
+    unstagedChangesColor: [red]
 os:
   editPreset: nvim
 customCommands:

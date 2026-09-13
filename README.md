@@ -14,6 +14,7 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 - **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), [Grok Build](https://x.ai/build) (`grok`), and [Cursor CLI](https://cursor.com/docs/cli) (`cursor-agent`).
 - **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, marimo, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
 - **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and diagnostics ([`dot/`](dot/)).
+- **One Theme, Every Tool** — [fmind/theme](https://github.com/fmind/theme) phosphor green, fetched at a pinned tag and wired into every tool that takes a palette. Matrix is the look; pragmatic is the rule — the palette is measured for contrast, separation, saturation and glare before it ships, and where the vibe and an eight-hour reading day disagree, the reading day wins.
 - **User-Space Toolchain** — CLIs managed declaratively in user space via [mise](https://mise.jdx.dev/) and dotfiles synced via [chezmoi](https://www.chezmoi.io/).
 
 ## Prerequisites
@@ -61,6 +62,10 @@ bash ~/.local/share/chezmoi/install.sh
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
 The installer prompts for Git identity, applies the dotfiles and eligible installation hooks, installs the locked tools and `dot` CLI, and configures Git hooks and Neovim plugins. Open a new shell afterward, or use `~/.local/bin/dot --help` to check the installed CLI directly.
+
+When an update adds a new prompt, such as the theme variant, run `chezmoi init` once on each existing machine to write it into `~/.config/chezmoi/chezmoi.toml`. Other chezmoi commands fail until the key exists.
+
+The same applies when `theme_ref` moves: the theme files are chezmoi externals pinned to a tag, so run `chezmoi init` and then `chezmoi apply` to fetch the new palette. Ghostty, Zellij, fish and Neovim pick it up on their next start.
 
 ### Fish completions
 
