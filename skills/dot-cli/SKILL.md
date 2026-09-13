@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-09-11"
+  updated: "2026-09-13"
 ---
 
 # Dot CLI
@@ -42,7 +42,7 @@ Configuration precedence is explicit `--config`, then `DOT_CONFIG_PATH`, then `~
 
 Requested data goes to stdout; progress and errors go to stderr. Exit codes are 0 for success, 1 for an operational failure or incomplete result, 2 for usage errors, and 130 for interruption. JSON output is versioned; failed operations never become an empty success. Hook protocols retain their host-specific neutral responses and bounded failure evidence.
 
-A generation contains transcript, usage status/measurement, and integrity manifest, published in one atomic directory operation with private permissions. Extraction or publication failure leaves no completed generation. Retry the same ingestion after repairing the cause. Dot 4 uses only the fresh `sessions/v2` store, parser 3, and manifest schema 2. Earlier stores and standalone usage files remain untouched and are excluded from queries. Compaction compares canonical record fingerprints without retaining the full archive contents in memory; it preserves divergent transcripts, different usage evidence, and fails before deletion on unsupported formats or integrity errors.
+A generation contains transcript, usage status/measurement, and integrity manifest, published in one atomic directory operation with private permissions. Extraction or publication failure leaves no completed generation. Retry the same ingestion after repairing the cause. The active `sessions/v2` store writes parser 5 with manifest schema 2 and reads parser 3, 4, and 5 bundles. Older admitted parsers remain immutable legacy evidence; explicit recapture creates a parser 5 generation. Earlier stores and standalone usage files remain untouched and are excluded from queries. Compaction compares canonical record fingerprints without retaining the full archive contents in memory; it preserves divergent transcripts, different usage evidence, and fails before deletion on unsupported formats or integrity errors.
 
 ## Workflow ownership
 

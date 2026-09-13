@@ -1,0 +1,6 @@
+#!/bin/sh
+# Docs: https://github.com/sharkdp/bat#adding-new-themes
+# Rebuild bat/delta's derived cache whenever the installed theme changes.
+# Theme: {{ include "dot_config/bat/themes/fmind.tmTheme" | sha256sum }}
+set -eu
+"{{ .chezmoi.homeDir }}/.local/share/mise/shims/bat" cache --build

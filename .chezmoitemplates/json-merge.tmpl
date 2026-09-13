@@ -1,7 +1,9 @@
-{{- /* Keep host-owned MCP registrations and hook events outside dot's managed keys. */ -}}
+{{- /* Seed absent preferences, preserve host state, then enforce managed policy. */ -}}
 {{- $current := dict -}}
 {{- if ne (trim .stdin) "" }}{{ $current = mustFromJson .stdin }}{{ end -}}
-{{- $desired := mergeOverwrite (deepCopy $current) .managed -}}
+{{- if not (kindIs "map" $current) }}{{ fail "existing JSON configuration must be an object" }}{{ end -}}
+{{- $defaults := get . "defaults" | default dict -}}
+{{- $desired := mergeOverwrite (deepCopy $defaults) (deepCopy $current) .managed -}}
 {{- if and (ne (trim .stdin) "") (deepEqual $current $desired) -}}
 {{ .stdin -}}
 {{- else -}}

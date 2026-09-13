@@ -14,12 +14,14 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 - **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), [Grok Build](https://x.ai/build) (`grok`), and [Cursor CLI](https://cursor.com/docs/cli) (`cursor-agent`).
 - **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, marimo, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
 - **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and diagnostics ([`dot/`](dot/)).
-- **One Theme, Every Tool** — [fmind/theme](https://github.com/fmind/theme) phosphor green, fetched at a pinned tag and wired into every tool that takes a palette. Matrix is the look; pragmatic is the rule — the palette is measured for contrast, separation, saturation and glare before it ships, and where the vibe and an eight-hour reading day disagree, the reading day wins.
+- **One Theme, Every Tool** — [fmind/theme](https://github.com/fmind/theme) uses dark syntax on white, with purple types, teal information, light-grey panels and bright active controls. Native theme files cover editors, shells and dashboards; bat and delta share the same syntax theme.
 - **User-Space Toolchain** — CLIs managed declaratively in user space via [mise](https://mise.jdx.dev/) and dotfiles synced via [chezmoi](https://www.chezmoi.io/).
 
 ## Prerequisites
 
 Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.1 or newer; it installs mise when absent but stops if an existing version is too old.
+
+Terminal recording with VHS additionally requires FFmpeg, ttyd, and the selected font. The managed toolchain supplies ttyd on Linux. On macOS, qualify a user-space ttyd build or a reviewed recording container; upstream currently publishes no macOS ttyd binary.
 
 ### Host Packages
 
@@ -43,7 +45,7 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 
 ### Recommended Tools (Optional)
 
-- **Terminal & Font**: [Ghostty](https://ghostty.org/docs/install/binary) and [FiraCode Nerd Font Mono](https://www.nerdfonts.com/font-downloads).
+- **Terminal**: [Ghostty](https://ghostty.org/docs/install/binary). Setup installs [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) and selects it in Ghostty.
 - **Containers**: A Docker-compatible container engine (Docker or Podman) if building container images.
 
 ## Installation
@@ -61,11 +63,31 @@ bash ~/.local/share/chezmoi/install.sh
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
+Google Sans is the default for application text and Google Sans Code for code; terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty. The managed installer supplies the terminal font; projects that embed fonts must supply Google Sans and Google Sans Code themselves.
+
+The terminal font is installed per user in `~/.local/share/fonts/GoogleSansCode` on Linux and `~/Library/Fonts/GoogleSansCode` on macOS, from the checksum-pinned Nerd Fonts v3.5.1 archive. After switching an existing installation, reopen Ghostty; on Linux, run `fc-cache -f ~/.local/share/fonts/GoogleSansCode` if the font is not detected yet.
+
 The installer prompts for Git identity, applies the dotfiles and eligible installation hooks, installs the locked tools and `dot` CLI, and configures Git hooks and Neovim plugins. Open a new shell afterward, or use `~/.local/bin/dot --help` to check the installed CLI directly.
 
 When an update adds a new prompt, such as the theme variant, run `chezmoi init` once on each existing machine to write it into `~/.config/chezmoi/chezmoi.toml`. Other chezmoi commands fail until the key exists.
 
 The same applies when `theme_ref` moves: the theme files are chezmoi externals pinned to a tag, so run `chezmoi init` and then `chezmoi apply` to fetch the new palette. Ghostty, Zellij, fish and Neovim pick it up on their next start.
+
+To preview an unpublished theme, run `chezmoi init --promptString "Local theme checkout (empty uses theme_ref)=$HOME/fmind/theme"`, then apply the theme targets. This host setting takes precedence over the release and refreshes native theme files from the local checkout. The checkout must remain present; clear `theme_local_path` to return to `theme_ref`. The current pinned `v2.2.0` release is the previous dark theme; use the local checkout for the new light design until it is published.
+
+### Theme coverage
+
+Standalone theme files are fetched by chezmoi from `fmind/theme` and selected through each app's native configuration. Tools that require merged configuration keep copied style blocks with upstream source comments. The four additional standalone themes remain copied while their upstream files are unpublished.
+
+| Integration                                               | Theme delivery and selection                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ghostty, Zellij, Neovim, lualine, OpenCode                | External native files; selected by `theme_variant` (lualine follows Neovim).                                                                            |
+| Fish, fzf, k9s, delta, ptpython                           | External native files; loaded through Fish startup, `FZF_DEFAULT_OPTS_FILE`, `K9S_SKIN`, Git include, and the ptpython config module.                   |
+| Starship, gh-dash, bottom, Lazydocker, LazyGit, Fastfetch | Copied palette or style blocks merged with managed behavior.                                                                                            |
+| Atuin, bat, lsd, Yazi                                     | Copied standalone themes; selected in native config. bat's apply hook rebuilds the syntax cache used by bat and delta; Yazi reads the same syntax file. |
+| Antigravity, Claude Code, Grok, mise                      | Terminal colors or closest built-in light palette: `terminal`, `light-ansi`, `grokday`, and `base16`, respectively.                                     |
+
+A terminal palette controls ANSI colors, not every hard-coded app color. Tools without a native fmind integration keep their supported UI settings. Use the same theme revision for externals and copied styles: mixing the previous dark release with the new light copies does not reproduce the current design. For the unpublished light theme, configure the local checkout before applying. Once released, update `theme_ref` and move the new standalone files to externals together.
 
 ### Fish completions
 
@@ -76,6 +98,14 @@ Run `dot completion` after installing or updating tools to refresh Fish completi
 Run `uv sync --locked` in each existing Python project to create its `.venv` before opening it in Neovim. LazyVim uses ty for types and navigation, Ruff for linting, formatting, and import sorting, and the project environment for pytest and debugging. mise supplies ty and Ruff ahead of Mason's tools. Python debugging uses uv to provide debugpy on demand; the first run may download it.
 
 For a Python REPL with the project's dependencies, run `uv run --with ptpython ptpython` from that project. The globally installed `ptpython` has its own isolated environment.
+
+The managed `~/.config/ruff/ruff.toml` provides a fallback for scratch scripts; a project's own Ruff configuration takes precedence. Copilot CLI uses the same mise-installed `ty` language server for Python navigation; `/lsp` shows its registration.
+
+### Application preferences
+
+Copilot and Antigravity settings merge with existing host state. Model and UI defaults seed missing values; subsequent native choices, account settings, and Antigravity workspace trust survive apply. Dot continues to manage execution policy, Vim mode, and notifications. Copilot updates through mise, with its native automatic updater disabled. Explicit `ANTIGRAVITY_CLOUD_PROJECT` and `ANTIGRAVITY_CLOUD_LOCATION` values override the saved cloud selection; without a project override, the saved selection is preserved.
+
+Yazi's archive, PDF, SVG, and additional image previews use mise-managed 7-Zip, Poppler, resvg, and ImageMagick. Kubernetes tooling is project-scoped. On existing machines, retire the former global `~/.config/k9s/config.yaml`, `~/.config/stern/config.yaml`, and `~/.kube/kuberc` after preserving any needed preferences. Leave `~/.kube/config` and its cluster credentials and contexts intact.
 
 ### Dot configuration
 
@@ -104,6 +134,8 @@ Configure each subscribed harness independently. Renewal days 29–31 use the mo
 ## Agent skills
 
 Skills use the standard `~/.agents/skills/` directory. Dotfiles setup creates a real directory and links each package from this repository's [`skills/`](skills/) catalog into it. Other packages can be directories or individual links in the same location; names must be unique. Packages in this catalog may reference sibling skills, so check dependencies before copying one folder on its own.
+
+Cursor's local CLI and editor discover the shared catalog; remote workers need their own project or worker skill installation. The catalog's FKF retrieval package is a reviewed snapshot of the author's newer FKF workflow: select the knowledge base's matching runtime before using it. Base locations and private instructions remain local to each base; installing the skill does not upgrade FKF or migrate knowledge.
 
 To add a skill, create `~/skill-library/meeting-prep/SKILL.md` with a matching name, a description, and actionable instructions:
 

@@ -1,0 +1,27 @@
+# chezmoi:modify-template
+{{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
+       Native model and UI choices survive apply; mise owns CLI updates. */ -}}
+{{- $defaults := fromJson `
+{
+  "banner": "never",
+  "contextTier": "long_context",
+  "effortLevel": "xhigh",
+  "keepAlive": "busy",
+  "model": "auto"
+}
+` -}}
+{{- $managedConfig := fromJson `
+{
+  "askUser": false,
+  "autoUpdate": false,
+  "continueOnAutoMode": true,
+  "defaultMode": "autopilot",
+  "defaultPermissionMode": "allow-all",
+  "editorMode": "vim",
+  "includeCoAuthoredBy": false,
+  "notifications": true,
+  "remoteExport": false,
+  "respectGitignore": false
+}
+` -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

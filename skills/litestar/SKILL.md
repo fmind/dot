@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/litestar
   created: "2026-09-06"
-  updated: "2026-09-11"
+  updated: "2026-09-13"
 ---
 
 # Litestar
@@ -17,6 +17,7 @@ Use Litestar for Python web applications, with [python-stack](../python-stack/SK
 1. For a new service, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; choose database integration only when needed.
 1. Inspect the application with `uv run litestar --app <package>:app info`, `routes`, and `schema openapi`; these need no server and no extra, and autodiscovery does not find `src/<package>/__init__.py`. Read the source for the application factory, dependencies, and test client setup.
 1. Select the upstream skill for the actual feature: routing, dependency injection, DTO/OpenAPI, authentication, middleware, templates and HTMX, or testing.
+1. For template styles, keep the existing asset pipeline; [modern-web's standalone Tailwind workflow](../modern-web/references/tailwind.md) covers Python templates, class discovery, and production CSS builds.
 1. Keep the existing server and database choices. Run local request tests for success, invalid input, authorization, and lifespan behavior.
 
 ## Application resources

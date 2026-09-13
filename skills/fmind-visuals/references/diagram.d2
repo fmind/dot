@@ -5,13 +5,15 @@
 #
 #   ...@path/to/diagram.d2
 #
-# Why a light surface when the brand is dark: the site renders an article in a
-# light and a dark theme the reader toggles, and a PNG cannot follow that. A
-# light figure reads as a panel on the dark theme; a dark figure reads as a hole
-# punched in the light one. So the surface stays light and the brand shows up in
-# the accents — #646CFF on the shapes that carry meaning, #0F172A for ink.
-#
-# Colors come from the Fmind visual theme.
+# Palette: https://github.com/fmind/theme/blob/main/README.md
+# Use Google Sans for labels and Google Sans Code for code via D2 font flags.
+# Keep the light canvas explicit when exporting for sites with light/dark modes.
+style.fill: "#ffffff"
+# Triple globs survive imports and style connections declared by the article.
+(*** -> ***)[*].style: {
+  stroke: "#174ea6"
+  font-color: "#202124"
+}
 
 classes: {
   # A labelled boundary that holds other shapes: a platform, a layer, a zone.
@@ -19,9 +21,9 @@ classes: {
   # everything nested inside it.
   group: {
     style: {
-      fill: "#f8fafc"
-      stroke: "#cbd5e1"
-      font-color: "#334155"
+      fill: "#f1f3f4"
+      stroke: "#9aa0a6"
+      font-color: "#595d62"
       stroke-width: 2
     }
   }
@@ -30,9 +32,9 @@ classes: {
   # workhorse class, so it carries the brand accent as its stroke.
   container: {
     style: {
-      fill: "#eef0ff"
-      stroke: "#646cff"
-      font-color: "#1e293b"
+      fill: "#d2e3fc"
+      stroke: "#174ea6"
+      font-color: "#202124"
       stroke-width: 2
     }
   }
@@ -42,8 +44,8 @@ classes: {
   component: {
     style: {
       fill: "#ffffff"
-      stroke: "#94a3b8"
-      font-color: "#0f172a"
+      stroke: "#9aa0a6"
+      font-color: "#202124"
     }
   }
 
@@ -55,9 +57,9 @@ classes: {
   # Ink reads both inside the box and outside it.
   actor: {
     style: {
-      fill: "#c7cbff"
-      stroke: "#4f46e5"
-      font-color: "#0f172a"
+      fill: "#ceead6"
+      stroke: "#0d652d"
+      font-color: "#202124"
       stroke-width: 2
     }
   }
@@ -67,8 +69,8 @@ classes: {
   external: {
     style: {
       fill: "#ffffff"
-      stroke: "#94a3b8"
-      font-color: "#334155"
+      stroke: "#9aa0a6"
+      font-color: "#595d62"
       stroke-dash: 4
     }
   }
@@ -76,9 +78,9 @@ classes: {
   # One numbered stage of a sequence or workflow.
   step: {
     style: {
-      fill: "#e2e8f0"
-      stroke: "#64748b"
-      font-color: "#0f172a"
+      fill: "#feefc3"
+      stroke: "#934900"
+      font-color: "#202124"
     }
   }
 
@@ -88,16 +90,14 @@ classes: {
   # canvas and disappears. Keep terminal a plain box.
   terminal: {
     style: {
-      fill: "#0f172a"
-      stroke: "#0f172a"
-      font-color: "#f8fafc"
+      fill: "#202124"
+      stroke: "#202124"
+      font-color: "#ffffff"
     }
   }
 
 }
 
-# Seven classes and no more. Every one of them is distinguishable from the other
-# six at the size the reader gets, which is the whole point of a fixed palette:
-# an eighth shade that only differs from a seventh reads as noise, not meaning.
+# Classes communicate roles; reinforce them with labels, shape and line style.
 # A whole system drawn as one box is a `container`. A rejected alternative is an
-# `external` whose label says it was rejected.
+# `external` whose label says it was rejected. Add roles only for a demonstrated need.

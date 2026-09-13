@@ -7,7 +7,9 @@ defaults:
 pager:
   diff: delta
 repoPaths:
-  "*/*": "~/*/*"
+  # Absolute paths also work in quoted custom commands, where ~ is not expanded.
+  ":owner/:repo": {{ joinPath .chezmoi.homeDir ":owner/:repo" | toJson }}
+  "fmind/dot": {{ joinPath .chezmoi.homeDir ".local/share/chezmoi" | toJson }}
 prSections:
   - title: Needs Review
     filters: "is:open review-requested:@me"
@@ -37,29 +39,37 @@ keybindings:
     - key: E
       name: review in octo
       command: >-
-        nvim "+Octo https://github.com/{{.RepoName}}/pull/{{.PrNumber}}"
+        nvim "+Octo https://github.com/{{`{{.RepoName}}`}}/pull/{{`{{.PrNumber}}`}}"
     - key: D
       name: full diff
       command: >-
-        gh pr diff --repo {{.RepoName}} {{.PrNumber}} | delta --paging=always
+        gh pr diff --repo {{`{{.RepoName}}`}} {{`{{.PrNumber}}`}} | delta --paging=always
     - key: O
       name: lazygit
       command: >-
-        test -n "{{.RepoPath}}" && cd {{.RepoPath}} && lazygit
+        test -n "{{`{{.RepoPath}}`}}" && cd "{{`{{.RepoPath}}`}}" && lazygit
   issues:
     - key: E
       name: open in octo
       command: >-
-        nvim "+Octo https://github.com/{{.RepoName}}/issues/{{.IssueNumber}}"
-# Generated block, do not hand-edit. gh-dash has no include mechanism, so this
-# is copied rather than referenced.
-# source: https://github.com/fmind/theme/blob/v2.1.0/gh-dash/fmind.yml
-# regenerate: uv run render.py in fmind/theme, then copy the theme: block
+        nvim "+Octo https://github.com/{{`{{.RepoName}}`}}/issues/{{`{{.IssueNumber}}`}}"
+# Native theme block copied from fmind/theme.
+# source: https://github.com/fmind/theme/blob/main/gh-dash/fmind.yml
+# Update from gh-dash/fmind.yml after changing the upstream theme.
 theme:
   colors:
-    primary: "#26fed9"
-    secondary: "#2ad7f5"
-    faint: "#7e8a7b"
-    warning: "#ff7800"
-    error: "#f63a4b"
-    success: "#35ab24"
+    text:
+      primary: '#202124'
+      secondary: '#202124'
+      inverted: '#ffffff'
+      faint: '#595d62'
+      warning: '#934900'
+      error: '#a50e0e'
+      success: '#0d652d'
+      actor: '#174ea6'
+    background:
+      selected: '#d2e3fc'
+    border:
+      primary: '#174ea6'
+      secondary: '#595d62'
+      faint: '#595d62'

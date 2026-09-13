@@ -1,0 +1,19 @@
+# chezmoi:modify-template
+{{- /* Docs: https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/add-lsp-servers
+       Keep other host-registered language servers; Python uses the shared ty installation. */ -}}
+{{- $managedConfig := fromJson `
+{
+  "lspServers": {
+    "ty": {
+      "command": "ty",
+      "args": ["server"],
+      "fileExtensions": {
+        ".py": "python",
+        ".pyi": "python",
+        ".pyw": "python"
+      }
+    }
+  }
+}
+` -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

@@ -1,18 +1,18 @@
 # Docs: https://ghostty.org/docs/config/reference
 
 theme = {{ .theme_variant }}
+# Match Linux window chrome to the terminal background; use light chrome on macOS.
+window-theme = {{ if eq .chezmoi.os "linux" }}ghostty{{ else }}light{{ end }}
 
 # Font Configs
-font-family = "FiraCode Nerd Font Mono"
+font-family = "GoogleSansCode Nerd Font Mono"
 font-feature = -calt
 font-feature = -liga
-font-size = 13
-# FiraCode ships no italic face at all, so Ghostty would synthesise one by
-# slanting upright glyphs. The theme separates roles with bold and dim instead.
+font-size = 14
+# Use the font's real italic faces when requested; never synthesise slanted glyphs.
+# The theme uses upright text and bold for structure.
 font-synthetic-style = no-italic,no-bold-italic
-# The palette spends all sixteen slots on distinct syntax roles, so the bright
-# half is not a lightened copy of the normal half: bold-is-bright would silently
-# swap six semantic colours for six others.
+# Preserve foreground colour when applications request bold.
 bold-is-bright = false
 
 {{- if eq .chezmoi.os "darwin" }}

@@ -1,12 +1,12 @@
 ---
 name: modern-web
-description: "Apply modern web platform standards, native HTML, CSS, and JavaScript features, and compatibility guidance. Use for modern web development, APIs, or front-end modernization."
+description: Apply native HTML, CSS, JavaScript, browser compatibility, and standalone Tailwind builds. Use for web platform work or Python web assets.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/modern-web
   created: "2026-09-03"
-  updated: "2026-09-10"
+  updated: "2026-09-13"
 ---
 
 # Modern Web Guidance
@@ -17,17 +17,18 @@ Modern Web Guidance embeds web platform expertise, browser compatibility data, a
 
 1. **Search guidelines**: Query curated web platform recipes and modern practices using the CLI:
    ```bash
-   npx --yes modern-web-guidance search "<topic or api>"
+   npx --yes modern-web-guidance@0.0.188 search "<topic or api>"
    ```
 1. **Fetch specific pattern**: Retrieve detailed implementation guidelines and browser baselines by guide identifier:
    ```bash
-   npx --yes modern-web-guidance retrieve "<guide-id>"
+   npx --yes modern-web-guidance@0.0.188 retrieve "<guide-id>"
    ```
 
 ## 2. Adoption Workflow
 
 1. **Prefer web platform primitives**: Prioritize native elements (`<dialog>`, `<details>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
 1. **Verify baseline compatibility**: Check baseline availability and browser support before adopting newly standardized APIs; fall back progressively without blocking core experiences.
+1. **Build Python web assets**: use the [standalone Tailwind workflow](references/tailwind.md) when the project selects Tailwind; preserve an existing asset pipeline. `tailwindcss` owns CSS compilation, while `npx` runs the upstream guidance CLI above.
 1. **Audit with DevTools**: Validate rendering, performance, and accessibility against live browser sessions using [chrome-devtools](../chrome-devtools/SKILL.md) and [quality-assurance](../quality-assurance/SKILL.md).
 
 ## Gotchas
@@ -44,4 +45,5 @@ Upstream: `GoogleChrome/modern-web-guidance`; follow the shared [vendor-skill po
 ## Documentation
 
 - [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) · [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)
+- Releases: [guidance package versions](https://www.npmjs.com/package/modern-web-guidance?activeTab=versions) · [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss/releases)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md), [playwright](../playwright/SKILL.md), [technical-research](../technical-research/SKILL.md).
