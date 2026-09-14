@@ -1522,6 +1522,21 @@
       ]
     },
     {
+      "id": "upgrade-shared-tool-versions",
+      "categories": [
+        "dependencies"
+      ],
+      "prompt": "Upgrade the workstation tool baseline and align fixed mise versions across local repositories to reduce duplicate installations, validating each repository.",
+      "expected": [
+        "upgrade-tools"
+      ],
+      "primary": "upgrade-tools",
+      "top_k": 3,
+      "forbidden": [
+        "dependabot"
+      ]
+    },
+    {
       "id": "http-endpoint-inspection",
       "categories": [
         "network"

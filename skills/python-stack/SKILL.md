@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-09-11"
+  updated: "2026-09-14"
 ---
 
 # Python Stack Standard
@@ -15,7 +15,7 @@ Own the shared Python foundation and select the specialist for the task. Preserv
 
 ## Defaults
 
-- **Toolchain**: stable Python managed by uv; commit `uv.lock`, align `.python-version` with `requires-python`, and check a library's minimum interpreter with `uv run --isolated --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
+- **Toolchain**: mise owns the interpreter under the [shared tool baseline](../mise/references/tool-versions.md); uv owns package environments and `uv.lock`. Python follows the same `latest` baseline and exact project pins as other tools. Align `.python-version` with the selected pin within `requires-python`; check a library's minimum interpreter with `uv run --isolated --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
 - **Foundation**: a `src/<package>/` layout and no runtime dependencies until the application uses them. Distribution slugs may contain hyphens; import names use underscores.
 - **Quality**: Ruff for Python formatting/lint, ty for types, pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests and an initial 85% branch-coverage target adapted to the project.
 - **Boundaries**: use Pydantic/settings when external input or application configuration needs typed validation, and structlog when structured logging is required. Respect ecosystem-native formats; otherwise use YAML for human-maintained configuration and JSON for program-owned data, with explicit defaults and override precedence.
@@ -51,7 +51,7 @@ For application templates, set output-appropriate escaping explicitly and prefer
 
 ## Foundation resources
 
-- [pyproject.toml.template](references/pyproject.toml.template), [mise.toml](references/mise.toml), and [lefthook.yml](references/lefthook.yml) define the shared baseline; their version constraints are a floor, not a latest-release claim, so preserve a project's supported range and lock policy.
+- [pyproject.toml.template](references/pyproject.toml.template), [mise.toml](references/mise.toml), and [lefthook.yml](references/lefthook.yml) define the shared foundation. Preserve supported package ranges; resolve scaffold tool selectors to exact baseline pins before installation.
 - [AGENTS.md](references/AGENTS.md) and [gitignore](references/gitignore) supply project conventions.
 - [init-library.py](references/init-library.py) and [test_library.py](references/test_library.py) supply the minimal library example; application code and tests live with the selected specialist.
 

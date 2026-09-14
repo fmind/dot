@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-09-11"
+  updated: "2026-09-14"
 ---
 
 # Mise
@@ -16,6 +16,7 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 ## Workflow
 
 1. **Inspect** the repository's existing tasks, lockfile, tool providers, hooks, and CI before changing the contract.
+1. **Select versions** using the [shared tool baseline](references/tool-versions.md): `fmind/dot` tracks `latest`, including Python; other owned repositories use exact pins from its managed lockfile. Apply this before installing copied scaffold selectors.
 1. **Keep tasks simple**: prefer direct commands, short sequential `run` arrays, and declarative dependencies. A short multiline sequence for setup and cleanup is acceptable; avoid explicit `bash -c`/`sh -c`, nested conditions, argument-dispatch wrappers, and large shell programs. Use native tool options or explicit task names first; put necessary procedural logic in a small maintained script, preferably Python.
 1. **Keep the shared vocabulary** below; read [task conventions](references/task-conventions.md) for subtask names, aliases, argument forwarding, dependency order, and tool updates.
 1. **Pin and install** the project toolchain, then validate task definitions with `mise tasks validate`; use `mise run <task>` in automation.
@@ -48,6 +49,7 @@ Python projects start from [python-stack](../python-stack/references/mise.toml);
 
 ## Documentation
 
+- [Shared tool baseline](references/tool-versions.md) · [upgrade-tools](../upgrade-tools/SKILL.md) for cross-repository alignment
 - [Provenance pilot and adoption boundary](references/provenance-pilot.md)
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)

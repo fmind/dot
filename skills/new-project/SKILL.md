@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/new-project
   created: "2026-09-02"
-  updated: "2026-09-10"
+  updated: "2026-09-14"
 ---
 
 # New Project
@@ -29,6 +29,7 @@ Bootstrap a repository by composing the selected foundation and application owne
    - `trivy.yaml` plus the `check:*` scan tasks: [secure](../secure/SKILL.md)
    - `.github/workflows/ci.yml` and `security.yml`: [github-actions](../github-actions/SKILL.md); `.github/dependabot.yml`: [dependabot](../dependabot/SKILL.md)
    - `AGENTS.md`, `.agents/skills/`, and the `CLAUDE.md` bridge: [agent-project](../agent-project/SKILL.md); `README.md` and documentation: [repository-docs](../repository-docs/SKILL.md)
+1. **Pin the toolchain** through [mise](../mise/SKILL.md): replace scaffold selectors with exact versions from the workstation baseline for required tools, resolve project-only tools explicitly, and retain project-owned lockfiles. The new repository must install without the personal dotfiles checkout.
 1. **Validate locally**: `mise run install` and `mise run all`; for Python packages also qualify the installed wheel and any command/module entry points through the selected stack. Before the first commit, `check:leaks` scans the working tree.
 1. **Publish only within existing authorization**: when the user requested the initial commit and GitHub creation/push, create the remote after that commit (`chore: initial commit`, see [conventional-commit](../conventional-commit/SKILL.md)), then apply [github-repository](../github-repository/SKILL.md):
 

@@ -1,34 +1,36 @@
 ---
 name: upgrade-tools
-description: Upgrade pinned tools and dependencies to latest stable one ecosystem at a time, validating mise, language, action, and formatter changes between bumps. Use when bumping versions.
+description: Upgrade tools and dependencies to latest stable one ecosystem at a time and align fixed mise versions across local repositories with the workstation baseline. Use when bumping versions or reducing tool version drift.
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-09-11"
+  updated: "2026-09-14"
 ---
 
 # Upgrade Tools
 
-Bump every pinned tool and dependency to its latest stable version, one ecosystem at a time, validating after each so a bad bump is caught immediately; the per-manifest commands live in the [playbook](references/playbook.md) and [mise](../mise/SKILL.md) owns the tool pins.
+Refresh the workstation's latest-stable tool baseline and propagate its exact versions to consuming repositories, validating each adoption. The [playbook](references/playbook.md) owns the cross-repository procedure and ecosystem commands; [mise](../mise/SKILL.md) owns baseline selection and exact pins.
 
 ## Workflow
 
-1. **Baseline**: `mise run check` and `mise run test` must be green before the first bump so regressions are attributable.
-1. **mise first**: it provisions the toolchain every later step runs; bump and re-lock the pins per [mise](../mise/SKILL.md), then validate.
+1. **Inventory the scope**: check `fmind/dot` and Git repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` by default, following the playbook. A task explicitly restricted to one repository narrows writes; report remaining drift. Cross-repository propagation covers mise tools and necessary compatibility changes, not blanket application-dependency upgrades everywhere.
+1. **Baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work through [git-worktree](../git-worktree/SKILL.md); report pre-existing failures separately.
+1. **mise first**: refresh and validate the `fmind/dot` baseline, then align consuming repositories to its exact lock versions. Python follows `latest` in the baseline like other tools; every consuming repo records fixed mise versions. Propagate only required shared tools, keeping incompatible pins with evidence.
 1. **Python dependencies next** decide whether the new toolchain builds and tests the project; follow the [playbook](references/playbook.md) for `pyproject.toml` and `uv.lock`, then validate.
 1. **Infrastructure and images after that** (OpenTofu providers, container base images), which consume the language artifacts.
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
-1. **Stop at the first failing ecosystem** and fix it before continuing; bumping the rest on top of a broken one turns a short upgrade into an afternoon of bisecting.
+1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if adoption cannot be qualified; independent repositories can still progress. A failed baseline update cannot be propagated.
 1. **Verify the final candidate**: run the repository gate; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
 1. **If commits were requested**, commit per ecosystem: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../conventional-commit/SKILL.md).
+1. **Report and preview cleanup**: list each repository's adopted versions, retained exceptions, and gate results. Preview `mise prune --dry-run` after alignment, checking interpreter links and active processes before any separately authorized deletion; do not equate directory sizes with recoverable bytes.
 
 ## Gotchas
 
-- **Fresh selection, immutable execution**: track the latest compatible stable release in manifests and update automation, but execute the reviewed result through a lockfile, full action SHA, or image digest. Mutable selectors belong at update time, not on every run.
-- **Latest stable only**: no RCs, betas, or pre-releases; tools deliberately range-pinned pre-1.0 stay in their range.
-- **Lockfiles are the record**: commit `mise.lock`, `uv.lock`, `.terraform.lock.hcl` when present; the manifest says "latest", the lockfile says which.
+- **Fresh selection, immutable execution**: only `fmind/dot` defaults to `latest` mise requests; consuming repositories pin the exact validated versions. Execute other dependencies through their lockfile, full action SHA, or image digest.
+- **Latest stable only**: no RCs, betas, or pre-releases. Document deliberate baseline exceptions; keep application dependency constraints distinct from fixed mise tool versions.
+- **Lockfiles are the record**: retain `mise.lock`, `uv.lock`, and `.terraform.lock.hcl` when present. Match the baseline's tool identity, backend, options, and platform rather than copying version strings or the entire workstation lockfile blindly.
 - **Majors are separate changes**: Python upgrades follow declared constraints and `uv lock --upgrade` can cross majors. Inspect the actual version diff and handle breaking upgrades as separate changes.
 - **Held-back pins**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
 

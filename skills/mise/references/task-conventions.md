@@ -32,14 +32,16 @@ Those names are reserved: never respell one (`check:audit`, `check:dprint`) when
 
 ## Tool Management
 
+Follow the [shared tool baseline](tool-versions.md). `fmind/dot` uses `latest` by default; consuming repositories record the selected exact versions before installation. [upgrade-tools](../../upgrade-tools/SKILL.md) owns propagation across the local repository roots.
+
 ```bash
 mise registry <name>     # discover the tool's backend id
-mise use <tool>@latest   # pin into [tools] and install
+mise use --pin <tool>@<exact-version> # record the selected baseline version and install
 mise install             # install everything pinned
 mise lock                # refresh metadata for the locked versions
-mise lock --bump         # advance fuzzy selectors without installing
+mise lock --bump         # advance baseline selectors without installing
 mise lock --upgrade      # migrate legacy locks to request-specific bindings
-mise upgrade --bump      # bump pinned versions (updates mise.lock too)
+mise upgrade --bump      # explicit independent upgrade, not baseline alignment
 ```
 
 ## Additional task gotchas
