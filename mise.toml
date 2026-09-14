@@ -251,7 +251,7 @@ run = "uv run --frozen --directory dot ptw . -q -n auto"
 [tasks.apply]
 alias = "ma"
 description = "Apply the chezmoi source tree"
-run = "chezmoi apply --force"
+run = "chezmoi apply --force --refresh-externals"
 
 [tasks.completions]
 alias = "mg"

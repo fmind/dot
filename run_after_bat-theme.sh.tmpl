@@ -1,0 +1,5 @@
+#!/bin/sh
+# Docs: https://github.com/sharkdp/bat#adding-new-themes
+# Rebuild after every apply: externals can change without changing this script.
+set -eu
+"{{ .chezmoi.homeDir }}/.local/share/mise/shims/bat" cache --build
