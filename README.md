@@ -69,25 +69,21 @@ The terminal font is installed per user in `~/.local/share/fonts/GoogleSansCode`
 
 The installer prompts for Git identity, applies the dotfiles and eligible installation hooks, installs the locked tools and `dot` CLI, and configures Git hooks and Neovim plugins. Open a new shell afterward, or use `~/.local/bin/dot --help` to check the installed CLI directly.
 
-When an update adds a new prompt, such as the theme variant, run `chezmoi init` once on each existing machine to write it into `~/.config/chezmoi/chezmoi.toml`. Other chezmoi commands fail until the key exists.
-
-The same applies when `theme_ref` moves: the theme files are chezmoi externals pinned to a tag, so run `chezmoi init` and then `chezmoi apply` to fetch the new palette. Ghostty, Zellij, fish and Neovim pick it up on their next start.
-
-To preview an unpublished theme, run `chezmoi init --promptString "Local theme checkout (empty uses theme_ref)=$HOME/fmind/theme"`, then apply the theme targets. This host setting takes precedence over the release and refreshes native theme files from the local checkout. The checkout must remain present; clear `theme_local_path` to return to `theme_ref`. The current pinned `v2.2.0` release is the previous dark theme; use the local checkout for the new light design until it is published.
+Standalone theme files follow `fmind/theme` on `main`, with no host-specific theme settings or release pin. The installer refreshes externals when applying dotfiles. For a direct chezmoi update, use `chezmoi apply --force --refresh-externals`; without the refresh flag, theme downloads can stay cached for 24 hours. Applications pick up the new theme on reload or restart.
 
 ### Theme coverage
 
-Standalone theme files are fetched by chezmoi from `fmind/theme` and selected through each app's native configuration. Tools that require merged configuration keep copied style blocks with upstream source comments. The four additional standalone themes remain copied while their upstream files are unpublished.
+ChezMoi downloads standalone themes from upstream `main`. Tools that require merged configuration retain copied style blocks with upstream source comments; these snapshots update with this dotfiles repository, not automatically with upstream.
 
-| Integration                                               | Theme delivery and selection                                                                                                                            |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ghostty, Zellij, Neovim, lualine, OpenCode                | External native files; selected by `theme_variant` (lualine follows Neovim).                                                                            |
-| Fish, fzf, k9s, delta, ptpython                           | External native files; loaded through Fish startup, `FZF_DEFAULT_OPTS_FILE`, `K9S_SKIN`, Git include, and the ptpython config module.                   |
-| Starship, gh-dash, bottom, Lazydocker, LazyGit, Fastfetch | Copied palette or style blocks merged with managed behavior.                                                                                            |
-| Atuin, bat, lsd, Yazi                                     | Copied standalone themes; selected in native config. bat's apply hook rebuilds the syntax cache used by bat and delta; Yazi reads the same syntax file. |
-| Antigravity, Claude Code, Grok, mise                      | Terminal colors or closest built-in light palette: `terminal`, `light-ansi`, `grokday`, and `base16`, respectively.                                     |
+| Integration                                               | Theme delivery and selection                                                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ghostty, Zellij, Neovim, lualine, OpenCode                | External native files; fixed `fmind` selection (lualine follows Neovim).                                                                             |
+| Fish, fzf, k9s, delta, ptpython                           | External native files; loaded through Fish startup, `FZF_DEFAULT_OPTS_FILE`, `K9S_SKIN`, Git include, and the ptpython config module.                |
+| Atuin, bat, lsd, Yazi                                     | External native files; selected in native config. bat's apply hook rebuilds the syntax cache used by bat and delta; Yazi reads the same syntax file. |
+| Starship, gh-dash, bottom, Lazydocker, LazyGit, Fastfetch | Copied palette or style blocks merged with managed behavior.                                                                                         |
+| Antigravity, Claude Code, Grok, mise                      | Terminal colors or closest built-in light palette: `terminal`, `light-ansi`, `grokday`, and `base16`, respectively.                                  |
 
-A terminal palette controls ANSI colors, not every hard-coded app color. Tools without a native fmind integration keep their supported UI settings. Use the same theme revision for externals and copied styles: mixing the previous dark release with the new light copies does not reproduce the current design. For the unpublished light theme, configure the local checkout before applying. Once released, update `theme_ref` and move the new standalone files to externals together.
+A terminal palette controls ANSI colors, not every hard-coded app color. Tools without a native fmind integration keep their supported UI settings. When upstream changes its palette, synchronize the copied style blocks to keep them consistent with the refreshed externals.
 
 ### Fish completions
 

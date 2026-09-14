@@ -1,6 +1,6 @@
 # Docs: https://ghostty.org/docs/config/reference
 
-theme = {{ .theme_variant }}
+theme = fmind
 # Match Linux window chrome to the terminal background; use light chrome on macOS.
 window-theme = {{ if eq .chezmoi.os "linux" }}ghostty{{ else }}light{{ end }}
 

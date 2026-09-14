@@ -1,82 +1,76 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
-# Theme files use a host-selected local checkout or the pinned upstream release.
-# A configured local path must exist; never silently fall back to an old theme.
-{{ $base := printf "https://raw.githubusercontent.com/fmind/theme/%s" .theme_ref -}}
-{{ $refresh := "168h" -}}
-{{ if $local := get . "theme_local_path" -}}
-{{ if not (stat (joinPath $local "ghostty" .theme_variant)) -}}
-{{ fail "theme_local_path does not contain the selected Ghostty theme; restore the checkout or clear the local path" -}}
-{{ end -}}
-{{ $base = printf "file://%s" $local -}}
-{{ $refresh = "1s" -}}
-{{ end -}}
-{{ $variant := .theme_variant }}
+# Follow upstream main; the apply task bypasses the cache with --refresh-externals.
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/main" }}
 
-[".config/ghostty/themes/{{ $variant }}"]
+[".config/ghostty/themes/fmind"]
     type = "file"
-    url = "{{ $base }}/ghostty/{{ $variant }}"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/ghostty/fmind"
+    refreshPeriod = "24h"
 
-[".config/zellij/themes/{{ $variant }}.kdl"]
+[".config/zellij/themes/fmind.kdl"]
     type = "file"
-    url = "{{ $base }}/zellij/{{ $variant }}.kdl"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/zellij/fmind.kdl"
+    refreshPeriod = "24h"
 
-# fish keeps the generic name: conf.d is sourced by directory, not by lookup, so a
-# variant-named file would leave the previous theme behind and load both.
 [".config/fish/conf.d/theme.fish"]
     type = "file"
-    url = "{{ $base }}/fish/{{ $variant }}.fish"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/fish/fmind.fish"
+    refreshPeriod = "24h"
 
-# k9s and delta take the generic name: k9s resolves `skin:` from the file name and
-# delta is included by path, so neither needs the variant spelled into its config.
 [".config/k9s/skins/theme.yaml"]
     type = "file"
-    url = "{{ $base }}/k9s/{{ $variant }}.yaml"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/k9s/fmind.yaml"
+    refreshPeriod = "24h"
 
-[".config/nvim/colors/{{ $variant }}.lua"]
+[".config/nvim/colors/fmind.lua"]
     type = "file"
-    url = "{{ $base }}/nvim/colors/{{ $variant }}.lua"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/nvim/colors/fmind.lua"
+    refreshPeriod = "24h"
 
-# lualine carries the variant for the same reason Neovim does: its `auto` theme
-# resolves a file by vim.g.colors_name, so the name has to match the colorscheme's.
-# Nothing configures this -- lualine looks for lua/lualine/themes/<name>.lua on the
-# runtimepath and prefers a copy under the config directory, which is this one.
-[".config/nvim/lua/lualine/themes/{{ $variant }}.lua"]
+[".config/nvim/lua/lualine/themes/fmind.lua"]
     type = "file"
-    url = "{{ $base }}/lualine/{{ $variant }}.lua"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/lualine/fmind.lua"
+    refreshPeriod = "24h"
 
 [".config/git/theme.gitconfig"]
     type = "file"
-    url = "{{ $base }}/delta/{{ $variant }}.gitconfig"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/delta/fmind.gitconfig"
+    refreshPeriod = "24h"
 
-# fzf reads this through FZF_DEFAULT_OPTS_FILE, which is evaluated before
-# FZF_DEFAULT_OPTS -- so the theme owns the colours and conf.d/fzf.fish keeps
-# owning layout, key bindings and previews.
 [".config/fzf/theme.conf"]
     type = "file"
-    url = "{{ $base }}/fzf/{{ $variant }}.conf"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/fzf/fmind.conf"
+    refreshPeriod = "24h"
 
-# opencode resolves `theme` by file name, like Ghostty, so this one carries the
-# variant too.
-[".config/opencode/themes/{{ $variant }}.json"]
+[".config/opencode/themes/fmind.json"]
     type = "file"
-    url = "{{ $base }}/opencode/{{ $variant }}.json"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/opencode/fmind.json"
+    refreshPeriod = "24h"
 
-# ptpython has no theme file: config.py imports this module from beside itself
-# and installs the two dicts it exports, so the name has to stay what that
-# import expects.
 [".config/ptpython/theme.py"]
     type = "file"
-    url = "{{ $base }}/ptpython/{{ $variant }}.py"
-    refreshPeriod = "{{ $refresh }}"
+    url = "{{ $base }}/ptpython/fmind.py"
+    refreshPeriod = "24h"
+
+[".config/atuin/themes/fmind.toml"]
+    type = "file"
+    url = "{{ $base }}/atuin/fmind.toml"
+    refreshPeriod = "24h"
+
+[".config/bat/themes/fmind.tmTheme"]
+    type = "file"
+    url = "{{ $base }}/bat/fmind.tmTheme"
+    refreshPeriod = "24h"
+
+[".config/lsd/colors.yaml"]
+    type = "file"
+    url = "{{ $base }}/lsd/fmind.yaml"
+    refreshPeriod = "24h"
+
+[".config/yazi/theme.toml"]
+    type = "file"
+    url = "{{ $base }}/yazi/fmind.toml"
+    refreshPeriod = "24h"
 
 # Install only the Mono family, keeping terminal icons within character cells.
 {{ if eq .chezmoi.os "darwin" -}}
