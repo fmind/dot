@@ -1,0 +1,34 @@
+# Shared Tool Versions
+
+Use one preferred version of each shared tool while keeping every project independently installable. [upgrade-tools](../../upgrade-tools/SKILL.md) owns propagation; this reference owns selection for new and existing projects.
+
+## Baseline and consumers
+
+- **Baseline**: `~/.local/share/chezmoi/dot_config/mise/config.toml.tmpl` owns requests and options; the adjacent `mise.lock` owns exact resolutions. `fmind/dot` tracks `latest` by default for all tools, including Python. An intentional compatibility or release-channel exception needs a reason beside its declaration; Python has no blanket minor-version exception.
+- **Consumers**: other repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` declare fixed mise versions, with their own lockfiles. Use only the tools each project needs. Do not import or symlink personal configuration into a project or require this checkout in its CI.
+- **Runtime versus compatibility**: pin Python like every other mise tool and align `.python-version` when present. Keep `requires-python` as the package's supported range; adopting the baseline does not automatically raise its minimum or drop tested interpreters.
+- **Templates**: `latest` in a reusable scaffold is a selection placeholder. Replace it with an exact version before installing or delivering a consuming project; template examples are not a second version catalog.
+
+## Select exact versions
+
+1. Read the source template and lockfile together. Parse lock data with TOML tooling; do not execute the template or infer its exact versions from `latest`, the active shell, or a different project's lockfile. Ignore orphan lock entries for tools removed from the template. A missing, stale, or ambiguous matching lock entry must be resolved before claiming alignment.
+1. Match the full tool identity, backend, install options, and target platform. Normalize equivalent aliases deliberately when they would create duplicate installations; preserve required options and verify the selected backend. Matching version strings alone does not establish identical installations.
+1. For a shared tool, write the baseline's exact version into the project's declaration and regenerate that project's lock metadata. Do not copy the entire workstation lockfile into an app. A newer project pin is a discrepancy to investigate, not permission to downgrade silently.
+1. For a tool absent from the baseline, use the project's existing exact lock resolution during alignment. For a new tool or an explicitly requested upgrade, resolve a current stable release and record an exact pin locally; do not add it globally solely to populate the baseline.
+1. Check root, nested, environment-specific, and task-level tool declarations that belong to the project, along with relevant CI and runtime version files. Preserve intentional test matrices and platform-specific requirements. A genuine incompatibility stays as an exact pin with a concise reason and the failed validation evidence.
+1. If the baseline checkout is unavailable, preserve existing exact pins and report that shared alignment was not verified. New projects can resolve exact stable versions from official sources, but must not claim they match an unavailable baseline.
+
+Use the installed CLI's native explicit target when recording a selected version:
+
+```bash
+mise use --path mise.toml --pin <tool>@<exact-version>
+mise lock
+mise tasks validate
+mise run all
+```
+
+`mise use` installs missing tools as well as editing configuration. Inspect diffs and resolve baseline ambiguity before invoking it. If a new config is untrusted, review it and run `mise trust -y mise.toml` before retrying. Normal installations consume the recorded versions; an upgrade is an explicit operation.
+
+## References
+
+- [Configuration precedence](https://mise.jdx.dev/configuration.html) · [mise.lock](https://mise.jdx.dev/dev-tools/mise-lock.html) · [mise use](https://mise.jdx.dev/cli/use.html)

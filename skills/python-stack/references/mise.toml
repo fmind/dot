@@ -7,6 +7,7 @@ lockfile = true
 run_auto_install = false
 
 [tools]
+# Scaffold selectors: replace with exact baseline pins and add Python before installation.
 dprint = "latest"
 gitleaks = "latest"
 uv = "latest"

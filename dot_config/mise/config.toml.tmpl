@@ -43,11 +43,9 @@ tree-sitter = "cargo:tree-sitter-cli"
 chpwd_only = true
 
 [tools]
-"7zip" = "latest" # Archive listing and extraction in Yazi
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
-"conda:poppler" = "latest" # PDF previews in Yazi (pdftoppm and pdfinfo)
 "npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
 "npm:skills" = "latest" # Agent Skills CLI manager
 "pipx:fkf" = "latest" # Fmind Knowledge Framework CLI
@@ -57,10 +55,8 @@ chpwd_only = true
 "pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
-"pipx:marimo" = "latest" # Reactive Python notebook and app framework CLI
 "pipx:pip-audit" = "latest" # Audits installed pipx tool environments for check:vuln:tools; uv-managed projects use `uv audit` for check:vuln
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
-"pipx:pyrit" = "latest" # Microsoft AI red teaming CLI; assessment libraries use project-local uv environments
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 actionlint = "latest" # Correctness linter for GitHub Actions workflows
 age = "latest" # Simple and secure file encryption tool
@@ -93,7 +89,6 @@ hadolint = "latest" # Dockerfile linter written in Haskell
 hyperfine = "latest" # Command-line benchmarking utility
 imagemagick = "latest" # Additional image formats and thumbnails in Yazi
 jq = "latest" # Command-line JSON processor
-jules = "latest" # Google autonomous AI coding agent CLI
 lazydocker = "latest" # Terminal UI for managing Docker containers
 lazygit = "latest" # Terminal UI for Git commands
 lefthook = "latest" # Fast and powerful Git hooks runner
@@ -106,7 +101,6 @@ oha = "latest" # HTTP load generator with live TUI (hyperfine for endpoints)
 opencode = "latest" # OpenCode AI agent CLI tool
 opentofu = "latest" # OpenTofu infrastructure as code CLI (open-source Terraform fork, default)
 python = "latest" # Python programming language interpreter
-resvg = "latest" # SVG previews in Yazi
 ripgrep = "latest" # Blazing-fast grep alternative
 ruff = "latest" # High-performance Python linter and formatter
 rust = { version = "latest", profile = "minimal" } # Compiler for the portable Tree-sitter CLI

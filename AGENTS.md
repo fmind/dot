@@ -7,6 +7,7 @@ This is `fmind/dot` — chezmoi + mise dotfiles for AI-CLI-first, Python-first d
 - **Chezmoi**: Edit the source tree in this repository, never deployed copies under `$HOME`; automation always runs `chezmoi apply --force`. Naming, templates, and secrets: [chezmoi skill](.agents/skills/chezmoi/SKILL.md).
 - **Gate**: `mise run all` (format + check + test + build) must pass warning-free before reporting a task complete. It writes files; when unrelated work is present, validate an exact isolated candidate using [git-worktree](skills/git-worktree/SKILL.md).
 - **No-Sudo**: Stay user-space; install via `mise`.
+- **Tool baseline**: This repository tracks `latest` by default, including Python; `dot_config/mise/config.toml.tmpl` and `dot_config/mise/mise.lock` own the workstation baseline. Other repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` pin exact versions from it. [Mise](skills/mise/SKILL.md) owns selection and exceptions; [upgrade-tools](skills/upgrade-tools/SKILL.md) owns validated propagation.
 - **README Scope**: Keep setup and auth instructions in `README.md`; exclude repository tasks, aliases, and workflows.
 - **Secrets**: `*.age` files are encrypted; never modify or commit decrypted versions.
 - **Fonts**: Use Google Sans for application text and Google Sans Code for code by default; terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty. Project-specific requirements take precedence.
@@ -29,7 +30,7 @@ Key routines:
 - **Documentation**: `mise run check:docs` checks documentation contracts; `mise run check:skills` checks both skill catalogs and their local links. [repository-docs](skills/repository-docs/SKILL.md) owns documentation synchronization.
 - **Workstation vs Gate**: `mise run verify` and `mise run doctor` inspect local workstation health; `mise run check`, `test`, and `all` validate the repository.
 - **Add tool**: Append to `dot_config/mise/config.toml.tmpl` → `mise run tools` → `mise run lock`.
-- **Upgrade tools**: `mise run upgrade` (upgrades tool pins and lockfiles).
+- **Upgrade tools**: `mise run upgrade` updates this workstation's tools and lockfiles; [upgrade-tools](skills/upgrade-tools/SKILL.md) also inventories and aligns the other local repositories. The task alone does not perform that cross-repository migration.
 - **Workstation commands**: `dot login`, `setup`, `cache`, and `prune` own native provider operations; mise owns repository installation and validation. Authentication and cleanup are explicit commands, not apply hooks.
 - **Usage statistics**: [agent-usage](skills/agent-usage/SKILL.md) owns reports and subscription configuration. Token totals, API equivalents, recorded cost, and subscription charges are separate measurements; preserve immutable generations when changing extraction.
 - **CLI (`dot`)**: Follow [dot-development](.agents/skills/dot-development/SKILL.md) for implementation, tests, and installation proof; [dot-cli](skills/dot-cli/SKILL.md) owns command operation.
