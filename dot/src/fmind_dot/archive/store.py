@@ -465,23 +465,24 @@ def publish_owner_only(path: Path, content: bytes) -> None:
             0o600,
             dir_fd=directory,
         )
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "wb", closefd=False) as stream:
-            stream.write(content)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.close(descriptor)
-        descriptor = -1
-        os.replace(temp_name, path.name, src_dir_fd=directory, dst_dir_fd=directory)
-        temp_name = ""
-        os.fsync(directory)
-        _require_current_directory(path.parent.absolute(), directory, "target")
+        try:
+            os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "wb", closefd=False) as stream:
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.close(descriptor)
+            descriptor = -1
+            os.replace(temp_name, path.name, src_dir_fd=directory, dst_dir_fd=directory)
+            os.fsync(directory)
+            _require_current_directory(path.parent.absolute(), directory, "target")
+        finally:
+            # Only clean up after exclusive creation succeeded; replacement removes it.
+            with suppress(FileNotFoundError):
+                os.unlink(temp_name, dir_fd=directory)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
-        if temp_name:
-            with suppress(FileNotFoundError):
-                os.unlink(temp_name, dir_fd=directory)
         os.close(directory)
 
 

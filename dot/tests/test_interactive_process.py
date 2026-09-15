@@ -172,10 +172,13 @@ def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, 
     reaped = False
     try:
         deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
-        while b"Clean caches for" not in output and time.monotonic() < deadline:
+        # Typer writes the label before input() initializes the terminal reader.
+        # Wait for input() to emit the final prompt character before sending control keys.
+        prompt_end = b"? [y/N]: "
+        while prompt_end not in output and time.monotonic() < deadline:
             if select.select([terminal], [], [], 0.05)[0]:
                 output.extend(os.read(terminal, 65536))
-        assert b"Clean caches for" in output, output.decode(errors="replace")
+        assert prompt_end in output, output.decode(errors="replace")
         os.write(terminal, input_bytes)
         deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
         while time.monotonic() < deadline:
@@ -188,7 +191,7 @@ def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, 
                 assert os.WIFEXITED(status)
                 assert os.WEXITSTATUS(status) == expected_exit, output.decode(errors="replace")
                 break
-        assert reaped
+        assert reaped, output.decode(errors="replace")
         assert b"Traceback" not in output
         assert b"Abort" not in output
         assert b"UNEXPECTED CLEANUP" not in output

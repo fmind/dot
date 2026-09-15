@@ -262,6 +262,21 @@ def test_publish_owner_only_is_private_concurrent_and_cleans_failed_temps(
     assert list(target.parent.glob(f".{target.name}.*")) == []
 
 
+def test_publish_owner_only_preserves_an_existing_temporary_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    target = tmp_path / "state.json"
+    collision = tmp_path / ".state.json.collision"
+    collision.write_bytes(b"another writer")
+    monkeypatch.setattr(session_store.secrets, "token_hex", lambda _size: "collision")
+
+    with pytest.raises(FileExistsError):
+        publish_owner_only(target, b"unpublished")
+
+    assert collision.read_bytes() == b"another writer"
+    assert not target.exists()
+
+
 def test_fingerprints_preserve_file_bytes_and_native_unicode_json(tmp_path: Path) -> None:
     content = b"a" * (1024 * 1024 + 1)
     source = tmp_path / "source.jsonl"
