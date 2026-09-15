@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-09-11"
+  updated: "2026-09-14"
 ---
 
 # Playwright
@@ -24,7 +24,7 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 ## Gotchas
 
 - **Authority**: a test request does not authorize reusing a logged-in browser, synchronizing cookies, entering passwords or MFA, creating accounts, bypassing CAPTCHA, accepting legal terms, making purchases, or paying for cloud browsers or tunnels; stop and ask.
-- **Browser cache**: binaries live in `~/.cache/ms-playwright`; `playwright uninstall` frees them.
+- **Browser cache**: install only required browsers and reuse the default shared cache (`~/.cache/ms-playwright` on Linux). Do not run `playwright uninstall` as task teardown: other projects can need those binaries. Remove task-created temporary profiles and passing-run artifacts, preserve requested evidence and failure traces, and review native browser cleanup separately when disk pressure requires it.
 - **Version skew**: browsers match the Playwright version that installed them; rerun `uv run playwright install chromium` after an upgrade.
 - **Headless by default**: pass `--headed` to watch a run; keep CI headless.
 

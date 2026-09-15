@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/modern-web
   created: "2026-09-03"
-  updated: "2026-09-13"
+  updated: "2026-09-15"
 ---
 
 # Modern Web Guidance
@@ -45,5 +45,5 @@ Upstream: `GoogleChrome/modern-web-guidance`; follow the shared [vendor-skill po
 ## Documentation
 
 - [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) · [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)
-- Releases: [guidance package versions](https://www.npmjs.com/package/modern-web-guidance?activeTab=versions) · [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss/releases)
+- Releases: [guidance package metadata](https://registry.npmjs.org/modern-web-guidance) · [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss/releases)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md), [playwright](../playwright/SKILL.md), [technical-research](../technical-research/SKILL.md).

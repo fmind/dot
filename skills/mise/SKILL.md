@@ -17,6 +17,7 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 
 1. **Inspect** the repository's existing tasks, lockfile, tool providers, hooks, and CI before changing the contract.
 1. **Select versions** using the [shared tool baseline](references/tool-versions.md): `fmind/dot` tracks `latest`, including Python; other owned repositories use exact pins from its managed lockfile. Apply this before installing copied scaffold selectors.
+1. **Reuse installations**: compare `mise ls --installed --json` with the baseline before installing; use the same backend, options and exact version where compatible. Do not run independent upgrades or copy tool binaries into projects. Report duplicate versions and documented exceptions; a matching version string alone does not prove reuse.
 1. **Keep tasks simple**: prefer direct commands, short sequential `run` arrays, and declarative dependencies. A short multiline sequence for setup and cleanup is acceptable; avoid explicit `bash -c`/`sh -c`, nested conditions, argument-dispatch wrappers, and large shell programs. Use native tool options or explicit task names first; put necessary procedural logic in a small maintained script, preferably Python.
 1. **Keep the shared vocabulary** below; read [task conventions](references/task-conventions.md) for subtask names, aliases, argument forwarding, dependency order, and tool updates.
 1. **Pin and install** the project toolchain, then validate task definitions with `mise tasks validate`; use `mise run <task>` in automation.

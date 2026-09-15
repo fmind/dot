@@ -28,5 +28,5 @@ metadata:
 
 ## Documentation
 
-- [<Primary documentation>](https://...)
+- [<Primary documentation>](https://example.com/)
 - Companion skills: <name> (<why>), <name> (<why>).
