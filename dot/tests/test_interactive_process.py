@@ -154,13 +154,17 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
         os.close(terminal)
 
 
-@pytest.mark.parametrize(("input_bytes", "expected_exit"), [(b"\x03", 130), (b"n\n", 1), (b"\x04", 1)])
+@pytest.mark.parametrize(
+    ("input_bytes", "expected_exit"),
+    [(b"\x03", 130), (b"n\n", 1), (b"\x04", 1), (b"\n", 1), (b"yes\n", 0), (b"Y\n", 0), (b"invalid\nyes\n", 0)],
+)
 def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, expected_exit: int) -> None:
+    cleanup = "(print('CLEANUP') or 0)" if expected_exit == 0 else "sys.exit('UNEXPECTED CLEANUP')"
     launcher = (
         "import os,sys\nfrom pathlib import Path\n"
         "from fmind_dot.process import Runner\nfrom fmind_dot.cli import main\n"
         "Runner.which=lambda self,command: Path('/fixture') / command\n"
-        "Runner.interactive=lambda *args,**kwargs: sys.exit('UNEXPECTED CLEANUP')\n"
+        f"Runner.interactive=lambda *args,**kwargs: {cleanup}\n"
         "os.environ.pop('DOT_CONFIG_PATH',None)\n"
         "sys.argv=['dot','prune','all']\nmain()\n"
     )
@@ -172,8 +176,7 @@ def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, 
     reaped = False
     try:
         deadline = time.monotonic() + ARRIVAL_DEADLINE_SECONDS
-        # Typer writes the label before input() initializes the terminal reader.
-        # Wait for input() to emit the final prompt character before sending control keys.
+        # Send control keys as soon as the complete confirmation prompt is visible.
         prompt_end = b"? [y/N]: "
         while prompt_end not in output and time.monotonic() < deadline:
             if select.select([terminal], [], [], 0.05)[0]:
@@ -192,10 +195,25 @@ def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, 
                 assert os.WEXITSTATUS(status) == expected_exit, output.decode(errors="replace")
                 break
         assert reaped, output.decode(errors="replace")
+        # Process exit can precede our next read of its final cancellation message.
+        while select.select([terminal], [], [], 0)[0]:
+            try:
+                chunk = os.read(terminal, 65536)
+            except OSError:
+                break
+            if not chunk:
+                break
+            output.extend(chunk)
         assert b"Traceback" not in output
         assert b"Abort" not in output
         assert b"UNEXPECTED CLEANUP" not in output
-        assert b"Cancelled" in output
+        if expected_exit == 0:
+            assert output.count(b"CLEANUP") == 6
+        if input_bytes.startswith(b"invalid"):
+            assert b"Error: invalid input" in output
+            assert output.count(prompt_end) == 2
+        if expected_exit != 0:
+            assert b"Cancelled" in output
     finally:
         if not reaped:
             with suppress(ProcessLookupError):
