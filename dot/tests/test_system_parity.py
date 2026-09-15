@@ -136,16 +136,6 @@ def test_completion_uses_only_the_configured_generator() -> None:
     assert failing.calls == [["plain", "completion", "fish"]]
 
 
-def test_marimo_completion_uses_click_fish_source_protocol() -> None:
-    runner = ScriptedRunner(
-        {"env", "marimo"},
-        run=lambda _args, _cwd, _input_text, _check: CommandResult("# marimo fish completion\n", "", 0),
-    )
-
-    assert system._generate_completion(state_with(runner), "marimo") == "# marimo fish completion\n"  # noqa: SLF001
-    assert runner.calls == [["env", "_MARIMO_COMPLETE=fish_source", "marimo"]]
-
-
 def test_dot_completion_uses_typer_fish_source_protocol() -> None:
     runner = ScriptedRunner(
         {"env", "dot"},
@@ -377,6 +367,26 @@ def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failu
     assert "secret" not in str(raised.value)
 
 
+def test_notification_dispatch_skips_missing_desktop_service(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = ScriptedRunner(
+        {"gdbus"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult(
+            "",
+            "Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: "
+            "The name org.freedesktop.Notifications was not provided by any .service files",
+            1,
+        ),
+    )
+    state = state_with(runner)
+    monkeypatch.setattr(system.platform, "system", lambda: "Linux")
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
+
+    system.send_notification(state, system.Notification("Done"))
+
+    assert isinstance(state.stderr, StringIO)
+    assert "notification skipped: no desktop notification service" in state.stderr.getvalue()
+
+
 def _minimal_verify_config() -> Config:
     config = Config()
     config.doctor.env_vars.required = []
@@ -549,8 +559,6 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
             raise OSError("private adc error")
         if args == ["gws", "auth", "status"]:
             return CommandResult("", "unclassified private failure", 2)
-        if args == ["jules", "remote", "list", "--repo"]:
-            return CommandResult("available", "", 0)
         if args == ["docker", "info"]:
             return CommandResult("", "private daemon failure", 3)
         raise AssertionError(args)
@@ -566,7 +574,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     assert auth["gcloud"]["details"] == "auth check timed out; state unknown"
     assert auth["gcloud-adc"]["details"] == "auth check failed; state unknown"
     assert auth["gws"]["condition"] == "broken"
-    assert auth["jules"]["status"] == "pass"
+    assert "jules" not in auth
     assert results["docker"][0]["details"] == "not running"
     assert "private" not in json.dumps(results)
 

@@ -36,8 +36,13 @@ if status is-interactive
     abbr -a mr "mise run"
     # n:npm
     abbr -a n npm
-    # o:clear
-    abbr -a o clear
+    # o:open
+    if test (uname) = Darwin
+        abbr -a o open
+    else
+        alias open=xdg-open
+        abbr -a o xdg-open
+    end
     # p:python
     abbr -a p python3
     abbr -a pt ptpython

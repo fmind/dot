@@ -2,6 +2,28 @@
 # Follow upstream main; the apply task bypasses the cache with --refresh-externals.
 {{ $base := "https://raw.githubusercontent.com/fmind/theme/main" }}
 
+{{ if or (eq .chezmoi.os "darwin") (eq .chezmoi.os "linux") -}}
+{{ $fonts := ".local/share/fonts" -}}
+{{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
+["{{ $fonts }}/GoogleSans"]
+    type = "archive"
+    url = "https://github.com/googlefonts/googlesans/releases/download/v14.000/GoogleSans-v14.000.zip"
+    checksum.sha256 = "d338f0e74f5eabead86a85b87edf4cc50cd6561196dbe173d1db4139e95b3ca7"
+    stripComponents = 3
+    include = ["build/GoogleSans/static/GoogleSans-*.ttf"]
+
+["{{ $fonts }}/GoogleSans-OFL.txt"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/googlefonts/googlesans/87ee3bfe8132b93d45ec49b2514eed2f47cd44c3/OFL.txt"
+    checksum.sha256 = "831b6e041705873c3e6efb18c4c96202bc41c8be42a456d3d26c47abf14816d0"
+
+["{{ $fonts }}/GoogleSansCodeOfficial"]
+    type = "archive"
+    url = "https://github.com/googlefonts/googlesans-code/releases/download/v7.001/GoogleSansCode-v7.001.zip"
+    checksum.sha256 = "eebba2a438882396e8530cad6d6cb80182b0afb6e9e0ad07b7340359a53ba2e9"
+    include = ["*.ttf", "OFL.txt"]
+{{ end -}}
+
 [".config/ghostty/themes/fmind"]
     type = "file"
     url = "{{ $base }}/ghostty/fmind"

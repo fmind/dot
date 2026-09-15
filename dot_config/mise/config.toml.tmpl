@@ -5,7 +5,7 @@
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
 # is deliberately off across every backend, and releases are installed the day they
 # ship. The trade-off: mise.lock records digests for aqua/github/http downloads
-# and the newly locked conda dependency graphs. The `cargo:`, `npm:` and `pipx:`
+# and the newly locked conda dependency graphs. The `npm:` and `pipx:`
 # entries (plus registry tools such as gcloud, make, neovim, sqlite and uv) pin a
 # version but no digest, and the first fetch of any new version is unverified. Upstream
 # attestation coverage is too patchy to gate routine upgrades on, and this is a
@@ -15,8 +15,6 @@ aqua.cosign = false
 aqua.github_attestations = false
 aqua.minisign = false
 aqua.slsa = false
-# Compile Tree-sitter locally: upstream Linux binaries require GLIBC 2.39.
-cargo.binstall = false
 # Interactive prompts draw from the terminal's sixteen slots rather than from
 # mise's own palette, so they follow fmind/theme like everything else.
 color_theme = "base16"
@@ -37,7 +35,6 @@ slsa = false
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
-tree-sitter = "cargo:tree-sitter-cli"
 
 [settings.hook_env]
 chpwd_only = true
@@ -52,6 +49,7 @@ chpwd_only = true
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
 # Pinned dep: google-colab-cli requires jupyter-kernel-client unpinned, but 1.0.0 renamed
 # KernelClient -> JupyterKernelClient, which breaks every session (verified 2026-09-02).
+# Keep the global lockfile at format 1: format 2 rejects free-form uvx_args.
 "pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
@@ -103,7 +101,6 @@ opentofu = "latest" # OpenTofu infrastructure as code CLI (open-source Terraform
 python = "latest" # Python programming language interpreter
 ripgrep = "latest" # Blazing-fast grep alternative
 ruff = "latest" # High-performance Python linter and formatter
-rust = { version = "latest", profile = "minimal" } # Compiler for the portable Tree-sitter CLI
 shellcheck = "latest" # Static analysis tool for shell scripts
 shfmt = "latest" # Parser, formatter, and interpreter for shell code
 sops = "latest" # Mozilla secrets editor (encrypts YAML/JSON/etc)
@@ -113,7 +110,7 @@ starship = "latest" # Minimal and customizable cross-shell prompt
 stylua = "latest" # Opinionated Lua formatter
 terraform-docs = "latest" # Generate documentation from Terraform modules
 tflint = "latest" # Terraform code linter
-tree-sitter = "latest" # Parser generator CLI backing nvim-treesitter (built from source)
+tree-sitter = "latest" # Parser generator CLI backing nvim-treesitter; Linux binary requires glibc 2.39+
 trivy = "latest" # Security vulnerability and secret scanner
 ttyd = { version = "latest", os = ["linux"] } # VHS terminal backend; upstream binaries are Linux-only
 ty = "latest" # Astral's high-performance Python type checker
@@ -147,10 +144,7 @@ macos-x64 = { asset_pattern = "*x86_64-apple-darwin*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
 
 [tools."github:googleworkspace/cli"]
-# Retested 2026-09-02: the earlier "0.22.5 needs GLIBC 2.39" pin does not reproduce.
-# That asset is static-pie with no INTERP segment and zero GLIBC_ symbols, and runs on
-# this host's glibc 2.36. The platform patterns below stay, since upstream ships glibc
-# and musl x64 tarballs side by side and the musl one is the portable choice.
+# Upstream ships glibc and musl assets side by side; select musl explicitly for portability.
 version = "latest" # Google Workspace CLI (gws)
 
 [tools."github:googleworkspace/cli".platforms]
@@ -171,8 +165,7 @@ macos-x64 = { asset_pattern = "tailwindcss-macos-x64" }
 macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }
 
 [tools."github:sxyazi/yazi"]
-# Upstream GNU/Linux releases require GLIBC 2.39; select the same-version musl
-# asset so the latest release remains portable to Debian 12.
+# Select musl explicitly for portability across Linux distributions.
 version = "latest" # Blazing-fast terminal file manager in Rust
 
 [tools."github:sxyazi/yazi".platforms]

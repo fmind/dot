@@ -61,16 +61,13 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "grok": ToolConfig(args=["completions", "fish"]),
         "hf": ToolConfig(binary="env", args=["_HF_COMPLETE=fish_source", "hf"]),
         "hyperfine": ToolConfig(package="hyperfine"),
-        "jules": ToolConfig(),
         "lazygit": ToolConfig(args=["completion", "fish"]),
         "lefthook": ToolConfig(),
         "lsd": ToolConfig(package="lsd"),
         "lychee": ToolConfig(args=["--generate", "complete-fish"]),
-        "marimo": ToolConfig(binary="env", args=["_MARIMO_COMPLETE=fish_source", "marimo"]),
         "mise": ToolConfig(),
         "rg": ToolConfig(args=["--generate", "complete-fish"]),
         "ruff": ToolConfig(args=["generate-shell-completion", "fish"]),
-        "rustup": ToolConfig(args=["completions", "fish"]),
         "starship": ToolConfig(args=["completions", "fish"]),
         "terraform-docs": ToolConfig(),
         "tree-sitter": ToolConfig(args=["complete", "--shell", "fish"]),
@@ -167,7 +164,7 @@ class AgentConfig(StrictModel):
 
 
 class EnvVarsConfig(StrictModel):
-    required: list[str] = Field(default_factory=lambda: ["JULES_API_KEY", "STITCH_ACCESS_TOKEN"])
+    required: list[str] = Field(default_factory=lambda: ["STITCH_ACCESS_TOKEN"])
     optional: list[str] = Field(
         default_factory=lambda: [
             "STUDIO_API_KEY",
@@ -198,7 +195,6 @@ class DoctorConfig(StrictModel):
             "claude",
             "codex",
             "copilot",
-            "cursor-agent",
             "docker",
             "dprint",
             "fkf",
@@ -209,9 +205,7 @@ class DoctorConfig(StrictModel):
             "gitleaks",
             "grok",
             "gws",
-            "jules",
             "lefthook",
-            "marimo",
             "mise",
             "nvim",
             "opencode",

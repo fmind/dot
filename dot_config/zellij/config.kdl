@@ -4,6 +4,8 @@ default_shell "fish"
 // Pane frames separate the content from tabs and the status bar.
 pane_frames true
 theme "fmind"
+// Prevent mouse scrolling from implicitly entering and exiting Scroll mode.
+scroll_mode_sync false
 
 keybinds {
     shared_except "locked" {
