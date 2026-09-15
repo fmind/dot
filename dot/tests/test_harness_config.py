@@ -281,6 +281,47 @@ sessions = false
         assert fresh["model"] == "Gemini 3.8 Flash (High)"
         assert fresh["trustedWorkspaces"] == [str(self.home), str(self.home / ".local/share/chezmoi")]
 
+    def test_remote_settings_preserve_host_identity_grants_and_projects(self):
+        template = "dot_gemini/private_config/modify_private_config.json"
+        original = {
+            "userSettings": {
+                "cliRemoteControlHostname": "fixture-host",
+                "globalPermissionGrants": {
+                    "allow": ["read_file(/fixture)"],
+                    "ask": ["execute_url(example.com)"],
+                    "deny": ["command(rm *)"],
+                },
+                "autoExecutionPolicy": "CASCADE_COMMANDS_AUTO_EXECUTION_OFF",
+            },
+            "customState": {"keep": True},
+        }
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        settings = data["userSettings"]
+        assert settings["cliRemoteControlHostname"] == "fixture-host"
+        grants = settings["globalPermissionGrants"]
+        assert grants["allow"] == ["read_file(/fixture)", "read_url(*)", "execute_url(*)", "mcp(*)"]
+        for action in ("ask", "deny"):
+            assert grants[action] == original["userSettings"]["globalPermissionGrants"][action]
+        assert data["customState"] == original["customState"]
+        assert settings["autoExecutionPolicy"] == "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER"
+        assert settings["permissionPreset"] == "AGENT_PERMISSION_PRESET_TURBO"
+        assert settings["artifactReviewMode"] == "ARTIFACT_REVIEW_MODE_TURBO"
+        assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))["userSettings"]
+        assert "cliRemoteControlHostname" not in fresh
+        assert fresh["globalPermissionGrants"] == {"allow": ["read_url(*)", "execute_url(*)", "mcp(*)"]}
+
+    def test_remote_model_selection_preserves_native_state(self):
+        template = "dot_gemini/antigravity-cli/modify_private_antigravity_state.pbtxt"
+        selected = "last_selected_agent_model: MODEL_PLACEHOLDER_M318\n"
+        original = 'post_onboarding: { completed_steps: 1 }\ninstallation_uuid: "fixture"\n'
+        for content in (original, original.rstrip(), original + "last_selected_agent_model: 123\n"):
+            rendered = self.render(template, content)
+            assert rendered == original + selected
+            assert self.render(template, rendered) == rendered
+        assert self.render(template, "") == selected
+
     def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
         template = "dot_gemini/antigravity-cli/modify_settings.json"
         original = json.dumps({"gcp": {"project": "host", "location": "region", "extra": True}})

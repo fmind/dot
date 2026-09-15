@@ -2533,19 +2533,19 @@ url = "https://github.com/charmbracelet/vhs/releases/download/v0.12.0/vhs_0.12.0
 url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/552473032"
 
 [[tools.watchexec]]
-version = "2.7.2"
+version = "2.7.3"
 backend = "aqua:watchexec/watchexec"
 specifiers = ["latest"]
 
 [tools.watchexec."platforms.linux-x64"]
-checksum = "sha256:b5b3cf6fd45ce2503bae90ba4017f85d62314b427b91c06818ff39a4c46930c4"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.2/watchexec-2.7.2-x86_64-unknown-linux-gnu.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/546730436"
+checksum = "sha256:8ace3a1d2e752d189f28b6766311d58f155ab977fae66aba60b111ec8aec2f64"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-unknown-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495660"
 
 [tools.watchexec."platforms.macos-arm64"]
-checksum = "sha256:31e553b7160720796266168987c5e0728c388cc4776a26297b6a9feb00ab6437"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.2/watchexec-2.7.2-aarch64-apple-darwin.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/546730424"
+checksum = "sha256:bb2a3acc02de5c64f87779fc0226274d47d79026c6df969c8c1034a110b2efad"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-aarch64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495664"
 
 [[tools.xh]]
 version = "0.26.2"

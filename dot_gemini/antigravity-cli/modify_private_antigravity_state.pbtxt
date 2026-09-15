@@ -1,0 +1,14 @@
+# chezmoi:modify-template
+{{- /* Docs: https://antigravity.google/docs/models/
+       agy 1.2.3 geminimodels.Catalog maps gemini-3.8-flash-high to enum 1318,
+       MODEL_PLACEHOLDER_M318. JetboxAppState stores this choice outside UserConfig.
+       Preserve all unrelated native state instead of taking ownership of the file. */ -}}
+{{- $pattern := `(?m)^last_selected_agent_model[ \t]*:[^\r\n]*(?:\r?\n|$)` -}}
+{{- $selected := "last_selected_agent_model: MODEL_PLACEHOLDER_M318\n" -}}
+{{- if regexMatch $pattern .chezmoi.stdin -}}
+{{ regexReplaceAll $pattern .chezmoi.stdin $selected -}}
+{{- else -}}
+{{- .chezmoi.stdin -}}
+{{- if and (ne .chezmoi.stdin "") (not (hasSuffix "\n" .chezmoi.stdin)) }}{{ "\n" }}{{ end -}}
+{{ $selected -}}
+{{- end -}}
