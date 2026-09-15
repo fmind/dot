@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [5.1.0] - 2026-09-15
+
+### 🚀 Features
+
+- Add a2a CLI and link upstream releases across skills
+- _(theme)_ Wire fmind/theme v2.1.0 across every themed tool
+- _(theme)_ Wire lualine and bump fmind/theme to v2.2.0
+- Adopt light theme, Google Sans fonts, and new skills
+- _(mise)_ Establish shared tool baseline and prune unused tools
+- _(workstation)_ Refine fonts, notifications, and tool defaults
+
+### 🐛 Bug Fixes
+
+- _(theme)_ Follow upstream main and refresh externals on apply
+- Harden archive cleanup and terminal cancellation tests
+
+### 📚 Documentation
+
+- _(skills)_ Update langchain and langgraph for v1 APIs
+- _(skills)_ Document resource budgets and refresh references
+
+### 🧪 Testing
+
+- Give the harness renderer the theme_variant it now needs
+
 ## [5.0.2] - 2026-09-11
 
 ### 🐛 Bug Fixes
