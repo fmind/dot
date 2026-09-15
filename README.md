@@ -11,8 +11,8 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 - **Shell & Terminal** — [Fish](https://fishshell.com/) with [Starship](https://starship.rs/), [Atuin](https://atuin.sh/), [zoxide](https://github.com/ajeetdsouza/zoxide), [fzf](https://github.com/junegunn/fzf), [Ghostty](https://ghostty.org/), and [Zellij](https://zellij.dev/).
 - **Editor** — [Neovim](https://neovim.io/) powered by [LazyVim](https://www.lazyvim.org/).
-- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), [Grok Build](https://x.ai/build) (`grok`), and [Cursor CLI](https://cursor.com/docs/cli) (`cursor-agent`).
-- **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, marimo, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
+- **AI Harnesses & Skills** — Shared persona (`AGENTS.md`) and [Agent Skills](https://agentskills.io) ([`skills/`](skills/)) for [Antigravity](https://antigravity.google/) (`agy`), [Claude Code](https://claude.com/claude-code), [OpenAI Codex](https://developers.openai.com/codex/) (`codex`), [OpenCode](https://opencode.ai/), [GitHub Copilot](https://github.com/features/copilot), and [Grok Build](https://x.ai/build) (`grok`).
+- **Python & Cloud Stack** — Typed Python with uv, Ruff, ty, pytest, Django, Litestar, and Google ADK, plus OpenTofu for infrastructure.
 - **`dot` CLI** — Typed Python tool for workspace automation, health checks, session archives, and diagnostics ([`dot/`](dot/)).
 - **One Theme, Every Tool** — [fmind/theme](https://github.com/fmind/theme) uses dark syntax on white, with purple types, teal information, light-grey panels and bright active controls. Native theme files cover editors, shells and dashboards; bat and delta share the same syntax theme.
 - **User-Space Toolchain** — CLIs managed declaratively in user space via [mise](https://mise.jdx.dev/) and dotfiles synced via [chezmoi](https://www.chezmoi.io/).
@@ -25,7 +25,7 @@ Terminal recording with VHS additionally requires FFmpeg, ttyd, and the selected
 
 ### Host Packages
 
-The bootstrap installs user-space tools via mise, but requires host build tools, Git, curl, and native credential storage:
+The bootstrap installs user-space tools via mise, but requires host build tools, Git, curl, and native credential storage. Linux requires glibc 2.39 or newer (Debian 13 or Ubuntu 24.04 and newer) for the prebuilt Tree-sitter CLI:
 
 ```bash
 # Linux (Debian/Ubuntu)
@@ -34,6 +34,16 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring
 # macOS
 xcode-select --install
 ```
+
+### ChromeOS / Crostini: Ghostty dead keys
+
+On ChromeOS with a Debian Crostini container, US International dead keys can disappear in Ghostty when `GTK_IM_MODULE=cros` is set but the `cros-im` package is missing. Pasted or programmatically printed apostrophes, backticks, and tildes still display correctly, and typing works in the ChromeOS Terminal app. Check the package with `apt-cache policy cros-im`; if it reports `Installed: (none)`, install the host input-method integration manually:
+
+```bash
+sudo apt install cros-im
+```
+
+Close all Ghostty windows and reopen it normally, keeping US International selected. Verify that apostrophe followed by Space produces an apostrophe and apostrophe followed by `e` produces `é`. This repair was confirmed on Debian 13 Crostini; it does not apply to macOS, including Apple Silicon, or ordinary Linux installations. See the [ChromeOS input-method documentation](https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/vm_tools/cros_im/).
 
 ### GitHub Authentication
 
@@ -63,7 +73,9 @@ bash ~/.local/share/chezmoi/install.sh
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
-Google Sans is the default for application text and Google Sans Code for code; terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty. The managed installer supplies the terminal font; projects that embed fonts must supply Google Sans and Google Sans Code themselves.
+Google Sans is the default for application text and Google Sans Code for code; terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty. The managed installer supplies all three families from checksum-pinned official releases. Projects that embed fonts must still bundle their fonts.
+
+Google Sans v14.000 and Google Sans Code v7.001 are installed per user under `GoogleSans` and `GoogleSansCodeOfficial` in the platform font directory, with their OFL licenses.
 
 The terminal font is installed per user in `~/.local/share/fonts/GoogleSansCode` on Linux and `~/Library/Fonts/GoogleSansCode` on macOS, from the checksum-pinned Nerd Fonts v3.5.1 archive. After switching an existing installation, reopen Ghostty; on Linux, run `fc-cache -f ~/.local/share/fonts/GoogleSansCode` if the font is not detected yet.
 
@@ -73,7 +85,7 @@ Standalone theme files follow `fmind/theme` on `main`, with no host-specific the
 
 ### Theme coverage
 
-ChezMoi downloads standalone themes from upstream `main`. Tools that require merged configuration retain copied style blocks with upstream source comments; these snapshots update with this dotfiles repository, not automatically with upstream.
+chezmoi downloads standalone themes from upstream `main`. Tools that require merged configuration retain copied style blocks with upstream source comments; these snapshots update with this dotfiles repository, not automatically with upstream.
 
 | Integration                                               | Theme delivery and selection                                                                                                                         |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -101,7 +113,9 @@ The managed `~/.config/ruff/ruff.toml` provides a fallback for scratch scripts; 
 
 Copilot and Antigravity settings merge with existing host state. Model and UI defaults seed missing values; subsequent native choices, account settings, and Antigravity workspace trust survive apply. Dot continues to manage execution policy, Vim mode, and notifications. Copilot updates through mise, with its native automatic updater disabled. Explicit `ANTIGRAVITY_CLOUD_PROJECT` and `ANTIGRAVITY_CLOUD_LOCATION` values override the saved cloud selection; without a project override, the saved selection is preserved.
 
-Yazi's archive, PDF, SVG, and additional image previews use mise-managed 7-Zip, Poppler, resvg, and ImageMagick. Kubernetes tooling is project-scoped. On existing machines, retire the former global `~/.config/k9s/config.yaml`, `~/.config/stern/config.yaml`, and `~/.kube/kuberc` after preserving any needed preferences. Leave `~/.kube/config` and its cluster credentials and contexts intact.
+Kubernetes tooling is project-scoped. On existing machines, retire the former global `~/.config/k9s/config.yaml`, `~/.config/stern/config.yaml`, and `~/.kube/kuberc` after preserving any needed preferences. Leave `~/.kube/config` and its cluster credentials and contexts intact.
+
+Agent desktop notifications require a desktop notification service. Headless Linux sessions skip notifications; when a session bus exists without that service, the hook reports the skip without failing the agent turn. Other delivery failures remain errors.
 
 ### Dot configuration
 
@@ -131,7 +145,7 @@ Configure each subscribed harness independently. Renewal days 29–31 use the mo
 
 Skills use the standard `~/.agents/skills/` directory. Dotfiles setup creates a real directory and links each package from this repository's [`skills/`](skills/) catalog into it. Other packages can be directories or individual links in the same location; names must be unique. Packages in this catalog may reference sibling skills, so check dependencies before copying one folder on its own.
 
-Cursor's local CLI and editor discover the shared catalog; remote workers need their own project or worker skill installation. The catalog's FKF retrieval package is a reviewed snapshot of the author's newer FKF workflow: select the knowledge base's matching runtime before using it. Base locations and private instructions remain local to each base; installing the skill does not upgrade FKF or migrate knowledge.
+If installed separately, Cursor's local CLI and editor discover the shared catalog; remote workers need their own project or worker skill installation. The catalog's FKF retrieval package is a reviewed snapshot of the author's newer FKF workflow: select the knowledge base's matching runtime before using it. Base locations and private instructions remain local to each base; installing the skill does not upgrade FKF or migrate knowledge.
 
 To add a skill, create `~/skill-library/meeting-prep/SKILL.md` with a matching name, a description, and actionable instructions:
 
@@ -157,10 +171,6 @@ ln -s ~/skill-library/meeting-prep ~/.agents/skills/
 Run this setup on each computer. An existing name makes `ln` fail without replacing it; inspect the existing package before choosing another name. Restart the agent session to refresh discovery. `dot agent doctor --agent codex --explain` checks package links and entrypoints as part of integration health; actual selection still needs a request that exercises the skill. For changes to this repository's catalog, follow the [skill maintenance guide](.agents/skills/dot-skills/SKILL.md), including link retirement and source relocation.
 
 ## Credentials
-
-### AI security assessments
-
-The global toolchain includes Microsoft's PyRIT CLI (`pyrit_scan`, `pyrit_shell`, and `pyrit_backend`). Assessment code uses a separate `uv` project and lockfile; the global CLI environment is not an application dependency. Start with the [AI security assessment skill](skills/ai-security-assessment/SKILL.md) for project setup and version-matched guidance. Configure the approved target, attack-generation, and scoring endpoints with their provider credentials in the assessment environment. Keep customer prompts, traces, and conversation databases in that project's designated evidence storage.
 
 ### Secret Management
 
@@ -217,19 +227,17 @@ prune:
 
 The former managed `login.toml`, `setup.toml`, `cache.toml`, and `prune.toml` files have been retired from `~/.config/mise/conf.d/`; other files there remain independently managed. Install the updated Dot CLI with the normal tool setup before using its new commands.
 
-| Tool / Service           | Command                                           | Auth Type               |
-| ------------------------ | ------------------------------------------------- | ----------------------- |
-| **GitHub CLI**           | `gh auth login`                                   | Browser OAuth           |
-| **Google Cloud SDK**     | `gcloud auth login --update-adc`                  | ADC + OAuth             |
-| **Google Workspace CLI** | `gws auth login`                                  | Browser OAuth           |
-| **Antigravity CLI**      | `agy`                                             | On-demand prompt        |
-| **Claude Code**          | `claude auth login` (or `claude` → `/login`)      | Interactive / browser   |
-| **Cursor CLI**           | `cursor-agent login`                              | Create an account first |
-| **OpenAI Codex CLI**     | `codex login`                                     | Interactive             |
-| **OpenCode CLI**         | `gcloud auth login --update-adc`, then `opencode` | Vertex AI ADC           |
-| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)         | Interactive / browser   |
-| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                   | Interactive / API key   |
-| **Jules CLI**            | `jules login`                                     | Interactive             |
+| Tool / Service           | Command                                           | Auth Type             |
+| ------------------------ | ------------------------------------------------- | --------------------- |
+| **GitHub CLI**           | `gh auth login`                                   | Browser OAuth         |
+| **Google Cloud SDK**     | `gcloud auth login --update-adc`                  | ADC + OAuth           |
+| **Google Workspace CLI** | `gws auth login`                                  | Browser OAuth         |
+| **Antigravity CLI**      | `agy`                                             | On-demand prompt      |
+| **Claude Code**          | `claude auth login` (or `claude` → `/login`)      | Interactive / browser |
+| **OpenAI Codex CLI**     | `codex login`                                     | Interactive           |
+| **OpenCode CLI**         | `gcloud auth login --update-adc`, then `opencode` | Vertex AI ADC         |
+| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)         | Interactive / browser |
+| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                   | Interactive / API key |
 
 Use `dot setup github` to reconcile GitHub scopes and `dot setup workspace <project-id>` for Workspace setup. Select the account, project, APIs, and scopes deliberately through each provider's native CLI.
 

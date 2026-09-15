@@ -74,7 +74,6 @@ _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "gitleaks": ("version",),
     "grok": ("--version",),
     "gws": ("--version",),
-    "jules": ("--version",),
     "lefthook": ("version",),
     "mise": ("--version",),
     "nvim": ("--version",),
@@ -245,9 +244,18 @@ def send_notification(state: State, notification: Notification) -> None:
         return
     command = notification_command(state.runner, notification, system=host)
     try:
-        state.runner.run(command, timeout=10)
+        result = state.runner.run(command, timeout=10, check=False)
     except (DotError, OSError) as error:
         raise DotError(f"failed to send desktop notification with {command[0]}") from error
+    if result.returncode != 0:
+        # A session bus can exist in a container without a desktop notification
+        # service. Treat that like a headless session, not a failed agent turn.
+        if command[0] == "gdbus" and result.stderr.startswith(
+            "Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown:"
+        ):
+            state.stderr.write("Desktop notification skipped: no desktop notification service.\n")
+            return
+        raise DotError(f"failed to send desktop notification with {command[0]}")
 
 
 def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
@@ -500,8 +508,6 @@ def _auth_results(state: State) -> list[CheckResult]:
     timeout = state.config.doctor.probe_timeout_seconds
     probes = dict(_AUTH_PROBES)
     probes["gh"] = (["gh", "auth", "status", "--hostname", state.config.doctor.github_host], False)
-    if os.environ.get("JULES_API_KEY"):
-        probes["jules"] = (["jules", "remote", "list", "--repo"], False)
     for label, (command, requires_output) in probes.items():
         path = state.runner.which(command[0])
         if path is None:
@@ -536,15 +542,6 @@ def _auth_results(state: State) -> list[CheckResult]:
             results.append(CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated"))
         else:
             results.append(CheckResult(label, "fail", "auth check failed; state unknown", str(path), "broken"))
-    if "jules" not in probes:
-        results.append(
-            CheckResult(
-                "jules",
-                "skip",
-                "JULES_API_KEY not set (see Environment Variables)",
-                condition="skipped",
-            )
-        )
     return results
 
 

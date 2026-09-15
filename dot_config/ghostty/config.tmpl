@@ -1,6 +1,8 @@
 # Docs: https://ghostty.org/docs/config/reference
 
 theme = fmind
+# Keep arbitrary ANSI background combinations readable, including older theme downloads.
+minimum-contrast = 4.5
 # Match Linux window chrome to the terminal background; use light chrome on macOS.
 window-theme = {{ if eq .chezmoi.os "linux" }}ghostty{{ else }}light{{ end }}
 
@@ -24,6 +26,12 @@ clipboard-paste-protection = true
 clipboard-trim-trailing-spaces = true
 copy-on-select = clipboard
 cursor-click-to-move = true
+# Compensate for fast Zellij scrolling on Linux; retain the macOS tuning.
+{{ if eq .chezmoi.os "linux" }}
+mouse-scroll-multiplier = precision:0.0625,discrete:0.25
+{{ else }}
+mouse-scroll-multiplier = precision:0.25,discrete:1
+{{ end }}
 mouse-shift-capture = false
 window-save-state = always
 

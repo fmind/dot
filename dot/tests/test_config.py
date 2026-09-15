@@ -28,8 +28,17 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
 
 def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
     config = Config()
-    expected = {*config.agent.sources, "opencode", "fkf", "marimo"}
+    expected = {*config.agent.sources, "opencode", "fkf"}
     assert expected <= set(config.doctor.tools)
+
+
+def test_retired_tools_are_not_workstation_requirements() -> None:
+    config = Config()
+    retired = {"cursor-agent", "jules", "marimo", "pyrit"}
+    assert not retired.intersection(config.doctor.tools)
+    assert not retired.intersection(config.completions.tools)
+    assert not retired.intersection(config.completions.custom_commands)
+    assert "JULES_API_KEY" not in config.doctor.env_vars.required
 
 
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:

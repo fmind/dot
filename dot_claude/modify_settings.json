@@ -91,6 +91,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
+  "remoteControlAtStartup": true,
   "respectGitignore": false,
   "skillListingBudgetFraction": 0.02,
   "skipDangerousModePermissionPrompt": true,
