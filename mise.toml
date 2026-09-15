@@ -28,11 +28,14 @@ DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
 # directory (pytest rootdir, ty first-party root) pass --directory dot instead.
 UV_PROJECT = "{{config_root}}/dot"
 
+[tool_alias]
+fish = "aqua:fish-shell/fish-shell"
+
 [tools]
 actionlint = "latest"
 chezmoi = "latest"
 dprint = "latest"
-fish = "4.9.2"
+fish = "latest"
 gh = "latest"
 git-cliff = "latest"
 gitleaks = "latest"
@@ -333,8 +336,11 @@ alias = "mu"
 description = "Upgrade Python dependencies, mise tools, and Neovim plugins"
 run = [
   "uv lock --upgrade",
-  "mise -C \"$HOME\" upgrade",
-  "mise upgrade --local",
+  # Resolve before installation so legacy lockfiles retain their supported format.
+  "mise lock --global --bump --yes",
+  "mise lock --bump --yes",
+  "mise --locked install -y",
+  "mise -C \"$HOME\" --locked install -y",
   "dprint config update --yes",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",
