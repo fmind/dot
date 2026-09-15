@@ -42,6 +42,22 @@ def execute(state: State, args: list[str], *, dry_run: bool = False) -> None:
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 
 
+def _confirm_prune(state: State, names: list[str]) -> None:
+    # input() can miss SIGINT between its C-level prompt write and blocking read.
+    # Reading through the Python stream keeps cancellation checks between those steps.
+    while True:
+        try:
+            print(f"Clean caches for {', '.join(names)}? [y/N]: ", end="", file=state.stdout, flush=True)
+            answer = state.stdin.readline().strip().lower()
+        except KeyboardInterrupt, EOFError:
+            raise typer.Abort from None
+        if answer in {"y", "yes"}:
+            return
+        if answer in {"", "n", "no"}:
+            raise typer.Abort
+        print("Error: invalid input", file=state.stdout)
+
+
 def register(app: typer.Typer) -> None:
     @app.command("cache", help="Inspect native cache usage; defaults to the configured providers")
     def cache(
@@ -75,7 +91,7 @@ def register(app: typer.Typer) -> None:
                 if not yes:
                     if not state.stdin.isatty():
                         raise DotError("cache cleanup requires confirmation; preview with --dry-run, then pass --yes")
-                    typer.confirm(f"Clean caches for {', '.join(names)}?", abort=True)
+                    _confirm_prune(state, names)
             # Native noninteractive flags follow Dot's aggregate confirmation.
             for args in commands:
                 execute(state, args, dry_run=dry_run)
