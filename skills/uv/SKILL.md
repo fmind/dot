@@ -5,7 +5,7 @@ license: MIT
 metadata:
   source: github.com/fmind/dot/tree/main/skills/uv
   created: "2026-09-06"
-  updated: "2026-09-11"
+  updated: "2026-09-14"
 ---
 
 # uv
@@ -21,6 +21,8 @@ Use uv for Python dependency and environment operations; [python-stack](../pytho
 
 ## Gotchas
 
+- **Disk reuse**: use the compatible mise-selected Python rather than downloading another interpreter; align runtime pins through `mise` and `upgrade-tools`. Keep project environments separate for dependency isolation, but reuse uv's shared cache on the same filesystem so its normal clone/hardlink strategy can share package storage. Do not force copies or create per-task cache roots without an isolation requirement.
+- **Temporary environments**: remove task-created qualification environments and exports after their last check, including failure paths; retain project `.venv` directories and requested build artifacts. Use native `uv cache prune` for authorized periodic maintenance, not blanket cache deletion after every task. Never edit uv's cache by hand or use symlink link mode with a disposable cache; summed directory sizes can overcount shared storage. See [caching](https://docs.astral.sh/uv/concepts/cache/).
 - Inspect distribution versions and source with `uv pip show <dist>`, then read the reported files; importing a module merely to inspect it can execute code.
 - `.python-version` selects one development interpreter; `requires-python` declares the supported range. Keep them compatible and test a library's minimum supported version.
 - Keep `uv_build` in a bounded range supported by the selected uv release. uv uses its bundled backend when compatible and otherwise installs the requested backend; verify wheel and sdist instead of widening constraints to hide diagnostics. See the [backend contract](https://docs.astral.sh/uv/concepts/build-backend/).

@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-09-11"
+  updated: "2026-09-14"
 ---
 
 # Containerize a Python Application
@@ -15,6 +15,7 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
 
 ## Workflow
 
+1. **Budget and identify resources**: inspect free space on the workspace and Docker storage filesystems, the selected Docker context, `docker system df`, and `docker buildx ls`. Preserve 20 GiB free on the 100 GiB workstation, allowing for context, layers, archive export and extraction. Record task-owned names/IDs before creating resources; use a unique Compose project or resource label so concurrent work stays separate.
 1. **Adopt the templates**: copy [Dockerfile](references/Dockerfile) and [.dockerignore](references/.dockerignore). Replace `<slug>` with the installed Python console script and verify both image digests before use.
 1. **Build locally**: emit a Docker archive so the first build and scan require no registry mutation.
 
@@ -39,6 +40,7 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
 1. **Exercise the container**: load it with `docker load --input tmp/image.tar`. For the Python web starter, supply required application settings through a reviewed local environment file, then run `docker run --rm -p 127.0.0.1:8080:8080 --env-file <runtime-env-file> -e HOST=0.0.0.0 -e PORT=8080 -e ENVIRONMENT=production <local-reference>` and request `/health` and `/ready`. For a CLI image, exercise its actual command and exit behavior instead of publishing a port.
 1. **Publish when authorized**: push a reviewed tag with `docker buildx build --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .`. Parse `containerimage.digest` from that file, require `sha256:` plus 64 lowercase hex characters, and record `$IMAGE_REPOSITORY@$DIGEST`.
 1. **Verify the immutable result**: scan the recorded digest, generate a CycloneDX SBOM, sign it, pin the expected certificate identity and issuer during verification, and attest the SBOM per [trivy](../trivy/SKILL.md) and [cosign](../cosign/SKILL.md).
+1. **Tear down temporary resources** on success and failure, preserving requested deliverables and useful failure evidence. Follow [resource cleanup](references/resource-cleanup.md), verify only recorded task resources disappeared, and report any retained disk footprint and reason.
 
 ## Gotchas
 
@@ -48,9 +50,11 @@ Build a reproducible uv-managed Python image locally, verify it, and publish onl
 - **Small context**: keep virtual environments, caches, logs, local databases, Git state, and plaintext environment files out through [.dockerignore](references/.dockerignore).
 - **Digests over tags**: scans, signatures, attestations, deployment, and rollback all use the same immutable digest reference.
 - **Registry writes**: pushes, signatures, and attestations require explicit authority; local build and scan do not grant it.
+- **Cache ownership**: `--rm` removes a container, not its image, exported archive or build cache. Shared builder cache has no reliable per-agent ownership; reuse it under a reviewed storage budget instead of pruning it at every task end.
 
 ## Documentation
 
 - [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/) · [uv Docker guide](https://docs.astral.sh/uv/guides/integration/docker/)
+- [Resource cleanup](references/resource-cleanup.md) · [Build cache garbage collection](https://docs.docker.com/build/cache/garbage-collection/)
 - Releases: [Docker Engine](https://docs.docker.com/engine/release-notes/) · [uv changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
 - Companion skills: [python-stack](../python-stack/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [trivy](../trivy/SKILL.md), [cosign](../cosign/SKILL.md), [github-actions](../github-actions/SKILL.md), and [secure](../secure/SKILL.md).
