@@ -1302,7 +1302,10 @@
         "project-license"
       ],
       "primary": "project-license",
-      "top_k": 3
+      "top_k": 3,
+      "forbidden": [
+        "terms-review"
+      ]
     },
     {
       "id": "prompt-stack-design",
@@ -2258,6 +2261,21 @@
       ],
       "primary": "fmind-visuals",
       "top_k": 3
+    },
+    {
+      "id": "terms-review-commercial-service",
+      "categories": [
+        "security"
+      ],
+      "prompt": "Review this product’s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
+      "expected": [
+        "terms-review"
+      ],
+      "primary": "terms-review",
+      "top_k": 3,
+      "forbidden": [
+        "project-license"
+      ]
     }
   ]
 }

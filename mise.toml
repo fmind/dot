@@ -111,7 +111,7 @@ run = "dprint check"
 [tasks."check:fish"]
 description = "Validate Fish syntax without loading user configuration"
 run = """
-for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish; do
+for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish; do
   fish --no-config --no-execute "$file"
 done
 """
@@ -148,8 +148,8 @@ run = [
 alias = "cp"
 description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
-  "uv run --frozen ruff check dot dot_config/ptpython/config.py skills/gws/scripts",
-  "uv run --frozen ruff format --check dot dot_config/ptpython/config.py skills/gws/scripts",
+  "uv run --frozen ruff check dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts",
+  "uv run --frozen ruff format --check dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts",
   "uv run --frozen --directory dot ty check src dot_tasks tests",
   "uv run --frozen validate-pyproject dot/pyproject.toml",
   "uv lock --check",
@@ -213,8 +213,8 @@ run = "stylua dot_config/nvim"
 alias = "fp"
 description = "Apply safe lint fixes and format Python sources"
 run = [
-  "uv run --frozen ruff check --fix-only dot dot_config/ptpython/config.py skills/gws/scripts",
-  "uv run --frozen ruff format dot dot_config/ptpython/config.py skills/gws/scripts",
+  "uv run --frozen ruff check --fix-only dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts",
+  "uv run --frozen ruff format dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts",
 ]
 
 [tasks."format:shell"]

@@ -1,0 +1,23 @@
+# chezmoi:modify-template
+{{- /* Docs: https://antigravity.google/docs/remote-control/
+       Remote Control reads protobuf JSON, not the CLI settings schema. */ -}}
+{{- $managed := fromJson `
+{
+  "userSettings": {
+    "autoExecutionPolicy": "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER",
+    "artifactReviewMode": "ARTIFACT_REVIEW_MODE_TURBO",
+    "permissionPreset": "AGENT_PERMISSION_PRESET_TURBO",
+    "allowAgentAccessNonWorkspaceFiles": true,
+    "nonWorkspaceFileAccessPolicy": "AGENT_SETTING_POLICY_ALLOW",
+    "enableNotificationsForSpecialEvents": true,
+    "themeMode": "THEME_MODE_LIGHT"
+  }
+}
+` -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
+{{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
+{{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
+{{- /* Add the managed grant without replacing host-owned allow/ask/deny lists. */ -}}
+{{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow (list "read_url(*)" "execute_url(*)" "mcp(*)") | uniq)) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}
