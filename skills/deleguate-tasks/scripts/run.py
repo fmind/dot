@@ -145,7 +145,7 @@ async def execute(args: list[str], cwd: str, prefix: Path, seconds: int, record:
 
 async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
     ledger: dict[str, Any] = {"started_at": now(), "tasks": {t["id"]: {"state": "queued"} for t in spec["tasks"]}}
-    rows = ledger["tasks"]
+    rows: dict[str, dict[str, Any]] = ledger["tasks"]
 
     def save() -> None:
         write_json(root / "ledger.json", ledger)
