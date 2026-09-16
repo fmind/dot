@@ -31,7 +31,7 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 
 ## Skills and environment
 
-- Check three context limits with `dot agent context --check` from the project root: (1) global + project skill discovery < 3,500 estimated tokens; (2) global AGENTS.md + global discovery < 5,000; (3) project AGENTS.md + project discovery < 5,000. All three must pass. Discovery means skill names, descriptions, and paths; skill bodies and references loaded on demand are excluded. Estimates use characters / 4, rounded up, for the shared roots; host/plugin catalogs are not measured.
+- Keep each scope below 5,000 estimated tokens: global AGENTS.md + global skill discovery, and project AGENTS.md + project skill discovery. Check both with `dot agent context --check` from the project root. Discovery means skill names, descriptions, and paths; bodies and references loaded on demand are excluded. Estimates use characters / 4, rounded up. Combined totals are informational; host/plugin catalogs are not measured.
 - Use the host catalog or `~/.agents/skills/<name>/SKILL.md`; skills own procedures. Keep connectors separate; use task skills or domain collections with on-demand guides. Never nest `SKILL.md`; follow the parent’s generated guide links. Jump directly to known guides and load only relevant resources.
 - Prefer CLIs over MCP. Use `mise` for tool selection and `upgrade-tools` for cross-repository upgrades.
 - Markdown: language-tagged fences, `1.` numbering, one line per paragraph, and relative or `~`-relative paths in skills/AGENTS.md. Comment-capable configs start with their official docs URL below any schema directive; strict JSON has no comments.

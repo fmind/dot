@@ -42,8 +42,8 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 ## Size and budgets
 
 - Collection routers should usually cost 300–600 estimated body tokens; ordinary procedures should usually stay below 1,500. These are review targets, not padding requirements or automatic deletion rules. Hard ceiling: 500 lines per entrypoint/guide. Put detailed examples, configurations, and output templates in resources.
-- Combined global + project skill discovery must stay **below 3,500 estimated tokens**. Global instructions + discovery and local instructions + discovery must each stay **below 5,000**, independently. Exactly the limit fails. Keep headroom for relevant local skills.
-- Aim to leave roughly 350 discovery tokens free in a typical project. This is an advisory reserve, not another gate; preserve useful task cues before chasing the target. Recheck the actual project's local catalog before admitting a global entry.
+- Global instructions + discovery and local instructions + discovery must each stay **below 5,000**, independently. Exactly the limit fails. Combined discovery is informational. Keep headroom for relevant local skills.
+- Keep room within each scope for useful instructions and skill descriptions. Recheck the actual project's local catalog before admitting a global entry.
 - `dot agent context --source . --project . --check` measures authored inputs; omit `--source` for installed shared roots. Estimates use `ceil(characters / 4)` with names, descriptions, and portable paths. Nested skill files count too. Host/plugin catalogs and ancestor instructions outside selected roots are excluded; verify the actual host prompt separately.
 - `mise run report:skills` summarizes category counts, headroom, large task loads, and lexical routing diagnostics. Add `-- --details` for category members and every guide and probe. Resource reads and command output can add more task context. Measure startup and realistic task loads separately; reducing one does not prove the other improved.
 

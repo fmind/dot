@@ -18,7 +18,7 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 ## Prerequisites
 
-Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.1 or newer; it installs mise when absent but stops if an existing version is too old.
+Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.10 or newer; it installs mise when absent but stops if an existing version is too old.
 
 ### Host Packages
 
@@ -97,7 +97,7 @@ mise -C "$HOME" ls --current
 
 The fragments deploy as `~/.config/mise/conf.d/<extra>.local.toml`. Mise reads them automatically; the core config and project configs take precedence when they declare the same tool. Optional versions and dependency sidecars are recorded in the machine's `~/.config/mise/mise.local.lock` and `~/.config/mise/locks/mise.local/`, separate from the shared core lockfile. Keep these local files out of Git. Unknown names or a non-list `extras` value stop apply with an error.
 
-To disable an extra, remove its name and repeat the commands above. Apply removes that managed fragment, and locking drops its entries. Installed tool caches remain available; disabling does not uninstall tools, delete personal fragments, or stop running containers or clusters. Edit managed fragments in the chezmoi source tree. Existing installations that use `acli` should enable `atlassian` before their next apply. The cloud skills remain discoverable even when their tools are disabled; install the corresponding extra before following those workflows.
+To disable an extra, remove its name and repeat the commands above. Apply removes that managed fragment, and locking drops its entries. Installed tool caches remain available; disabling does not uninstall tools, delete personal fragments, or stop running containers or clusters. Edit managed fragments in the chezmoi source tree. Existing installations that use `acli` should enable `atlassian` before their next apply. The Airflow extra disables Astro CLI anonymous telemetry. The cloud skills remain discoverable even when their tools are disabled; install the corresponding extra before following those workflows.
 
 ### Dot configuration
 
