@@ -6,6 +6,32 @@
   "proof_boundary": "The gate validates fixture structure and catalog references only. Host discovery and behavioral routing require separate evaluation.",
   "cases": [
     {
+      "id": "explicit-harness-delegation",
+      "categories": ["agents"],
+      "prompt": "Deleguate these tasks to agy: investigate the parser failure and review the documentation links; track both jobs and verify their results.",
+      "expected": ["deleguate-tasks"],
+      "primary": "deleguate-tasks",
+      "top_k": 3
+    },
+    {
+      "id": "delegation-prompt-only",
+      "categories": ["agents"],
+      "prompt": "Prepare a grounded continuation prompt for another agent, but do not launch it.",
+      "expected": ["agent-prompt"],
+      "primary": "agent-prompt",
+      "top_k": 3,
+      "forbidden": ["deleguate-tasks"]
+    },
+    {
+      "id": "ordinary-work-without-delegation",
+      "categories": ["development"],
+      "prompt": "Fix the dot CLI configuration parser and test the behavior; keep token usage low.",
+      "expected": ["dot-development"],
+      "primary": "dot-development",
+      "top_k": 3,
+      "forbidden": ["deleguate-tasks"]
+    },
+    {
       "id": "dot-development-change",
       "categories": [
         "development"
