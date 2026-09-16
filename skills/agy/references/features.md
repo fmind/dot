@@ -1,16 +1,18 @@
-# Antigravity Operation Links
+# Antigravity Feature Guide
 
-Start with the [official documentation index](https://antigravity.google/docs/cli/overview/) and the changelog in [the skill](../SKILL.md). Use these links for execution decisions; discover other capabilities upstream. Match the installed version, product surface, account, and platform before applying a recipe.
+Read the linked page for current controls, prerequisites, and availability; this is a decision map, not a copied manual. Match the installed version and account. Dedicated feature pages can be newer than the overview; verify discovery in the running CLI.
 
-| Need | What to resolve | Official sources |
+| Need | Practical use | Official guidance |
 | --- | --- | --- |
-| Projects and session recovery | Select the workspace and recover the intended conversation. | [CLI projects](https://antigravity.google/docs/cli/projects/) · [Conversations](https://antigravity.google/docs/cli/conversations/) |
-| Parallel and background work | Check coordination, background task lifecycle, and preview availability. | [Subagents and background tasks](https://antigravity.google/docs/cli/subagents/) · [Agent management](https://antigravity.google/docs/cli/commands/agents/) |
-| Remote and scripted execution | Distinguish persistent remote service setup from headless task execution. | [Remote Control](https://antigravity.google/docs/remote-control/) · [Headless mode](https://antigravity.google/docs/cli/headless/) |
-| Instructions and extensions | Use the matching surface for rules, skills, plugins, hooks, and MCP. | [CLI plugins and skills](https://antigravity.google/docs/cli/plugins/) · [CLI MCP](https://antigravity.google/docs/cli/mcp/) |
-| Permissions and isolation | Check approvals separately from filesystem and network isolation. | [CLI permissions](https://antigravity.google/docs/cli/permissions/) · [CLI sandbox](https://antigravity.google/docs/cli/sandbox/) |
-| SDK integration | Use the SDK contract for programmatic orchestration. | [SDK overview](https://antigravity.google/docs/sdk/overview/) · [Structured output](https://antigravity.google/docs/sdk/structured-output/) |
+| Voice | `/voice` or F5 dictates into the prompt for editing before submission; Esc discards. For SSH, use `agy mic-serve` on loopback with a reverse tunnel and `ANTIGRAVITY_MIC`. Check account eligibility, microphone access, and updated sign-in permissions if transcription fails. | [Voice and SSH setup](https://antigravity.google/docs/cli/commands/voice/) |
+| Remote access from a browser | Control host conversations through the web dashboard; the CLI daemon avoids a desktop installation. The host must remain awake and connected. | [Remote Control](https://antigravity.google/docs/remote-control/) |
+| Browser automation | The IDE browser agent operates Chrome and captures screenshots/recordings in an isolated profile. CLI/remote tool availability must be checked separately; URL grants do not install a browser or MCP server. For CLI browser work, use the existing chrome-devtools or playwright skill as needed. | [Browser tools](https://antigravity.google/docs/ide/browser/) · [CLI MCP](https://antigravity.google/docs/cli/mcp/) |
+| Models and quota | Use `agy models` for current choices, session flags for temporary overrides, and `/usage` for quota. Reserve expensive reasoning for tasks that benefit. | [CLI reference](https://antigravity.google/docs/cli/reference/) · [Model quotas](https://antigravity.google/docs/cli/commands/usage/) |
+| Deep or parallel work | `/boost` and `/teamwork-preview` offer deeper/parallel reasoning; check plan availability and cost before use. Follow background task and agent panels through completion. | [Boost](https://antigravity.google/docs/boost/) · [Teamwork](https://antigravity.google/docs/teamwork/) · [Subagents](https://antigravity.google/docs/cli/subagents/) |
+| Session recovery and review | Continue with `agy -c` or select a conversation; use `/diff` for reviewing changes. Check exactly what rewind restores before relying on it for file recovery. | [Conversations](https://antigravity.google/docs/cli/conversations/) · [Diff](https://antigravity.google/docs/cli/commands/diff/) |
+| Code search | `/codesearch` queries workspace code; inspect its index requirements separately from the Remote Control project registry. | [Code search](https://antigravity.google/docs/cli/commands/codesearch/) |
+| Terminal ergonomics | `/config` controls rendering; adaptive mode suits mixed local/SSH use, while inline mode keeps terminal scrollback. `/keybindings` remaps keys; keep existing Vim preferences. | [Settings](https://antigravity.google/docs/cli/settings/) |
+| Skills, hooks, and plugins | Check `/skills` in the live host before moving directories. Load detailed skill bodies on demand; reuse built-in guides and avoid duplicate plugins or per-tool hooks. | [Customizations](https://antigravity.google/docs/cli/plugins/) |
+| Automation and isolation | Use print mode and structured output for scripts; permissions and terminal sandboxing are separate controls. | [Headless](https://antigravity.google/docs/cli/headless/) · [Permissions](https://antigravity.google/docs/cli/permissions/) · [Sandbox](https://antigravity.google/docs/cli/sandbox/) |
 
-## Boundaries
-
-For SDK implementation, continue with [antigravity-sdk](../../antigravity-sdk/SKILL.md). The CLI, desktop, and IDE have separate documentation branches; check their respective customization and sandbox contracts.
+For SDK implementation, use [antigravity-sdk](../../antigravity-sdk/SKILL.md). For other features, consult the [documentation index](https://antigravity.google/docs/cli/overview/) and [changelog](https://antigravity.google/changelog).

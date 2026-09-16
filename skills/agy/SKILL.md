@@ -6,52 +6,49 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agy
   created: "2026-09-09"
-  updated: "2026-09-15"
+  updated: "2026-09-16"
 ---
 
 # Antigravity (agy)
 
-Operate the Antigravity harness; use [antigravity-sdk](../antigravity-sdk/SKILL.md) for Python SDK orchestration.
+Operate the CLI and Remote Control; use [antigravity-sdk](../antigravity-sdk/SKILL.md) for Python orchestration.
 
 ## Workflow
 
-1. Inspect `agy --version` and `agy --help` in the intended workspace; distinguish CLI, desktop, and IDE features.
-1. Open the relevant official page below and check the changelog before relying on new flags, settings, models, or availability. If docs and installed help disagree, report the version gap; keep this skill as a link map instead of copying release details.
-1. For a session, resolve the project and conversation, then use the documented interactive, headless, or resume interface; use `/model <name> <prompt>` for one-shot consultations without altering the saved default. For Remote Control, read its dedicated page before changing the service; `agy remote-control start|status|stop` registers a persistent OS service and needs authority for that scope.
-1. Verify the requested outcome with the native session or service status and resulting artifacts; use [agent-project](../agent-project/SKILL.md) for shared skill discovery and [agent-mcp](../agent-mcp/SKILL.md) for MCP registration.
+1. Check `agy --version`, `agy --help`, and the relevant subcommand help in the intended workspace. Match CLI, desktop, or IDE documentation to the actual surface.
+1. Read the relevant [feature guide](references/features.md) link and [changelog](https://antigravity.google/changelog) before relying on settings, models, or availability. Prefer installed help and built-in `antigravity-guide` / `agy-customizations` for version-specific discovery; report disagreements with web docs.
+1. Inspect existing settings, `/skills`, `agy plugin list`, and the requested integration before adding configuration. Reuse working discovery paths; do not duplicate the shared catalog or install plugins speculatively. [agent-project](../agent-project/SKILL.md) owns discovery; [agent-mcp](../agent-mcp/SKILL.md) owns MCP registration.
+1. Use session overrides (`--model`, `--effort`, `--mode`) for task-specific choices; leave saved model and cosmetic preferences to the user. Verify results through artifacts, the native panel, or service status; an allow grant alone does not prove a tool works.
 
-## Headless Remote Control on the laptop
+## Managed setup
 
-Use the CLI daemon; installing Antigravity 2.0 desktop is unnecessary. Remote settings live in `~/.gemini/config/config.json` under `userSettings`, separately from `~/.gemini/antigravity-cli/settings.json`. In fmind/dot, edit the chezmoi source modifier and apply that target with `chezmoi apply --force`; preserve the hostname, account fields and explicit permission grants. The managed `read_url(*)`, `execute_url(*)` and `mcp(*)` grants allow web reading, browser interactions and MCP tools; merge them into existing grants without replacing explicit ask or deny rules. The remote schema uses enum names (`CASCADE_COMMANDS_AUTO_EXECUTION_EAGER`, `ARTIFACT_REVIEW_MODE_TURBO`, `AGENT_PERMISSION_PRESET_TURBO`) for Always Proceed, not CLI strings. These fields were checked against agy 1.2.3; verify the installed schema after upgrades.
+Edit fmind/dot's chezmoi sources, then preview and apply only affected targets with `chezmoi apply --force`. CLI preferences live in `~/.gemini/antigravity-cli/settings.json`; Remote Control uses `~/.gemini/config/config.json` under `userSettings` with a different protobuf JSON schema. Preserve account fields, trust choices, explicit ask/deny grants, and native model state; never patch `antigravity_state.pbtxt`.
 
-Model and cosmetic preferences belong to Antigravity and are not managed by fmind/dot. The remembered remote model lives in `~/.gemini/antigravity-cli/antigravity_state.pbtxt`; leave this native state file untouched. Set the machine-local nickname with `agy remote-control start --name <name>`. Existing conversations can retain their own model selection.
+The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants include `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. Keep native rendering defaults unless a concrete terminal problem calls for an override. Keep hooks small: synchronous hooks add latency to the agent loop.
 
-Keep repository paths on the laptop in `~/.gemini/config/projects/`, outside versioned dotfiles. Use the [repository index script](scripts/index-repositories.py) with Python 3.12+ and Git:
+## Headless Remote Control
+
+Use the CLI daemon without installing the desktop app. Read [Remote Control](https://antigravity.google/docs/remote-control/) before changing its persistent OS service. `agy remote-control status` is read-only; `start` registers/restarts and `stop` unregisters it. Restart only when no remote task is running; verify the browser project picker separately.
+
+Keep the repository registry local in `~/.gemini/config/projects/`. The [repository index script](scripts/index-repositories.py) requires Python 3.12+ and Git:
 
 ```bash
 python ~/.agents/skills/agy/scripts/index-repositories.py
 python ~/.agents/skills/agy/scripts/index-repositories.py --apply
-agy remote-control start
-agy remote-control status
 ```
 
-The first command previews counts; `--apply` adds missing local GitHub checkouts without cloning or contacting GitHub. It scans visible directories under home plus the hidden chezmoi source, skips dependencies (including `modules/`) and symlinks, and accepts explicit roots for other hidden locations. It preserves existing projects, grants, names and conversation associations; removed or moved checkouts need a separate reviewed cleanup. Re-run after cloning or moving repositories, then restart the daemon when no remote task is running and verify the project picker in the browser. Registration is metadata discovery, not semantic code indexing. Never commit the generated laptop registry or run a model prompt just to populate it.
+Preview first; `--apply` adds missing local GitHub checkouts without network access. It skips hidden/dependency directories (including `modules/`) and symlinks, includes the chezmoi source, and accepts explicit roots. Existing metadata is preserved; moved/deleted checkouts need reviewed cleanup. This registers projects, not semantic code indexes.
 
 ## Shell completions
 
-After an agy update, compare `agy --help` and subcommand help with the managed Fish completion in fmind/dot (`dot_config/fish/completions/agy.fish`); agy 1.2.3 has no native generator. Keep agy excluded from Carapace when this completion owns it. Run `dot completion` to refresh all configured generators and shell integration caches, then verify `complete -C "agy remote-control st"` in Fish returns `start`, `status` and `stop`.
+After upgrades, compare native help with `dot_config/fish/completions/agy.fish`. Use a native generator if one becomes available; otherwise maintain this completion and its Carapace exclusion. Verify Fish syntax and representative completions, including `agy mic-serve --` and `agy remote-control st`; `dot completion` refreshes configured generators and caches.
 
 ## Official Skills
 
-- [CLI plugins and skills](https://antigravity.google/docs/cli/plugins/) and [desktop skills](https://antigravity.google/docs/skills/): select the documentation for the surface in use.
-- [Google's skill catalog](https://github.com/google/skills): product-specific skills; check the selected package's scope rather than assuming it teaches the agy harness. Follow the [vendor-skill policy](../agent-project/references/vendor-skills.md) when installation is requested.
+Use the installed built-in harness guides when available. For product-specific packages, consult [Google's catalog](https://github.com/google/skills) and the [vendor-skill policy](../agent-project/references/vendor-skills.md); these do not replace harness guidance.
 
 ## Top Links
 
-For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
-
-- [CLI overview](https://antigravity.google/docs/cli/overview/) · [CLI reference](https://antigravity.google/docs/cli/reference/)
-- [Changelog](https://antigravity.google/changelog): choose the relevant product's release notes.
-- [Remote Control](https://antigravity.google/docs/remote-control/): desktop access and headless service setup, lifecycle, and troubleshooting.
-- [Conversations](https://antigravity.google/docs/cli/conversations/) · [Headless mode](https://antigravity.google/docs/cli/headless/)
+- [CLI overview](https://antigravity.google/docs/cli/overview/) · [Reference](https://antigravity.google/docs/cli/reference/) · [Feature guide](references/features.md)
+- Releases: [Antigravity changelog](https://antigravity.google/changelog)
 - [Settings](https://antigravity.google/docs/cli/settings/) · [Permissions](https://antigravity.google/docs/cli/permissions/) · [Troubleshooting](https://antigravity.google/docs/cli/troubleshooting/)
