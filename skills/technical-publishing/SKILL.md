@@ -1,17 +1,18 @@
 ---
 name: technical-publishing
-description: Publish technical articles through package review, canonical web export, and channel copy. Use when drafting, checking, verifying, or publishing an article.
+description: "Prepare and publish technical articles with verified content, canonical exports, and channel copy."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/technical-publishing
   created: "2026-08-30"
-  updated: "2026-09-13"
+  updated: "2026-09-16"
 ---
 
 # Publish Technical Articles
 
-Publish technical articles from package sources through review, canonical web export, and channel copy. Third-party documentation sites and static websites use project-local documentation tooling, while software releases use [release](../release/SKILL.md).
+Publish technical articles from package sources through review, canonical web export, and channel copy. Third-party documentation sites and static websites use project-local documentation tooling, while software releases use [release](../git-delivery/references/release/GUIDE.md).
 
 ```bash
 pub init article <slug>                          # scaffold package directories and draft
@@ -25,7 +26,7 @@ pub publish <package> --site <site-directory>    # export to canonical site; --d
 
 1. **Package pipeline**: prepare and review the article and channel deliverables inside the package before publication; `draft.txt` contains raw notes that agents never edit; see [Package layout](references/packages.md).
 1. **Voice and boundaries**: adhere to the editorial voice in [Voice and identity](references/voice.md); agree the register before drafting; never invent anecdotes, clients, or metrics; keep published articles immutable.
-1. **Visuals**: explanatory diagrams follow [fmind-visuals](../fmind-visuals/SKILL.md) and [d2](../d2/SKILL.md) using the light-surface theme; store `.d2` sources beside rendered PNGs.
+1. **Visuals**: explanatory diagrams follow [fmind-visuals](../fmind-visuals/SKILL.md) and [d2](../diagrams-as-code/references/d2.md) using the light-surface theme; store `.d2` sources beside rendered PNGs.
 1. **Terminal demos**: use the shared [VHS workflow](../fmind-visuals/references/recording.md), retain the tape and synthetic inputs beside the export, and provide a transcript or static alternative; recording does not publish the asset.
 1. **Canonical export**: export to the canonical site only when authorized; prepare corrections through the site's explicit erratum or edition workflow; ownership does not authorize rewriting published text.
 1. **Channel copy**: prepare channel adaptations in `posts/` (LinkedIn, X, Bluesky, Medium); channels are posted by hand, never automated or scheduled.
@@ -39,4 +40,4 @@ pub publish <package> --site <site-directory>    # export to canonical site; --d
 ## Documentation
 
 - [Package layout](references/packages.md) · [Voice and identity](references/voice.md)
-- Companion skills: [fmind-visuals](../fmind-visuals/SKILL.md) (diagram theme and brand), [d2](../d2/SKILL.md) (diagram source), and [release](../release/SKILL.md) (software releases).
+- Companion skills: [fmind-visuals](../fmind-visuals/SKILL.md) (diagram theme and brand), [d2](../diagrams-as-code/references/d2.md) (diagram source), and [release](../git-delivery/references/release/GUIDE.md) (software releases).

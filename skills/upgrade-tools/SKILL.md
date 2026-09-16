@@ -1,12 +1,13 @@
 ---
 name: upgrade-tools
-description: Upgrade tools and dependencies to latest stable one ecosystem at a time and align fixed mise versions across local repositories with the workstation baseline. Use when bumping versions or reducing tool version drift.
+description: "Upgrade tools and dependencies and align repository pins with the workstation baseline."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-09-14"
+  updated: "2026-09-16"
 ---
 
 # Upgrade Tools
@@ -24,7 +25,7 @@ Refresh the workstation's latest-stable tool baseline and propagate its exact ve
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if adoption cannot be qualified; independent repositories can still progress. A failed baseline update cannot be propagated.
 1. **Verify the final candidate**: run the repository gate; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
-1. **If commits were requested**, commit per ecosystem: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../conventional-commit/SKILL.md).
+1. **If commits were requested**, commit per ecosystem: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../git-delivery/references/conventional-commit.md).
 1. **Report and preview cleanup**: list each repository's adopted versions, retained exceptions, and gate results. Preview `mise prune --dry-run` after alignment, checking interpreter links and active processes before any separately authorized deletion; do not equate directory sizes with recoverable bytes.
 
 ## Gotchas
@@ -41,4 +42,4 @@ Refresh the workstation's latest-stable tool baseline and propagate its exact ve
 - [uv: upgrading locked versions](https://docs.astral.sh/uv/concepts/projects/sync/#upgrading-locked-package-versions)
 - [OpenTofu lock file](https://opentofu.org/docs/language/files/dependency-lock/) · [dprint config update](https://dprint.dev/cli/#update)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [uv](https://github.com/astral-sh/uv/releases) · [OpenTofu](https://github.com/opentofu/opentofu/releases) · [dprint](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../dependabot/SKILL.md) (automated bumps), [project-health](../project-health/SKILL.md) (the pass that calls this skill).
+- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../github-actions/references/dependabot.md) (automated bumps), [repository-maintenance](../repository-maintenance/SKILL.md) (the pass that calls this skill).

@@ -1,12 +1,13 @@
 ---
 name: incident-response
-description: Coordinate a live outage, breach, or degradation affecting users. Establish incident command; triage, contain harm, bound blast radius, preserve evidence, communicate, roll back, verify restoration.
+description: "Handle live incidents: triage, containment, recovery, communication, and restoration proof."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/incident-response
   created: "2026-08-08"
-  updated: "2026-09-07"
+  updated: "2026-09-16"
 ---
 
 # Incident Response

@@ -1,12 +1,13 @@
 ---
 name: production-readiness
-description: Audit operability, rollback, migrations, observability, recovery, support, and proof boundaries. Use for a production go/no-go decision.
+description: "Assess production readiness, including operability, recovery, rollout, and support evidence."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-09-09"
+  updated: "2026-09-16"
 ---
 
 # Production Readiness
@@ -39,4 +40,4 @@ Use [data-migration](../data-migration/SKILL.md) for migration implementation an
 
 ## Documentation
 
-- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [release](../release/SKILL.md) (publishing), [cloud-run](../cloud-run/SKILL.md) (deploy and rollback), [incident-response](../incident-response/SKILL.md) (active outage), [product-loop](../product-loop/SKILL.md) (audience, positioning, public rollout), [threat-model](../threat-model/SKILL.md) (design risk), [secure](../secure/SKILL.md) (repository evidence).
+- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [release](../git-delivery/references/release/GUIDE.md) (publishing), [cloud-run](../cloud-run/SKILL.md) (deploy and rollback), [incident-response](../incident-response/SKILL.md) (active outage), [product-loop](../product-loop/SKILL.md) (audience, positioning, public rollout), [threat-model](../threat-model/SKILL.md) (design risk), [security-review](../security-review/references/code-review/GUIDE.md) (repository evidence).

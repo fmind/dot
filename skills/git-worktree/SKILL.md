@@ -1,12 +1,13 @@
 ---
 name: git-worktree
-description: Prepare Git branches, worktrees, and exact dirty-candidate copies. Use for branch creation or isolated work that preserves another checkout and its staged selection.
+description: "Prepare Git branches, isolated worktrees, or snapshots that preserve staged and unstaged changes."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-worktree
   created: "2026-09-09"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Git Worktree

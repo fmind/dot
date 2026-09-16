@@ -1,12 +1,13 @@
 ---
 name: technical-research
-description: Verify unfamiliar APIs and architectures from installed dependency source and current primary docs, then recommend one option with proof boundaries. Use when a choice depends on unverified facts.
+description: "Research unfamiliar APIs and architectures using installed source and primary docs."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/technical-research
   created: "2026-08-08"
-  updated: "2026-09-05"
+  updated: "2026-09-16"
 ---
 
 # Technical Research

@@ -26,4 +26,4 @@ slug: "n-m-title"
 
 - Observable capability.
 
-Continue to [N.M+1. Next page](#replace-with-next-page-url), which does the next thing.
+Continue to N.M+1. Next page, which does the next thing. Replace this sentence with a link to the actual next page.

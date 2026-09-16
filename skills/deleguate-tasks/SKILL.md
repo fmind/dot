@@ -1,9 +1,10 @@
 ---
 name: deleguate-tasks
-description: Delegate and track tasks through a chosen external harness. Use only when the user explicitly requests delegation, such as "Deleguate these tasks to agy" or /deleguate-tasks.
+description: "Delegate and track work through an external agent harness only when the user explicitly requests it."
 disable-model-invocation: true
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/deleguate-tasks
   created: "2026-09-16"
@@ -35,7 +36,7 @@ Aim for one preparation phase, one batch execution, and one final review. Batch 
 
 ## Harness selection
 
-The default agy command is built into the runner; no setup probes are needed on every task. If unavailable or rejected, use [agy](../agy/SKILL.md) to diagnose against installed help/current docs. For a user-selected alternative, read its owning skill ([Claude](../claude/SKILL.md), [Codex](../codex/SKILL.md), or another available harness) and supply an explicit argument-list `command` as documented in the manifest contract. Keep its native authentication and model choices; a text result still requires independent checks. A subprocess runs under its own permissions, not the coordinator's sandbox.
+The default agy command is built into the runner; no setup probes are needed on every task. If unavailable or rejected, use [agy](../agy/references/agy/GUIDE.md) to diagnose against installed help/current docs. For a user-selected alternative, read its owning skill ([Claude](../agent-harnesses/references/claude/GUIDE.md), [Codex](../agent-harnesses/references/codex/GUIDE.md), or another available harness) and supply an explicit argument-list `command` as documented in the manifest contract. Keep its native authentication and model choices; a text result still requires independent checks. A subprocess runs under its own permissions, not the coordinator's sandbox.
 
 ## Documentation
 

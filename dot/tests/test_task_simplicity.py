@@ -13,11 +13,14 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-STARTERS = ["python-stack", "terraform"]
+STARTERS = {
+    "python-stack": "skills/python-stack/references/foundation/templates/mise.toml",
+    "terraform": "skills/infra-as-code/templates/mise.toml",
+}
 
 
 def materialize(root: Path, starter: str) -> dict[str, str]:
-    config = tomllib.loads((ROOT / f"skills/{starter}/references/mise.toml").read_text())
+    config = tomllib.loads((ROOT / STARTERS[starter]).read_text())
     lines = ["[settings.task]", "run_auto_install = false"]
     for name, task in config["tasks"].items():
         lines.append(f"[tasks.{json.dumps(name)}]")
@@ -115,7 +118,9 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
     text = "import sys\nimport os\nx=1\n"
     selected.write_text(text)
     unrelated.write_text(text)
-    hooks = yaml.safe_load((ROOT / "skills/python-stack/references/lefthook.yml").read_text())["pre-commit"]["commands"]
+    hooks = yaml.safe_load((ROOT / "skills/python-stack/references/foundation/templates/lefthook.yml").read_text())[
+        "pre-commit"
+    ]["commands"]
     formatters = sorted(
         (hook for name, hook in hooks.items() if name.startswith("format:") and hook["glob"] == "*.py"),
         key=lambda hook: hook["priority"],
@@ -153,7 +158,7 @@ def test_terraform_formatter_forwards_files_and_failures(tmp_path: Path) -> None
 
 
 def test_task_examples_do_not_wrap_shells() -> None:
-    paths = [ROOT / "mise.toml", *ROOT.glob("skills/**/mise.toml"), *ROOT.glob("skills/**/*.md")]
+    paths = [ROOT / "mise.toml", *ROOT.glob("skills/**/*mise.toml"), *ROOT.glob("skills/**/*.md")]
     for path in paths:
         content = path.read_text()
         snippets = [content] if path.suffix == ".toml" else re.findall(r"```toml\n(.*?)```", content, re.DOTALL)
@@ -164,8 +169,8 @@ def test_task_examples_do_not_wrap_shells() -> None:
 def test_workflow_shell_steps_remain_short() -> None:
     paths = [
         *ROOT.glob(".github/workflows/*.yml"),
-        *ROOT.glob("skills/github-actions/references/*.yml"),
-        ROOT / "skills/cloud-run/references/deploy.yml",
+        *ROOT.glob("skills/github-actions/references/ci-cd/templates/*.yml"),
+        ROOT / "skills/cloud-run/templates/deploy.yml",
     ]
     for path in paths:
         workflow = yaml.safe_load(path.read_text())

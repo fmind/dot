@@ -1,19 +1,22 @@
 ---
 name: github-pull-request
-description: Create and verify a GitHub pull request for the intended branch and base. Use when opening or updating a PR, its title, or its description.
+description: "Create, update, and verify GitHub pull requests for the intended branch and base."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # GitHub Pull Request
 
-Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [Git branch preparation](../git-worktree/SKILL.md) owns branch creation; [git-add-commit-push](../git-add-commit-push/SKILL.md) owns commit and push repair.
+Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [Git branch preparation](../git-worktree/SKILL.md) owns branch creation; [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) owns commit and push repair.
 
 ## Workflow
+
+Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request serialization when needed.
 
 1. **Resolve the target**: inspect `git status --short --branch`, the GitHub repository, and `gh pr view --json number,state,url,baseRefName,headRefName,headRefOid`. Distinguish no open PR from authentication or network failure.
 1. **Choose the base**: use the user's explicit base, otherwise the existing PR's base, otherwise `gh repo view --json defaultBranchRef`. A PR needs different head and base branches; never assume every repository uses `main`.
@@ -42,4 +45,4 @@ gh skill preview cli/cli gh
 
 - [gh pr manual](https://cli.github.com/manual/gh_pr)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [Git branch preparation](../git-worktree/SKILL.md), [conventional-commit](../conventional-commit/SKILL.md), [github-issues](../github-issues/SKILL.md).
+- Companion skills: [Git branch preparation](../git-worktree/SKILL.md), [conventional-commit](../git-delivery/references/conventional-commit.md), [github-issues](../github-issues/SKILL.md).

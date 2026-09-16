@@ -1,12 +1,13 @@
 ---
 name: chezmoi
-description: "Manage the chezmoi source tree of this repository: source-name attributes, templates, age secrets, diff and apply. Use when editing anything dot deploys into $HOME."
+description: "Manage chezmoi source names, templates, secrets, diffs, and deployment in fmind/dot."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Chezmoi Source Standard
@@ -15,19 +16,7 @@ The source tree (`~/.local/share/chezmoi`) is the only thing to edit; `chezmoi a
 
 ## Naming
 
-Choose the target type first, then use its allowed attributes in order from the [source-state reference](https://www.chezmoi.io/reference/source-state-attributes/). Files, directories, symlinks, modification scripts, and run scripts accept different combinations; there is no single prefix formula for all targets.
-
-| Attribute                                          | Effect on the target                                                                                                                                  |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dot_foo`                                          | `~/.foo`; never write a literal leading dot in a source path.                                                                                         |
-| `private_` / `executable_` / `readonly_`           | remove group/world permissions / add executable permissions / remove write permissions.                                                               |
-| `empty_`                                           | keep the file even when its content is empty; chezmoi removes empty targets by default.                                                               |
-| `encrypted_` + `.age`                              | decrypted on apply with the age identity; the order is `encrypted_private_dot_foo.age`.                                                               |
-| `<name>.tmpl`                                      | Go `text/template` plus sprig, rendered with chezmoi data (`.chezmoi.os`, `.chezmoi.arch`, `.chezmoi.homeDir`, `[data]` keys).                        |
-| `symlink_<name>.tmpl`                              | a symlink whose rendered content is the link destination, e.g. `{{ .chezmoi.homeDir }}/.agents/skills`.                                               |
-| `modify_<name>`                                    | a script that rewrites the existing target; with the `# chezmoi:modify-template` marker it renders as a template with the target on `.chezmoi.stdin`. |
-| `create_` / `remove_`                              | write only when absent / remove a file, symlink, or empty directory.                                                                                  |
-| `run_[once_\|onchange_][before_\|after_]<name>.sh` | hook run during apply: `once_` per unique content hash (bootstrap), `onchange_` whenever the body changes (derived state).                            |
+Read [source names](references/source-names.md) when adding or renaming a managed target; attributes depend on the target type.
 
 ## Workflow
 
@@ -52,7 +41,7 @@ Choose the target type first, then use its allowed attributes in order from the 
 - **Modification conventions**: chezmoi supports `modify_*.tmpl` scripts. This repository instead uses `# chezmoi:modify-template` and `.chezmoi.stdin` for its Bash/profile modifiers; preserve that convention unless intentionally changing the execution model.
 - **Literal delimiters**: emit another tool's `{{ ... }}` as ``{{`{{ .Destination }}`}}`` (backticks inside an action); `.chezmoi.toml.tmpl` needs this too.
 - **Templates fail closed**: one template error aborts the whole apply; debug with `chezmoi execute-template < file` or `chezmoi apply --dry-run` before committing.
-- **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [secure](../../../skills/secure/SKILL.md)).
+- **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [security-review](../../../skills/security-review/references/code-review/GUIDE.md)).
 - **`.chezmoiignore`** (templated, gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`, CI) out of apply and skips key-dependent files without the age key.
 - **Ignore patterns** match target paths; later patterns win and a leading `!` re-includes.
 - **`.chezmoi.toml.tmpl`** seeds `~/.config/chezmoi/chezmoi.toml` on `chezmoi init`, prompting per-host data with `promptStringOnce . "key" "question" "default"`.
@@ -64,4 +53,4 @@ Choose the target type first, then use its allowed attributes in order from the 
 - [templating](https://www.chezmoi.io/user-guide/templating/) · [age encryption](https://www.chezmoi.io/user-guide/encryption/age/)
 - Releases: [chezmoi](https://github.com/twpayne/chezmoi/releases)
 - Companion skills: [mise](../../../skills/mise/SKILL.md) (pins chezmoi, wraps apply, diff, doctor), [dprint](../../../skills/dprint/SKILL.md) (formats source configurations).
-- Also: [secure](../../../skills/secure/SKILL.md) (leak scanning around `*.age` files), [dot-cli](../../../skills/dot-cli/SKILL.md) (workstation and archive commands).
+- Also: [security-review](../../../skills/security-review/references/code-review/GUIDE.md) (leak scanning around `*.age` files), [dot-cli](../../../skills/dot-cli/SKILL.md) (workstation and archive commands).

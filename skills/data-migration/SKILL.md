@@ -1,17 +1,18 @@
 ---
 name: data-migration
-description: Evolve schemas, Alembic migrations, file formats, and archive generations with rehearsed recovery. Use when existing persisted data must survive a change.
+description: "Migrate persisted schemas, formats, and archives while preserving data and recovery options."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/data-migration
   created: "2026-09-09"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Data Migration
 
-Change persisted data while preserving its declared meaning and recovery path. [django](../django/SKILL.md) owns Django migration mechanics; [production-readiness](../production-readiness/SKILL.md) owns the launch decision, and [duckdb](../duckdb/SKILL.md) owns ad-hoc analysis.
+Change persisted data while preserving its declared meaning and recovery path. [django](../python-web/references/django/GUIDE.md) owns Django migration mechanics; [production-readiness](../production-readiness/SKILL.md) owns the launch decision, and [duckdb](../duckdb/SKILL.md) owns ad-hoc analysis.
 
 ## Workflow
 
@@ -35,4 +36,4 @@ Change persisted data while preserving its declared meaning and recovery path. [
 
 - [SQLite backup](https://www.sqlite.org/backup.html) · [SQLite transactions](https://www.sqlite.org/lang_transaction.html) · [Django migrations](https://docs.djangoproject.com/en/stable/topics/migrations/)
 - Releases: [Alembic changelog](https://alembic.sqlalchemy.org/en/latest/changelog.html)
-- Companion skills: [test-driven-development](../test-driven-development/SKILL.md) (regression and property tests), [implementation-plan](../implementation-plan/SKILL.md) (ordered rollout).
+- Companion skills: [python-testing](../python-testing/SKILL.md) (regression and property tests), [implementation-plan](../implementation-plan/SKILL.md) (ordered rollout).

@@ -1,17 +1,18 @@
 ---
 name: dot-development
-description: Maintain fmind/dot's Python implementation. Use when changing its CLI commands, session parsers or storage, configuration, completions, or installation.
+description: "Develop fmind/dot CLI commands, session parsers, storage, configuration, and installation."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-09-15"
+  updated: "2026-09-16"
 ---
 
 # Develop Dot
 
-Change the Python CLI while retaining its observable command, archive, and installation contracts. [dot-cli](../../../skills/dot-cli/SKILL.md) owns operating the installed tool; [python-stack](../../../skills/python-stack/SKILL.md) and [cli-contracts](../../../skills/cli-contracts/SKILL.md) own generic implementation and interface design.
+Change the Python CLI while retaining its observable command, archive, and installation contracts. [dot-cli](../../../skills/dot-cli/SKILL.md) owns operating the installed tool; [python-stack](../../../skills/python-stack/references/foundation/GUIDE.md) and [cli-contracts](../../../skills/cli-development/references/cli-contracts.md) own generic implementation and interface design.
 
 ## Workflow
 

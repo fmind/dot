@@ -1,17 +1,18 @@
 ---
 name: scheduled-jobs
-description: Configure and diagnose scheduled commands with systemd user timers or macOS launchd. Use for recurring jobs, missed runs, execution logs, or cancellation.
+description: "Configure and diagnose scheduled commands using systemd user timers or macOS launchd."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-09-09"
+  updated: "2026-09-16"
 ---
 
 # Scheduled Jobs
 
-Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-script/SKILL.md) owns program code, [mise](../mise/SKILL.md) owns task commands, and [loop-engineering](../loop-engineering/SKILL.md) owns agent continuation and decisions.
+Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-script/SKILL.md) owns program code, [mise](../mise/SKILL.md) owns task commands, and [agent-loops](../agent-loops/SKILL.md) owns agent continuation and decisions.
 
 ## Workflow
 

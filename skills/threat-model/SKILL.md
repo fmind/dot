@@ -1,17 +1,18 @@
 ---
 name: threat-model
-description: "Model attack paths beyond scanners: assets, actors, trust boundaries, data flows, abuse cases, controls, residual risk. Use for auth, sensitive data, AI agents, integrations, APIs, or public exposure."
+description: "Model attack paths, trust boundaries, abuse cases, and controls for systems and integrations."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/threat-model
   created: "2026-08-08"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Threat Model
 
-Identify the few plausible abuse paths that should change the design, plan, or verification strategy; [secure](../secure/SKILL.md) runs the scanners and [incident-response](../incident-response/SKILL.md) handles a live breach.
+Identify the few plausible abuse paths that should change the design, plan, or verification strategy; [security-review](../security-review/references/code-review/GUIDE.md) runs the scanners and [incident-response](../incident-response/SKILL.md) handles a live breach.
 
 ## Workflow
 
@@ -40,4 +41,4 @@ Identify the few plausible abuse paths that should change the design, plan, or v
 ## Documentation
 
 - Adapted from [Trail of Bits sharp-edges](https://github.com/trailofbits/skills/blob/7b9bd5f950f89a9ba71b249b9801c1a95be3928e/plugins/sharp-edges/skills/sharp-edges/SKILL.md), [gstack CSO](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/cso/SKILL.md).
-- Companion skills: [secure](../secure/SKILL.md) (scanning once surfaces are known), [sops-secrets](../sops-secrets/SKILL.md) (secret design), [prompt-design](../prompt-design/SKILL.md) (prompt-injection boundaries for agents), [skill-security-review](../skill-security-review/SKILL.md) (third-party skill supply chain), [incident-response](../incident-response/SKILL.md) (live breach), [production-readiness](../production-readiness/SKILL.md) (launch gate).
+- Companion skills: [security-review](../security-review/references/code-review/GUIDE.md) (scanning once surfaces are known), [sops-secrets](../sops-secrets/SKILL.md) (secret design), [prompt-design](../prompt-design/SKILL.md) (prompt-injection boundaries for agents), [skill-security-review](../skill-security-review/SKILL.md) (third-party skill supply chain), [incident-response](../incident-response/SKILL.md) (live breach), [production-readiness](../production-readiness/SKILL.md) (launch gate).

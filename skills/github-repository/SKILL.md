@@ -1,12 +1,13 @@
 ---
 name: github-repository
-description: Configure a GitHub repository's description, homepage, topics, and solo-developer settings via gh, derived from the codebase. Use when tidying repo settings.
+description: "Configure GitHub topics, descriptions, merge policy, and security settings with gh."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # GitHub Repository
@@ -14,6 +15,8 @@ metadata:
 Derive a repository's description, homepage, and topics from its codebase and apply them with `gh repo edit` together with solo-developer settings: squash-only merges, secure defaults, a decluttered sidebar.
 
 ## Workflow
+
+Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request serialization when needed.
 
 1. **Extract metadata** from the codebase:
    - Project metadata: Python `pyproject.toml` (`[project]` name, description, and URLs).
@@ -66,4 +69,4 @@ Derive a repository's description, homepage, and topics from its codebase and ap
 
 - [gh repo edit manual](https://cli.github.com/manual/gh_repo_edit)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [github-pull-request](../github-pull-request/SKILL.md) (PR titles feed the squash message), [project-license](../project-license/SKILL.md) (LICENSE), [new-project](../new-project/SKILL.md) (bootstrap).
+- Companion skills: [github-pull-request](../github-pull-request/SKILL.md) (PR titles feed the squash message), [project-license](../project-scaffolding/references/project-license/GUIDE.md) (LICENSE), [project-scaffolding](../project-scaffolding/references/bootstrap.md) (bootstrap).

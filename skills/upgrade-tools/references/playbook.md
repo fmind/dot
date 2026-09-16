@@ -39,7 +39,7 @@ uv lock --upgrade-package <pkg>   # bump one package
 uv sync                           # install the upgraded set
 ```
 
-Raise `requires-python` and dependency floors in `pyproject.toml` by hand, only when a newer feature is needed; keep pre-1.0 tools range-pinned. See [python-stack](../../python-stack/SKILL.md).
+Raise `requires-python` and dependency floors in `pyproject.toml` by hand, only when a newer feature is needed; keep pre-1.0 tools range-pinned. See [python-stack](../../python-stack/references/foundation/GUIDE.md).
 
 ## OpenTofu (`.terraform.lock.hcl`)
 
@@ -48,15 +48,15 @@ tofu init -upgrade                                                 # providers a
 tofu providers lock -platform=linux_amd64 -platform=darwin_arm64   # platform hashes for CI
 ```
 
-Validate with `tofu validate`, `tflint`, and `trivy config`. See [terraform](../../terraform/SKILL.md).
+Validate with `tofu validate`, `tflint`, and `trivy config`. See [terraform](../../infra-as-code/SKILL.md).
 
 ## Container images (`Dockerfile`)
 
-Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with `mise run build`, and scan with `trivy --config trivy.yaml image --skip-dirs ''`. See [containerize](../../containerize/SKILL.md).
+Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with `mise run build`, and scan with `trivy --config trivy.yaml image --skip-dirs ''`. See [containerize](../../containerize/references/image-build/GUIDE.md).
 
 ## GitHub Actions (`.github/workflows/*.yml`)
 
-Resolve every action release to its full commit SHA and keep the human-readable version in a trailing comment (`owner/action@<sha> # vN.N.N`). Let [dependabot](../../dependabot/SKILL.md) propose SHA updates, verify the referenced tag before accepting them, and validate with `actionlint` plus `zizmor --offline`. See [github-actions](../../github-actions/SKILL.md).
+Resolve every action release to its full commit SHA and keep the human-readable version in a trailing comment (`owner/action@<sha> # vN.N.N`). Let [dependabot](../../github-actions/references/dependabot.md) propose SHA updates, verify the referenced tag before accepting them, and validate with `actionlint` plus `zizmor --offline`. See [github-actions](../../github-actions/references/ci-cd/GUIDE.md).
 
 ## dprint (`dprint.json`)
 

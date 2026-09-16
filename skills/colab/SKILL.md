@@ -1,19 +1,28 @@
 ---
 name: colab
-description: Use the Google Colab CLI to rent GPU or TPU sessions, run scripts on the remote VM, sync files, and stop sessions to cap spend. Use for Colab compute from the terminal.
+description: "Operate Colab accelerator sessions, remote execution, artifact transfers, and compute budgets."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
-  created: "2026-09-02"
-  updated: "2026-09-11"
+  created: "2026-09-16"
+  updated: "2026-09-16"
 ---
 
 # Google Colab CLI
 
-Use `colab` when a task needs an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns authentication, session hygiene, and the spend boundary.
+Use `colab` to inspect existing sessions or run work on an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns authentication, session hygiene, and the spend boundary.
 
-## Workflow
+## Inspect without allocating
+
+For session or account inspection, use `colab sessions` and `colab status` with the existing authentication provider; consult installed help before selecting commands. These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
+
+The reviewed CLI 0.6.0 has no compute-balance command. Use an already available, authorized provider interface for that lookup or report the missing capability; `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
+
+## Run accelerator work
+
+Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
 
 1. **Authenticate**: OAuth by default (`--auth oauth2`), or `--auth adc` to reuse the Application Default Credentials from [gcloud](../gcloud/SKILL.md); session state lives under `~/.config/colab-cli/`.
 1. **Prefer ephemeral runs**: `colab run` rents a VM, runs the script, and releases it; a shebang `#!/usr/bin/env -S colab run --gpu T4` makes a single file self-contained per [python-script](../python-script/SKILL.md).
@@ -41,4 +50,5 @@ Upstream: `googlecolab/google-colab-cli`, the same source `colab skill` prints. 
 
 - [Colab CLI](https://github.com/googlecolab/google-colab-cli)
 - Releases: [google-colab-cli](https://github.com/googlecolab/google-colab-cli/releases)
+- ML workflows: [python-mlops](../python-mlops/SKILL.md) owns data validation, training, experiments, and model delivery.
 - Companion skills: [kaggle](../kaggle/SKILL.md), [hf](../hf/SKILL.md), [python-script](../python-script/SKILL.md), [gcloud](../gcloud/SKILL.md).

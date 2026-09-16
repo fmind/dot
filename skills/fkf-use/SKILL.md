@@ -1,14 +1,15 @@
 ---
 name: fkf-use
-description: Retrieve bounded local evidence with FKF. Use when resuming a project, recovering a decision, browsing source folders or labels, or reading exact evidence.
+description: "Retrieve bounded local evidence with FKF for project context, decisions, and source inspection."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fkf-use
   upstream: github.com/fmind/fkf
   upstream-sha256: "f44a62e0339c6269a787bfd1af5dea84b397bfbb520a5246457a25f5c6f3dacf"
   created: "2026-09-13"
-  updated: "2026-09-13"
+  updated: "2026-09-16"
 ---
 
 # Retrieve Local Evidence with FKF

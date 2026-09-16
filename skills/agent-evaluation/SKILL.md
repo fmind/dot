@@ -1,12 +1,13 @@
 ---
 name: agent-evaluation
-description: Compare prompt, model, retrieval, or agent changes through repeated trials and outcome grading. Use when deciding whether stochastic behavior improved or regressed.
+description: "Evaluate prompt, model, retrieval, and agent changes through repeated trials and outcome grading."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Agent Evaluation
@@ -33,5 +34,5 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 ## Documentation
 
 - [Anthropic agent evaluation](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
-- Companion skills: [agents-cli](../agents-cli/SKILL.md) (Google evaluation execution), [observability](../observability/SKILL.md) (runtime signals), [skillify](../skillify/SKILL.md) (skill adoption checks).
+- Companion skills: [agents-cli](../agent-frameworks/references/agents-cli/GUIDE.md) (Google evaluation execution), [observability](../observability/SKILL.md) (runtime signals), [skillify](../skillify/SKILL.md) (skill adoption checks).
 - [AI security assessment](../ai-security-assessment/SKILL.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.
