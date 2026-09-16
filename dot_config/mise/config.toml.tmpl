@@ -39,6 +39,9 @@ fish = "aqua:fish-shell/fish-shell"
 [settings.hook_env]
 chpwd_only = true
 
+# Situational tool extras live under ~/.config/mise/conf.d/<extra>.toml
+# and can be enabled per-machine via `extras = [...]` in ~/.config/chezmoi/chezmoi.toml.
+# Available extras: "airflow", "atlassian", "aws", "databricks", "kubernetes".
 [tools]
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
@@ -54,9 +57,9 @@ chpwd_only = true
 "pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
+"pipx:pgcli" = "latest" # Interactive PostgreSQL client with autocompletion and syntax highlighting
 "pipx:pip-audit" = "latest" # Audits installed pipx tool environments for check:vuln:tools; uv-managed projects use `uv audit` for check:vuln
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
-acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 actionlint = "latest" # Correctness linter for GitHub Actions workflows
 age = "latest" # Simple and secure file encryption tool
 ast-grep = "latest" # Code structural search, lint, and rewrite tool

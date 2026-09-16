@@ -2311,6 +2311,66 @@
       "forbidden": [
         "project-license"
       ]
+    },
+    {
+      "id": "aws-profile-management",
+      "categories": [
+        "external-service"
+      ],
+      "prompt": "Inspect caller identity and switch AWS SSO profiles with aws-sso-util before querying S3 resources.",
+      "expected": [
+        "aws"
+      ],
+      "primary": "aws",
+      "top_k": 3
+    },
+    {
+      "id": "databricks-bundle-workflow",
+      "categories": [
+        "development"
+      ],
+      "prompt": "Validate and deploy Databricks Asset Bundles DABs to the dev target workspace with databricks CLI.",
+      "expected": [
+        "databricks"
+      ],
+      "primary": "databricks",
+      "top_k": 3
+    },
+    {
+      "id": "airflow-local-testing",
+      "categories": [
+        "development"
+      ],
+      "prompt": "Test Apache Airflow DAG integrity with astro dev parse and run DAG unit tests locally.",
+      "expected": [
+        "airflow"
+      ],
+      "primary": "airflow",
+      "top_k": 3
+    },
+    {
+      "id": "kubernetes-cluster-operations",
+      "categories": [
+        "infrastructure"
+      ],
+      "prompt": "Inspect cluster context with kubectl and monitor workloads using k9s and stern logs.",
+      "expected": [
+        "kubernetes"
+      ],
+      "primary": "kubernetes",
+      "top_k": 3
+    },
+    {
+      "id": "docker-colima-runtime",
+      "categories": [
+        "infrastructure"
+      ],
+      "prompt": "Manage container lifecycle and check Colima runtime status on macOS with docker compose.",
+      "expected": [
+        "docker"
+      ],
+      "primary": "docker",
+      "top_k": 3
     }
   ]
 }

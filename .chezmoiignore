@@ -40,3 +40,21 @@ trivy.yaml
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
 .config/fish/conf.d/secrets.fish
 {{- end }}
+
+{{ $extras := default (list) (index . "extras") }}
+{{- if not (has "aws" $extras) }}
+.config/mise/conf.d/aws.toml
+{{- end }}
+{{- if not (has "databricks" $extras) }}
+.config/mise/conf.d/databricks.toml
+{{- end }}
+{{- if not (has "airflow" $extras) }}
+.config/mise/conf.d/airflow.toml
+{{- end }}
+{{- if not (has "kubernetes" $extras) }}
+.config/mise/conf.d/kubernetes.toml
+{{- end }}
+{{- if not (has "atlassian" $extras) }}
+.config/mise/conf.d/atlassian.toml
+{{- end }}
+

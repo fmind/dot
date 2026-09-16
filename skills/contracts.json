@@ -34,6 +34,9 @@
     "agy": [
       "agy"
     ],
+    "airflow": [
+      "astro"
+    ],
     "ai-security-assessment": [
       "uv"
     ],
@@ -47,6 +50,9 @@
     ],
     "ast-grep": [
       "ast-grep"
+    ],
+    "aws": [
+      "aws"
     ],
     "benchmark": [
       "hyperfine",
@@ -106,6 +112,9 @@
     "d2": [
       "d2"
     ],
+    "databricks": [
+      "databricks"
+    ],
     "data-migration": [
       "sqlite3",
       "uv",
@@ -122,6 +131,9 @@
     "django": [
       "mise",
       "uv"
+    ],
+    "docker": [
+      "docker"
     ],
     "dot-cli": [
       "dot",
@@ -226,6 +238,10 @@
     ],
     "kaggle": [
       "kaggle"
+    ],
+    "kubernetes": [
+      "helm",
+      "kubectl"
     ],
     "langchain": [
       "skills",
