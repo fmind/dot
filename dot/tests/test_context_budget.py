@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from typer._click.utils import strip_ansi
 from typer.testing import CliRunner
 
 from fmind_dot.cli import app
@@ -176,7 +177,7 @@ def test_invalid_roots_and_conflicting_source_options(tmp_path: Path) -> None:
         context_report(tmp_path, source=tmp_path)
     result = runner.invoke(app, ["agent", "context", "--source", str(tmp_path), "--global-root", str(tmp_path)])
     assert result.exit_code == 2
-    assert "choose --source or --global-root" in result.output
+    assert "choose --source or --global-root" in strip_ansi(result.output)
 
 
 def test_nonregular_instruction_input_fails_without_opening_it(tmp_path: Path) -> None:
