@@ -89,6 +89,10 @@
       "cookiecutter",
       "cruft"
     ],
+    "copier": [
+      "copier",
+      "git"
+    ],
     "copilot": [
       "copilot"
     ],

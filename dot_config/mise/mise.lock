@@ -2157,6 +2157,11 @@ checksum = "sha256:f958ec5e511063be9feb180ca015a4cb7977566a9cf6a8550bba8c2a9b5ab
 url = "https://github.com/opentofu/opentofu/releases/download/v1.12.6/tofu_1.12.6_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/520762710"
 
+[[tools."pipx:copier"]]
+version = "9.18.2"
+backend = "pipx:copier"
+specifiers = ["latest"]
+
 [[tools."pipx:fkf"]]
 version = "6.0.2"
 backend = "pipx:fkf"

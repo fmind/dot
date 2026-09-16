@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cookiecutter
   created: "2026-09-10"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Cookiecutter
 
-Generate from reviewed templates with Cookiecutter. For revision tracking, existing `.cruft.json` provenance, and updates that preserve local edits, follow [Cruft updates](references/updates.md). Ordinary application templates use the framework's installed Jinja documentation.
+Use Cookiecutter for existing or explicitly requested Cookiecutter templates; [Copier](../copier/SKILL.md) is the default for new templates we maintain. Generate from reviewed templates with Cookiecutter. For revision tracking, existing `.cruft.json` provenance, and updates that preserve local edits, follow [Cruft updates](references/updates.md). Ordinary application templates use the framework's installed Jinja documentation.
 
 ## Workflow
 
