@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/new-project
   created: "2026-09-02"
-  updated: "2026-09-14"
+  updated: "2026-09-16"
 ---
 
 # New Project
@@ -16,6 +16,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 ## Workflow
 
 1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to `~/fmind` for personal `fmind` repositories, `~/fmind-ai` for `fmind-ai`, and `~/mlops-courses` for `mlops-courses`; ask only for consequential details not established by the task.
+1. **Choose template ownership**: [Copier](../copier/SKILL.md) is the default when creating or maintaining a reusable project template. Keep existing Cookiecutter/Cruft projects on [their workflow](../cookiecutter/SKILL.md) unless migration is requested; a one-off repository does not require a new template.
 1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, and project `AGENTS.md` where supplied:
    - Python library: [python-stack](../python-stack/SKILL.md) owns the minimal package and quality defaults.
    - Python CLI: the Python foundation, then [typer](../typer/SKILL.md) for application scaffolding and [cli-contracts](../cli-contracts/SKILL.md) for command behavior.

@@ -1898,6 +1898,18 @@
       "top_k": 3
     },
     {
+      "id": "tool-copier",
+      "categories": [
+        "development"
+      ],
+      "prompt": "Author a reusable project template and propagate future template changes while preserving local project edits. Choose our default template tool.",
+      "expected": [
+        "copier"
+      ],
+      "primary": "copier",
+      "top_k": 3
+    },
+    {
       "id": "tool-cookiecutter",
       "categories": [
         "development"
