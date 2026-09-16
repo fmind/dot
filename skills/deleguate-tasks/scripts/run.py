@@ -181,6 +181,9 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
             if task.get("conversation_id"):
                 args.extend(["--conversation", task["conversation_id"]])
         try:
+            row["harness"] = args[0]
+            if "command" not in task:
+                row.update(model=task["model"], effort=task["effort"])
             row["process"] = {}
             code = await execute(args, task["workspace"], folder / "worker", spec["timeout"], row["process"], save)
             if code:
@@ -266,16 +269,40 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
         await asyncio.gather(*running, return_exceptions=True)
         for task in pending:
             rows[task["id"]]["state"] = "canceled"
+        for row in rows.values():
+            if row["state"] in {"queued", "running", "checking"}:
+                row["state"] = "canceled"
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.remove_signal_handler(sig)
         ledger["ended_at"] = now()
         save()
     return {
         "run": str(root),
+        "started_at": ledger["started_at"],
+        "ended_at": ledger["ended_at"],
         "tasks": [
             {
                 "id": key,
-                **{k: v for k, v in row.items() if k in {"state", "summary", "error", "details"}},
+                **{
+                    k: v
+                    for k, v in row.items()
+                    if k
+                    in {
+                        "state",
+                        "summary",
+                        "error",
+                        "details",
+                        "harness",
+                        "model",
+                        "effort",
+                        "provider_status",
+                        "conversation_id",
+                        "diagnostics_present",
+                    }
+                },
+                "execution": {
+                    k: v for k, v in row.get("process", {}).items() if k in {"started_at", "ended_at", "exit_code"}
+                },
                 "checks_passed": sum(c.get("exit_code") == 0 for c in row.get("checks", [])),
             }
             for key, row in rows.items()

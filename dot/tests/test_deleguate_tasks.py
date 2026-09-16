@@ -124,7 +124,14 @@ def test_native_agy_defaults_and_compact_output(tmp_path: Path, monkeypatch: pyt
     assert args[args.index("--conversation") + 1] == "old-id"
     assert "literal `text` $(untouched)" in args[1]
     assert len(output["tasks"][0]["summary"]) == 600
-    assert len(result.stdout) < 1200
+    assert len(result.stdout) < 2000
+    row = output["tasks"][0]
+    assert row["model"] == "gemini-3.8-flash-high"
+    assert row["effort"] == "high"
+    assert row["conversation_id"] == "abc-123"
+    assert row["execution"]["exit_code"] == 0
+    assert row["execution"]["started_at"] < row["execution"]["ended_at"]
+    assert row["diagnostics_present"] is False
 
 
 @pytest.mark.parametrize("mutation", ["cycle", "unknown", "duplicate", "type", "extra"])
