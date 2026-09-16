@@ -41,7 +41,7 @@ Unknown fields and invalid types fail before launch. Paths expand `~` and resolv
 
 ## Results and review
 
-Stdout is one compact JSON object: `run` and a task list containing `id`, `state`, at most 600 characters of worker summary, `checks_passed`, `details`, and a failure message when applicable. No tool events, full transcripts, or polling chatter enter the parent context. Ask the host process tool to wait or notify on completion rather than reimplementing a monitor.
+Stdout is one compact JSON object: `run`, batch `started_at`/`ended_at`, and `tasks`. Each task includes `id`, `state`, at most 600 characters of worker `summary`, `checks_passed`, `details`, and a failure `error` when applicable. Launched tasks also include configured `harness`, native agy `model`/`effort`, `execution` (`started_at`, `ended_at`, `exit_code`), provider `provider_status`/`conversation_id`, and `diagnostics_present` where available. These fields are sufficient to report success, overlap, timing, and diagnostics without opening the ledger. No tool events, full transcripts, or polling chatter enter the parent context. Ask the host process tool to wait or notify on completion rather than reimplementing a monitor.
 
 States: `queued` → `running` → `checking` → `verified` or `needs_review`; failures become `failed`, their dependents `blocked`, and stopped work `canceled`. A task without checks is `needs_review`. Any worker stderr also requires review, even if checks pass, because headless permission denials may accompany exit zero. A provider `WAITING`, `RUNNING`, or other non-success status never releases dependents. Exit 0 means all tasks verified, 1 means at least one unresolved task, and 2 means invalid input or an infrastructure error.
 
