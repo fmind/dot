@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.0.1] - 2026-09-16
+
+### 🐛 Bug Fixes
+
+- _(test)_ Neutralize runner color in session window CLI test
+
 ## [6.0.0] - 2026-09-16
 
 ### 🚀 Features
