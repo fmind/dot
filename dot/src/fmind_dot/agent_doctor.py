@@ -569,6 +569,15 @@ def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool =
                     current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
                     if _source_file_metadata(current) != _source_file_metadata(entry):
                         raise OSError(errno.ESTALE, "session source changed during archive reconciliation", name)
+                    # Coarse filesystem timestamps can hide a same-size rewrite.
+                    # Recheck content, including Grok's sidecar, after archive lookup.
+                    reconciled_fingerprint = (
+                        _grok_source_fingerprint_at(directory_fd)
+                        if definition.agent == "grok"
+                        else _source_fingerprint_at(directory_fd, name, current)
+                    )
+                    if reconciled_fingerprint != fingerprint:
+                        raise OSError(errno.ESTALE, "session source changed during archive reconciliation", name)
                 except OSError, ValueError:
                     failed = True
                     issue("unreadable-or-changing-source", session_id)

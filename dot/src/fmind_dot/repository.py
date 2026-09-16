@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from threading import Event
 from time import monotonic
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 
@@ -35,15 +35,6 @@ class RepoResult:
 
 
 @dataclass(frozen=True)
-class DockerStatus:
-    """Availability and health of the local Docker daemon."""
-
-    installed: bool = False
-    running: bool = False
-    details: str = ""
-
-
-@dataclass(frozen=True)
 class RepositoryStatus:
     """Branch and working-tree state for one repository."""
 
@@ -61,14 +52,6 @@ class RepositoryStatus:
     @property
     def needs_attention(self) -> bool:
         return bool(self.error or self.dirty or not self.upstream or self.ahead or self.behind or self.operation)
-
-
-@dataclass(frozen=True)
-class SystemStatus:
-    """Combined Docker and configured repository status."""
-
-    docker: DockerStatus
-    repositories: list[RepositoryStatus]
 
 
 def git_root(state: State, cwd: Path | None = None) -> Path:
@@ -180,12 +163,6 @@ def _pull_repository(
         try:
             git(["fetch", "--prune"])
         except DotError as fetch_error:
-            try:
-                upstream = has_upstream()
-            except DotError as upstream_error:
-                raise DotError(f"failed to inspect upstream after fetch failure: {upstream_error}") from upstream_error
-            if not upstream:
-                return RepoResult(path=path, branch=branch, dirty=dirty, no_upstream=True)
             raise DotError(f"failed to fetch repository: {fetch_error}") from fetch_error
         try:
             upstream = has_upstream()
@@ -230,7 +207,7 @@ def run_pull(
     """Fetch and fast-forward configured repositories concurrently."""
     require_tools(state, [["git"]])
     if dirty_policy not in {"skip", "allow"}:
-        raise DotError("--dirty must be skip or allow")
+        raise typer.BadParameter("must be skip or allow", param_hint="--dirty")
     repositories = find_git_repositories(state, paths)
     if dry_run:
         plan = {
@@ -248,7 +225,11 @@ def run_pull(
                 state.stdout.write(f"  {path}\n")
         return []
     if not repositories:
-        state.stdout.write("[]\n" if as_json else "No git repositories found in configured pull directories.\n")
+        state.stdout.write(
+            json.dumps({"schema": "dot.pull/v1", "complete": True, "repositories": []}) + "\n"
+            if as_json
+            else "No git repositories found in configured pull directories.\n"
+        )
         return []
     timeout = state.config.pull.timeout_seconds
     cancelled = Event()
@@ -267,7 +248,17 @@ def run_pull(
     finally:
         executor.shutdown(wait=True, cancel_futures=True)
     if as_json:
-        state.stdout.write(json.dumps([asdict(item) | {"path": str(item.path)} for item in results], indent=2) + "\n")
+        state.stdout.write(
+            json.dumps(
+                {
+                    "schema": "dot.pull/v1",
+                    "complete": not any(item.error or item.push_error for item in results),
+                    "repositories": [asdict(item) | {"path": str(item.path)} for item in results],
+                },
+                indent=2,
+            )
+            + "\n"
+        )
         if any(item.error or item.push_error for item in results):
             raise DotError("pull completed with repository errors")
         return results
@@ -296,27 +287,6 @@ def run_pull(
     if failures:
         raise DotError(f"failed to pull {failures} repositories")
     return results
-
-
-def _docker_status(state: State) -> DockerStatus:
-    docker = state.runner.which("docker")
-    if docker is None:
-        return DockerStatus(details="command not found")
-    try:
-        details = state.runner.run(
-            [
-                str(docker),
-                "info",
-                "--format",
-                "{{.Name}} (Containers: {{.Containers}}, Running: {{.ContainersRunning}})",
-            ],
-            timeout=30,
-        ).stdout.strip()
-    except DotError:
-        return DockerStatus(installed=True, details="inspection command failed")
-    if not details or "(Containers:" not in details or ", Running:" not in details:
-        return DockerStatus(installed=True, details="inspection returned malformed output" if details else "")
-    return DockerStatus(installed=True, running=True, details=details)
 
 
 def _repository_status(state: State, path: Path) -> RepositoryStatus:
@@ -380,14 +350,12 @@ def _repository_status(state: State, path: Path) -> RepositoryStatus:
         return RepositoryStatus(path.name, path.parent.name, error=str(error), path=str(path))
 
 
-def gather_status(state: State, paths: Sequence[Path] = ()) -> SystemStatus:
-    """Collect Docker and repository status concurrently."""
+def gather_status(state: State, paths: Sequence[Path] = ()) -> list[RepositoryStatus]:
+    """Collect repository status concurrently."""
     require_tools(state, [["git"]])
     repositories = find_git_repositories(state, paths)
     with ThreadPoolExecutor(max_workers=8) as executor:
-        docker_future = executor.submit(_docker_status, state)
-        repo_statuses = list(executor.map(lambda path: _repository_status(state, path), repositories))
-    return SystemStatus(docker=docker_future.result(), repositories=repo_statuses)
+        return list(executor.map(lambda path: _repository_status(state, path), repositories))
 
 
 def run_status(
@@ -397,20 +365,20 @@ def run_status(
     paths: Sequence[Path] = (),
     needs_attention: bool = False,
     stats: bool = False,
-) -> SystemStatus:
-    """Render Docker and repository status for humans or scripts."""
+) -> list[RepositoryStatus]:
+    """Render repository status for humans or scripts."""
     status = gather_status(state, paths)
-    failed = any(item.error for item in status.repositories)
+    failed = any(item.error for item in status)
     if stats:
         totals = {
-            "repositories": len(status.repositories),
-            "dirty": sum(item.dirty for item in status.repositories),
-            "ahead": sum(item.ahead > 0 for item in status.repositories),
-            "behind": sum(item.behind > 0 for item in status.repositories),
-            "diverged": sum(item.ahead > 0 and item.behind > 0 for item in status.repositories),
-            "no_upstream": sum(not item.upstream and not item.error for item in status.repositories),
-            "in_progress": sum(bool(item.operation) for item in status.repositories),
-            "errors": sum(bool(item.error) for item in status.repositories),
+            "repositories": len(status),
+            "dirty": sum(item.dirty for item in status),
+            "ahead": sum(item.ahead > 0 for item in status),
+            "behind": sum(item.behind > 0 for item in status),
+            "diverged": sum(item.ahead > 0 and item.behind > 0 for item in status),
+            "no_upstream": sum(not item.upstream and not item.error for item in status),
+            "in_progress": sum(bool(item.operation) for item in status),
+            "errors": sum(bool(item.error) for item in status),
         }
         document = {"schema": "dot.status.stats/v1", "remote_state": "cached", "complete": not failed, **totals}
         state.stdout.write(
@@ -422,14 +390,8 @@ def run_status(
         if failed:
             raise DotError("repository statistics are incomplete")
         return status
-    visible = [item for item in status.repositories if not needs_attention or item.needs_attention]
+    visible = [item for item in status if not needs_attention or item.needs_attention]
     if as_json:
-        docker: dict[str, object] = {
-            "installed": status.docker.installed,
-            "running": status.docker.running,
-        }
-        if status.docker.details:
-            docker["details"] = status.docker.details
         repositories: list[dict[str, object]] = []
         for item in visible:
             repository: dict[str, object] = {
@@ -447,7 +409,7 @@ def run_status(
                 repository["error"] = item.error
             repositories.append(repository)
         document = {
-            "docker": docker,
+            "schema": "dot.status/v1",
             "repositories": repositories,
             "complete": not failed,
             "remote_state": "cached",
@@ -456,16 +418,8 @@ def run_status(
         if failed:
             raise DotError("repository inspection is incomplete")
         return status
-    state.stdout.write("Docker Daemon\n")
-    if not status.docker.installed:
-        state.stdout.write("  ✗ Not installed.\n")
-    elif status.docker.running:
-        state.stdout.write(f"  ✓ Running: {status.docker.details}\n")
-    else:
-        detail = f": {status.docker.details}" if status.docker.details else ""
-        state.stdout.write(f"  ✗ Stopped or unreachable{detail}.\n")
-    state.stdout.write("\nGit Repositories\n")
-    if not status.repositories:
+    state.stdout.write("Git Repositories\n")
+    if not status:
         state.stdout.write("  No repositories found in configured pull directories.\n")
     state.stdout.write("  Upstream counts use cached refs; fetch explicitly to refresh.\n")
     for item in visible:
@@ -492,7 +446,7 @@ def pull_command(
     ] = False,
     as_json: JsonOption = False,
     dirty: Annotated[
-        str, typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
+        Literal["skip", "allow"], typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
     ] = "skip",
 ) -> None:
     run_pull(state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json, dirty_policy=dirty)
@@ -514,4 +468,4 @@ def status_command(
 
 def register_repository_commands(parent: typer.Typer) -> None:
     parent.command("pull", help="Update configured repositories with bounded concurrency")(pull_command)
-    parent.command("status", help="Show repository and Docker status")(status_command)
+    parent.command("status", help="Show repository status using cached upstream refs")(status_command)

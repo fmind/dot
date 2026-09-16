@@ -9,8 +9,7 @@
     "permissionPreset": "AGENT_PERMISSION_PRESET_TURBO",
     "allowAgentAccessNonWorkspaceFiles": true,
     "nonWorkspaceFileAccessPolicy": "AGENT_SETTING_POLICY_ALLOW",
-    "enableNotificationsForSpecialEvents": true,
-    "themeMode": "THEME_MODE_LIGHT"
+    "enableNotificationsForSpecialEvents": true
   }
 }
 ` -}}

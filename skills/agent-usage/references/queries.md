@@ -15,6 +15,8 @@ Directories are private (`0o700`), and files are private (`0o600`). `usage.json`
 
 Query the CLI's selected projection instead of globbing every generation: otherwise older measurements would be counted repeatedly. `dot agent usage list --limit 0 --json` exports selected session usage records for local analysis. Prefer statistics JSON for monthly/model aggregation: optional `samples` contain per-request measurements and must never be summed together with their parent session totals.
 
+CLI list output wraps records in `{ "schema": "dot.agent.usage.list/v1", "records": [...] }`. Statistics use the `usage` array of `dot.agent.stats/v2`; prompt-only statistics use its `prompts` object.
+
 Each record contains:
 
 ```json
@@ -46,19 +48,19 @@ Each record contains:
 ## Commands
 
 ```bash
-dot agent usage stats                                              # summary table of token usage per harness
-dot agent usage stats --by-model                                   # break down token usage by harness and model
-dot agent usage stats --project . --by-project --by-model --json    # project selection and grouping
-dot agent usage stats --harness claude                             # filter stats to a specific harness
-dot agent usage stats --since 24h --json                           # emit json array for scripting
+dot agent stats --tokens-only                                              # summary table of token usage per harness
+dot agent stats --tokens-only --by-model                                   # break down token usage by harness and model
+dot agent stats --tokens-only --project . --by-project --by-model --json    # project selection and grouping
+dot agent stats --tokens-only --agent claude                             # filter stats to a specific harness
+dot agent stats --tokens-only --since 24h --json                           # emit a versioned JSON object for scripting
 dot agent usage list -n 20                                         # list recent session records
 dot agent usage show claude <session_id>                           # inspect a specific session record
 dot agent session sync                                            # capture/backfill transcript and usage together
 (umask 077; dot agent usage list --limit 0 --json > usage.json)
-duckdb -c "SELECT harness, measurement_kind, count(*), sum(total_tokens) FROM read_json_auto('usage.json', union_by_name=true) GROUP BY harness, measurement_kind"
+duckdb -c "SELECT record.harness, record.measurement_kind, count(*), sum(record.total_tokens) FROM (SELECT unnest(records) AS record FROM read_json_auto('usage.json')) GROUP BY record.harness, record.measurement_kind"
 ```
 
-Missing costs serialize as `null`. A partial group reports its known subtotal and completeness counts; it does not estimate missing usage. `--since` and inclusive `--until` filter request timestamps when reliable samples exist, otherwise whole-session timestamps. A date alone means midnight UTC, not the end of that day. Provider session cost is reported only when the complete session belongs to one selected group; it cannot be apportioned across dates or models.
+Missing costs serialize as `null`. A partial group reports its known subtotal and completeness counts; it does not estimate missing usage. `--since` and inclusive `--until` filter request timestamps when reliable samples exist, otherwise whole-session timestamps. A date-only `--since` begins at midnight UTC; a date-only `--until` includes the whole UTC day. Explicit timestamps remain exact. Provider session cost is reported only when the complete session belongs to one selected group; it cannot be apportioned across dates or models.
 
 Parser 4 deduplicates Claude blocks sharing request/message identity, retaining peak counters within a response. Codex derives increments from cumulative counters, skips repeated snapshots, and treats cached reads as a subset of input and reasoning as a subset of output. A decreasing cumulative counter keeps the provider's final session total but disables request allocation. Copilot uses its session timestamp. Antigravity is an estimate; Grok is final context size, with capture-time fallback. OpenCode and Cursor usage capture is unsupported. Never combine estimated or context-only tokens with provider-reported totals.
 
@@ -69,8 +71,8 @@ Parser 3 remains readable and explicitly flagged through `legacy_accounting_sess
 ```bash
 dot agent stats --tokens-only                         # total and first/last recorded usage
 dot agent stats --tokens-only --monthly                # calendar months in UTC
-dot agent usage stats --billing --harness codex        # configured renewal cycles
-dot agent usage stats --monthly --by-model --json      # detailed token and pricing fields
+dot agent stats --tokens-only --billing --agent codex        # configured renewal cycles
+dot agent stats --tokens-only --monthly --by-model --json      # detailed token and pricing fields
 ```
 
 Subscription configuration lives under `agent.subscriptions` in the selected Dot YAML file:
@@ -85,8 +87,8 @@ agent:
       monthly_usd: 20
 ```
 
-The example does not infer a real subscription. `renewal_day` accepts 1–31; missing days clamp to month end. `timezone` defaults to UTC and follows IANA daylight-saving rules. `monthly_usd` is optional, positive, and must already be expressed in USD. Configuration precedence is the CLI `--config` flag, `DOT_CONFIG_PATH`, then `~/.config/dot.yaml`; configured mappings merge with defaults. `--billing` requires configuration for each included harness; use `--harness` to select one. `--monthly` and `--billing` are mutually exclusive.
+The example does not infer a real subscription. `renewal_day` accepts 1–31; missing days clamp to month end. `timezone` defaults to UTC and follows IANA daylight-saving rules. `monthly_usd` is optional, positive, and must already be expressed in USD. Configuration precedence is the CLI `--config` flag, `DOT_CONFIG_PATH`, then `~/.config/dot.yaml`; configured mappings merge with defaults. `--billing` requires configuration for each included harness; use `--agent` to select one. `--monthly` and `--billing` are mutually exclusive.
 
-`period_start` is inclusive and `period_end` exclusive. `first_timestamp` and `last_timestamp` describe observed usage, not guaranteed continuous capture or the subscription start date. Sessions spanning periods/models appear in multiple rows, so row session counts are not additive. Empty periods are omitted, not asserted to have zero usage. `session_timestamp_sessions` identifies approximate allocations; `legacy_accounting_sessions` identifies records needing recapture. `priced_measurements` counts priced requests (or session fallbacks), and `priced_sessions` counts sessions whose selected measurements were all priced. API-value ratios are shown only with complete pricing and a configured fee; partial capture can still make them incomplete. Model/project breakdowns omit the ratio to avoid charging the same subscription to each subgroup.
+Billing cycles start at local midnight on the renewal day and end exclusively at the next renewal. Missing subscription settings remain unknown. `period_start` is inclusive and `period_end` exclusive. `first_timestamp` and `last_timestamp` describe observed usage, not guaranteed continuous capture or the subscription start date. Sessions spanning periods/models appear in multiple rows, so row session counts are not additive. Empty periods are omitted, not asserted to have zero usage. `session_timestamp_sessions` identifies approximate allocations; `legacy_accounting_sessions` identifies records needing recapture. `priced_measurements` counts priced requests (or session fallbacks), and `priced_sessions` counts sessions whose selected measurements were all priced. API-value ratios are shown only with complete pricing and a configured fee; partial capture can still make them incomplete. Model/project breakdowns omit the ratio to avoid charging the same subscription to each subgroup.
 
-For conversation activity, use `dot agent prompts stats --since 2026-09-01 --by-project --json`; it counts archived user messages and reports lengths, active UTC days, responses, and evidence gaps without printing content. `dot agent session stats --json` reports latest sessions versus retained generations and archive bytes. These are descriptive archive statistics, not efficiency or quality scores.
+For conversation activity, use `dot agent stats --prompts-only --since 2026-09-01 --by-project --json`; it counts archived user messages and reports lengths, active UTC days, responses, and evidence gaps without printing content. `dot agent session stats --json` reports latest sessions versus retained generations and archive bytes. These are descriptive archive statistics, not efficiency or quality scores.

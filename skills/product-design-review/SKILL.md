@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-design-review
   created: "2026-08-08"
-  updated: "2026-09-06"
+  updated: "2026-09-15"
 ---
 
 # Product Design Review
@@ -23,7 +23,7 @@ Judge whether a real user can understand, trust, and complete the surface's prim
 1. **Review craft**: typography, spacing, alignment, color, contrast, density, imagery, motion, and consistency; flag generic defaults only when they weaken the brief.
 1. **Review inclusion**: semantic structure, keyboard access, focus visibility and restoration, touch targets, zoom and reflow, screen-reader names, contrast, motion preferences, localization, and plain-language copy.
 1. **Review constraints**: performance, browser, device, content-length, data-density, privacy, and implementation constraints that change the recommendation.
-1. **Prioritize**: rank findings `P0`–`P3` (see [diff-review](../diff-review/SKILL.md)) by blocked task, trust or accessibility harm, frequency, and effort; recommend the smallest coherent improvement before aesthetic extras.
+1. **Prioritize**: rank findings `P0`–`P3` (see [repository-review](../repository-review/SKILL.md)) by blocked task, trust or accessibility harm, frequency, and effort; recommend the smallest coherent improvement before aesthetic extras.
 1. **Verify authorized changes**: re-run the same representative states at desktop and mobile sizes and record the evidence.
 
 ## Gotchas
@@ -45,5 +45,5 @@ Judge whether a real user can understand, trust, and complete the surface's prim
 
 ## Documentation
 
-- Companion skills: [playwright](../playwright/SKILL.md) (state capture), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [fmind-visuals](../fmind-visuals/SKILL.md) (Fmind brand), [product-loop](../product-loop/SKILL.md) (what the surface must achieve), [diff-review](../diff-review/SKILL.md) (severity scale).
+- Companion skills: [playwright](../playwright/SKILL.md) (state capture), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [fmind-visuals](../fmind-visuals/SKILL.md) (Fmind brand), [product-loop](../product-loop/SKILL.md) (what the surface must achieve), [repository-review](../repository-review/SKILL.md) (severity scale).
 - Adapted from [Anthropic frontend-design](https://github.com/anthropics/skills/blob/f17010c9bb483898c1d9c9f42dde2b3a98889434/skills/frontend-design/SKILL.md), [Impeccable](https://github.com/pbakaus/impeccable/blob/aee6ce9352b842217b3f57c78296a7a4fa35a7f3/.agents/skills/impeccable/SKILL.md), [gstack design-review](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/design-review/SKILL.md).

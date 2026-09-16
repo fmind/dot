@@ -333,7 +333,7 @@ def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
     return list(iter_usage_records(root=root))
 
 
-def parse_flexible_time(value: str, *, now: datetime | None = None) -> datetime:
+def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: bool = False) -> datetime:
     value = value.strip()
     now = now or datetime.now(UTC)
     position = 0
@@ -358,6 +358,8 @@ def parse_flexible_time(value: str, *, now: datetime | None = None) -> datetime:
         raise ValueError(
             f"invalid time {value!r}; use a duration (24h), a day count (7d), or a date (2006-01-02)"
         ) from error
+    if end_of_day and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        parsed = parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return parsed.astimezone(UTC)
@@ -468,11 +470,7 @@ def show_usage_record(harness: str, session_id: str, *, root: Path | None = None
     raise ValueError(f"usage record not found for {harness} session {session_id}")
 
 
-def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool, by_model: bool) -> None:
-    if as_json:
-        json.dump([row.to_dict() for row in rows], output, ensure_ascii=False, indent=2)
-        output.write("\n")
-        return
+def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool) -> None:
     if not rows:
         output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
         return
@@ -485,7 +483,7 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, as_json: bool,
     last = max((row.last_timestamp for row in rows if row.last_timestamp), default="unknown")
     output.write(f"Coverage: {first} to {last} (archived usage only).\n")
     periods = any(row.period_start for row in rows)
-    columns = (["PERIOD START", "PERIOD END"] if periods else []) + ["HARNESS", "MEASUREMENT"]
+    columns = (["PERIOD START", "PERIOD END"] if periods else []) + ["AGENT", "MEASUREMENT"]
     if by_model:
         columns.append("MODEL")
     projects = any(row.cwd for row in rows)

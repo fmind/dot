@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Consolidate agent reports under `dot agent stats`; retain hidden deprecated report aliases and standardize `--agent`, date boundaries, and versioned JSON envelopes. See the [CLI migration guide](skills/dot-cli/references/cli-migration.md).
+- Rename the Workspace/GCP login sequence to `dot login google`.
+
+### Removed
+
+- Remove `dot agent clean`, Docker inspection from repository status, and the unused global verbose option.
+
+### Fixed
+
+- Preserve fetch failures on branches without an upstream, allow help with invalid configuration, and return exit 2 for invalid CLI inputs.
+
 ## [5.2.0] - 2026-09-15
 
 ### 🚀 Features

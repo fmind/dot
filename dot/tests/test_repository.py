@@ -265,7 +265,7 @@ def test_pull_classifies_nonzero_upstream_probe_as_no_upstream(tmp_path: Path) -
     assert not any(call[0][1] in {"rev-list", "pull"} for call in runner.calls)
 
 
-def test_status_emits_machine_readable_repository_and_docker_state(tmp_path: Path) -> None:
+def test_status_emits_machine_readable_repository_state(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
@@ -284,10 +284,11 @@ def test_status_emits_machine_readable_repository_and_docker_state(tmp_path: Pat
 
     status = run_status(state, as_json=True)
 
-    assert status.repositories[0].branch == "main"
+    assert status[0].branch == "main"
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
-    assert document["docker"] == {"installed": False, "running": False, "details": "command not found"}
+    assert "docker" not in document
+    assert document["schema"] == "dot.status/v1"
     assert document["repositories"][0]["name"] == "sample"
     assert "error" not in document["repositories"][0]
 
@@ -308,7 +309,7 @@ def test_status_omits_empty_optional_json_fields(tmp_path: Path) -> None:
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
     assert document == {
-        "docker": {"installed": True, "running": False},
+        "schema": "dot.status/v1",
         "repositories": [],
         "complete": True,
         "remote_state": "cached",
@@ -402,14 +403,11 @@ def test_pull_classifies_fetch_failure_by_upstream_state(tmp_path: Path, has_ups
     config = Config(pull=PullConfig(directories=[str(workspace)], concurrency=1, timeout_seconds=1))
     state = state_with(runner, config)
 
-    if has_upstream:
-        with pytest.raises(DotError, match="failed to pull 1 repositories"):
-            run_pull(state)
-        assert isinstance(state.stdout, io.StringIO)
-        assert "failed to fetch repository" in state.stdout.getvalue()
-    else:
-        results = run_pull(state)
-        assert results[0].no_upstream
+    with pytest.raises(DotError, match="failed to pull 1 repositories"):
+        run_pull(state)
+    assert isinstance(state.stdout, io.StringIO)
+    assert "failed to fetch repository" in state.stdout.getvalue()
+    assert "skipped" not in state.stdout.getvalue()
 
 
 def test_pull_uses_configured_concurrency_for_independent_repositories(tmp_path: Path) -> None:
@@ -442,7 +440,7 @@ def test_pull_propagates_user_cancellation(tmp_path: Path) -> None:
         run_pull(state_with(runner, config))
 
 
-def test_status_human_output_distinguishes_running_and_dirty_repository(tmp_path: Path) -> None:
+def test_status_human_output_shows_dirty_repository_without_probing_docker(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
@@ -467,10 +465,10 @@ def test_status_human_output_distinguishes_running_and_dirty_repository(tmp_path
 
     status = run_status(state)
 
-    assert status.docker.running
-    assert status.repositories[0].dirty
+    assert not any("docker" in str(call[0][0]) for call in runner.calls)
+    assert status[0].dirty
     assert isinstance(state.stdout, io.StringIO)
-    assert "✓ Running: desktop" in state.stdout.getvalue()
+    assert "Docker" not in state.stdout.getvalue()
     assert "work/sample [main] [dirty]" in state.stdout.getvalue()
 
 
@@ -497,13 +495,13 @@ def test_status_json_reports_probe_and_repository_failures(tmp_path: Path) -> No
         run_status(state, as_json=True)
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
-    assert document["docker"]["details"] == "inspection command failed"
+    assert "docker" not in document
     assert not document["complete"]
     assert document["repositories"][0]["branch"] == ""
     assert "command failed" in document["repositories"][0]["error"]
 
 
-def test_status_human_output_reports_missing_docker_and_empty_workspace(tmp_path: Path) -> None:
+def test_status_human_output_reports_empty_workspace(tmp_path: Path) -> None:
     state = state_with(
         RecordingRunner({}, {"git"}),
         Config(pull=PullConfig(directories=[str(tmp_path)])),
@@ -512,5 +510,5 @@ def test_status_human_output_reports_missing_docker_and_empty_workspace(tmp_path
     run_status(state)
 
     assert isinstance(state.stdout, io.StringIO)
-    assert "✗ Not installed." in state.stdout.getvalue()
+    assert "Docker" not in state.stdout.getvalue()
     assert "No repositories found" in state.stdout.getvalue()

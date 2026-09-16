@@ -109,3 +109,32 @@
 [user]
     name = {{ .git_name }}
     email = {{ .git_email }}
+
+# Source: https://github.com/fmind/theme/blob/main/themes/git/fmind.gitconfig
+# Quote hex colors: Git treats unquoted # characters as comments.
+[color]
+    ui = true
+[color "diff"]
+    meta = "#595d62"
+    frag = "#174ea6"
+    context = "#202124"
+    old = "#a50e0e"
+    new = "#0d652d"
+    whitespace = "#ea4335 #fad2cf"
+[color "status"]
+    header = "#595d62"
+    added = "#0d652d"
+    changed = "#934900"
+    untracked = "#174ea6"
+    branch = "#174ea6"
+    nobranch = "#a50e0e"
+[color "branch"]
+    current = "#174ea6"
+    local = "#202124"
+    remote = "#0d652d"
+[color "decorate"]
+    branch = "#174ea6"
+    remoteBranch = "#0d652d"
+    tag = "#934900"
+    stash = "#595d62"
+    HEAD = "#681da8"

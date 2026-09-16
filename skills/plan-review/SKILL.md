@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/plan-review
   created: "2026-08-08"
-  updated: "2026-09-03"
+  updated: "2026-09-15"
 ---
 
 # Plan Review
 
-Attack a plan's load-bearing assumptions while course correction is still cheap; [implementation-plan](../implementation-plan/SKILL.md) writes plans and [diff-review](../diff-review/SKILL.md) reviews code.
+Attack a plan's load-bearing assumptions while course correction is still cheap; [implementation-plan](../implementation-plan/SKILL.md) writes plans and [repository-review](../repository-review/SKILL.md) reviews code.
 
 ## Workflow
 
@@ -29,7 +29,7 @@ Attack a plan's load-bearing assumptions while course correction is still cheap;
 1. **Rank findings**: Score each issue by impact, likelihood, confidence, and cheapness to test; promote only issues that could change the decision or execution order, and prefer five decision-changing findings over a long generic list.
 1. **Offer remedies**: Give the smallest corrective change, cheapest decisive test, and kill or rollback criterion; present numbered alternatives when a real trade-off remains.
 1. **Issue the verdict**: Return `GO`, `GO WITH CHANGES`, or `NO-GO` with the minimum conditions for the next state, then report:
-   - Load-bearing assumptions, and findings ranked `P0`–`P3` (scale in [diff-review](../diff-review/SKILL.md)) with evidence and impact.
+   - Load-bearing assumptions, and findings ranked `P0`–`P3` (scale in [repository-review](../repository-review/SKILL.md)) with evidence and impact.
    - Missing proof, the cheapest tests and kill criteria, and recommended scope changes.
    - Residual risks and owner decisions, plus a revised critical path only when revisions were requested.
 
@@ -42,4 +42,4 @@ Attack a plan's load-bearing assumptions while course correction is still cheap;
 ## Documentation
 
 - Adapted from [gstack founder plan review](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/plan-ceo-review/SKILL.md), [gstack engineering plan review](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/plan-eng-review/SKILL.md), [pm-skills strategy red-team](https://github.com/phuryn/pm-skills/blob/18468a95b427e70e258b51389796367c6f684e7d/pm-execution/skills/strategy-red-team/SKILL.md).
-- Companion skills: [implementation-plan](../implementation-plan/SKILL.md) (the plan under review), [product-loop](../product-loop/SKILL.md) (founder and product lenses), [repository-review](../repository-review/SKILL.md) (full repository audit), [diff-review](../diff-review/SKILL.md) (code and the `P0`–`P3` scale).
+- Companion skills: [implementation-plan](../implementation-plan/SKILL.md) (the plan under review), [product-loop](../product-loop/SKILL.md) (founder and product lenses), [repository-review](../repository-review/SKILL.md) (code, repository audits, and severity scale).

@@ -80,7 +80,7 @@ def test_partial_model_pricing_is_not_free_and_session_cost_cannot_be_split() ->
     assert row.to_dict()["cost_usd"] == 12
     assert all(r.to_dict()["cost_usd"] is None for r in aggregate_usage([record], monthly=True))
     output = io.StringIO()
-    write_usage_stats(output, [row], as_json=False, by_model=False)
+    write_usage_stats(output, [row], by_model=False)
     assert "$2.5000 (partial)" in output.getvalue()
 
 
@@ -191,7 +191,7 @@ def test_public_monthly_and_subscription_config(tmp_path: Path, monkeypatch: pyt
     )
     billed = runner.invoke(app, ["--config", str(config), "agent", "usage", "stats", "--billing", "--json"])
     assert billed.exit_code == 0, billed.output
-    assert json.loads(billed.output)[0]["period_start"].startswith("2026-08-15")
+    assert json.loads(billed.stdout)["usage"][0]["period_start"].startswith("2026-08-15")
     config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 32\n")
     assert runner.invoke(app, ["--config", str(config), "config", "validate"]).exit_code != 0
     config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 1\n      timezone: Invalid/Zone\n")

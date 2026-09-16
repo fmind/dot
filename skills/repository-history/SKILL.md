@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-09-06"
+  updated: "2026-09-15"
 ---
 
 # Repository History
@@ -33,4 +33,4 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
 
 - [git blame](https://git-scm.com/docs/git-blame) · [git log](https://git-scm.com/docs/git-log) · [Pull requests associated with a commit](https://docs.github.com/en/rest/commits/commits#list-pull-requests-associated-with-a-commit)
 - Adapted from [awesome-llm-apps commit-archaeologist](https://github.com/Shubhamsaboo/awesome-llm-apps/blob/779e9f9bcf87fa8cd95870a438b70b84e47d3173/agent_skills/commit-archaeologist/SKILL.md).
-- Companion skills: [systematic-debugging](../systematic-debugging/SKILL.md) (reproduce a current failure), [diff-review](../diff-review/SKILL.md) (one change), [repository-review](../repository-review/SKILL.md) (cross-cutting audit), [technical-research](../technical-research/SKILL.md) (current external facts), [github-issues](../github-issues/SKILL.md) (remote issue state).
+- Companion skills: [systematic-debugging](../systematic-debugging/SKILL.md) (reproduce a current failure), [repository-review](../repository-review/SKILL.md) (one change or cross-cutting audit), [technical-research](../technical-research/SKILL.md) (current external facts), [github-issues](../github-issues/SKILL.md) (remote issue state).

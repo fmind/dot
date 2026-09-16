@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import io
 import json
-import os
 import sqlite3
 import stat
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -17,7 +16,6 @@ from typer.testing import CliRunner
 
 from fmind_dot import agent as agent_module
 from fmind_dot import agent_doctor as agent_doctor_module
-from fmind_dot import artifacts as artifacts_module
 from fmind_dot import cli as cli_module
 from fmind_dot import hooks as hooks_module
 from fmind_dot import private_files as private_files_module
@@ -29,28 +27,8 @@ from fmind_dot.archive.usage import UsageRecord, load_usage_records
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import Runner
 from fmind_dot.state import State
-
-
-class GitRootRunner(Runner):
-    def __init__(self, root: Path) -> None:
-        self.root = root
-
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-        max_output_bytes: int | None = None,
-    ) -> CommandResult:
-        del cwd, input_text, env, timeout, check, max_output_bytes
-        assert tuple(args) == ("git", "rev-parse", "--show-toplevel")
-        return CommandResult(f"{self.root}\n", "", 0)
 
 
 def _state(*, runner: Runner | None = None, stdin: str = "") -> State:
@@ -211,28 +189,6 @@ def test_hook_failure_spool_refuses_symlinked_parent(monkeypatch: pytest.MonkeyP
     assert isinstance(result.exception, DotError)
     assert "failed to parse agent hook input" in str(result.exception)
     assert list(outside.iterdir()) == []
-
-
-def test_prune_agent_artifacts_dry_run_lists_each_entry(tmp_path: Path) -> None:
-    prompts = tmp_path / ".agents/prompts"
-    reports = tmp_path / ".agents/reports"
-    prompts.mkdir(parents=True)
-    reports.mkdir(parents=True)
-    prompt = prompts / "TASK.md"
-    report = reports / "audit.html"
-    prompt.write_text("prompt", encoding="utf-8")
-    report.write_text("report", encoding="utf-8")
-    state = _state(runner=GitRootRunner(tmp_path))
-    artifacts_module.prune_agent_artifacts(state, dry_run=True)
-
-    assert prompt.is_file()
-    assert report.is_file()
-    assert isinstance(state.stdout, io.StringIO)
-    output = state.stdout.getvalue()
-    assert "  ○ .agents/prompts/TASK.md" in output
-    assert "  ○ .agents/reports/audit.html" in output
-    assert "Would clean 1 file(s) in .agents/prompts" in output
-    assert "Would clean 1 file(s) in .agents/reports" in output
 
 
 def test_failure_spool_is_private_bounded_and_redacts_session_ids(
@@ -435,42 +391,6 @@ def test_copilot_session_end_is_idempotent_and_writes_usage(monkeypatch: pytest.
     assert usage["total_tokens"] == 27
 
 
-def test_prune_agent_artifacts_removes_only_generated_targets_and_rejects_redirected_directories(
-    tmp_path: Path,
-) -> None:
-    prompts = tmp_path / ".agents/prompts/nested"
-    skills = tmp_path / ".agents/skills/custom"
-    prompts.mkdir(parents=True)
-    skills.mkdir(parents=True)
-    (prompts / "TASK.md").write_text("prompt", encoding="utf-8")
-    (skills / "SKILL.md").write_text("preserve", encoding="utf-8")
-    state = _state(runner=GitRootRunner(tmp_path))
-    artifacts_module.prune_agent_artifacts(state, dry_run=False)
-
-    assert not prompts.exists()
-    assert (skills / "SKILL.md").read_text(encoding="utf-8") == "preserve"
-    (tmp_path / ".agents/prompts").rmdir()
-
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (outside / "keep.md").write_text("keep", encoding="utf-8")
-    (tmp_path / ".agents/prompts").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(DotError, match="refusing symlinked cleanup directory"):
-        artifacts_module.prune_agent_artifacts(state, dry_run=False)
-    assert (outside / "keep.md").read_text(encoding="utf-8") == "keep"
-
-
-def test_prune_agent_artifacts_rejects_non_directory_target_with_context(
-    tmp_path: Path,
-) -> None:
-    agents = tmp_path / ".agents"
-    agents.mkdir()
-    (agents / "prompts").write_text("not a directory", encoding="utf-8")
-    state = _state(runner=GitRootRunner(tmp_path))
-    with pytest.raises(DotError, match=r"cleanup target \.agents/prompts is not a directory"):
-        artifacts_module.prune_agent_artifacts(state, dry_run=False)
-
-
 def test_session_and_usage_cli_surfaces_report_ingested_evidence(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -505,15 +425,15 @@ def test_session_and_usage_cli_surfaces_report_ingested_evidence(
     assert listed.exit_code == 0
     assert f"claude {session_id} records=1" in listed.stdout
     assert shown.exit_code == 0
-    assert json.loads(shown.stdout)["records"][0]["content"] == "answer"
+    assert json.loads(shown.stdout)["session"]["records"][0]["content"] == "answer"
     assert exported.exit_code == 0
     assert json.loads(exported.stdout)["sessions"][0]["records"][0]["content"] == "[redacted]"
     assert usage_list.exit_code == 0
-    assert json.loads(usage_list.stdout)[0]["session_id"] == session_id
+    assert json.loads(usage_list.stdout)["records"][0]["session_id"] == session_id
     assert usage_show.exit_code == 0
-    assert json.loads(usage_show.stdout)["total_tokens"] == 7
+    assert json.loads(usage_show.stdout)["record"]["total_tokens"] == 7
     assert usage_stats.exit_code == 0
-    assert json.loads(usage_stats.stdout)[0]["model"] == "claude-test"
+    assert json.loads(usage_stats.stdout)["usage"][0]["model"] == "claude-test"
 
 
 def test_session_sync_main_normalizes_empty_copilot_database_error(
@@ -543,71 +463,8 @@ def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatc
         ["agent", "session", "list", "--since", "2026-09-07", "--until", "2026-09-06"],
     )
 
-    assert result.exit_code == 1
-    assert isinstance(result.exception, DotError)
-    assert str(result.exception) == "--since must not be after --until"
-
-
-def test_prune_agent_artifacts_stays_on_opened_directory_when_target_is_swapped_to_symlink(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    target = tmp_path / ".agents/prompts"
-    target.mkdir(parents=True)
-    (target / "generated.md").write_text("generated", encoding="utf-8")
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    victim = outside / "preserve.md"
-    victim.write_text("preserve", encoding="utf-8")
-    moved = tmp_path / ".agents/prompts-opened"
-    swapped = False
-
-    def swap_target() -> None:
-        nonlocal swapped
-        if swapped:
-            return
-        target.rename(moved)
-        target.symlink_to(outside, target_is_directory=True)
-        swapped = True
-
-    original_is_symlink = Path.is_symlink
-
-    def racing_is_symlink(path: Path) -> bool:
-        result = original_is_symlink(path)
-        if path == target:
-            swap_target()
-        return result
-
-    original_listdir = os.listdir
-
-    def racing_listdir(path: int | str | bytes | os.PathLike[str] | os.PathLike[bytes]):
-        names = original_listdir(path)
-        if isinstance(path, int):
-            swap_target()
-        return names
-
-    monkeypatch.setattr(Path, "is_symlink", racing_is_symlink)
-    monkeypatch.setattr(os, "listdir", racing_listdir)
-    monkeypatch.setattr(artifacts_module, "_safe_agent_fs_available", lambda: True)
-    state = _state(runner=GitRootRunner(tmp_path))
-    artifacts_module.prune_agent_artifacts(state, dry_run=False)
-
-    assert swapped
-    assert victim.read_text(encoding="utf-8") == "preserve"
-    assert list(moved.iterdir()) == []
-    assert target.is_symlink()
-
-
-def test_prune_agent_artifacts_fails_closed_without_symlink_safe_recursive_delete(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    generated = tmp_path / ".agents/prompts/nested/generated.md"
-    generated.parent.mkdir(parents=True)
-    generated.write_text("generated", encoding="utf-8")
-    monkeypatch.delattr(os, "fwalk")
-    state = _state(runner=GitRootRunner(tmp_path))
-    with pytest.raises(DotError, match="safe agent cleanup is unavailable on this platform"):
-        artifacts_module.prune_agent_artifacts(state, dry_run=False)
-    assert generated.read_text(encoding="utf-8") == "generated"
+    assert result.exit_code == 2
+    assert "must not be after --until" in result.stderr
 
 
 def test_hook_identity_accepts_host_aliases_and_fails_closed_on_bad_identity(tmp_path: Path) -> None:
@@ -771,30 +628,10 @@ def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, 
 
     assert usage.exit_code == 0
     assert usage.stdout == "No usage records found.\n"
-    assert shown.exit_code == 1
-    assert isinstance(shown.exception, DotError)
-    assert str(shown.exception) == "show requires a session or lineage identity"
+    assert shown.exit_code == 2
+    assert "show requires a session or lineage identity" in shown.stderr
     assert compaction.exit_code == 0
     assert compacted == [(True, "codex")]
-
-
-def test_prune_agent_artifacts_cleans_all_targets_and_unlinks_nested_symlinks(
-    tmp_path: Path,
-) -> None:
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    victim = outside / "preserve.md"
-    victim.write_text("preserve", encoding="utf-8")
-    prompts = tmp_path / ".agents/prompts"
-    prompts.mkdir(parents=True)
-    (prompts / "outside-link").symlink_to(outside, target_is_directory=True)
-    state = _state(runner=GitRootRunner(tmp_path))
-    artifacts_module.prune_agent_artifacts(state, dry_run=False)
-
-    assert victim.read_text(encoding="utf-8") == "preserve"
-    assert list(prompts.iterdir()) == []
-    assert isinstance(state.stdout, io.StringIO)
-    assert state.stdout.getvalue().count("✓ Cleaned") == 3
 
 
 def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts(

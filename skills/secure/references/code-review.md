@@ -36,4 +36,4 @@ Review every candidate against its own callers and controls. Keep a compact reco
 
 ## Evidence
 
-Report revision, path and line, actor and preconditions, input-to-operation trace, observed impact, reproduction, contrary evidence, confidence, and smallest correction. For implementation, include the regression and its result. [diff-review](../../diff-review/SKILL.md) owns severity and [threat-model](../../threat-model/SKILL.md) owns architectural risk decisions.
+Report revision, path and line, actor and preconditions, input-to-operation trace, observed impact, reproduction, contrary evidence, confidence, and smallest correction. For implementation, include the regression and its result. [repository-review](../../repository-review/SKILL.md) owns severity and [threat-model](../../threat-model/SKILL.md) owns architectural risk decisions.

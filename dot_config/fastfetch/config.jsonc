@@ -10,7 +10,7 @@
   "display": {
     "separator": "  ",
     "color": {
-      // Source: https://github.com/fmind/theme/blob/main/fastfetch/fmind.json
+      // Source: https://github.com/fmind/theme/blob/main/themes/fastfetch/fmind.json
       // Update this block after changing the upstream theme.
       "keys": "blue",
       "title": "green"

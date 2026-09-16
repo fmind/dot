@@ -128,7 +128,9 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert report["usage"][0]["api_equivalent_usd"] == 7
     assert report["usage"][0]["turns"] == 4
     detailed = runner.invoke(app, ["--config", str(config), "agent", "usage", "stats", "--json"])
-    assert json.loads(detailed.output)[0]["api_equivalent_usd"] == 7
+    assert detailed.exit_code == 0, detailed.output
+    assert json.loads(detailed.stdout)["usage"][0]["api_equivalent_usd"] == 7
+    assert "Deprecated" in detailed.stderr
     human = runner.invoke(app, ["agent", "stats"])
     assert human.exit_code == 0
     assert "API EQUIV (USD)" in human.output

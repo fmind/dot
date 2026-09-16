@@ -1,8 +1,30 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from dot_tasks import tool_audit as audit_tools
+
+
+@pytest.mark.parametrize("layout", ["tool", ".mise-uv/.venv"])
+def test_pip_audit_inspects_installed_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layout: str) -> None:
+    packages = tmp_path / layout / "lib/python3.14/site-packages"
+    packages.mkdir(parents=True)
+    commands: list[list[str]] = []
+
+    def run(command: list[str]) -> tuple[int, str, str]:
+        commands.append(command)
+        return 0, json.dumps({"dependencies": [{"name": "example", "version": "1.0", "vulns": []}]}), ""
+
+    monkeypatch.setattr(audit_tools, "run", run)
+    assert audit_tools.pipx_findings("pipx:tool", tmp_path) == ([], [])
+    assert commands[0][-2:] == ["--path", str(packages)]
+
+
+def test_missing_pip_environment_is_a_coverage_gap(tmp_path: Path) -> None:
+    assert audit_tools.pipx_findings("pipx:tool", tmp_path) == ([], ["pipx:tool: site-packages is unavailable"])
 
 
 def test_trivy_finding_keeps_exact_identity_and_fix() -> None:

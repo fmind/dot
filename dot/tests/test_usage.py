@@ -312,7 +312,7 @@ def test_list_usage_records_filters_sorts_and_applies_limit() -> None:
     assert [record.session_id for record in list_usage_records(records, limit=-1)] == ["new", "other", "old"]
 
 
-def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
+def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
     rows = [
         UsageStats(
             harness="claude",
@@ -343,17 +343,11 @@ def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
     ]
 
     output = StringIO()
-    write_usage_stats(output, rows, as_json=True, by_model=True)
-    document = json.loads(output.getvalue())
-    assert [row["model"] for row in document] == ["sonnet", "gpt"]
-    assert document[0]["cache_write_tokens"] == 4
-
-    output = StringIO()
-    write_usage_stats(output, [], as_json=False, by_model=False)
+    write_usage_stats(output, [], by_model=False)
     assert output.getvalue() == ("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
 
     output = StringIO()
-    write_usage_stats(output, rows, as_json=False, by_model=True)
+    write_usage_stats(output, rows, by_model=True)
     text = output.getvalue()
     assert "TOTAL TOKENS" in text
     assert "API EQUIV (USD)" in text
@@ -365,7 +359,7 @@ def test_write_usage_stats_renders_json_empty_and_text_contracts() -> None:
     assert "gpt" in text
 
     output = StringIO()
-    write_usage_stats(output, rows[:1], as_json=False, by_model=False)
+    write_usage_stats(output, rows[:1], by_model=False)
     assert "MODEL" not in output.getvalue()
     assert output.getvalue().splitlines()[-1].startswith("TOTAL\tunknown\t1")
 
@@ -413,11 +407,11 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
     shown = runner.invoke(app, ["agent", "usage", "show", "codex", "new"])
 
     assert listed.exit_code == 0
-    assert [record["session_id"] for record in json.loads(listed.stdout)] == ["new"]
+    assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == ["new"]
     assert stats.exit_code == 0
-    assert [(row["model"], row["total_tokens"]) for row in json.loads(stats.stdout)] == [("gpt-mini", 3)]
+    assert [(row["model"], row["total_tokens"]) for row in json.loads(stats.stdout)["usage"]] == [("gpt-mini", 3)]
     assert shown.exit_code == 0
-    assert json.loads(shown.stdout)["session_id"] == "new"
+    assert json.loads(shown.stdout)["record"]["session_id"] == "new"
 
 
 def test_parse_flexible_time_supports_durations_days_and_iso_values() -> None:

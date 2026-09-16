@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-skills
   created: "2026-09-09"
-  updated: "2026-09-11"
+  updated: "2026-09-15"
 ---
 
 # Maintain Dot Skills
@@ -18,7 +18,7 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 1. **Choose the owner**: inspect `git diff` and `git diff --cached`, apply skillify's admission rule, then read neighboring descriptions and extend an existing skill when it owns the workflow. Reusable skills belong in `skills/`; repository procedures belong in `.agents/skills/`. A tool's presence in the environment does not require a global skill.
 1. **Register additions**: add each skill and its required CLI tools to [contracts.json](../../../skills/contracts.json), and a primary case to [routing-boundaries.json](../../../dot/testdata/skills/routing-boundaries.json). Each global skill also needs `dot_agents/skills/symlink_<name>.tmpl` containing `{{ .chezmoi.sourceDir }}/skills/<name>`.
 1. **Connect resources**: link each supporting resource directly from `SKILL.md`. Update project `AGENTS.md` when workflow ownership changes; setup/auth instructions belong in `README.md`.
-1. **Validate**: run `mise run check:skills` while iterating, then `mise run all` on the intended candidate. For installation changes, target `uv run --frozen pytest -q dot/tests/test_skill_links.py` first. Use [git-worktree](../../../skills/git-worktree/SKILL.md) to isolate unrelated work from formatters. Review `mise run report:skills` when descriptions or routing cases change; its lexical ranking is diagnostic.
+1. **Validate**: run `mise run check:skills` and formatting checks for edited files. For installation changes, also target `uv run --frozen pytest -q dot/tests/test_skill_links.py`. Follow project `AGENTS.md` for broader qualification; prose-only changes do not require the full Python suite or build. Use [git-worktree](../../../skills/git-worktree/SKILL.md) when formatters could alter unrelated work. Review `mise run report:skills` when descriptions or routing cases change; its lexical ranking is diagnostic.
 1. **Exercise changed guidance**: walk a realistic request through the skill using safe commands and disposable fixtures for writes. When host integration changes, check the affected host separately; catalog checks do not prove discovery or selection.
 
 ## Rename or remove

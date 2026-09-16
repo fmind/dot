@@ -111,9 +111,9 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
     [
         ([], ["agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status"]),
         (["config"], ["edit", "init", "path", "show", "validate"]),
-        (["agent"], ["clean", "doctor", "prompts", "session", "stats", "usage"]),
+        (["agent"], ["doctor", "session", "stats", "usage"]),
         (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),
-        (["agent", "usage"], ["list", "show", "stats"]),
+        (["agent", "usage"], ["list", "show"]),
         (["agent", "prompts"], ["stats"]),
         (["agent", "hook"], ["copilot-session-end", "notify", "session"]),
     ],
@@ -134,9 +134,7 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
     agent = root.commands["agent"]
     assert isinstance(agent, TyperGroup)
     assert {name for name, child in agent.commands.items() if not child.hidden} == {
-        "clean",
         "doctor",
-        "prompts",
         "session",
         "usage",
         "stats",
@@ -156,7 +154,7 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
     }
     usage = agent.commands["usage"]
     assert isinstance(usage, TyperGroup)
-    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list", "show", "stats"}
+    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list", "show"}
 
 
 def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:

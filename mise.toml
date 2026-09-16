@@ -274,7 +274,8 @@ run = "chezmoi diff --force"
 [tasks.doctor]
 alias = "mo"
 description = "Run chezmoi, mise, and installed-tool health checks"
-run = ["chezmoi doctor", "mise doctor", "mise run check:vuln:tools"]
+# chezmoi probes hardlinks from its source into TMPDIR; /tmp can be another filesystem.
+run = ['TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor", "mise run check:vuln:tools"]
 
 [tasks.full]
 alias = "mf"

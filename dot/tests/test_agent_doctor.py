@@ -452,8 +452,9 @@ def test_doctor_reconciles_every_file_backed_source_session(monkeypatch: pytest.
     assert not result.healthy
 
 
+@pytest.mark.parametrize("coarse_timestamps", [False, True])
 def test_doctor_fails_closed_if_source_changes_during_archive_reconciliation(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, coarse_timestamps: bool
 ) -> None:
     state, _ = _healthy_state(monkeypatch, tmp_path)
     source = tmp_path / ".claude/projects/session.jsonl"
@@ -466,6 +467,13 @@ def test_doctor_fails_closed_if_source_changes_during_archive_reconciliation(
     )
     assert archived.status == "ingested"
     original_mtime = source.stat().st_mtime_ns
+    if coarse_timestamps:
+        # A same-size rewrite and restored mtime can occur within one ctime tick.
+        monkeypatch.setattr(
+            agent_doctor_module,
+            "_source_file_metadata",
+            lambda info: (info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns, 0, info.st_size),
+        )
     real_stored_generation = agent_doctor_module.stored_generation
     mutated = False
 

@@ -15,8 +15,8 @@
     "**/dist",
     "**/htmlcov",
     "**/modify_*.json",
-    "**/modify_*.yaml",
     "**/modify_*.toml",
+    "**/modify_*.yaml",
     "**/node_modules",
     "**/references/**"
   ],
@@ -25,7 +25,7 @@
   },
   "plugins": [
     "npm:dprint-plugin-yaml@0.6.0",
-    "npm:@dprint/json@0.23.0",
+    "npm:@dprint/json@0.24.0",
     "npm:@dprint/markdown@0.24.0",
     "npm:@dprint/toml@0.8.0"
   ]

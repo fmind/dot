@@ -11,7 +11,7 @@ telemetry = false
 enabled = true
 
 [models]
-default_reasoning_effort = "xhigh"
+default_reasoning_effort = "high"
 
 [ui]
 compact_mode = true

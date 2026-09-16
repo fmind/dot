@@ -5,20 +5,14 @@ This is `fmind/dot` — chezmoi + mise dotfiles for AI-CLI-first, Python-first d
 ## House rules
 
 - **Chezmoi**: Edit the source tree in this repository, never deployed copies under `$HOME`; automation always runs `chezmoi apply --force`. Naming, templates, and secrets: [chezmoi skill](.agents/skills/chezmoi/SKILL.md).
-- **Gate**: `mise run all` (format + check + test + build) must pass warning-free before reporting a task complete. It writes files; when unrelated work is present, validate an exact isolated candidate using [git-worktree](skills/git-worktree/SKILL.md).
+- **Validation**: Match checks to the task: read-only reviews need only evidence checks; documentation and instruction edits need relevant formatting, links, and contract checks; behavior changes need focused regression tests and affected static checks. Run `mise run all` for cross-cutting changes, dependencies, packaging, releases, or explicit full qualification. Reuse passing results while relevant inputs remain unchanged. The full gate writes files; isolate it with [git-worktree](skills/git-worktree/SKILL.md) when unrelated work is present. Report the checks run and remaining limits.
 - **No-Sudo**: Stay user-space; install via `mise`.
 - **Tool baseline**: This repository tracks `latest` by default, including Python; `dot_config/mise/config.toml.tmpl` and `dot_config/mise/mise.lock` own the workstation baseline. Other repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` pin exact versions from it. [Mise](skills/mise/SKILL.md) owns selection and exceptions; [upgrade-tools](skills/upgrade-tools/SKILL.md) owns validated propagation.
 - **Lockfile compatibility**: Keep the managed global mise lockfile at format 1 while Colab needs `uvx_args` to constrain `jupyter-kernel-client`. Format 2 dependency locking rejects that option; migrate only after qualifying its replacement and tracking all generated sidecars.
 - **README Scope**: Keep setup and auth instructions in `README.md`; exclude repository tasks, aliases, and workflows.
 - **Secrets**: `*.age` files are encrypted; never modify or commit decrypted versions.
 - **Fonts**: Use Google Sans for application text and Google Sans Code for code by default; terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty. Project-specific requirements take precedence.
-- **Theme**: [fmind/theme](https://github.com/fmind/theme) owns the palette and native app files. Use dark syntax on white: charcoal variables, blue keywords/calls, green strings, orange literals/warnings, red errors, grey comments, purple types/builtins and teal information. Bright fills use contrasting labels. Keep upright GoogleSansCode Nerd Font Mono at 14pt in Ghostty and `bold-is-bright = false`.
-  - Edit native files in the upstream app folders directly; there is no generator. Run `mise run all` there to validate syntax roles and 4.5:1 text contrast on normal, selected and diff surfaces. See its README for the full palette and custom colors.
-  - `.chezmoiexternal.toml.tmpl` follows upstream `main` with fixed `fmind` selection and no host theme data. `mise run apply` uses `chezmoi apply --force --refresh-externals`; other chezmoi commands cache theme downloads for 24 hours.
-  - Prefer native remote references or chezmoi externals for standalone theme files. When a tool requires merging styles, copy only its theme block and add a comment linking to the exact upstream file. Fetch standalone themes from upstream `main` through externals.
-  - Copy the native Starship, gh-dash, bottom, Lazydocker, LazyGit and Fastfetch blocks into their managed sources; synchronize these snapshots when the upstream palette changes. bat, Yazi, Atuin and lsd theme files are externals. gh-dash uses nested text/background/border mappings. Lazygit uses explicit light selection surfaces. Keep Zellij pane frames enabled so top/bottom bars and panes remain distinct. Fish selects the external k9s skin with `K9S_SKIN=theme`.
-  - bat and delta share the native `fmind.tmTheme`; `run_after_bat-theme.sh.tmpl` rebuilds its derived cache after every apply, including refreshed external themes. Terminal-native tools use the matching ANSI palette; do not remap the xterm cube or greyscale ramp. Ghostty sets `minimum-contrast = 4.5` to protect arbitrary ANSI background combinations; its renderer may adjust foreground colors for readability.
-  - Antigravity uses `terminal`, Claude Code uses `light-ansi`, and Grok uses `grokday`. Native Neovim/lualine, Zellij, OpenCode, Fish, fzf and ptpython mappings own their foregrounds and surfaces. README screenshots are recorded locally from synthetic inputs; no generated preview website remains.
+- **Theme**: [fmind/theme](https://github.com/fmind/theme) owns the palette and native app files. Fetch standalone themes from upstream `main` via chezmoi externals; when tools require merged styles, copy only the native theme block with an upstream source comment. Terminal tools follow the Ghostty ANSI palette or select terminal-aligned themes.
 - **Vim mode**: Enable in every TUI that supports it.
 
 ## Workflows
@@ -27,7 +21,7 @@ Tasks run via `mise run <task>` (if `mise` is not in `$PATH`, call `~/.local/bin
 
 Key routines:
 
-- **Iterate**: Edit source → validate with `mise run check` (or `mise run all`) → preview with `mise run diff` → `mise run apply` when deployment is in scope. Apply executes eligible installation hooks as well as writing managed files.
+- **Iterate**: Edit source → run the relevant checks above → preview the affected chezmoi diff → apply when deployment is in scope. Apply executes eligible installation hooks as well as writing managed files. When committing or pushing is authorized, let enabled hooks run their checks; do not duplicate them immediately beforehand unless needed to diagnose a failure. CI retains the full gate.
 - **Documentation**: `mise run check:docs` checks documentation contracts; `mise run check:skills` checks both skill catalogs and their local links. [repository-docs](skills/repository-docs/SKILL.md) owns documentation synchronization.
 - **Workstation vs Gate**: `mise run verify` and `mise run doctor` inspect local workstation health; `mise run check`, `test`, and `all` validate the repository.
 - **Add tool**: Append to `dot_config/mise/config.toml.tmpl` → `mise run tools` → `mise run lock`.

@@ -89,10 +89,10 @@ def test_project_dot_and_prompt_json_contract(monkeypatch: pytest.MonkeyPatch, t
     runner = CliRunner()
     listing = runner.invoke(app, ["agent", "session", "list", "--project", ".", "--json"])
     assert listing.exit_code == 0
-    assert len(json.loads(listing.stdout)) == 1
+    assert len(json.loads(listing.stdout)["sessions"]) == 1
     result = runner.invoke(app, ["agent", "prompts", "stats", "--project", ".", "--json"])
     assert result.exit_code == 0
-    assert json.loads(result.stdout)["prompts"] == 1
+    assert json.loads(result.stdout)["prompts"]["prompts"] == 1
     assert "hidden text" not in result.stdout
 
 
@@ -122,7 +122,7 @@ def test_mixed_models_unknown_cost_and_comparable_statistics(tmp_path: Path) -> 
     ).finalize()
     stats = aggregate_usage([record, estimate], by_model=True)
     output = io.StringIO()
-    write_usage_stats(output, stats, as_json=False, by_model=True)
+    write_usage_stats(output, stats, by_model=True)
     assert "unknown" in output.getvalue()
     assert "No combined total" in output.getvalue()
     assert all(row.to_dict()["cost_usd"] is None for row in stats)
@@ -170,7 +170,7 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
     state = state_with(Config(pull=PullConfig(directories=[str(checkout)])))
     assert repository.find_git_repositories(state) == [checkout]
     report = repository.run_status(state, paths=[checkout], as_json=True, stats=True)
-    assert report.repositories[0].ahead == 1
+    assert report[0].ahead == 1
     assert isinstance(state.stdout, io.StringIO)
     assert json.loads(state.stdout.getvalue())["ahead"] == 1
     state.stdout = io.StringIO()
@@ -185,9 +185,7 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
 
 
 def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    status = repository.SystemStatus(
-        repository.DockerStatus(), [repository.RepositoryStatus("repo", "work", error="inspection failed")]
-    )
+    status = [repository.RepositoryStatus("repo", "work", error="inspection failed")]
     monkeypatch.setattr(repository, "gather_status", lambda *_args: status)
     result = CliRunner().invoke(app, ["status", "--json"])
     assert result.exit_code != 0
@@ -343,7 +341,7 @@ def test_prompt_stats_validate_only_selected_generation_and_report_corruption(
     (root / current.generation_id / "transcript.jsonl").write_text("corrupt\n")
     broken = CliRunner().invoke(app, ["agent", "prompts", "stats", "--json"])
     assert broken.exit_code != 0
-    document = json.loads(broken.stdout)
+    document = json.loads(broken.stdout)["prompts"]
     assert not document["complete"]
     assert document["excluded_sessions"] == 1
     assert not document["prompts"]
