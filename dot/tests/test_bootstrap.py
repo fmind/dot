@@ -82,17 +82,17 @@ class BootstrapFixture:
 class BootstrapTest(unittest.TestCase):
     def test_unsupported_mise_fails_before_repository_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), "2025.1.0")
+            fixture = BootstrapFixture(Path(directory), "2026.9.1")
             result = fixture.run()
 
             assert result.returncode != 0
-            assert "mise 2026.9.1 or newer is required" in result.stderr
+            assert "mise 2026.9.10 or newer is required" in result.stderr
             assert fixture.calls() == [{"tool": "mise", "args": ["--version"]}]
             assert not fixture.source.exists()
 
     def test_first_install_and_rerun_use_the_bounded_task_sequence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), "2026.9.1")
+            fixture = BootstrapFixture(Path(directory), "2026.9.10")
             first = fixture.run()
             second = fixture.run()
 

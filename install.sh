@@ -3,7 +3,7 @@ set -euo pipefail
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
-MINIMUM_MISE_VERSION="2026.9.1"
+MINIMUM_MISE_VERSION="2026.9.10"
 
 version_at_least() {
   local actual=$1 minimum=$2 actual_part minimum_part

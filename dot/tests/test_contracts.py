@@ -500,7 +500,9 @@ def test_skills_report_details_are_opt_in(
     assert checker.main() == 0
 
     output = capsys.readouterr().out
-    assert "Discovery headroom:" in output
+    assert "Combined estimated index tokens:" in output
+    assert "(informational)" in output
+    assert "Discovery headroom:" not in output
     assert "Lexical rank-1 matches:" in output
     assert ("fixture-route" in output) is details
     assert ("- task: fixture, fixture-helper" in output) is details

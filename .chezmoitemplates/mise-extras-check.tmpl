@@ -1,0 +1,11 @@
+{{- /* Validate before apply can change any managed files. */ -}}
+{{- if hasKey . "extras" -}}
+  {{- if not (kindIs "slice" .extras) -}}
+    {{- fail "extras must be a list of names under [data] in chezmoi.toml" -}}
+  {{- end -}}
+  {{- range .extras -}}
+    {{- if not (has . (list "airflow" "atlassian" "aws" "databricks" "kubernetes")) -}}
+      {{- fail "unknown extra; choose airflow, atlassian, aws, databricks, or kubernetes" -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

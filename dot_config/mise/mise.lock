@@ -862,18 +862,6 @@ checksum = "sha256:cf896717611de9608a000664b7020bb56d2ac1298b2222c356756f7f76c5e
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda"
 checksum = "sha256:da867f5092eb0cb746d353694f0098031fd9817a4ce7d5743121209ae0f406ca"
 
-[[tools.acli]]
-version = "1.3.36-stable"
-backend = "aqua:atlassian.com/acli"
-specifiers = ["latest"]
-
-[tools.acli."platforms.linux-x64"]
-url = "https://acli.atlassian.com/linux/1.3.36-stable/acli_1.3.36-stable_linux_amd64.tar.gz"
-
-[tools.acli."platforms.macos-arm64"]
-checksum = "blake3:cd3cda3e78ae7460c0285a1871a6a61f30d8393bbf2d7df5a04d4a70b7e761b8"
-url = "https://acli.atlassian.com/darwin/1.3.36-stable/acli_1.3.36-stable_darwin_arm64.tar.gz"
-
 [[tools.actionlint]]
 version = "1.7.12"
 backend = "aqua:rhysd/actionlint"
@@ -2188,6 +2176,11 @@ specifiers = ["latest"]
 [[tools."pipx:kaggle"]]
 version = "2.2.4"
 backend = "pipx:kaggle"
+specifiers = ["latest"]
+
+[[tools."pipx:pgcli"]]
+version = "4.6.0"
+backend = "pipx:pgcli"
 specifiers = ["latest"]
 
 [[tools."pipx:pip-audit"]]

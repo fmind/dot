@@ -52,3 +52,11 @@ mise upgrade --bump      # explicit independent upgrade, not baseline alignment
 - **Non-interactive scripts**: pass `-y` (`mise install -y`) in scripts and CI steps that would otherwise prompt.
 - **Keep project config project-local**: never symlink a repository's `mise.toml` into `~/.config/mise/conf.d/`; mise then treats it as global, `mise lock` reports `No tools configured to lock`, and its tasks leak everywhere.
 - **Task `dir`**: pin `[task_config] dir = "{{config_root}}"` when inherited configs could select another project root; verify tasks from both the repository root and a subdirectory.
+
+## Optional workstation extras
+
+`fmind/dot` keeps situational tools in `dot_config/mise/conf.d/<extra>.local.toml.tmpl`; [installation instructions](../../../README.md#optional-tool-extras) own per-machine selection through chezmoi `[data].extras`. Templates render empty when disabled so apply removes previously enabled fragments; ignore rules would leave them active. Validate the selection before any files change, and preserve unrelated host fragments.
+
+The `.local.toml` suffix makes mise write optional tools into `~/.config/mise/mise.local.lock`, rather than the shared `mise.lock`. `mise lock --global` updates both; `mise run lock` re-adds only the core lockfile. Keep optional locks and generated dependency sidecars host-local. Never copy a project task file into this global fragment directory.
+
+After changing selection, apply before resolving or installing: new extras have no local lock entries until `mise lock --global --yes` succeeds. The normal locked install then reuses those entries. `mise run upgrade` advances enabled extras alongside the core; it does not enable extras or install a container daemon. Core and project declarations override matching fragment tools.

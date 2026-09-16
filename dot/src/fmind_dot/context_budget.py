@@ -14,7 +14,6 @@ from fmind_dot.command_group import JsonOption
 from fmind_dot.errors import DotError
 
 CONTEXT_TOKEN_LIMIT = 5_000
-DISCOVERY_TOKEN_LIMIT = 3_500
 MAX_INPUT_BYTES = 1 << 20
 Scope = Literal["global", "local"]
 
@@ -188,15 +187,8 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
         }
         for scope in ("global", "local")
     }
-    discovery = totals["combined"]["skill_index_estimated_tokens"]
-    budgets["discovery"] = {
-        "limit_exclusive": DISCOVERY_TOKEN_LIMIT,
-        "estimated_tokens": discovery,
-        "remaining": DISCOVERY_TOKEN_LIMIT - 1 - discovery,
-        "passed": discovery < DISCOVERY_TOKEN_LIMIT,
-    }
     return {
-        "schema": "dot.agent.context/v3",
+        "schema": "dot.agent.context/v4",
         "measurement": "ceil(characters / 4); portable estimate, not host tokenization or billing",
         "coverage": "Shared roots only; excludes host/plugin catalogs, ancestor/nested instructions and references. "
         "Combined counts identical resolved files once; distinct same-name skills both count.",
@@ -232,9 +224,8 @@ def _print_report(report: dict[str, Any], *, details: bool) -> None:
     typer.echo(
         f"\nSkill index: names, descriptions, and paths ({global_count:,} global, {local_count:,} local skills)."
     )
-    discovery = report["budgets"]["discovery"]
-    status = "PASS" if discovery["passed"] else "OVER BUDGET"
-    typer.echo(f"Combined discovery: {discovery['estimated_tokens']:,} / <{DISCOVERY_TOKEN_LIMIT:,} · {status}")
+    discovery = report["totals"]["combined"]["skill_index_estimated_tokens"]
+    typer.echo(f"Combined discovery: {discovery:,} estimated tokens (informational)")
     typer.echo("Combined startup is informational. On-demand bodies and host/plugin extras are excluded.")
     typer.echo("Estimated at ~4 characters/token; exact counts vary by model. Totals round independently.")
     if report["collisions"]:
@@ -271,7 +262,7 @@ def register(agent_app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--check",
-                help="Exit 1 at 3500 discovery tokens combined or 5000 instruction + discovery tokens per scope",
+                help="Exit 1 at 5000 instruction + discovery tokens in either global or local scope",
             ),
         ] = False,
         details: Annotated[
