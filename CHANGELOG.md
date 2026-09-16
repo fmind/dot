@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.1.0] - 2026-09-16
+
+### 🚀 Features
+
+- _(agy)_ Update completions, features reference, and task tests
+- _(skills)_ Add copier skill and template defaults
+- _(skills)_ Enrich task delegation outputs and update tracking docs
+
+### 🐛 Bug Fixes
+
+- _(test)_ Strip ansi escapes and add delegation batch script
+
+### 📚 Documentation
+
+- _(skills)_ Refine cli contracts and delegation tracking guidelines
+
+### 🧪 Testing
+
+- _(skills)_ Test native agy defaults and typecheck script
+
 ## [6.0.1] - 2026-09-16
 
 ### 🐛 Bug Fixes
