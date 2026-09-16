@@ -1,63 +1,58 @@
-# Tracking and Execution
+# Batch Manifest and Results
 
-Use the coordinator's native process tools and ordinary files. This workflow does not require an SDK, service, MCP server, or permanent background daemon.
-
-## Local run directory
-
-Create a uniquely named run under `~/.local/state/deleguate-tasks/` with a timestamp and random suffix; use directory mode `0700` and private files. Keep `ledger.json` and one directory per task containing `brief.md`, attempt-specific stdout/stderr, and the compact result. Record the absolute workspace separately. Do not place private briefs in version control.
-
-The coordinator creates and updates JSON with a structured writer such as Python, using temporary-file replacement for ledger updates. Workers never edit the ledger. This is a schema example; populate real values rather than executing it:
+Write one JSON manifest and invoke the packaged runner with Python 3.12+ on Linux/macOS. Do not generate orchestration code or duplicate its ledger. Use a unique local manifest path outside worker workspaces; ordinary successful runs need only this contract and the final stdout result.
 
 ```json
 {
-  "version": 1,
-  "run_id": "timestamp-random",
+  "concurrency": 2,
+  "timeout": 900,
   "tasks": [
     {
-      "id": "task-1",
-      "objective": "Investigate the failing parser test",
-      "depends_on": [],
-      "harness": "agy",
-      "model": "gemini-3.8-flash-high",
-      "effort": "high",
-      "workspace": "/absolute/workspace",
-      "baseline": { "revision": "commit-id", "dirty_snapshot": null },
-      "state": "queued",
-      "attempts": [],
-      "verification": null
+      "id": "fix-parser",
+      "workspace": "/absolute/project",
+      "prompt": "Fix the parser's empty-input handling. Preserve existing work and tests; edit parser.py only. Run the existing parser tests. Do not commit.",
+      "checks": [["python", "-m", "unittest", "test_parser"]]
+    },
+    {
+      "id": "review-parser",
+      "workspace": "/absolute/project",
+      "depends_on": ["fix-parser"],
+      "prompt": "Review parser.py and its tests for remaining edge cases. Return concise findings with file/line evidence; do not edit files."
     }
   ]
 }
 ```
 
-For each attempt, record its number, start/end timestamps, exact argument list, process handle type/value, conversation ID, stdout/stderr paths, exit code, provider status, and error summary. Record handles locally; never assume a host handle is an OS PID or that a PID still belongs to this run after a restart. Preserve prior attempts on retries. Store reported usage with its scope: resumed agy sessions can report cumulative counters, so do not sum those counters as independent calls.
-
-Use `queued`, `running`, `awaiting_verification`, `completed`, `blocked`, `failed`, and `canceled`. Move to `awaiting_verification` only after the process has ended and its result is parsed. Missing auth/quota/permissions or a failed dependency blocks the affected task. A crash or invalid result fails the attempt. On interruption, leave an uncertain process `running` until reconciled; do not relaunch it merely because a new coordinator cannot access the old handle. Release dependent tasks only after their prerequisites are verified and their artifacts are accessible in the dependent workspace.
-
-## agy execution
-
-Check `agy --version`, `agy --help`, and `agy models` before relying on a model or flag. Authenticate through the existing native session. The default model is `gemini-3.8-flash-high`; if unavailable, report the available choices without quietly substituting one.
-
-For a single task, use this argument shape in the assigned workspace, replacing the example brief with the actual bounded task:
-
 ```bash
-agy -p "Read the assigned brief and complete only its task. Return the requested evidence." \
-  --model gemini-3.8-flash-high \
-  --effort high \
-  --output-format json \
-  --print-timeout 15m
+python ~/.agents/skills/deleguate-tasks/scripts/run.py /absolute/batch.json
 ```
 
-Pass the full brief as one argument with a subprocess argument list, or name a readable absolute brief path explicitly. Do not concatenate task text into shell code. Capture stdout and stderr to the attempt's files, and retain the host's process handle for polling and cancellation. With Python, use `subprocess.Popen` with an argument list and `cwd`, not `shell=True`; a foreground helper must remain responsible for its child until completion or cancellation. On timeout, terminate and reap owned processes and verify no worker remains before retrying; a wait timeout alone is not proof of cancellation.
+## Contract
 
-Use `--conversation <recorded-id>` for a follow-up. For incremental events or an ongoing conversation, use the documented `--input-format stream-json --output-format stream-json` interface; send the next turn only after the current result. Parse the stream to disk rather than feeding every tool event into the coordinator's context.
+- `tasks`: 1–100 objects with unique lowercase `id` (letters/digits/hyphens), existing `workspace`, and nonempty `prompt`. Include required context, authorized changes, and relevant instructions in the prompt. The runner adds no-recursion and compact-response instructions.
+- `concurrency`: default 2, range 1–16. Overlapping workspace paths (including symlink aliases and `add_dirs`) serialize even if more slots are available. Distinct paths are not a sandbox or proof that workers cannot reach shared resources; isolate actual writes before delegating.
+- `timeout`: default 900 seconds, range 1–86400, applied separately to each worker and each acceptance command. Set a smaller bound for tests. Runtime has no automatic retry or quota fallback.
+- `depends_on`: task IDs, default empty. Unknown dependencies and cycles fail before any launch. Dependents start only after all prerequisites reach `verified`.
+- `checks`: argument lists run by the runner in the task workspace after successful worker completion. No shell expansion or interpolation. Prefer existing tests or a small coordinator-owned acceptance script outside worker write scope. Commands execute with coordinator authority; never adopt a worker-provided command unchecked. Protect tests from modification when their integrity matters. Their pass/fail is only as meaningful as their coverage.
+- agy options: `model` defaults to `gemini-3.8-flash-high`, `effort` to `high`; optional `add_dirs` and `conversation_id`. `add_dirs` expands workspace access, not read-only enforcement. Do not include credentials. The native command uses `-p`, JSON output, a timeout, and disabled slash expansion; existing authentication/permissions remain in force.
+- Other harnesses: `command` is an explicit argument list containing exactly one standalone `"{prompt}"` argument. Example: `["claude", "-p", "{prompt}", "--output-format", "text"]`. Put model/resume/access options directly in that command; do not combine it with agy-specific fields. Default `result_format` is `text`, where zero exit plus nonempty output permits independent checks; `agy-json` additionally requires an object with `status: SUCCESS` and a nonempty `response`. No native provider-status interpretation is claimed for custom text commands.
 
-Honor the child's own permissions. Headless agy can soft-deny a required tool, produce a response, and exit zero; inspect diagnostics and acceptance evidence as well as `status`. Workspace writes may be allowed by default, so a prompt saying "read only" is not enforcement. Use actual permission restrictions when read-only execution is required; never add `--dangerously-skip-permissions` merely to make automation run.
+Unknown fields and invalid types fail before launch. Paths expand `~` and resolve against the runner's working directory; prefer absolute paths. Workers and checks receive no interactive stdin. Do not use commands that detach into a new OS session: cancellation owns the process group, not arbitrary daemons or remote jobs.
 
-Do not treat `WAITING`, `RUNNING`, or missing/malformed JSON as completion. Record `ERROR`, `CANCELED`, `INTERRUPTED`, and `INVALID` distinctly in the attempt even when mapping them to the ledger's simpler states. Quota exhaustion is a blocker, not a reason to enable API keys or credit fallback. Retry a transient failure only after diagnosing it and checking for partial writes; cap automatic retries at one per task unless the user says otherwise.
+## Results and review
 
-## Worker return contract
+Stdout is one compact JSON object: `run` and a task list containing `id`, `state`, at most 600 characters of worker summary, `checks_passed`, `details`, and a failure message when applicable. No tool events, full transcripts, or polling chatter enter the parent context. Ask the host process tool to wait or notify on completion rather than reimplementing a monitor.
 
-Ask for a concise summary (normally at most 400 words), changed files or artifact paths, verification commands and outcomes, blockers, and remaining uncertainty. For edits, require the actual diff in the assigned workspace; for investigation, require concrete file/line evidence. Keep detailed logs in the run directory. `--json-schema` may constrain the worker's answer when a machine-readable payload is useful; the outer envelope still carries process/session metadata.
+States: `queued` → `running` → `checking` → `verified` or `needs_review`; failures become `failed`, their dependents `blocked`, and stopped work `canceled`. A task without checks is `needs_review`. Any worker stderr also requires review, even if checks pass, because headless permission denials may accompany exit zero. A provider `WAITING`, `RUNNING`, or other non-success status never releases dependents. Exit 0 means all tasks verified, 1 means at least one unresolved task, and 2 means invalid input or an infrastructure error.
 
-The coordinator records its own acceptance result in `verification`, including checks and unresolved limits. Do not repeat the entire investigation just to accept the task, and do not accept it solely because the worker says it succeeded.
+`verified` means supplied acceptance commands passed, not that an agent's claim is trusted or the user approved the result. Review changed code and evidence once when judgment is required. For investigations, leave checks empty and review the summary/findings; the runner will not fabricate verification.
+
+## Records, cancellation, and continuation
+
+Each invocation creates a private unique directory under `~/.local/state/deleguate-tasks/` (override with `--state-dir`). It saves the resolved `manifest.json`, atomic `ledger.json`, compact `result.json`, and per-task brief, worker stdout/stderr, and acceptance stdout/stderr. The ledger records command arguments, owned process IDs, machine timestamps, exit/provider status, native conversation ID, and reported usage. Saved agy usage may be cumulative on resumed conversations; do not sum cumulative counters as separate calls.
+
+The runner stays responsible for its children until exit. SIGINT/SIGTERM cancels active tasks, terminates their owned process groups, and prevents queued tasks from starting. Timeout terminates the process group and fails that task. Normal completion also terminates descendants left in the worker's group. Hard kills, OS crashes, newly detached sessions, and remote work require manual reconciliation; never assume the saved ledger proves that such processes stopped.
+
+For follow-up work or a retry, confirm the old runner exited, inspect partial changes and the relevant task's evidence, then create a new manifest. Use the task's recorded agy `conversation_id` when retaining context is appropriate. A new run directory preserves old attempts; never overwrite a previous ledger or use `--continue` to select a shared latest conversation. If a prerequisite needed human review, include its accepted artifacts in the new task prompt instead of depending on an ID from another batch.
+
+Keep evidence private and outside version control. Preserve useful results; delete only task-owned disposable workspaces and redundant logs after successful integration. This runner does not create, merge, or delete worktrees, alter permissions, enable credit fallback, or install/authenticate harnesses.
