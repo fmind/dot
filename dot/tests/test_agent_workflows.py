@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from typer import _click
 from typer.testing import CliRunner
 
 from fmind_dot import agent as agent_module
@@ -457,9 +458,6 @@ def test_session_sync_main_normalizes_empty_copilot_database_error(
 
 def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("FORCE_COLOR", raising=False)
-    monkeypatch.delenv("CLICOLOR_FORCE", raising=False)
-    monkeypatch.setenv("NO_COLOR", "1")
 
     result = CliRunner().invoke(
         app,
@@ -467,7 +465,7 @@ def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatc
     )
 
     assert result.exit_code == 2
-    assert "must not be after --until" in result.stderr
+    assert "must not be after --until" in _click.utils.strip_ansi(result.stderr)
 
 
 def test_hook_identity_accepts_host_aliases_and_fails_closed_on_bad_identity(tmp_path: Path) -> None:

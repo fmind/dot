@@ -36,6 +36,7 @@ Keep the current agent as coordinator and offload bounded work to the user's cho
 ## Documentation
 
 - [Tracking and execution](references/tracking.md): local ledger, worker return contract, agy invocation, and failure handling.
+- [Batch execution helper](scripts/run.py): executes bounded task batches and keeps worker transcripts outside coordinator context.
 - [Codex invocation policy](agents/openai.yaml) disables implicit selection; Claude's frontmatter does the same. These controls govern skill selection, not subprocess permissions.
 - [Antigravity headless mode](https://antigravity.google/docs/cli/headless/) · [Claude skill invocation](https://code.claude.com/docs/en/skills) · [Codex skills](https://learn.chatgpt.com/docs/build-skills).
 - Releases: [Antigravity](https://antigravity.google/changelog). The selected harness skill owns its evolving command and authentication details.
