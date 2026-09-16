@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.2.0] - 2026-09-16
+
+### 🚀 Features
+
+- _(skills)_ Consolidate catalog and secure upgrades
+
 ## [6.1.0] - 2026-09-16
 
 ### 🚀 Features
