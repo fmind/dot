@@ -1,17 +1,18 @@
 ---
 name: sops-secrets
-description: "Manage secrets with sops and age: commit encrypted files, deliver runtime secrets through environment variables or FIFOs, and wire Flux or OpenTofu runtimes. Use for any secret stored in git."
+description: "Manage encrypted secrets with sops and age, including Git storage and runtime delivery."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Secrets with sops and age
 
-Encrypted secrets live in git next to their configuration. Use environment variables or FIFOs for runtime delivery; interactive editing can write temporary plaintext. [gitleaks](../gitleaks/SKILL.md) scans for leaked credentials, and [cloud-run](../cloud-run/SKILL.md) owns runtime Secret Manager integration.
+Encrypted secrets live in git next to their configuration. Use environment variables or FIFOs for runtime delivery; interactive editing can write temporary plaintext. [gitleaks](../security-review/references/gitleaks.md) scans for leaked credentials, and [cloud-run](../cloud-run/SKILL.md) owns runtime Secret Manager integration.
 
 ## Model
 
@@ -49,11 +50,11 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 - **Key names still leak**: sops encrypts values, not keys, so `stripe_production_key:` in a public repo is information; name keys neutrally when the repo is public.
 - **Never edit ciphertext by hand**: sops stores a MAC over the file and out-of-band edits fail decryption; go through `sops edit` or `sops set`.
 - **Rule match is positional**: `sops edit` picks the first `creation_rules` entry whose `path_regex` matches the path relative to `.sops.yaml`, so run sops from the repo root, and run `updatekeys` after any recipient change.
-- **gitleaks coexists**: encrypted `ENC[AES256_GCM,…]` values do not trip `check:leaks`; a finding in an `*.enc.*` file means a value was committed before encryption, so rotate it per [gitleaks](../gitleaks/SKILL.md).
-- **Staged hook**: the [lefthook](../lefthook/SKILL.md) pre-commit runs gitleaks on staged content, catching a staged plaintext sibling of an `*.enc.*` file.
+- **gitleaks coexists**: encrypted `ENC[AES256_GCM,…]` values do not trip `check:leaks`; a finding in an `*.enc.*` file means a value was committed before encryption, so rotate it per [gitleaks](../security-review/references/gitleaks.md).
+- **Staged hook**: the [lefthook](../github-actions/references/lefthook.md) pre-commit runs gitleaks on staged content, catching a staged plaintext sibling of an `*.enc.*` file.
 
 ## Documentation
 
 - [sops](https://getsops.io/docs/) · [age](https://age-encryption.org)
 - Releases: [sops](https://github.com/getsops/sops/releases) · [age](https://github.com/FiloSottile/age/releases)
-- Companion skills: [gitleaks](../gitleaks/SKILL.md), [lefthook](../lefthook/SKILL.md), [cloud-run](../cloud-run/SKILL.md) (runtime secrets), [terraform](../terraform/SKILL.md), [secure](../secure/SKILL.md).
+- Companion skills: [gitleaks](../security-review/references/gitleaks.md), [lefthook](../github-actions/references/lefthook.md), [cloud-run](../cloud-run/SKILL.md) (runtime secrets), [terraform](../infra-as-code/SKILL.md), [security-review](../security-review/references/code-review/GUIDE.md).

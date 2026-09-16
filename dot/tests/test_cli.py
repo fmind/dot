@@ -111,7 +111,7 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
     [
         ([], ["agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status"]),
         (["config"], ["edit", "init", "path", "show", "validate"]),
-        (["agent"], ["doctor", "session", "stats", "usage"]),
+        (["agent"], ["context", "doctor", "session", "stats", "usage"]),
         (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),
         (["agent", "usage"], ["list", "show"]),
         (["agent", "prompts"], ["stats"]),
@@ -134,6 +134,7 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
     agent = root.commands["agent"]
     assert isinstance(agent, TyperGroup)
     assert {name for name, child in agent.commands.items() if not child.hidden} == {
+        "context",
         "doctor",
         "session",
         "usage",
@@ -161,7 +162,7 @@ def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
     command = get_command(app)
     assert isinstance(command, TyperGroup)
     visible = {name for name, child in command.commands.items() if not child.hidden}
-    content = (ROOT / "skills/dot-cli/SKILL.md").read_text(encoding="utf-8")
+    content = (ROOT / "skills/dot-cli/references/operations.md").read_text(encoding="utf-8")
     documented = set(re.findall(r"^\| `dot ([a-z-]+)`", content, flags=re.MULTILINE))
 
     assert documented == visible
@@ -213,6 +214,30 @@ def test_main_reports_malformed_explicit_yaml_without_traceback(
     assert captured.out == ""
     assert f"dot: failed to parse config file at {malformed}:" in captured.err
     assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "api_token: SYNTHETIC_PRIVATE_VALUE\n",
+        "pull:\n  timeout_seconds: SYNTHETIC_PRIVATE_VALUE\n",
+        "auth: !SYNTHETIC_PRIVATE_VALUE {}\n",
+    ],
+)
+def test_config_validation_errors_do_not_disclose_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], content: str
+) -> None:
+    config = tmp_path / "config.yaml"
+    config.write_text(content)
+    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(config), "config", "validate"])
+    with pytest.raises(SystemExit) as stopped:
+        cli.main()
+    captured = capsys.readouterr()
+    assert stopped.value.code == 1
+    assert captured.out == ""
+    assert "SYNTHETIC_PRIVATE_VALUE" not in captured.err
+    assert "Traceback" not in captured.err
+    assert "validation error" in captured.err or "invalid YAML at line 1, column 7" in captured.err
 
 
 def test_config_repair_commands_accept_an_explicit_missing_path(tmp_path: Path) -> None:

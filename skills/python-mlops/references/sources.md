@@ -1,0 +1,24 @@
+# Source Map and Local Adaptations
+
+Reviewed on 2026-09-16. These immutable snapshots ground the workflow; they do not pin dependencies in projects using this skill. Read the relevant installed implementation or current primary documentation before using version-sensitive APIs.
+
+| Source | Reviewed revision | Relevant material | License |
+| --- | --- | --- | --- |
+| [MLOps coding course](https://github.com/MLOps-Courses/mlops-coding-course/tree/bc4b9a1ac2c51385253ca73c65c0e83f08ba44e7) | `bc4b9a1ac2c51385253ca73c65c0e83f08ba44e7` | Prototyping datasets/modeling/evaluation; productionizing configuration; refining experiments/registries; observability reproducibility/monitoring/lineage. | [CC BY 4.0](https://github.com/MLOps-Courses/mlops-coding-course/blob/bc4b9a1ac2c51385253ca73c65c0e83f08ba44e7/LICENSE.txt) |
+| [MLOps coding skills](https://github.com/MLOps-Courses/mlops-coding-skills/tree/4a146e6c4d4768554a546e161c9fdad80ff2c619) | `4a146e6c4d4768554a546e161c9fdad80ff2c619` | Seven chapter skills; particularly prototyping, industrialization, validation, automation, and observability. | [MIT, MLOps Courses](https://github.com/MLOps-Courses/mlops-coding-skills/blob/4a146e6c4d4768554a546e161c9fdad80ff2c619/LICENSE) |
+| [Cookiecutter MLOps package](https://github.com/fmind/cookiecutter-mlops-package/tree/68cb3f1d34f3edc3ca6bd41afda84fb2216e1ebd) | `68cb3f1d34f3edc3ca6bd41afda84fb2216e1ebd` | `cookiecutter.json`, generated package/configuration, README qualification boundaries, and `tests/test_cookiecutter.py`. | [MIT, Médéric Hurier](https://github.com/fmind/cookiecutter-mlops-package/blob/68cb3f1d34f3edc3ca6bd41afda84fb2216e1ebd/LICENSE.txt) |
+| [MLOps Python package](https://github.com/fmind/mlops-python-package/tree/a8a6ab1a4a479c72f8eb989b4390cae42995f751) | `a8a6ab1a4a479c72f8eb989b4390cae42995f751` | `src/bikes/core`, `io/configs.py`, `io/registries.py`, `io/services.py`, `jobs/`, `utils/splitters.py`, `confs/`, and `mise.toml`. | [MIT, Médéric Hurier](https://github.com/fmind/mlops-python-package/blob/a8a6ab1a4a479c72f8eb989b4390cae42995f751/LICENSE.txt) |
+
+Attribution: Médéric Hurier (Fmind) and MLOps Courses. This is an original, condensed operational synthesis with the changes below; upstream prose, code, and complete chapter skills are not vendored. Their licenses continue to govern their source material. Use the [vendor-skill policy](../../agent-project/references/vendor-skills.md) if a project needs an actual upstream skill installation.
+
+## Deliberate adaptations
+
+- Reuse existing Python, testing, CI, container, documentation, and connector owners instead of exposing seven overlapping chapter skills. The course structures learning; this collection routes work.
+- Preserve the project's Python baseline and tested dependencies. Do not impose the snapshots' Python minor, dependency versions, editor, or notebook format. Retain the existing marimo procedure; Jupyter projects may remain Jupyter.
+- Extract the template's foundation separately from the bike example's domain model and job architecture. Schemas, two-month temporal splits, thresholds, and model names are examples requiring project decisions.
+- Validate before starting services, return bounded typed results instead of `locals()`, and keep warnings visible. The reference's blanket `UserWarning` filter is not adopted.
+- Require evaluation of an explicit candidate before promotion. The reference's aggregate project task promotes before evaluation, and its promotion job can choose the latest version. Neither behavior is adopted.
+- Inspect autologging destinations and data capture; retain authorized lineage without uploading input examples by default. Do not claim that lockfiles, seeds, tracking, a rendered template, or a green local gate alone establish reproducibility or production readiness.
+- Keep model-quality monitoring separate from infrastructure telemetry. Data drift and SHAP explanations do not establish concept drift or causation.
+
+For upstream refreshes, compare these snapshots with the proposed revision and review only changed guidance and referenced implementations; update this record with the resulting adaptations.

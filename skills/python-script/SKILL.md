@@ -1,17 +1,18 @@
 ---
 name: python-script
-description: Write standalone single-file Python scripts with PEP 723 inline metadata run by uv. Use for a quick CLI script that needs dependencies without a full project.
+description: "Write standalone Python utilities using uv and PEP 723 metadata when dependencies are needed."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-script
   created: "2026-07-09"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # PEP 723 Standalone Python Scripts
 
-Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by `uv run` — no virtualenv, no `pyproject.toml`; a script that outgrows one file moves to [python-stack](../python-stack/SKILL.md).
+Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by `uv run` — no virtualenv, no `pyproject.toml`; a script that outgrows one file moves to [python-stack](../python-stack/references/foundation/GUIDE.md).
 
 ## Workflow
 
@@ -32,4 +33,4 @@ For recurring execution of the finished command, use [scheduled-jobs](../schedul
 
 - [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [Typer](https://typer.tiangolo.com/)
 - Releases: [uv](https://github.com/astral-sh/uv/releases) · [changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
-- Companion skills: [python-stack](../python-stack/SKILL.md) (full projects), [cli-contracts](../cli-contracts/SKILL.md) (flags, streams, exit codes).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md) (full projects), [cli-contracts](../cli-development/references/cli-contracts.md) (flags, streams, exit codes).

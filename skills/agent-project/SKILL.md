@@ -1,22 +1,23 @@
 ---
 name: agent-project
-description: Bootstrap a repository's AGENTS.md and .agents/ layout so coding agent hosts share one instruction set. Use when setting up agents on a repo.
+description: "Set up repository AGENTS.md, shared skills, and coding-agent discovery and host bridges."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-13"
+  updated: "2026-09-16"
 ---
 
 # Set Up Agents on a Project
 
-Author the shared project instruction and skill layer once, then add only required host bridges. [repository-docs](../repository-docs/SKILL.md) owns instruction content; [agent-mcp](../agent-mcp/SKILL.md) owns MCP configuration.
+Author the shared project instruction and skill layer once, then add only required host bridges. [repository-docs](../repository-docs/SKILL.md) owns instruction content; [mcp-setup](../mcp-setup/SKILL.md) owns MCP configuration.
 
 ## Workflow
 
 1. **Inspect first**: preserve existing AGENTS.md, host files, skills, and user settings; reuse a stack-specific instruction file when one exists.
-1. **Create the shared layer**: `AGENTS.md` from the [project template](templates/AGENTS.md), `.agents/skills/`, and an ignored `.agents/prompts/` working inbox for [agent-prompt](../agent-prompt/SKILL.md).
+1. **Create the shared layer**: `AGENTS.md` from the [project template](templates/AGENTS.md), `.agents/skills/`, and an ignored `.agents/prompts/` working inbox for [task-prompts](../task-prompts/SKILL.md).
 1. **Bridge installed hosts**: follow [host-setup.md](references/host-setup.md) for Claude links, optional configuration, and native custom-agent locations; do not create unused host files.
 1. **Verify discovery**: read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs; distinguish presence from demonstrated instruction following.
 1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary.
@@ -36,4 +37,4 @@ Read the [dated official skill source audit](references/official-skills.md) when
 ## Documentation
 
 - [AGENTS.md standard](https://agents.md) · [Agent Skills specification](https://agentskills.io/specification)
-- Companion skills: [agent-mcp](../agent-mcp/SKILL.md) (MCP servers), [repository-docs](../repository-docs/SKILL.md) (instruction conventions and freshness), [agent-prompt](../agent-prompt/SKILL.md) (`.agents/prompts/`).
+- Companion skills: [mcp-setup](../mcp-setup/SKILL.md) (MCP servers), [repository-docs](../repository-docs/SKILL.md) (instruction conventions and freshness), [task-prompts](../task-prompts/SKILL.md) (`.agents/prompts/`).

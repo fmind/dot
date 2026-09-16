@@ -1,12 +1,13 @@
 ---
 name: acli
-description: Use the Atlassian acli for Jira work items, sprints, boards, and Confluence pages with OAuth or token auth, JQL-bounded reads, and confirmed writes. Use for Jira or Confluence work.
+description: "Search, plan, and update Atlassian Jira and Confluence with acli."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Atlassian CLI
@@ -43,10 +44,10 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
 
 - **Bulk flags**: `--jql` and `--filter` on `transition`, `edit`, or `comment` act on every match; on `transition` and `edit`, `--yes` skips the prompt, not the authority rule.
 - **Rovo Dev**: `acli rovodev` is Atlassian's coding agent, not configured here; it reads `.agents/skills` and `~/.agents/skills`, so this catalog is available there without copies.
-- **MCP**: `atlassian/atlassian-mcp-server` publishes skills for the Rovo MCP server (`skills add atlassian/atlassian-mcp-server --list`), configured per [agent-mcp](../agent-mcp/SKILL.md); none covers `acli`.
+- **MCP**: `atlassian/atlassian-mcp-server` publishes skills for the Rovo MCP server (`skills add atlassian/atlassian-mcp-server --list`), configured per [mcp-setup](../mcp-setup/SKILL.md); none covers `acli`.
 
 ## Documentation
 
 - [acli reference](https://developer.atlassian.com/cloud/acli/reference/commands/)
 - Releases: [acli changelog](https://developer.atlassian.com/cloud/acli/changelog/)
-- Companion skills: [github-issues](../github-issues/SKILL.md) (same authority rules for GitHub), [gws](../gws/SKILL.md) (Google Workspace), [agent-mcp](../agent-mcp/SKILL.md).
+- Companion skills: [github-issues](../github-issues/SKILL.md) (same authority rules for GitHub), [gws](../gws/SKILL.md) (Google Workspace), [mcp-setup](../mcp-setup/SKILL.md).

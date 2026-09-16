@@ -1,21 +1,22 @@
 ---
 name: chrome-devtools
-description: "Inspect, debug, and automate Chrome via the Chrome DevTools MCP server and CLI: performance, accessibility, cookies, and memory. Use for live browser debugging and audits."
+description: "Inspect, debug, and automate Chrome through DevTools, including performance and accessibility."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Chrome DevTools
 
-Use Chrome DevTools MCP or its experimental CLI for live browser diagnostics. [playwright](../playwright/SKILL.md) owns repeatable end-to-end journeys; [modern-web](../modern-web/SKILL.md) owns platform implementation guidance.
+Use Chrome DevTools MCP or its experimental CLI for live browser diagnostics. [playwright](../playwright/SKILL.md) owns repeatable end-to-end journeys; [web-frontend](../web-frontend/SKILL.md) owns platform implementation guidance.
 
 ## Setup
 
-Require Node.js LTS, `npm`/`npx`, and supported Chrome. Reuse an available DevTools connection; otherwise follow [agent-mcp](../agent-mcp/SKILL.md) for the active harness. The launch command below uses a reviewed package pin; recheck installed help before updating it.
+Require Node.js LTS, `npm`/`npx`, and supported Chrome. Reuse an available DevTools connection; otherwise follow [mcp-setup](../mcp-setup/SKILL.md) for the active harness. The launch command below uses a reviewed package pin; recheck installed help before updating it.
 
 ```bash
 npx --yes chrome-devtools-mcp@1.9.0 --isolated --headless --no-usage-statistics --no-performance-crux
@@ -48,4 +49,4 @@ Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeD
 
 - [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [CLI](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md) · [Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)
 - Releases: [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp/releases)
-- Companion skills: [agent-mcp](../agent-mcp/SKILL.md), [playwright](../playwright/SKILL.md), [modern-web](../modern-web/SKILL.md), [benchmark](../benchmark/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md).
+- Companion skills: [mcp-setup](../mcp-setup/SKILL.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [benchmark](../benchmark/references/command-http.md), [quality-assurance](../quality-assurance/SKILL.md).

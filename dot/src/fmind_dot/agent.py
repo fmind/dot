@@ -37,12 +37,14 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.command_group import JsonOption, help_group
+from fmind_dot.context_budget import register as register_context
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import _spool_hook_failure, decode_copilot_session_end
 from fmind_dot.state import State, state_from
 from fmind_dot.system import build_notification, send_notification
 
 agent_app = help_group("Manage AI agent integrations and sessions")
+register_context(agent_app)
 session_app = help_group("Manage agent session logs")
 hook_app = help_group("Run observable agent hooks")
 usage_app = help_group("Inspect token usage from transactional session archives")

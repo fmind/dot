@@ -14,15 +14,15 @@ Split a task into `<task>:<x>` when one piece must run alone; each family keys `
 | `check:lint`    | lint rules                       | `ruff check`                                                    |
 | `check:types`   | static types                     | `ty check`                                                      |
 | `check:vuln`    | dependency CVEs                  | `uv audit`                                                      |
-| `check:leaks`   | working-tree and committed secrets                | [gitleaks](../../gitleaks/SKILL.md)                                |
-| `check:scan`    | IaC and config misconfigurations | [trivy](../../trivy/SKILL.md)                                      |
-| `check:actions` | workflow lint and audit          | `actionlint` + [zizmor](../../zizmor/SKILL.md)                     |
+| `check:leaks`   | working-tree and committed secrets                | [gitleaks](../../security-review/references/gitleaks.md)                                |
+| `check:scan`    | IaC and config misconfigurations | [trivy](../../security-review/references/trivy/GUIDE.md)                                      |
+| `check:actions` | workflow lint and audit          | `actionlint` + [zizmor](../../github-actions/references/zizmor.md)                     |
 
 Those names are reserved: never respell one (`check:audit`, `check:dprint`) when the table already covers the concern. A stack adds a name only for a concern the table has none for, and the shipped set is closed: `check:deps` (unused files and dependencies), `check:doc` (document compiles), `check:pkg` (publishable surface), `check:site` (site builds clean), `check:validate` (configuration syntax). A repository with multiple source families may split a repeated concern (`check:python`, `check:shell`), while a shared concern keeps its common name (`check:format` for the one dprint check). Aliases are best-effort: a repository that already spends `f`, `t`, or `i` keeps them; the task names are the contract.
 
 ## Conventions
 
-- **Hooks**: see [lefthook](../../lefthook/SKILL.md); each hook command is `mise run <task>` and its name mirrors the task.
+- **Hooks**: see [lefthook](../../github-actions/references/lefthook.md); each hook command is `mise run <task>` and its name mirrors the task.
 - **Parallel checks**: `check` fans out with `depends = ["check:format", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
 - **Incremental tasks**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Staged vs whole-tree**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.

@@ -115,6 +115,10 @@ ln -s ~/skill-library/meeting-prep ~/.agents/skills/
 
 Run this setup on each computer, choose a unique package name, and restart the agent session to refresh discovery. For diagnostics and catalog changes, see the [skill maintenance guide](.agents/skills/dot-skills/SKILL.md).
 
+### Upgrading the skill catalog
+
+The consolidated catalog retires 55 package names from v6.1.0. Existing installations need the [skill-link migration](.agents/skills/dot-skills/references/installed-links.md#catalog-consolidation-migration) before restarting their agents. Preview the migration first; its apply mode moves only confirmed retired links into a recoverable backup outside discovery. Other packages remain untouched. A fresh installation needs no migration.
+
 ## Credentials
 
 ### Secret Management
@@ -153,7 +157,7 @@ Use `dot login` to list providers, `dot login workspace` for Workspace, and `dot
 
 Use `dot setup github` to reconcile GitHub scopes and remove configured excluded grants. Use `dot setup workspace <project-id>` to enable missing Workspace APIs and configure its OAuth client. Native tools retain account/profile selection and credential storage.
 
-Configure authentication under `auth` in the [Dot configuration](#dot-configuration). See the [CLI guide](skills/dot-cli/SKILL.md#authentication) for selection precedence, scope policy, and authentication checks.
+Configure authentication under `auth` in the [Dot configuration](#dot-configuration). See the [authentication guide](skills/dot-cli/references/authentication.md) for selection precedence, scope policy, and authentication checks.
 
 ```yaml
 # Docs: https://github.com/fmind/dot

@@ -1,12 +1,13 @@
 ---
 name: ast-grep
-description: Search and rewrite Python structurally with ast-grep patterns, meta-variables, YAML rules, and JSON output. Use for AST-aware code search, lint rules, or safe bulk refactors.
+description: "Find and safely rewrite Python syntax with ast-grep patterns and rules."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # ast-grep
@@ -47,4 +48,4 @@ Upstream: `ast-grep/agent-skill`; follow the shared [vendor-skill policy](../age
 
 - [ast-grep guide](https://ast-grep.github.io/guide/introduction.html) · [Pattern syntax](https://ast-grep.github.io/guide/pattern-syntax.html) · [Rule reference](https://ast-grep.github.io/reference/rule.html) · [Languages](https://ast-grep.github.io/reference/languages.html)
 - Releases: [ast-grep](https://github.com/ast-grep/ast-grep/releases) · [changelog](https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md)
-- Companion skills: [project-health](../project-health/SKILL.md) (repository simplification), [python-stack](../python-stack/SKILL.md) (Python quality gate).
+- Companion skills: [repository-maintenance](../repository-maintenance/SKILL.md) (repository simplification), [python-stack](../python-stack/references/foundation/GUIDE.md) (Python quality gate).

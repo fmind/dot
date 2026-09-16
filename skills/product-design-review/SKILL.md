@@ -1,12 +1,13 @@
 ---
 name: product-design-review
-description: Critique customer interfaces with runtime evidence across interaction, visuals, responsive behavior, accessibility, and content. Use for UX audits or redesigns.
+description: "Review UI/UX: journeys, copy, visual hierarchy, accessibility, and responsive states."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-design-review
   created: "2026-08-08"
-  updated: "2026-09-15"
+  updated: "2026-09-16"
 ---
 
 # Product Design Review

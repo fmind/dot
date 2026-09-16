@@ -1,17 +1,18 @@
 ---
 name: course-development
-description: "Build a technical course: lessons, executable labs, prerequisites, guided practice, accessibility, release acceptance. Use when writing or revising a course, chapter, lab, or tutorial."
+description: "Design technical courses, lessons, and executable labs with learning and acceptance criteria."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-09-13"
+  updated: "2026-09-16"
 ---
 
 # Develop a Technical Course
 
-Build a course learners can understand, execute, and finish. Use [zensical](../zensical/SKILL.md) as the default course publisher; an existing course repository owns its platform, page schema, and task names. Use [quality-assurance](../quality-assurance/SKILL.md) for a broader test campaign.
+Build a course learners can understand, execute, and finish. Use [zensical](../documentation-site/SKILL.md) as the default course publisher; an existing course repository owns its platform, page schema, and task names. Use [quality-assurance](../quality-assurance/SKILL.md) for a broader test campaign.
 
 ## Workflow
 
@@ -38,4 +39,4 @@ Read [reference-course.md](references/reference-course.md) and its [page templat
 ## Documentation
 
 - Reference course: `~/mlops-courses/agentops-open-course` (its `AGENTS.md` owns the page frame, gates, and authoring rules).
-- Companion skills: [mermaid](../mermaid/SKILL.md) (diagrams), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).
+- Companion skills: [mermaid](../diagrams-as-code/references/mermaid.md) (diagrams), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).

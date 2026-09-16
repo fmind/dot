@@ -1,0 +1,55 @@
+---
+name: trivy
+description: "Dependency, configuration, image, license, and SBOM scanning."
+---
+
+# Trivy
+
+One scanner for the whole repository: dependencies, infrastructure as code, secrets, licenses, container images, and SBOMs. The policy lives in `trivy.yaml` (`HIGH`/`CRITICAL`, `ignore-unfixed`, scanners: vuln, misconfig, secret, license) so local runs and CI report the same findings.
+
+## Commands
+
+```bash
+trivy --config trivy.yaml fs .                                    # repository: deps, IaC, secrets, licenses
+trivy --config trivy.yaml config .                                # IaC only: Dockerfile, Terraform, Kubernetes, GitHub Actions
+trivy --config trivy.yaml image --skip-dirs '' --input tmp/image.tar             # local image tarball, before any push (check:image)
+trivy --config trivy.yaml image --skip-dirs '' <registry>/<slug>@<digest>        # pushed image, by immutable digest
+trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx -o sbom.json <registry>/<slug>@<digest>
+trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars . # OpenTofu modules need variables to evaluate
+```
+
+## Mise Task
+
+Expose the repository scan as `check:scan` in `mise.toml` per [mise](../../../mise/SKILL.md); `mise run check` then runs it locally and in CI:
+
+```toml
+[tasks."check:scan"]
+description = "Scan dependencies, IaC, licenses, and secrets (Trivy)"
+run = "trivy --config trivy.yaml fs ." # mise appends extra path arguments
+```
+
+Python's native dependency scanner stays separate as `check:vuln` (`uv audit`) because it understands `uv.lock` semantics; keep both tasks, while `trivy fs` adds IaC, secrets, and licenses on top.
+
+For scheduled visibility into advisories that the blocking policy intentionally excludes, use the separate [fixed and unfixed report](references/unfixed-report.md). It never replaces the blocking gate.
+
+## Triage
+
+1. Group findings by severity, then split fixable from `unfixed`.
+1. Prefer the minimal upgrade of the affected dependency or base image; re-run the scan to prove the fix.
+1. Record an accepted risk in `.trivyignore` (one CVE or path per line, with a `#` reason) instead of lowering the global severity bar.
+1. Treat a secret finding as compromised: rotate it, then clean the history per [gitleaks](../gitleaks.md).
+
+## Gotchas
+
+- **Always pass `--config trivy.yaml`**: precedence is `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, and the owner's shell exports a global `TRIVY_CONFIG`, so a bare `trivy fs .` silently uses the global policy.
+- **Commit a project `trivy.yaml`**: copy the global one so CI, hooks, and agents share one policy.
+- **Image coverage**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.
+- **License findings remain findings**: the shared license policy can reject Debian base packages. Review the owning project's distribution requirements and explicit license policy before publication; do not disable the scanner or add blanket ignores to make an image pass.
+- **Scan digests, not tags**: a tag can move after the scan; the digest is what ships.
+- **Databases update on first run**: a scan needs network access once per day for the vulnerability database; use `--skip-db-update` in offline reruns.
+
+## Documentation
+
+- [Trivy](https://trivy.dev)
+- Releases: [Trivy](https://github.com/aquasecurity/trivy/releases) · [changelog](https://github.com/aquasecurity/trivy/blob/main/CHANGELOG.md)
+- Companion skills: [security-review](../code-review/GUIDE.md) (the repository checklist), [containerize](../../../containerize/references/image-build/GUIDE.md) (image scans), [github-actions](../../../github-actions/references/ci-cd/GUIDE.md) (`security.yml` scheduled scan).

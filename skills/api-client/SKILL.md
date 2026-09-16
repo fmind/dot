@@ -1,12 +1,13 @@
 ---
 name: api-client
-description: Build small typed Python clients for external APIs with bounded pagination and deliberate retry semantics. Use when application code must integrate an HTTP service.
+description: "Build typed Python HTTP API clients with bounded pagination, retries, and clear failures."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/api-client
   created: "2026-09-09"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # API Client
@@ -35,4 +36,4 @@ Integrate the needed API operation with a small, testable boundary. Prefer an ex
 
 - [HTTPX clients](https://www.python-httpx.org/advanced/clients/) · [timeouts](https://www.python-httpx.org/advanced/timeouts/) · [transports](https://www.python-httpx.org/advanced/transports/)
 - Releases: [HTTPX changelog](https://github.com/encode/httpx/blob/master/CHANGELOG.md)
-- Companion skills: [pydantic](../pydantic/SKILL.md) (schemas), [python-async](../python-async/SKILL.md) (task lifetime and cancellation), [python-stack](../python-stack/SKILL.md) (project tooling), [gws](../gws/SKILL.md) (Workspace).
+- Companion skills: [pydantic](../python-stack/references/pydantic.md) (schemas), [python-async](../python-stack/references/python-async/GUIDE.md) (task lifetime and cancellation), [python-stack](../python-stack/references/foundation/GUIDE.md) (project tooling), [gws](../gws/SKILL.md) (Workspace).

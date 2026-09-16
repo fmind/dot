@@ -1,12 +1,13 @@
 ---
 name: agent-usage
-description: Analyze LLM token usage across agent harnesses with dot, DuckDB, or jq. Use when auditing consumption, cost drivers, or harness efficiency.
+description: "Analyze agent token usage, costs, subscriptions, and efficiency with dot and local queries."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Agent Usage

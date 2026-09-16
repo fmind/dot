@@ -1,12 +1,13 @@
 ---
 name: xh
-description: Inspect HTTP endpoints with bounded, credential-safe xh requests. Use for read-only API headers, status, and small response checks.
+description: "Inspect HTTP endpoints with bounded, credential-safe requests using xh."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # xh HTTP Inspection

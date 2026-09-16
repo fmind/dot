@@ -3,6 +3,7 @@ name: <name>
 description: <What the skill does in one sentence.> Use when <trigger>.
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/<name>
   created: <YYYY-MM-DD>

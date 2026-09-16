@@ -1,12 +1,13 @@
 ---
 name: playwright
-description: Drive browsers with Python Playwright for end-to-end tests, screenshots, traces, and code generation. Use for browser automation or e2e testing.
+description: "Automate and test browser workflows with Python Playwright, including screenshots and traces."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-09-14"
+  updated: "2026-09-16"
 ---
 
 # Playwright
@@ -37,4 +38,4 @@ Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli
 - [Playwright for Python](https://playwright.dev/python/docs/intro) · [pytest plugin](https://playwright.dev/python/docs/test-runners) · [Trace Viewer](https://playwright.dev/python/docs/trace-viewer)
 - Accessibility and performance evidence: [chrome-devtools](../chrome-devtools/SKILL.md) owns the MCP integration and reviewed package version; `lighthouse <url> --output json` stays the one-shot audit.
 - Releases: [Playwright release notes](https://playwright.dev/python/docs/release-notes) · [playwright-python](https://github.com/microsoft/playwright-python/releases)
-- Companion skills: [python-stack](../python-stack/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md), [benchmark](../benchmark/SKILL.md) (load, not browser, testing).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md), [benchmark](../benchmark/references/command-http.md) (load, not browser, testing).

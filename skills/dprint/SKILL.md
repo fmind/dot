@@ -1,17 +1,18 @@
 ---
 name: dprint
-description: Canonical dprint setup, the standard formatter for JSON, Markdown, TOML, and YAML. Use when configuring or running formatting for these file types.
+description: "Format Markdown and configuration files with dprint."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # dprint
 
-The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); dprint formats only, while Python formatting and linting live in [ruff](../ruff/SKILL.md).
+The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); dprint formats only, while Python formatting and linting live in [ruff](../python-stack/references/ruff.md).
 
 ## Configuration
 
@@ -51,4 +52,4 @@ run = "dprint check"
 
 - [dprint](https://dprint.dev) · [Configuration](https://dprint.dev/config/) · [CLI](https://dprint.dev/cli/)
 - Releases: [dprint](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [lefthook](../lefthook/SKILL.md) (the pre-commit hook that calls `format:dprint`).
+- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [lefthook](../github-actions/references/lefthook.md) (the pre-commit hook that calls `format:dprint`).

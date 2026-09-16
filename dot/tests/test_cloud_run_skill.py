@@ -13,7 +13,7 @@ EXACT_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def _workflow_steps() -> list[dict[str, object]]:
-    workflow = yaml.safe_load((ROOT / "skills/cloud-run/references/deploy.yml").read_text(encoding="utf-8"))
+    workflow = yaml.safe_load((ROOT / "skills/cloud-run/templates/deploy.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["deploy-cloud-run"]["steps"]
     assert isinstance(steps, list)
     return steps

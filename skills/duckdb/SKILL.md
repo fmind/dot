@@ -1,12 +1,13 @@
 ---
 name: duckdb
-description: Query and transform CSV, Parquet, JSON, SQLite, and DuckDB files with the duckdb and sqlite3 CLIs for ad-hoc analysis and exports. Use for local SQL over files or an embedded database.
+description: "Query, transform, and export files or databases with DuckDB and SQLite."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # DuckDB and SQLite
@@ -53,4 +54,4 @@ Upstream: `duckdb/duckdb-skills`, with separate selections for querying, file fo
 
 - [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview) · [SQLite CLI](https://sqlite.org/cli.html)
 - Releases: [DuckDB](https://github.com/duckdb/duckdb/releases) · [SQLite changes](https://sqlite.org/changes.html)
-- Companion skills: [python-script](../python-script/SKILL.md) (a one-file pipeline when SQL is not enough), [python-stack](../python-stack/SKILL.md) (typed application data access and embedded SQLite).
+- Companion skills: [python-script](../python-script/SKILL.md) (a one-file pipeline when SQL is not enough), [python-stack](../python-stack/references/foundation/GUIDE.md) (typed application data access and embedded SQLite).

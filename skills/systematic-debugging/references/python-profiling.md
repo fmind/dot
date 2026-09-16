@@ -1,6 +1,6 @@
 # Python Profiling
 
-Use profiling to locate a measured slowdown; [benchmark](../../benchmark/SKILL.md) owns uninstrumented before/after comparisons. Start with the installed Python standard library, run through `uv`, and use a representative, bounded workload in an isolated workspace.
+Use profiling to locate a measured slowdown; [benchmark](../../benchmark/references/command-http.md) owns uninstrumented before/after comparisons. Start with the installed Python standard library, run through `uv`, and use a representative, bounded workload in an isolated workspace.
 
 1. Compare elapsed and CPU time for the same work. High elapsed time with little CPU suggests waiting; high CPU suggests computation, but process totals can include other threads and exclude child processes.
 1. For CPU/call attribution, substitute the real script and arguments below. Create the scratch output directory first and keep input, revision, runtime, and cache state with the result.
@@ -42,6 +42,6 @@ Use the project environment and installed help; add a development dependency onl
 - **Pyinstrument**: for sampled elapsed-time call trees, including waits, run `uv run pyinstrument -r html -o profile.html workload.py` (or `-m package.module`). Choose async attribution deliberately; inspect hidden frames when aggregation obscures the caller. Sampling is not an exact call counter, and short workloads can be dominated by sampling variance.
 - **Memray**: for allocation stacks, run `uv run memray run -o capture.bin workload.py`, then `uv run memray stats capture.bin` and `uv run memray flamegraph -o memory.html capture.bin`. Add `--native` at capture time when native extension allocations matter; first check platform support. Distinguish allocation volume, peak live memory, and retained allocations; high allocation volume alone is not a leak. RSS also includes allocator arenas and mapped memory.
 
-For either tool, preserve the workload and lifecycle boundaries, verify correctness after the change, and confirm improvement with an unprofiled measurement through [benchmark](../../benchmark/SKILL.md).
+For either tool, preserve the workload and lifecycle boundaries, verify correctness after the change, and confirm improvement with an unprofiled measurement through [benchmark](../../benchmark/references/command-http.md).
 
 Sources: [Pyinstrument](https://pyinstrument.readthedocs.io/en/latest/guide.html) and [Memray](https://bloomberg.github.io/memray/).

@@ -1,17 +1,18 @@
 ---
 name: ai-security-assessment
-description: Assess AI applications and agents with adversarial scenarios and PyRIT. Use for prompt injection, retrieval leakage, unauthorized tool actions, or AI red teaming.
+description: "Assess AI security through adversarial scenarios, including prompt injection and tool misuse."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ai-security-assessment
   created: "2026-09-11"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # AI Security Assessment
 
-Turn a concrete AI attack path into a reproducible assessment and remediation test. [threat-model](../threat-model/SKILL.md) owns architectural analysis, [secure](../secure/SKILL.md) owns source and dependency review, and [agent-evaluation](../agent-evaluation/SKILL.md) owns repeated-trial comparisons. Use PyRIT as the execution framework through a project-local `uv` environment.
+Turn a concrete AI attack path into a reproducible assessment and remediation test. [threat-model](../threat-model/SKILL.md) owns architectural analysis, [security-review](../security-review/references/code-review/GUIDE.md) owns source and dependency review, and [agent-evaluation](../agent-evaluation/SKILL.md) owns repeated-trial comparisons. Use PyRIT as the execution framework through a project-local `uv` environment.
 
 ## Workflow
 

@@ -28,6 +28,7 @@ def _write_skill(
         f"description: {description}\n"
         "license: MIT\n"
         "metadata:\n"
+        "  kind: task\n"
         "  author: Fixture Author\n"
         "---\n\n"
         "# Fixture\n\n"
@@ -185,7 +186,7 @@ def test_skills_contract_rejects_undisclosed_and_misplaced_resources(tmp_path: P
 
     findings = checker.repository_findings(root)
 
-    assert any("not directly disclosed" in finding for finding in findings)
+    assert any("not reachable" in finding for finding in findings)
     assert any("executable outside scripts" in finding for finding in findings)
 
 
@@ -404,6 +405,34 @@ def test_documentation_checks_root_and_cli_readme_links(tmp_path: Path) -> None:
     assert any("dot/README.md: missing local link 'missing.md'" in finding for finding in findings)
 
 
+def test_documentation_validates_markdown_fragments(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    readme = root / "README.md"
+    readme.write_text(
+        "# Fixture\n\n"
+        "[Self](#fixture) [Code](guide.md#run-dot) [Unicode](guide.md#caf%C3%A9) "
+        "[Duplicate](guide.md#repeat-1) [HTML](guide.md#explicit) "
+        "[Missing](guide.md#removed) [Missing self](#gone)\n"
+    )
+    (root / "guide.md").write_text(
+        '# Run `dot`\n\n## Café\n\n## Repeat\n\n## Repeat\n\n<a id="explicit"></a>\n```markdown\n# Not an anchor\n```\n'
+    )
+    findings = checker.documentation_findings(root)
+    assert len(findings) == 2
+    assert any("missing local anchor 'guide.md#removed'" in finding for finding in findings)
+    assert any("missing local anchor '#gone'" in finding for finding in findings)
+    readme.write_text("[Code block](guide.md#not-an-anchor)\n")
+    assert "missing local anchor" in checker.documentation_findings(root)[0]
+
+
+def test_skills_generated_template_fragments_are_not_checked_before_rendering(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    template = root / "skills/fixture/templates/README.md"
+    template.parent.mkdir()
+    template.write_text("[Replace when rendered](#generated-section)\n")
+    assert checker._link_findings(root, root, documents=(template,)) == []
+
+
 def test_skills_overlap_report_is_informational(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     routing = json.loads((root / "dot/testdata/skills/routing-boundaries.json").read_text(encoding="utf-8"))
@@ -419,6 +448,155 @@ def test_skills_overlap_report_is_informational(tmp_path: Path) -> None:
 
 def test_skills_overlap_keeps_short_tool_names() -> None:
     assert {"d2", "hf", "ty", "uv", "xh"} <= checker._words("Use D2, hf, ty, uv, and xh.")
+
+
+@pytest.mark.parametrize(("scope", "relative"), [("global", "dot_agents/AGENTS.md"), ("local", "AGENTS.md")])
+def test_skills_contract_budgets_instructions_in_each_scope(tmp_path: Path, scope: str, relative: str) -> None:
+    root = _fixture_repository(tmp_path)
+    local = root / ".agents/skills"
+    local.mkdir(parents=True)
+    (root / "skills/fixture-helper").rename(local / "fixture-helper")
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("x" * 20_000)
+    findings = checker.repository_findings(root)
+    assert any(f"{scope} AGENTS.md + skill discovery contains" in finding for finding in findings)
+    assert not any(
+        f"{'local' if scope == 'global' else 'global'} AGENTS.md + skill discovery contains" in finding
+        for finding in findings
+    )
+    path.write_text("Short instructions.\n")
+    assert checker.repository_findings(root) == []
+
+
+def test_skills_contract_does_not_budget_the_combined_total(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    (root / "dot_agents").mkdir()
+    (root / "dot_agents/AGENTS.md").write_text("g" * 12_000)
+    (root / "AGENTS.md").write_text("p" * 12_000)
+    assert checker.repository_findings(root) == []
+
+
+def test_skills_catalog_report_is_portable_and_includes_name_and_path_cost(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    report = checker.catalog_report(root)
+    assert "Global skills: 2; local skills: 0" in report
+    assert "Global AGENTS.md + skill discovery:" in report
+    assert "Local AGENTS.md + skill discovery:" in report
+    assert " / <5000" in report
+    assert "characters / 4" in report
+    assert "not host tokenization or billing" in report
+    assert str(tmp_path) not in report
+
+
+@pytest.mark.parametrize("details", [False, True])
+def test_skills_report_details_are_opt_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], details: bool
+) -> None:
+    root = _fixture_repository(tmp_path)
+    monkeypatch.setattr(checker, "__file__", str(root / "dot/dot_tasks/skill_contracts.py"))
+    monkeypatch.setattr("sys.argv", ["skill_contracts", "--report", *(["--details"] if details else [])])
+
+    assert checker.main() == 0
+
+    output = capsys.readouterr().out
+    assert "Discovery headroom:" in output
+    assert "Lexical rank-1 matches:" in output
+    assert ("fixture-route" in output) is details
+    assert ("- task: fixture, fixture-helper" in output) is details
+    assert str(tmp_path) not in output
+
+
+@pytest.mark.parametrize("slug", ["../escape", "", "guide, guide"])
+def test_skills_contract_rejects_invalid_guide_metadata(tmp_path: Path, slug: str) -> None:
+    root = _fixture_repository(tmp_path)
+    path = root / "skills/fixture/SKILL.md"
+    path.write_text(
+        path.read_text().replace("  author: Fixture Author", f'  author: Fixture Author\n  guides: "{slug}"')
+    )
+    assert any("guide" in finding for finding in checker.repository_findings(root))
+
+
+def test_skills_guide_metadata_drives_index_and_detects_stale_description(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    path = root / "skills/fixture/SKILL.md"
+    guide = path.parent / "references/guide.md"
+    guide.write_text("---\nname: guide\ndescription: Diagnose a fixture failure.\n---\n# Guide\n")
+    path.write_text(path.read_text() + "\n" + checker._guide_index(path.parent, root) + "\n")
+    assert checker.repository_findings(root) == []
+    guide.write_text(guide.read_text().replace("Diagnose a fixture failure.", "Recover a fixture after interruption."))
+    assert any("stale guide index" in item for item in checker.repository_findings(root))
+
+
+def test_skills_nested_resources_are_reachable_but_disconnected_cycles_are_not(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    folder = root / "skills/fixture/references"
+    (folder / "guide.md").write_text("# Guide\n\n[Procedure](procedure.md)\n")
+    (folder / "procedure.md").write_text("# Procedure\n\nUse [template](template.txt).\n")
+    (folder / "template.txt").write_text("fixture output\n")
+    assert checker.repository_findings(root) == []
+    (folder / "orphan-a.md").write_text("[B](orphan-b.md)\n")
+    (folder / "orphan-b.md").write_text("[A](orphan-a.md)\n")
+    findings = checker.repository_findings(root)
+    assert sum("not reachable" in item for item in findings) == 2
+
+
+def test_skills_reject_nested_entrypoint_even_when_linked(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    path = root / "skills/fixture/references/child/SKILL.md"
+    path.parent.mkdir()
+    path.write_text("# Child\n")
+    (path.parent.parent / "guide.md").write_text("[Child](child/SKILL.md)\n")
+    assert any("nested SKILL.md enters host discovery" in item for item in checker.repository_findings(root))
+
+
+def test_skills_checks_links_inside_code_disclosed_resources(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    path = root / "skills/fixture/references/guide.md"
+    path.write_text("Read `details.md` for the exact procedure.\n")
+    (path.parent / "details.md").write_text("[Missing](missing.md)\n")
+    assert any("details.md: missing local link" in item for item in checker.repository_findings(root))
+
+
+@pytest.mark.parametrize("kind", ["unknown", "[]", "{}", "null"])
+def test_skills_rejects_unknown_kind_and_foreign_guide_route(tmp_path: Path, kind: str) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    skill.write_text(skill.read_text().replace("kind: task", f"kind: {kind}"))
+    routes = root / "dot/testdata/skills/routing-boundaries.json"
+    data = json.loads(routes.read_text())
+    data["cases"][0]["guide"] = "../../fixture-helper/references/guide.md"
+    routes.write_text(json.dumps(data))
+    findings = checker.repository_findings(root)
+    assert any("metadata.kind must" in item for item in findings)
+    assert any("guide must name" in item for item in findings)
+
+
+def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    parent = root / "skills/fixture"
+    guide = parent / "references/child/GUIDE.md"
+    guide.parent.mkdir()
+    guide.write_text(
+        "---\nname: child\ndescription: Recover a fixture.\n---\n# Child\n\nRecover it.\n\n## Workflow\n\nUse [input](templates/input.txt).\n"
+    )
+    (guide.parent / "templates").mkdir()
+    (guide.parent / "templates/input.txt").write_text("input\n")
+    entry = parent / "SKILL.md"
+    entry.write_text(entry.read_text() + "\n" + checker._guide_index(parent, root) + "\n")
+    assert checker.repository_findings(root) == []
+    destination = root / "skills/child"
+    guide.parent.rename(destination)
+    promoted = destination / "SKILL.md"
+    (destination / "GUIDE.md").rename(promoted)
+    promoted.write_text(
+        promoted.read_text().replace(
+            "description: Recover a fixture.", "description: Recover a fixture.\nlicense: MIT\nmetadata:\n  kind: task"
+        )
+    )
+    findings, _ = checker._skill_findings(root, "child", promoted, [])
+    assert findings == []
+    assert (destination / "templates/input.txt").read_text() == "input\n"
 
 
 def test_skills_live_repository_contract() -> None:

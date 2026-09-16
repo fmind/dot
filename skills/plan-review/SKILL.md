@@ -1,12 +1,13 @@
 ---
 name: plan-review
-description: Red-team a product, architecture, implementation, migration, or launch plan before execution. Use for pre-mortems, scope challenge, and testing assumptions, dependencies, and failure modes, not code.
+description: "Challenge product and implementation plans through assumptions, failure modes, and trade-offs."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/plan-review
   created: "2026-08-08"
-  updated: "2026-09-15"
+  updated: "2026-09-16"
 ---
 
 # Plan Review

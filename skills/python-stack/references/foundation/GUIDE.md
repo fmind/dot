@@ -1,0 +1,57 @@
+---
+name: foundation
+description: "Python package layout, dependency choices, defaults, and project scaffolding."
+---
+
+# Python Stack Standard
+
+Own the shared Python foundation and select the specialist for the task. Preserve existing project conventions. Load only the relevant owner; specialist skills can use these defaults without restarting the bootstrap workflow.
+
+## Defaults
+
+- **Toolchain**: mise owns the interpreter under the [shared tool baseline](../../../mise/references/tool-versions.md); uv owns package environments and `uv.lock`. Python follows the same `latest` baseline and exact project pins as other tools. Align `.python-version` with the selected pin within `requires-python`; check a library's minimum interpreter with `uv run --isolated --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
+- **Foundation**: a `src/<package>/` layout and no runtime dependencies until the application uses them. Distribution slugs may contain hyphens; import names use underscores.
+- **Quality**: Ruff for Python formatting/lint, ty for types, pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests and an initial 85% branch-coverage target adapted to the project.
+- **Boundaries**: use Pydantic/settings when external input or application configuration needs typed validation, and structlog when structured logging is required. Respect ecosystem-native formats; otherwise use YAML for human-maintained configuration and JSON for program-owned data, with explicit defaults and override precedence.
+
+For application templates, set output-appropriate escaping explicitly and prefer `StrictUndefined` in new Jinja templates when missing data is an error; review compatibility before changing existing undefined behavior. Template generation and tracked updates use [cookiecutter](../../../project-scaffolding/references/cookiecutter/GUIDE.md).
+
+## Workflow
+
+1. **Choose the owner** from [profiles](references/profiles.md) and the table below. For an existing application's feature or diagnostic, go directly to its specialist.
+1. **Create the foundation only when needed** using [bootstrap](references/bootstrap.md), the shared manifest and tasks below, and the minimal library example. Add the selected specialist's scaffold before final qualification; generated agent and Django projects retain their native layouts.
+1. **Verify the result** through focused behavior tests and the project's canonical gate. Build a new package, install its wheel in a fresh environment, and exercise its public import or command outside the source tree; an editable install alone does not qualify packaging.
+1. **Finish** through [repository-docs](../../../repository-docs/SKILL.md). [project-scaffolding](../../../project-scaffolding/references/bootstrap.md) owns repository-wide setup, CI, licensing, and authorized publication.
+
+## Task owners
+
+| Need                                                | Owner                                                                                                                                                                                                                                               |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dependencies, environments, Python versions, builds | [uv](../uv.md)                                                                                                                                                                                                                                |
+| Python lint/format or type diagnostics              | [ruff](../ruff.md), [ty](../ty.md)                                                                                                                                                                                                      |
+| Task definitions, hooks, markup/config formatting   | [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [dprint](../../../dprint/SKILL.md)                                                                                                                                                            |
+| CLI scaffold and command behavior                   | [typer](../../../cli-development/references/typer/GUIDE.md), [cli-contracts](../../../cli-development/references/cli-contracts.md)                                                                                                                                                                              |
+| Web application                                     | [django](../../../python-web/references/django/GUIDE.md) for ORM, admin, auth, and server-rendered pages; [litestar](../../../python-web/references/litestar/GUIDE.md) for typed ASGI APIs and services; [fastapi](../../../python-web/references/fastapi.md) for an existing or generated scaffold                               |
+| Async tasks, cancellation, deadlines, shutdown      | [python-async](../python-async/GUIDE.md)                                                                                                                                                                                                            |
+| Persisted schema or data changes                    | [data-migration](../../../data-migration/SKILL.md), including Alembic; use installed database/framework documentation for query APIs.                                                                                                                     |
+| Agent, LLM, and MCP application code                | [agents-cli](../../../agent-frameworks/references/agents-cli/GUIDE.md) and [google-adk](../../../agent-frameworks/references/google-adk.md) for Google agents; [langchain](../../../agent-frameworks/references/langchain.md) or [langgraph](../../../agent-frameworks/references/langgraph.md) for framework code; [MCP implementation](../../../agent-protocols/references/mcp/GUIDE.md) for tool servers |
+| ML training, experiments, registry, and monitoring | [python-mlops](../../../python-mlops/SKILL.md) |
+| Single-file utility or reactive notebook            | [python-script](../../../python-script/SKILL.md), [marimo](../../../python-mlops/references/marimo.md)                                                                                                                                                                            |
+| Local data queries and exports                      | [duckdb](../../../duckdb/SKILL.md); use the project's dataframe and plotting libraries through their installed source and official docs.                                                                                                                  |
+| Input validation, logging, external HTTP            | [pydantic](../pydantic.md), [observability](../../../observability/SKILL.md), [api-client](../../../api-client/SKILL.md)                                                                                                                                  |
+| Python tests and Hypothesis integration             | [python-testing](../../../python-testing/SKILL.md), including pytest mechanics and property-testing references.                                                                                                                         |
+| Broader test campaigns                              | [quality-assurance](../../../quality-assurance/SKILL.md)                                                                                                                                                                                                  |
+| CPU and allocation profiling                        | [systematic-debugging](../../../systematic-debugging/SKILL.md), including its Python profiler recipes.                                                                                                                                                    |
+| Security scans and dependency upgrades              | [security-review](../../../security-review/references/code-review/GUIDE.md), [upgrade-tools](../../../upgrade-tools/SKILL.md)                                                                                                                                                                            |
+
+## Foundation resources
+
+- [pyproject.toml.template](templates/pyproject.toml.template), [mise.toml](templates/mise.toml), and [lefthook.yml](templates/lefthook.yml) define the shared foundation. Preserve supported package ranges; resolve scaffold tool selectors to exact baseline pins before installation.
+- [AGENTS.md](templates/AGENTS.md) and [gitignore](templates/gitignore) supply project conventions.
+- [init-library.py](templates/init-library.py) and [test_library.py](templates/test_library.py) supply the minimal library example; application code and tests live with the selected specialist.
+
+## Documentation
+
+- [Python](https://docs.python.org/3/) · [Python packaging](https://packaging.python.org/)
+- [agent-project](../../../agent-project/SKILL.md) owns vendor skill discovery and the dated official-source audit; selecting a stack does not install every vendor bundle.
+- Releases: [Python versions](https://devguide.python.org/versions/) · [CPython changelog](https://docs.python.org/3/whatsnew/changelog.html)
