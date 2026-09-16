@@ -1,17 +1,18 @@
 ---
 name: systematic-debugging
-description: Diagnose bugs, build/auth/network failures, flakes, and Python performance. Use for root-cause investigation, DNS/TLS/HTTP troubleshooting, or Pyinstrument/Memray profiling.
+description: "Diagnose failures, DNS/TLS, and Python CPU or memory issues with Pyinstrument and Memray."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-09-13"
+  updated: "2026-09-16"
 ---
 
 # Systematic Debugging
 
-Replace guess-and-check with an evidence loop that localizes where and why behavior diverges; [test-driven-development](../test-driven-development/SKILL.md) implements the fix and [incident-response](../incident-response/SKILL.md) owns live outages.
+Replace guess-and-check with an evidence loop that localizes where and why behavior diverges; [python-testing](../python-testing/SKILL.md) implements the fix and [incident-response](../incident-response/SKILL.md) owns live outages.
 
 ## Workflow
 
@@ -33,7 +34,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 - **Multi-component pipelines**: Instrument every boundary once with presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
 - **Resolver failures**: Record the exact resolver, runtime or toolchain, platform, package index, manifest, lockfile, and installed source before changing any constraint.
 - **Resolver reproduction**: Reproduce with the same resolver and distinguish direct constraints, transitive conflicts, platform markers, yanked releases, build-backend or wheel failures, authentication, network reachability, and stale locks.
-- **Resolver routing**: Inspect the lock and installed source without executing it and apply the smallest constraint fix only when authorized; route upgrades to [upgrade-tools](../upgrade-tools/SKILL.md), registry facts to [technical-research](../technical-research/SKILL.md), and CVE or license triage to [secure](../secure/SKILL.md).
+- **Resolver routing**: Inspect the lock and installed source without executing it and apply the smallest constraint fix only when authorized; route upgrades to [upgrade-tools](../upgrade-tools/SKILL.md), registry facts to [technical-research](../technical-research/SKILL.md), and CVE or license triage to [security-review](../security-review/references/code-review/GUIDE.md).
 
 ## References
 
@@ -43,4 +44,4 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 ## Documentation
 
 - Adapted from [Superpowers systematic-debugging](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/skills/systematic-debugging/SKILL.md), [gstack investigate](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/investigate/SKILL.md), [diagnosing-bugs](https://github.com/mattpocock/skills/blob/84fdeffd12f2ee307994d1eb6feb48173b6e0502/skills/engineering/diagnosing-bugs/SKILL.md).
-- Companion skills: [test-driven-development](../test-driven-development/SKILL.md) (implement the fix), [repository-history](../repository-history/SKILL.md) (why the code exists), [incident-response](../incident-response/SKILL.md) (live outage), [upgrade-tools](../upgrade-tools/SKILL.md) (deliberate upgrades), [technical-research](../technical-research/SKILL.md) (registry and API facts), [secure](../secure/SKILL.md) (CVE triage).
+- Companion skills: [python-testing](../python-testing/SKILL.md) (implement the fix), [repository-history](../repository-history/SKILL.md) (why the code exists), [incident-response](../incident-response/SKILL.md) (live outage), [upgrade-tools](../upgrade-tools/SKILL.md) (deliberate upgrades), [technical-research](../technical-research/SKILL.md) (registry and API facts), [security-review](../security-review/references/code-review/GUIDE.md) (CVE triage).

@@ -1,12 +1,13 @@
 ---
 name: mise
-description: Configure pinned mise tools and the canonical install, format, check, test, build, and watch tasks shared by hooks and CI. Use for any mise.toml or task work.
+description: "Manage mise tool versions, environments, and repository tasks shared by local checks and CI."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-09-14"
+  updated: "2026-09-16"
 ---
 
 # Mise
@@ -27,17 +28,17 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 
 Every project exposes the same core tasks with short aliases so agents, hooks, and CI stay portable:
 
-| Task      | Alias | Purpose                                                                                                                                                                     |
-| --------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                               |
-| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                |
-| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                      |
-| `test`    | `t`   | Run the test suite.                                                                                                                                                         |
-| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                       |
-| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [terraform](../terraform/references/mise.toml). |
-| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                              |
+| Task      | Alias | Purpose                                                                                                                                                                        |
+| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                                  |
+| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                   |
+| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                         |
+| `test`    | `t`   | Run the test suite.                                                                                                                                                            |
+| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                          |
+| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [terraform](../infra-as-code/templates/mise.toml). |
+| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                                 |
 
-Python projects start from [python-stack](../python-stack/references/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [terraform](../terraform/references/mise.toml).
+Python projects start from [python-stack](../python-stack/references/foundation/templates/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [terraform](../infra-as-code/templates/mise.toml).
 
 ## Gotchas
 
@@ -54,4 +55,4 @@ Python projects start from [python-stack](../python-stack/references/mise.toml);
 - [Provenance pilot and adoption boundary](references/provenance-pilot.md)
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
-- Companion skills: [lefthook](../lefthook/SKILL.md) (hooks call these tasks), [github-actions](../github-actions/SKILL.md) (CI installs the toolchain with `mise-action` and runs `mise run all`).
+- Companion skills: [lefthook](../github-actions/references/lefthook.md) (hooks call these tasks), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI installs the toolchain with `mise-action` and runs `mise run all`).

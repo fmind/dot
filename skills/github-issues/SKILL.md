@@ -1,12 +1,13 @@
 ---
 name: github-issues
-description: "Plan and manage GitHub issues with gh: turn audit findings into deduplicated prioritized issue drafts, preserve acceptance evidence, and verify authorized creation, edits, dependencies, labels, comments, or closure. Use for GitHub issues."
+description: "Plan, draft, update, link, and close GitHub issues with gh."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # GitHub Issues
@@ -14,6 +15,8 @@ metadata:
 Plan, read, and mutate GitHub issues from verified repository and remote state. When audit findings need prioritization, drafts, or dependency ordering, follow the [backlog workflow](references/backlog.md) before any GitHub mutation.
 
 ## Workflow
+
+Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request serialization when needed.
 
 1. **Confirm the target**: resolve the repository from the explicit URL or `git remote get-url origin` and state `OWNER/REPO`; never infer another repository from a similarly named checkout.
 1. **Refresh current state** before proposing a change:

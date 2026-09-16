@@ -1,8 +1,9 @@
 ---
 name: docker
-description: Run and inspect Docker containers, Compose services, and Colima on macOS. Use for container lifecycle, debugging, and local runtime management.
+description: "Run and inspect Docker containers, Compose services, and Colima on macOS."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
@@ -11,7 +12,9 @@ metadata:
 
 # Docker and Container Runtime Management
 
-Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. [containerize](../containerize/SKILL.md) builds and signs images; [trivy](../trivy/SKILL.md) scans them for vulnerabilities.
+Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. [containerize](../containerize/SKILL.md) builds and signs images; [trivy](../security-review/references/trivy/GUIDE.md) scans them for vulnerabilities.
+
+Docker, Compose, and Colima are host prerequisites; the tool extras do not install or start them. Inspect existing contexts before choosing a runtime. Container runs execute project code; obtain authority for untrusted images, network pulls, or consequential workloads. Preserve existing volumes and containers.
 
 ## Runtime Selection
 
@@ -21,7 +24,7 @@ Use `docker`, `docker compose`, and `lazydocker` to manage container execution, 
   colima status
   colima stop
   ```
-- **Linux**: use the native Docker daemon managed via systemd.
+- **Linux**: use the existing Docker-compatible engine; host daemon installation is outside user-space mise setup.
 
 ## Workflow
 
@@ -57,7 +60,7 @@ Use `docker`, `docker compose`, and `lazydocker` to manage container execution, 
 1. **Clean up task containers**: always use `--rm` for ephemeral runs to avoid accumulating dead containers.
 
    ```bash
-   docker run --rm -it alpine:latest echo "quick check"
+   docker run --rm -it <existing-image-or-approved-digest> echo "quick check"
    ```
 
 ## Gotchas
@@ -70,4 +73,4 @@ Use `docker`, `docker compose`, and `lazydocker` to manage container execution, 
 
 - [Docker Documentation](https://docs.docker.com/) · [Docker Compose Reference](https://docs.docker.com/compose/)
 - [Colima GitHub Repository](https://github.com/abiosoft/colima) · [Lazydocker](https://github.com/jesseduffield/lazydocker)
-- Companion skills: [containerize](../containerize/SKILL.md) (image authoring), [trivy](../trivy/SKILL.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).
+- Companion skills: [containerize](../containerize/SKILL.md) (image authoring), [trivy](../security-review/references/trivy/GUIDE.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).

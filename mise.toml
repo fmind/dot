@@ -158,7 +158,7 @@ run = [
 [tasks."check:scan"]
 alias = "ct"
 description = "Scan dependencies, IaC, licenses, and secrets (Trivy)"
-run = "trivy --config trivy.yaml fs --tf-vars skills/terraform/references/terraform.example.tfvars ."
+run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]
 alias = "cs"
@@ -191,7 +191,7 @@ description = "Audit installed npm and pipx tool environments"
 run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit"
 
 [tasks."report:skills"]
-description = "Report informational skill routing diagnostics"
+description = "Report skill discovery budgets and informational routing diagnostics"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --report"
 
 [tasks.format]
@@ -202,7 +202,12 @@ depends = ["format:dprint", "format:lua", "format:python", "format:shell"]
 [tasks."format:dprint"]
 alias = "fd"
 description = "Format JSON, Markdown, TOML, and YAML"
+depends = ["format:skills"]
 run = "dprint fmt --allow-no-files"
+
+[tasks."format:skills"]
+description = "Generate parent routing indexes from guide metadata"
+run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --sync"
 
 [tasks."format:lua"]
 alias = "fu"
@@ -302,6 +307,10 @@ run = [
 [tasks."prune:sessions"]
 description = "Preview integrity-checked compaction of the dot archive"
 run = "uv run --frozen dot agent session compact"
+
+[tasks."migrate:skills"]
+description = "Preview retired v6.1.0 skill links; --apply moves confirmed links to a recoverable backup"
+run = "uv run --frozen --directory dot python -m dot_tasks.skill_links"
 
 [tasks.release]
 alias = "mr"

@@ -1,8 +1,9 @@
 ---
 name: kubernetes
-description: Operate Kubernetes clusters with kubectl, helm, k9s, kustomize, and stern. Use for cluster inspection, manifests, releases, and pod logs.
+description: "Operate Kubernetes clusters with kubectl, Helm, k9s, kustomize, and stern."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
@@ -11,7 +12,9 @@ metadata:
 
 # Kubernetes Cluster and Workload Operations
 
-Use `kubectl`, `helm`, `k9s`, `kustomize`, and `stern` for Kubernetes cluster inspection, manifest authoring, Helm releases, and log debugging. [docker](../docker/SKILL.md) manages container runtimes and [terraform](../terraform/SKILL.md) provisions managed cloud clusters.
+Use `kubectl`, `helm`, `k9s`, `kustomize`, and `stern` for Kubernetes cluster inspection, manifest authoring, Helm releases, and log debugging. [docker](../docker/SKILL.md) manages container runtimes and [terraform](../infra-as-code/SKILL.md) provisions managed cloud clusters.
+
+Install the `kubernetes` extra using [optional tool setup](../../README.md#optional-tool-extras). Local kind/k3d clusters need an existing Docker-compatible engine and 20 GiB disk headroom. Confirm user authority for cluster mutations and spending, reusing existing authorization. Pin `--context` and `--namespace` (or Helm's `--kube-context`) after resolving the intended cluster.
 
 ## Workflow
 
@@ -44,9 +47,11 @@ Use `kubectl`, `helm`, `k9s`, `kustomize`, and `stern` for Kubernetes cluster in
 1. **Deploy declaratively**: apply configurations using Helm or Kustomize; preview changes before mutating cluster state.
 
    ```bash
-   helm upgrade --install <release-name> <chart-path> --namespace <namespace> --create-namespace
-   kubectl apply -k <kustomization-dir> --dry-run=client
+   helm upgrade --install <release-name> <chart-path> --namespace <namespace> --dry-run=server --hide-secret
+   kubectl diff -k <kustomization-dir>
    ```
+
+   A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope. Diffs may contain Secret values; exclude secrets from captured output.
 
 1. **Inspect workloads and tail logs**: monitor cluster state interactively with `k9s` or follow multi-pod logs with `stern`.
 
@@ -75,4 +80,4 @@ Use `kubectl`, `helm`, `k9s`, `kustomize`, and `stern` for Kubernetes cluster in
 - [Kubernetes Documentation](https://kubernetes.io/docs/) · [Helm Documentation](https://helm.sh/docs/)
 - [k9s Terminal UI](https://k9scli.io/) · [Stern Log Tailer](https://github.com/stern/stern)
 - Releases: [Kubernetes Releases](https://github.com/kubernetes/kubernetes/releases)
-- Companion skills: [docker](../docker/SKILL.md) (container runtimes), [terraform](../terraform/SKILL.md) (provisioning), [incident-response](../incident-response/SKILL.md) (outages).
+- Companion skills: [docker](../docker/SKILL.md) (container runtimes), [terraform](../infra-as-code/SKILL.md) (provisioning), [incident-response](../incident-response/SKILL.md) (outages).

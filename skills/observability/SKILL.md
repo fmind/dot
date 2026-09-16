@@ -1,12 +1,13 @@
 ---
 name: observability
-description: Instrument a Python service or agent with JSON logs, OpenTelemetry traces and metrics, trace correlation, and GenAI spans. Use when adding logs, traces, or metrics.
+description: "Instrument Python services and agents with structured logs, traces, metrics, and correlation."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Observability
@@ -43,4 +44,4 @@ Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, and `grafana/sk
 
 - [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) · [Cloud Logging structured logs](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google-built OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel)
 - Releases: [OpenTelemetry Python](https://github.com/open-telemetry/opentelemetry-python/releases)
-- Companion skills: [python-stack](../python-stack/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-adk](../google-adk/SKILL.md), [gcloud](../gcloud/SKILL.md), [benchmark](../benchmark/SKILL.md).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-adk](../agent-frameworks/references/google-adk.md), [gcloud](../gcloud/SKILL.md), [benchmark](../benchmark/references/command-http.md).

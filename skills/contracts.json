@@ -1,49 +1,49 @@
 {
   "version": 1,
   "skills": {
-    "a2a-python-sdk": [
-      "a2a",
-      "uv"
-    ],
     "acli": [
       "acli"
     ],
     "agent-evaluation": [],
-    "agent-mcp": [
-      "agy",
+    "agent-frameworks": [
+      "agents-cli",
+      "skills",
+      "uv"
+    ],
+    "agent-harnesses": [
       "claude",
       "codex",
       "copilot",
       "cursor-agent",
+      "gcloud",
       "grok",
-      "opencode"
+      "jules",
+      "opencode",
+      "uv"
+    ],
+    "agent-loops": [
+      "uv"
     ],
     "agent-project": [],
-    "agent-prompt": [
-      "git"
+    "agent-protocols": [
+      "a2a",
+      "uv"
     ],
     "agent-usage": [
       "dot",
       "duckdb"
     ],
-    "agents-cli": [
-      "agents-cli",
+    "agy": [
+      "agy",
+      "gcloud",
       "skills",
       "uv"
-    ],
-    "agy": [
-      "agy"
-    ],
-    "airflow": [
-      "astro"
     ],
     "ai-security-assessment": [
       "uv"
     ],
-    "antigravity-sdk": [
-      "gcloud",
-      "skills",
-      "uv"
+    "airflow": [
+      "astro"
     ],
     "api-client": [
       "uv"
@@ -52,32 +52,32 @@
       "ast-grep"
     ],
     "aws": [
-      "aws"
+      "aws",
+      "aws-sso-util"
     ],
     "benchmark": [
       "hyperfine",
-      "oha"
+      "locust",
+      "oha",
+      "uv"
     ],
     "chezmoi": [
       "chezmoi"
     ],
     "chrome-devtools": [
-      "npx",
       "npm",
+      "npx",
       "skills"
     ],
-    "claude": [
-      "claude"
+    "cli-development": [
+      "skills",
+      "uv"
     ],
-    "cli-contracts": [],
     "cloud-run": [
       "cosign",
       "docker",
       "gcloud",
       "trivy"
-    ],
-    "codex": [
-      "codex"
     ],
     "colab": [
       "colab"
@@ -87,53 +87,28 @@
       "docker",
       "trivy"
     ],
-    "conventional-commit": [
-      "git"
-    ],
-    "cookiecutter": [
-      "uvx",
-      "cookiecutter",
-      "cruft"
-    ],
-    "copier": [
-      "copier",
-      "git"
-    ],
-    "copilot": [
-      "copilot"
-    ],
-    "cosign": [
-      "cosign"
-    ],
     "course-development": [],
-    "cursor": [
-      "cursor-agent"
-    ],
-    "d2": [
-      "d2"
+    "data-migration": [
+      "alembic",
+      "sqlite3",
+      "uv"
     ],
     "databricks": [
       "databricks"
     ],
-    "data-migration": [
-      "sqlite3",
-      "uv",
-      "alembic"
-    ],
     "deleguate-tasks": [
       "agy"
     ],
-    "dependabot": [
-      "gh",
-      "mise",
-      "zizmor"
-    ],
-    "django": [
-      "mise",
-      "uv"
+    "diagrams-as-code": [
+      "d2",
+      "mmdc"
     ],
     "docker": [
       "docker"
+    ],
+    "documentation-site": [
+      "uv",
+      "zensical"
     ],
     "dot-cli": [
       "dot",
@@ -162,9 +137,6 @@
       "duckdb",
       "sqlite3"
     ],
-    "fastapi": [
-      "skills"
-    ],
     "fkf-use": [
       "fkf",
       "uv"
@@ -180,8 +152,13 @@
     "gcloud": [
       "gcloud"
     ],
-    "git-add-commit-push": [
+    "gh": [
+      "gh"
+    ],
+    "git-delivery": [
+      "gh",
       "git",
+      "git-cliff",
       "mise"
     ],
     "git-worktree": [
@@ -189,12 +166,11 @@
     ],
     "github-actions": [
       "actionlint",
+      "gh",
+      "git",
+      "lefthook",
       "mise",
       "zizmor"
-    ],
-    "github-agentic-workflow": [
-      "gh",
-      "git"
     ],
     "github-issues": [
       "gh",
@@ -207,21 +183,8 @@
     "github-repository": [
       "gh"
     ],
-    "gitleaks": [
-      "gitleaks"
-    ],
-    "google-adk": [
-      "skills"
-    ],
     "google-developer": [
       "skills"
-    ],
-    "gradio": [
-      "skills",
-      "uv"
-    ],
-    "grok": [
-      "grok"
     ],
     "gws": [
       "gws",
@@ -233,8 +196,13 @@
     ],
     "implementation-plan": [],
     "incident-response": [],
-    "jules": [
-      "jules"
+    "infra-as-code": [
+      "mise",
+      "skills",
+      "terraform-docs",
+      "tflint",
+      "tofu",
+      "trivy"
     ],
     "kaggle": [
       "kaggle"
@@ -243,70 +211,20 @@
       "helm",
       "kubectl"
     ],
-    "langchain": [
-      "skills",
-      "uv"
-    ],
-    "langextract": [
-      "skills",
-      "uv"
-    ],
-    "langgraph": [
-      "skills",
-      "uv"
-    ],
-    "lefthook": [
-      "lefthook",
-      "mise"
-    ],
-    "litestar": [
-      "skills",
-      "uv"
-    ],
-    "locust": [
-      "uv",
-      "locust"
-    ],
-    "loop-engineering": [
-      "uv"
-    ],
-    "marimo": [
-      "bash",
-      "curl",
-      "jq",
-      "marimo",
-      "skills",
-      "uv"
-    ],
-    "mcp-server": [
-      "uv"
-    ],
-    "mermaid": [
-      "mmdc"
+    "mcp-setup": [
+      "agy",
+      "claude",
+      "codex",
+      "copilot",
+      "cursor-agent",
+      "grok",
+      "opencode"
     ],
     "mise": [
       "mise"
     ],
-    "modern-web": [
-      "mise",
-      "npx",
-      "skills",
-      "tailwindcss"
-    ],
-    "new-project": [
-      "gh",
-      "mise"
-    ],
-    "nicegui": [
-      "uv"
-    ],
     "observability": [
       "gcloud"
-    ],
-    "opencode": [
-      "gcloud",
-      "opencode",
-      "uv"
     ],
     "plan-review": [],
     "playwright": [
@@ -317,18 +235,18 @@
     "production-readiness": [
       "mise"
     ],
-    "project-health": [
-      "mise"
-    ],
-    "project-license": [
-      "git"
+    "project-scaffolding": [
+      "cookiecutter",
+      "copier",
+      "cruft",
+      "gh",
+      "git",
+      "mise",
+      "uvx"
     ],
     "prompt-design": [],
-    "pydantic": [
-      "skills",
-      "uv"
-    ],
-    "python-async": [
+    "python-mlops": [
+      "marimo",
       "uv"
     ],
     "python-script": [
@@ -336,15 +254,20 @@
     ],
     "python-stack": [
       "ruff",
+      "skills",
+      "ty",
+      "uv"
+    ],
+    "python-testing": [
+      "mise",
+      "uv"
+    ],
+    "python-web": [
+      "mise",
+      "skills",
       "uv"
     ],
     "quality-assurance": [
-      "mise"
-    ],
-    "release": [
-      "gh",
-      "git",
-      "git-cliff",
       "mise"
     ],
     "repository-docs": [
@@ -355,6 +278,9 @@
       "gh",
       "git"
     ],
+    "repository-maintenance": [
+      "mise"
+    ],
     "repository-review": [
       "git",
       "mise"
@@ -363,27 +289,18 @@
       "git",
       "mise"
     ],
-    "ruff": [
-      "ruff",
-      "skills",
-      "uv"
-    ],
     "scheduled-jobs": [
-      "systemctl",
-      "systemd-analyze",
       "journalctl",
       "launchctl",
-      "plutil"
+      "plutil",
+      "systemctl",
+      "systemd-analyze"
     ],
-    "secure": [
+    "security-review": [
       "gitleaks",
       "rg",
       "trivy",
       "uv"
-    ],
-    "sherlock": [
-      "uvx",
-      "sherlock"
     ],
     "skill-security-review": [
       "gitleaks",
@@ -402,50 +319,28 @@
       "uv",
       "xh"
     ],
+    "task-prompts": [
+      "git"
+    ],
     "technical-publishing": [],
     "technical-research": [],
     "terms-review": [],
-    "terraform": [
-      "mise",
-      "skills",
-      "terraform-docs",
-      "tflint",
-      "tofu",
-      "trivy"
-    ],
-    "test-driven-development": [
-      "mise",
-      "uv"
-    ],
     "threat-model": [],
-    "trivy": [
-      "trivy"
-    ],
-    "ty": [
-      "skills",
-      "ty",
-      "uv"
-    ],
-    "typer": [
-      "skills",
-      "uv"
-    ],
     "upgrade-tools": [
       "mise"
     ],
-    "uv": [
+    "username-recon": [
+      "sherlock",
+      "uvx"
+    ],
+    "web-frontend": [
+      "mise",
+      "npx",
       "skills",
-      "uv"
+      "tailwindcss"
     ],
     "xh": [
       "xh"
-    ],
-    "zensical": [
-      "uv",
-      "zensical"
-    ],
-    "zizmor": [
-      "zizmor"
     ]
   }
 }

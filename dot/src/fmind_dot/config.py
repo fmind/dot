@@ -17,7 +17,7 @@ Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 class StrictModel(BaseModel):
     """Reject misspelled keys and implicit scalar coercion at the YAML boundary."""
 
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
 
 
 class ToolConfig(StrictModel):
@@ -374,7 +374,10 @@ def load_config(path: str | Path | None = None) -> Config:
     except (OSError, UnicodeError) as error:
         raise ValueError(f"failed to read config file at {resolved}: {error}") from error
     except yaml.YAMLError as error:
-        raise ValueError(f"failed to parse config file at {resolved}: {error}") from error
+        mark = getattr(error, "problem_mark", None)
+        location = f" at line {mark.line + 1}, column {mark.column + 1}" if mark is not None else ""
+        # Parser messages and snippets can include credentials from malformed input.
+        raise ValueError(f"failed to parse config file at {resolved}: invalid YAML{location}") from error
     if len(documents) > 1:
         raise ValueError(f"config file at {resolved} must contain exactly one YAML document")
     overlay = documents[0] if documents else {}

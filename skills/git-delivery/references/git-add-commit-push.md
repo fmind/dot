@@ -1,0 +1,29 @@
+---
+name: git-add-commit-push
+description: "Stage, commit, push, and recover hook failures within the authorized scope."
+---
+
+# Git Add, Commit, and Push
+
+Stage, commit, and push the authorized change, preserving existing work and repairing hook failures within that scope. [conventional-commit](conventional-commit.md) owns the subject grammar.
+
+## Workflow
+
+1. **Resolve scope and branch**: inspect `git status --short --branch`, `git diff`, and `git diff --cached`. Direct work on `main` is allowed for `github.com/fmind/*`; follow an explicitly requested PR flow or the repository's branch policy through [Git branch preparation](../../git-worktree/SKILL.md).
+1. **Preserve the index**: retain an existing staged selection. When staging is requested, add only the intended files or hunks; a dirty tree or an empty index does not authorize `git add -A`. Stop when there is no authorized change to commit.
+1. **Write the subject** with the [conventional-commit](conventional-commit.md) rules, then run `git commit -m "<subject>"` once.
+1. **Heal pre-commit**: read the failure, fix its cause, and rerun the affected check or case. Format only the intended paths; use an isolated candidate for a whole-tree formatter when unrelated work exists. Review and restage only the authorized fixes before retrying.
+1. **Push the candidate**: verify the destination, then `git push -u origin "$(git branch --show-current)"`. A push to another repository or branch needs its own scope.
+1. **Heal pre-push**: reproduce the failing `mise run test` case and fix the cause without weakening assertions. Amend only the unpublished commit created by this flow when the authorized commit scope includes those fixes; otherwise make a separate authorized correction. Reconcile remote state before retrying an uncertain push.
+1. **Verify and report**: compare the remote branch SHA with the committed SHA, then report subject, commit, and destination. CI for that commit is a separate result.
+
+## Gotchas
+
+- **Hooks own delivery checks**: keep hooks enabled and let the authorized commit/push run their checks. Do not duplicate the same checks immediately beforehand unless diagnosing a failure or satisfying an additional repository requirement. Reuse passing results while relevant inputs remain unchanged; fix failures without suppressing them. CI qualification remains separate.
+- **Existing commits belong to the user**: never amend an earlier or published commit as routine hook healing.
+- **Rejected push**: distinguish branch protection from a non-fast-forward race or authentication failure; use a PR for protection and preserve both histories when the remote advanced.
+
+## Documentation
+
+- [Git push](https://git-scm.com/docs/git-push) · [lefthook](../../github-actions/references/lefthook.md)
+- Companion skills: [conventional-commit](conventional-commit.md), [Git branch preparation](../../git-worktree/SKILL.md), [github-pull-request](../../github-pull-request/SKILL.md), [resolve-conflicts](../../resolve-conflicts/SKILL.md).

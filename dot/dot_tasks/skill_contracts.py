@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import stat
 import sys
@@ -17,12 +18,25 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
-MAX_DESCRIPTION = 240
-MAX_DESCRIPTION_AVERAGE = 175
+from fmind_dot.context_budget import (
+    CONTEXT_TOKEN_LIMIT,
+    DISCOVERY_TOKEN_LIMIT,
+    Scope,
+    estimated_tokens,
+    skill_index_entry,
+)
+
+MAX_DESCRIPTION = 180
+MAX_DESCRIPTION_AVERAGE = 100
+# Each scope budgets AGENTS.md plus skill discovery; the combined total is informational.
+MAX_CONTEXT_TOKENS = CONTEXT_TOKEN_LIMIT
 MAX_NAME = 64
 MAX_SKILL_BYTES = 1 << 20
 MAX_SKILL_LINES = 500
 MAX_RESOURCE_BYTES = 1 << 20
+SKILL_KINDS = {"connector", "task", "collection"}
+GUIDE_START = "<!-- guides:start -->"
+GUIDE_END = "<!-- guides:end -->"
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOOL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
@@ -48,6 +62,7 @@ CASE_FIELDS = {
     "forbidden",
     "id",
     "primary",
+    "guide",
     "prompt",
     "require_all_top_k",
     "route",
@@ -107,6 +122,7 @@ class _HTMLTargetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.targets: list[str] = []
+        self.anchors: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._collect(tag, attrs)
@@ -120,6 +136,8 @@ class _HTMLTargetParser(HTMLParser):
             if value is None:
                 continue
             name = name.lower()
+            if name == "id" or (tag == "a" and name == "name"):
+                self.anchors.add(value)
             if name == "data" and tag != "object":
                 continue
             if name in HTML_LINK_ATTRIBUTES:
@@ -258,10 +276,99 @@ def _directly_disclosed(content: str, relative: str) -> bool:
     return re.search(rf"(?<![{boundary}])(?:\./)?{re.escape(relative)}(?![{boundary}])", content) is not None
 
 
+def _reachable_resources(skill: Path, texts: dict[Path, str], resources: set[Path]) -> set[Path]:
+    """Follow document-relative disclosures; disconnected reference cycles stay orphaned."""
+    reached = {skill}
+    pending = [skill]
+    while pending:
+        document = pending.pop()
+        linked = {
+            (document.parent / unquote(urlsplit(target).path)).resolve()
+            for target in _document_targets(texts[document])
+            if not urlsplit(target).scheme and not urlsplit(target).netloc and urlsplit(target).path
+        }
+        for resource in resources - reached:
+            relative = Path(os.path.relpath(resource, document.parent)).as_posix()
+            if resource.resolve() in linked or _directly_disclosed(texts[document], relative):
+                reached.add(resource)
+                # Output templates are artifacts, not routing documents.
+                if (
+                    resource in texts
+                    and (resource.suffix == ".md" or resource.name == "openai.yaml")
+                    and "templates" not in resource.relative_to(skill.parent).parts[:-1]
+                ):
+                    pending.append(resource)
+    return reached
+
+
+def _guides(directory: Path) -> list[Path]:
+    """Guide metadata is authoritative; no parallel metadata.guides inventory."""
+    guides: list[Path] = []
+    for path in sorted((directory / "references").rglob("*.md")):
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_RESOURCE_BYTES:
+            continue
+        if "templates" in path.relative_to(directory).parts[:-1]:
+            continue
+        data = path.read_bytes()
+        # Preserved upstream skill documents have a license/provenance header;
+        # they remain references rather than first-party routing metadata.
+        header = data.split(b"\n---", 1)[0]
+        if path.name == "GUIDE.md" or (
+            data.startswith(b"---\n") and b"\nname:" in header and b"\nlicense:" not in header
+        ):
+            guides.append(path)
+    return guides
+
+
+def _guide_index(directory: Path, root: Path) -> str:
+    lines = [GUIDE_START, ""]
+    for path in _guides(directory):
+        metadata, _, _ = _frontmatter(path, root)
+        if metadata is not None:
+            lines.append(
+                f"- [{metadata.get('name')}]({path.relative_to(directory).as_posix()}): {metadata.get('description')}"
+            )
+    lines.extend(["", GUIDE_END])
+    return "\n".join(lines)
+
+
+def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
+    findings: list[str] = []
+    guides = _guides(skill.parent)
+    names: set[str] = set()
+    for path in guides:
+        metadata, _, errors = _frontmatter(path, root)
+        findings.extend(errors)
+        if metadata is None:
+            continue
+        name = path.parent.name if path.name == "GUIDE.md" else path.stem
+        if NAME_PATTERN.fullmatch(name) is None or len(name) > MAX_NAME:
+            findings.append(f"{_relative(root, path)}: invalid guide name")
+        if set(metadata) != {"name", "description"}:
+            findings.append(
+                f"{_relative(root, path)}: first-party guide frontmatter requires only name and description"
+            )
+        if metadata.get("name") != name:
+            findings.append(f"{_relative(root, path)}: guide name must match {name!r}")
+        if name in names:
+            findings.append(f"{_relative(root, skill)}: duplicate guide {name!r}")
+        names.add(name)
+        description = metadata.get("description")
+        if not isinstance(description, str) or not 1 <= len(description.strip()) <= MAX_DESCRIPTION:
+            findings.append(f"{_relative(root, path)}: guide description must contain 1-{MAX_DESCRIPTION} characters")
+        if path.relative_to(skill.parent).as_posix() not in _document_targets(body):
+            findings.append(f"{_relative(root, path)}: guide needs a direct link from SKILL.md")
+    if (guides or GUIDE_START in body or "## Task guides" in body) and _guide_index(skill.parent, root) not in body:
+        findings.append(f"{_relative(root, skill)}: stale guide index; run mise run format:skills")
+    return findings
+
+
 def _resource_findings(root: Path, skill: Path) -> tuple[list[str], str]:
     directory = skill.parent
     root_content = skill.read_text(encoding="utf-8")
     chunks = [root_content]
+    texts = {skill: root_content}
+    resources: set[Path] = set()
     findings: list[str] = []
     for path in sorted(directory.rglob("*")):
         if path == skill:
@@ -291,10 +398,11 @@ def _resource_findings(root: Path, skill: Path) -> tuple[list[str], str]:
         if not stat.S_ISREG(mode):
             findings.append(f"{_relative(root, skill)}: non-regular resource {rendered!r} is not allowed")
             continue
-        if mode & 0o111 and first != "scripts":
+        if path.name == "SKILL.md":
+            findings.append(f"{_relative(root, path)}: nested SKILL.md enters host discovery; use a guide instead")
+        if mode & 0o111 and "scripts" not in relative.parts[:-1]:
             findings.append(f"{_relative(root, skill)}: executable outside scripts/ at {rendered!r}")
-        if not _directly_disclosed(root_content, rendered):
-            findings.append(f"{_relative(root, skill)}: resource {rendered!r} is not directly disclosed")
+        resources.add(path)
         if first == "assets":
             continue
         try:
@@ -314,6 +422,18 @@ def _resource_findings(root: Path, skill: Path) -> tuple[list[str], str]:
         if unsafe:
             findings.append(unsafe)
         chunks.append(text)
+        texts[path] = text
+    reached = _reachable_resources(skill, texts, resources)
+    findings.extend(
+        f"{_relative(root, path)}: resource is not reachable from SKILL.md" for path in sorted(resources - reached)
+    )
+    # Code-path disclosures also expose Markdown; validate those documents even
+    # when no hyperlink led the normal link walker to them.
+    findings.extend(
+        _link_findings(
+            root, directory, documents=tuple(path for path in sorted(reached) if path in texts and path.suffix == ".md")
+        )
+    )
     return findings, "\n".join(chunks)
 
 
@@ -337,12 +457,41 @@ def _document_targets(content: str) -> list[str]:
     return targets
 
 
+def _markdown_anchors(content: str) -> set[str]:
+    """Match GitHub heading slugs, duplicate suffixes, and explicit HTML anchors."""
+    tokens = MARKDOWN.parse(content)
+    anchors: set[str] = set()
+    parser = _HTMLTargetParser()
+    for index, token in enumerate(tokens):
+        if token.type == "heading_open":
+            title = "".join(
+                child.content
+                for child in tokens[index + 1].children or []
+                if child.type in {"text", "code_inline", "image"}
+            ).lower()
+            slug = "".join(
+                character
+                for character in title
+                if character in " _-" or unicodedata.category(character)[0] in {"L", "N", "M"}
+            ).replace(" ", "-")
+            unique, suffix = slug, 0
+            while unique in anchors:
+                suffix += 1
+                unique = f"{slug}-{suffix}"
+            anchors.add(unique)
+        for candidate in [token, *(token.children or [])]:
+            if candidate.type in {"html_block", "html_inline"}:
+                parser.feed(candidate.content)
+    return anchors | parser.anchors
+
+
 def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] | None = None) -> list[str]:
     findings: list[str] = []
     resolved_root = root.resolve()
     resolved_directory = directory.resolve()
     pending = list(documents) if documents is not None else [directory / "SKILL.md"]
     seen: set[Path] = set()
+    anchors: dict[Path, set[str]] = {}
     while pending:
         document = pending.pop()
         if document in seen:
@@ -358,7 +507,7 @@ def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] |
             continue
         for raw_target in _document_targets(content):
             target = raw_target.strip().strip("<>")
-            if not target or target.startswith(("#", "{")):
+            if not target or target.startswith("{"):
                 continue
             parsed = urlsplit(target)
             if parsed.scheme:
@@ -371,17 +520,26 @@ def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] |
                 findings.append(f"{_relative(root, document)}: local link {target!r} must be repository-relative")
                 continue
             relative_document = document.relative_to(directory)
-            if relative_document.parts[0] == "templates":
+            if "templates" in relative_document.parts[:-1]:
                 # Template links become relative to the generated project after copying.
                 continue
-            local = unquote(target.split("#", 1)[0].split("?", 1)[0])
-            resolved = (document.parent / local).resolve()
+            local = unquote(parsed.path)
+            resolved = (document.parent / local).resolve() if local else document.resolve()
             if not resolved.is_relative_to(resolved_root):
                 findings.append(f"{_relative(root, document)}: local link {target!r} escapes the repository")
             elif not resolved.exists():
                 findings.append(f"{_relative(root, document)}: missing local link {target!r}")
-            elif documents is None and resolved.suffix.lower() == ".md" and resolved.is_relative_to(resolved_directory):
-                pending.append(resolved)
+            elif resolved.is_file() and resolved.suffix.lower() == ".md":
+                if parsed.fragment:
+                    try:
+                        if resolved not in anchors:
+                            anchors[resolved] = _markdown_anchors(resolved.read_text(encoding="utf-8"))
+                        if unquote(parsed.fragment) not in anchors[resolved]:
+                            findings.append(f"{_relative(root, document)}: missing local anchor {target!r}")
+                    except OSError, UnicodeError:
+                        findings.append(f"{_relative(root, document)}: cannot inspect local anchor {target!r}")
+                if documents is None and resolved.is_relative_to(resolved_directory):
+                    pending.append(resolved)
     return findings
 
 
@@ -412,6 +570,13 @@ def _skill_findings(root: Path, name: str, path: Path, tools: list[str]) -> tupl
         findings.append(f"{relative}: license must be MIT")
     if not isinstance(metadata.get("metadata"), dict):
         findings.append(f"{relative}: metadata must be a mapping")
+    else:
+        kind = metadata["metadata"].get("kind")
+        if not isinstance(kind, str) or kind not in SKILL_KINDS:
+            findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
+        if "guides" in metadata["metadata"]:
+            findings.append(f"{relative}: remove metadata.guides; guide frontmatter owns the generated index")
+    findings.extend(_guide_findings(root, path, body))
 
     body_lines = [line for line in body.splitlines() if line.strip()]
     if not body_lines or not body_lines[0].startswith("# "):
@@ -429,7 +594,6 @@ def _skill_findings(root: Path, name: str, path: Path, tools: list[str]) -> tupl
             findings.append(f"skills/contracts.json: skill {name!r} has invalid required tool {tool!r}")
         elif not _contains_tool(package_text, tool):
             findings.append(f"{relative}: required tool {tool!r} is undocumented")
-    findings.extend(_link_findings(root, path.parent))
     return findings, description
 
 
@@ -518,7 +682,9 @@ def _routing_findings(root: Path, catalog: set[str]) -> list[str]:
 
         if case.get("route", True) is False:
             no_route += 1
-            if any(field in case for field in ("expected", "primary", "top_k", "require_all_top_k", "forbidden")):
+            if any(
+                field in case for field in ("expected", "primary", "guide", "top_k", "require_all_top_k", "forbidden")
+            ):
                 findings.append(f"{owner}: a no-route probe cannot declare skill or rank fields")
             continue
         if "route" in case and case["route"] is not True:
@@ -533,6 +699,15 @@ def _routing_findings(root: Path, catalog: set[str]) -> list[str]:
             findings.append(f"{owner}: primary must name one expected skill")
         elif primary in catalog:
             primaries.add(primary)
+        if "guide" in case:
+            guide = case["guide"]
+            packages, _ = _discover_skills(root)
+            package = packages.get(primary) if isinstance(primary, str) else None
+            available = (
+                {p.relative_to(package.parent).as_posix() for p in _guides(package.parent)} if package else set()
+            )
+            if not isinstance(guide, str) or guide not in available:
+                findings.append(f"{owner}: guide must name a metadata-bearing guide in the primary skill")
         top_k = case.get("top_k")
         if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= 5:
             findings.append(f"{owner}: top_k must be an integer from 1 to 5")
@@ -612,14 +787,110 @@ def repository_findings(root: Path) -> list[str]:
         if key in normalized:
             findings.append(f"skills {normalized[key]!r} and {name!r} have identical descriptions")
         normalized[key] = name
-    total = sum(len(description) for description in descriptions.values())
-    if descriptions and total > MAX_DESCRIPTION_AVERAGE * len(descriptions):
-        findings.append(
-            f"catalog descriptions contain {total} characters, exceeding {len(descriptions)} x {MAX_DESCRIPTION_AVERAGE}"
+    index_size = sum(
+        len(
+            skill_index_entry(
+                name, description, "global" if discovered[name].parent.parent == root / "skills" else "local"
+            )
         )
+        for name, description in descriptions.items()
+    )
+    if estimated_tokens(index_size) >= DISCOVERY_TOKEN_LIMIT:
+        findings.append(f"combined skill discovery must be below {DISCOVERY_TOKEN_LIMIT} estimated tokens")
+    for scope, tokens in _startup_estimates(root, descriptions, discovered).items():
+        if tokens >= MAX_CONTEXT_TOKENS:
+            findings.append(
+                f"{scope} AGENTS.md + skill discovery contains {tokens} estimated tokens; "
+                f"must be below {MAX_CONTEXT_TOKENS}; reduce instructions or discovery without losing task triggers"
+            )
     findings.extend(_routing_findings(root, set(discovered)))
     findings.extend(documentation_findings(root))
     return sorted(set(findings))
+
+
+def _startup_estimates(root: Path, descriptions: dict[str, str], discovered: dict[str, Path]) -> dict[Scope, int]:
+    estimates: dict[Scope, int] = {}
+    for scope, catalog, instructions in (
+        ("global", root / "skills", root / "dot_agents/AGENTS.md"),
+        ("local", root / ".agents/skills", root / "AGENTS.md"),
+    ):
+        scope_name: Scope = "global" if scope == "global" else "local"
+        size = len(instructions.read_text(encoding="utf-8")) if instructions.is_file() else 0
+        size += sum(
+            len(skill_index_entry(name, description, scope_name))
+            for name, description in descriptions.items()
+            if discovered[name].parent.parent == catalog
+        )
+        estimates[scope_name] = estimated_tokens(size)
+    return estimates
+
+
+def _render_global_index(descriptions: dict[str, str]) -> str:
+    """Use a stable display path so moving a checkout cannot change its budget."""
+    return "".join(skill_index_entry(name, description, "global") for name, description in sorted(descriptions.items()))
+
+
+def catalog_report(root: Path, *, details: bool = True) -> str:
+    """Report reproducible discovery cost without claiming provider token counts."""
+    root = root.resolve()
+    discovered, _ = _discover_skills(root)
+    descriptions = {
+        name: description
+        for name, description in _descriptions(root).items()
+        if discovered[name].parent.parent == root / "skills"
+    }
+    index_size = len(_render_global_index(descriptions))
+    local_descriptions = {
+        name: description
+        for name, description in _descriptions(root).items()
+        if discovered[name].parent.parent == root / ".agents/skills"
+    }
+    local_size = sum(
+        len(skill_index_entry(name, description, "local")) for name, description in local_descriptions.items()
+    )
+    startup = _startup_estimates(root, _descriptions(root), discovered)
+    average = sum(map(len, descriptions.values())) / len(descriptions) if descriptions else 0.0
+    kinds = dict.fromkeys(sorted(SKILL_KINDS), 0)
+    members: dict[str, list[str]] = {kind: [] for kind in sorted(SKILL_KINDS)}
+    costs: list[str] = []
+    guide_costs: list[tuple[int, str]] = []
+    for name, path in sorted(discovered.items()):
+        metadata, body, _ = _frontmatter(path, root)
+        if metadata is None:
+            continue
+        kind = metadata.get("metadata", {}).get("kind")
+        if kind in kinds:
+            kinds[kind] += 1
+            members[kind].append(name)
+        tokens = estimated_tokens(len(body))
+        target = 600 if kind == "collection" else 1_500
+        if tokens > target:
+            costs.append(f"- {name}: {tokens} body tokens; consider the {target}-token authoring target")
+        for guide in _guides(path.parent):
+            label = f"{name}/{guide.stem if guide.name != 'GUIDE.md' else guide.parent.name}"
+            guide_costs.append((estimated_tokens(len(path.read_text()) + len(guide.read_text())), label))
+    selected_costs = sorted(guide_costs, reverse=True)
+    if not details:
+        selected_costs = selected_costs[:5]
+    costs.extend(f"- {label}: {tokens} tokens for parent + guide" for tokens, label in selected_costs)
+    discovery = estimated_tokens(index_size + local_size)
+    classification = "".join(f"- {kind}: {', '.join(names)}\n" for kind, names in members.items()) if details else ""
+    return (
+        f"Global skills: {len(descriptions)}; local skills: {len(local_descriptions)}\n"
+        f"Kinds (both scopes): {kinds}\n"
+        + classification
+        + f"Global description average: {average:.1f} characters (advisory target: {MAX_DESCRIPTION_AVERAGE})\n"
+        f"Global skill index: {index_size} characters "
+        "(names, descriptions, and portable paths)\n"
+        f"Combined estimated index tokens: {discovery} / <{DISCOVERY_TOKEN_LIMIT} "
+        "(characters / 4; not host tokenization or billing)\n"
+        f"Discovery headroom: {DISCOVERY_TOKEN_LIMIT - 1 - discovery} estimated tokens; reserve room for project skills\n"
+        f"Global AGENTS.md + skill discovery: {startup['global']} / <{MAX_CONTEXT_TOKENS} estimated tokens\n"
+        f"Local AGENTS.md + skill discovery: {startup['local']} / <{MAX_CONTEXT_TOKENS} estimated tokens\n"
+        "Full breakdown: dot agent context --source . --project .\n"
+        f"On-demand paths ({'all' if details else 'five largest'}; estimates exclude resources and runtime output):\n"
+        + "\n".join(costs)
+    )
 
 
 def _words(text: str) -> set[str]:
@@ -637,7 +908,7 @@ def _descriptions(root: Path) -> dict[str, str]:
     return descriptions
 
 
-def overlap_report(root: Path) -> str:
+def overlap_report(root: Path, *, details: bool = True) -> str:
     """Render a transparent lexical ranking without creating a pass threshold."""
     descriptions = _descriptions(root)
     routing, errors = _read_json(root / "dot/testdata/skills/routing-boundaries.json")
@@ -662,7 +933,8 @@ def overlap_report(root: Path) -> str:
             matched += 1
         total += 1
         leaders = ", ".join(f"{name}={score:.3f}" for score, name in ranking[:3])
-        lines.append(f"- {case.get('id', '<missing>')}: expected={primary}; leaders=[{leaders}]")
+        if details:
+            lines.append(f"- {case.get('id', '<missing>')}: expected={primary}; leaders=[{leaders}]")
     lines.append(f"Lexical rank-1 matches: {matched}/{total}; informational only.")
     return "\n".join(lines)
 
@@ -670,15 +942,39 @@ def overlap_report(root: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", action="store_true", help="print informational lexical routing diagnostics")
+    parser.add_argument(
+        "--details", action="store_true", help="include category members, every guide cost, and routing case"
+    )
+    parser.add_argument("--sync", action="store_true", help="refresh marked guide indexes from guide metadata")
     args = parser.parse_args()
+    if args.details and not args.report:
+        parser.error("--details requires --report")
     root = Path(__file__).resolve().parents[2]
+    if args.sync:
+        discovered, errors = _discover_skills(root)
+        if errors:
+            sys.stderr.write("\n".join(errors) + "\n")
+            return 1
+        for path in discovered.values():
+            text = path.read_text(encoding="utf-8")
+            if GUIDE_START in text and GUIDE_END in text:
+                before, rest = text.split(GUIDE_START, 1)
+                _, after = rest.split(GUIDE_END, 1)
+                updated = before + _guide_index(path.parent, root) + after
+                if updated != text:
+                    path.write_text(updated, encoding="utf-8")
+        return 0
     findings = repository_findings(root)
     if findings:
         for finding in findings:
             sys.stderr.write(f"error: {finding}\n")
         return 1
     if args.report:
-        sys.stdout.write(f"{overlap_report(root)}\n")
+        sys.stdout.write(
+            f"{catalog_report(root, details=args.details)}\n{overlap_report(root, details=args.details)}\n"
+        )
+        if not args.details:
+            sys.stdout.write("Use mise run report:skills -- --details for category members and complete diagnostics.\n")
     else:
         sys.stdout.write(f"Validated {len(_descriptions(root))} first-party skills.\n")
     return 0

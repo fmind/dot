@@ -1,12 +1,13 @@
 ---
 name: skillify
-description: Turn this conversation, a repeated workflow, or an oversized AGENTS.md section into a global or local SKILL.md. Use when asked to skillify or capture a workflow.
+description: "Capture proven reusable workflows as skills or guides under an existing owner."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-09-15"
+  updated: "2026-09-16"
 ---
 
 # Skillify
@@ -16,13 +17,13 @@ Capture what this session learned as a skill the next session can run without th
 ## Workflow
 
 1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
-1. **Apply the admission rule** in [package rules](references/package-rules.md): identify the personal choice, reusable procedure or artifact, demonstrated failure, or upstream route that changes agent behavior. If only general product knowledge remains, use documentation instead of creating a skill.
+1. **Apply the admission rule** in [package rules](references/package-rules.md): first extend an existing owner or use project scope. A new global entry needs a distinct recurring trigger, demonstrated behavioral value, and space within the discovery and instruction budgets. If only general product knowledge remains, use documentation instead.
 1. **Check the catalog**: `skills list` and `skills list -g`, then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; add its CLI names to `skills/contracts.json`, then run `mise run check:skills` and relevant formatting checks. Installation or tooling changes also need their affected tests.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md).
 1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the authoring limits in [package rules](references/package-rules.md); long configs and examples go to `references/`.
-1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is directly disclosed, every required tool is documented, and `mise run check:skills` passes for a global skill.
+1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is reachable from its owner, every required tool is documented, and `mise run check:skills` passes for a global skill.
 1. **Test behavior**: follow the [adoption check](references/adoption-check.md) for substantial additions or routing changes: a natural trigger, a neighboring task, and an observable outcome in an isolated fixture. Keep paid or external effects within scope and report unavailable host validation separately.
 1. **Report**: the path, the description, the scope, and whether the routing probes in `dot/testdata/skills/` need a new prompt for the skill.
 
@@ -40,4 +41,5 @@ Keep durable preferences in the global persona and repository invariants in proj
 
 - [Agent Skills specification](https://agentskills.io/specification)
 - Native tooling: [Agent Skills](https://agentskills.io/specification) and the [vendor-skill policy](../agent-project/references/vendor-skills.md).
+- [Catalog and usage review](references/catalog-review.md): measure discovery cost and bounded activation evidence before adding or retiring global entries.
 - Companion skills: [agent-project](../agent-project/SKILL.md) (local skill layout), [repository-docs](../repository-docs/SKILL.md) (trim `AGENTS.md` after extraction).

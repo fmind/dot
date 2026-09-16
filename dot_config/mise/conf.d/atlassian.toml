@@ -1,5 +1,0 @@
-# :schema https://mise.jdx.dev/schema/mise.json
-# Docs: https://mise.jdx.dev/configuration.html
-
-[tools]
-acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal

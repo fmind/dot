@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.2.1] - 2026-09-16
+
+### 🐛 Bug Fixes
+
+- _(test)_ Normalize colored context validation errors
+
+## [6.2.0] - 2026-09-16
+
+### 🚀 Features
+
+- _(skills)_ Consolidate catalog and secure upgrades
+
 ## [6.1.0] - 2026-09-16
 
 ### 🚀 Features

@@ -1,8 +1,9 @@
 ---
 name: airflow
-description: Develop, test, and debug Apache Airflow DAGs locally with the Astronomer astro CLI. Use for Airflow DAG authoring, testing, and troubleshooting.
+description: "Develop and test Apache Airflow DAGs with the Astronomer astro CLI."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
@@ -12,6 +13,8 @@ metadata:
 # Apache Airflow with Astronomer CLI
 
 Use `astro` for local Apache Airflow development, DAG authoring, task testing, and debugging. [python-stack](../python-stack/SKILL.md) owns Python package conventions and [docker](../docker/SKILL.md) manages container runtimes.
+
+Install the `airflow` extra using [optional tool setup](../../README.md#optional-tool-extras). Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; the extra installs only the CLI. Inspect the project's Airflow version before choosing service flags (`--api-server` for Airflow 3; `--webserver` for Airflow 2).
 
 ## Workflow
 
@@ -44,7 +47,7 @@ Use `astro` for local Apache Airflow development, DAG authoring, task testing, a
 
    ```bash
    astro dev logs --scheduler
-   astro dev logs --webserver
+   astro dev logs --api-server
    ```
 
 1. **Stop or rebuild environment**: stop containers when done or rebuild when changing dependencies in `requirements.txt`.
@@ -58,7 +61,7 @@ Use `astro` for local Apache Airflow development, DAG authoring, task testing, a
 ## Gotchas
 
 - **Top-level execution**: the scheduler evaluates top-level DAG code every few seconds; avoid database queries, API calls, or heavy computation outside operators.
-- **Port clashes**: default webserver port `8080` may collide with local services; configure alternative ports in `.env`.
+- **Port clashes**: default API server/webserver port `8080` may collide with local services; consult `astro dev start --help` for the installed version's port options.
 - **Stateless task testing**: `astro dev run tasks test` runs a single task without recording state in the Airflow database; upstream task dependencies must be handled or mocked.
 
 ## Official Skills

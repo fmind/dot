@@ -1,8 +1,9 @@
 ---
 name: databricks
-description: Operate Databricks workspaces, asset bundles, jobs, pipelines, and Unity Catalog with databricks CLI. Use for Databricks workflows and DABs.
+description: "Operate Databricks bundles, jobs, pipelines, and Unity Catalog with databricks."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
@@ -13,9 +14,11 @@ metadata:
 
 Use `databricks` for Databricks workspace management, Asset Bundles (DABs), compute clusters, jobs, Lakeflow pipelines, and Unity Catalog data governance.
 
+Install the `databricks` extra using [optional tool setup](../../README.md#optional-tool-extras) when the CLI is missing. Resolve the workspace, profile, and bundle target before mutations; deployments and runs can incur costs and need authorization. Pass `--profile <profile>` consistently.
+
 ## Workflow
 
-1. **Verify workspace and authentication**: inspect configured profiles in `~/.databrickscfg` and confirm caller identity.
+1. **Verify workspace and authentication**: list configured profile names without printing credentials and confirm caller identity.
 
    ```bash
    databricks auth profiles
@@ -48,14 +51,14 @@ Use `databricks` for Databricks workspace management, Asset Bundles (DABs), comp
 
    ```bash
    databricks clusters list --output json
-   databricks runs list --job-id <job-id> --limit 10
+   databricks jobs list-runs --job-id <job-id> --limit 10
    ```
 
-1. **Plan mutations and confirm**: production deployments (`--target prod`), cluster restarts, permission changes, and schema alterations require explicit user confirmation.
+1. **Plan mutations and confirm**: production deployments (`--target prod`), cluster restarts, permission changes, and schema alterations require user authorization; reuse existing authority.
 
 ## Gotchas
 
-- **Explicit bundle target**: omitting `--target` may default to active profile or production; always pass `--target dev` or the intended target explicitly.
+- **Explicit bundle target**: omitting `--target` uses the bundle's configured default target or fails when none exists; always pass `--target dev` or the intended target explicitly.
 - **Token management**: never commit workspace credentials or tokens to version control; use `~/.databrickscfg` or `DATABRICKS_HOST` and `DATABRICKS_TOKEN` environment variables.
 - **Compute costs**: verify cluster autotermination policies when launching compute to prevent unexpected idle billing.
 

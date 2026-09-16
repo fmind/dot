@@ -1,6 +1,6 @@
 # Create a Branch
 
-Create and switch to a `<type>/<slug>` branch from the selected base for the work the user described; [conventional-commit](../../conventional-commit/SKILL.md) owns the commits that follow.
+Create and switch to a `<type>/<slug>` branch from the selected base for the work the user described; [conventional-commit](../../git-delivery/references/conventional-commit.md) owns the commits that follow.
 
 ## Workflow
 
@@ -13,7 +13,7 @@ Create and switch to a `<type>/<slug>` branch from the selected base for the wor
    ```
 
 1. **Derive the name** as `<type>/<slug>`:
-   - `<type>`: a commit type from [conventional-commit](../../conventional-commit/SKILL.md), usually `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, or `ci`.
+   - `<type>`: a commit type from [conventional-commit](../../git-delivery/references/conventional-commit.md), usually `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, or `ci`.
    - `<slug>`: lowercase ASCII kebab-case, under 50 characters, no trailing punctuation.
 1. **Reuse a valid name**: when the user's input already is a valid branch name, use it as is.
 1. **Resolve the base**: use the user-specified base; otherwise state that the new branch starts at the current commit. Ask only if competing branch histories make the intended base unclear.
@@ -40,4 +40,4 @@ For a separate checkout or qualification of dirty changes, use [git-worktree](..
 ## Documentation
 
 - [Conventional Branch](https://conventionalbranch.org/)
-- Companion skills: [conventional-commit](../../conventional-commit/SKILL.md) (commit on the branch), [github-pull-request](../../github-pull-request/SKILL.md) (open the PR).
+- Companion skills: [conventional-commit](../../git-delivery/references/conventional-commit.md) (commit on the branch), [github-pull-request](../../github-pull-request/SKILL.md) (open the PR).

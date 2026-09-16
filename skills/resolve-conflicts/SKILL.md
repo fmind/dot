@@ -1,17 +1,18 @@
 ---
 name: resolve-conflicts
-description: Resolve git merge or rebase conflicts by reading both sides, keeping the intent of each change, then continuing and re-running the gate. Use when a merge or rebase conflicts.
+description: "Resolve Git merge or rebase conflicts; preserve intent and verify the combined result."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-11"
+  updated: "2026-09-16"
 ---
 
 # Resolve Conflicts
 
-Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Do not abort merely to hide a conflict; abort and report when the operation itself targets the wrong base or cannot safely continue. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [Git branch preparation](../git-worktree/SKILL.md); committing and pushing in [git-add-commit-push](../git-add-commit-push/SKILL.md).
+Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Do not abort merely to hide a conflict; abort and report when the operation itself targets the wrong base or cannot safely continue. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [Git branch preparation](../git-worktree/SKILL.md); committing and pushing in [git-add-commit-push](../git-delivery/references/git-add-commit-push.md).
 
 ## Workflow
 
@@ -51,4 +52,4 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 
 - [git merge](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) · [git rebase](https://git-scm.com/docs/git-rebase) · [git rerere](https://git-scm.com/docs/git-rerere)
 - Adapted from [mattpocock/skills resolving-merge-conflicts](https://github.com/mattpocock/skills/blob/321658273cb1d20b76026717d027d505790106d4/skills/engineering/resolving-merge-conflicts/SKILL.md).
-- Companion skills: [git-add-commit-push](../git-add-commit-push/SKILL.md) (commit and push), [repository-history](../repository-history/SKILL.md) (why a change exists), [mise](../mise/SKILL.md) (the gate).
+- Companion skills: [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) (commit and push), [repository-history](../repository-history/SKILL.md) (why a change exists), [mise](../mise/SKILL.md) (the gate).

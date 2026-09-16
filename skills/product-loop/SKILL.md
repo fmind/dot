@@ -1,12 +1,13 @@
 ---
 name: product-loop
-description: Run product discovery, specification, launch, and learning with explicit build-or-stop decisions. Use when deciding, launching, or reviewing a product bet.
+description: "Guide product discovery, specification, launch, and learning with explicit build-or-stop decisions."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-loop
   created: "2026-08-09"
-  updated: "2026-09-07"
+  updated: "2026-09-16"
 ---
 
 # Product Loop

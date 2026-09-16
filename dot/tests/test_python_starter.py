@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _render(name: str, replacements: dict[str, str], *, owner: str = "python-stack") -> str:
-    content = (ROOT / "skills" / owner / "references" / name).read_text(encoding="utf-8")
+    guide = {"python-stack": "foundation", "cli-development": "typer", "python-web": "litestar"}[owner]
+    content = (ROOT / "skills" / owner / "references" / guide / "templates" / name).read_text(encoding="utf-8")
     for placeholder, value in replacements.items():
         content = content.replace(placeholder, value)
     unresolved = {
@@ -88,10 +89,10 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         _write(tmp_path, "tests/test_library.py", _render("test_library.py", replacements))
     elif profile == "cli":
         _run(tmp_path, "uv", "add", "typer>=0.27.2")
-        _write(tmp_path, "src/starter_py/__init__.py", _render("init-cli.py", replacements, owner="typer"))
-        _write(tmp_path, "src/starter_py/__main__.py", _render("main.py", replacements, owner="typer"))
+        _write(tmp_path, "src/starter_py/__init__.py", _render("init-cli.py", replacements, owner="cli-development"))
+        _write(tmp_path, "src/starter_py/__main__.py", _render("main.py", replacements, owner="cli-development"))
         for name in ("test_smoke.py", "test_cli.py"):
-            _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="typer"))
+            _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="cli-development"))
     else:
         _run(
             tmp_path,
@@ -106,12 +107,16 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "structlog>=26.1.0",
         )
         _run(tmp_path, "uv", "add", "--dev", "anyio>=4.14.2", "testcontainers>=4.15.0")
-        _write(tmp_path, "src/starter_py/__init__.py", _render("init.py", replacements, owner="litestar"))
+        _write(
+            tmp_path,
+            "src/starter_py/__init__.py",
+            _render("init.py", replacements, owner="python-web"),
+        )
         _write(tmp_path, "src/starter_py/__main__.py", 'from . import main\n\nif __name__ == "__main__":\n    main()\n')
         for name in ("test_web.py", "test_integration.py"):
-            _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="litestar"))
-        _write(tmp_path, "conftest.py", _render("conftest.py", replacements, owner="litestar"))
-        _write(tmp_path, ".env", _render("env.example", replacements, owner="litestar"))
+            _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="python-web"))
+        _write(tmp_path, "conftest.py", _render("conftest.py", replacements, owner="python-web"))
+        _write(tmp_path, ".env", _render("env.example", replacements, owner="python-web"))
 
     _run(tmp_path, "uv", "lock")
     _run(tmp_path, "uv", "sync", "--locked")
@@ -143,7 +148,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     outside = tmp_path / "outside"
     outside.mkdir()
     if profile == "web":
-        _write(outside, ".env", _render("env.example", replacements, owner="litestar"))
+        _write(outside, ".env", _render("env.example", replacements, owner="python-web"))
     assert (
         _run(outside, str(runtime / "bin/python"), "-c", "import starter_py; print(starter_py.__version__)")
         == "0.1.0\n"

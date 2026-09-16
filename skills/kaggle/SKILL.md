@@ -1,12 +1,13 @@
 ---
 name: kaggle
-description: Use the kaggle CLI for competitions, datasets, kernels, and models with token auth, bounded downloads, and explicit submission authority. Use for any Kaggle CLI task.
+description: "Operate Kaggle competitions, datasets, kernels, models, and submissions."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
-  created: "2026-09-02"
-  updated: "2026-09-11"
+  created: "2026-09-16"
+  updated: "2026-09-16"
 ---
 
 # Kaggle CLI
@@ -48,4 +49,4 @@ Upstream: `Kaggle/kaggle-cli` for command guidance and `Kaggle/kaggle-skills` fo
 
 - [Kaggle CLI](https://github.com/Kaggle/kaggle-cli) · [Kaggle API](https://www.kaggle.com/docs/api)
 - Releases: [Kaggle CLI](https://github.com/Kaggle/kaggle-cli/releases)
-- Companion skills: [python-stack](../python-stack/SKILL.md) (project layout), [duckdb](../duckdb/SKILL.md) (inspect downloads), [hf](../hf/SKILL.md) (Hub models and datasets), [colab](../colab/SKILL.md) (rented accelerators).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md) (project layout), [duckdb](../duckdb/SKILL.md) (inspect downloads), [hf](../hf/SKILL.md) (Hub models and datasets), [colab](../colab/SKILL.md) (rented accelerators).

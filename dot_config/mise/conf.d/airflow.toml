@@ -1,5 +1,0 @@
-# :schema https://mise.jdx.dev/schema/mise.json
-# Docs: https://mise.jdx.dev/configuration.html
-
-[tools]
-astro = "latest" # Astronomer CLI for local Apache Airflow development and DAG testing

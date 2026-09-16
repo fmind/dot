@@ -1,12 +1,13 @@
 ---
 name: quality-assurance
-description: Design and execute risk-based test campaigns across critical user journeys and report proof gaps. Use for cross-layer validation beyond one diff.
+description: "Plan and run software test campaigns across user journeys, failures, and release risks."
 license: MIT
 metadata:
+  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-09-15"
+  updated: "2026-09-16"
 ---
 
 # Quality Assurance
@@ -34,4 +35,4 @@ Run a risk-based test campaign over the actual feature journey. Keep one-diff re
 
 ## Documentation
 
-- Companion skills: [playwright](../playwright/SKILL.md) (browser automation), [benchmark](../benchmark/SKILL.md) (latency and load baselines), [test-driven-development](../test-driven-development/SKILL.md) (implementing behavior), [product-design-review](../product-design-review/SKILL.md) (UX judgment), [secure](../secure/SKILL.md) (repository scanning), [production-readiness](../production-readiness/SKILL.md) (launch gate).
+- Companion skills: [playwright](../playwright/SKILL.md) (browser automation), [benchmark](../benchmark/references/command-http.md) (latency and load baselines), [python-testing](../python-testing/SKILL.md) (implementing behavior), [product-design-review](../product-design-review/SKILL.md) (UX judgment), [security-review](../security-review/references/code-review/GUIDE.md) (repository scanning), [production-readiness](../production-readiness/SKILL.md) (launch gate).

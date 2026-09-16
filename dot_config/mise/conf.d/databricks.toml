@@ -1,5 +1,0 @@
-# :schema https://mise.jdx.dev/schema/mise.json
-# Docs: https://mise.jdx.dev/configuration.html
-
-[tools]
-"github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog

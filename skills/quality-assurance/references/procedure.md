@@ -8,7 +8,7 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
 1. **Prepare controlled state**: Create isolated data with explicit setup and teardown; confirm the test cannot mutate user or external state beyond the authorized scope.
 1. **Run changed behavior first**: Exercise the success path, unhappy paths, boundaries, permissions, cancellation, retries, concurrency, and recovery the requirements promise.
 1. **Test real presentation**: Prefer direct HTTP or API evidence; use a browser only for rendering, interaction, session state, or accessibility, driving it with [playwright](../../playwright/SKILL.md) through roles and labels and verifying state after every action.
-1. **Test non-functional risk**: Measure latency, load, resource use, resilience, security boundaries, and observability only where the matrix or spec requires; set the baseline and threshold first with [benchmark](../../benchmark/SKILL.md).
+1. **Test non-functional risk**: Measure latency, load, resource use, resilience, security boundaries, and observability only where the matrix or spec requires; set the baseline and threshold first with [benchmark](../../benchmark/references/command-http.md).
 1. **Run regression proof**: Execute the relevant package or subsystem suite before the full gate.
 1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../../mise/SKILL.md)).
 1. **Retest fixes narrowly**: Reproduce the original failure, verify the fix, then rerun impacted journeys and the gate; avoid open-ended visual polishing loops.

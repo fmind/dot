@@ -64,6 +64,41 @@ Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout withou
 
 Google Sans is the default for application text and Google Sans Code for code; terminal apps inherit [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) from Ghostty. The managed installer supplies all three families from checksum-pinned official releases. Projects that embed fonts must still bundle their fonts.
 
+### Optional tool extras
+
+Cloud and customer toolchains are opt-in per computer. In `chezmoi edit-config`, add `extras` to the existing `[data]` table (do not create a second table):
+
+```toml
+# Docs: https://www.chezmoi.io/reference/configuration-file/variables/
+[data]
+extras = ["aws", "kubernetes"]
+```
+
+Omit `extras` or use `extras = []` for the core tools only. Available names:
+
+| Extra        | Tools                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------ |
+| `airflow`    | Astronomer `astro` CLI; local runs also need a Docker-compatible engine                    |
+| `atlassian`  | Atlassian `acli`                                                                           |
+| `aws`        | AWS CLI and `aws-sso-util`                                                                 |
+| `databricks` | Databricks CLI                                                                             |
+| `kubernetes` | kubectl, kubectx, kubens, Helm, k9s, kustomize, stern, kind, k3d, kubeconform, kube-linter |
+
+Apply your selection, resolve the selected tools, and install them:
+
+```bash
+chezmoi apply --force ~/.config/mise
+mise trust --yes ~/.config/mise
+mise lock --global --yes
+mise -C "$HOME" --locked install --yes
+mise -C "$HOME" config ls
+mise -C "$HOME" ls --current
+```
+
+The fragments deploy as `~/.config/mise/conf.d/<extra>.local.toml`. Mise reads them automatically; the core config and project configs take precedence when they declare the same tool. Optional versions and dependency sidecars are recorded in the machine's `~/.config/mise/mise.local.lock` and `~/.config/mise/locks/mise.local/`, separate from the shared core lockfile. Keep these local files out of Git. Unknown names or a non-list `extras` value stop apply with an error.
+
+To disable an extra, remove its name and repeat the commands above. Apply removes that managed fragment, and locking drops its entries. Installed tool caches remain available; disabling does not uninstall tools, delete personal fragments, or stop running containers or clusters. Edit managed fragments in the chezmoi source tree. Existing installations that use `acli` should enable `atlassian` before their next apply. The cloud skills remain discoverable even when their tools are disabled; install the corresponding extra before following those workflows.
+
 ### Dot configuration
 
 The CLI optionally reads `~/.config/dot.yaml` and merges its values with the [built-in defaults](dot/src/fmind_dot/config.py). Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
@@ -115,6 +150,10 @@ ln -s ~/skill-library/meeting-prep ~/.agents/skills/
 
 Run this setup on each computer, choose a unique package name, and restart the agent session to refresh discovery. For diagnostics and catalog changes, see the [skill maintenance guide](.agents/skills/dot-skills/SKILL.md).
 
+### Upgrading the skill catalog
+
+The consolidated catalog retires 55 package names from v6.1.0. Existing installations need the [skill-link migration](.agents/skills/dot-skills/references/installed-links.md#catalog-consolidation-migration) before restarting their agents. Preview the migration first; its apply mode moves only confirmed retired links into a recoverable backup outside discovery. Other packages remain untouched. A fresh installation needs no migration.
+
 ## Credentials
 
 ### Secret Management
@@ -153,7 +192,7 @@ Use `dot login` to list providers, `dot login workspace` for Workspace, and `dot
 
 Use `dot setup github` to reconcile GitHub scopes and remove configured excluded grants. Use `dot setup workspace <project-id>` to enable missing Workspace APIs and configure its OAuth client. Native tools retain account/profile selection and credential storage.
 
-Configure authentication under `auth` in the [Dot configuration](#dot-configuration). See the [CLI guide](skills/dot-cli/SKILL.md#authentication) for selection precedence, scope policy, and authentication checks.
+Configure authentication under `auth` in the [Dot configuration](#dot-configuration). See the [authentication guide](skills/dot-cli/references/authentication.md) for selection precedence, scope policy, and authentication checks.
 
 ```yaml
 # Docs: https://github.com/fmind/dot

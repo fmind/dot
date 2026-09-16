@@ -5,7 +5,7 @@ encryption = "age"
     git_email = {{ promptStringOnce . "git_email" "What is your Git email address" "github@fmind.dev" | quote }}
     github_user = {{ promptStringOnce . "github_user" "What is your GitHub username" "fmind" | quote }}
     # Optional tool extras: "airflow", "atlassian", "aws", "databricks", "kubernetes"
-    # extras = ["airflow", "atlassian", "aws", "databricks", "kubernetes"]
+    extras = {{ get . "extras" | default (list) | toJson }}
 
 [age]
     identity = "{{ .chezmoi.homeDir }}/.config/chezmoi/key.txt"

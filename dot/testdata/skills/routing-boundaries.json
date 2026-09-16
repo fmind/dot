@@ -7,29 +7,45 @@
   "cases": [
     {
       "id": "explicit-harness-delegation",
-      "categories": ["agents"],
+      "categories": [
+        "agents"
+      ],
       "prompt": "Deleguate these tasks to agy: investigate the parser failure and review the documentation links; track both jobs and verify their results.",
-      "expected": ["deleguate-tasks"],
+      "expected": [
+        "deleguate-tasks"
+      ],
       "primary": "deleguate-tasks",
       "top_k": 3
     },
     {
       "id": "delegation-prompt-only",
-      "categories": ["agents"],
+      "categories": [
+        "agents"
+      ],
       "prompt": "Prepare a grounded continuation prompt for another agent, but do not launch it.",
-      "expected": ["agent-prompt"],
-      "primary": "agent-prompt",
+      "expected": [
+        "task-prompts"
+      ],
+      "primary": "task-prompts",
       "top_k": 3,
-      "forbidden": ["deleguate-tasks"]
+      "forbidden": [
+        "deleguate-tasks"
+      ]
     },
     {
       "id": "ordinary-work-without-delegation",
-      "categories": ["development"],
+      "categories": [
+        "development"
+      ],
       "prompt": "Fix the dot CLI configuration parser and test the behavior; keep token usage low.",
-      "expected": ["dot-development"],
+      "expected": [
+        "dot-development"
+      ],
       "primary": "dot-development",
       "top_k": 3,
-      "forbidden": ["deleguate-tasks"]
+      "forbidden": [
+        "deleguate-tasks"
+      ]
     },
     {
       "id": "dot-development-change",
@@ -92,7 +108,8 @@
         "agy"
       ],
       "primary": "agy",
-      "top_k": 3
+      "top_k": 3,
+      "guide": "references/agy/GUIDE.md"
     },
     {
       "id": "claude-advanced-features",
@@ -101,10 +118,11 @@
       ],
       "prompt": "Explain which Claude Code feature to use for checkpoints, worktrees, goals, session schedules, and cloud routines, with official links.",
       "expected": [
-        "claude"
+        "agent-harnesses"
       ],
-      "primary": "claude",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/claude/GUIDE.md"
     },
     {
       "id": "codex-advanced-features",
@@ -113,10 +131,11 @@
       ],
       "prompt": "Find Codex documentation for non-interactive execution, the SDK, worktrees, automations, and browser or computer use.",
       "expected": [
-        "codex"
+        "agent-harnesses"
       ],
-      "primary": "codex",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/codex/GUIDE.md"
     },
     {
       "id": "copilot-advanced-features",
@@ -125,10 +144,11 @@
       ],
       "prompt": "Show how Copilot CLI Fleet, Autopilot, Rubber Duck, remote steering, and scheduled prompts fit together using official docs.",
       "expected": [
-        "copilot"
+        "agent-harnesses"
       ],
-      "primary": "copilot",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/copilot/GUIDE.md"
     },
     {
       "id": "grok-advanced-features",
@@ -137,22 +157,11 @@
       ],
       "prompt": "Find Grok Build documentation for worktrees, background tasks, ACP, the agent dashboard, sandboxing, and hooks.",
       "expected": [
-        "grok"
+        "agent-harnesses"
       ],
-      "primary": "grok",
-      "top_k": 3
-    },
-    {
-      "id": "jules-advanced-features",
-      "categories": [
-        "agents"
-      ],
-      "prompt": "Find Jules documentation for scheduled tasks, suggested tasks, Continuous AI, API automation, usage limits, and failed tasks.",
-      "expected": [
-        "jules"
-      ],
-      "primary": "jules",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/grok/GUIDE.md"
     },
     {
       "id": "opencode-advanced-features",
@@ -161,10 +170,11 @@
       ],
       "prompt": "Find OpenCode guidance for session recovery, server attachment, ACP, SDK integration, plugin events, and GitHub automation.",
       "expected": [
-        "opencode"
+        "agent-harnesses"
       ],
-      "primary": "opencode",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/opencode/GUIDE.md"
     },
     {
       "id": "agy-harness",
@@ -178,9 +188,8 @@
       ],
       "primary": "agy",
       "top_k": 3,
-      "forbidden": [
-        "antigravity-sdk"
-      ]
+      "forbidden": [],
+      "guide": "references/agy/GUIDE.md"
     },
     {
       "id": "claude-harness",
@@ -190,10 +199,11 @@
       ],
       "prompt": "Configure Claude Code hooks and Remote Control using the current claude documentation and changelog.",
       "expected": [
-        "claude"
+        "agent-harnesses"
       ],
-      "primary": "claude",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/claude/GUIDE.md"
     },
     {
       "id": "codex-harness",
@@ -203,10 +213,11 @@
       ],
       "prompt": "Check Codex app and CLI configuration, permissions, and remote connections against the current official changelog.",
       "expected": [
-        "codex"
+        "agent-harnesses"
       ],
-      "primary": "codex",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/codex/GUIDE.md"
     },
     {
       "id": "copilot-harness",
@@ -216,13 +227,14 @@
       ],
       "prompt": "Configure GitHub Copilot CLI custom agents and skills and find its latest CLI release notes.",
       "expected": [
-        "copilot"
+        "agent-harnesses"
       ],
-      "primary": "copilot",
+      "primary": "agent-harnesses",
       "top_k": 3,
       "forbidden": [
-        "github-agentic-workflow"
-      ]
+        "github-actions"
+      ],
+      "guide": "references/copilot/GUIDE.md"
     },
     {
       "id": "grok-harness",
@@ -232,23 +244,11 @@
       ],
       "prompt": "Inspect Grok Build session configuration and skill discovery and check its Build changelog.",
       "expected": [
-        "grok"
+        "agent-harnesses"
       ],
-      "primary": "grok",
-      "top_k": 3
-    },
-    {
-      "id": "jules-harness",
-      "categories": [
-        "agents",
-        "external-service"
-      ],
-      "prompt": "Use the Jules CLI to review a remote coding task and prepare its repository environment.",
-      "expected": [
-        "jules"
-      ],
-      "primary": "jules",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/grok/GUIDE.md"
     },
     {
       "id": "single-review",
@@ -270,9 +270,9 @@
       ],
       "prompt": "Use test-driven-development to prove this regression and implement the smallest correction.",
       "expected": [
-        "test-driven-development"
+        "python-testing"
       ],
-      "primary": "test-driven-development",
+      "primary": "python-testing",
       "top_k": 3
     },
     {
@@ -305,9 +305,9 @@
       ],
       "prompt": "Run the complete repository security pass across secrets, dependencies, workflows, and threat boundaries.",
       "expected": [
-        "secure"
+        "security-review"
       ],
-      "primary": "secure",
+      "primary": "security-review",
       "top_k": 3
     },
     {
@@ -378,9 +378,9 @@
       ],
       "prompt": "Prepare a repository-grounded prompt to delegate a fresh task to another agent.",
       "expected": [
-        "agent-prompt"
+        "task-prompts"
       ],
-      "primary": "agent-prompt",
+      "primary": "task-prompts",
       "top_k": 3
     },
     {
@@ -390,9 +390,9 @@
       ],
       "prompt": "Carry this session into a follow-up prompt with decisions, progress, failed approaches, proof gaps, and remaining work.",
       "expected": [
-        "agent-prompt"
+        "task-prompts"
       ],
-      "primary": "agent-prompt",
+      "primary": "task-prompts",
       "top_k": 3
     },
     {
@@ -439,9 +439,9 @@
       ],
       "prompt": "Create a Zensical documentation site for this Python course and replace the old Hugo publishing workflow.",
       "expected": [
-        "zensical"
+        "documentation-site"
       ],
-      "primary": "zensical",
+      "primary": "documentation-site",
       "top_k": 3
     },
     {
@@ -452,10 +452,11 @@
       ],
       "prompt": "Use agents-cli to scaffold a new ADK project and install the official Google workflow skills at project scope.",
       "expected": [
-        "agents-cli"
+        "agent-frameworks"
       ],
-      "primary": "agents-cli",
-      "top_k": 3
+      "primary": "agent-frameworks",
+      "top_k": 3,
+      "guide": "references/agents-cli/GUIDE.md"
     },
     {
       "id": "tool-opencode",
@@ -465,10 +466,11 @@
       ],
       "prompt": "Run the OpenCode terminal coding agent with Google ADC on Vertex AI for autonomous Python feature development.",
       "expected": [
-        "opencode"
+        "agent-harnesses"
       ],
-      "primary": "opencode",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/opencode/GUIDE.md"
     },
     {
       "id": "tool-pydantic",
@@ -478,10 +480,11 @@
       ],
       "prompt": "Use Pydantic constraints and custom validators for these incoming records and install its official validation skill.",
       "expected": [
-        "pydantic"
+        "python-stack"
       ],
-      "primary": "pydantic",
-      "top_k": 3
+      "primary": "python-stack",
+      "top_k": 3,
+      "guide": "references/pydantic.md"
     },
     {
       "id": "tool-litestar",
@@ -491,10 +494,11 @@
       ],
       "prompt": "Use the official Litestar skills to fix dependency injection and test request validation in this Litestar app.",
       "expected": [
-        "litestar"
+        "python-web"
       ],
-      "primary": "litestar",
-      "top_k": 3
+      "primary": "python-web",
+      "top_k": 3,
+      "guide": "references/litestar/GUIDE.md"
     },
     {
       "id": "django-project",
@@ -504,14 +508,12 @@
       ],
       "prompt": "Quickstart a server-rendered Django project with admin, ORM models, migrations, uv tooling, and production-safe settings.",
       "expected": [
-        "django"
+        "python-web"
       ],
-      "primary": "django",
+      "primary": "python-web",
       "top_k": 3,
-      "forbidden": [
-        "fastapi",
-        "litestar"
-      ]
+      "forbidden": [],
+      "guide": "references/django/GUIDE.md"
     },
     {
       "id": "tool-typer",
@@ -521,10 +523,11 @@
       ],
       "prompt": "Use the official Typer skill to add a typed CLI option and verify help and failure exit codes.",
       "expected": [
-        "typer"
+        "cli-development"
       ],
-      "primary": "typer",
-      "top_k": 3
+      "primary": "cli-development",
+      "top_k": 3,
+      "guide": "references/typer/GUIDE.md"
     },
     {
       "id": "tool-fastapi",
@@ -534,10 +537,11 @@
       ],
       "prompt": "Keep the generated FastAPI service and install its official skill to review dependency lifetimes.",
       "expected": [
-        "fastapi"
+        "python-web"
       ],
-      "primary": "fastapi",
-      "top_k": 3
+      "primary": "python-web",
+      "top_k": 3,
+      "guide": "references/fastapi.md"
     },
     {
       "id": "tool-marimo",
@@ -547,14 +551,14 @@
       ],
       "prompt": "Author a reactive marimo notebook, configure agent harness pairing, and install official marimo skills.",
       "expected": [
-        "marimo"
+        "python-mlops"
       ],
-      "primary": "marimo",
+      "primary": "python-mlops",
       "top_k": 3,
       "forbidden": [
-        "gradio",
-        "nicegui"
-      ]
+        "python-web"
+      ],
+      "guide": "references/marimo.md"
     },
     {
       "id": "tool-uv",
@@ -564,10 +568,11 @@
       ],
       "prompt": "Use uv to sync and lock this pyproject.toml dependency graph, then build the Python package.",
       "expected": [
-        "uv"
+        "python-stack"
       ],
-      "primary": "uv",
-      "top_k": 3
+      "primary": "python-stack",
+      "top_k": 3,
+      "guide": "references/uv.md"
     },
     {
       "id": "tool-ruff",
@@ -577,13 +582,12 @@
       ],
       "prompt": "Use the official Ruff skill to diagnose this lint configuration without reformatting unrelated files.",
       "expected": [
-        "ruff"
-      ],
-      "primary": "ruff",
-      "top_k": 3,
-      "forbidden": [
         "python-stack"
-      ]
+      ],
+      "primary": "python-stack",
+      "top_k": 3,
+      "forbidden": [],
+      "guide": "references/ruff.md"
     },
     {
       "id": "tool-ty",
@@ -593,13 +597,12 @@
       ],
       "prompt": "Use the official ty skill to fix Python type diagnostics and verify the configured environment.",
       "expected": [
-        "ty"
-      ],
-      "primary": "ty",
-      "top_k": 3,
-      "forbidden": [
         "python-stack"
-      ]
+      ],
+      "primary": "python-stack",
+      "top_k": 3,
+      "forbidden": [],
+      "guide": "references/ty.md"
     },
     {
       "id": "adk-sdk-code",
@@ -609,10 +612,11 @@
       ],
       "prompt": "Implement an ADK Agent with Runner, session service, callbacks, and a pinned Gemini model.",
       "expected": [
-        "google-adk"
+        "agent-frameworks"
       ],
-      "primary": "google-adk",
-      "top_k": 3
+      "primary": "agent-frameworks",
+      "top_k": 3,
+      "guide": "references/google-adk.md"
     },
     {
       "id": "tool-acli",
@@ -633,12 +637,12 @@
       ],
       "prompt": "Configure this repository MCP server in Codex and Claude using each host's native project-scoped command.",
       "expected": [
-        "agent-mcp"
+        "mcp-setup"
       ],
-      "primary": "agent-mcp",
+      "primary": "mcp-setup",
       "top_k": 3,
       "forbidden": [
-        "mcp-server"
+        "agent-protocols"
       ]
     },
     {
@@ -678,13 +682,14 @@
       ],
       "prompt": "Build a bounded Antigravity SDK orchestrator with static subagents, policy controls, and token budgets.",
       "expected": [
-        "antigravity-sdk"
+        "agy"
       ],
-      "primary": "antigravity-sdk",
+      "primary": "agy",
       "top_k": 3,
       "forbidden": [
-        "google-adk"
-      ]
+        "agent-frameworks"
+      ],
+      "guide": "references/antigravity-sdk/GUIDE.md"
     },
     {
       "id": "ast-grep-rewrite",
@@ -708,7 +713,8 @@
         "benchmark"
       ],
       "primary": "benchmark",
-      "top_k": 3
+      "top_k": 3,
+      "guide": "references/command-http.md"
     },
     {
       "id": "chrome-live-profile",
@@ -732,13 +738,11 @@
       ],
       "prompt": "Define this CLI's arguments, streams, exit codes, JSON schema, and compatibility rules before implementation.",
       "expected": [
-        "cli-contracts"
+        "cli-development"
       ],
-      "primary": "cli-contracts",
+      "primary": "cli-development",
       "top_k": 3,
-      "forbidden": [
-        "typer"
-      ]
+      "forbidden": []
     },
     {
       "id": "cloud-run-deploy",
@@ -789,13 +793,11 @@
       ],
       "prompt": "Write a Conventional Commits subject for the already staged changes and create the local commit.",
       "expected": [
-        "conventional-commit"
+        "git-delivery"
       ],
-      "primary": "conventional-commit",
+      "primary": "git-delivery",
       "top_k": 3,
-      "forbidden": [
-        "git-add-commit-push"
-      ]
+      "forbidden": []
     },
     {
       "id": "cosign-attestation",
@@ -804,10 +806,11 @@
       ],
       "prompt": "Keylessly sign this container digest, attach the SBOM attestation, and verify the exact OIDC identity.",
       "expected": [
-        "cosign"
+        "containerize"
       ],
-      "primary": "cosign",
-      "top_k": 3
+      "primary": "containerize",
+      "top_k": 3,
+      "guide": "references/cosign.md"
     },
     {
       "id": "course-learning-design",
@@ -828,13 +831,12 @@
       ],
       "prompt": "Update this existing D2 architecture source, preserve its theme, and export the validated diagram.",
       "expected": [
-        "d2"
+        "diagrams-as-code"
       ],
-      "primary": "d2",
+      "primary": "diagrams-as-code",
       "top_k": 3,
-      "forbidden": [
-        "mermaid"
-      ]
+      "forbidden": [],
+      "guide": "references/d2.md"
     },
     {
       "id": "dependabot-config",
@@ -843,13 +845,14 @@
       ],
       "prompt": "Configure weekly Dependabot updates for uv, Docker, and SHA-pinned GitHub Actions with sensible groups.",
       "expected": [
-        "dependabot"
+        "github-actions"
       ],
-      "primary": "dependabot",
+      "primary": "github-actions",
       "top_k": 3,
       "forbidden": [
         "upgrade-tools"
-      ]
+      ],
+      "guide": "references/dependabot.md"
     },
     {
       "id": "dot-cli-operation",
@@ -875,7 +878,7 @@
       "primary": "dot-release",
       "top_k": 3,
       "forbidden": [
-        "release"
+        "git-delivery"
       ]
     },
     {
@@ -948,13 +951,11 @@
       ],
       "prompt": "Stage the requested files, create a conventional commit, heal hook failures, and push the branch.",
       "expected": [
-        "git-add-commit-push"
+        "git-delivery"
       ],
-      "primary": "git-add-commit-push",
+      "primary": "git-delivery",
       "top_k": 3,
-      "forbidden": [
-        "conventional-commit"
-      ]
+      "forbidden": []
     },
     {
       "id": "github-actions-python",
@@ -967,9 +968,8 @@
       ],
       "primary": "github-actions",
       "top_k": 3,
-      "forbidden": [
-        "dependabot"
-      ]
+      "forbidden": [],
+      "guide": "references/ci-cd/GUIDE.md"
     },
     {
       "id": "github-agentic-workflow",
@@ -979,13 +979,12 @@
       ],
       "prompt": "Design and compile a secure GitHub Copilot agentic workflow that can triage repository issues.",
       "expected": [
-        "github-agentic-workflow"
-      ],
-      "primary": "github-agentic-workflow",
-      "top_k": 3,
-      "forbidden": [
         "github-actions"
-      ]
+      ],
+      "primary": "github-actions",
+      "top_k": 3,
+      "forbidden": [],
+      "guide": "references/github-agentic-workflow/GUIDE.md"
     },
     {
       "id": "github-issue-edit",
@@ -1033,10 +1032,11 @@
       ],
       "prompt": "Scan the staged changes and recent Git history for exposed secrets with Gitleaks and redact any finding output.",
       "expected": [
-        "gitleaks"
+        "security-review"
       ],
-      "primary": "gitleaks",
-      "top_k": 3
+      "primary": "security-review",
+      "top_k": 3,
+      "guide": "references/gitleaks.md"
     },
     {
       "id": "google-product-skill",
@@ -1120,10 +1120,11 @@
       ],
       "prompt": "Configure Lefthook so pre-commit delegates format and check and pre-push delegates the repository test task.",
       "expected": [
-        "lefthook"
+        "github-actions"
       ],
-      "primary": "lefthook",
-      "top_k": 3
+      "primary": "github-actions",
+      "top_k": 3,
+      "guide": "references/lefthook.md"
     },
     {
       "id": "mcp-python-server",
@@ -1132,12 +1133,12 @@
       ],
       "prompt": "Implement a typed Python MCP server over stdio and verify its protocol behavior with an in-process client.",
       "expected": [
-        "mcp-server"
+        "agent-protocols"
       ],
-      "primary": "mcp-server",
+      "primary": "agent-protocols",
       "top_k": 3,
       "forbidden": [
-        "agent-mcp"
+        "mcp-setup"
       ]
     },
     {
@@ -1147,13 +1148,12 @@
       ],
       "prompt": "Add a compact Mermaid sequence diagram to this Markdown document and validate its syntax.",
       "expected": [
-        "mermaid"
+        "diagrams-as-code"
       ],
-      "primary": "mermaid",
+      "primary": "diagrams-as-code",
       "top_k": 3,
-      "forbidden": [
-        "d2"
-      ]
+      "forbidden": [],
+      "guide": "references/mermaid.md"
     },
     {
       "id": "mise-task-contract",
@@ -1174,9 +1174,9 @@
       ],
       "prompt": "Replace this JavaScript widget with native HTML and CSS using current Baseline-compatible web platform features.",
       "expected": [
-        "modern-web"
+        "web-frontend"
       ],
-      "primary": "modern-web",
+      "primary": "web-frontend",
       "top_k": 3
     },
     {
@@ -1186,13 +1186,14 @@
       ],
       "prompt": "Bootstrap a new repository with the right stack, license, mise tasks, hooks, CI, agent files, and settings.",
       "expected": [
-        "new-project"
+        "project-scaffolding"
       ],
-      "primary": "new-project",
+      "primary": "project-scaffolding",
       "top_k": 3,
       "forbidden": [
-        "project-health"
-      ]
+        "repository-maintenance"
+      ],
+      "guide": "references/bootstrap.md"
     },
     {
       "id": "otel-agent-instrumentation",
@@ -1265,9 +1266,9 @@
       ],
       "prompt": "Design this sustained agent workflow around native /goal, thin prompts/ entry points, and inner, middle, and outer feedback loops; distinguish a new week from a resumed campaign.",
       "expected": [
-        "loop-engineering"
+        "agent-loops"
       ],
-      "primary": "loop-engineering",
+      "primary": "agent-loops",
       "top_k": 3,
       "forbidden": [
         "product-loop"
@@ -1310,9 +1311,9 @@
       ],
       "prompt": "Bring this existing project up to date, internally consistent, simple, secure, and fully working.",
       "expected": [
-        "project-health"
+        "repository-maintenance"
       ],
-      "primary": "project-health",
+      "primary": "repository-maintenance",
       "top_k": 3,
       "forbidden": [
         "repository-review"
@@ -1325,13 +1326,14 @@
       ],
       "prompt": "Choose and write the correct license for this public course-content repository and align its package metadata.",
       "expected": [
-        "project-license"
+        "project-scaffolding"
       ],
-      "primary": "project-license",
+      "primary": "project-scaffolding",
       "top_k": 3,
       "forbidden": [
         "terms-review"
-      ]
+      ],
+      "guide": "references/project-license/GUIDE.md"
     },
     {
       "id": "prompt-stack-design",
@@ -1373,7 +1375,8 @@
       "top_k": 3,
       "forbidden": [
         "python-script"
-      ]
+      ],
+      "guide": "references/foundation/GUIDE.md"
     },
     {
       "id": "qa-risk-campaign",
@@ -1394,13 +1397,14 @@
       ],
       "prompt": "Cut the next semantic version, generate the changelog, create the tag, and publish the GitHub release.",
       "expected": [
-        "release"
+        "git-delivery"
       ],
-      "primary": "release",
+      "primary": "git-delivery",
       "top_k": 3,
       "forbidden": [
         "dot-release"
-      ]
+      ],
+      "guide": "references/release/GUIDE.md"
     },
     {
       "id": "git-history-rationale",
@@ -1478,7 +1482,7 @@
       "primary": "systematic-debugging",
       "top_k": 3,
       "forbidden": [
-        "test-driven-development"
+        "python-testing"
       ]
     },
     {
@@ -1500,9 +1504,9 @@
       ],
       "prompt": "Create an OpenTofu-first infrastructure stack with provider locks, linting, security scans, tests, and generated docs.",
       "expected": [
-        "terraform"
+        "infra-as-code"
       ],
-      "primary": "terraform",
+      "primary": "infra-as-code",
       "top_k": 3
     },
     {
@@ -1517,7 +1521,7 @@
       "primary": "threat-model",
       "top_k": 3,
       "forbidden": [
-        "secure"
+        "security-review"
       ]
     },
     {
@@ -1527,10 +1531,11 @@
       ],
       "prompt": "Scan this filesystem, IaC configuration, and container digest with Trivy and produce a CycloneDX SBOM.",
       "expected": [
-        "trivy"
+        "security-review"
       ],
-      "primary": "trivy",
-      "top_k": 3
+      "primary": "security-review",
+      "top_k": 3,
+      "guide": "references/trivy/GUIDE.md"
     },
     {
       "id": "upgrade-ecosystems",
@@ -1544,7 +1549,7 @@
       "primary": "upgrade-tools",
       "top_k": 3,
       "forbidden": [
-        "dependabot"
+        "github-actions"
       ]
     },
     {
@@ -1559,7 +1564,7 @@
       "primary": "upgrade-tools",
       "top_k": 3,
       "forbidden": [
-        "dependabot"
+        "github-actions"
       ]
     },
     {
@@ -1582,13 +1587,12 @@
       ],
       "prompt": "Audit these GitHub Actions workflows with Zizmor for unpinned uses, template injection, and cache poisoning.",
       "expected": [
-        "zizmor"
-      ],
-      "primary": "zizmor",
-      "top_k": 3,
-      "forbidden": [
         "github-actions"
-      ]
+      ],
+      "primary": "github-actions",
+      "top_k": 3,
+      "forbidden": [],
+      "guide": "references/zizmor.md"
     },
     {
       "id": "isolate-dirty-gate",
@@ -1615,7 +1619,7 @@
       "top_k": 3,
       "forbidden": [
         "python-script",
-        "loop-engineering"
+        "agent-loops"
       ]
     },
     {
@@ -1758,9 +1762,9 @@
       ],
       "prompt": "Add a property-based regression test proving an interrupted and resumed migration preserves the declared records.",
       "expected": [
-        "test-driven-development"
+        "python-testing"
       ],
-      "primary": "test-driven-development",
+      "primary": "python-testing",
       "top_k": 3,
       "forbidden": [
         "quality-assurance"
@@ -1788,11 +1792,10 @@
       ],
       "prompt": "Create a packaged Typer command line application with an installed entry point, help, and invalid-argument tests.",
       "expected": [
-        "typer",
-        "python-stack",
-        "cli-contracts"
+        "cli-development",
+        "python-stack"
       ],
-      "primary": "typer",
+      "primary": "cli-development",
       "top_k": 3,
       "require_all_top_k": 5
     },
@@ -1804,10 +1807,10 @@
       ],
       "prompt": "Scaffold a Litestar application with typed settings, database readiness, and offline request tests.",
       "expected": [
-        "litestar",
+        "python-web",
         "python-stack"
       ],
-      "primary": "litestar",
+      "primary": "python-web",
       "top_k": 3,
       "require_all_top_k": 5
     },
@@ -1821,7 +1824,8 @@
         "python-stack"
       ],
       "primary": "python-stack",
-      "top_k": 3
+      "top_k": 3,
+      "guide": "references/foundation/GUIDE.md"
     },
     {
       "id": "tool-gradio",
@@ -1830,14 +1834,14 @@
       ],
       "prompt": "Build a Gradio model comparison app with Blocks, streaming outputs, session state, and a custom HTML result component.",
       "expected": [
-        "gradio"
+        "python-web"
       ],
-      "primary": "gradio",
+      "primary": "python-web",
       "top_k": 3,
       "forbidden": [
-        "nicegui",
-        "marimo"
-      ]
+        "python-mlops"
+      ],
+      "guide": "references/gradio.md"
     },
     {
       "id": "tool-nicegui",
@@ -1846,14 +1850,14 @@
       ],
       "prompt": "Build a NiceGUI browser utility with editable tables, dialogs, separate visitor state, and responsive Python event handlers.",
       "expected": [
-        "nicegui"
+        "python-web"
       ],
-      "primary": "nicegui",
+      "primary": "python-web",
       "top_k": 3,
       "forbidden": [
-        "gradio",
-        "marimo"
-      ]
+        "python-mlops"
+      ],
+      "guide": "references/nicegui.md"
     },
     {
       "id": "tool-langchain",
@@ -1862,13 +1866,12 @@
       ],
       "prompt": "Build a LangChain create_agent application with typed tools, structured output, and provider middleware.",
       "expected": [
-        "langchain"
+        "agent-frameworks"
       ],
-      "primary": "langchain",
+      "primary": "agent-frameworks",
       "top_k": 3,
-      "forbidden": [
-        "langgraph"
-      ]
+      "forbidden": [],
+      "guide": "references/langchain.md"
     },
     {
       "id": "tool-langgraph",
@@ -1877,13 +1880,12 @@
       ],
       "prompt": "Resume a LangGraph StateGraph from a persisted checkpoint after a human interrupt without duplicating side effects.",
       "expected": [
-        "langgraph"
+        "agent-frameworks"
       ],
-      "primary": "langgraph",
+      "primary": "agent-frameworks",
       "top_k": 3,
-      "forbidden": [
-        "langchain"
-      ]
+      "forbidden": [],
+      "guide": "references/langgraph.md"
     },
     {
       "id": "tool-sherlock",
@@ -1892,9 +1894,9 @@
       ],
       "prompt": "Check an authorized username on selected public sites with Sherlock and distinguish possible matches from identity proof.",
       "expected": [
-        "sherlock"
+        "username-recon"
       ],
-      "primary": "sherlock",
+      "primary": "username-recon",
       "top_k": 3
     },
     {
@@ -1904,10 +1906,11 @@
       ],
       "prompt": "Author a reusable project template and propagate future template changes while preserving local project edits. Choose our default template tool.",
       "expected": [
-        "copier"
+        "project-scaffolding"
       ],
-      "primary": "copier",
-      "top_k": 3
+      "primary": "project-scaffolding",
+      "top_k": 3,
+      "guide": "references/copier.md"
     },
     {
       "id": "tool-cookiecutter",
@@ -1916,10 +1919,11 @@
       ],
       "prompt": "Generate a project from a reviewed Cookiecutter Jinja template with supplied context and test the rendered output.",
       "expected": [
-        "cookiecutter"
+        "project-scaffolding"
       ],
-      "primary": "cookiecutter",
-      "top_k": 3
+      "primary": "project-scaffolding",
+      "top_k": 3,
+      "guide": "references/cookiecutter/GUIDE.md"
     },
     {
       "id": "tool-cruft",
@@ -1928,10 +1932,11 @@
       ],
       "prompt": "Update a generated project from its Cruft .cruft.json template revision while preserving local changes and resolving conflicts.",
       "expected": [
-        "cookiecutter"
+        "project-scaffolding"
       ],
-      "primary": "cookiecutter",
-      "top_k": 3
+      "primary": "project-scaffolding",
+      "top_k": 3,
+      "guide": "references/cookiecutter/GUIDE.md"
     },
     {
       "id": "tool-a2a-python-sdk",
@@ -1940,14 +1945,14 @@
       ],
       "prompt": "Implement an Agent Card, task executor, streaming client, and cancellation with the official A2A Python SDK.",
       "expected": [
-        "a2a-python-sdk"
+        "agent-protocols"
       ],
-      "primary": "a2a-python-sdk",
+      "primary": "agent-protocols",
       "top_k": 3,
       "forbidden": [
-        "mcp-server",
         "api-client"
-      ]
+      ],
+      "guide": "references/a2a.md"
     },
     {
       "id": "tool-pyinstrument",
@@ -1986,13 +1991,14 @@
       ],
       "prompt": "Use LangExtract few-shot examples to extract structured entities and verify source character spans before writing annotated JSONL.",
       "expected": [
-        "langextract"
+        "python-stack"
       ],
-      "primary": "langextract",
+      "primary": "python-stack",
       "top_k": 3,
       "forbidden": [
-        "langchain"
-      ]
+        "agent-frameworks"
+      ],
+      "guide": "references/langextract.md"
     },
     {
       "id": "tool-locust",
@@ -2001,13 +2007,12 @@
       ],
       "prompt": "Run a bounded Locust HTTP user journey with a fixed spawn rate and headless latency and failure thresholds.",
       "expected": [
-        "locust"
-      ],
-      "primary": "locust",
-      "top_k": 3,
-      "forbidden": [
         "benchmark"
-      ]
+      ],
+      "primary": "benchmark",
+      "top_k": 3,
+      "forbidden": [],
+      "guide": "references/locust.md"
     },
     {
       "id": "tool-pytest",
@@ -2016,9 +2021,9 @@
       ],
       "prompt": "Configure pytest fixtures, parametrization, monkeypatching, and exception assertions for deterministic Python tests.",
       "expected": [
-        "test-driven-development"
+        "python-testing"
       ],
-      "primary": "test-driven-development",
+      "primary": "python-testing",
       "top_k": 3,
       "forbidden": [
         "quality-assurance"
@@ -2031,13 +2036,12 @@
       ],
       "prompt": "Persist execution state and resume the same workflow thread after human approval without repeating a write.",
       "expected": [
-        "langgraph"
+        "agent-frameworks"
       ],
-      "primary": "langgraph",
+      "primary": "agent-frameworks",
       "top_k": 3,
-      "forbidden": [
-        "langchain"
-      ]
+      "forbidden": [],
+      "guide": "references/langgraph.md"
     },
     {
       "id": "sample-python-time",
@@ -2058,10 +2062,11 @@
       ],
       "prompt": "Bring upstream template changes into this generated project while preserving its local modifications and recorded template revision.",
       "expected": [
-        "cookiecutter"
+        "project-scaffolding"
       ],
-      "primary": "cookiecutter",
-      "top_k": 3
+      "primary": "project-scaffolding",
+      "top_k": 3,
+      "guide": "references/cookiecutter/GUIDE.md"
     },
     {
       "id": "mcp-python-client",
@@ -2070,12 +2075,12 @@
       ],
       "prompt": "Consume an existing MCP server from Python, inspect tool schemas, and test a real protocol call over stdio.",
       "expected": [
-        "mcp-server"
+        "agent-protocols"
       ],
-      "primary": "mcp-server",
+      "primary": "agent-protocols",
       "top_k": 3,
       "forbidden": [
-        "agent-mcp"
+        "mcp-setup"
       ]
     },
     {
@@ -2085,14 +2090,15 @@
       ],
       "prompt": "Bound concurrent workers and queue capacity, propagate cancellation, enforce an overall deadline, and await graceful shutdown.",
       "expected": [
-        "python-async"
+        "python-stack"
       ],
-      "primary": "python-async",
+      "primary": "python-stack",
       "top_k": 3,
       "forbidden": [
         "api-client",
         "scheduled-jobs"
-      ]
+      ],
+      "guide": "references/python-async/GUIDE.md"
     },
     {
       "id": "alembic-migration",
@@ -2113,9 +2119,9 @@
       ],
       "prompt": "Integrate Hypothesis generated cases with pytest fixtures while preserving per-example state isolation and health checks.",
       "expected": [
-        "test-driven-development"
+        "python-testing"
       ],
-      "primary": "test-driven-development",
+      "primary": "python-testing",
       "top_k": 3
     },
     {
@@ -2125,10 +2131,11 @@
       ],
       "prompt": "Generate a new project with Cookiecutter context, reviewed hooks, and reproducible template fixtures.",
       "expected": [
-        "cookiecutter"
+        "project-scaffolding"
       ],
-      "primary": "cookiecutter",
-      "top_k": 3
+      "primary": "project-scaffolding",
+      "top_k": 3,
+      "guide": "references/cookiecutter/GUIDE.md"
     },
     {
       "id": "python-async-http-boundary",
@@ -2142,7 +2149,7 @@
       "primary": "api-client",
       "top_k": 3,
       "forbidden": [
-        "python-async"
+        "python-stack"
       ]
     },
     {
@@ -2198,9 +2205,9 @@
       ],
       "prompt": "Verify whether this suspected authorization bypass is exploitable, then search the codebase for other instances of its root cause.",
       "expected": [
-        "secure"
+        "security-review"
       ],
-      "primary": "secure",
+      "primary": "security-review",
       "top_k": 3,
       "forbidden": [
         "ai-security-assessment"
@@ -2238,10 +2245,11 @@
       ],
       "prompt": "Resume a Cursor CLI chat, inspect headless permissions, and verify the available local skills without changing approvals.",
       "expected": [
-        "cursor"
+        "agent-harnesses"
       ],
-      "primary": "cursor",
-      "top_k": 3
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/cursor/GUIDE.md"
     },
     {
       "id": "fkf-evidence-retrieval",
@@ -2265,9 +2273,9 @@
       ],
       "prompt": "Our Python templates use the standalone Tailwind compiler. Fix missing conditional CSS classes and wire a production stylesheet build.",
       "expected": [
-        "modern-web"
+        "web-frontend"
       ],
-      "primary": "modern-web",
+      "primary": "web-frontend",
       "top_k": 3
     },
     {
@@ -2302,14 +2310,410 @@
       "categories": [
         "security"
       ],
-      "prompt": "Review this product\u2019s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
+      "prompt": "Review this product’s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
       "expected": [
         "terms-review"
       ],
       "primary": "terms-review",
       "top_k": 3,
       "forbidden": [
-        "project-license"
+        "project-scaffolding"
+      ]
+    },
+    {
+      "id": "acp-client-agent",
+      "categories": [
+        "protocols"
+      ],
+      "prompt": "Implement an Agent Client Protocol editor client and Python agent with permission responses and cancellation.",
+      "expected": [
+        "agent-protocols"
+      ],
+      "primary": "agent-protocols",
+      "top_k": 3,
+      "forbidden": [
+        "agent-frameworks"
+      ],
+      "guide": "references/acp.md"
+    },
+    {
+      "id": "git-commit-only",
+      "categories": [
+        "delivery"
+      ],
+      "prompt": "Commit only the current staged selection with a Conventional Commits message; do not push or publish a release.",
+      "expected": [
+        "git-delivery"
+      ],
+      "primary": "git-delivery",
+      "top_k": 3
+    },
+    {
+      "id": "gws-chat-broad-capability",
+      "categories": [
+        "workspace"
+      ],
+      "prompt": "Use gws to inspect my Google Chat spaces without posting a message.",
+      "expected": [
+        "gws"
+      ],
+      "primary": "gws",
+      "top_k": 3
+    },
+    {
+      "id": "generic-diagram-no-branding",
+      "categories": [
+        "visuals"
+      ],
+      "prompt": "Draw a Mermaid sequence diagram explaining this service request flow, without making a slide deck.",
+      "expected": [
+        "diagrams-as-code"
+      ],
+      "primary": "diagrams-as-code",
+      "top_k": 3,
+      "forbidden": [
+        "fmind-visuals"
+      ]
+    },
+    {
+      "id": "antigravity-python-sdk",
+      "categories": [
+        "agents"
+      ],
+      "prompt": "Build a Python Antigravity SDK orchestration with scoped policy and bounded subagent execution.",
+      "expected": [
+        "agy"
+      ],
+      "primary": "agy",
+      "top_k": 3,
+      "forbidden": [
+        "agent-harnesses"
+      ]
+    },
+    {
+      "id": "jules-advanced-features",
+      "categories": [
+        "agents"
+      ],
+      "prompt": "Find Jules documentation for scheduled tasks, suggested tasks, Continuous AI, API automation, usage limits, and failed tasks.",
+      "expected": [
+        "agent-harnesses"
+      ],
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/jules/GUIDE.md"
+    },
+    {
+      "id": "jules-harness",
+      "categories": [
+        "agents",
+        "external-service"
+      ],
+      "prompt": "Use the Jules CLI to review a remote coding task and prepare its repository environment.",
+      "expected": [
+        "agent-harnesses"
+      ],
+      "primary": "agent-harnesses",
+      "top_k": 3,
+      "guide": "references/jules/GUIDE.md"
+    },
+    {
+      "id": "gh-bounded-api",
+      "categories": [
+        "connector"
+      ],
+      "prompt": "Use gh to read a bounded set of repository metadata from the GitHub API on the specified host.",
+      "primary": "gh",
+      "expected": [
+        "gh"
+      ],
+      "top_k": 3
+    },
+    {
+      "id": "implicit-python-type-errors",
+      "categories": [
+        "implicit",
+        "boundary"
+      ],
+      "prompt": "Resolve incompatible argument and return types in this Python package using its configured type checker.",
+      "primary": "python-stack",
+      "expected": [
+        "python-stack"
+      ],
+      "top_k": 3,
+      "guide": "references/ty.md"
+    },
+    {
+      "id": "implicit-python-imports",
+      "categories": [
+        "implicit",
+        "boundary"
+      ],
+      "prompt": "Fix unused imports and import ordering in the changed Python module without formatting unrelated files.",
+      "primary": "python-stack",
+      "expected": [
+        "python-stack"
+      ],
+      "top_k": 3,
+      "guide": "references/ruff.md"
+    },
+    {
+      "id": "implicit-http-user-load",
+      "categories": [
+        "implicit",
+        "boundary"
+      ],
+      "prompt": "Simulate concurrent users signing in and browsing pages under a fixed duration and failure threshold.",
+      "primary": "benchmark",
+      "expected": [
+        "benchmark"
+      ],
+      "top_k": 3,
+      "guide": "references/locust.md"
+    },
+    {
+      "id": "benchmark-neighbor-profile",
+      "categories": [
+        "implicit",
+        "boundary"
+      ],
+      "prompt": "Identify which functions allocate memory during this Python request before selecting any performance change.",
+      "primary": "systematic-debugging",
+      "expected": [
+        "systematic-debugging"
+      ],
+      "top_k": 3
+    },
+    {
+      "id": "acp-editor-client",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Implement editor-to-agent session updates and permission requests with Agent Client Protocol.",
+      "expected": [
+        "agent-protocols"
+      ],
+      "primary": "agent-protocols",
+      "top_k": 3,
+      "forbidden": [
+        "mcp-setup"
+      ],
+      "guide": "references/acp.md"
+    },
+    {
+      "id": "mcp-host-config",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Register an existing local tool server in my coding assistant at project scope.",
+      "expected": [
+        "mcp-setup"
+      ],
+      "primary": "mcp-setup",
+      "top_k": 3,
+      "forbidden": [
+        "agent-protocols"
+      ]
+    },
+    {
+      "id": "notebook-reactivity",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Fix duplicate cell definitions in my reactive marimo notebook without changing its computations.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "forbidden": [
+        "python-web"
+      ],
+      "guide": "references/marimo.md"
+    },
+    {
+      "id": "frontend-native-dialog",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Implement an accessible browser dialog using HTML, CSS, and JavaScript.",
+      "expected": [
+        "web-frontend"
+      ],
+      "primary": "web-frontend",
+      "top_k": 3,
+      "forbidden": [
+        "python-web"
+      ]
+    },
+    {
+      "id": "backend-api-endpoint",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Add a typed HTTP endpoint and dependency injection to my Litestar service.",
+      "expected": [
+        "python-web"
+      ],
+      "primary": "python-web",
+      "top_k": 3,
+      "forbidden": [
+        "web-frontend"
+      ],
+      "guide": "references/litestar/GUIDE.md"
+    },
+    {
+      "id": "documentation-navigation",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Fix search and navigation in my Zensical documentation website.",
+      "expected": [
+        "documentation-site"
+      ],
+      "primary": "documentation-site",
+      "top_k": 3,
+      "forbidden": [
+        "repository-docs"
+      ]
+    },
+    {
+      "id": "application-prompt-contract",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Improve the system prompt and JSON output contract embedded in our customer-support application.",
+      "expected": [
+        "prompt-design"
+      ],
+      "primary": "prompt-design",
+      "top_k": 3,
+      "forbidden": [
+        "task-prompts"
+      ]
+    },
+    {
+      "id": "pytest-fixture-maintenance",
+      "categories": [
+        "naming-boundaries"
+      ],
+      "prompt": "Repair fixture teardown and parameterized assertions in this Python pytest suite.",
+      "expected": [
+        "python-testing"
+      ],
+      "primary": "python-testing",
+      "top_k": 3,
+      "forbidden": [
+        "quality-assurance"
+      ]
+    },
+    {
+      "id": "ml-training-leakage",
+      "categories": [
+        "python",
+        "mlops"
+      ],
+      "prompt": "Build a tabular prediction baseline, validate input rows, keep customers out of both train and test sets, and tune without leaking the holdout.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "guide": "references/training.md",
+      "forbidden": [
+        "agent-evaluation"
+      ]
+    },
+    {
+      "id": "tool-scikit-learn-pandera",
+      "categories": [
+        "python",
+        "mlops"
+      ],
+      "prompt": "Validate pandas features and labels with Pandera and train a scikit-learn pipeline with preprocessing inside each cross-validation fold.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "guide": "references/training.md"
+    },
+    {
+      "id": "ml-job-extraction",
+      "categories": [
+        "python",
+        "mlops"
+      ],
+      "prompt": "Turn this exploratory model-training notebook into configurable typed jobs while preserving predictions and validating configuration before starting tracking.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "guide": "references/ml-jobs.md"
+    },
+    {
+      "id": "mlflow-experiment-lineage",
+      "categories": [
+        "python",
+        "mlops"
+      ],
+      "prompt": "Track these MLflow experiment trials with dataset lineage, metrics, reproducible configuration, and controlled artifact logging.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "guide": "references/experiments.md",
+      "forbidden": [
+        "observability"
+      ]
+    },
+    {
+      "id": "mlflow-model-promotion",
+      "categories": [
+        "python",
+        "mlops"
+      ],
+      "prompt": "Evaluate a specific registered model version against our acceptance thresholds before moving the deployment alias; retain the previous version for rollback.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "guide": "references/model-delivery.md",
+      "forbidden": [
+        "git-delivery"
+      ]
+    },
+    {
+      "id": "ml-model-monitoring",
+      "categories": [
+        "python",
+        "mlops"
+      ],
+      "prompt": "Monitor input drift, delayed-label model performance, and failing customer slices without automatically retraining or promoting a replacement.",
+      "expected": [
+        "python-mlops"
+      ],
+      "primary": "python-mlops",
+      "top_k": 3,
+      "guide": "references/monitoring.md"
+    },
+    {
+      "id": "colab-account-inspection",
+      "categories": [
+        "compute",
+        "boundary"
+      ],
+      "prompt": "Show my Colab accelerator sessions and compute balance without starting a job.",
+      "expected": [
+        "colab"
+      ],
+      "primary": "colab",
+      "top_k": 3,
+      "forbidden": [
+        "python-mlops"
       ]
     },
     {
