@@ -57,7 +57,7 @@ chpwd_only = true
 "pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
-"pipx:pgcli" = "latest" # Interactive PostgreSQL client with autocompletion and syntax highlighting
+"pipx:pgcli" = { version = "latest", uvx_args = "--with psycopg[binary]" } # PostgreSQL client with bundled libpq; no host package needed
 "pipx:pip-audit" = "latest" # Audits installed pipx tool environments for check:vuln:tools; uv-managed projects use `uv audit` for check:vuln
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
 actionlint = "latest" # Correctness linter for GitHub Actions workflows

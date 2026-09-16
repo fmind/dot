@@ -2183,6 +2183,9 @@ version = "4.6.0"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
 
+[tools."pipx:pgcli".options]
+uvx_args = "--with psycopg[binary]"
+
 [[tools."pipx:pip-audit"]]
 version = "2.10.1"
 backend = "pipx:pip-audit"

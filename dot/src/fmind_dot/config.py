@@ -209,6 +209,7 @@ class DoctorConfig(StrictModel):
             "mise",
             "nvim",
             "opencode",
+            "pgcli",
             "python",
             "ruff",
             "sqlite3",
