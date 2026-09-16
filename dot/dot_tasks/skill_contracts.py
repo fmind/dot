@@ -29,7 +29,15 @@ TOOL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 ACTIVE_STACK_PATTERN = re.compile(r"\b(?:Go|Golang|TypeScript)\b")
 HISTORY_PATTERN = re.compile(r"\b(?:archive|archived|external|historical|history|retired|third-party)\b", re.IGNORECASE)
-FRONTMATTER_FIELDS = {"allowed-tools", "compatibility", "description", "license", "metadata", "name"}
+FRONTMATTER_FIELDS = {
+    "allowed-tools",
+    "compatibility",
+    "description",
+    "disable-model-invocation",
+    "license",
+    "metadata",
+    "name",
+}
 RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
 CACHE_NAMES = {".DS_Store", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 HTML_LINK_ATTRIBUTES = {"action", "background", "cite", "data", "formaction", "href", "poster", "src", "xlink:href"}
@@ -385,6 +393,8 @@ def _skill_findings(root: Path, name: str, path: Path, tools: list[str]) -> tupl
     unknown = sorted(set(metadata) - FRONTMATTER_FIELDS)
     if unknown:
         findings.append(f"{relative}: unknown frontmatter fields: {', '.join(unknown)}")
+    if "disable-model-invocation" in metadata and not isinstance(metadata["disable-model-invocation"], bool):
+        findings.append(f"{relative}: disable-model-invocation must be a boolean")
     declared_name = metadata.get("name")
     if declared_name != name:
         findings.append(f"{relative}: frontmatter name {declared_name!r} must match its directory {name!r}")

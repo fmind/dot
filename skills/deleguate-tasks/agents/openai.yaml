@@ -1,0 +1,3 @@
+# https://learn.chatgpt.com/docs/build-skills
+policy:
+  allow_implicit_invocation: false

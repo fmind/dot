@@ -115,6 +115,19 @@ def test_skills_contract_accepts_small_valid_repository(tmp_path: Path) -> None:
     assert checker.repository_findings(root) == []
 
 
+@pytest.mark.parametrize("value", ["true", "false", '"true"', "1", "null"])
+def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, value: str) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    skill.write_text(skill.read_text().replace("license: MIT", f"license: MIT\ndisable-model-invocation: {value}"))
+
+    findings = checker.repository_findings(root)
+    if value in {"true", "false"}:
+        assert findings == []
+    else:
+        assert any("disable-model-invocation must be a boolean" in finding for finding in findings)
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected"),
     [

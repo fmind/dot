@@ -107,6 +107,9 @@
       "uv",
       "alembic"
     ],
+    "deleguate-tasks": [
+      "agy"
+    ],
     "dependabot": [
       "gh",
       "mise",
