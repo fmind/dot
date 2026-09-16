@@ -18,7 +18,7 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 ## Prerequisites
 
-Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.1 or newer; it installs mise when absent but stops if an existing version is too old.
+Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.10 or newer; it installs mise when absent but stops if an existing version is too old.
 
 ### Host Packages
 
@@ -63,6 +63,41 @@ Open a new shell after installation.
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
 Google Sans is the default for application text and Google Sans Code for code; terminal apps inherit [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) from Ghostty. The managed installer supplies all three families from checksum-pinned official releases. Projects that embed fonts must still bundle their fonts.
+
+### Optional tool extras
+
+Cloud and customer toolchains are opt-in per computer. In `chezmoi edit-config`, add `extras` to the existing `[data]` table (do not create a second table):
+
+```toml
+# Docs: https://www.chezmoi.io/reference/configuration-file/variables/
+[data]
+extras = ["aws", "kubernetes"]
+```
+
+Omit `extras` or use `extras = []` for the core tools only. Available names:
+
+| Extra        | Tools                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------ |
+| `airflow`    | Astronomer `astro` CLI; local runs also need a Docker-compatible engine                    |
+| `atlassian`  | Atlassian `acli`                                                                           |
+| `aws`        | AWS CLI and `aws-sso-util`                                                                 |
+| `databricks` | Databricks CLI                                                                             |
+| `kubernetes` | kubectl, kubectx, kubens, Helm, k9s, kustomize, stern, kind, k3d, kubeconform, kube-linter |
+
+Apply your selection, resolve the selected tools, and install them:
+
+```bash
+chezmoi apply --force ~/.config/mise
+mise trust --yes ~/.config/mise
+mise lock --global --yes
+mise -C "$HOME" --locked install --yes
+mise -C "$HOME" config ls
+mise -C "$HOME" ls --current
+```
+
+The fragments deploy as `~/.config/mise/conf.d/<extra>.local.toml`. Mise reads them automatically; the core config and project configs take precedence when they declare the same tool. Optional versions and dependency sidecars are recorded in the machine's `~/.config/mise/mise.local.lock` and `~/.config/mise/locks/mise.local/`, separate from the shared core lockfile. Keep these local files out of Git. Unknown names or a non-list `extras` value stop apply with an error.
+
+To disable an extra, remove its name and repeat the commands above. Apply removes that managed fragment, and locking drops its entries. Installed tool caches remain available; disabling does not uninstall tools, delete personal fragments, or stop running containers or clusters. Edit managed fragments in the chezmoi source tree. Existing installations that use `acli` should enable `atlassian` before their next apply. The Airflow extra disables Astro CLI anonymous telemetry. The cloud skills remain discoverable even when their tools are disabled; install the corresponding extra before following those workflows.
 
 ### Dot configuration
 

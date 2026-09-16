@@ -1,0 +1,10 @@
+{{- if has "airflow" (default (list) (index . "extras")) }}
+# :schema https://mise.jdx.dev/schema/mise.json
+# Docs: https://mise.jdx.dev/configuration.html
+
+[env]
+ASTRO_TELEMETRY_DISABLED = "1"
+
+[tools]
+astro = "latest" # Astronomer CLI for local Apache Airflow development and DAG testing
+{{- end }}

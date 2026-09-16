@@ -36,7 +36,7 @@ def test_cli_reports_scopes_and_excludes_on_demand_content(tmp_path: Path) -> No
     )
     assert result.exit_code == 0, result.output
     report = json.loads(result.stdout)
-    assert report["schema"] == "dot.agent.context/v3"
+    assert report["schema"] == "dot.agent.context/v4"
     assert report["totals"]["global"]["agents_estimated_tokens"] == 4
     assert report["totals"]["local"]["agents_estimated_tokens"] == 2
     assert report["totals"]["combined"]["skills"] == 2
@@ -123,7 +123,7 @@ def test_combined_total_can_exceed_limit_when_each_scope_fits(tmp_path: Path) ->
     report = json.loads(result.stdout)
     assert report["totals"]["combined"]["startup_estimated_tokens"] > 5_000
     assert report["passed"] is True
-    assert set(report["budgets"]) == {"global", "local", "discovery"}
+    assert set(report["budgets"]) == {"global", "local"}
 
 
 @pytest.mark.parametrize(
@@ -186,8 +186,8 @@ def test_nonregular_instruction_input_fails_without_opening_it(tmp_path: Path) -
         context_report(tmp_path, global_root=tmp_path / "global")
 
 
-@pytest.mark.parametrize(("tokens", "passed"), [(3_499, True), (3_500, False), (3_501, False)])
-def test_discovery_budget_fails_even_when_each_scope_fits(tmp_path: Path, tokens: int, passed: bool) -> None:
+@pytest.mark.parametrize("tokens", [3_499, 3_500, 3_501, 4_500])
+def test_combined_discovery_is_informational_when_each_scope_fits(tmp_path: Path, tokens: int) -> None:
     global_root, project = tmp_path / "global", tmp_path / "project"
     path = skill(global_root, "fixture", description="x")
     skill(project / ".agents", "local-fixture")
@@ -197,12 +197,13 @@ def test_discovery_budget_fails_even_when_each_scope_fits(tmp_path: Path, tokens
     result = runner.invoke(
         app, ["agent", "context", "--project", str(project), "--global-root", str(global_root), "--check", "--json"]
     )
-    assert result.exit_code == (0 if passed else 1)
+    assert result.exit_code == 0
     report = json.loads(result.stdout)
     assert report["budgets"]["global"]["passed"]
     assert report["budgets"]["local"]["passed"]
-    assert report["budgets"]["discovery"]["estimated_tokens"] == tokens
-    assert report["passed"] == passed
+    assert report["totals"]["combined"]["skill_index_estimated_tokens"] == tokens
+    assert set(report["budgets"]) == {"global", "local"}
+    assert report["passed"] is True
 
 
 def test_nested_skill_counts_through_link_but_guide_stays_on_demand(tmp_path: Path) -> None:

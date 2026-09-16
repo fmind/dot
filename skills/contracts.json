@@ -42,11 +42,18 @@
     "ai-security-assessment": [
       "uv"
     ],
+    "airflow": [
+      "astro"
+    ],
     "api-client": [
       "uv"
     ],
     "ast-grep": [
       "ast-grep"
+    ],
+    "aws": [
+      "aws",
+      "aws-sso-util"
     ],
     "benchmark": [
       "hyperfine",
@@ -86,12 +93,18 @@
       "sqlite3",
       "uv"
     ],
+    "databricks": [
+      "databricks"
+    ],
     "deleguate-tasks": [
       "agy"
     ],
     "diagrams-as-code": [
       "d2",
       "mmdc"
+    ],
+    "docker": [
+      "docker"
     ],
     "documentation-site": [
       "uv",
@@ -193,6 +206,10 @@
     ],
     "kaggle": [
       "kaggle"
+    ],
+    "kubernetes": [
+      "helm",
+      "kubectl"
     ],
     "mcp-setup": [
       "agy",

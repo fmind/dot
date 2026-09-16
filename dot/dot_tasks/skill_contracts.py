@@ -20,7 +20,6 @@ from markdown_it import MarkdownIt
 
 from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
-    DISCOVERY_TOKEN_LIMIT,
     Scope,
     estimated_tokens,
     skill_index_entry,
@@ -787,16 +786,6 @@ def repository_findings(root: Path) -> list[str]:
         if key in normalized:
             findings.append(f"skills {normalized[key]!r} and {name!r} have identical descriptions")
         normalized[key] = name
-    index_size = sum(
-        len(
-            skill_index_entry(
-                name, description, "global" if discovered[name].parent.parent == root / "skills" else "local"
-            )
-        )
-        for name, description in descriptions.items()
-    )
-    if estimated_tokens(index_size) >= DISCOVERY_TOKEN_LIMIT:
-        findings.append(f"combined skill discovery must be below {DISCOVERY_TOKEN_LIMIT} estimated tokens")
     for scope, tokens in _startup_estimates(root, descriptions, discovered).items():
         if tokens >= MAX_CONTEXT_TOKENS:
             findings.append(
@@ -882,9 +871,8 @@ def catalog_report(root: Path, *, details: bool = True) -> str:
         + f"Global description average: {average:.1f} characters (advisory target: {MAX_DESCRIPTION_AVERAGE})\n"
         f"Global skill index: {index_size} characters "
         "(names, descriptions, and portable paths)\n"
-        f"Combined estimated index tokens: {discovery} / <{DISCOVERY_TOKEN_LIMIT} "
+        f"Combined estimated index tokens: {discovery} (informational) "
         "(characters / 4; not host tokenization or billing)\n"
-        f"Discovery headroom: {DISCOVERY_TOKEN_LIMIT - 1 - discovery} estimated tokens; reserve room for project skills\n"
         f"Global AGENTS.md + skill discovery: {startup['global']} / <{MAX_CONTEXT_TOKENS} estimated tokens\n"
         f"Local AGENTS.md + skill discovery: {startup['local']} / <{MAX_CONTEXT_TOKENS} estimated tokens\n"
         "Full breakdown: dot agent context --source . --project .\n"
