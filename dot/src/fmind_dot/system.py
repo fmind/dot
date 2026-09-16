@@ -77,6 +77,7 @@ _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "lefthook": ("version",),
     "mise": ("--version",),
     "nvim": ("--version",),
+    "pgcli": ("--version",),
     "python": ("--version",),
     "ruff": ("--version",),
     "sqlite3": ("--version",),

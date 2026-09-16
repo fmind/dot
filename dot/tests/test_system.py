@@ -156,3 +156,23 @@ def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPat
     deep = run_doctor(state, fix=False, deep=True)
     assert probes == ["authentication"]
     assert deep["auth"][0]["status"] == "pass"
+
+
+def test_doctor_detects_pgcli_import_failure() -> None:
+    class BrokenPgcli(FakeRunner):
+        def run_bounded(self, args: Sequence[str], **kwargs: object) -> CommandResult:
+            del kwargs
+            if list(args) == ["/bin/pgcli", "--version"]:
+                return CommandResult(stdout="", stderr="ImportError: no pq wrapper available", returncode=1)
+            return CommandResult(stdout="ok", stderr="", returncode=0)
+
+    config = Config()
+    assert "pgcli" in config.doctor.tools
+    config.doctor.tools = ["pgcli"]
+    config.doctor.env_vars.required = []
+    config.doctor.env_vars.optional = []
+    config.doctor.secrets = []
+    result = run_doctor(state_with(BrokenPgcli({"pgcli"}), config), fix=False)
+    assert result["passed"] is False
+    assert result["tools"][0]["status"] == "fail"
+    assert result["tools"][0]["condition"] == "broken"
