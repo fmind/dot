@@ -70,8 +70,7 @@ def validate(spec: Any) -> dict[str, Any]:
         for key in ("depends_on", "add_dirs"):
             if not strings(task.setdefault(key, [])):
                 raise ValueError(f"Task {identifier}: {key} must be a string list.")
-        for key in ("workspace",):
-            task[key] = str(Path(task[key]).expanduser().resolve())
+        task["workspace"] = str(Path(task["workspace"]).expanduser().resolve())
         task["add_dirs"] = [str(Path(p).expanduser().resolve()) for p in task["add_dirs"]]
         if any(not Path(p).is_dir() for p in [task["workspace"], *task["add_dirs"]]):
             raise ValueError(f"Task {identifier}: all workspace directories must exist.")
@@ -234,8 +233,13 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
     if current is None:
         raise RuntimeError("Missing batch task")
     loop = asyncio.get_running_loop()
+
+    def stop() -> None:
+        if not current.cancelling():
+            current.cancel()
+
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, current.cancel)
+        loop.add_signal_handler(sig, stop)
     save()
     try:
         while pending or running:

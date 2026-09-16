@@ -150,7 +150,7 @@ description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
   "uv run --frozen ruff check dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts",
   "uv run --frozen ruff format --check dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts",
-  "uv run --frozen --directory dot ty check src dot_tasks tests",
+  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/deleguate-tasks/scripts",
   "uv run --frozen validate-pyproject dot/pyproject.toml",
   "uv lock --check",
 ]

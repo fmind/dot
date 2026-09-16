@@ -100,6 +100,33 @@ def test_shared_workspace_serialized(tmp_path: Path) -> None:
     assert ledger["second"]["process"]["started_at"] > ledger["first"]["ended_at"]
 
 
+def test_native_agy_defaults_and_compact_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = tmp_path / "agy"
+    executable.write_text(
+        f"#!{sys.executable}\nimport json,sys,pathlib\n"
+        "pathlib.Path('args.json').write_text(json.dumps(sys.argv[1:]))\n"
+        "print(json.dumps(dict(status='SUCCESS', response='x'*10000, conversation_id='abc-123')))\n"
+    )
+    executable.chmod(0o700)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    spec = {
+        "id": "native",
+        "workspace": str(tmp_path),
+        "prompt": "literal `text` $(untouched)",
+        "conversation_id": "old-id",
+        "checks": [[sys.executable, "-c", "pass"]],
+    }
+    result, output = invoke(tmp_path, [spec])
+    args = json.loads((tmp_path / "args.json").read_text())
+    assert result.returncode == 0
+    assert args[args.index("--model") + 1] == "gemini-3.8-flash-high"
+    assert args[args.index("--effort") + 1] == "high"
+    assert args[args.index("--conversation") + 1] == "old-id"
+    assert "literal `text` $(untouched)" in args[1]
+    assert len(output["tasks"][0]["summary"]) == 600
+    assert len(result.stdout) < 1200
+
+
 @pytest.mark.parametrize("mutation", ["cycle", "unknown", "duplicate", "type", "extra"])
 def test_invalid_batch_does_not_launch(tmp_path: Path, mutation: str) -> None:
     first = task(tmp_path, "first")
