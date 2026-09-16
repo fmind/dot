@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-09-11"
+  updated: "2026-09-15"
 ---
 
 # Skillify
@@ -19,7 +19,7 @@ Capture what this session learned as a skill the next session can run without th
 1. **Apply the admission rule** in [package rules](references/package-rules.md): identify the personal choice, reusable procedure or artifact, demonstrated failure, or upstream route that changes agent behavior. If only general product knowledge remains, use documentation instead of creating a skill.
 1. **Check the catalog**: `skills list` and `skills list -g`, then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
 1. **Choose the scope**:
-   - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; add its CLI names to `skills/contracts.json`, then run `mise run check:skills` and `mise run test` there.
+   - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; add its CLI names to `skills/contracts.json`, then run `mise run check:skills` and relevant formatting checks. Installation or tooling changes also need their affected tests.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md).
 1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the authoring limits in [package rules](references/package-rules.md); long configs and examples go to `references/`.
 1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is directly disclosed, every required tool is documented, and `mise run check:skills` passes for a global skill.

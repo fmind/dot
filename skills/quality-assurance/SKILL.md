@@ -6,12 +6,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-09-09"
+  updated: "2026-09-15"
 ---
 
 # Quality Assurance
 
-Run a risk-based test campaign over the actual feature journey. Keep one-diff review in [diff-review](../diff-review/SKILL.md); [agent-evaluation](../agent-evaluation/SKILL.md) owns stochastic model comparisons through project or provider runners.
+Run a risk-based test campaign over the actual feature journey. Keep one-diff review in [repository-review](../repository-review/SKILL.md); [agent-evaluation](../agent-evaluation/SKILL.md) owns stochastic model comparisons through project or provider runners.
 
 ## Workflow
 

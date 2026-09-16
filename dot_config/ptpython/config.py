@@ -15,12 +15,15 @@ from prompt_toolkit.styles import Style
 # on sys.path, so it is loaded by location; ptpython keeps its own defaults if
 # it is missing, which is what a fresh checkout looks like before the first
 # `chezmoi apply` has fetched the externals.
-THEME = Path(__file__).with_name("theme.py")
 
 
 def _load_theme() -> Any | None:
     """Import theme.py from beside this file, or None if it is not there yet."""
-    spec = importlib.util.spec_from_file_location("ptpython_theme", THEME)
+    # ptpython execs this config without __file__, but compiles it with its path.
+    theme_path = Path(_load_theme.__code__.co_filename).with_name("theme.py")
+    if not theme_path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ptpython_theme", theme_path)
     if spec is None or spec.loader is None:
         return None
     module = importlib.util.module_from_spec(spec)
@@ -42,7 +45,7 @@ def configure(repl) -> None:
     repl.show_line_numbers = True
     repl.show_signature = True
     # --- Theme ---
-    theme = _load_theme() if THEME.is_file() else None
+    theme = _load_theme()
     if theme is not None:
         repl.install_code_colorscheme(theme.NAME, Style.from_dict(theme.CODE))
         repl.use_code_colorscheme(theme.NAME)

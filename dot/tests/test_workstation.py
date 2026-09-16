@@ -141,7 +141,7 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     [
         ["login"],
         ["setup"],
-        ["login", "all", "--dry-run"],
+        ["login", "google", "--dry-run"],
         ["login", "github", "--dry-run"],
         ["setup", "github", "--dry-run"],
         ["setup", "workspace", "fixture-project", "--dry-run"],
@@ -310,17 +310,17 @@ def test_gcp_network_failure_does_not_trigger_login(provider: RecordingRunner) -
     assert "private" not in str(result.exception)
 
 
-def test_login_all_orders_workspace_before_gcp_and_excludes_github(provider: RecordingRunner) -> None:
+def test_login_google_orders_workspace_before_gcp_and_excludes_github(provider: RecordingRunner) -> None:
     token = CommandResult("private", "", 0)
     provider.responses = [workspace_status(), token, token]
-    result = CliRunner().invoke(app, ["login", "all", "--force"])
+    result = CliRunner().invoke(app, ["login", "google", "--force"])
     assert result.exit_code == 0, result.exception
     assert [args[:3] for args in provider.actions] == [["gws", "auth", "login"], ["gcloud", "auth", "login"]]
 
 
-def test_login_all_stops_on_workspace_failure(provider: RecordingRunner) -> None:
+def test_login_google_stops_on_workspace_failure(provider: RecordingRunner) -> None:
     provider.action_code = 17
-    result = CliRunner().invoke(app, ["login", "all", "--force"])
+    result = CliRunner().invoke(app, ["login", "google", "--force"])
     assert result.exit_code != 0
     assert len(provider.calls) == 1
     assert provider.calls[0][0] == "gws"

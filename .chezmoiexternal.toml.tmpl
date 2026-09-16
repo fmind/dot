@@ -1,6 +1,6 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
 # Follow upstream main; the apply task bypasses the cache with --refresh-externals.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/main" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/main/themes" }}
 
 {{ if or (eq .chezmoi.os "darwin") (eq .chezmoi.os "linux") -}}
 {{ $fonts := ".local/share/fonts" -}}

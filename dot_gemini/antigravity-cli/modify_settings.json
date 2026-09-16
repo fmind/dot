@@ -1,22 +1,13 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/cli/settings
        Account, model, and trust choices belong to the host after initial setup. */ -}}
-{{- $defaults := fromJson `
-{
-  "model": "Gemini 3.8 Flash (High)",
-  "pickerGrouping": "grouped",
-  "runningLightSpeed": "fast"
-}
-` -}}
-{{- $_ := set $defaults "trustedWorkspaces" (list .chezmoi.homeDir (joinPath .chezmoi.homeDir ".local/share/chezmoi")) -}}
+{{- $defaults := dict "trustedWorkspaces" (list .chezmoi.homeDir (joinPath .chezmoi.homeDir ".local/share/chezmoi")) -}}
 {{- $managedConfig := fromJson `
 {
   "allowNonWorkspaceAccess": true,
   "artifactReviewPolicy": "always-proceed",
-  "colorScheme": "terminal",
   "editorMode": "vim",
   "notifications": true,
-  "showFeedbackSurvey": false,
   "toolPermission": "always-proceed",
   "vimInsertFirst": true
 }

@@ -19,7 +19,6 @@ class State:
     """Lazily load configuration so repair commands can bypass invalid YAML."""
 
     config_argument: Path | None = None
-    verbose: bool = False
     runner: Runner = field(default_factory=Runner)
     # Resolve standard streams at invocation time so Typer/test capture and callers
     # that redirect streams observe the same process state as the command.
@@ -43,6 +42,10 @@ def state_from(context: typer.Context) -> State:
     state = context.find_root().obj
     if not isinstance(state, State):
         raise DotError("CLI state is unavailable")
+    # Leaf commands resolve state after parsing, so help needs no valid config.
+    # Config repair commands deliberately keep their lazy access.
+    if context.find_root().invoked_subcommand != "config":
+        _ = state.config
     return state
 
 

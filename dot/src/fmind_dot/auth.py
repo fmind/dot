@@ -14,7 +14,7 @@ from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult
 from fmind_dot.state import State, require_tools, state_from
 from fmind_dot.workstation import DryRun, ForceLogin, execute
 
-login_app = help_group("Authenticate a provider; all runs Workspace then GCP")
+login_app = help_group("Authenticate GitHub, Workspace, or Google Cloud")
 setup_app = help_group("Reconcile provider setup and configured policy")
 HostOption = Annotated[
     str | None, typer.Option("--host", envvar="GH_HOST", help="GitHub host; overrides auth.github.host")
@@ -317,8 +317,8 @@ def gcp(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = Fal
     login_gcp(state_from(context), force=force, dry_run=dry_run)
 
 
-@login_app.command("all", help="Authenticate Workspace, then Google Cloud and ADC; stop on failure (excludes GitHub)")
-def all_providers(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
+@login_app.command("google", help="Authenticate Workspace, then Google Cloud and ADC; stop on failure")
+def google(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
     state = state_from(context)
     if not dry_run:
         require_tools(state, [["gws"], ["gcloud"]])

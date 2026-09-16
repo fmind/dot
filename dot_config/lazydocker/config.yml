@@ -3,7 +3,7 @@
 gui:
   returnImmediately: true
   expandFocusedSidePanel: true
-  # Source: https://github.com/fmind/theme/blob/main/lazydocker/fmind.yml
+  # Source: https://github.com/fmind/theme/blob/main/themes/lazydocker/fmind.yml
   theme:
     activeBorderColor: ["#174ea6", bold]
     inactiveBorderColor: ["#595d62"]

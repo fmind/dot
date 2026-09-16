@@ -5,7 +5,7 @@
 {
   "banner": "never",
   "contextTier": "long_context",
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "keepAlive": "busy",
   "model": "auto"
 }

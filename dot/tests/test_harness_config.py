@@ -155,7 +155,7 @@ sessions = false
             "two_pass_compaction": True,
             "codebase_indexing": True,
         }
-        assert data["models"] == {"default_reasoning_effort": "xhigh", "default": "old-model", "max_retries": 8}
+        assert data["models"] == {"default_reasoning_effort": "high", "default": "old-model", "max_retries": 8}
         assert data["ui"]["permission_mode"] == "always-approve"
         assert data["ui"]["fork_secondary_model"] == "old-fork-model"
         assert data["ui"]["yolo"] is False
@@ -182,6 +182,7 @@ sessions = false
         assert data["permissions"]["deny"] == ["Read(./private)"]
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
+        assert data["effortLevel"] == "high"
         assert self.render(template, rendered) == rendered
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
@@ -259,7 +260,7 @@ sessions = false
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
         assert fresh["model"] == "auto"
-        assert fresh["effortLevel"] == "xhigh"
+        assert fresh["effortLevel"] == "high"
 
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
         template = "dot_gemini/antigravity-cli/modify_settings.json"
@@ -268,6 +269,9 @@ sessions = false
             "gcp": {"project": "host-project", "location": "host-location", "extra": "preserved"},
             "trustedWorkspaces": [],
             "pickerGrouping": "flat",
+            "runningLightSpeed": "slow",
+            "colorScheme": "dark",
+            "showFeedbackSurvey": True,
             "accountOption": False,
         }
         rendered = self.render(template, json.dumps(original))
@@ -278,7 +282,8 @@ sessions = false
         assert data["notifications"] is True
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
-        assert fresh["model"] == "Gemini 3.8 Flash (High)"
+        for key in ("model", "pickerGrouping", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
+            assert key not in fresh
         assert fresh["trustedWorkspaces"] == [str(self.home), str(self.home / ".local/share/chezmoi")]
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
@@ -286,6 +291,7 @@ sessions = false
         original = {
             "userSettings": {
                 "cliRemoteControlHostname": "fixture-host",
+                "themeMode": "THEME_MODE_DARK",
                 "globalPermissionGrants": {
                     "allow": ["read_file(/fixture)"],
                     "ask": ["execute_url(example.com)"],
@@ -299,6 +305,7 @@ sessions = false
         data = json.loads(rendered)
         settings = data["userSettings"]
         assert settings["cliRemoteControlHostname"] == "fixture-host"
+        assert settings["themeMode"] == "THEME_MODE_DARK"
         grants = settings["globalPermissionGrants"]
         assert grants["allow"] == ["read_file(/fixture)", "read_url(*)", "execute_url(*)", "mcp(*)"]
         for action in ("ask", "deny"):
@@ -310,17 +317,8 @@ sessions = false
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))["userSettings"]
         assert "cliRemoteControlHostname" not in fresh
+        assert "themeMode" not in fresh
         assert fresh["globalPermissionGrants"] == {"allow": ["read_url(*)", "execute_url(*)", "mcp(*)"]}
-
-    def test_remote_model_selection_preserves_native_state(self):
-        template = "dot_gemini/antigravity-cli/modify_private_antigravity_state.pbtxt"
-        selected = "last_selected_agent_model: MODEL_PLACEHOLDER_M318\n"
-        original = 'post_onboarding: { completed_steps: 1 }\ninstallation_uuid: "fixture"\n'
-        for content in (original, original.rstrip(), original + "last_selected_agent_model: 123\n"):
-            rendered = self.render(template, content)
-            assert rendered == original + selected
-            assert self.render(template, rendered) == rendered
-        assert self.render(template, "") == selected
 
     def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
         template = "dot_gemini/antigravity-cli/modify_settings.json"

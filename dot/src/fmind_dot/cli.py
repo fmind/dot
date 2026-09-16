@@ -1,6 +1,5 @@
 """Typer command tree for dot."""
 
-import logging
 import os
 import shlex
 import signal
@@ -28,7 +27,7 @@ completion_init()
 app = typer.Typer(
     cls=AlphabeticalGroup,
     name="dot",
-    help="Unified CLI utility to manage dotfiles and workspaces",
+    help="Manage workstation tools, repositories, and agent archives",
     invoke_without_command=True,
     no_args_is_help=False,
     add_completion=False,
@@ -50,22 +49,13 @@ def root(
     config: Annotated[
         Path | None, typer.Option("--config", "-c", envvar="DOT_CONFIG_PATH", help="Path to the configuration file")
     ] = None,
-    verbose: Annotated[
-        bool, typer.Option("--verbose", envvar="DOT_VERBOSE", help="Enable verbose debug logging")
-    ] = False,
     version: Annotated[
         bool,
         typer.Option("--version", "-v", callback=_version_option, is_eager=True, help="Print the version and exit"),
     ] = False,
 ) -> None:
     del version
-    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO, stream=sys.stderr)
-    state = State(config_argument=config, verbose=verbose)
-    context.obj = state
-    # Only config repair commands may bypass a missing or malformed file. Eager
-    # validation keeps a --config typo from mutating state with built-in defaults.
-    if context.invoked_subcommand not in {None, "config"}:
-        _ = state.config
+    context.obj = State(config_argument=config)
     if context.invoked_subcommand is None:
         typer.echo(context.get_help())
 

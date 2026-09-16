@@ -13,3 +13,12 @@
 --max-columns-preview
 --max-columns=150
 --smart-case
+
+# Source: https://github.com/fmind/theme/blob/main/themes/ripgrep/fmind.ripgreprc
+--colors=path:fg:17,78,166
+--colors=path:style:bold
+--colors=line:fg:89,93,98
+--colors=column:fg:89,93,98
+--colors=match:fg:32,33,36
+--colors=match:bg:254,239,195
+--colors=match:style:bold

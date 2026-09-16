@@ -13,7 +13,7 @@ gui:
   scrollPastBottom: false
   showCommandLog: false
   nerdFontsVersion: "3"
-  # Source: https://github.com/fmind/theme/blob/main/lazygit/fmind.yml
+  # Source: https://github.com/fmind/theme/blob/main/themes/lazygit/fmind.yml
   # Update this block after changing the upstream theme.
   theme:
     activeBorderColor: [blue, bold]

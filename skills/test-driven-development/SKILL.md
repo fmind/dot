@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/test-driven-development
   created: "2026-08-08"
-  updated: "2026-09-11"
+  updated: "2026-09-15"
 ---
 
 # Test-Driven Development
@@ -25,8 +25,8 @@ For pytest fixture, collection, or assertion maintenance, use [pytest mechanics]
 1. **REFACTOR**: Improve names, structure, duplication, and types only while everything stays green; add no behavior.
 1. **Repeat**: Take the next smallest behavior, edge case, or failure path through a new red cycle.
 1. **Prove the regression test**: For a bug fix, temporarily reverse the fix when safe, confirm the test fails, then restore it and confirm green.
-1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
-1. **Report evidence**: Give the red command and expected failure, the focused green command, the wider suite, the full gate, and any boundary still covered only manually or not at all.
+1. **Qualify proportionately**: reuse passing focused and subsystem results while relevant inputs remain unchanged; add affected static checks. Run the full gate only when repository policy or cross-cutting risk requires it. Isolate write-formatting checks when unrelated work is present (see [mise](../mise/SKILL.md)).
+1. **Report evidence**: summarize the observed red and green outcomes, checks actually run, and remaining limits; do not run additional suites merely to fill the report.
 
 ## Gotchas
 

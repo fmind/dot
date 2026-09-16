@@ -7,7 +7,7 @@ format = "$directory$git_branch$git_state$git_status$cmd_duration$character"
 palette = "fmind"
 
 # Native theme block copied from fmind/theme.
-# source: https://github.com/fmind/theme/blob/main/starship/fmind.toml
+# source: https://github.com/fmind/theme/blob/main/themes/starship/fmind.toml
 # Update from starship/fmind.toml after changing the upstream theme.
 [palettes.fmind]
 text = "#202124"

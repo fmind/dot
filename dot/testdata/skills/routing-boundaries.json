@@ -231,9 +231,9 @@
       ],
       "prompt": "Inspect this exact patch for reproducible correctness defects before it is merged.",
       "expected": [
-        "diff-review"
+        "repository-review"
       ],
-      "primary": "diff-review",
+      "primary": "repository-review",
       "top_k": 3
     },
     {
@@ -1388,7 +1388,7 @@
       "primary": "repository-history",
       "top_k": 3,
       "forbidden": [
-        "diff-review"
+        "repository-review"
       ]
     },
     {
@@ -1401,10 +1401,7 @@
         "repository-review"
       ],
       "primary": "repository-review",
-      "top_k": 3,
-      "forbidden": [
-        "diff-review"
-      ]
+      "top_k": 3
     },
     {
       "id": "merge-conflict-resolution",
@@ -2179,9 +2176,9 @@
       ],
       "prompt": "Review this pull request that changes tenant authorization and removes an upload path check; trace callers and test the changed boundary.",
       "expected": [
-        "diff-review"
+        "repository-review"
       ],
-      "primary": "diff-review",
+      "primary": "repository-review",
       "top_k": 3
     },
     {
@@ -2267,7 +2264,7 @@
       "categories": [
         "security"
       ],
-      "prompt": "Review this product’s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
+      "prompt": "Review this product\u2019s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
       "expected": [
         "terms-review"
       ],

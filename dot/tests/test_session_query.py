@@ -329,8 +329,8 @@ def test_cli_list_is_text_and_show_is_json_without_default_content(
     assert "codex cli-session records=1 status=current cwd=/repo" in listed.stdout
     assert "cli secret" not in listed.stdout
     assert shown.exit_code == 0
-    assert "records" not in json.loads(shown.stdout)
-    assert json.loads(shown_with_content.stdout)["records"][0]["content"] == "cli secret"
+    assert "records" not in json.loads(shown.stdout)["session"]
+    assert json.loads(shown_with_content.stdout)["session"]["records"][0]["content"] == "cli secret"
 
 
 def test_cli_list_defaults_to_latest_bounded_rows_and_supports_json_status_filters(
@@ -352,9 +352,9 @@ def test_cli_list_defaults_to_latest_bounded_rows_and_supports_json_status_filte
     )
 
     assert latest.exit_code == 0
-    assert [row["session_id"] for row in json.loads(latest.stdout)] == ["other"]
+    assert [row["session_id"] for row in json.loads(latest.stdout)["sessions"]] == ["other"]
     assert stale.exit_code == 0
-    assert [row["cwd"] for row in json.loads(stale.stdout)] == ["/old"]
+    assert [row["cwd"] for row in json.loads(stale.stdout)["sessions"]] == ["/old"]
 
 
 def test_query_can_select_latest_status_and_limit_without_reading_content(

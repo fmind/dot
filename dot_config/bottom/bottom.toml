@@ -19,7 +19,7 @@ default_tree = true
 disable_advanced_kill = true
 
 # Docs: https://clementtsang.github.io/bottom/stable/configuration/config-file/styling/
-# Source: https://github.com/fmind/theme/blob/main/bottom/fmind.toml
+# Source: https://github.com/fmind/theme/blob/main/themes/bottom/fmind.toml
 [styles]
 theme = "default-light"
 [styles.widgets]
