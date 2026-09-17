@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.3.1] - 2026-09-17
+
+### 🐛 Bug Fixes
+
+- _(agent)_ Restore hooks and improve desktop notifications
+
 ## [6.3.0] - 2026-09-17
 
 ### 🚀 Features
