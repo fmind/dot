@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.3.0] - 2026-09-17
+
+### 🚀 Features
+
+- _(mise)_ Modularize tool extras and add cloud, data, and cluster skills (#90)
+- Add model-providers skill and configure openrouter for opencode
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Bundle pgcli PostgreSQL client libraries
+
 ## [6.2.1] - 2026-09-16
 
 ### 🐛 Bug Fixes
