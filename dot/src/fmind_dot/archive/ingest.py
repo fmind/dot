@@ -66,6 +66,7 @@ class HookIdentity:
     transcript_path: str = ""
     from_hook: bool = False
     halt: bool = False
+    event: str = ""
 
 
 def resolve_hook_identity(
@@ -102,12 +103,29 @@ def resolve_hook_identity(
         raise DotError("missing session_id")
     if not is_valid_session_id(session_id):
         raise DotError(f"invalid session_id format: {session_id!r}")
-    return HookIdentity(session_id, resolve_cwd(cwd), transcript, from_hook)
+    event = raw.get("hook_event_name", "") if raw else ""
+    return HookIdentity(
+        session_id, resolve_cwd(cwd), transcript, from_hook, event=event if isinstance(event, str) else ""
+    )
 
 
-def _resolved_transcript(state: State, adapter: AgentAdapter, identity: HookIdentity) -> Path:
+def _resolved_transcript(
+    state: State, adapter: AgentAdapter, identity: HookIdentity, *, hook: bool = False
+) -> Path | None:
     if identity.transcript_path:
         path = expand_path(identity.transcript_path)
+        try:
+            path.stat()
+        except FileNotFoundError as error:
+            # Claude can exit before creating a transcript (for example an unused
+            # session). Do not mistake absence for a successful archive capture.
+            if hook and adapter.name == "claude" and identity.event == "SessionEnd":
+                state.stderr.write(
+                    "Session capture skipped: Claude SessionEnd transcript is not available. "
+                    "If it appears later, recover with dot agent session sync --agent claude.\n"
+                )
+                return None
+            raise DotError(f"{adapter.name} transcript from hook payload is unavailable at {path}") from error
         if not path.is_file():
             raise DotError(f"{adapter.name} transcript from hook payload is unavailable at {path}")
         return path
@@ -131,7 +149,9 @@ def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: st
             if agent == "agy":
                 state.stdout.write('{"decision":""}\n')
             return
-        path = _resolved_transcript(state, adapter, identity)
+        path = _resolved_transcript(state, adapter, identity, hook=hook)
+        if path is None:
+            return
     # Parsing owns the sole raw-source snapshot so logs, usage, and generation
     # identity can never describe different points in a growing transcript.
     parsed = adapter.parser(path, identity.session_id, identity.cwd)

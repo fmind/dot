@@ -83,13 +83,12 @@ def test_build_notification_preserves_agent_hook_context() -> None:
         "claude",
         "needs-input",
         Path("/home/fmind/fmind/dot"),
-        Path("/home/fmind"),
-        {"ZELLIJ_SESSION_NAME": "main", "ZELLIJ_PANE_ID": "3"}.get,
+        title="Fix notifications",
     )
 
     assert notification.summary == "⏳ Claude Code · dot"
-    assert notification.headline == "Waiting for your input"
-    assert notification.details == ("~/fmind/dot", "zellij main · pane 3")
+    assert notification.headline == "Needs your input"
+    assert notification.details == ("Fix notifications",)
 
 
 def test_notification_command_prefers_notify_send() -> None:

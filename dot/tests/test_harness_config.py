@@ -415,6 +415,7 @@ sessions = false
         codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))["hooks"]
         assert [hook["command"] for hook in codex["PreCompact"][0]["hooks"]] == ["dot agent hook session codex"]
         assert [hook["command"] for hook in codex["SessionEnd"][0]["hooks"]] == ["dot agent hook session codex"]
+        assert codex["SessionEnd"][0]["hooks"][0]["timeout"] == 3
         assert [hook["command"] for hook in codex["Stop"][0]["hooks"]] == ["dot agent hook notify codex stop"]
 
         claude = json.loads(self.render("dot_claude/modify_settings.json", "{}"))["hooks"]
@@ -430,6 +431,7 @@ sessions = false
         agy = json.loads((ROOT / "dot_gemini/private_config/private_hooks.json").read_text())
         assert set(agy) == {"notify", "session-log"}
         copilot = json.loads((ROOT / "dot_copilot/hooks/session-log.json").read_text())
+        assert [hook["bash"] for hook in copilot["hooks"]["agentStop"]] == ["dot agent hook notify copilot stop"]
         assert [hook["bash"] for hook in copilot["hooks"]["sessionEnd"]] == ["dot agent hook copilot-session-end"]
 
 

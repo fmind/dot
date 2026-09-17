@@ -1,6 +1,13 @@
 {
   "version": 1,
   "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "dot agent hook notify copilot stop",
+        "timeoutSec": 30
+      }
+    ],
     "sessionEnd": [
       {
         "type": "command",

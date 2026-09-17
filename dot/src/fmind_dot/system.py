@@ -1,9 +1,11 @@
 """Workstation diagnostics, notifications, completions, and installation evidence."""
 
 import hashlib
+import html
 import json
 import os
 import platform
+import re
 import stat
 import tempfile
 import tomllib
@@ -26,9 +28,9 @@ from fmind_dot.state import State, require_tools, state_from
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 _NOTIFY_EVENTS = {
-    "stop": ("✅", "Turn finished — waiting for you"),
+    "stop": ("✅", "Turn finished"),
     "session-end": ("🏁", "Session ended"),
-    "needs-input": ("⏳", "Waiting for your input"),
+    "needs-input": ("⏳", "Needs your input"),
 }
 _NOTIFY_AGENTS = {
     "agy": "Antigravity",
@@ -120,19 +122,53 @@ def _check_result_payload(result: CheckResult) -> dict[str, str]:
     return payload
 
 
-def _display_path(home: Path, path: Path) -> str:
+def notification_title(runner: Runner, getenv: Callable[[str], str | None] = os.environ.get) -> str:
+    """Read only the originating terminal title; unavailable metadata is optional."""
+    pane = getenv("ZELLIJ_PANE_ID") or ""
+    if not getenv("ZELLIJ_SESSION_NAME") or not pane.isascii() or not pane.isdecimal() or not runner.which("zellij"):
+        return ""
     try:
-        return "~" if path == home else f"~/{path.relative_to(home)}"
-    except ValueError:
-        return str(path)
+        result = runner.run_bounded(
+            ["zellij", "action", "list-panes", "--json"],
+            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
+            timeout=1,
+            check=False,
+        )
+        if result.returncode or result.stdout_truncated:
+            return ""
+        panes = json.loads(result.stdout)
+    except DotError, OSError, ValueError:
+        return ""
+    if not isinstance(panes, list):
+        return ""
+    for item in panes:
+        if not isinstance(item, dict) or item.get("is_plugin") is not False or item.get("id") != int(pane):
+            continue
+        title = item.get("title")
+        if not isinstance(title, str):
+            return ""
+        # Codex titles include a changing status and project around the task.
+        parts = title.split(" | ")
+        if len(parts) >= 3 and re.match(r"^\[[^\]]+\] ", parts[0]):
+            title = " | ".join(parts[1:-1])
+        return title
+    return ""
+
+
+def _short_notification_text(value: str) -> str:
+    # Titles are untrusted terminal metadata: remove escapes/control characters
+    # and keep desktop banners to one short line per field.
+    value = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
+    text = " ".join("".join(char for char in value if char.isprintable() or char.isspace()).split())
+    return text if len(text) <= 80 else text[:79].rstrip() + "…"
 
 
 def build_notification(
     agent: str,
     event: str,
     cwd: Path | None,
-    home: Path,
-    getenv: Callable[[str], str | None] = os.environ.get,
+    *,
+    title: str = "",
 ) -> Notification:
     if not agent:
         raise DotError("agent name is required")
@@ -143,18 +179,17 @@ def build_notification(
         raise DotError(f"unknown agent notify event {event!r} (want one of: {choices})") from error
     label = _NOTIFY_AGENTS.get(agent, agent)
     summary = f"{icon} {label}"
-    details: list[str] = []
+    project = ""
     if cwd is not None:
         expanded = cwd.expanduser()
         resolved = expanded if expanded.is_absolute() else (Path.cwd() / expanded).absolute()
-        summary += f" · {resolved.name}"
-        details.append(_display_path(home, resolved))
-    if session := getenv("ZELLIJ_SESSION_NAME"):
-        location = f"zellij {session}"
-        if pane := getenv("ZELLIJ_PANE_ID"):
-            location += f" · pane {pane}"
-        details.append(location)
-    return Notification(summary, headline, tuple(details))
+        project = _short_notification_text(resolved.name)
+        summary += f" · {project}"
+    title = _short_notification_text(title)
+    details = (
+        (title,) if title and title.casefold() not in {agent.casefold(), label.casefold(), project.casefold()} else ()
+    )
+    return Notification(summary, headline, details)
 
 
 def _notification_body(notification: Notification) -> str:
@@ -183,7 +218,7 @@ def notification_command(runner: Runner, notification: Notification, *, system: 
         return ["osascript", "-e", script]
     if host != "linux":
         raise DotError(f"desktop notifications are unsupported on {host}")
-    body = _notification_body(notification)
+    body = html.escape(_notification_body(notification), quote=False)
     if runner.which("notify-send") is not None:
         return [
             "notify-send",

@@ -42,7 +42,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.hooks import _spool_hook_failure, decode_copilot_session_end
 from fmind_dot.reporting import write_report_line
 from fmind_dot.state import State, state_from
-from fmind_dot.system import build_notification, send_notification
+from fmind_dot.system import build_notification, notification_title, send_notification
 
 agent_app = help_group("Manage AI agent integrations and sessions")
 register_context(agent_app)
@@ -342,7 +342,7 @@ def hook_notify(
         if identity.halt:
             return
         cwd = Path(identity.cwd) if identity.cwd else None
-        send_notification(state, build_notification(agent, event, cwd, Path.home()))
+        send_notification(state, build_notification(agent, event, cwd, title=notification_title(state.runner)))
     except (OSError, ValueError, DotError) as error:
         _spool_hook_failure(state, agent, f"notify:{event}", identity.session_id if identity else "", error)
         raise

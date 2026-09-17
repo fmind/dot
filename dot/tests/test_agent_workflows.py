@@ -689,7 +689,7 @@ def test_session_ingestion_writes_usage_from_the_same_parse(monkeypatch: pytest.
         lambda *_args: pytest.fail("standalone usage parser reread the transcript"),
     )
     monkeypatch.setitem(archive_ingest_module.AGENT_ADAPTERS, "fixture", adapter)
-    monkeypatch.setattr(archive_ingest_module, "_resolved_transcript", lambda *_args: source)
+    monkeypatch.setattr(archive_ingest_module, "_resolved_transcript", lambda *_args, **_kwargs: source)
     monkeypatch.setattr(archive_ingest_module, "report_ingestion", lambda _result: "agent-session: ingested")
     written = []
 

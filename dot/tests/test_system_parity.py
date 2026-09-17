@@ -301,11 +301,11 @@ def test_notification_commands_cover_linux_fallback_and_darwin_escaping() -> Non
 
 def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -> None:
     with pytest.raises(DotError, match="agent name is required"):
-        system.build_notification("", "stop", None, tmp_path, {}.get)
+        system.build_notification("", "stop", None)
     with pytest.raises(DotError, match="unknown agent notify event"):
-        system.build_notification("codex", "unknown", None, tmp_path, {}.get)
+        system.build_notification("codex", "unknown", None)
 
-    minimal = system.build_notification("custom", "session-end", None, tmp_path, {}.get)
+    minimal = system.build_notification("custom", "session-end", None)
     assert minimal == system.Notification("🏁 custom", "Session ended")
     assert (
         'display notification "Session ended"'
@@ -316,10 +316,8 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
         "codex",
         "stop",
         tmp_path / "outside",
-        tmp_path / "home",
-        {"ZELLIJ_SESSION_NAME": "work"}.get,
     )
-    assert session_only.details == (str(tmp_path / "outside"), "zellij work")
+    assert session_only.details == ()
 
     with pytest.raises(DotError, match="unsupported on plan9"):
         system.notification_command(ScriptedRunner(), minimal, system="plan9")
@@ -1034,3 +1032,76 @@ def test_completion_mise_resolution_error_is_not_a_missing_tool(
     monkeypatch.setattr(runner, "which", lambda name: {"acli": shim, "mise": mise}.get(name))
     with pytest.raises(DotError, match="failed to resolve mise"):
         system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ('[{"id":7,"is_plugin":false,"title":"Fix notifications"}]', "Fix notifications"),
+        ('[{"id":7,"is_plugin":false,"title":"[ . ] Working | Fix hooks | dot"}]', "Fix hooks"),
+        ('[{"id":8,"is_plugin":false,"title":"Other task"}]', ""),
+        ('[{"id":7,"is_plugin":true,"title":"Plugin"}]', ""),
+        ('[{"id":7,"is_plugin":false,"title":null}]', ""),
+        ('{"panes":[]}', ""),
+        ("invalid JSON", ""),
+    ],
+)
+def test_notification_title_uses_only_originating_terminal(output: str, expected: str) -> None:
+    runner = ScriptedRunner({"zellij"}, run=lambda *_args: CommandResult(output, "", 0))
+    assert system.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == expected
+    assert runner.output_limits == [PROBE_OUTPUT_LIMIT_BYTES]
+
+
+@pytest.mark.parametrize("failure", ["timeout", "exited", "truncated"])
+def test_notification_title_failure_keeps_plain_notification(failure: str) -> None:
+    def run(*_args: object) -> CommandResult:
+        if failure == "timeout":
+            raise DotError("command timed out: zellij")
+        return CommandResult("[]", "", int(failure == "exited"), stdout_truncated=failure == "truncated")
+
+    runner = ScriptedRunner({"zellij"}, run=run)
+    assert system.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == ""
+    assert system.build_notification("codex", "stop", Path("/work/project")).details == ()
+
+
+@pytest.mark.parametrize("pane", ["", "terminal_7", "-1", "\uff17"])
+def test_notification_title_skips_unavailable_origin(pane: str) -> None:
+    runner = ScriptedRunner({"zellij"})
+    assert system.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": pane}.get) == ""
+    assert runner.calls == []
+
+
+def test_notification_text_is_short_and_has_no_terminal_controls() -> None:
+    notification = system.build_notification(
+        "codex", "stop", Path("/work/project"), title="\x1b[31mFix\n hooks\x1b[0m\x00"
+    )
+    assert notification.details == ("Fix hooks",)
+    long = system.build_notification("codex", "stop", None, title="x" * 100)
+    assert long.details == ("x" * 79 + "…",)
+    assert system.build_notification("codex", "stop", Path("/work/project"), title="project").details == ()
+
+
+@pytest.mark.parametrize("agent", ["codex", "claude", "grok", "agy", "copilot"])
+def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: pytest.MonkeyPatch, agent: str) -> None:
+    monkeypatch.setattr(system.platform, "system", lambda: "Darwin")
+    monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
+    runner = ScriptedRunner()
+    notification = system.build_notification(agent, "stop", Path("/work/project"), title='Fix "quoted" paths')
+    system.send_notification(state_with(runner), notification)
+    assert len(runner.calls) == 1
+    assert runner.calls[0][:2] == ["osascript", "-e"]
+    assert 'subtitle "Turn finished"' in runner.calls[0][2]
+    assert r"Fix \"quoted\" paths" in runner.calls[0][2]
+    assert "Zellij" not in runner.calls[0][2]
+    assert "pane" not in runner.calls[0][2]
+
+
+def test_linux_notification_renders_title_as_text_without_actions() -> None:
+    notification = system.build_notification("codex", "stop", Path("/work/project"), title="Fix <hooks> & tests")
+    for installed in ({"notify-send", "gdbus"}, {"gdbus"}):
+        command = system.notification_command(ScriptedRunner(installed), notification, system="linux")
+        assert "Turn finished\nFix &lt;hooks&gt; &amp; tests" in command
+        if command[0] == "gdbus":
+            assert "@as []" in command
+        else:
+            assert not any("action" in argument for argument in command)
