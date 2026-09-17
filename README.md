@@ -45,6 +45,14 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 - **Terminal**: [Ghostty](https://ghostty.org/docs/install/binary).
 - **Containers**: A Docker-compatible container engine (Docker or Podman) if building container images.
 
+### Agent Notifications
+
+Codex, Claude, Grok, Antigravity, and Copilot send desktop notifications when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native notification service. On ChromeOS, when the bundled Crostini `notificationd` is present, a managed user D-Bus activation file starts that bridge on demand. Headless sessions without a notification service skip delivery. ChromeOS Do Not Disturb and application notification settings still control visible banners.
+
+Notifications show the harness and project, a short status, and the originating terminal title when available. Titles are limited to 80 characters; unavailable titles leave a plain status notification. They have no click actions, pane numbers, or session labels and never read prompt or transcript content. Linux uses `notify-send` or D-Bus; macOS, including Apple Silicon, uses the built-in `osascript` notification command. macOS notification settings control whether its banners appear.
+
+Codex session-end capture respects its three-second hook limit. Claude sessions that end before a transcript is available report a skipped capture without failing the hook; if the transcript appears later, `dot agent session sync --agent claude` can recover it. Restart open harnesses after changing their hook configuration.
+
 ## Installation
 
 > [!WARNING]
