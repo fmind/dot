@@ -349,8 +349,8 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
     output = StringIO()
     write_usage_stats(output, rows, by_model=True)
     text = output.getvalue()
-    assert "TOTAL TOKENS" in text
-    assert "API EQUIV (USD)" in text
+    assert "Total tokens:" in text
+    assert "API equivalent:" in text
     assert "1,014" in text
     assert "1,018" in text
     assert "$0.6250" in text
@@ -360,8 +360,8 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
 
     output = StringIO()
     write_usage_stats(output, rows[:1], by_model=False)
-    assert "MODEL" not in output.getvalue()
-    assert output.getvalue().splitlines()[-1].startswith("TOTAL\tunknown\t1")
+    assert "Model:" not in output.getvalue()
+    assert "TOTAL · unknown\n  Sessions: 1 · Total tokens: 1,014" in output.getvalue()
 
 
 def test_usage_cli_lists_filters_aggregates_and_shows_records(

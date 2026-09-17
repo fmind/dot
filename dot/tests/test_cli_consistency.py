@@ -126,3 +126,37 @@ def test_empty_json_has_versioned_envelope(command: list[str], key: str) -> None
     document = json.loads(result.stdout)
     assert document["schema"].startswith("dot.")
     assert document[key] == []
+
+
+def test_stats_are_readable_in_a_narrow_terminal_and_preserve_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COLUMNS", "60")
+    timestamp = "2026-09-15T12:00:00Z"
+    record = UsageRecord(
+        timestamp=timestamp,
+        harness="codex",
+        session_id="readable",
+        model="unknown-model",
+        input_tokens=1234567,
+        measurement_kind="provider-reported",
+    ).finalize()
+    ingest_session(
+        "codex",
+        "readable",
+        [SessionLog(timestamp, "codex", "readable", "user", "private words")],
+        usage=record.to_dict(),
+    )
+    runner = CliRunner()
+    human = runner.invoke(app, ["agent", "stats", "--by-model"])
+    assert human.exit_code == 0, human.output
+    assert "Prompt activity" in human.stdout
+    assert "Total tokens: 1,234,567" in human.stdout
+    assert "API equivalent: unknown" in human.stdout
+    assert "Recorded cost: unknown" in human.stdout
+    assert "private words" not in human.stdout
+    assert "\t" not in human.stdout
+    assert max(map(len, human.stdout.splitlines())) <= 60
+    document = json.loads(runner.invoke(app, ["agent", "stats", "--by-model", "--json"]).stdout)
+    assert document["schema"] == "dot.agent.stats/v2"
+    assert document["usage"][0]["total_tokens"] == 1234567
+    assert document["usage"][0]["api_equivalent_usd"] is None
+    assert document["prompts"]["prompts"] == 1

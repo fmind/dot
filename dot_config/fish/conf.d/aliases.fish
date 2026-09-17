@@ -2,6 +2,9 @@
 if status is-interactive
     # a:agy
     abbr -a a agy
+    abbr -a ac "agy --continue"
+    abbr -a ai "agy --prompt-interactive"
+    abbr -a ap "agy --print"
     # b:bat
     abbr -a b bat
     # c:gcloud
@@ -18,9 +21,8 @@ if status is-interactive
     abbr -a gd gh-dash
     # h:lazygit
     abbr -a h lazygit
-    # i:agy
-    abbr -a i agy
-    abbr -a iq "agy --prompt"
+    # i:fastfetch
+    abbr -a i fastfetch
     # j:fkf
     abbr -a j fkf
     # l:lsd

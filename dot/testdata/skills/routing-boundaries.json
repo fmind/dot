@@ -1,9 +1,8 @@
 {
-  "version": 1,
   "created": "2026-09-06",
   "purpose": "Catalog-wide development boundaries for skill ownership metadata and routing-fixture structure.",
   "construction": "Every active skill owns one realistic primary probe; nearest-neighbor exclusions are used only where responsibilities overlap, with a small set of multi-intent and abstention cases.",
-  "proof_boundary": "The gate validates fixture structure and catalog references only. Host discovery and behavioral routing require separate evaluation.",
+  "version": 1,
   "cases": [
     {
       "id": "explicit-harness-delegation",
@@ -2775,6 +2774,46 @@
       ],
       "primary": "docker",
       "top_k": 3
+    },
+    {
+      "id": "model-providers-default",
+      "categories": [
+        "providers"
+      ],
+      "prompt": "Configure a model provider for a new Python agent using my default GCP Agent Platform backend and global location.",
+      "expected": [
+        "model-providers"
+      ],
+      "primary": "model-providers",
+      "top_k": 3,
+      "guide": "references/gcp-agent-platform.md"
+    },
+    {
+      "id": "model-providers-gemini-api",
+      "categories": [
+        "providers"
+      ],
+      "prompt": "Use the Gemini API with my AI Studio key for this application instead of GCP ADC.",
+      "expected": [
+        "model-providers"
+      ],
+      "primary": "model-providers",
+      "top_k": 3,
+      "guide": "references/gemini-api.md"
+    },
+    {
+      "id": "model-providers-openrouter",
+      "categories": [
+        "providers"
+      ],
+      "prompt": "Connect this application to OpenRouter and verify its model ID and API key configuration.",
+      "expected": [
+        "model-providers"
+      ],
+      "primary": "model-providers",
+      "top_k": 3,
+      "guide": "references/openrouter.md"
     }
-  ]
+  ],
+  "proof_boundary": "The gate validates fixture structure and catalog references only. Host discovery and behavioral routing require separate evaluation."
 }

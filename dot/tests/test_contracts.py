@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -646,3 +647,14 @@ def test_deploy_uses_the_locked_python_runtime_graph() -> None:
         .read_text(encoding="utf-8")
         .endswith("/.local/share/fmind-dot/current/bin/dot\n")
     )
+
+
+@pytest.mark.parametrize(("relative", "version"), [("mise.lock", 2), ("dot_config/mise/mise.lock", 1)])
+def test_mise_lockfiles_remain_self_contained(relative: str, version: int) -> None:
+    document = tomllib.loads((ROOT / relative).read_text())
+    assert document["lockfile_version"] == version
+    for entries in document["tools"].values():
+        for entry in entries:
+            assert entry["version"]
+            assert not {"uv", "aube"}.intersection(entry)
+    assert not (ROOT / "dot_config/mise/locks").exists()

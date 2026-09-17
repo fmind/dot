@@ -223,6 +223,9 @@
     "mise": [
       "mise"
     ],
+    "model-providers": [
+      "gcloud"
+    ],
     "observability": [
       "gcloud"
     ],

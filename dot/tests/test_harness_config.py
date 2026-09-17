@@ -42,6 +42,7 @@ class HarnessConfigTests(unittest.TestCase):
         environment["HOME"] = str(self.home)
         for name in (
             "OPENCODE_GCP_PROJECT",
+            "OPENROUTER_API_KEY",
             "GOOGLE_CLOUD_PROJECT",
             "VERTEX_LOCATION",
             "ANTIGRAVITY_CLOUD_PROJECT",
@@ -191,35 +192,54 @@ sessions = false
             "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
             "compaction": {"reserved": 300000, "protect": ["skill"]},
             "experimental": {"batch_tool": True, "continue_loop_on_deny": True, "mcp_timeout": 120000},
-            "provider": {"google-vertex": {"options": {"timeout": 90000}}},
+            "theme": "fmind",
+            "model": "google-vertex/gemini-3.8-flash",
+            "provider": {
+                "google-vertex": {"options": {"timeout": 90000}},
+                "openrouter": {"options": {"timeout": 60000}},
+            },
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
-        assert data["theme"] == "fmind"
+        assert "theme" not in data
+        assert data["model"] == "openrouter/google/gemini-3.8-flash"
+        assert data["small_model"] == data["model"]
+        assert data["default_agent"] == "build"
+        assert data["share"] == "disabled"
+        assert data["snapshot"] is True
+        assert data["provider"]["openrouter"]["options"] == {
+            "apiKey": "{env:OPENROUTER_API_KEY}",
+            "timeout": 60000,
+        }
         assert data["permission"] == "allow"
         assert data["agent"] == original["agent"]
-        assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "prune": True}
+        assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "auto": True, "prune": True}
         assert data["formatter"] is True
         assert data["lsp"] is True
         assert data["experimental"] == original["experimental"]
         assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
         assert self.render(template, rendered) == rendered
 
-    def test_opencode_project_and_location_precedence(self):
-        template = "dot_config/opencode/modify_opencode.json"
-        cases = [
-            ({}, "{env:OPENCODE_GCP_PROJECT}", "global"),
-            ({"GOOGLE_CLOUD_PROJECT": "fallback"}, "fallback", "global"),
-            (
-                {"GOOGLE_CLOUD_PROJECT": "fallback", "OPENCODE_GCP_PROJECT": "explicit", "VERTEX_LOCATION": "region"},
-                "explicit",
-                "region",
-            ),
-        ]
-        for environment, project, location in cases:
-            with self.subTest(environment=environment):
-                data = json.loads(self.render(template, "{}", environment))
-                assert data["provider"]["google-vertex"]["options"] == {"project": project, "location": location}
+    def test_opencode_keeps_credentials_out_of_rendered_config(self):
+        data = json.loads(
+            self.render(
+                "dot_config/opencode/modify_opencode.json",
+                "{}",
+                {"OPENROUTER_API_KEY": "synthetic-private-value", "GOOGLE_CLOUD_PROJECT": "unrelated"},
+            )
+        )
+        assert data["provider"] == {"openrouter": {"options": {"apiKey": "{env:OPENROUTER_API_KEY}"}}}
+        assert "synthetic-private-value" not in json.dumps(data)
+
+    def test_opencode_tui_merge_preserves_keyboard_preferences(self):
+        template = "dot_config/opencode/modify_tui.json"
+        original = {"keybinds": {"leader": "ctrl+a"}, "scroll_speed": 2}
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        assert data["theme"] == "fmind"
+        assert data["keybinds"] == original["keybinds"]
+        assert data["scroll_speed"] == 2
+        assert self.render(template, rendered) == rendered
 
     def test_json_merge_preserves_mcp_and_unmanaged_hook_events(self):
         for template in ["dot_claude/modify_settings.json", "dot_config/opencode/modify_opencode.json"]:

@@ -3,33 +3,32 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": ["~/.agents/AGENTS.md"],
-  "model": "google-vertex/gemini-3.8-flash",
-  "small_model": "google-vertex/gemini-3.8-flash",
+  "model": "openrouter/google/gemini-3.8-flash",
+  "small_model": "openrouter/google/gemini-3.8-flash",
   "provider": {
-    "google-vertex": {
+    "openrouter": {
       "options": {
-        "project": "{env:OPENCODE_GCP_PROJECT}",
-        "location": "global"
+        "apiKey": "{env:OPENROUTER_API_KEY}"
       }
     }
   },
+  "default_agent": "build",
+  "share": "disabled",
+  "snapshot": true,
   "autoupdate": "notify",
-  "compaction": {"prune": true},
+  "compaction": {"auto": true, "prune": true},
   "formatter": true,
   "lsp": true,
   "permission": "allow"
 }
 ` -}}
-{{- $gcp_project := env "OPENCODE_GCP_PROJECT" | default (env "GOOGLE_CLOUD_PROJECT") -}}
-{{- if $gcp_project -}}
-{{-   $_ := set (index $managedConfig.provider "google-vertex").options "project" $gcp_project -}}
-{{- end -}}
-{{- $location := env "VERTEX_LOCATION" -}}
-{{- if $location -}}
-{{-   $_ := set (index $managedConfig.provider "google-vertex").options "location" $location -}}
-{{- end -}}
-{{- /* The theme JSON is fetched into ~/.config/opencode/themes/ by
-       .chezmoiexternal.toml.tmpl; opencode resolves it by file name. */ -}}
-{{- $_ := set $managedConfig "theme" "fmind" -}}
 {{- $_ := set $managedConfig "skills" (dict "paths" (list (joinPath .chezmoi.homeDir ".agents/skills"))) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+{{- /* Move the legacy managed theme to tui.json; preserve other host settings. */ -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
+{{- $input := .chezmoi.stdin -}}
+{{- if hasKey $current "theme" -}}
+{{-   $_ := unset $current "theme" -}}
+{{-   $input = $current | toJson -}}
+{{- end -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" $input "managed" $managedConfig) -}}

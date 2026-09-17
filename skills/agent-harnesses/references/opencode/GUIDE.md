@@ -11,7 +11,7 @@ Operate OpenCode with the project's provider, permissions, and Python tooling. P
 
 1. **Inspect the installed contract**: use `opencode --version`, `opencode run --help`, and project instructions. Resolve the intended workspace and existing session before starting or resuming work.
 1. **Refresh evolving details**: read the relevant official page and changelog before relying on new flags, provider options, or feature availability. Compare with installed help, report version gaps, and keep release-specific details upstream.
-1. **Resolve the provider**: for Vertex AI, establish the project, location, and ADC identity through [gcloud](../../../gcloud/SKILL.md). ADC can come from a credential file, an attached identity, or an approved impersonation setup; the presence of one file is not an authentication test.
+1. **Resolve the provider** through [model-providers](../../../model-providers/SKILL.md). This workstation explicitly uses OpenRouter with `OPENROUTER_API_KEY`; its model IDs start with `openrouter/`. Preserve that choice even though new application integrations default to GCP Agent Platform. Check credentials without dumping resolved configuration.
 1. **Run the requested task** with the configured model, or an explicitly selected available `provider/model`. `--auto` approves permissions that are not explicitly denied; it preserves denials and does not expand the user's task authority.
 
    ```bash
@@ -26,7 +26,7 @@ Operate OpenCode with the project's provider, permissions, and Python tooling. P
 
 ## Configuration
 
-OpenCode merges user `~/.config/opencode/opencode.json` or `.jsonc` with project configuration. In the dot repository, edit the chezmoi source only when workstation configuration is in scope. Use the [current schema and precedence](https://opencode.ai/docs/config/) for keys; keep project overrides small and avoid copying provider, compaction, or permission settings into this skill.
+OpenCode merges user `~/.config/opencode/opencode.json` or `.jsonc` with project configuration. In the dot repository, edit the chezmoi source only when workstation configuration is in scope. UI settings such as the theme belong in `tui.json`. Use the [current schema and precedence](https://opencode.ai/docs/config/) for keys; keep project overrides small and avoid copying provider, compaction, or permission settings into this skill.
 
 Use `opencode mcp add --help` for the installed setup interface and [mcp-setup](../../../mcp-setup/SKILL.md) for transport and trust boundaries. Listing configuration can reveal substituted credentials, so inspect only needed fields and never paste raw resolved config into reports.
 

@@ -262,7 +262,7 @@ def _calculate_release_version(state: State, root: Path) -> tuple[str, str]:
 
 
 def _validate_prepared_release(state: State, root: Path, expected_tag: str, *, require_clean: bool = False) -> None:
-    for task in ("format", "check", "test", "build"):
+    for task in ("format", "check", "test", "build", "check:completions"):
         state.stdout.write(f"Running {task}...\n")
         code = state.runner.interactive(
             ["mise", "run", task], cwd=root, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr

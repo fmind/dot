@@ -38,7 +38,7 @@ Follow this workflow only when remote execution is in scope; establish the autho
 ## Gotchas
 
 - **30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
-- **Pinned dependency**: mise installs `google-colab-cli` with `jupyter-kernel-client==0.15.0`; 1.0.0 renamed the client class and breaks every session.
+- **Pinned dependency**: mise uses `with = ["jupyter-kernel-client==0.15.0"]` to retain the compatible client in its format-2 dependency graph; 1.0.0 renamed the client class and breaks every session.
 - **Tiers**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
 - **Disposable VM**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
 

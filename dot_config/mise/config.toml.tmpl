@@ -5,9 +5,9 @@
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
 # is deliberately off across every backend, and releases are installed the day they
 # ship. The trade-off: mise.lock records digests for aqua/github/http downloads
-# and the newly locked conda dependency graphs. The `npm:` and `pipx:`
-# entries (plus registry tools such as gcloud, make, neovim, sqlite and uv) pin a
-# version but no digest, and the first fetch of any new version is unverified. Upstream
+# and conda dependencies. npm and pipx tools use version-only locking, so their
+# transitive dependencies can change on reinstall. Registry tools such as gcloud, make, neovim, sqlite
+# and uv may still pin only a version. First fetches are unverified. Upstream
 # attestation coverage is too patchy to gate routine upgrades on, and this is a
 # single-user workstation. Raise minimum_release_age (e.g. "3d") to trade upgrade
 # latency for a window in which a compromised release gets pulled.
@@ -53,11 +53,11 @@ chpwd_only = true
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
 # Pinned dep: google-colab-cli requires jupyter-kernel-client unpinned, but 1.0.0 renamed
 # KernelClient -> JupyterKernelClient, which breaks every session (verified 2026-09-02).
-# Keep the global lockfile at format 1: format 2 rejects free-form uvx_args.
-"pipx:google-colab-cli" = { version = "latest", uvx_args = "--with jupyter-kernel-client==0.15.0" } # CLI client for Google Colab
+# Keep this requirement when reinstalling or upgrading the CLI.
+"pipx:google-colab-cli" = { version = "latest", with = ["jupyter-kernel-client==0.15.0"] } # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
-"pipx:pgcli" = { version = "latest", uvx_args = "--with psycopg[binary]" } # PostgreSQL client with bundled libpq; no host package needed
+"pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client with bundled libpq; no host package needed
 "pipx:pip-audit" = "latest" # Audits installed pipx tool environments for check:vuln:tools; uv-managed projects use `uv audit` for check:vuln
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
 actionlint = "latest" # Correctness linter for GitHub Actions workflows

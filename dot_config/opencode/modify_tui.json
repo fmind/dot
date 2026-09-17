@@ -1,0 +1,4 @@
+# chezmoi:modify-template
+{{- /* Docs: https://opencode.ai/docs/config/#tui */ -}}
+{{- $managedConfig := dict "$schema" "https://opencode.ai/tui.json" "theme" "fmind" -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

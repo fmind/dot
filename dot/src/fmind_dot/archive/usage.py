@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
 from fmind_dot.archive.store import is_valid_session_id
 from fmind_dot.config import PricingConfig, SubscriptionConfig, default_pricing
+from fmind_dot.reporting import write_report_line
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
@@ -474,43 +475,37 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
     if not rows:
         output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
         return
-    output.write(
-        "Request timestamps where available; session-timestamp fallback is approximate, not interval billing.\n"
-    )
-    if rows[0].pricing_as_of:
-        output.write(f"API equivalent ({rows[0].pricing_as_of}): {rows[0].pricing_basis}\n")
+
+    def write(text: str = "") -> None:
+        write_report_line(output, text)
+
+    write()
+    write("Token usage")
     first = min((row.first_timestamp for row in rows if row.first_timestamp), default="unknown")
     last = max((row.last_timestamp for row in rows if row.last_timestamp), default="unknown")
-    output.write(f"Coverage: {first} to {last} (archived usage only).\n")
+    write(f"Coverage: {first[:10]} to {last[:10]} (archived usage only).")
+    write("API equivalent is an estimate in USD, separate from recorded cost and subscriptions.")
+    if rows[0].pricing_as_of:
+        write(f"Rate card: {rows[0].pricing_as_of} · {rows[0].pricing_basis}")
     periods = any(row.period_start for row in rows)
-    columns = (["PERIOD START", "PERIOD END"] if periods else []) + ["AGENT", "MEASUREMENT"]
-    if by_model:
-        columns.append("MODEL")
-    projects = any(row.cwd for row in rows)
-    if projects:
-        columns.append("PROJECT")
-    columns.extend(["SESSIONS", "FROM", "THROUGH", "TOTAL TOKENS", "API EQUIV (USD)", "PRICED", "COST (USD)"])
-    output.write("\t".join(columns) + "\n")
     total = UsageStats(harness="TOTAL", first_timestamp=first, last_timestamp=last)
 
     def write_row(row: UsageStats) -> None:
-        values = ([row.period_start[:10], row.period_end[:10]] if periods else []) + [row.harness, row.measurement_kind]
-        if by_model:
-            values.append(row.model or "-")
-        if projects:
-            values.append(row.cwd or "-")
-        values.extend(
-            [
-                str(row.sessions),
-                row.first_timestamp[:10] or "-",
-                row.last_timestamp[:10] or "-",
-                f"{row.total_tokens:,}",
-                _equivalent_display(row),
-                f"{row.priced_measurements}/{row.measurements}",
-                _cost_display(row),
-            ]
+        write()
+        write(f"{row.harness} · {row.measurement_kind}")
+        if by_model and row.model:
+            write(f"  Model: {row.model}")
+        if row.cwd:
+            write(f"  Project: {row.cwd}")
+        if row.period_start:
+            write(f"  Period: {row.period_start[:10]} to {row.period_end[:10]} (end exclusive)")
+        write(f"  Sessions: {row.sessions:,} · Total tokens: {row.total_tokens:,}")
+        write(
+            f"  API equivalent: {_equivalent_display(row)} · Priced: {row.priced_measurements:,}/{row.measurements:,}"
         )
-        output.write("\t".join(values) + "\n")
+        write(f"  Recorded cost: {_cost_display(row)}")
+        if row.first_timestamp and row.harness != "TOTAL":
+            write(f"  Coverage: {row.first_timestamp[:10]} to {row.last_timestamp[:10]}")
 
     for row in rows:
         write_row(row)
@@ -526,24 +521,24 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
         ):
             setattr(total, name, getattr(total, name) + getattr(row, name))
     if any(row.legacy_accounting_sessions for row in rows):
-        output.write(
-            "Legacy accounting present: recapture available sources with 'dot agent session sync'; old Claude totals may count repeated response blocks.\n"
+        write(
+            "Legacy accounting present: recapture available sources with 'dot agent session sync'; old Claude totals may count repeated response blocks."
         )
     if any(row.session_timestamp_sessions for row in rows):
-        output.write("Some usage has only a session timestamp; its monthly allocation is approximate.\n")
+        write("Some usage has only a session timestamp; its monthly allocation is approximate.")
     if periods:
-        output.write("Period ends are exclusive; sessions spanning periods may appear in more than one row.\n")
+        write("Period ends are exclusive; sessions spanning periods may appear in more than one row.")
         for row in rows:
             if row.subscription_usd:
                 ratio = row.to_dict()["api_value_ratio"]
                 value = f"{ratio:.2f}x" if ratio is not None else "unknown (partial pricing)"
-                output.write(
-                    f"{row.harness} {row.period_start[:10]}: ${row.subscription_usd:.2f}/cycle; API value {value}. Coverage may be partial.\n"
+                write(
+                    f"{row.harness} {row.period_start[:10]}: ${row.subscription_usd:.2f}/cycle; API value {value}. Coverage may be partial."
                 )
         return
     kinds = {row.measurement_kind for row in rows}
     if len(kinds) > 1:
-        output.write("No combined total: measurement kinds are not comparable.\n")
+        write("No combined total: measurement kinds are not comparable.")
         return
     total.measurement_kind = next(iter(kinds))
     write_row(total)
