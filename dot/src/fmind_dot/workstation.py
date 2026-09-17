@@ -12,7 +12,7 @@ from fmind_dot.state import State, require_tools, state_from
 CACHE_COMMANDS = {
     "docker": ["docker", "system", "df"],
     "hf": ["hf", "cache", "ls"],
-    "uv": ["uv", "cache", "size", "--preview-features", "cache-size"],
+    "uv": ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
 }
 PRUNE_COMMANDS = {
     "docker": ["docker", "builder", "prune", "--force"],

@@ -336,7 +336,9 @@ def test_prompt_stats_validate_only_selected_generation_and_report_corruption(
     assert prompt_statistics(SessionQuery())["complete"]
     human = CliRunner().invoke(app, ["agent", "prompts", "stats"])
     assert human.exit_code == 0
-    assert "AGENT\tPROJECT\tSESSIONS\tPROMPTS" in human.stdout
+    assert "Prompt activity · 1 archived user messages" in human.stdout
+    assert "Sessions: 1 · Prompts: 1 · Responses: 0" in human.stdout
+    assert "Prompt coverage: complete" in human.stdout
     assert "private text" not in human.stdout
     (root / current.generation_id / "transcript.jsonl").write_text("corrupt\n")
     broken = CliRunner().invoke(app, ["agent", "prompts", "stats", "--json"])

@@ -265,7 +265,7 @@ def test_completion_run_skips_missing_tools_and_reports_failed_generators(
         system.run_completion(state)
     assert isinstance(state.stdout, StringIO)
     output = state.stdout.getvalue()
-    assert "missing is not installed, skipping" in output
+    assert "missing is not installed or active, skipping" in output
     assert "Failed to generate completions for broken" in output
     assert "Completions updated" not in output
 
@@ -971,3 +971,66 @@ def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions
     assert (tmp_path / "completions/fkf.fish").is_file()
     assert not (tmp_path / "completions/dot.fish").exists()
     assert environments == [{"CARAPACE_EXCLUDES": "custom,fkf"}]
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_completion_resolves_optional_mise_shims(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, active: bool) -> None:
+    mise = tmp_path / "mise"
+    mise.touch()
+    shim = tmp_path / "acli"
+    shim.symlink_to(mise)
+
+    def scripts(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
+        del cwd, input_text, check
+        if args == ["mise", "which", "acli"]:
+            return CommandResult(
+                "/selected/acli" if active else "", "" if active else "not currently active", 0 if active else 1
+            )
+        return CommandResult("complete -c acli -l help\n", "", 0)
+
+    runner = ScriptedRunner(run=scripts)
+    monkeypatch.setattr(runner, "which", lambda name: {"acli": shim, "mise": mise}.get(name))
+    if active:
+        assert "complete -c acli" in system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
+        assert runner.calls[-1] == ["acli", "completion", "fish"]
+    else:
+        with pytest.raises(FileNotFoundError):
+            system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
+        assert runner.calls == [["mise", "which", "acli"]]
+
+
+def test_completion_check_leaves_installed_scripts_and_cache_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = Config()
+    config.completions.path = str(tmp_path / "completions")
+    config.completions.tools = ["dot"]
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
+    completions = Path(config.completions.path)
+    completions.mkdir()
+    installed = completions / "dot.fish"
+    installed.write_text("last known good\n")
+    runner = ScriptedRunner({"fish", "atuin", "carapace"})
+    state = state_with(runner, config)
+    system.run_completion(state, check_only=True)
+    assert installed.read_text() == "last known good\n"
+    assert list(completions.iterdir()) == [installed]
+    assert not cache.exists()
+    assert isinstance(state.stdout, StringIO)
+    assert "Completion check passed" in state.stdout.getvalue()
+    assert ["atuin", "init", "fish"] in runner.calls
+    assert ["carapace", "_carapace", "fish"] in runner.calls
+
+
+def test_completion_mise_resolution_error_is_not_a_missing_tool(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mise = tmp_path / "mise"
+    mise.touch()
+    shim = tmp_path / "acli"
+    shim.symlink_to(mise)
+    runner = ScriptedRunner(run=lambda *_: CommandResult("", "configuration is not trusted", 1))
+    monkeypatch.setattr(runner, "which", lambda name: {"acli": shim, "mise": mise}.get(name))
+    with pytest.raises(DotError, match="failed to resolve mise"):
+        system._generate_completion(state_with(runner), "acli")  # noqa: SLF001

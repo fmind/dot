@@ -34,6 +34,10 @@ ruff.toml
 skills
 trivy.yaml
 
+# Version-only tool locks do not deploy generated dependency graphs.
+.config/mise/locks
+.config/mise/mise.local.lock
+
 {{- if ne .chezmoi.os "linux" }}
 .local/share/applications/com.mitchellh.ghostty.desktop
 {{- end }}

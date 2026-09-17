@@ -133,7 +133,7 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert "Deprecated" in detailed.stderr
     human = runner.invoke(app, ["agent", "stats"])
     assert human.exit_code == 0
-    assert "API EQUIV (USD)" in human.output
+    assert "API equivalent:" in human.output
     assert "SECRET PROMPT" not in human.output
     invalid = runner.invoke(app, ["agent", "stats", "--since", "2026-09-10", "--until", "2026-09-01"])
     assert invalid.exit_code != 0

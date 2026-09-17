@@ -14,7 +14,7 @@ description: "Inspect repositories, diagnose workstation health, and manage sess
 | `dot login`      | Show providers; authenticate Workspace, GCP, GitHub, or the Workspace-then-GCP `google` sequence.            |
 | `dot prune`      | Show providers; `dot prune all` cleans configured caches after confirmation (`--dry-run` previews).          |
 | `dot setup`      | Reconcile GitHub scopes or an explicit Workspace project and OAuth client.                                   |
-| `dot completion` | Generate and syntax-check Fish completions before atomic replacement.                                        |
+| `dot completion` | Generate and syntax-check Fish completions before atomic replacement; `--check` validates without installing.                                        |
 | `dot config`     | Show, locate, initialize, edit, and validate strict YAML configuration.                                      |
 | `dot doctor`     | Check local tools, permissions, environment, and installation; `--deep` adds provider authentication probes. |
 | `dot pull`       | Fetch and fast-forward selected repositories with bounded concurrency and an explicit dirty-tree policy.     |

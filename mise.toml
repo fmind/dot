@@ -114,6 +114,7 @@ run = """
 for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish; do
   fish --no-config --no-execute "$file"
 done
+uv run --frozen pytest -q dot/tests/test_fish.py
 """
 
 [tasks."check:leaks"]
@@ -259,12 +260,21 @@ run = "uv run --frozen --directory dot ptw . -q -n auto"
 [tasks.apply]
 alias = "ma"
 description = "Apply the chezmoi source tree"
+run = "chezmoi apply --force"
+
+[tasks."apply:externals"]
+alias = "mae"
+description = "Apply the chezmoi source tree and force-refresh external files"
 run = "chezmoi apply --force --refresh-externals"
 
 [tasks.completions]
 alias = "mg"
 description = "Generate Fish completions for installed CLI tools"
 run = '"$DOT_BIN" completion'
+
+[tasks."check:completions"]
+description = "Validate active Fish completion generators without changing installed scripts"
+run = "uv run --frozen dot completion --check"
 
 [tasks.deploy]
 alias = "me"
@@ -300,7 +310,7 @@ run = [
   "uv lock",
   "mise lock --yes",
   "mise lock --global --yes",
-  "chezmoi re-add --source \"$PWD\" ~/.config/mise/mise.lock",
+  'chezmoi re-add --source "$PWD" ~/.config/mise/mise.lock',
   "chezmoi re-add --source \"$PWD\" ~/.config/nvim/lazy-lock.json",
 ]
 
@@ -346,7 +356,7 @@ alias = "mu"
 description = "Upgrade Python dependencies, mise tools, and Neovim plugins"
 run = [
   "uv lock --upgrade",
-  # Resolve before installation so legacy lockfiles retain their supported format.
+  # Refresh version pins before installing the selected releases.
   "mise lock --global --bump --yes",
   "mise lock --bump --yes",
   "mise --locked install -y",

@@ -384,7 +384,7 @@ def test_cache_default_inspects_all_and_preserves_native_output(provider: Record
     assert provider.actions == [
         ["docker", "system", "df"],
         ["hf", "cache", "ls"],
-        ["uv", "cache", "size", "--preview-features", "cache-size"],
+        ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
     ]
 
 
@@ -470,4 +470,7 @@ def test_custom_cache_and_prune_selections_replace_defaults(provider: RecordingR
     assert result.exit_code == 0, result.exception
     result = runner.invoke(app, ["--config", str(path), "prune", "all", "--yes"])
     assert result.exit_code == 0, result.exception
-    assert provider.actions == [["uv", "cache", "size", "--preview-features", "cache-size"], ["npm", "cache", "verify"]]
+    assert provider.actions == [
+        ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
+        ["npm", "cache", "verify"],
+    ]

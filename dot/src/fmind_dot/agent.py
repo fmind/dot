@@ -40,6 +40,7 @@ from fmind_dot.command_group import JsonOption, help_group
 from fmind_dot.context_budget import register as register_context
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import _spool_hook_failure, decode_copilot_session_end
+from fmind_dot.reporting import write_report_line
 from fmind_dot.state import State, state_from
 from fmind_dot.system import build_notification, send_notification
 
@@ -201,29 +202,35 @@ def _print_statistics(state: State, document: dict[str, Any], *, as_json: bool) 
         state.stdout.write(json.dumps(document, ensure_ascii=False, indent=2) + "\n")
     else:
         for key, value in document.items():
-            if key == "rows":
-                columns = (
-                    "agent",
-                    "project",
-                    "sessions",
-                    "prompts",
-                    "responses",
-                    "words",
-                    "characters",
-                    "active_days",
-                    "median_characters",
-                    "p95_characters",
-                    "partial_sessions",
-                )
-                state.stdout.write("\t".join(column.upper() for column in columns) + "\n")
-                for row in value:
-                    state.stdout.write(
-                        "\t".join(str(row[column]) if row[column] != "" else "-" for column in columns) + "\n"
-                    )
-                continue
             state.stdout.write(
                 f"{key}: {json.dumps(value, ensure_ascii=False) if isinstance(value, dict | list) else value}\n"
             )
+
+
+def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
+    def write(text: str = "") -> None:
+        write_report_line(state.stdout, text)
+
+    write()
+    write(f"Prompt activity · {document['prompts']:,} archived user messages")
+    write("Conversation timestamps (UTC); user messages may include injected context.")
+    if not document["rows"]:
+        write("No prompt records found for this selection.")
+    for row in document["rows"]:
+        write()
+        write(row["agent"])
+        if row["project"]:
+            write(f"  Project: {row['project']}")
+        write(f"  Sessions: {row['sessions']:,} · Prompts: {row['prompts']:,} · Responses: {row['responses']:,}")
+        write(f"  Active days: {row['active_days']:,} · Words: {row['words']:,} · Characters: {row['characters']:,}")
+        write(f"  Prompt length (characters): median {row['median_characters']:,} · p95 {row['p95_characters']:,}")
+        if row["partial_sessions"]:
+            write(f"  Partial sessions: {row['partial_sessions']:,}")
+    if document["excluded_sessions"] or document["invalid_timestamps"]:
+        write(
+            f"Excluded sessions: {document['excluded_sessions']:,} · Invalid timestamps: {document['invalid_timestamps']:,}"
+        )
+    write(f"Prompt coverage: {'complete' if document['complete'] else 'INCOMPLETE'} within the selected archive.")
 
 
 @session_app.command("stats", help="Count current sessions, retained generations, archive bytes, and health")
@@ -472,9 +479,9 @@ def agent_stats(
             + "\n"
         )
     else:
-        state.stdout.write("Archived records only; run 'dot agent session sync' to refresh.\n")
+        write_report_line(state.stdout, "Archived records only; run 'dot agent session sync' to refresh.")
         if prompts is not None:
-            _print_statistics(state, prompts, as_json=False)
+            _print_prompt_statistics(state, prompts)
         if not prompts_only:
             write_usage_stats(state.stdout, rows, by_model=by_model)
     if prompts is not None and not prompts["complete"]:

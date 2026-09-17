@@ -27,3 +27,7 @@ htmlcov/
 # Only the managed launcher belongs in this generated bin directory.
 dot_local/bin/*
 !dot_local/bin/symlink_dot.tmpl
+
+# Optional workstation locks and generated tool dependency files stay local.
+dot_config/mise/mise.local.lock
+dot_config/mise/locks/

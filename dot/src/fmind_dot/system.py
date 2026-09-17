@@ -286,6 +286,24 @@ def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> 
         Path(temporary).unlink(missing_ok=True)
 
 
+def _completion_available(state: State, tool: str) -> bool:
+    executable = state.runner.which(tool)
+    if executable is None:
+        return False
+    mise = state.runner.which("mise")
+    # Disabled optional tools can leave executable shims pointing at mise.
+    # Resolve only those shims; a real executable needs no mise configuration.
+    if tool != "mise" and mise is not None and executable.resolve() == mise.resolve():
+        result = state.runner.run(
+            ["mise", "which", tool], timeout=state.config.completions.timeout_seconds, check=False
+        )
+        if result.returncode:
+            if "not currently active" in result.stderr or "No version is set" in result.stderr:
+                return False
+            raise DotError(f"failed to resolve mise completion executable for {tool}")
+    return True
+
+
 def _generate_completion(state: State, tool: str) -> str:
     custom = state.config.completions.custom_commands.get(tool)
     binary = custom.binary if custom and custom.binary else tool
@@ -293,7 +311,7 @@ def _generate_completion(state: State, tool: str) -> str:
         return get_completion_script(  # noqa: S604 - static Fish protocol template, not a shell invocation.
             prog_name="dot", complete_var="_DOT_COMPLETE", shell="fish"
         )
-    if state.runner.which(tool) is None:
+    if not _completion_available(state, tool):
         raise FileNotFoundError(tool)
     if custom and custom.package:
         require_tools(state, [["mise"]])
@@ -320,8 +338,21 @@ def _generate_completion(state: State, tool: str) -> str:
     return result.stdout
 
 
-def run_completion(state: State) -> None:
-    directory = expand_path(state.config.completions.path)
+def run_completion(state: State, *, check_only: bool = False) -> None:
+    if check_only:
+        with tempfile.TemporaryDirectory(prefix="dot-completion-check-") as temporary:
+            root = Path(temporary)
+            _run_completion(state, root / "completions", root / "cache")
+        typer.echo("Completion check passed; installed scripts were not changed.", file=state.stdout)
+        return
+    _run_completion(
+        state,
+        expand_path(state.config.completions.path),
+        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish",
+    )
+
+
+def _run_completion(state: State, directory: Path, cache: Path) -> None:
     try:
         directory.mkdir(mode=0o755, parents=True, exist_ok=True)
     except OSError as error:
@@ -337,11 +368,10 @@ def run_completion(state: State) -> None:
             _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
             typer.echo(f"  ✓ Generated completions for {tool}", file=state.stdout)
         except FileNotFoundError:
-            typer.echo(f"  ○ {tool} is not installed, skipping", file=state.stdout)
+            typer.echo(f"  ○ {tool} is not installed or active, skipping", file=state.stdout)
         except (DotError, OSError) as error:
             failures.append(f"{tool}: {error}")
             typer.echo(f"  ✗ Failed to generate completions for {tool}", file=state.stdout)
-    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
     try:
         cache.mkdir(mode=0o700, parents=True, exist_ok=True)
     except OSError:
@@ -355,7 +385,7 @@ def run_completion(state: State) -> None:
             ("atuin", "atuin-init.fish", ["init", "fish"]),
             ("carapace", "carapace-init.fish", ["_carapace", "fish"]),
         ):
-            if state.runner.which(tool) is None:
+            if not _completion_available(state, tool):
                 continue
             try:
                 # Native scripts must win over Carapace's generic completers;
@@ -765,8 +795,14 @@ def _print_doctor(state: State, results: Mapping[str, Any]) -> None:
 
 def register(app: typer.Typer) -> None:
     @app.command("completion", help="Generate and validate Fish completions")
-    def completion(context: typer.Context) -> None:
-        run_completion(state_from(context))
+    def completion(
+        context: typer.Context,
+        check_only: Annotated[
+            bool,
+            typer.Option("--check", help="Validate generators in a temporary directory without installing scripts"),
+        ] = False,
+    ) -> None:
+        run_completion(state_from(context), check_only=check_only)
 
     @app.command("doctor", help="Check local workstation health; --deep also probes authentication")
     def doctor(

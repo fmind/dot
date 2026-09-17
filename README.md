@@ -58,11 +58,11 @@ git clone https://github.com/fmind/dot.git ~/.local/share/chezmoi
 bash ~/.local/share/chezmoi/install.sh
 ```
 
-Open a new shell after installation.
+Open a new shell and run `dot doctor` to check your installation. Use `dot completion --check` to check Fish completions, or `dot completion` to regenerate them.
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
-Google Sans is the default for application text and Google Sans Code for code; terminal apps inherit [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) from Ghostty. The managed installer supplies all three families from checksum-pinned official releases. Projects that embed fonts must still bundle their fonts.
+Setup installs Google Sans for text, Google Sans Code for code, and [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) for terminals.
 
 ### Optional tool extras
 
@@ -84,7 +84,7 @@ Omit `extras` or use `extras = []` for the core tools only. Available names:
 | `databricks` | Databricks CLI                                                                             |
 | `kubernetes` | kubectl, kubectx, kubens, Helm, k9s, kustomize, stern, kind, k3d, kubeconform, kube-linter |
 
-Apply your selection, resolve the selected tools, and install them:
+Apply and install your selection:
 
 ```bash
 chezmoi apply --force ~/.config/mise
@@ -95,9 +95,9 @@ mise -C "$HOME" config ls
 mise -C "$HOME" ls --current
 ```
 
-The fragments deploy as `~/.config/mise/conf.d/<extra>.local.toml`. Mise reads them automatically; the core config and project configs take precedence when they declare the same tool. Optional versions and dependency sidecars are recorded in the machine's `~/.config/mise/mise.local.lock` and `~/.config/mise/locks/mise.local/`, separate from the shared core lockfile. Keep these local files out of Git. Unknown names or a non-list `extras` value stop apply with an error.
+Extras and their lockfiles are local to each computer. Shared lockfiles pin tool versions; npm and Python tool dependencies can change on reinstall. See the [configuration guide](skills/mise/references/task-conventions.md#optional-workstation-extras) for details.
 
-To disable an extra, remove its name and repeat the commands above. Apply removes that managed fragment, and locking drops its entries. Installed tool caches remain available; disabling does not uninstall tools, delete personal fragments, or stop running containers or clusters. Edit managed fragments in the chezmoi source tree. Existing installations that use `acli` should enable `atlassian` before their next apply. The Airflow extra disables Astro CLI anonymous telemetry. The cloud skills remain discoverable even when their tools are disabled; install the corresponding extra before following those workflows.
+To disable an extra, remove its name and repeat the commands above. This removes its configuration but leaves installed tools and running services alone.
 
 ### Dot configuration
 
@@ -107,9 +107,9 @@ Use `dot config show` to inspect effective settings, `dot config validate` to ch
 
 ### Usage and subscription settings
 
-Agent usage reports show recorded tokens, coverage dates, and an offline API-equivalent value in USD. The value uses standard model rates and is separate from provider-reported costs and subscription charges. It does not measure answer quality or money actually saved. See the [usage guide](skills/agent-usage/SKILL.md) for totals, monthly reports, source coverage, and refresh instructions.
+Usage reports show tokens, coverage dates, and estimated API value in USD. Estimates are separate from actual costs and subscriptions. See the [usage guide](skills/agent-usage/SKILL.md) for reports and limitations.
 
-Calendar months use UTC. To use subscription cycles, configure each subscribed harness with its renewal day and billing timezone. Optionally set `monthly_usd` to your USD monthly charge; Dot does not fetch invoices or convert currencies. For example:
+Monthly reports use UTC. For subscription cycles, set the renewal day, timezone, and optional monthly charge in USD:
 
 ```yaml
 # Docs: https://github.com/fmind/dot
@@ -152,7 +152,7 @@ Run this setup on each computer, choose a unique package name, and restart the a
 
 ### Upgrading the skill catalog
 
-The consolidated catalog retires 55 package names from v6.1.0. Existing installations need the [skill-link migration](.agents/skills/dot-skills/references/installed-links.md#catalog-consolidation-migration) before restarting their agents. Preview the migration first; its apply mode moves only confirmed retired links into a recoverable backup outside discovery. Other packages remain untouched. A fresh installation needs no migration.
+Upgrading from v6.1.0? Follow the [skill-link migration](.agents/skills/dot-skills/references/installed-links.md#catalog-consolidation-migration) to back up retired links, then restart your agents. Fresh installations need no migration.
 
 ## Credentials
 
@@ -160,7 +160,7 @@ The consolidated catalog retires 55 package names from v6.1.0. Existing installa
 
 API keys and credentials are split between two Fish configuration files:
 
-1. **`~/.config/fish/conf.d/secrets.fish`** (shared, encrypted in repo): Decrypted automatically from `encrypted_private_secrets.fish.age`. Exports keys including `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `HUGGINGFACE_API_TOKEN`, `JULES_API_KEY`, `KAGGLE_API_TOKEN`, `STITCH_ACCESS_TOKEN`, `STUDIO_API_KEY`, and `UV_PUBLISH_TOKEN`.
+1. **`~/.config/fish/conf.d/secrets.fish`** (shared, encrypted in repo): Decrypted automatically from `encrypted_private_secrets.fish.age`. Exports keys including `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `HUGGINGFACE_API_TOKEN`, `JULES_API_KEY`, `KAGGLE_API_TOKEN`, `OPENROUTER_API_KEY`, `STITCH_ACCESS_TOKEN`, `STUDIO_API_KEY`, and `UV_PUBLISH_TOKEN`.
 
    To decrypt on apply, provision your private age key:
 
@@ -181,8 +181,8 @@ API keys and credentials are split between two Fish configuration files:
    ```fish
    set -gx ANTIGRAVITY_CLOUD_PROJECT   "my-vertex-project"
    set -gx ANTIGRAVITY_CLOUD_LOCATION  "global"
-   set -gx OPENCODE_GCP_PROJECT        "my-vertex-project"
-   set -gx VERTEX_LOCATION             "global"
+   set -gx GOOGLE_CLOUD_PROJECT        "my-agent-project"
+   set -gx GOOGLE_CLOUD_LOCATION       "global"
    set -gx GWS_PROJECT                 "my-workspace-project"
    ```
 
@@ -205,17 +205,17 @@ auth:
   probe_timeout_seconds: 45
 ```
 
-| Tool / Service           | Command                                           | Auth Type             |
-| ------------------------ | ------------------------------------------------- | --------------------- |
-| **GitHub CLI**           | `gh auth login`                                   | Browser OAuth         |
-| **Google Cloud SDK**     | `gcloud auth login --update-adc`                  | ADC + OAuth           |
-| **Google Workspace CLI** | `gws auth login`                                  | Browser OAuth         |
-| **Antigravity CLI**      | `agy`                                             | On-demand prompt      |
-| **Claude Code**          | `claude auth login` (or `claude` → `/login`)      | Interactive / browser |
-| **OpenAI Codex CLI**     | `codex login`                                     | Interactive           |
-| **OpenCode CLI**         | `gcloud auth login --update-adc`, then `opencode` | Vertex AI ADC         |
-| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)         | Interactive / browser |
-| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                   | Interactive / API key |
+| Tool / Service           | Command                                                      | Auth Type             |
+| ------------------------ | ------------------------------------------------------------ | --------------------- |
+| **Antigravity CLI**      | `agy`                                                        | On-demand prompt      |
+| **Claude Code**          | `claude auth login` (or `claude` → `/login`)                 | Interactive / browser |
+| **GitHub CLI**           | `gh auth login`                                              | Browser OAuth         |
+| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)                    | Interactive / browser |
+| **Google Cloud SDK**     | `gcloud auth login --update-adc`                             | ADC + OAuth           |
+| **Google Workspace CLI** | `gws auth login`                                             | Browser OAuth         |
+| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                              | Interactive / API key |
+| **OpenAI Codex CLI**     | `codex login`                                                | Interactive           |
+| **OpenCode CLI**         | `source ~/.config/fish/conf.d/secrets.fish`, then `opencode` | OpenRouter API key    |
 
 OAuth scopes can permit destructive operations; they do not authorize an agent to delete data or contact others. GCP permissions remain controlled by IAM. Changing configuration does not update issued tokens: authenticate again for new scopes, and use `dot setup github` to remove excluded grants. Personal Google accounts need a Workspace policy without `directory.readonly`.
 

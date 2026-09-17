@@ -2,7 +2,7 @@
 # Fallback for scratch scripts outside projects with their own Ruff configuration.
 # Projects retain their own rules; this subset allows prints and one-off scripts.
 line-length = 120
-target-version = "py313"
+target-version = "py314"
 
 [format]
 docstring-code-format = true
