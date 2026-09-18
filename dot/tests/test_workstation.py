@@ -474,3 +474,12 @@ def test_custom_cache_and_prune_selections_replace_defaults(provider: RecordingR
         ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
         ["npm", "cache", "verify"],
     ]
+
+
+def test_ensure_hf_cache_dir_creates_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    target = tmp_path / "custom-hf"
+    monkeypatch.setenv("HF_HUB_CACHE", str(target))
+    from fmind_dot.workstation import _ensure_hf_cache_dir
+
+    _ensure_hf_cache_dir()
+    assert target.is_dir()

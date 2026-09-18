@@ -24,7 +24,9 @@
     "BASH_MAX_TIMEOUT_MS": "1800000",
     "CLAUDE_AUTO_BACKGROUND_TASKS": "1"
   },
-  "fallbackModel": "sonnet",
+  "fallbackModel": [
+    "sonnet"
+  ],
   "feedbackSurveyRate": 0,
   "hooks": {
     "Notification": [

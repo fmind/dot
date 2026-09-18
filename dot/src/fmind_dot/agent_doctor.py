@@ -50,6 +50,7 @@ _SHARED_PERSONA = "~/.agents/AGENTS.md"
 
 
 _SHARED_SKILLS = "~/.agents/skills"
+_RESERVED_SKILL_DIRECTORIES = frozenset({"synced"})
 
 
 @dataclass(frozen=True)
@@ -262,7 +263,7 @@ def _inspect_skill_catalog(state: State) -> _SkillInspection:
             return _SkillInspection("skills-truncated", {"skill-scan-limit": 1}, truncated=True)
         installed = {path.name: path for path in entries}
         for path in sorted(entries):
-            if path.name.startswith("."):
+            if path.name.startswith(".") or path.name in _RESERVED_SKILL_DIRECTORIES:
                 continue
             if path.is_symlink() and not path.is_dir():
                 issue("skill-broken-link", path.name)

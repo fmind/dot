@@ -1,6 +1,8 @@
 """Native workstation commands with one Python-owned CLI and configuration."""
 
+import os
 import shlex
+from pathlib import Path
 from typing import Annotated, Literal
 
 import typer
@@ -31,12 +33,23 @@ ForceLogin = Annotated[
 ]
 
 
+def _ensure_hf_cache_dir() -> None:
+    raw = os.environ.get("HF_HUB_CACHE")
+    if raw:
+        cache_dir = Path(raw).expanduser()
+    else:
+        cache_dir = Path(os.environ.get("HF_HOME", "~/.cache/huggingface")).expanduser() / "hub"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+
 def execute(state: State, args: list[str], *, dry_run: bool = False) -> None:
     """Preserve caller environment, directory, terminal, and native diagnostics."""
     if dry_run:
         print(shlex.join(args), file=state.stdout)
         return
     require_tools(state, [args])
+    if args[:2] == ["hf", "cache"]:
+        _ensure_hf_cache_dir()
     code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr)
     if code != 0:
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")

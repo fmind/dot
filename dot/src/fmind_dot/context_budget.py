@@ -16,6 +16,7 @@ from fmind_dot.errors import DotError
 CONTEXT_TOKEN_LIMIT = 5_000
 MAX_INPUT_BYTES = 1 << 20
 Scope = Literal["global", "local"]
+_RESERVED_SKILL_DIRECTORIES = frozenset({"synced"})
 
 
 def estimated_tokens(characters: int) -> int:
@@ -118,7 +119,7 @@ def _scope_entries(agents: Path, skills: Path, scope: Scope) -> list[ContextEntr
         except OSError as error:
             raise DotError(f"cannot inspect skill directory: {directory}; check its permissions") from error
         for path in children:
-            if path.name.startswith("."):
+            if path.name.startswith(".") or path.name in _RESERVED_SKILL_DIRECTORIES:
                 continue
             if path.is_symlink() and not path.exists():
                 raise DotError(f"broken skill link: {path}; repair or remove the retired link")
