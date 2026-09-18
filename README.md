@@ -72,41 +72,6 @@ Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout withou
 
 Setup installs Google Sans for text, Google Sans Code for code, and [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) for terminals.
 
-### Optional tool extras
-
-Cloud and customer toolchains are opt-in per computer. In `chezmoi edit-config`, add `extras` to the existing `[data]` table (do not create a second table):
-
-```toml
-# Docs: https://www.chezmoi.io/reference/configuration-file/variables/
-[data]
-extras = ["aws", "kubernetes"]
-```
-
-Omit `extras` or use `extras = []` for the core tools only. Available names:
-
-| Extra        | Tools                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------ |
-| `airflow`    | Astronomer `astro` CLI; local runs also need a Docker-compatible engine                    |
-| `atlassian`  | Atlassian `acli`                                                                           |
-| `aws`        | AWS CLI and `aws-sso-util`                                                                 |
-| `databricks` | Databricks CLI                                                                             |
-| `kubernetes` | kubectl, kubectx, kubens, Helm, k9s, kustomize, stern, kind, k3d, kubeconform, kube-linter |
-
-Apply and install your selection:
-
-```bash
-chezmoi apply --force ~/.config/mise
-mise trust --yes ~/.config/mise
-mise lock --global --yes
-mise -C "$HOME" --locked install --yes
-mise -C "$HOME" config ls
-mise -C "$HOME" ls --current
-```
-
-Extras and their lockfiles are local to each computer. Shared lockfiles pin tool versions; npm and Python tool dependencies can change on reinstall. See the [configuration guide](skills/mise/references/task-conventions.md#optional-workstation-extras) for details.
-
-To disable an extra, remove its name and repeat the commands above. This removes its configuration but leaves installed tools and running services alone.
-
 ### Dot configuration
 
 The CLI optionally reads `~/.config/dot.yaml` and merges its values with the [built-in defaults](dot/src/fmind_dot/config.py). Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.

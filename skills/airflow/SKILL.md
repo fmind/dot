@@ -14,7 +14,7 @@ metadata:
 
 Use `astro` for local Apache Airflow development, DAG authoring, task testing, and debugging. [python-stack](../python-stack/SKILL.md) owns Python package conventions and [docker](../docker/SKILL.md) manages container runtimes.
 
-Install the `airflow` extra using [optional tool setup](../../README.md#optional-tool-extras). Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; the extra installs only the CLI and disables its anonymous telemetry. Inspect the project's Airflow version before choosing service flags (`--api-server` for Airflow 3; `--webserver` for Airflow 2).
+Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing service flags (`--api-server` for Airflow 3; `--webserver` for Airflow 2).
 
 ## Workflow
 

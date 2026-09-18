@@ -14,8 +14,6 @@ metadata:
 
 Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch operations. [terraform](../infra-as-code/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
 
-Install the `aws` extra using [optional tool setup](../../README.md#optional-tool-extras) when these commands are missing.
-
 ## Workflow
 
 1. **Resolve identity and profile context**: inspect the active AWS profile, SSO session, and caller identity; never assume role or run commands under ambiguous profiles.

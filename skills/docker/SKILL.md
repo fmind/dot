@@ -14,7 +14,7 @@ metadata:
 
 Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. [containerize](../containerize/SKILL.md) builds and signs images; [trivy](../security-review/references/trivy/GUIDE.md) scans them for vulnerabilities.
 
-Docker, Compose, and Colima are host prerequisites; the tool extras do not install or start them. Inspect existing contexts before choosing a runtime. Container runs execute project code; obtain authority for untrusted images, network pulls, or consequential workloads. Preserve existing volumes and containers.
+Docker, Compose, and Colima are host prerequisites; workstation tools do not install or start them. Inspect existing contexts before choosing a runtime. Container runs execute project code; obtain authority for untrusted images, network pulls, or consequential workloads. Preserve existing volumes and containers.
 
 ## Runtime Selection
 
