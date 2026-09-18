@@ -12,7 +12,7 @@ def test_fish_aliases_load_without_errors() -> None:
             "--no-config",
             "--interactive",
             "--command",
-            "source dot_config/fish/conf.d/aliases.fish; abbr --query a ac ai ap i",
+            "source dot_config/fish/conf.d/aliases.fish; abbr --query a ac ai ap i k ux vd vs",
         ],
         cwd=root,
         capture_output=True,

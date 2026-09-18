@@ -235,6 +235,15 @@ def test_doctor_detects_unusable_skill_packages(monkeypatch: pytest.MonkeyPatch,
     assert result.discovery.startswith("skills-")
 
 
+def test_doctor_ignores_reserved_skill_directories(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    synced = tmp_path / ".agents/skills/synced"
+    synced.mkdir(parents=True)
+    (synced / "remote-bucket").mkdir()
+    result = _result(state, "codex")
+    assert result.healthy
+
+
 def test_doctor_checks_skills_without_reading_their_bodies(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state, _ = _healthy_state(monkeypatch, tmp_path)
     catalog = tmp_path / ".agents/skills"

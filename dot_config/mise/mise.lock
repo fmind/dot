@@ -1593,6 +1593,19 @@ checksum = "sha256:cdf646702987a743464dff4d9c60fd4480d1c1e73dd819a9a67f1078815dc
 url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-macos-arm64"
 url_api = "https://api.github.com/repos/tailwindlabs/tailwindcss/releases/assets/479118290"
 
+[[tools."github:tailwindlabs/tailwindcss"]]
+version = "4.3.3"
+backend = "github:tailwindlabs/tailwindcss"
+specifiers = ["latest"]
+
+[tools."github:tailwindlabs/tailwindcss".options]
+asset_pattern = "tailwindcss-linux-x64"
+
+[tools."github:tailwindlabs/tailwindcss"."platforms.linux-x64"]
+checksum = "sha256:dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a"
+url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64"
+url_api = "https://api.github.com/repos/tailwindlabs/tailwindcss/releases/assets/479118279"
+
 [[tools.gitleaks]]
 version = "8.30.1"
 backend = "aqua:gitleaks/gitleaks"

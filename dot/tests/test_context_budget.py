@@ -80,6 +80,17 @@ def test_combined_deduplicates_physical_files_and_exposes_name_collisions(tmp_pa
     assert report["collisions"] == ["shared"]
 
 
+def test_context_ignores_reserved_skill_directories(tmp_path: Path) -> None:
+    global_root, project = tmp_path / "global", tmp_path / "project"
+    skill(global_root, "global-fixture")
+    skill(project / ".agents", "local-fixture")
+    synced = global_root / "skills/synced/remote-bucket/remote-skill"
+    synced.mkdir(parents=True)
+    (synced / "SKILL.md").write_text("---\nname: remote-skill\ndescription: Remote fixture.\n---\n")
+    report = context_report(project, global_root=global_root)
+    assert report["totals"]["global"]["skills"] == 1
+
+
 @pytest.mark.parametrize("scope", ["global", "local"])
 @pytest.mark.parametrize(("tokens", "passed"), [(4_999, True), (5_000, False), (5_001, False)])
 def test_check_includes_instructions_and_enforces_each_strict_limit(

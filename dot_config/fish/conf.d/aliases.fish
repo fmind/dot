@@ -25,6 +25,8 @@ if status is-interactive
     abbr -a i fastfetch
     # j:fkf
     abbr -a j fkf
+    # k:kubectl
+    abbr -a k kubectl
     # l:lsd
     alias lsd="lsd --icon=always --git --group-directories-first --date=relative --literal"
     alias ls="lsd"
@@ -60,9 +62,12 @@ if status is-interactive
     abbr -a u uv
     abbr -a uf "uv run --frozen"
     abbr -a ur "uv run"
+    abbr -a ux uvx
     # v:nvim
     abbr -a v nvim
+    abbr -a vd "nvim -d"
     abbr -a vi nvim
+    abbr -a vs "nvim -"
     # w:zellij
     abbr -a w zellij
     abbr -a wa "zellij run --close-on-exit -- agy"

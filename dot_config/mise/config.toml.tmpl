@@ -158,13 +158,13 @@ macos-x64 = { asset_pattern = "*x86_64-apple-darwin*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
 
 [tools."github:tailwindlabs/tailwindcss"]
-# Upstream ships glibc and musl assets side by side on Linux; name them explicitly so a
-# rename upstream cannot silently flip which one is selected.
+# Upstream ships glibc and musl assets side by side on Linux; select glibc for standard
+# Linux compatibility (musl asset requires /lib/ld-musl-*.so.1).
 version = "latest" # Standalone Tailwind CSS v4 compiler (Python web assets, no Node.js)
 
 [tools."github:tailwindlabs/tailwindcss".platforms]
-linux-x64 = { asset_pattern = "tailwindcss-linux-x64-musl" }
-linux-arm64 = { asset_pattern = "tailwindcss-linux-arm64-musl" }
+linux-x64 = { asset_pattern = "tailwindcss-linux-x64" }
+linux-arm64 = { asset_pattern = "tailwindcss-linux-arm64" }
 macos-x64 = { asset_pattern = "tailwindcss-macos-x64" }
 macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }
 
