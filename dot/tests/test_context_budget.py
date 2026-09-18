@@ -153,7 +153,8 @@ def test_bad_metadata_fails_without_printing_instruction_content(tmp_path: Path,
     path.write_text(content)
     with pytest.raises(DotError) as caught:
         context_report(tmp_path, global_root=tmp_path)
-    assert "private" not in str(caught.value)
+    message = str(caught.value).replace(str(path), "")
+    assert "private" not in message
 
 
 def test_broken_symlink_and_oversized_input_fail_instead_of_undercounting(tmp_path: Path) -> None:
