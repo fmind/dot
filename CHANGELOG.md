@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [6.3.2] - 2026-09-18
+
+### 🐛 Bug Fixes
+
+- _(workstation)_ Include pending health and configuration fixes
+
 ## [6.3.1] - 2026-09-17
 
 ### 🐛 Bug Fixes
