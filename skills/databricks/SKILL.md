@@ -14,7 +14,7 @@ metadata:
 
 Use `databricks` for Databricks workspace management, Asset Bundles (DABs), compute clusters, jobs, Lakeflow pipelines, and Unity Catalog data governance.
 
-Install the `databricks` extra using [optional tool setup](../../README.md#optional-tool-extras) when the CLI is missing. Resolve the workspace, profile, and bundle target before mutations; deployments and runs can incur costs and need authorization. Pass `--profile <profile>` consistently.
+Resolve the workspace, profile, and bundle target before mutations; deployments and runs can incur costs and need authorization. Pass `--profile <profile>` consistently.
 
 ## Workflow
 

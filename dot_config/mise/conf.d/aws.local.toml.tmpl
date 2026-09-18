@@ -1,8 +1,0 @@
-{{- if has "aws" (default (list) (index . "extras")) }}
-# :schema https://mise.jdx.dev/schema/mise.json
-# Docs: https://mise.jdx.dev/configuration.html
-
-[tools]
-awscli = "latest" # Official Amazon Web Services command-line interface
-"pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
-{{- end }}

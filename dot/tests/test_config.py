@@ -41,7 +41,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     assert "JULES_API_KEY" not in config.doctor.env_vars.required
 
 
-def test_extra_tools_are_included_in_default_completions() -> None:
+def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
     config = Config()
     expected = {"astro", "aws-sso-util", "databricks", "k3d", "kind", "kube-linter", "stern"}
     assert expected <= set(config.completions.tools)

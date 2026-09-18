@@ -39,15 +39,17 @@ fish = "aqua:fish-shell/fish-shell"
 [settings.hook_env]
 chpwd_only = true
 
-# Situational tool extras live under ~/.config/mise/conf.d/<extra>.local.toml
-# and can be enabled per-machine via `[data].extras` in ~/.config/chezmoi/chezmoi.toml.
-# Available extras: "airflow", "atlassian", "aws", "databricks", "kubernetes".
+[env]
+ASTRO_TELEMETRY_DISABLED = "1"
+
 [tools]
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
+"github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
 "npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
 "npm:skills" = "latest" # Agent Skills CLI manager
+"pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
 "pipx:copier" = "latest" # Default project template generator and updater
 "pipx:fkf" = "latest" # Fmind Knowledge Framework CLI
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
@@ -60,9 +62,12 @@ chpwd_only = true
 "pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client with bundled libpq; no host package needed
 "pipx:pip-audit" = "latest" # Audits installed pipx tool environments for check:vuln:tools; uv-managed projects use `uv audit` for check:vuln
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
+acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 actionlint = "latest" # Correctness linter for GitHub Actions workflows
 age = "latest" # Simple and secure file encryption tool
 ast-grep = "latest" # Code structural search, lint, and rewrite tool
+astro = "latest" # Astronomer CLI for local Apache Airflow development and DAG testing
+awscli = "latest" # Official Amazon Web Services command-line interface
 bat = "latest" # Cat clone with syntax highlighting and git integration
 bottom = "latest" # Graphical system and process monitor for terminal
 carapace = "latest" # Multi-shell command argument completion generator
@@ -88,9 +93,19 @@ git-cliff = "latest" # Generate changelogs from Conventional Commits
 git-lfs = "latest" # Git Large File Storage helper
 gitleaks = "latest" # Audits git repositories for secrets and keys
 hadolint = "latest" # Dockerfile linter written in Haskell
+helm = "latest" # Package manager for Kubernetes charts
 hyperfine = "latest" # Command-line benchmarking utility
 imagemagick = "latest" # Additional image formats and thumbnails in Yazi
 jq = "latest" # Command-line JSON processor
+k3d = "latest" # Run lightweight k3s Kubernetes clusters in Docker
+k9s = "latest" # Terminal UI for viewing Kubernetes clusters
+kind = "latest" # Kubernetes IN Docker cluster manager
+kube-linter = "latest" # Static analysis linter for Kubernetes YAML/Helm
+kubeconform = "latest" # Kubernetes manifest schema validator
+kubectl = "latest" # Command-line tool to control Kubernetes clusters
+kubectx = "latest" # Fast switcher between Kubernetes cluster contexts
+kubens = "latest" # Switch between Kubernetes namespaces
+kustomize = "latest" # Customizes raw Kubernetes YAML configurations
 lazydocker = "latest" # Terminal UI for managing Docker containers
 lazygit = "latest" # Terminal UI for Git commands
 lefthook = "latest" # Fast and powerful Git hooks runner
@@ -111,6 +126,7 @@ sops = "latest" # Mozilla secrets editor (encrypts YAML/JSON/etc)
 sqlite = "latest" # Lightweight SQL database engine CLI
 starship = "latest" # Minimal and customizable cross-shell prompt
 # step = "latest" # Tool for automating PKI and certificate management (unused)
+stern = "latest" # Multi-pod and multi-container log tailing for Kubernetes
 stylua = "latest" # Opinionated Lua formatter
 terraform-docs = "latest" # Generate documentation from Terraform modules
 tflint = "latest" # Terraform code linter

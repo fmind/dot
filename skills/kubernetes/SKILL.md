@@ -14,7 +14,7 @@ metadata:
 
 Use `kubectl`, `helm`, `k9s`, `kustomize`, and `stern` for Kubernetes cluster inspection, manifest authoring, Helm releases, and log debugging. [docker](../docker/SKILL.md) manages container runtimes and [terraform](../infra-as-code/SKILL.md) provisions managed cloud clusters.
 
-Install the `kubernetes` extra using [optional tool setup](../../README.md#optional-tool-extras). Local kind/k3d clusters need an existing Docker-compatible engine and 20 GiB disk headroom. Confirm user authority for cluster mutations and spending, reusing existing authorization. Pin `--context` and `--namespace` (or Helm's `--kube-context`) after resolving the intended cluster.
+Local kind/k3d clusters need an existing Docker-compatible engine and 20 GiB disk headroom. Confirm user authority for cluster mutations and spending, reusing existing authorization. Pin `--context` and `--namespace` (or Helm's `--kube-context`) after resolving the intended cluster.
 
 ## Workflow
 
