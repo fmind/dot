@@ -41,6 +41,15 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     assert "JULES_API_KEY" not in config.doctor.env_vars.required
 
 
+def test_extra_tools_are_included_in_default_completions() -> None:
+    config = Config()
+    expected = {"astro", "aws-sso-util", "databricks", "k3d", "kind", "kube-linter", "stern"}
+    assert expected <= set(config.completions.tools)
+    assert expected <= set(config.completions.custom_commands)
+    assert config.completions.custom_commands["aws-sso-util"].binary == "env"
+    assert config.completions.custom_commands["stern"].args == ["--completion", "fish"]
+
+
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:
     unknown = tmp_path / "unknown.yaml"
     unknown.write_text("unknown: true\n", encoding="utf-8")
