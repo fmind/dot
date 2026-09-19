@@ -7,7 +7,8 @@
        which is how fmind/theme reaches a tool that takes no theme file.
        enableAllProjectMcpServers is managed as false, not removed: the merge never
        deletes keys, so an already deployed true would otherwise keep auto-approving
-       every repository-provided MCP server.
+       every repository-provided MCP server; enabledMcpjsonServers approves the owner's
+       project servers by name instead; `dot trust` pre-accepts folder trust.
        Hooks name the CLI absolutely: a harness started without ~/.local/bin on PATH
        cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and capture
        fails silently. */ -}}
@@ -28,6 +29,9 @@
   "autoUpdatesChannel": "stable",
   "editorMode": "vim",
   "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": [
+    "brain"
+  ],
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
     "BASH_MAX_TIMEOUT_MS": "1800000",
