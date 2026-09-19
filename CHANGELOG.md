@@ -2,6 +2,44 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.0.0] - 2026-09-19
+
+### 🚀 Features
+
+- _(dot)_ Add fish completions for extra mise tools (#91)
+- _(mise)_ Merge optional tool extras into workstation baseline (#92)
+- _(workstation)_ Refresh tool defaults, retire cursor and terraform
+- _(dot)_ Add dot trust to pre-accept harness folder trust
+- _(workstation)_ Trust mise configs under home and approve brain MCP
+- _(agent)_ [**breaking**] Keep the latest copy per session and capture by incremental sync
+- _(harness)_ Keep only notify hooks and clear retired capture events
+- _(secrets)_ Replace shell exports with scoped credentials
+
+### 🐛 Bug Fixes
+
+- _(workstation)_ Rebuild the bat theme cache in the same apply
+- _(workstation)_ Restore zellij normal mode by default
+- _(dot)_ Keep Ctrl+C responsive at the prune confirmation
+- _(archive)_ Keep the last measured usage when extraction fails
+- _(auth)_ Treat expired gcloud sessions as needing login
+- _(release)_ Accept only plain release version tags
+- _(archive)_ Serialize publication and keep sync previews read-only
+
+### ♻️ Refactor
+
+- _(dot)_ Harden archive, process, and release tasks
+- _(skills)_ Merge planning and script guides, drop cursor and jules
+
+### 📚 Documentation
+
+- Sync README and AGENTS with the workstation changes
+- Fix stale CLI migration, notification, and uninstall notes
+- _(dot)_ Document the v3 session store, sync-only capture, and agent doctor checks
+
+### ⚙️ Build & CI
+
+- Split local and network checks and stage release publishing
+
 ## [6.3.2] - 2026-09-18
 
 ### 🐛 Bug Fixes
