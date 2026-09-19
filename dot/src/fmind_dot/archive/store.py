@@ -7,8 +7,10 @@ record. Publication replaces the whole file atomically, so transcript and usage 
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -315,6 +317,7 @@ def ingest_session(
     source: SessionSource | None = None,
     *,
     usage: dict[str, Any] | None = None,
+    preserve_existing: bool = False,
 ) -> SessionIngestionResult:
     """Keep the latest copy of a session, but never replace it with a shorter transcript."""
     source = source or SessionSource()
@@ -343,23 +346,31 @@ def ingest_session(
     if not logs and usage is None:
         return SessionIngestionResult("skipped", manifest)
     root = ensure_session_store()
-    stored = read_session_manifest(path) if path.exists() else None
-    if stored is not None:
-        if (stored.parser_version, stored.source_fingerprint, stored.usage) == (
-            manifest.parser_version,
-            manifest.source_fingerprint,
-            manifest.usage,
-        ):
-            # Same content: keep its capture time, refresh only the source signature.
-            if stored.source_signature != manifest.source_signature:
-                manifest.ingested_at = stored.ingested_at
-                _write_bundle(root, manifest, logs)
-            return SessionIngestionResult("unchanged", stored)
-        if len(logs) < stored.record_count:
-            # A truncated or rotated source must not shrink the archived conversation.
-            return SessionIngestionResult("retained", stored)
-    _write_bundle(root, manifest, logs)
-    return SessionIngestionResult("ingested", manifest)
+    # Atomic replacement protects readers; the lock also protects the read/compare/write
+    # decision against another sync process. Keep the lock inode stable between writers.
+    lock = private_directory(root) / ".write.lock"
+    descriptor = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "rb") as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        stored = read_session_manifest(path) if path.exists() else None
+        if stored is not None:
+            if preserve_existing:
+                return SessionIngestionResult("retained", stored)
+            if (stored.parser_version, stored.source_fingerprint, stored.usage) == (
+                manifest.parser_version,
+                manifest.source_fingerprint,
+                manifest.usage,
+            ):
+                # Same content: keep its capture time, refresh only the source signature.
+                if stored.source_signature != manifest.source_signature:
+                    manifest.ingested_at = stored.ingested_at
+                    _write_bundle(root, manifest, logs)
+                return SessionIngestionResult("unchanged", stored)
+            if len(logs) < stored.record_count:
+                # A truncated or rotated source must not shrink the archived conversation.
+                return SessionIngestionResult("retained", stored)
+        _write_bundle(root, manifest, logs)
+        return SessionIngestionResult("ingested", manifest)
 
 
 def report_ingestion(result: SessionIngestionResult) -> str:

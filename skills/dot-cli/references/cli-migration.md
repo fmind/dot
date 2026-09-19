@@ -1,6 +1,6 @@
 # CLI Migration
 
-These changes follow Dot 5.2.0; the session archive changes follow Dot 6.3.2. Update scripts before deploying this checkout. The first archive access migrates `~/.agents/sessions/v2` into `v3` without modifying `v2`; remove `v2` after verifying the new store. Managed harness hooks now only notify: apply them so no harness calls a removed capture hook.
+These changes follow Dot 5.2.0; the session archive changes follow Dot 6.3.2. Update scripts before deploying this checkout. The first archive access (except sync dry-run) migrates `~/.agents/sessions/v2` into `v3` without modifying `v2`; remove `v2` after verifying the new store. Managed harness hooks now only notify: apply them so no harness calls a removed capture hook.
 
 ## Commands
 
@@ -50,3 +50,7 @@ Public JSON reports use a top-level `schema` field. Update selectors as follows;
 | `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` and `.usage[]` (unchanged).                                       |
 
 Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Diagnostics retain the `dot.diagnostics/v1` envelope; agent doctor details now carry `hooks`, `source`, `last_sync`, `sync_failures`, `archive`, `sessions`, and `next`. The `agent.doctor` and `agent.hook_failures` configuration keys are removed; delete them from custom configuration files, and delete `~/.agents/hook-failures` once no longer needed. Native cache/provider output and internal host hook protocols retain their native formats.
+
+## Credentials
+
+Shell startup no longer exports API keys. Native HF, Kaggle, and OpenCode logins are seeded only when absent; remaining personal keys use `dot secret run NAME -- COMMAND`. Use `dot secret publish` for the PyPI token. Apply and reinstall together, then restart from a clean login session; existing processes retain previously exported keys. Follow [secret setup and account overrides](../../../README.md#secret-management).

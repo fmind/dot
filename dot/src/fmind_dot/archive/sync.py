@@ -25,7 +25,7 @@ from fmind_dot.archive.store import (
     ingest_session,
     read_session_manifest,
     report_ingestion,
-    session_bundle_path,
+    session_store_root,
 )
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
@@ -133,12 +133,12 @@ def _capture(
         usage = parsed.usage.to_dict() if parsed.usage is not None else None
         return ingest_session(adapter.name, session_id, parsed.logs, source, usage=usage), None
     # Provider metric errors can quote source values: report the outcome, not the detail.
-    if session_bundle_path(adapter.name, session_id).exists():
-        return None, DotError("usage extraction failed; kept the archived copy and its usage")
-    # Nothing is archived yet, so keeping the transcript loses no usage. An empty signature
-    # makes the next sync retry the extraction instead of skipping an unchanged source.
+    # If nothing is archived, keep the transcript without usage. Check under the publication
+    # lock; an empty signature makes the next sync retry rather than skip this source.
     source.signature = ""
-    result = ingest_session(adapter.name, session_id, parsed.logs, source)
+    result = ingest_session(adapter.name, session_id, parsed.logs, source, preserve_existing=True)
+    if result.status == "retained":
+        return None, DotError("usage extraction failed; kept the archived copy and its usage")
     return result, DotError("usage extraction failed; archived the transcript without usage")
 
 
@@ -166,7 +166,7 @@ def sync_sessions(
     """Capture changed sessions; quiet mode reports only failures and never raises for them."""
     if agent and agent not in AGENT_ADAPTERS:
         raise DotError(f"unknown session agent {agent!r}")
-    root = ensure_session_store(state.stderr)
+    root = session_store_root() if dry_run else ensure_session_store(state.stderr)
     outcome = SyncOutcome()
     # Only an unfiltered pass proves every available session of an agent was considered.
     complete_pass = not (session or cwd or since or dry_run)
