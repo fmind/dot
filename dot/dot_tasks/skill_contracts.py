@@ -18,6 +18,7 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
+from dot_tasks.skill_links import RETIRED_SKILLS
 from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     Scope,
@@ -218,6 +219,12 @@ def _discover_skills(root: Path) -> tuple[dict[str, Path], list[str]]:
                 continue
             skill = directory / "SKILL.md"
             if not skill.exists():
+                # Git cannot track an empty tree; any file makes this an unregistered package.
+                if any(
+                    path.is_symlink() or (path.is_file() and path.suffix not in {".pyc", ".pyo"})
+                    for path in directory.rglob("*")
+                ):
+                    findings.append(f"{_relative(root, directory)}: skill root has files but no SKILL.md")
                 continue
             name = directory.name
             if name in skills:
@@ -456,6 +463,33 @@ def _document_targets(content: str) -> list[str]:
     return targets
 
 
+def _link_labels(content: str) -> list[tuple[str, str]]:
+    """Pair each Markdown link's visible label with its target."""
+    links: list[tuple[str, str]] = []
+    for token in MARKDOWN.parse(content):
+        label: list[str] | None = None
+        href = ""
+        for child in token.children or []:
+            if child.type == "link_open":
+                label, href = [], str(child.attrGet("href") or "")
+            elif child.type == "link_close" and label is not None:
+                links.append(("".join(label).strip(), href))
+                label = None
+            elif label is not None and child.type in {"text", "code_inline"}:
+                label.append(child.content)
+    return links
+
+
+def _retired_label(document: Path, label: str, target: str) -> bool:
+    """A retired skill name may label only the guide or package that kept the name."""
+    parsed = urlsplit(target)
+    if label not in RETIRED_SKILLS or parsed.scheme or parsed.netloc or not parsed.path:
+        return False
+    path = (document.parent / unquote(parsed.path)).resolve()
+    owner = path.parent.name if path.name in {"GUIDE.md", "SKILL.md"} else path.stem
+    return owner != label
+
+
 def _markdown_anchors(content: str) -> set[str]:
     """Match GitHub heading slugs, duplicate suffixes, and explicit HTML anchors."""
     tokens = MARKDOWN.parse(content)
@@ -504,6 +538,13 @@ def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] |
         except (OSError, UnicodeError) as error:
             findings.append(f"{_relative(root, document)}: cannot read Markdown: {error}")
             continue
+        if "templates" not in document.relative_to(directory).parts[:-1]:
+            findings.extend(
+                f"{_relative(root, document)}: link label {label!r} is a retired skill name; "
+                f"name the current owner of {target!r}"
+                for label, target in _link_labels(content)
+                if _retired_label(document, label, target)
+            )
         for raw_target in _document_targets(content):
             target = raw_target.strip().strip("<>")
             if not target or target.startswith("{"):

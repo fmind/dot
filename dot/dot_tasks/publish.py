@@ -1,6 +1,7 @@
 """Publish this repository's built release and reconcile an existing publication."""
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -9,16 +10,32 @@ from dot_tasks.release import read_release_version
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
 
+ROOT = Path(__file__).resolve().parents[2]
 
-def publish_release(state: State, root: Path, tag: str, notes: Path) -> None:
-    """Create a release without overwrites; a retry must find complete public assets."""
-    if tag != f"v{read_release_version(root)}":
-        raise DotError("release tag must match the built project's version")
+
+def validate_release_inputs(root: Path, tag: str, notes: Path) -> list[Path]:
+    """Bind the tag, distributions, and notes together before attestation or any remote call."""
+    version = read_release_version(root)
+    if tag != f"v{version}":
+        raise DotError(f"release tag {tag!r} must match the project version v{version}")
     wheels = sorted((root / "dot/dist").glob("*.whl"))
     sources = sorted((root / "dot/dist").glob("*.tar.gz"))
-    assets = wheels + sources
     if len(wheels) != 1 or len(sources) != 1 or not notes.is_file():
         raise DotError("publication requires one wheel, one source distribution, and a release notes file")
+    # CD builds the distributions in another job; reject an artifact built from a different version.
+    if f"-{version}-" not in wheels[0].name or not sources[0].name.endswith(f"-{version}.tar.gz"):
+        raise DotError(f"built distributions do not carry the project version {version}")
+    return wheels + sources
+
+
+def _sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        return f"sha256:{hashlib.file_digest(stream, 'sha256').hexdigest()}"
+
+
+def publish_release(state: State, root: Path, tag: str, notes: Path) -> None:
+    """Create a release without overwrites; a retry must find byte-identical public assets."""
+    assets = validate_release_inputs(root, tag, notes)
     # A failed create can mean an existing release or an uncertain network result.
     # Always verify public assets; never interpret a failed lookup as absence.
     created = state.runner.run(
@@ -44,11 +61,17 @@ def publish_release(state: State, root: Path, tag: str, notes: Path) -> None:
     remote_assets = release.get("assets")
     if not isinstance(remote_assets, list):
         raise DotError("release response has no asset list")
-    names = {
-        asset.get("name") for asset in remote_assets if isinstance(asset, dict) and isinstance(asset.get("name"), str)
-    }
-    if not {asset.name for asset in assets}.issubset(names):
-        raise DotError("release is missing expected assets; inspect the incomplete release before retrying")
+    digests = {asset.get("name"): asset.get("digest") for asset in remote_assets if isinstance(asset, dict)}
+    for asset in assets:
+        if asset.name not in digests:
+            raise DotError("release is missing expected assets; inspect the incomplete release before retrying")
+        # A name match alone would accept a rebuilt or substituted file; compare content.
+        if digests[asset.name] != _sha256(asset):
+            raise DotError(
+                f"release asset {asset.name} differs from the local build ({digests[asset.name]!r}); "
+                "published assets are never overwritten: verify the existing release with "
+                "'gh attestation verify', or release a new version"
+            )
     action = "Published" if created.returncode == 0 else "Verified existing release"
     state.stdout.write(f"{action} {tag}.\n")
 
@@ -57,9 +80,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--notes-file", required=True, type=Path)
+    parser.add_argument("--validate-only", action="store_true", help="check inputs without contacting GitHub")
     args = parser.parse_args()
     try:
-        publish_release(State(), Path(__file__).resolve().parents[2], args.tag, args.notes_file)
+        if args.validate_only:
+            validate_release_inputs(ROOT, args.tag, args.notes_file)
+        else:
+            publish_release(State(), ROOT, args.tag, args.notes_file)
     except (DotError, OSError, ValueError) as error:
         sys.stderr.write(f"publish: {error}\n")
         return 1

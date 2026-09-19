@@ -70,9 +70,9 @@ class HookIdentity:
 
 
 def resolve_hook_identity(
-    state: State, session_id: str = "", cwd: str = "", *, require_idle: bool = False
+    state: State, session_id: str = "", cwd: str = "", *, require_idle: bool = False, read_stdin: bool = True
 ) -> HookIdentity:
-    raw = read_hook_payload(state.stdin)
+    raw = read_hook_payload(state.stdin) if read_stdin else None
     if raw is not None:
         stopped = raw.get("stop_hook_active") is True or raw.get("stopHookActive") is True
         fully_idle = raw.get("fullyIdle") is True
@@ -134,7 +134,7 @@ def _resolved_transcript(
 
 def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: str = "", *, hook: bool = False) -> None:
     adapter = AGENT_ADAPTERS.get(agent)
-    if adapter is None or adapter.parser is None or not adapter.verified:
+    if adapter is None:
         raise DotError(f"unknown session agent {agent!r}")
     if agent == "copilot":
         if not session_id:
@@ -144,7 +144,10 @@ def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: st
         identity = HookIdentity(session_id, resolve_cwd(cwd))
         path = _source_root(state, agent)
     else:
-        identity = resolve_hook_identity(state, session_id, cwd, require_idle=agent == "agy")
+        # A manual capture names its session; a harness may hold stdin open forever.
+        identity = resolve_hook_identity(
+            state, session_id, cwd, require_idle=agent == "agy", read_stdin=hook or not session_id
+        )
         if identity.halt:
             if agent == "agy":
                 state.stdout.write('{"decision":""}\n')
@@ -162,10 +165,8 @@ def ingest_agent_session(state: State, agent: str, session_id: str = "", cwd: st
 
 
 def _publish_session(adapter: AgentAdapter, session_id: str, parsed: ParsedSession) -> SessionIngestionResult:
-    """Reject incomplete extraction before publishing any part of a generation."""
-    if parsed.usage_error is not None:
-        raise DotError(f"{adapter.name}: usage extraction failed; retry session ingestion") from parsed.usage_error
-    return ingest_session(
+    """Publish one generation; bad provider metrics fail the capture but never cost the transcript."""
+    result = ingest_session(
         adapter.name,
         session_id,
         parsed.logs,
@@ -174,6 +175,11 @@ def _publish_session(adapter: AgentAdapter, session_id: str, parsed: ParsedSessi
         ),
         usage=parsed.usage.to_dict() if parsed.usage is not None else None,
     )
+    if parsed.usage_error is not None:
+        raise DotError(
+            f"{adapter.name}: usage extraction failed; archived the transcript without usage"
+        ) from parsed.usage_error
+    return result
 
 
 def sync_sessions(
@@ -189,9 +195,9 @@ def sync_sessions(
     if agent and agent not in AGENT_ADAPTERS:
         raise DotError(f"unknown session agent {agent!r}")
     total = 0
-    outcomes: dict[str, int] = {"ingested": 0, "duplicate": 0, "skipped": 0, "selected": 0}
-    for adapter in agent_adapters(verified_only=True):
-        if adapter.parser is None or (agent and adapter.name != agent):
+    outcomes: dict[str, int] = {"ingested": 0, "duplicate": 0, "skipped": 0, "selected": 0, "failed": 0}
+    for adapter in agent_adapters():
+        if agent and adapter.name != agent:
             continue
         root = _validated_source_root(state, adapter)
         if root is None:
@@ -200,7 +206,10 @@ def sync_sessions(
         try:
             candidates = enumerate_sessions(root, adapter.name)
         except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
-            raise _workflow_failure(state, adapter, "scan sessions", error) from error
+            # One unreadable store must not block the adapters after it.
+            state.stderr.write(f"agent-session: {_workflow_failure(state, adapter, 'scan sessions', error)}\n")
+            outcomes["failed"] += 1
+            continue
         for session_id, source_cwd, path in candidates:
             if session and session_id != session:
                 continue
@@ -222,7 +231,11 @@ def sync_sessions(
                     continue
                 result = _publish_session(adapter, session_id, parsed)
             except (OSError, ValueError, TypeError, sqlite3.Error, DotError) as error:
-                raise _workflow_failure(state, adapter, "ingest session", error, session_id) from error
+                # One malformed session must not block the sessions and adapters after it.
+                failure = _workflow_failure(state, adapter, "ingest session", error, session_id)
+                state.stderr.write(f"agent-session: {failure}\n")
+                outcomes["failed"] += 1
+                continue
             state.stderr.write(report_ingestion(result) + "\n")
             outcomes[result.status] += 1
             if not adapter.database or result.status == "ingested":
@@ -243,17 +256,19 @@ def sync_sessions(
             )
             + "\n"
         )
+    if outcomes["failed"]:
+        raise DotError(f"session sync recorded {outcomes['failed']} failure(s); see errors above")
     return total
 
 
 def _workflow_failure(
     state: State, adapter: AgentAdapter, operation: str, error: BaseException, session_id: str = ""
 ) -> DotError:
-    detail = _bounded_failure(error, session_id, state.config.agent.hook_failures.detail_limit)
+    detail = bounded_failure(error, session_id, state.config.agent.hook_failures.detail_limit)
     return DotError(f"failed to {operation} for {adapter.label}: {detail}")
 
 
-def _bounded_failure(error: BaseException, session_id: str, limit: int) -> str:
+def bounded_failure(error: BaseException, session_id: str, limit: int) -> str:
     detail = str(error).replace(session_id, "<session>") if session_id else str(error)
     detail = _UUID.sub("<session>", detail)
     return " ".join(detail.split())[:limit]

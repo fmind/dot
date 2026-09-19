@@ -21,6 +21,8 @@ from typing import IO
 
 from fmind_dot.errors import DotError
 
+# SIGTERM grace before SIGKILL: long enough for git to unlock, short enough for Ctrl+C.
+_TERMINATION_GRACE_SECONDS = 2.0
 _TERMINATION_TIMEOUT_SECONDS = 3
 _PIPE_WRITE_BYTES = 4096
 # Shared ceiling for every status probe captured with run_bounded.
@@ -128,16 +130,28 @@ def _communicate_bounded(
     return captured
 
 
+def _signal_group(process: subprocess.Popen[str] | subprocess.Popen[bytes], signum: signal.Signals) -> bool:
+    """Signal the child's process group and report whether that group still existed."""
+    try:
+        os.killpg(process.pid, signum)
+    except ProcessLookupError:
+        return False
+    return True
+
+
 def _terminate(process: subprocess.Popen[str] | subprocess.Popen[bytes]) -> None:
-    """Kill the launched process and stop escaped descendants holding pipes from blocking."""
-    if os.name == "posix":
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            if process.poll() is None:
-                process.kill()
-    elif process.poll() is None:
-        process.kill()
+    """Stop the launched process group and keep escaped descendants holding pipes from blocking."""
+    try:
+        if os.name == "posix" and _signal_group(process, signal.SIGTERM):
+            # Children own their session, so a terminal Ctrl+C never reaches them.
+            # Let tools such as git release locks and refs before the hard kill.
+            with suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=_TERMINATION_GRACE_SECONDS)
+    finally:
+        # A second interrupt during the grace period must still kill the group.
+        killed = os.name == "posix" and _signal_group(process, signal.SIGKILL)
+        if not killed and process.poll() is None:
+            process.kill()
     # A descendant may create a new session while retaining these descriptors.
     # Closing our ends keeps its lifetime from extending the caller's timeout.
     for stream in (process.stdin, process.stdout, process.stderr):
@@ -246,13 +260,20 @@ class Runner:
         """Stop captured worker processes and prohibit subsequent commands."""
         self._cancelled.set()
         with self._process_lock:
-            for process in self._processes:
-                # The communicating worker owns its pipes and reaps the child.
-                if os.name == "posix":
-                    with suppress(ProcessLookupError):
-                        os.killpg(process.pid, signal.SIGKILL)
-                elif process.poll() is None:
+            processes = tuple(self._processes)
+        # The communicating worker owns its pipes and reaps the child.
+        if os.name != "posix":
+            for process in processes:
+                if process.poll() is None:
                     process.kill()
+            return
+        for process in processes:
+            _signal_group(process, signal.SIGTERM)
+        deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
+        while time.monotonic() < deadline and any(process.poll() is None for process in processes):
+            time.sleep(0.05)
+        for process in processes:
+            _signal_group(process, signal.SIGKILL)
 
     def which(self, command: str) -> Path | None:
         resolved = shutil.which(command)
@@ -321,6 +342,9 @@ class Runner:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=max_output_bytes is None,
+            # Both capture modes replace undecodable bytes; tool output is not trusted text.
+            encoding=encoding if max_output_bytes is None else None,
+            errors="replace" if max_output_bytes is None else None,
             start_new_session=os.name == "posix",
         )
         with self._process_lock:

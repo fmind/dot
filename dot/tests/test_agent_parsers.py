@@ -8,13 +8,9 @@ import pytest
 
 from fmind_dot.archive import parsers as parser_module
 from fmind_dot.archive.parsers import (
+    ParsedSession,
     agent_adapters,
     enumerate_sessions,
-    extract_agy_usage,
-    extract_claude_usage,
-    extract_codex_usage,
-    extract_copilot_usage,
-    extract_grok_usage,
     find_transcript,
     parse_agy_session,
     parse_claude_session,
@@ -22,7 +18,19 @@ from fmind_dot.archive.parsers import (
     parse_copilot_session,
     parse_grok_session,
 )
-from fmind_dot.archive.store import fingerprint_bytes, fingerprint_file, fingerprint_json
+from fmind_dot.archive.store import fingerprint_bytes, fingerprint_json
+from fmind_dot.archive.usage import UsageRecord
+
+
+def _usage(parsed: ParsedSession) -> UsageRecord:
+    if parsed.usage is None:
+        raise parsed.usage_error or AssertionError("parser returned neither usage nor its error")
+    return parsed.usage
+
+
+def _grok_usage(directory, session_id: str, cwd: str = "") -> UsageRecord:
+    path = directory / "updates.jsonl"
+    return _usage(parse_grok_session(path if path.is_file() else directory / "signals.json", session_id, cwd))
 
 
 def _jsonl(path, rows) -> None:
@@ -51,7 +59,7 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed_agy.usage.total_tokens == 5
     assert parsed_agy.usage.measurement_kind == "estimated"
     assert parsed_agy.usage.source_bytes == agy.stat().st_size
-    assert extract_agy_usage(agy, "agy-id").total_tokens == 5
+    assert _usage(parse_agy_session(agy, "agy-id")).total_tokens == 5
 
     claude = tmp_path / "claude.jsonl"
     _jsonl(
@@ -80,7 +88,7 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed.usage is not None
     assert parsed.usage.total_tokens == 9
     assert parsed.usage.measurement_kind == "provider-reported"
-    assert extract_claude_usage(claude, "claude-id").total_tokens == 9
+    assert _usage(parse_claude_session(claude, "claude-id")).total_tokens == 9
 
     codex = tmp_path / "rollout.jsonl"
     _jsonl(
@@ -126,7 +134,7 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     ]
     assert parsed.usage is not None
     assert (parsed.usage.total_tokens, parsed.usage.turn_count, parsed.usage.reasoning_tokens) == (17, 1, 1)
-    usage = extract_codex_usage(codex, "codex-id")
+    usage = _usage(parse_codex_session(codex, "codex-id"))
     assert (usage.total_tokens, usage.turn_count, usage.reasoning_tokens) == (17, 1, 1)
 
 
@@ -171,17 +179,11 @@ def test_jsonl_parser_binds_logs_and_fingerprint_to_one_snapshot(
         with transcript.open("a", encoding="utf-8") as stream:
             stream.write("{}\n")
 
-    def fingerprint_live(path) -> str:
-        append_once()
-        return fingerprint_file(path)
-
     def fingerprint_snapshot(content: bytes) -> str:
         append_once()
         return fingerprint_bytes(content)
 
-    # The live-path patch reproduces the old post-parse hash race; the byte
-    # patch places the same append after the replacement snapshot read.
-    monkeypatch.setattr(parser_module, "fingerprint_file", fingerprint_live, raising=False)
+    # Appending after the snapshot read reproduces a transcript growing mid-parse.
     monkeypatch.setattr(parser_module, "fingerprint_bytes", fingerprint_snapshot)
 
     parsed = parser(transcript, "session-id")
@@ -194,7 +196,7 @@ def test_jsonl_parser_binds_logs_and_fingerprint_to_one_snapshot(
         else fingerprint_bytes(snapshot)
     )
     assert parsed.fingerprint == expected
-    assert parsed.fingerprint != fingerprint_file(transcript)
+    assert parsed.fingerprint != fingerprint_bytes(transcript.read_bytes())
 
 
 @pytest.mark.parametrize(
@@ -216,7 +218,7 @@ def test_claude_usage_rejects_invalid_numeric_metrics(tmp_path, rows) -> None:
     _jsonl(transcript, rows)
 
     with pytest.raises(ValueError, match=r"input_tokens|cost_usd"):
-        extract_claude_usage(transcript, "claude-id")
+        _usage(parse_claude_session(transcript, "claude-id"))
 
 
 def test_grok_stream_groups_chunks_and_reports_observable_usage(tmp_path) -> None:
@@ -259,7 +261,7 @@ def test_grok_stream_groups_chunks_and_reports_observable_usage(tmp_path) -> Non
     (tmp_path / "signals.json").write_text(
         '{"primaryModelId":"grok-4","contextTokensUsed":21,"turnCount":3}', encoding="utf-8"
     )
-    usage = extract_grok_usage(tmp_path, "grok-id")
+    usage = _grok_usage(tmp_path, "grok-id")
     assert (usage.input_tokens, usage.output_tokens, usage.total_tokens, usage.turn_count) == (21, 0, 21, 3)
 
 
@@ -325,7 +327,7 @@ def test_grok_turn_usage_replaces_context_reading_with_billed_requests(tmp_path)
     (tmp_path / "signals.json").write_text(
         '{"primaryModelId":"grok-4.6","contextTokensUsed":21,"turnCount":2}', encoding="utf-8"
     )
-    usage = extract_grok_usage(tmp_path, "grok-id", "/work")
+    usage = _grok_usage(tmp_path, "grok-id", "/work")
     assert usage.measurement_kind == "provider-reported"
     # Session totals are the billed requests, not the final 21-token context reading.
     assert (usage.input_tokens, usage.output_tokens, usage.cached_tokens, usage.cache_write_tokens) == (
@@ -358,7 +360,7 @@ def test_grok_unstamped_turn_leaves_session_cost_unknown(tmp_path) -> None:
             _grok_turn(2, {"inputTokens": 20, "outputTokens": 2, "totalTokens": 22, "usageIsIncomplete": True}),
         ],
     )
-    usage = extract_grok_usage(tmp_path, "grok-id")
+    usage = _grok_usage(tmp_path, "grok-id")
     assert usage.measurement_kind == "provider-reported"
     assert (usage.input_tokens, usage.output_tokens, usage.total_tokens) == (30, 3, 33)
     # A partial bill is never presented as a complete one.
@@ -372,7 +374,7 @@ def test_grok_without_turn_usage_keeps_the_context_reading(tmp_path) -> None:
     (tmp_path / "signals.json").write_text(
         '{"primaryModelId":"grok-4.6","contextTokensUsed":21,"turnCount":3}', encoding="utf-8"
     )
-    usage = extract_grok_usage(tmp_path, "grok-id")
+    usage = _grok_usage(tmp_path, "grok-id")
     assert usage.measurement_kind == "context-only"
     assert (usage.input_tokens, usage.total_tokens, usage.turn_count, usage.model) == (21, 21, 3, "grok-4.6")
 
@@ -411,7 +413,7 @@ def test_copilot_database_parser_and_usage(tmp_path) -> None:
         )
     parsed = parse_copilot_session(database, "cp-id")
     assert [line.role for line in parsed.logs] == ["user", "assistant"]
-    usage = extract_copilot_usage(database, "cp-id")
+    usage = _usage(parse_copilot_session(database, "cp-id"))
     assert (usage.model, usage.total_tokens, usage.reasoning_tokens) == ("gpt", 20, 1)
 
 
@@ -446,7 +448,7 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
     signals_only = grok_root / "%2Fwork%2Fgrok/signals-id"
     signals_only.mkdir()
 
-    assert [adapter.name for adapter in agent_adapters(verified_only=True)] == [
+    assert [adapter.name for adapter in agent_adapters()] == [
         "agy",
         "claude",
         "codex",
@@ -492,9 +494,8 @@ def test_copilot_discovery_is_read_only_and_filters_invalid_session_ids(tmp_path
         )
 
     assert enumerate_sessions(database, "copilot") == [("valid-id", "", database)]
-    for operation in (parse_copilot_session, extract_copilot_usage):
-        with pytest.raises(ValueError, match="invalid copilot session id"):
-            operation(database, "invalid/id")
+    with pytest.raises(ValueError, match="invalid copilot session id"):
+        parse_copilot_session(database, "invalid/id")
 
 
 def test_parsers_account_for_malformed_and_unsupported_records(tmp_path) -> None:
@@ -514,7 +515,7 @@ def test_parsers_account_for_malformed_and_unsupported_records(tmp_path) -> None
     )
     parsed_agy = parse_agy_session(agy, "agy-id")
     assert (len(parsed_agy.logs), parsed_agy.malformed, parsed_agy.skipped) == (1, 2, 2)
-    agy_usage = extract_agy_usage(agy, "agy-id")
+    agy_usage = _usage(parse_agy_session(agy, "agy-id"))
     assert (agy_usage.turn_count, agy_usage.input_tokens, agy_usage.output_tokens) == (1, 1, 1)
 
     claude = tmp_path / "claude.jsonl"
@@ -563,7 +564,7 @@ def test_codex_accepts_supported_legacy_record_shapes_and_rejects_bad_metrics(tm
     assert (parsed.malformed, parsed.skipped) == (2, 1)
     assert [(log.cwd, log.model) for log in parsed.logs[:2]] == [("/one", "m"), ("/two", "m2")]
     with pytest.raises(ValueError, match="input_tokens"):
-        extract_codex_usage(transcript, "codex-id")
+        _usage(parse_codex_session(transcript, "codex-id"))
 
 
 def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path) -> None:
@@ -576,7 +577,7 @@ def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path)
             {"created_at": "2026-01-01T00:00:02Z", "type": "OTHER", "content": "ignored"},
         ],
     )
-    assert extract_agy_usage(agy, "agy-id").input_tokens == 2
+    assert _usage(parse_agy_session(agy, "agy-id")).input_tokens == 2
 
     claude = tmp_path / "claude.jsonl"
     _jsonl(
@@ -596,7 +597,7 @@ def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path)
             },
         ],
     )
-    claude_usage = extract_claude_usage(claude, "claude-id")
+    claude_usage = _usage(parse_claude_session(claude, "claude-id"))
     assert (claude_usage.cwd, claude_usage.model, claude_usage.cost_usd) == ("/observed", "m", 0.5)
     assert (claude_usage.input_tokens, claude_usage.cache_write_tokens, claude_usage.turn_count) == (1, 2, 2)
 
@@ -604,7 +605,7 @@ def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path)
     grok_dir.mkdir()
     (grok_dir / "signals.json").write_text("{", encoding="utf-8")
     with pytest.raises(json.JSONDecodeError):
-        extract_grok_usage(grok_dir, "grok-id")
+        _grok_usage(grok_dir, "grok-id")
     (grok_dir / "signals.json").write_text("[]", encoding="utf-8")
     with pytest.raises(ValueError, match="JSON object"):
-        extract_grok_usage(grok_dir, "grok-id")
+        _grok_usage(grok_dir, "grok-id")

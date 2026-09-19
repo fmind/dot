@@ -9,16 +9,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO, Any
 
-from fmind_dot.archive.ingest import _bounded_failure
+from fmind_dot.archive.ingest import bounded_failure
 from fmind_dot.archive.store import (
     is_valid_session_id,
 )
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import (
-    _open_or_create_directory_at,
-    _open_verified_directory,
-    _publish_owner_only_at,
-    _safe_agent_fs_available,
+    open_or_create_directory_at,
+    open_verified_directory,
+    publish_owner_only_at,
+    safe_agent_fs_available,
 )
 from fmind_dot.state import State
 
@@ -48,13 +48,13 @@ def decode_copilot_session_end(stream: IO[str] | None) -> dict[str, Any]:
 
 
 def _write_hook_failure_record(state: State, agent: str, operation: str, session_id: str, error: BaseException) -> None:
-    home = _open_verified_directory(Path.home())
+    home = open_verified_directory(Path.home())
     try:
-        agents = _open_or_create_directory_at(home, ".agents", 0o700, enforce_mode=False)
+        agents = open_or_create_directory_at(home, ".agents", 0o700, enforce_mode=False)
         try:
-            failures = _open_or_create_directory_at(agents, "hook-failures", 0o700)
+            failures = open_or_create_directory_at(agents, "hook-failures", 0o700)
             try:
-                root = _open_or_create_directory_at(failures, "v1", 0o700)
+                root = open_or_create_directory_at(failures, "v1", 0o700)
             finally:
                 os.close(failures)
         finally:
@@ -63,7 +63,7 @@ def _write_hook_failure_record(state: State, agent: str, operation: str, session
         os.close(home)
 
     try:
-        detail = _bounded_failure(error, session_id, state.config.agent.hook_failures.detail_limit)
+        detail = bounded_failure(error, session_id, state.config.agent.hook_failures.detail_limit)
         session_hash = hashlib.sha256(f"{agent}\0{session_id}\0".encode()).hexdigest()[:12] if session_id else ""
         record: dict[str, Any] = {
             "occurred_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -87,7 +87,7 @@ def _write_hook_failure_record(state: State, agent: str, operation: str, session
                 records.append(name)
         published = f"{stamp}-{suffix}.json"
         content = (json.dumps(record, separators=(",", ":")) + "\n").encode()
-        _publish_owner_only_at(root, published, content)
+        publish_owner_only_at(root, published, content)
         if published not in records:
             records.append(published)
         records.sort()
@@ -99,13 +99,13 @@ def _write_hook_failure_record(state: State, agent: str, operation: str, session
         os.close(root)
 
 
-def _spool_hook_failure(state: State, agent: str, operation: str, session_id: str, error: BaseException) -> None:
+def spool_hook_failure(state: State, agent: str, operation: str, session_id: str, error: BaseException) -> None:
     detail_limit = state.config.agent.hook_failures.detail_limit
-    if not _safe_agent_fs_available():
+    if not safe_agent_fs_available():
         state.stderr.write("agent hook failure spool unavailable: safe filesystem operations are unavailable\n")
         return
     try:
         _write_hook_failure_record(state, agent, operation, session_id, error)
     except Exception as spool_error:
-        detail = _bounded_failure(spool_error, session_id, detail_limit)
+        detail = bounded_failure(spool_error, session_id, detail_limit)
         state.stderr.write(f"agent hook failure spool unavailable: {detail}\n")

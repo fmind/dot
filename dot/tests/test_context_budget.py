@@ -87,8 +87,28 @@ def test_context_ignores_reserved_skill_directories(tmp_path: Path) -> None:
     synced = global_root / "skills/synced/remote-bucket/remote-skill"
     synced.mkdir(parents=True)
     (synced / "SKILL.md").write_text("---\nname: remote-skill\ndescription: Remote fixture.\n---\n")
+    unparsable = synced.parent / "host-format"
+    unparsable.mkdir()
+    (unparsable / "SKILL.md").write_text("no frontmatter, host-owned format\n")
+    before = context_report(tmp_path / "project", global_root=tmp_path / "missing")["budgets"]["global"]
     report = context_report(project, global_root=global_root)
     assert report["totals"]["global"]["skills"] == 1
+    # Reserved host directories stay outside the gate, yet their exposure is visible.
+    expected = len(
+        "- remote-skill: Remote fixture. (file: ~/.agents/skills/synced/remote-bucket/remote-skill/SKILL.md)\n"
+    )
+    assert report["host_extras"]["global"] == {
+        "skills": 2,
+        "unmeasured": 1,
+        "skill_index_estimated_tokens": (expected + 3) // 4,
+    }
+    assert report["host_extras"]["local"]["skills"] == 0
+    assert (
+        report["budgets"]["global"]["estimated_tokens"] - before["estimated_tokens"]
+        == (report["totals"]["global"]["skill_index_estimated_tokens"])
+    )
+    text = runner.invoke(app, ["agent", "context", "--project", str(project), "--global-root", str(global_root)])
+    assert "Host extras (informational, not budgeted): 2 global" in strip_ansi(text.stdout)
 
 
 @pytest.mark.parametrize("scope", ["global", "local"])

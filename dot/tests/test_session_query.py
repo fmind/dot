@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import shutil
+import time
 import weakref
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,19 +19,20 @@ from fmind_dot.archive.query import (
     compact_session_generations,
     discover_session_generations,
     export_sessions,
-    parse_session_date,
     query_session_summaries,
     show_session,
 )
 from fmind_dot.archive.store import (
     SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
+    STALE_INGESTION_SECONDS,
     SessionLog,
     SessionManifest,
     SessionSource,
     ingest_session,
     session_store_root,
 )
+from fmind_dot.archive.usage import UsageRecord
 from fmind_dot.cli import app
 
 
@@ -99,6 +102,70 @@ def test_compaction_dry_run_and_apply_retain_best_complete_and_partial_progress(
     assert partial.exists()
 
 
+def _ingest_with_usage(session_id: str, fingerprint: str, count: int, tokens: int) -> Path:
+    usage = UsageRecord(
+        harness="codex", session_id=session_id, measurement_kind="provider-reported", input_tokens=tokens
+    ).finalize()
+    result = ingest_session(
+        "codex",
+        session_id,
+        [
+            SessionLog(f"2026-09-01T12:00:{index:02d}Z", "codex", session_id, "user", f"record-{index}")
+            for index in range(count)
+        ],
+        SessionSource(fingerprint=fingerprint, type="fixture"),
+        usage=usage.to_dict(),
+    )
+    return session_store_root() / "codex" / result.lineage_id / result.generation_id
+
+
+def test_compaction_removes_prefix_generations_whose_usage_grew_with_the_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    prefix = _ingest_with_usage("growing", "a" * 64, 1, tokens=10)
+    same_transcript = _ingest_with_usage("growing", "b" * 64, 2, tokens=20)
+    latest = _ingest_with_usage("growing", "c" * 64, 2, tokens=30)
+    hashes = {json.loads((path / "manifest.json").read_text())["usage_sha256"] for path in (prefix, latest)}
+    assert len(hashes) == 2
+
+    result = compact_session_generations(io.StringIO(), apply=True)
+
+    # Real usage grows with its source: a strict transcript prefix is superseded
+    # whatever it measured, while equal transcripts keep distinct usage evidence.
+    assert (result.retained, result.removed) == (2, 1)
+    assert not prefix.exists()
+    assert same_transcript.exists()
+    assert latest.exists()
+
+
+def test_interrupted_ingestion_directory_is_ignored_then_swept_once_stale(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    generation = _ingest("codex", "session-1", fingerprint="a" * 64)
+    # ingest_session writes the manifest before its rename: a kill leaves this behind.
+    interrupted = generation.with_name(".ingest-" + "0" * 32)
+    shutil.copytree(generation, interrupted)
+
+    assert [summary.status for summary in query_session_summaries()] == [["current"]]
+    output = io.StringIO()
+    fresh = compact_session_generations(output, apply=True)
+    assert (fresh.generations, fresh.removed, fresh.stale_ingestions) == (1, 0, 0)
+    assert interrupted.exists(), "a young temporary directory may belong to an in-flight ingestion"
+
+    stale = time.time() - 2 * STALE_INGESTION_SECONDS
+    os.utime(interrupted, (stale, stale))
+    planned = compact_session_generations(output)
+    assert planned.stale_ingestions == 1
+    assert interrupted.exists()
+    applied = compact_session_generations(output, apply=True)
+    assert applied.stale_ingestions == 1
+    assert "stale_ingestions=1" in output.getvalue().splitlines()[-1]
+    assert not interrupted.exists()
+    assert generation.exists()
+
+
 def test_compaction_releases_transcript_content_between_generations(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -153,26 +220,6 @@ def test_compaction_preserves_divergent_generations(monkeypatch: pytest.MonkeyPa
     assert result.removed == 0
 
 
-def test_parse_session_date_preserves_whole_day_and_rfc3339_contract() -> None:
-    assert parse_session_date("2026-07-31") == datetime(2026, 7, 31, tzinfo=UTC)
-    assert parse_session_date("2026-07-31", end_of_day=True) == datetime.max.replace(
-        year=2026, month=7, day=31, tzinfo=UTC
-    )
-    assert parse_session_date("2026-07-31T10:30:00+02:00") == datetime(2026, 7, 31, 8, 30, tzinfo=UTC)
-    assert parse_session_date("2026-07-31T10:30:00Z", end_of_day=True) == datetime(2026, 7, 31, 10, 30, tzinfo=UTC)
-    assert parse_session_date("") is None
-
-    for invalid in (
-        "yesterday",
-        "2026-07",
-        "2026-07-31 10:30:00Z",
-        "2026-07-31T10:30:00",
-        "2026-07-31T24:00:00Z",
-    ):
-        with pytest.raises(ValueError, match="expected RFC3339 or YYYY-MM-DD"):
-            parse_session_date(invalid)
-
-
 def test_query_filters_metadata_and_keeps_lineage_status_global(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -183,15 +230,15 @@ def test_query_filters_metadata_and_keeps_lineage_status_global(
     _rewrite_manifest(old, ingested_at="2026-07-30T10:00:00Z")
     _rewrite_manifest(current, ingested_at="2026-07-31T10:00:00Z")
     _rewrite_manifest(partial, ingested_at="2026-08-01T10:00:00Z")
-    duplicate = old.with_name("duplicate-generation")
+    duplicate = old.with_name("d" * 64)
     shutil.copytree(old, duplicate)
 
     summaries = query_session_summaries(
         SessionQuery(
             agent="codex",
             cwd="/work/project-a",
-            since=parse_session_date("2026-07-30"),
-            until=parse_session_date("2026-07-31", end_of_day=True),
+            since=datetime(2026, 7, 30, tzinfo=UTC),
+            until=datetime.max.replace(year=2026, month=7, day=31, tzinfo=UTC),
         )
     )
 
@@ -438,7 +485,7 @@ def test_discovery_rejects_broken_links_public_entries_and_unreadable_directorie
 
 
 def test_malformed_manifest_error_includes_path_and_cause(tmp_path: Path) -> None:
-    generation = tmp_path / "codex" / "lineage" / "generation"
+    generation = tmp_path / "codex" / "lineage" / ("a" * 64)
     generation.mkdir(mode=0o700, parents=True)
     for directory in (tmp_path / "codex", tmp_path / "codex" / "lineage", generation):
         directory.chmod(0o700)

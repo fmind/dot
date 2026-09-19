@@ -9,6 +9,7 @@ import os
 import re
 import secrets
 import stat
+import time
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -20,6 +21,10 @@ SESSION_PARSER_VERSION = "5"
 READABLE_PARSER_VERSIONS = {"3", "4", SESSION_PARSER_VERSION}
 SESSION_STORE_VERSION = "v2"
 _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
+_INGESTION_PREFIX = ".ingest-"
+# The store has no writer lock: age alone separates an abandoned temporary
+# directory from an in-flight ingestion, which holds one for seconds.
+STALE_INGESTION_SECONDS = 3600
 
 Completeness = Literal["complete", "partial"]
 IngestionStatus = Literal["ingested", "duplicate", "skipped"]
@@ -73,8 +78,6 @@ class SessionSource:
 
     type: str = ""
     fingerprint: str = ""
-    high_water: str = ""
-    completeness: Completeness | Literal[""] = ""
     malformed: int = 0
     skipped: int = 0
 
@@ -200,14 +203,6 @@ def session_generation_id(source_fingerprint: str) -> str:
 
 def fingerprint_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
-
-
-def fingerprint_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        while chunk := stream.read(1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def fingerprint_json(value: object) -> str:
@@ -419,73 +414,6 @@ def _read_owner_only_at(directory: int, name: str, path: Path) -> bytes:
         os.close(descriptor)
 
 
-def _open_absolute_directory(path: Path) -> int:
-    """Open an absolute directory one component at a time without following links."""
-    if not path.is_absolute():
-        raise ValueError(f"publication parent must be absolute: {path}")
-    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
-    descriptor = os.open(path.anchor, flags)
-    try:
-        for component in path.parts[1:]:
-            child = os.open(component, flags, dir_fd=descriptor)
-            os.close(descriptor)
-            descriptor = child
-        result = descriptor
-        descriptor = -1
-        return result
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-
-
-def _require_current_directory(path: Path, expected: int, operation: str) -> None:
-    try:
-        current = _open_absolute_directory(path)
-    except OSError as error:
-        raise ValueError(f"{operation} parent changed during publication: {path}") from error
-    try:
-        expected_info = os.fstat(expected)
-        current_info = os.fstat(current)
-        if (expected_info.st_dev, expected_info.st_ino) != (current_info.st_dev, current_info.st_ino):
-            raise ValueError(f"{operation} parent changed during publication: {path}")
-    finally:
-        os.close(current)
-
-
-def publish_owner_only(path: Path, content: bytes) -> None:
-    """Atomically replace a private file, safe for concurrent hook writers."""
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    directory = _open_absolute_directory(path.parent.absolute())
-    descriptor = -1
-    temp_name = f".{path.name}.{secrets.token_hex(16)}"
-    try:
-        descriptor = os.open(
-            temp_name,
-            os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW,
-            0o600,
-            dir_fd=directory,
-        )
-        try:
-            os.fchmod(descriptor, 0o600)
-            with os.fdopen(descriptor, "wb", closefd=False) as stream:
-                stream.write(content)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.close(descriptor)
-            descriptor = -1
-            os.replace(temp_name, path.name, src_dir_fd=directory, dst_dir_fd=directory)
-            os.fsync(directory)
-            _require_current_directory(path.parent.absolute(), directory, "target")
-        finally:
-            # Only clean up after exclusive creation succeeded; replacement removes it.
-            with suppress(FileNotFoundError):
-                os.unlink(temp_name, dir_fd=directory)
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-        os.close(directory)
-
-
 def _parse_session_manifest(content: str | bytes) -> SessionManifest:
     try:
         value = json.loads(content)
@@ -623,24 +551,24 @@ def _same_immutable_identity(existing: SessionManifest, expected: SessionManifes
     )
 
 
+def propagate_models(logs: list[SessionLog]) -> None:
+    """Fill records without a model from the nearest earlier, then later, model."""
+    for ordered in (logs, reversed(logs)):
+        active = ""
+        for log in ordered:
+            if log.model:
+                active = log.model
+            elif active:
+                log.model = active
+
+
 def _normalize_logs(agent: str, session_id: str, logs: list[SessionLog]) -> None:
     if not _is_safe_component(session_id):
         raise ValueError(f"invalid session_id format: {session_id!r}")
     for number, log in enumerate(logs, start=1):
         if log.agent != agent or log.sid != session_id:
             raise ValueError(f"session record {number} does not match its lineage")
-    active = ""
-    for log in logs:
-        if log.model:
-            active = log.model
-        elif active:
-            log.model = active
-    active = ""
-    for log in reversed(logs):
-        if log.model:
-            active = log.model
-        elif active:
-            log.model = active
+    propagate_models(logs)
 
 
 def stored_generation(agent: str, session_id: str, source_fingerprint: str) -> SessionManifest | None:
@@ -739,6 +667,41 @@ def delete_session_generation(agent: str, lineage: str, generation: str, expecte
         os.close(lineage_descriptor)
 
 
+def sweep_stale_ingestion(agent: str, lineage: str, name: str, *, apply: bool) -> bool:
+    """Report an interrupted ingestion directory too old to be in flight; remove it on apply."""
+    if not name.startswith(_INGESTION_PREFIX) or not all(
+        _is_safe_component(value) for value in (agent, lineage, name.removeprefix("."))
+    ):
+        raise ValueError("invalid interrupted ingestion identity")
+    lineage_descriptor = _open_existing_lineage(agent, lineage)
+    if lineage_descriptor is None:
+        return False
+    path = session_store_root() / agent / lineage / name
+    try:
+        try:
+            descriptor = _open_private_directory_at(lineage_descriptor, name, path)
+        except FileNotFoundError:
+            # Its writer published or cleaned up since the scan.
+            return False
+        try:
+            if time.time() - os.fstat(descriptor).st_mtime < STALE_INGESTION_SECONDS:
+                return False
+            names = set(os.listdir(descriptor))  # noqa: PTH208 - inspect the verified descriptor.
+            if not names <= {"manifest.json", "transcript.jsonl", "usage.json"}:
+                raise ValueError(f"interrupted ingestion contains unexpected entries: {path}")
+            if not apply:
+                return True
+            for entry in names:
+                os.unlink(entry, dir_fd=descriptor)
+        finally:
+            os.close(descriptor)
+        os.rmdir(name, dir_fd=lineage_descriptor)
+        os.fsync(lineage_descriptor)
+        return True
+    finally:
+        os.close(lineage_descriptor)
+
+
 def ingest_session(
     agent: str,
     session_id: str,
@@ -752,7 +715,7 @@ def ingest_session(
         raise ValueError(f"invalid agent format: {agent!r}")
     source = source or SessionSource()
     lineage = session_lineage_id(agent, session_id)
-    completeness: Completeness = "partial" if source.malformed else (source.completeness or "complete")
+    completeness: Completeness = "partial" if source.malformed else "complete"
     if not logs and usage is None:
         manifest = SessionManifest(
             parser_version="",
@@ -804,7 +767,7 @@ def ingest_session(
         lineage_id=lineage,
         source_type=source.type or "normalized",
         source_fingerprint=fingerprint,
-        high_water_mark=source.high_water or session_high_water(logs),
+        high_water_mark=session_high_water(logs),
         ingested_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         completeness=completeness,
         transcript_sha256=fingerprint_bytes(transcript),
@@ -821,7 +784,7 @@ def ingest_session(
     lineage_dir = root / agent / lineage
     final = lineage_dir / generation
     lineage_descriptor = _secure_directories(agent, lineage)
-    temp_name = f".ingest-{secrets.token_hex(16)}"
+    temp_name = f"{_INGESTION_PREFIX}{secrets.token_hex(16)}"
     temp_descriptor = -1
     try:
         try:
@@ -911,19 +874,19 @@ __all__ = [
     "SESSION_PARSER_VERSION",
     "SESSION_SCHEMA_VERSION",
     "SESSION_STORE_VERSION",
+    "STALE_INGESTION_SECONDS",
     "SessionIngestionResult",
     "SessionLog",
     "SessionManifest",
     "SessionSource",
     "delete_session_generation",
     "fingerprint_bytes",
-    "fingerprint_file",
     "fingerprint_json",
     "fingerprint_logs",
     "ingest_session",
     "is_valid_session_id",
     "marshal_session_logs",
-    "publish_owner_only",
+    "propagate_models",
     "read_session_manifest",
     "report_ingestion",
     "session_digest",
@@ -932,5 +895,6 @@ __all__ = [
     "session_lineage_id",
     "session_store_root",
     "stored_generation",
+    "sweep_stale_ingestion",
     "validate_session_generation",
 ]

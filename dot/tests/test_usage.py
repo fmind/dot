@@ -394,8 +394,8 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
         app,
         [
             "agent",
-            "usage",
             "stats",
+            "--tokens-only",
             "--since",
             "2026-09-06T09:30:00Z",
             "--until",

@@ -11,7 +11,8 @@ authors = [{ name = "Médéric HURIER" }]
 dependencies = [
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
-  "typer>=0.27.2",
+  # agent.py, cli.py, and command_group.py import private typer._click: review each minor.
+  "typer>=0.27.2,<0.28",
 ]
 
 [dependency-groups]

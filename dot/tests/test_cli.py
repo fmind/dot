@@ -114,7 +114,6 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
         (["agent"], ["context", "doctor", "session", "stats", "usage"]),
         (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),
         (["agent", "usage"], ["list", "show"]),
-        (["agent", "prompts"], ["stats"]),
         (["agent", "hook"], ["copilot-session-end", "notify", "session"]),
     ],
 )
@@ -528,7 +527,6 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
         ["agent"],
         ["agent", "session"],
         ["agent", "usage"],
-        ["agent", "prompts"],
         ["login"],
         ["setup"],
         ["prune"],

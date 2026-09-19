@@ -9,7 +9,7 @@ import re
 import stat
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO, Any
 
@@ -22,11 +22,12 @@ from fmind_dot.archive.store import (
     session_digest,
     session_lineage_id,
     session_store_root,
+    sweep_stale_ingestion,
     validate_session_generation,
 )
 
 SESSION_EXPORT_SCHEMA = "dot.agent.sessions/v1"
-_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_GENERATION_ID = re.compile(r"^[0-9a-f]{64}$")
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?"
     r"(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
@@ -102,21 +103,7 @@ class SessionCompactionResult:
     removable: int
     removed: int
     reclaimable_bytes: int
-
-
-def parse_session_date(value: str, *, end_of_day: bool = False) -> datetime | None:
-    if not value:
-        return None
-    try:
-        if _DATE.fullmatch(value):
-            day = datetime.strptime(value, "%Y-%m-%d").date()  # noqa: DTZ007 - only the date survives; the next line attaches UTC.
-            return datetime.combine(day, time.max if end_of_day else time.min, tzinfo=UTC)
-        if not _RFC3339.fullmatch(value):
-            raise ValueError
-        parsed = datetime.fromisoformat(value)
-    except ValueError as error:
-        raise ValueError("expected RFC3339 or YYYY-MM-DD") from error
-    return parsed.astimezone(UTC)
+    stale_ingestions: int = 0
 
 
 def _require_owner_only(path: Path) -> None:
@@ -159,7 +146,9 @@ def discover_session_generations(root: Path | None = None) -> list[_Generation]:
     root = root or session_store_root()
     generations: list[_Generation] = []
     for current_path, _, files in _walk_private_tree(root, "failed to scan session store"):
-        if "manifest.json" not in files:
+        # An interrupted ingestion leaves a manifest in its temporary directory;
+        # only a published generation name identifies an archive entry.
+        if "manifest.json" not in files or not _GENERATION_ID.fullmatch(current_path.name):
             continue
         generation_path = current_path
         try:
@@ -248,9 +237,14 @@ def compact_session_generations(
         kept: list[_Generation] = []
         for candidate in sorted(group, key=_compaction_sort_key, reverse=True):
             candidate_records = verified[candidate.path][1]
+            # Usage grows with its source, so a strict transcript prefix is superseded
+            # whatever it measured; only equal transcripts keep distinct usage evidence.
             covered = any(
                 candidate_records == verified[item.path][1][: len(candidate_records)]
-                and candidate.manifest.usage_sha256 == item.manifest.usage_sha256
+                and (
+                    len(candidate_records) < len(verified[item.path][1])
+                    or candidate.manifest.usage_sha256 == item.manifest.usage_sha256
+                )
                 for item in kept
             )
             if not covered:
@@ -267,11 +261,16 @@ def compact_session_generations(
             manifest = item.manifest
             delete_session_generation(manifest.agent, manifest.lineage_id, item.path.name, manifest)
             removed += 1
+    stale = sum(
+        sweep_stale_ingestion(path.parent.parent.name, path.parent.name, path.name, apply=apply)
+        for path in sorted(root.glob("*/*/.ingest-*"))
+        if not agent or path.parent.parent.name == agent
+    )
     mode = "apply" if apply else "dry-run"
     output.write(
         f"session-compact: mode={mode} lineages={len(groups)} generations={len(generations)} "
         f"retained={len(retained)} removable={len(removable)} removed={removed} "
-        f"reclaimable_bytes={reclaimable}\n"
+        f"reclaimable_bytes={reclaimable} stale_ingestions={stale}\n"
     )
     return SessionCompactionResult(
         lineages=len(groups),
@@ -280,6 +279,7 @@ def compact_session_generations(
         removable=len(removable),
         removed=removed,
         reclaimable_bytes=reclaimable,
+        stale_ingestions=stale,
     )
 
 
@@ -432,7 +432,6 @@ __all__ = [
     "compact_session_generations",
     "discover_session_generations",
     "export_sessions",
-    "parse_session_date",
     "query_session_summaries",
     "show_session",
 ]

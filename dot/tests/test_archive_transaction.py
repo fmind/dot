@@ -228,7 +228,7 @@ def test_active_store_rejects_other_formats_before_compaction(
     assert {path: path.read_bytes() for path in root.rglob("*") if path.is_file()} == before
 
 
-@pytest.mark.parametrize("command", [["session", "list", "--json"], ["usage", "stats", "--json"]])
+@pytest.mark.parametrize("command", [["session", "list", "--json"], ["stats", "--tokens-only", "--json"]])
 def test_public_queries_report_unsupported_store_without_traceback(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:

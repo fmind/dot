@@ -18,13 +18,11 @@ from fmind_dot.archive.store import (
     SessionManifest,
     SessionSource,
     fingerprint_bytes,
-    fingerprint_file,
     fingerprint_json,
     fingerprint_logs,
     ingest_session,
     is_valid_session_id,
     marshal_session_logs,
-    publish_owner_only,
     read_session_manifest,
     report_ingestion,
     session_generation_id,
@@ -164,40 +162,7 @@ def test_duplicate_ingestion_rejects_generation_with_public_transcript(
         ingest_session("codex", "private-session", logs, source)
 
 
-def test_publish_owner_only_fails_if_parent_is_swapped_after_open(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    parent = tmp_path / "store"
-    moved = tmp_path / "moved"
-    outside = tmp_path / "outside"
-    parent.mkdir(mode=0o700)
-    outside.mkdir(mode=0o700)
-    target = parent / "record.json"
-    original_open = session_store.os.open
-    swapped = False
-
-    def swap_parent(path, flags, mode=0o777, *, dir_fd=None):
-        nonlocal swapped
-        if isinstance(path, str) and path.startswith(f".{target.name}.") and not swapped:
-            parent.rename(moved)
-            parent.symlink_to(outside, target_is_directory=True)
-            swapped = True
-        return original_open(path, flags, mode, dir_fd=dir_fd)
-
-    monkeypatch.setattr(session_store.os, "open", swap_parent)
-
-    with pytest.raises(ValueError, match="parent changed during publication"):
-        session_store.publish_owner_only(target, b"private")
-
-    assert not (outside / target.name).exists()
-    assert (moved / target.name).read_bytes() == b"private"
-
-    with pytest.raises(OSError, match="store"):
-        session_store.publish_owner_only(parent / "second.json", b"secret")
-    assert not (outside / "second.json").exists()
-
-
-def test_atomic_publication_fsyncs_generation_lineage_and_target_parent(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_atomic_publication_fsyncs_generation_and_lineage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     synced_directories: set[tuple[int, int]] = set()
     real_fsync = session_store.os.fsync
@@ -216,73 +181,15 @@ def test_atomic_publication_fsyncs_generation_lineage_and_target_parent(
         SessionSource(fingerprint="f" * 64),
     )
     generation = session_store_root() / "codex" / result.lineage_id / result.generation_id
-    target = tmp_path / "usage" / "record.json"
-    publish_owner_only(target, b"private")
 
     expected = {
         (generation.stat().st_dev, generation.stat().st_ino),
         (generation.parent.stat().st_dev, generation.parent.stat().st_ino),
-        (target.parent.stat().st_dev, target.parent.stat().st_ino),
     }
     assert expected <= synced_directories
 
 
-def test_publish_owner_only_is_private_concurrent_and_cleans_failed_temps(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    target = tmp_path / "private" / "state.json"
-    publish_owner_only(target, b"initial")
-    assert stat.S_IMODE(target.parent.stat().st_mode) == 0o700
-    assert stat.S_IMODE(target.stat().st_mode) == 0o600
-
-    target.chmod(0o644)
-    payloads = [f"writer-{number}:".encode() + bytes([number]) * 65_536 for number in range(8)]
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        list(executor.map(lambda payload: publish_owner_only(target, payload), payloads))
-
-    assert target.read_bytes() in payloads
-    assert stat.S_IMODE(target.stat().st_mode) == 0o600
-    assert list(target.parent.glob(f".{target.name}.*")) == []
-
-    retained = target.read_bytes()
-    with monkeypatch.context() as scoped:
-        scoped.setattr(session_store.os, "fchmod", lambda *_args: (_ for _ in ()).throw(OSError("chmod failed")))
-        with pytest.raises(OSError, match="chmod failed"):
-            publish_owner_only(target, b"unpublished")
-    assert target.read_bytes() == retained
-    assert list(target.parent.glob(f".{target.name}.*")) == []
-
-    with monkeypatch.context() as scoped:
-        scoped.setattr(
-            session_store.os, "replace", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("rename failed"))
-        )
-        with pytest.raises(OSError, match="rename failed"):
-            publish_owner_only(target, b"unpublished")
-    assert target.read_bytes() == retained
-    assert list(target.parent.glob(f".{target.name}.*")) == []
-
-
-def test_publish_owner_only_preserves_an_existing_temporary_file(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    target = tmp_path / "state.json"
-    collision = tmp_path / ".state.json.collision"
-    collision.write_bytes(b"another writer")
-    monkeypatch.setattr(session_store.secrets, "token_hex", lambda _size: "collision")
-
-    with pytest.raises(FileExistsError):
-        publish_owner_only(target, b"unpublished")
-
-    assert collision.read_bytes() == b"another writer"
-    assert not target.exists()
-
-
-def test_fingerprints_preserve_file_bytes_and_native_unicode_json(tmp_path: Path) -> None:
-    content = b"a" * (1024 * 1024 + 1)
-    source = tmp_path / "source.jsonl"
-    source.write_bytes(content)
-    assert fingerprint_file(source) == hashlib.sha256(content).hexdigest()
-
+def test_fingerprints_preserve_native_unicode_json() -> None:
     structured = {"html": "<&>\u2028\u2029", "utf8": "café"}
     native_encoded = '{"html":"<&>\u2028\u2029","utf8":"café"}'.encode()
     assert fingerprint_json(structured) == hashlib.sha256(native_encoded).hexdigest()

@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -15,7 +16,7 @@ from fmind_dot import agent_doctor as agent_doctor_module
 from fmind_dot.agent_doctor import gather_agent_doctor, repair_agent_integrations, run_agent_doctor
 from fmind_dot.archive import store as session_store
 from fmind_dot.archive.parsers import GROK_TRANSCRIPT_NAME, parse_grok_session
-from fmind_dot.archive.store import SessionLog, SessionSource, fingerprint_file, ingest_session, session_store_root
+from fmind_dot.archive.store import SessionLog, SessionSource, fingerprint_bytes, ingest_session, session_store_root
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
@@ -393,6 +394,55 @@ def test_doctor_fails_closed_across_discovery_hooks_tools_and_command_surface(
     assert not all(result.healthy for result in results.values())
 
 
+def _write_claude_hooks(home: Path, binary: str) -> None:
+    _write(
+        home / ".claude/settings.json",
+        json.dumps({"hooks": [f"{binary} agent hook session claude", f"{binary} agent hook notify claude stop"]}),
+    )
+
+
+def test_doctor_accepts_absolute_hook_path_and_probes_that_executable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state, runner = _healthy_state(monkeypatch, tmp_path)
+    binary = str(tmp_path / ".local/bin/dot")
+    _write_claude_hooks(tmp_path, binary)
+
+    (result,) = gather_agent_doctor(state, agent="claude")
+
+    assert result.hooks == "healthy"
+    assert result.healthy
+    assert runner.calls == [
+        (binary, "agent", "hook", "session", "--help"),
+        (binary, "agent", "hook", "notify", "--help"),
+    ]
+
+    # PATH still offers a working dot; only the configured absolute path is broken.
+    runner.unavailable_commands.add((binary, "agent", "hook", "notify", "--help"))
+    (broken,) = gather_agent_doctor(state, agent="claude")
+    assert broken.hooks == "command-unavailable"
+    assert not broken.healthy
+
+
+@pytest.mark.parametrize(
+    "binary",
+    [
+        "/home/user/.local/bin/dot-wrapper",
+        ".local/bin/dot",
+    ],
+)
+def test_doctor_flags_hooks_that_do_not_name_dot(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, binary: str) -> None:
+    state, runner = _healthy_state(monkeypatch, tmp_path)
+    _write_claude_hooks(tmp_path, binary)
+
+    (result,) = gather_agent_doctor(state, agent="claude")
+
+    assert result.hooks == "command-mismatch"
+    assert not result.healthy
+    assert result.repair == "dot agent doctor --agent claude --fix --dry-run (configuration only)"
+    assert runner.calls == []
+
+
 def test_doctor_deep_rejects_unarchived_and_truncated_sources(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state, _ = _healthy_state(monkeypatch, tmp_path)
     source = tmp_path / ".claude/projects"
@@ -430,7 +480,7 @@ def test_doctor_session_budget_ignores_adjacent_non_session_files(
         "claude",
         "session",
         [SessionLog("2026-09-01T00:00:00Z", "claude", "session", "user", "private")],
-        SessionSource(fingerprint=fingerprint_file(archived)),
+        SessionSource(fingerprint=fingerprint_bytes(archived.read_bytes())),
     )
     result = _result(state, "claude", deep=True)
     assert not result.truncated
@@ -451,7 +501,7 @@ def test_doctor_reconciles_every_file_backed_source_session(monkeypatch: pytest.
         "claude",
         "archived",
         [SessionLog("2026-09-01T00:00:00Z", "claude", "archived", "user", "private")],
-        SessionSource(fingerprint=fingerprint_file(archived)),
+        SessionSource(fingerprint=fingerprint_bytes(archived.read_bytes())),
     )
 
     result = _result(state, "claude", deep=True)
@@ -472,7 +522,7 @@ def test_doctor_fails_closed_if_source_changes_during_archive_reconciliation(
         "claude",
         "session",
         [SessionLog("2026-09-01T00:00:00Z", "claude", "session", "user", "private")],
-        SessionSource(fingerprint=fingerprint_file(source)),
+        SessionSource(fingerprint=fingerprint_bytes(source.read_bytes())),
     )
     assert archived.status == "ingested"
     original_mtime = source.stat().st_mtime_ns
@@ -512,6 +562,26 @@ def test_doctor_rejects_database_source_with_directory_kind(monkeypatch: pytest.
     assert not result.healthy
 
 
+@pytest.mark.parametrize("deep", [False, True])
+def test_doctor_ignores_in_flight_or_interrupted_ingestion_directories(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, deep: bool
+) -> None:
+    state, _ = _healthy_state(monkeypatch, tmp_path)
+    complete = ingest_session(
+        "claude",
+        "complete",
+        [SessionLog("2026-09-01T00:00:00Z", "claude", "complete", "user", "private")],
+        SessionSource(fingerprint="a" * 64),
+    )
+    generation = session_store_root() / "claude" / complete.lineage_id / complete.generation_id
+    shutil.copytree(generation, generation.with_name(".ingest-" + "0" * 32))
+
+    result = _result(state, "claude", deep=deep)
+
+    assert result.last_ingestion != "unreadable"
+    assert result.healthy
+
+
 @pytest.mark.parametrize("parser_version", ["3", "4"])
 def test_doctor_validates_complete_partial_and_corrupt_archive_lineage(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, parser_version: str
@@ -540,7 +610,7 @@ def test_doctor_validates_complete_partial_and_corrupt_archive_lineage(
         "codex",
         "partial",
         [SessionLog("2026-09-01T00:00:00Z", "codex", "partial", "user", "private")],
-        SessionSource(fingerprint="b" * 64, completeness="partial"),
+        SessionSource(fingerprint="b" * 64, malformed=1),
     )
     partial = _result(state, "codex", deep=True)
     assert partial.last_ingestion == "partial-only"
@@ -634,10 +704,38 @@ def test_repair_is_explicit_bounded_and_idempotent(monkeypatch: pytest.MonkeyPat
     repair_agent_integrations(state, dry_run=True)
 
     assert runner.calls[-1] == first
-    assert first[:3] == ("chezmoi", "apply", "--dry-run")
-    assert first[3] == "--force"
+    assert first[:5] == ("chezmoi", "apply", "--dry-run", "--verbose", "--force")
     assert str(tmp_path / ".gemini/GEMINI.md") in first
     assert str(tmp_path / ".claude/CLAUDE.md") in first
+
+
+def test_repair_dry_run_previews_changes_and_every_external_command_is_bounded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state, runner = _healthy_state(monkeypatch, tmp_path)
+    timeouts: dict[str, float | None] = {}
+
+    def run(args: Sequence[str], *, timeout: float | None = None, check: bool = True, **_kwargs: object):
+        del check
+        timeouts[" ".join(args[:2])] = timeout
+        runner.calls.append(tuple(args))
+        preview = "diff --git a/.claude/settings.json b/.claude/settings.json\n" if "--verbose" in args else ""
+        return CommandResult(preview, "", 0)
+
+    monkeypatch.setattr(runner, "run", run)
+
+    run_agent_doctor(state, fix=True, dry_run=True, as_json=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    assert isinstance(state.stderr, io.StringIO)
+    assert runner.calls[0][:4] == ("chezmoi", "apply", "--dry-run", "--verbose")
+    assert "diff --git a/.claude/settings.json" in state.stderr.getvalue()
+    assert json.loads(state.stdout.getvalue())["schema"]
+    assert len(timeouts) > 1, "the hook command probe did not run"
+    assert all(timeout is not None and timeout > 0 for timeout in timeouts.values()), timeouts
+
+    repair_agent_integrations(state)
+    assert runner.calls[-1][:3] == ("chezmoi", "apply", "--force")
 
 
 def test_doctor_cli_exposes_fast_deep_json_and_repair_flags() -> None:

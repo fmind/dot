@@ -189,7 +189,7 @@ def test_public_monthly_and_subscription_config(tmp_path: Path, monkeypatch: pyt
     config.write_text(
         "agent:\n  subscriptions:\n    codex:\n      renewal_day: 15\n      timezone: Europe/Paris\n      monthly_usd: 20\n"
     )
-    billed = runner.invoke(app, ["--config", str(config), "agent", "usage", "stats", "--billing", "--json"])
+    billed = runner.invoke(app, ["--config", str(config), "agent", "stats", "--tokens-only", "--billing", "--json"])
     assert billed.exit_code == 0, billed.output
     assert json.loads(billed.stdout)["usage"][0]["period_start"].startswith("2026-08-15")
     config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 32\n")
