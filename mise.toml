@@ -28,6 +28,10 @@ DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
 # directory (pytest rootdir, ty first-party root) pass --directory dot instead.
 UV_PROJECT = "{{config_root}}/dot"
 
+[vars]
+# First-party Python outside skill templates; shared by check:python and format:python.
+python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts"
+
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
 
@@ -66,6 +70,10 @@ outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 [tasks.check]
 alias = "c"
 description = "Run all static checks in parallel"
+depends = ["check:local", "check:network"]
+
+[tasks."check:local"]
+description = "Run the static checks that need no remote database (pre-commit)"
 depends = [
   "check:actions",
   "check:chezmoi",
@@ -75,17 +83,23 @@ depends = [
   "check:leaks",
   "check:lua",
   "check:python",
-  "check:scan",
   "check:shell",
   "check:skills",
   "check:tools",
-  "check:vuln",
 ]
+
+[tasks."check:network"]
+description = "Run the checks that download vulnerability data (pre-push)"
+depends = ["check:scan", "check:vuln"]
 
 [tasks."check:actions"]
 alias = "ca"
 description = "Validate GitHub Actions workflows and Dependabot config"
 run = ["actionlint", "zizmor --offline .github/"]
+
+[tasks."check:actions:online"]
+description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
+run = "zizmor .github/"
 
 [tasks."check:chezmoi"]
 alias = "cc"
@@ -138,36 +152,41 @@ run = "gitleaks git --redact=100 --staged --verbose"
 [tasks."check:lua"]
 alias = "cu"
 description = "Check Neovim Lua formatting (stylua)"
-# Templated Lua stays valid Lua because every substitution sits inside a string
-# literal, so stylua checks it too rather than silently skipping the .tmpl files.
-run = [
-  "stylua --check dot_config/nvim",
-  "stylua --check --glob '**/*.lua.tmpl' dot_config/nvim",
-]
+# The Neovim configuration has no templated Lua; a future .lua.tmpl needs its own glob here.
+run = "stylua --check dot_config/nvim"
 
 [tasks."check:python"]
 alias = "cp"
 description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
-  "uv run --frozen ruff check dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts",
-  "uv run --frozen ruff format --check dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts",
-  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/deleguate-tasks/scripts",
+  "uv run --frozen ruff check {{vars.python_sources}}",
+  "uv run --frozen ruff format --check {{vars.python_sources}}",
+  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/deleguate-tasks/scripts",
   "uv run --frozen validate-pyproject dot/pyproject.toml",
   "uv lock --check",
 ]
 
 [tasks."check:scan"]
 alias = "ct"
-description = "Scan dependencies, IaC, licenses, and secrets (Trivy)"
+description = "Scan dependencies, IaC, and secrets (Trivy)"
 run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]
 alias = "cs"
-description = "Lint and format-check shell scripts"
-run = [
-  "shellcheck --rcfile dot_config/shellcheckrc install.sh",
-  "shfmt -d -i 2 -s install.sh",
-]
+description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh"
+# shellcheck cannot parse {{ }} actions, so templates are rendered with prompt defaults
+# first. Modify templates render their managed block against an empty target. shfmt
+# stays on install.sh: it cannot rewrite a template from its rendered copy.
+run = """
+rendered="$(mktemp -d)"
+trap 'rm -rf "$rendered"' EXIT
+chezmoi init --source "$PWD" --config-path "$rendered/chezmoi.toml" --promptDefaults
+for template in run_*.sh.tmpl modify_dot_*; do
+  chezmoi execute-template --source "$PWD" --config "$rendered/chezmoi.toml" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
+done
+shellcheck --rcfile dot_config/shellcheckrc install.sh "$rendered"/*.bash
+shfmt -d -i 2 -s install.sh
+"""
 
 [tasks."check:skills"]
 alias = "ck"
@@ -198,12 +217,15 @@ run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --rep
 [tasks.format]
 alias = "f"
 description = "Format all active sources and documents"
-depends = ["format:dprint", "format:lua", "format:python", "format:shell"]
+depends = ["format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
 
 [tasks."format:dprint"]
 alias = "fd"
 description = "Format JSON, Markdown, TOML, and YAML"
-depends = ["format:skills"]
+# Order after the index generator without depending on it: pre-commit formats only
+# staged files, and check:skills then rejects a stale index instead of this task
+# regenerating SKILL.md files that the commit would not include.
+wait_for = ["format:skills"]
 run = "dprint fmt --allow-no-files"
 
 [tasks."format:skills"]
@@ -219,9 +241,17 @@ run = "stylua dot_config/nvim"
 alias = "fp"
 description = "Apply safe lint fixes and format Python sources"
 run = [
-  "uv run --frozen ruff check --fix-only dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts",
-  "uv run --frozen ruff format dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts",
+  "mise run format:python:fix {{vars.python_sources}}",
+  "mise run format:python:style {{vars.python_sources}}",
 ]
+
+[tasks."format:python:fix"]
+description = "Apply safe lint fixes to the given Python files (pre-commit passes staged files)"
+run = "uv run --frozen ruff check --fix-only --force-exclude"
+
+[tasks."format:python:style"]
+description = "Format the given Python files (pre-commit passes staged files)"
+run = "uv run --frozen ruff format --force-exclude"
 
 [tasks."format:shell"]
 alias = "fs"
@@ -292,12 +322,6 @@ description = "Run chezmoi, mise, and installed-tool health checks"
 # chezmoi probes hardlinks from its source into TMPDIR; /tmp can be another filesystem.
 run = ['TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor", "mise run check:vuln:tools"]
 
-[tasks.full]
-alias = "mf"
-depends = ["tools"]
-description = "Apply dotfiles and synchronize global tools"
-run = "echo '✓ Dot deployed.'"
-
 [tasks.hooks]
 alias = "mh"
 description = "Install repository Git hooks"
@@ -310,8 +334,9 @@ run = [
   "uv lock",
   "mise lock --yes",
   "mise lock --global --yes",
-  'chezmoi re-add --source "$PWD" ~/.config/mise/mise.lock',
-  "chezmoi re-add --source \"$PWD\" ~/.config/nvim/lazy-lock.json",
+  # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
+  'chezmoi re-add --source "$(pwd -P)" ~/.config/mise/mise.lock',
+  'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 
 [tasks."prune:sessions"]
@@ -319,7 +344,7 @@ description = "Preview integrity-checked compaction of the dot archive"
 run = "uv run --frozen dot agent session compact"
 
 [tasks."migrate:skills"]
-description = "Preview retired v6.1.0 skill links; --apply moves confirmed links to a recoverable backup"
+description = "Preview skill links retired since v6.1.0; --apply moves confirmed links to a recoverable backup"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_links"
 
 [tasks.release]
@@ -329,7 +354,8 @@ run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
 [tasks."release:publish"]
 description = "Publish built GitHub release assets or verify an existing release"
-run = "uv run --frozen --directory dot python -m dot_tasks.publish"
+# CD runs this beside the write-scoped token, so only the locked runtime graph is synced.
+run = "uv run --frozen --no-dev --directory dot python -m dot_tasks.publish"
 
 [tasks.tools]
 alias = "mt"

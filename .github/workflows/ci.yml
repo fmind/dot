@@ -38,3 +38,22 @@ jobs:
           status="$(git status --porcelain)"
           printf '%s\n' "$status"
           test -z "$status"
+  macos:
+    # Templates branch on the operating system and the lockfile targets macOS arm64,
+    # so render the source tree there too. Only chezmoi is installed to keep it cheap.
+    name: Render on macOS
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install chezmoi
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache: true
+          install_args: chezmoi
+          version: 2026.9.10
+      - name: Render chezmoi source
+        run: mise run check:chezmoi

@@ -5,6 +5,9 @@ glob_matcher: doublestar
 pre-commit:
   parallel: false
   commands:
+    # Formatters receive only staged files and restage them. Generated skill indexes
+    # are not refreshed here: check:skills fails on a stale one so it cannot be
+    # committed unstaged and then break CI's clean-tree verification.
     format:dprint:
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
       priority: 10
@@ -15,26 +18,39 @@ pre-commit:
       priority: 10
       run: mise run format:lua {staged_files}
       stage_fixed: true
-    format:python:
+    format:python:fix:
       glob: "**/*.py"
-      exclude:
+      exclude: &python_templates
         - "skills/*/references/**/*.py"
         - ".agents/tmp/**/*.py"
       priority: 10
-      run: mise run format:python
+      run: mise run format:python:fix {staged_files}
+      stage_fixed: true
+    format:python:style:
+      glob: "**/*.py"
+      exclude: *python_templates
+      priority: 15
+      run: mise run format:python:style {staged_files}
       stage_fixed: true
     format:shell:
-      glob: "**/*.sh"
+      # The task formats exactly this file; shell templates are lint-only.
+      glob: "install.sh"
       priority: 10
       run: mise run format:shell
       stage_fixed: true
     check:leaks:staged:
       priority: 20
       run: mise run check:leaks:staged
-    check:
+    check:local:
       priority: 30
-      run: mise run check
+      run: mise run check:local
 pre-push:
+  parallel: false
   commands:
+    # Vulnerability databases need the network; CI runs the same tasks through `check`.
+    check:network:
+      priority: 10
+      run: mise run check:network
     test:
+      priority: 20
       run: mise run test
