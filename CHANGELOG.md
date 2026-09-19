@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.0.1] - 2026-09-19
+
+### 🐛 Bug Fixes
+
+- _(release)_ Resolve publication notes from the repository root
+
 ## [7.0.0] - 2026-09-19
 
 ### 🚀 Features
