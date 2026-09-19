@@ -79,14 +79,16 @@ def publish_release(state: State, root: Path, tag: str, notes: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tag", required=True)
-    parser.add_argument("--notes-file", required=True, type=Path)
+    parser.add_argument("--notes-file", required=True, type=Path, help="Absolute or repository-relative notes path")
     parser.add_argument("--validate-only", action="store_true", help="check inputs without contacting GitHub")
     args = parser.parse_args()
+    # uv --directory dot changes cwd; task arguments still name paths from the repository root.
+    notes = ROOT / args.notes_file
     try:
         if args.validate_only:
-            validate_release_inputs(ROOT, args.tag, args.notes_file)
+            validate_release_inputs(ROOT, args.tag, notes)
         else:
-            publish_release(State(), ROOT, args.tag, args.notes_file)
+            publish_release(State(), ROOT, args.tag, notes)
     except (DotError, OSError, ValueError) as error:
         sys.stderr.write(f"publish: {error}\n")
         return 1

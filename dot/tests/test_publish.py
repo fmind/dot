@@ -100,8 +100,9 @@ def test_distributions_from_another_version_are_rejected_before_any_remote_call(
     runner.run.assert_not_called()
 
 
+@pytest.mark.parametrize("relative", [False, True])
 def test_validate_only_checks_inputs_without_a_github_client(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], relative: bool
 ) -> None:
     """CD gates attestation on this mode, so it must fail on a wrong tag and never reach gh."""
     _, _, notes, _ = publication(tmp_path)
@@ -110,11 +111,14 @@ def test_validate_only_checks_inputs_without_a_github_client(
         "package-1.2.3.tar.gz",
     ]
     monkeypatch.setattr("dot_tasks.publish.ROOT", tmp_path)
+    # The mise task uses uv --directory dot while CI supplies a repository-relative path.
+    monkeypatch.chdir(tmp_path / "dot")
+    notes_argument = str(notes.relative_to(tmp_path) if relative else notes)
     monkeypatch.setattr(
         "dot_tasks.publish.State", Mock(side_effect=AssertionError("validate-only must not build a client"))
     )
-    monkeypatch.setattr("sys.argv", ["publish", "--tag", "v1.2.3", "--notes-file", str(notes), "--validate-only"])
+    monkeypatch.setattr("sys.argv", ["publish", "--tag", "v1.2.3", "--notes-file", notes_argument, "--validate-only"])
     assert main() == 0
-    monkeypatch.setattr("sys.argv", ["publish", "--tag", "v9.9.9", "--notes-file", str(notes), "--validate-only"])
+    monkeypatch.setattr("sys.argv", ["publish", "--tag", "v9.9.9", "--notes-file", notes_argument, "--validate-only"])
     assert main() == 1
     assert "must match the project version v1.2.3" in capsys.readouterr().err
