@@ -1,7 +1,8 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/cli/settings
        Account, model, and trust choices belong to the host after initial setup. */ -}}
-{{- $defaults := dict "trustedWorkspaces" (list .chezmoi.homeDir (joinPath .chezmoi.homeDir ".local/share/chezmoi")) -}}
+{{- /* Seed the same roots as Claude's additionalDirectories, never the whole home. */ -}}
+{{- $defaults := dict "trustedWorkspaces" (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) -}}
 {{- $managedConfig := fromJson `
 {
   "allowNonWorkspaceAccess": true,

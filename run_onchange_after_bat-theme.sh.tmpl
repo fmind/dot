@@ -1,0 +1,13 @@
+#!/bin/sh
+# Docs: https://github.com/sharkdp/bat#adding-new-themes
+# The theme is a chezmoi external, so hash the deployed copy: the body, and thus the
+# onchange trigger, follows the theme content and the bat installs that own the cache.
+{{- $theme := joinPath .chezmoi.homeDir ".config/bat/themes/fmind.tmTheme" }}
+{{- $installs := joinPath .chezmoi.homeDir ".local/share/mise/installs/bat/[0-9]*" }}
+# theme sha256: {{ if stat $theme }}{{ include $theme | sha256sum }}{{ else }}missing{{ end }}
+# bat installs: {{ glob $installs | join " " }}
+set -eu
+bat="{{ .chezmoi.homeDir }}/.local/share/mise/shims/bat"
+# Global tools are installed after the first apply; the installs line re-triggers this hook then.
+[ -x "${bat}" ] || exit 0
+"${bat}" cache --build

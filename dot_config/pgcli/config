@@ -1,0 +1,4 @@
+# Docs: https://www.pgcli.com/config
+# pgcli merges this partial file over its packaged defaults.
+[main]
+vi = True

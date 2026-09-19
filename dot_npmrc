@@ -1,2 +1,4 @@
+# Docs: https://docs.npmjs.com/cli/configuring-npm/npmrc
 save-exact=true   # deterministic installs — pin exact versions on --save/--save-dev
 fund=false        # silence the post-install funding banner
+min-release-age=7 # supply-chain cooldown in days; mise's own --min-release-age flag still wins for npm: tools

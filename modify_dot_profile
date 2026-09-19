@@ -1,4 +1,5 @@
 # chezmoi:modify-template
+{{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
 {{- $stdin := .chezmoi.stdin -}}
 {{- $sentinel := "# chezmoi: mise-bash-integration" -}}
 {{- $activationBlock := `# chezmoi: mise-bash-integration

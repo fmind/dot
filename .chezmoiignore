@@ -36,6 +36,11 @@ trivy.yaml
 # Version-only tool locks do not deploy generated dependency graphs.
 .config/mise/locks
 
+# zsh is the macOS default login shell; Linux logins use .profile and .bashrc.
+{{- if ne .chezmoi.os "darwin" }}
+.zprofile
+{{- end }}
+
 {{- if ne .chezmoi.os "linux" }}
 .local/share/applications/com.mitchellh.ghostty.desktop
 {{- end }}

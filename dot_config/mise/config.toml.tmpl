@@ -3,14 +3,14 @@
 
 [settings]
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
-# is deliberately off across every backend, and releases are installed the day they
-# ship. The trade-off: mise.lock records digests for aqua/github/http downloads
-# and conda dependencies. npm and pipx tools use version-only locking, so their
-# transitive dependencies can change on reinstall. Registry tools such as gcloud, make, neovim, sqlite
-# and uv may still pin only a version. First fetches are unverified. Upstream
-# attestation coverage is too patchy to gate routine upgrades on, and this is a
-# single-user workstation. Raise minimum_release_age (e.g. "3d") to trade upgrade
-# latency for a window in which a compromised release gets pulled.
+# is deliberately off across every backend: upstream attestation coverage is too
+# patchy to gate routine upgrades on, and this is a single-user workstation. The
+# compensating controls: mise.lock records digests for aqua/github/http downloads
+# and conda dependencies, and minimum_release_age below delays fuzzy `latest`
+# resolution so a compromised release has time to be pulled. npm and pipx tools
+# use version-only locking, so their transitive dependencies can change on
+# reinstall. Registry tools such as gcloud and neovim may still pin only a version.
+# First fetches are unverified.
 aqua.cosign = false
 aqua.github_attestations = false
 aqua.minisign = false
@@ -18,6 +18,9 @@ aqua.slsa = false
 # Interactive prompts draw from the terminal's sixteen slots rather than from
 # mise's own palette, so they follow fmind/theme like everything else.
 color_theme = "base16"
+# asdf plugins lock without checksums and may compile from source; registry tools
+# must resolve to aqua, conda, github, or vfox instead.
+disable_backends = ["asdf"]
 env_cache = true
 # `gh` stores its token in the system keyring, so mise's default gh_cli_tokens
 # fallback (which parses ~/.config/gh/hosts.yml) finds nothing and hits the GitHub
@@ -30,7 +33,10 @@ github.slsa = false
 github_attestations = false
 lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
-minimum_release_age = "0d"
+# Three-day cooldown on fuzzy versions (mise defaults to 24h); the owner's own
+# packages are exempt so their releases install immediately.
+minimum_release_age = "3d"
+minimum_release_age_excludes = ["pipx:fkf", "pipx:fmind"]
 slsa = false
 
 [tool_alias]
@@ -95,23 +101,18 @@ gitleaks = "latest" # Audits git repositories for secrets and keys
 hadolint = "latest" # Dockerfile linter written in Haskell
 helm = "latest" # Package manager for Kubernetes charts
 hyperfine = "latest" # Command-line benchmarking utility
-imagemagick = "latest" # Additional image formats and thumbnails in Yazi
 jq = "latest" # Command-line JSON processor
 k3d = "latest" # Run lightweight k3s Kubernetes clusters in Docker
 k9s = "latest" # Terminal UI for viewing Kubernetes clusters
-kind = "latest" # Kubernetes IN Docker cluster manager
 kube-linter = "latest" # Static analysis linter for Kubernetes YAML/Helm
 kubeconform = "latest" # Kubernetes manifest schema validator
 kubectl = "latest" # Command-line tool to control Kubernetes clusters
-kubectx = "latest" # Fast switcher between Kubernetes cluster contexts
-kubens = "latest" # Switch between Kubernetes namespaces
 kustomize = "latest" # Customizes raw Kubernetes YAML configurations
 lazydocker = "latest" # Terminal UI for managing Docker containers
 lazygit = "latest" # Terminal UI for Git commands
 lefthook = "latest" # Fast and powerful Git hooks runner
 lsd = "latest" # Modern, feature-rich replacement for ls
 lychee = "latest" # Fast link checker for Markdown, HTML, and websites
-make = "latest" # GNU Make build automation tool
 neovim = "latest" # Extensible Vim-based text editor
 node = "lts" # Runtime for third-party npm CLIs only; active project authoring is Python.
 oha = "latest" # HTTP load generator with live TUI (hyperfine for endpoints)

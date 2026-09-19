@@ -10,9 +10,6 @@ telemetry = false
 [memory]
 enabled = true
 
-[models]
-default_reasoning_effort = "high"
-
 [ui]
 compact_mode = true
 follow_up_behavior = "steer"
@@ -44,6 +41,7 @@ mcps = false
 rules = false
 skills = false
 
+# Grok scans project .cursor directories by default, whether or not Cursor is installed.
 [compat.cursor]
 agents = false
 hooks = false
@@ -52,7 +50,9 @@ rules = false
 skills = false
 
 ` -}}
+{{- /* default_reasoning_effort is a default rather than a managed key: it seeds a fresh
+       config, then stays whatever the effort picker last persisted. */ -}}
 {{- includeTemplate "toml-merge.tmpl" (dict
       "stdin" .chezmoi.stdin
       "managed" $managedConfig
-      "defaults" dict) -}}
+      "defaults" (dict "models" (dict "default_reasoning_effort" "high"))) -}}

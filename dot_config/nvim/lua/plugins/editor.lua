@@ -8,6 +8,9 @@ return {
       colorscheme = require("config.theme"),
     },
   },
+  -- fmind/theme owns the palette; skip the colorschemes bundled with LazyVim.
+  { "folke/tokyonight.nvim", enabled = false },
+  { "catppuccin/nvim", name = "catppuccin", enabled = false },
   -- Which-key preset
   {
     "folke/which-key.nvim",
