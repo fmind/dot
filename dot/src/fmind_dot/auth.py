@@ -205,11 +205,15 @@ def gcp_ready(state: State) -> bool:
         result = probe(state, args)
         if result.returncode == 0 and result.stdout.strip():
             continue
-        # Never render access tokens or raw provider diagnostics.
+        # Never render access tokens or raw provider diagnostics. gcloud ends every
+        # relogin error with its login command; transport failures never name one.
         missing = (
             "invalid_grant",
             "expired or revoked",
-            "reauthentication failed",
+            "reauthenticat",
+            "to obtain new credentials",
+            "gcloud auth login",
+            "gcloud auth application-default login",
             "not currently have an active account",
             "no credentialed accounts",
             "default credentials were not found",
