@@ -1,0 +1,20 @@
+#!/bin/sh
+# Docs: https://github.com/sharkdp/bat#adding-new-themes
+# Runs after every apply, once the theme external is written. A run_onchange_ hash
+# would read the theme before this apply refreshes it and rebuild one apply late, so
+# a stamp of the theme and bat version skips the ~0.6 s rebuild instead.
+set -eu
+bat="{{ .chezmoi.homeDir }}/.local/share/mise/shims/bat"
+theme="{{ .chezmoi.homeDir }}/.config/bat/themes/fmind.tmTheme"
+# Global tools install after the first apply; the next apply builds the cache.
+[ -x "${bat}" ] && [ -f "${theme}" ] || exit 0
+cache="$("${bat}" --cache-dir)"
+checksum="$(cksum <"${theme}")"
+version="$("${bat}" --version)"
+current="${checksum} ${version}"
+stamp="${cache}/fmind-theme.stamp"
+previous=""
+[ -f "${stamp}" ] && previous="$(cat "${stamp}")"
+[ "${previous}" = "${current}" ] && exit 0
+"${bat}" cache --build >/dev/null
+printf '%s\n' "${current}" >"${stamp}"
