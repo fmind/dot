@@ -150,10 +150,12 @@ app.add_typer(config_app, name="config")
 from fmind_dot import repository, system, trust, workstation  # noqa: E402
 from fmind_dot.agent import agent_app  # noqa: E402
 from fmind_dot.auth import login_app, setup_app  # noqa: E402
+from fmind_dot.secrets import secret_app  # noqa: E402
 
 app.add_typer(agent_app, name="agent")
 app.add_typer(login_app, name="login")
 app.add_typer(setup_app, name="setup")
+app.add_typer(secret_app, name="secret")
 workstation.register(app)
 system.register(app)
 repository.register_repository_commands(app)

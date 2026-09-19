@@ -18,7 +18,7 @@ Configure provider authentication, endpoints, and model selection. Default new i
 
 1. Resolve the requested provider before inspecting credentials. An available key is not a reason to switch providers. Use the selected guide only; [gcloud](../gcloud/SKILL.md) owns Cloud identity/IAM and [agent-harnesses](../agent-harnesses/SKILL.md) owns coding-host settings.
 1. Establish the project for GCP, the provider-native model ID, and the required capabilities. Check the installed SDK and current provider catalog; model IDs, tool calling, reasoning, structured output, and regional availability vary by provider.
-1. Make the provider explicit in application configuration so ambient Google API keys or SDK backend flags cannot silently select another service. Keep keys in environment variables supplied by the encrypted `secrets.fish` source on this workstation, never in code or generated configuration.
+1. Make the provider explicit in application configuration so ambient Google API keys or SDK backend flags cannot silently select another service. Supply keys only to the process that needs them, through a secret manager or `dot secret run NAME -- COMMAND`; use native credential stores where supported. Never place keys in code or generated configuration.
 1. Validate configuration and use a read-only model/auth probe first. Run inference only within the authorized usage scope, with a bounded output and timeout. Report authentication, model access, and successful inference separately; do not silently fall back to another provider or billing project after an error.
 
 ## Task guides

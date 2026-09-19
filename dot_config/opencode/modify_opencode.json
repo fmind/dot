@@ -5,13 +5,6 @@
   "instructions": ["~/.agents/AGENTS.md"],
   "model": "openrouter/google/gemini-3.8-flash",
   "small_model": "openrouter/google/gemini-3.8-flash",
-  "provider": {
-    "openrouter": {
-      "options": {
-        "apiKey": "{env:OPENROUTER_API_KEY}"
-      }
-    }
-  },
   "default_agent": "build",
   "share": "disabled",
   "snapshot": true,
@@ -27,6 +20,12 @@
 {{- $current := dict -}}
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- $input := .chezmoi.stdin -}}
+{{- /* Retire only our old environment placeholder; preserve explicit host credentials. */ -}}
+{{- $options := dig "provider" "openrouter" "options" dict $current -}}
+{{- if eq (get $options "apiKey") "{env:OPENROUTER_API_KEY}" -}}
+{{-   $_ := unset $options "apiKey" -}}
+{{-   $input = $current | toJson -}}
+{{- end -}}
 {{- if hasKey $current "theme" -}}
 {{-   $_ := unset $current "theme" -}}
 {{-   $input = $current | toJson -}}

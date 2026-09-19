@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Chezmoi Source Standard
@@ -41,6 +41,7 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 - **Modification conventions**: chezmoi supports `modify_*.tmpl` scripts. This repository instead uses `# chezmoi:modify-template` and `.chezmoi.stdin` for its Bash/profile modifiers; preserve that convention unless intentionally changing the execution model.
 - **Literal delimiters**: emit another tool's `{{ ... }}` as ``{{`{{ .Destination }}`}}`` (backticks inside an action); `.chezmoi.toml.tmpl` needs this too.
 - **Templates fail closed**: one template error aborts the whole apply; debug with `chezmoi execute-template < file` or `chezmoi apply --dry-run` before committing.
+- **Credential lifecycle**: use `create_encrypted_private_*` for native login seeds so account switches survive apply; scoped keys remain managed under `~/.config/dot/secrets/`. Never restore global shell exports. Follow [secret setup](../../../README.md#secret-management) and [credential precedence](../../../skills/dot-cli/references/authentication.md); preview secret targets with status/metadata, never a plaintext diff.
 - **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [security-review](../../../skills/security-review/references/code-review/GUIDE.md)).
 - **`.chezmoiignore`** (templated, gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`, CI) out of apply and skips key-dependent files without the age key.
 - **Ignore patterns** match target paths; later patterns win and a leading `!` re-includes.

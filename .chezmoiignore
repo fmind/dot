@@ -16,6 +16,9 @@
 **/dist
 **/htmlcov
 
+# The native Hugging Face credential is intentionally managed under the home cache.
+!.cache
+
 # Repository-only sources and tooling.
 .antigravitycli
 AGENTS.md
@@ -41,6 +44,11 @@ trivy.yaml
 .zprofile
 {{- end }}
 
+# An existing Kaggle legacy/OAuth login must not acquire a higher-priority personal token.
+{{- if or (stat (joinPath .chezmoi.homeDir ".kaggle/kaggle.json")) (stat (joinPath .chezmoi.homeDir ".kaggle/credentials.json")) }}
+.kaggle/access_token
+{{- end }}
+
 {{- if ne .chezmoi.os "linux" }}
 .local/share/applications/com.mitchellh.ghostty.desktop
 {{- end }}
@@ -50,5 +58,8 @@ trivy.yaml
 {{- end }}
 
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
-.config/fish/conf.d/secrets.fish
+.cache/huggingface/token
+.kaggle/access_token
+.local/share/opencode/auth.json
+.config/dot/secrets
 {{- end }}
