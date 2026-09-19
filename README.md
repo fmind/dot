@@ -1,11 +1,19 @@
 # Dot
 
-My personal dotfiles for **AI-driven, CLI-first** development on Linux and macOS. Declarative, reproducible, and fast.
+My personal dotfiles for **AI-driven, CLI-first** development on Linux and macOS: shell, editor, agent harnesses, skills, and a typed Python CLI, managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.jdx.dev/) (tools & tasks). Built for my workstations; published for anyone who wants to read, borrow, or fork.
 
-Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.jdx.dev/) (tools & tasks).
+[![CI](https://github.com/fmind/dot/actions/workflows/ci.yml/badge.svg)](https://github.com/fmind/dot/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/fmind/dot)](https://github.com/fmind/dot/releases/latest) [![License](https://img.shields.io/github/license/fmind/dot)](LICENSE)
 
 > [!IMPORTANT]
 > Personal, opinionated dotfiles. Review before running; provided **as-is** without warranty (see [LICENSE](LICENSE)).
+
+| Platform                           | Tool lockfiles | CI                                |
+| ---------------------------------- | -------------- | --------------------------------- |
+| Linux x86-64 (glibc 2.39 or newer) | Yes            | Repository gate on `ubuntu-24.04` |
+| macOS Apple Silicon                | Yes            | Not tested                        |
+| Anything else                      | No             | Not tested                        |
+
+The CI gate renders the chezmoi templates as a dry run and runs the static checks, tests, and build; it does not execute `install.sh` end to end.
 
 ## Highlights
 
@@ -18,7 +26,7 @@ Managed with [chezmoi](https://www.chezmoi.io/) (files) and [mise](https://mise.
 
 ## Prerequisites
 
-Tool lockfiles target Linux x86-64 and macOS Apple Silicon. The installer requires mise 2026.9.10 or newer; it installs mise when absent but stops if an existing version is too old.
+The installer requires mise 2026.9.10 or newer; it installs exactly that tested version when mise is absent but stops if an existing version is too old.
 
 ### Host Packages
 
@@ -44,14 +52,7 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 
 - **Terminal**: [Ghostty](https://ghostty.org/docs/install/binary).
 - **Containers**: A Docker-compatible container engine (Docker or Podman) if building container images.
-
-### Agent Notifications
-
-Codex, Claude, Grok, Antigravity, and Copilot send desktop notifications when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native notification service. On ChromeOS, when the bundled Crostini `notificationd` is present, a managed user D-Bus activation file starts that bridge on demand. Headless sessions without a notification service skip delivery. ChromeOS Do Not Disturb and application notification settings still control visible banners.
-
-Notifications show the harness and project, a short status, and the originating terminal title when available. Titles are limited to 80 characters; unavailable titles leave a plain status notification. They have no click actions, pane numbers, or session labels and never read prompt or transcript content. Linux uses `notify-send` or D-Bus; macOS, including Apple Silicon, uses the built-in `osascript` notification command. macOS notification settings control whether its banners appear.
-
-Codex session-end capture respects its three-second hook limit. Claude sessions that end before a transcript is available report a skipped capture without failing the hook; if the transcript appears later, `dot agent session sync --agent claude` can recover it. Restart open harnesses after changing their hook configuration.
+- **Desktop notifications**: Codex, Claude, Grok, Antigravity, and Copilot notify when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native service; headless sessions skip delivery. Restart open harnesses after their hook configuration changes. See [agent-harnesses](skills/agent-harnesses/SKILL.md).
 
 ## Installation
 
@@ -70,7 +71,34 @@ Open a new shell and run `dot doctor` to check your installation. Use `dot compl
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
+### What the installer does
+
+Read [`install.sh`](install.sh) first. It executes third-party code with your user's privileges:
+
+1. When mise is absent, it pipes `https://mise.run` to `bash`, then installs chezmoi through mise.
+1. `chezmoi init` prompts for your identity (below) and the bootstrap applies the source tree over existing files with `chezmoi apply --force`.
+1. Apply pipes the [Grok](run_once_after_install-grok.sh.tmpl) and [Antigravity](run_once_after_install-antigravity-cli.sh.tmpl) vendor installers to `bash` when those CLIs are missing.
+1. Apply fetches theme files from [fmind/theme](https://github.com/fmind/theme) `main` without a checksum ([`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl)); font archives are pinned by SHA-256.
+1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off; the compensating controls are lockfile digests where the backend records them and a three-day `minimum_release_age` cooldown on `latest` resolution (my own `pipx:fkf` and `pipx:fmind` are exempt). npm and pipx tools lock the version only, and first fetches are unverified; that file states the trade-off.
+
 Setup installs Google Sans for text, Google Sans Code for code, and [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) for terminals.
+
+### First-run prompts
+
+`chezmoi init` asks for a Git name, Git email, and GitHub username. The defaults in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) are mine: enter your own. `install.sh` forwards extra arguments to `chezmoi init`, so answers can be supplied up front:
+
+```bash
+bash ~/.local/share/chezmoi/install.sh \
+  --promptString "What is your Git name=Ada Lovelace" \
+  --promptString "What is your Git email address=ada@example.com" \
+  --promptString "What is your GitHub username=ada"
+```
+
+`--promptDefaults` accepts my identity without asking; use it only for dry runs. Answers are stored in `~/.config/chezmoi/chezmoi.toml`.
+
+### Shell
+
+Fish becomes the interactive shell through the terminal, not `chsh`: Ghostty sets `command` to the mise-installed Fish and Zellij sets `default_shell "fish"`. The login shell is unchanged; the managed blocks in `~/.bashrc` and `~/.profile` (and `~/.zprofile` on macOS) only add the mise paths and `mise activate`. In another terminal emulator, run `fish` or point its shell command at `~/.local/share/mise/shims/fish`.
 
 ### Dot configuration
 
@@ -98,30 +126,9 @@ See the [billing reference](skills/agent-usage/references/queries.md#monthly-and
 
 ## Agent skills
 
-Skills use the standard `~/.agents/skills/` directory. Dotfiles setup creates a real directory and links each package from this repository's [`skills/`](skills/) catalog into it. Other packages can be directories or individual links in the same location; names must be unique. Packages in this catalog may reference sibling skills, so check dependencies before copying one folder on its own.
+Skills use the standard `~/.agents/skills/` directory. Setup creates a real directory and links each package from this repository's [`skills/`](skills/) catalog into it. Other packages can be directories or individual links in the same location; names must be unique. Packages in this catalog may reference sibling skills, so check dependencies before copying one folder on its own. Restart agent sessions to refresh discovery.
 
-To add a skill, create `~/skill-library/meeting-prep/SKILL.md` with a matching name, a description, and actionable instructions:
-
-```markdown
----
-name: meeting-prep
-description: Prepare a meeting agenda from supplied notes. Use when planning a meeting.
----
-
-# Prepare a Meeting
-
-1. Identify the meeting objective and decisions needed from the supplied notes.
-1. Draft a timed agenda and list missing information without inventing it.
-```
-
-Then install the package using an absolute, stable source path:
-
-```bash
-mkdir -p ~/.agents/skills
-ln -s ~/skill-library/meeting-prep ~/.agents/skills/
-```
-
-Run this setup on each computer, choose a unique package name, and restart the agent session to refresh discovery. For diagnostics and catalog changes, see the [skill maintenance guide](.agents/skills/dot-skills/SKILL.md).
+Authoring: [skillify](skills/skillify/SKILL.md). Catalog maintenance and diagnostics: [skill maintenance guide](.agents/skills/dot-skills/SKILL.md).
 
 ### Upgrading the skill catalog
 
@@ -133,23 +140,20 @@ Upgrading from v6.1.0? Follow the [skill-link migration](.agents/skills/dot-skil
 
 API keys and credentials are split between two Fish configuration files:
 
-1. **`~/.config/fish/conf.d/secrets.fish`** (shared, encrypted in repo): Decrypted automatically from `encrypted_private_secrets.fish.age`. Exports keys including `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `HUGGINGFACE_API_TOKEN`, `JULES_API_KEY`, `KAGGLE_API_TOKEN`, `OPENROUTER_API_KEY`, `STITCH_ACCESS_TOKEN`, `STUDIO_API_KEY`, and `UV_PUBLISH_TOKEN`.
+1. **`~/.config/fish/conf.d/secrets.fish`** (encrypted in repo, mine only): `encrypted_private_secrets.fish.age` is encrypted to the age recipient hardcoded in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl). Only my private key decrypts it. Without `~/.config/chezmoi/key.txt`, [`.chezmoiignore`](.chezmoiignore) skips the file and apply succeeds without it; any other key at that path makes apply fail on decryption. It exports `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `HUGGINGFACE_API_TOKEN`, `JULES_API_KEY`, `KAGGLE_API_TOKEN`, `OPENROUTER_API_KEY`, `STITCH_ACCESS_TOKEN`, `STUDIO_API_KEY`, and `UV_PUBLISH_TOKEN`.
 
-   To decrypt on apply, provision your private age key:
+   To use encrypted secrets in a fork, generate your own key, replace the recipient, and replace the `.age` file with one encrypted to it (see [Adapting this](#adapting-this)):
 
    ```bash
    mkdir -p ~/.config/chezmoi
-   # Place your private key in key.txt and secure permissions
+   age-keygen -o ~/.config/chezmoi/key.txt
    chmod 600 ~/.config/chezmoi/key.txt
    ```
-
-   > [!NOTE]
-   > If `key.txt` is missing, `secrets.fish` is skipped during `chezmoi apply` via `.chezmoiignore`, allowing unprivileged bootstrap without personal secrets.
 
    > [!WARNING]
    > **Back up `~/.config/chezmoi/key.txt`.** It is not managed by chezmoi. If lost, encrypted repo files are unrecoverable.
 
-1. **`~/.private.fish`** (local, untracked): Sourced automatically by `config.fish` for machine or project overrides:
+1. **`~/.private.fish`** (local, untracked): Sourced automatically by `config.fish` for machine or project overrides. Without the encrypted file, export your API keys here:
 
    ```fish
    set -gx ANTIGRAVITY_CLOUD_PROJECT   "my-vertex-project"
@@ -161,38 +165,71 @@ API keys and credentials are split between two Fish configuration files:
 
 ### Authentication & Logins
 
-Use `dot login` to list providers, `dot login workspace` for Workspace, and `dot login github` for GitHub. `dot login google` authenticates Workspace followed by Google Cloud and ADC, stops on failure, and excludes GitHub.
+`dot login` owns GitHub, Google Workspace, and Google Cloud; it drives `gh`, `gws`, and `gcloud`, which retain account/profile selection and credential storage:
 
-Use `dot setup github` to reconcile GitHub scopes and remove configured excluded grants. Use `dot setup workspace <project-id>` to enable missing Workspace APIs and configure its OAuth client. Native tools retain account/profile selection and credential storage.
+| Provider                  | Command               |
+| ------------------------- | --------------------- |
+| GitHub                    | `dot login github`    |
+| Google Workspace          | `dot login workspace` |
+| Google Cloud and ADC      | `dot login gcp`       |
+| Workspace, then GCP + ADC | `dot login google`    |
 
-Configure authentication under `auth` in the [Dot configuration](#dot-configuration). See the [authentication guide](skills/dot-cli/references/authentication.md) for selection precedence, scope policy, and authentication checks.
+`dot login` alone lists providers. `dot login google` stops on failure and excludes GitHub. Use `dot setup github` to reconcile GitHub scopes and remove configured excluded grants, and `dot setup workspace <project-id>` to enable missing Workspace APIs and configure its OAuth client.
+
+Configure authentication under `auth` in the [Dot configuration](#dot-configuration); only non-default keys are needed:
 
 ```yaml
 # Docs: https://github.com/fmind/dot
-schema_version: 3
 auth:
-  github:
-    host: github.com
   workspace:
     project: my-workspace-project
-  probe_timeout_seconds: 45
 ```
 
-| Tool / Service           | Command                                                      | Auth Type             |
-| ------------------------ | ------------------------------------------------------------ | --------------------- |
-| **Antigravity CLI**      | `agy`                                                        | On-demand prompt      |
-| **Claude Code**          | `claude auth login` (or `claude` → `/login`)                 | Interactive / browser |
-| **GitHub CLI**           | `gh auth login`                                              | Browser OAuth         |
-| **GitHub Copilot CLI**   | `copilot login` (or `copilot` → `/login`)                    | Interactive / browser |
-| **Google Cloud SDK**     | `gcloud auth login --update-adc`                             | ADC + OAuth           |
-| **Google Workspace CLI** | `gws auth login`                                             | Browser OAuth         |
-| **Grok Build CLI**       | `grok login` (or `XAI_API_KEY`)                              | Interactive / API key |
-| **OpenAI Codex CLI**     | `codex login`                                                | Interactive           |
-| **OpenCode CLI**         | `source ~/.config/fish/conf.d/secrets.fish`, then `opencode` | OpenRouter API key    |
+OAuth scopes grant capability, not authority to delete data or contact others; see the [authentication guide](skills/dot-cli/references/authentication.md) for selection precedence, scope policy, re-authentication after scope changes, and authentication checks.
 
-OAuth scopes can permit destructive operations; they do not authorize an agent to delete data or contact others. GCP permissions remain controlled by IAM. Changing configuration does not update issued tokens: authenticate again for new scopes, and use `dot setup github` to remove excluded grants. Personal Google accounts need a Workspace policy without `directory.readonly`.
+Agent harnesses authenticate themselves:
+
+| Harness                | Command                                      | Auth Type             |
+| ---------------------- | -------------------------------------------- | --------------------- |
+| **Antigravity CLI**    | `agy`                                        | On-demand prompt      |
+| **Claude Code**        | `claude auth login` (or `claude` → `/login`) | Interactive / browser |
+| **GitHub Copilot CLI** | `copilot login` (or `copilot` → `/login`)    | Interactive / browser |
+| **Grok Build CLI**     | `grok login` (or `XAI_API_KEY`)              | Interactive / API key |
+| **OpenAI Codex CLI**   | `codex login`                                | Interactive           |
+| **OpenCode CLI**       | `opencode` (reads `OPENROUTER_API_KEY`)      | OpenRouter API key    |
 
 Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
+
+## Adapting this
+
+Fork rather than install as-is. Owner-specific values to replace:
+
+1. **Identity prompts**: the defaults in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), and the clone URL in [`install.sh`](install.sh).
+1. **Secrets**: the age `recipient` in `.chezmoi.toml.tmpl` and [`encrypted_private_secrets.fish.age`](dot_config/fish/conf.d/encrypted_private_secrets.fish.age); re-encrypt with `chezmoi add --encrypt ~/.config/fish/conf.d/secrets.fish`, or delete the file and rely on `~/.private.fish`.
+1. **Persona**: [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) deploys to `~/.agents/AGENTS.md`, names me, and encodes my working rules; every harness loads it.
+1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are granted to agents in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and [`dot_gemini/antigravity-cli/modify_private_settings.json`](dot_gemini/antigravity-cli/modify_private_settings.json), and are the `pull.directories` default of the `dot` CLI (override in `~/.config/dot.yaml`).
+1. **Theme**: files track [fmind/theme](https://github.com/fmind/theme) `main`; point [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl) at your own or pin a commit.
+
+## Uninstall / rollback
+
+There is no uninstaller, and chezmoi keeps no backup of the files that `apply --force` replaced: back up your own dotfiles before installing. To remove the setup:
+
+```bash
+# List what chezmoi manages, before removing its state
+chezmoi managed
+
+# Remove chezmoi's source directory, configuration, and state; deployed files stay
+chezmoi purge
+
+# Remove mise and every tool it installed (--config also removes ~/.config/mise)
+mise implode --config
+```
+
+Left behind, to delete by hand: the deployed files listed by `chezmoi managed`, the `# chezmoi: mise-*` blocks in `~/.bashrc`, `~/.profile`, and `~/.zprofile`, the `dot` CLI under `~/.local/share/fmind-dot` with its `~/.local/bin/dot` link, the Grok (`~/.grok`) and Antigravity (`~/.local/bin/agy`) installations, installed fonts, `~/.agents`, your age key, and any data the tools wrote. To roll back an update, check out the previous release tag in `~/.local/share/chezmoi` and run `chezmoi apply --force`; files added since then stay in place.
+
+## Security
+
+See [SECURITY.md](.github/SECURITY.md) to report a vulnerability.
 
 ## License
 
