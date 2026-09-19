@@ -1,9 +1,10 @@
 """Native workstation commands with one Python-owned CLI and configuration."""
 
 import os
+import select
 import shlex
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import IO, Annotated, Literal
 
 import typer
 
@@ -55,12 +56,24 @@ def execute(state: State, args: list[str], *, dry_run: bool = False) -> None:
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 
 
+def _wait_for_line(stream: IO[str]) -> None:
+    # A SIGINT that lands after Python's last signal check but before read() blocks
+    # never interrupts that read, and the terminal discards the typed ^C. Polling
+    # with a timeout returns to Python often enough to raise KeyboardInterrupt.
+    # Canonical terminals return one line per read(), so no answer waits in the buffer.
+    try:
+        descriptor = stream.fileno()
+    except OSError, ValueError:
+        return
+    while not select.select([descriptor], [], [], 0.1)[0]:
+        pass
+
+
 def _confirm_prune(state: State, names: list[str]) -> None:
-    # input() can miss SIGINT between its C-level prompt write and blocking read.
-    # Reading through the Python stream keeps cancellation checks between those steps.
     while True:
         try:
             print(f"Clean caches for {', '.join(names)}? [y/N]: ", end="", file=state.stdout, flush=True)
+            _wait_for_line(state.stdin)
             answer = state.stdin.readline().strip().lower()
         except KeyboardInterrupt, EOFError:
             raise typer.Abort from None
