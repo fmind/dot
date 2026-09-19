@@ -2,10 +2,6 @@ from __future__ import annotations
 
 import io
 import json
-import os
-import shutil
-import time
-import weakref
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,23 +12,19 @@ from fmind_dot.archive import query as session_query
 from fmind_dot.archive.query import (
     SESSION_EXPORT_SCHEMA,
     SessionQuery,
-    compact_session_generations,
-    discover_session_generations,
+    discover_sessions,
     export_sessions,
     query_session_summaries,
     show_session,
 )
 from fmind_dot.archive.store import (
-    SESSION_PARSER_VERSION,
     SESSION_SCHEMA_VERSION,
-    STALE_INGESTION_SECONDS,
     SessionLog,
     SessionManifest,
     SessionSource,
     ingest_session,
-    session_store_root,
+    session_bundle_path,
 )
-from fmind_dot.archive.usage import UsageRecord
 from fmind_dot.cli import app
 
 
@@ -40,198 +32,37 @@ def _ingest(
     agent: str,
     session_id: str,
     *,
-    fingerprint: str,
     cwd: str = "/work",
     content: str = "private prompt",
     malformed: int = 0,
 ) -> Path:
-    result = ingest_session(
+    ingest_session(
         agent,
         session_id,
         [SessionLog("2026-09-01T12:00:00Z", agent, session_id, "user", content, cwd)],
-        SessionSource(fingerprint=fingerprint, type="fixture", malformed=malformed),
+        SessionSource(type="fixture", malformed=malformed),
     )
-    return session_store_root() / agent / result.lineage_id / result.generation_id
+    return session_bundle_path(agent, session_id)
 
 
-def _rewrite_manifest(generation: Path, **changes: object) -> None:
-    path = generation / "manifest.json"
-    value = json.loads(path.read_text(encoding="utf-8"))
-    value.update(changes)
-    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-    path.chmod(0o600)
+def _rewrite_manifest(path: Path, **changes: object) -> None:
+    header, rest = path.read_bytes().split(b"\n", 1)
+    path.write_bytes(json.dumps(json.loads(header) | changes).encode() + b"\n" + rest)
 
 
-def _ingest_records(agent: str, session_id: str, fingerprint: str, count: int, *, malformed: int = 0) -> Path:
-    result = ingest_session(
-        agent,
-        session_id,
-        [
-            SessionLog(f"2026-09-01T12:00:{index:02d}Z", agent, session_id, "user", f"record-{index}")
-            for index in range(count)
-        ],
-        SessionSource(fingerprint=fingerprint, type="fixture", malformed=malformed),
-    )
-    return session_store_root() / agent / result.lineage_id / result.generation_id
+def _corrupt_transcript(path: Path) -> None:
+    header = path.read_bytes().split(b"\n", 1)[0]
+    path.write_bytes(header + b"\nnot-json\n")
 
 
-def test_compaction_dry_run_and_apply_retain_best_complete_and_partial_progress(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_query_filters_metadata_and_reports_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    stale = _ingest_records("codex", "session-1", "a" * 64, 1)
-    complete = _ingest_records("codex", "session-1", "b" * 64, 2)
-    partial = _ingest_records("codex", "session-1", "c" * 64, 3, malformed=1)
-    output = io.StringIO()
-
-    result = compact_session_generations(output)
-
-    assert result.generations == 3
-    assert result.retained == 2
-    assert result.removed == 0
-    assert result.reclaimable_bytes > 0
-    assert all(path.exists() for path in (stale, complete, partial))
-    assert output.getvalue().count("\n") == 1
-    assert "mode=dry-run" in output.getvalue()
-
-    applied = compact_session_generations(io.StringIO(), apply=True)
-
-    assert applied.removed == 1
-    assert not stale.exists()
-    assert complete.exists()
-    assert partial.exists()
-
-
-def _ingest_with_usage(session_id: str, fingerprint: str, count: int, tokens: int) -> Path:
-    usage = UsageRecord(
-        harness="codex", session_id=session_id, measurement_kind="provider-reported", input_tokens=tokens
-    ).finalize()
-    result = ingest_session(
-        "codex",
-        session_id,
-        [
-            SessionLog(f"2026-09-01T12:00:{index:02d}Z", "codex", session_id, "user", f"record-{index}")
-            for index in range(count)
-        ],
-        SessionSource(fingerprint=fingerprint, type="fixture"),
-        usage=usage.to_dict(),
-    )
-    return session_store_root() / "codex" / result.lineage_id / result.generation_id
-
-
-def test_compaction_removes_prefix_generations_whose_usage_grew_with_the_source(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    prefix = _ingest_with_usage("growing", "a" * 64, 1, tokens=10)
-    same_transcript = _ingest_with_usage("growing", "b" * 64, 2, tokens=20)
-    latest = _ingest_with_usage("growing", "c" * 64, 2, tokens=30)
-    hashes = {json.loads((path / "manifest.json").read_text())["usage_sha256"] for path in (prefix, latest)}
-    assert len(hashes) == 2
-
-    result = compact_session_generations(io.StringIO(), apply=True)
-
-    # Real usage grows with its source: a strict transcript prefix is superseded
-    # whatever it measured, while equal transcripts keep distinct usage evidence.
-    assert (result.retained, result.removed) == (2, 1)
-    assert not prefix.exists()
-    assert same_transcript.exists()
-    assert latest.exists()
-
-
-def test_interrupted_ingestion_directory_is_ignored_then_swept_once_stale(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    generation = _ingest("codex", "session-1", fingerprint="a" * 64)
-    # ingest_session writes the manifest before its rename: a kill leaves this behind.
-    interrupted = generation.with_name(".ingest-" + "0" * 32)
-    shutil.copytree(generation, interrupted)
-
-    assert [summary.status for summary in query_session_summaries()] == [["current"]]
-    output = io.StringIO()
-    fresh = compact_session_generations(output, apply=True)
-    assert (fresh.generations, fresh.removed, fresh.stale_ingestions) == (1, 0, 0)
-    assert interrupted.exists(), "a young temporary directory may belong to an in-flight ingestion"
-
-    stale = time.time() - 2 * STALE_INGESTION_SECONDS
-    os.utime(interrupted, (stale, stale))
-    planned = compact_session_generations(output)
-    assert planned.stale_ingestions == 1
-    assert interrupted.exists()
-    applied = compact_session_generations(output, apply=True)
-    assert applied.stale_ingestions == 1
-    assert "stale_ingestions=1" in output.getvalue().splitlines()[-1]
-    assert not interrupted.exists()
-    assert generation.exists()
-
-
-def test_compaction_releases_transcript_content_between_generations(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    for index in range(3):
-        _ingest("codex", "large-session", fingerprint=str(index) * 64, content="large prompt " * 10000)
-    validate = session_query.validate_session_generation
-    previous: list[weakref.ReferenceType[SessionLog]] = []
-
-    def track_records(path: Path, manifest: SessionManifest) -> list[SessionLog]:
-        assert all(reference() is None for reference in previous), "previous transcript content remains resident"
-        records = validate(path, manifest)
-        previous[:] = [weakref.ref(record) for record in records]
-        return records
-
-    monkeypatch.setattr(session_query, "validate_session_generation", track_records)
-    result = compact_session_generations(io.StringIO())
-    assert result.retained == 1
-    assert result.removable == 2
-    assert result.removed == 0
-
-
-def test_compaction_fails_closed_before_deleting_any_generation(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    first = _ingest_records("codex", "session-1", "d" * 64, 1)
-    corrupt = _ingest_records("codex", "session-1", "e" * 64, 2)
-    (corrupt / "transcript.jsonl").write_text("{}\n", encoding="utf-8")
-
-    with pytest.raises(ValueError, match="fingerprint mismatch"):
-        compact_session_generations(io.StringIO(), apply=True)
-
-    assert first.exists()
-    assert corrupt.exists()
-
-
-def test_compaction_preserves_divergent_generations(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    for fingerprint, content in (("f" * 64, "branch-left"), ("0" * 64, "branch-right")):
-        ingest_session(
-            "claude",
-            "shared-id",
-            [SessionLog("2026-09-01T12:00:00Z", "claude", "shared-id", "user", content)],
-            SessionSource(fingerprint=fingerprint, type="fixture"),
-        )
-
-    result = compact_session_generations(io.StringIO(), apply=True)
-
-    assert result.retained == 2
-    assert result.removable == 0
-    assert result.removed == 0
-
-
-def test_query_filters_metadata_and_keeps_lineage_status_global(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    old = _ingest("codex", "session-1", fingerprint="a" * 64, cwd="/work/project-a")
-    current = _ingest("codex", "session-1", fingerprint="b" * 64, cwd="/work/project-a")
-    partial = _ingest("claude", "session-2", fingerprint="c" * 64, cwd="/work/project-b", malformed=2)
-    _rewrite_manifest(old, ingested_at="2026-07-30T10:00:00Z")
-    _rewrite_manifest(current, ingested_at="2026-07-31T10:00:00Z")
+    older = _ingest("codex", "session-1", cwd="/work/project-a")
+    newer = _ingest("codex", "session-3", cwd="/work/project-a")
+    partial = _ingest("claude", "session-2", cwd="/work/project-b", malformed=2)
+    _rewrite_manifest(older, ingested_at="2026-07-30T10:00:00Z", parser_version="4")
+    _rewrite_manifest(newer, ingested_at="2026-07-31T10:00:00Z")
     _rewrite_manifest(partial, ingested_at="2026-08-01T10:00:00Z")
-    duplicate = old.with_name("d" * 64)
-    shutil.copytree(old, duplicate)
 
     summaries = query_session_summaries(
         SessionQuery(
@@ -242,29 +73,21 @@ def test_query_filters_metadata_and_keeps_lineage_status_global(
         )
     )
 
-    assert [summary.ingested_at for summary in summaries] == [
-        "2026-07-31T10:00:00Z",
-        "2026-07-30T10:00:00Z",
-        "2026-07-30T10:00:00Z",
+    assert [(summary.session_id, summary.status) for summary in summaries] == [
+        ("session-3", ["current"]),
+        ("session-1", ["legacy"]),
     ]
     assert all(summary.records == [] for summary in summaries)
-    assert summaries[0].status == ["current"]
-    assert {tuple(summary.status) for summary in summaries[1:]} == {("duplicate", "stale")}
     assert query_session_summaries(SessionQuery(identity="session-2"))[0].status == ["partial"]
-    assert query_session_summaries(SessionQuery(identity=current.name))[0].generation_id == current.name
     assert query_session_summaries(SessionQuery(agent="codex", cwd="/work/other")) == []
 
 
-def test_empty_store_and_malformed_time_metadata_fail_closed(tmp_path: Path) -> None:
+def test_empty_store_and_inverted_window(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
-    assert discover_session_generations(missing) == []
+    assert discover_sessions(missing) == []
     with pytest.raises(ValueError, match="--since must not be after --until"):
         query_session_summaries(
-            SessionQuery(
-                since=datetime(2026, 9, 2, tzinfo=UTC),
-                until=datetime(2026, 9, 1, tzinfo=UTC),
-            ),
-            root=missing,
+            SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC)), root=missing
         )
 
 
@@ -272,9 +95,8 @@ def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    selected = _ingest("codex", "selected", fingerprint="d" * 64)
-    unselected = _ingest("claude", "unselected", fingerprint="e" * 64)
-    (unselected / "transcript.jsonl").write_bytes(b"corrupt\n")
+    _ingest("codex", "selected")
+    _corrupt_transcript(_ingest("claude", "unselected"))
 
     summaries = query_session_summaries(SessionQuery(agent="codex"))
 
@@ -282,21 +104,20 @@ def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(
     assert summaries[0].status == ["current"]
     assert query_session_summaries(SessionQuery(agent="claude"))[0].status == ["current"]
     assert query_session_summaries(SessionQuery(agent="claude"), include_content=True)[0].status == ["invalid"]
-    assert selected.is_dir()
 
 
-def test_query_surfaces_partial_unsupported_and_invalid_generations(
+def test_query_surfaces_partial_unsupported_and_invalid_sessions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    generation = _ingest("agy", "unsupported", fingerprint="f" * 64, malformed=1)
-    _rewrite_manifest(generation, schema_version=SESSION_SCHEMA_VERSION + 1)
+    path = _ingest("agy", "unsupported", malformed=1)
+    _rewrite_manifest(path, schema_version=SESSION_SCHEMA_VERSION + 1)
 
     with pytest.raises(ValueError, match="unsupported session format"):
         query_session_summaries()
 
-    _rewrite_manifest(generation, schema_version=SESSION_SCHEMA_VERSION, parser_version=SESSION_PARSER_VERSION)
-    (generation / "transcript.jsonl").write_bytes(b"not-json\n")
+    _rewrite_manifest(path, schema_version=SESSION_SCHEMA_VERSION)
+    _corrupt_transcript(path)
     assert query_session_summaries()[0].status == ["partial"]
     assert query_session_summaries(include_content=True)[0].status == ["invalid", "partial"]
 
@@ -305,38 +126,32 @@ def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    first = _ingest("codex", "shared", fingerprint="1" * 64, content="secret-one")
-    second = _ingest("codex", "shared", fingerprint="2" * 64, content="secret-two")
-    third = _ingest("claude", "shared", fingerprint="3" * 64, content="secret-three")
-    _rewrite_manifest(first, ingested_at="2026-09-01T10:00:00Z")
-    _rewrite_manifest(second, ingested_at="2026-09-02T10:00:00Z")
-    _rewrite_manifest(third, ingested_at="2026-09-03T10:00:00Z")
+    _ingest("codex", "shared", content="secret-two")
+    _ingest("claude", "shared", content="secret-three")
 
-    with pytest.raises(ValueError, match=r"across agents claude, codex; add --agent"):
+    with pytest.raises(ValueError, match=r"ambiguous across agents claude, codex; add --agent"):
         show_session(SessionQuery(identity="shared"))
-    with pytest.raises(ValueError, match=r"2 generations of this codex session") as ambiguity:
-        show_session(SessionQuery(agent="codex", identity="shared"))
-    assert "--agent" not in str(ambiguity.value)
-    assert first.name in str(ambiguity.value)
-    assert second.name in str(ambiguity.value)
 
-    metadata = show_session(SessionQuery(identity=second.name))
+    metadata = show_session(SessionQuery(agent="codex", identity="shared"))
     assert metadata.records == []
     assert "records" not in metadata.to_dict(include_records=False)
-    assert show_session(SessionQuery(identity=second.name), include_content=True).records[0].content == "secret-two"
+    assert {"lineage_id", "generation_id"}.isdisjoint(metadata.to_dict())
+    assert show_session(SessionQuery(agent="codex", identity="shared"), include_content=True).records[0].content == (
+        "secret-two"
+    )
     with pytest.raises(ValueError, match="session not found"):
         show_session(SessionQuery(identity="missing"))
 
 
 def test_export_json_and_ndjson_keep_content_opt_in(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    _ingest("claude", "historic", fingerprint="4" * 64, content="old secret")
-    _ingest("codex", "current", fingerprint="5" * 64, content="new secret")
+    _ingest("claude", "historic", content="old secret")
+    _ingest("codex", "current", content="new secret")
 
     metadata_output = io.StringIO()
     export_sessions(metadata_output)
     metadata = json.loads(metadata_output.getvalue())
-    assert metadata["schema"] == SESSION_EXPORT_SCHEMA
+    assert metadata["schema"] == SESSION_EXPORT_SCHEMA == "dot.agent.sessions/v2"
     assert all("records" not in session for session in metadata["sessions"])
     assert "secret" not in metadata_output.getvalue()
 
@@ -362,58 +177,57 @@ def test_cli_list_is_text_and_show_is_json_without_default_content(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    _ingest("codex", "cli-session", fingerprint="6" * 64, cwd="/repo", content="cli secret")
+    _ingest("codex", "cli-session", cwd="/repo", content="cli secret")
     runner = CliRunner()
 
     listed = runner.invoke(
         app,
-        ["agent", "session", "list", "--agent", "codex", "--project", "/repo", "--until", "2026-12-31"],
+        ["agent", "session", "list", "--agent", "codex", "--project", "/repo", "--until", "2099-12-31"],
     )
     shown = runner.invoke(app, ["agent", "session", "show", "cli-session"])
     shown_with_content = runner.invoke(app, ["agent", "session", "show", "cli-session", "--content"])
 
     assert listed.exit_code == 0
-    assert "codex cli-session records=1 status=current cwd=/repo" in listed.stdout
+    assert listed.stdout.rstrip().endswith("codex cli-session records=1 status=current cwd=/repo")
     assert "cli secret" not in listed.stdout
     assert shown.exit_code == 0
+    assert json.loads(shown.stdout)["schema"] == "dot.agent.session.show/v2"
     assert "records" not in json.loads(shown.stdout)["session"]
     assert json.loads(shown_with_content.stdout)["session"]["records"][0]["content"] == "cli secret"
 
 
-def test_cli_list_defaults_to_latest_bounded_rows_and_supports_json_status_filters(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_list_is_bounded_and_filters_json_by_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    old = _ingest("codex", "shared", fingerprint="a" * 64, cwd="/old")
-    current = _ingest("codex", "shared", fingerprint="b" * 64, cwd="/current")
-    other = _ingest("claude", "other", fingerprint="c" * 64, cwd="/other")
-    _rewrite_manifest(old, ingested_at="2026-09-01T10:00:00Z")
+    legacy = _ingest("codex", "legacy", cwd="/old")
+    current = _ingest("codex", "current", cwd="/current")
+    other = _ingest("claude", "other", cwd="/other")
+    _rewrite_manifest(legacy, ingested_at="2026-09-01T10:00:00Z", parser_version="3")
     _rewrite_manifest(current, ingested_at="2026-09-02T10:00:00Z")
     _rewrite_manifest(other, ingested_at="2026-09-03T10:00:00Z")
     runner = CliRunner()
 
     latest = runner.invoke(app, ["agent", "session", "list", "--json", "--limit", "1"])
-    stale = runner.invoke(
-        app,
-        ["agent", "session", "list", "--json", "--all-generations", "--status", "stale"],
-    )
+    flagged = runner.invoke(app, ["agent", "session", "list", "--json", "--status", "legacy"])
+    unknown = runner.invoke(app, ["agent", "session", "list", "--status", "stale"])
+    removed = runner.invoke(app, ["agent", "session", "list", "--all-generations"])
 
     assert latest.exit_code == 0
+    assert json.loads(latest.stdout)["schema"] == "dot.agent.session.list/v2"
     assert [row["session_id"] for row in json.loads(latest.stdout)["sessions"]] == ["other"]
-    assert stale.exit_code == 0
-    assert [row["cwd"] for row in json.loads(stale.stdout)["sessions"]] == ["/old"]
+    assert flagged.exit_code == 0
+    assert [row["cwd"] for row in json.loads(flagged.stdout)["sessions"]] == ["/old"]
+    assert unknown.exit_code == removed.exit_code == 2
 
 
-def test_query_can_select_latest_status_and_limit_without_reading_content(
+def test_query_selects_status_and_limit_without_reading_content(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    old = _ingest("codex", "shared", fingerprint="d" * 64, cwd="/old")
-    current = _ingest("codex", "shared", fingerprint="e" * 64, cwd="/current")
-    _rewrite_manifest(old, ingested_at="2026-09-01T10:00:00Z")
-    _rewrite_manifest(current, ingested_at="2026-09-02T10:00:00Z")
+    _rewrite_manifest(_ingest("codex", "old", cwd="/old"), ingested_at="2026-09-01T10:00:00Z")
+    _rewrite_manifest(_ingest("codex", "new", cwd="/current"), ingested_at="2026-09-02T10:00:00Z")
+    monkeypatch.setattr(session_query, "read_session_bundle", lambda _path: pytest.fail("content must not be read"))
 
-    summaries = query_session_summaries(latest_only=True, statuses={"current"}, limit=1)
+    summaries = query_session_summaries(statuses={"current"}, limit=1)
 
     assert [(item.cwd, item.status) for item in summaries] == [("/current", ["current"])]
 
@@ -423,32 +237,25 @@ def test_query_reads_only_matching_transcripts_and_preserves_validation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, include_content: bool
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    old = _ingest("codex", "shared", fingerprint="a" * 64)
-    current = _ingest("codex", "shared", fingerprint="b" * 64)
-    _ingest("codex", "other-project", fingerprint="c" * 64, cwd="/other")
-    fallback = _ingest("codex", "missing-cwd", fingerprint="d" * 64)
-    invalid = _ingest("codex", "invalid", fingerprint="e" * 64)
-    _rewrite_manifest(old, ingested_at="2026-09-01T10:00:00Z")
-    _rewrite_manifest(current, ingested_at="2026-09-02T10:00:00Z")
+    current = _ingest("codex", "shared")
+    _ingest("codex", "other-project", cwd="/other")
+    fallback = _ingest("codex", "missing-cwd")
+    invalid = _ingest("codex", "invalid")
     _rewrite_manifest(fallback, cwd="")
-    (invalid / "transcript.jsonl").write_text("corrupt", encoding="utf-8")
+    _corrupt_transcript(invalid)
     reads: list[Path] = []
-    validate = session_query.validate_session_generation
+    read = session_query.read_session_bundle
 
-    def track_reads(path: Path, manifest: SessionManifest) -> list[SessionLog]:
+    def track_reads(path: Path) -> tuple[SessionManifest, list[SessionLog]]:
         reads.append(path)
-        return validate(path, manifest)
+        return read(path)
 
-    monkeypatch.setattr(session_query, "validate_session_generation", track_reads)
+    monkeypatch.setattr(session_query, "read_session_bundle", track_reads)
     summaries = query_session_summaries(
-        SessionQuery(cwd="/work"),
-        latest_only=True,
-        include_content=include_content,
-        validate_content=True,
+        SessionQuery(cwd="/work"), include_content=include_content, validate_content=True
     )
 
-    assert set(reads) == {current, fallback, invalid}
-    assert len(reads) == 3
+    assert sorted(reads) == sorted([current, fallback, invalid])
     assert {item.session_id: item.status for item in summaries} == {
         "shared": ["current"],
         "missing-cwd": ["current"],
@@ -458,55 +265,25 @@ def test_query_reads_only_matching_transcripts_and_preserves_validation(
     assert sum(len(item.records) for item in summaries) == (2 if include_content else 0)
 
 
-def test_discovery_rejects_broken_links_public_entries_and_unreadable_directories(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_malformed_manifest_error_includes_path_and_cause(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    broken_root = tmp_path / "broken-store"
-    broken_root.symlink_to(tmp_path / "missing", target_is_directory=True)
-    with pytest.raises(ValueError, match="symbolic link"):
-        discover_session_generations(broken_root)
+    path = _ingest("codex", "broken")
+    path.write_text("{broken\n", encoding="utf-8")
 
-    generation = _ingest("codex", "unsafe", fingerprint="7" * 64)
-    manifest = generation / "manifest.json"
-    manifest.chmod(0o644)
-    with pytest.raises(ValueError, match="not owner-only"):
-        query_session_summaries()
-    manifest.chmod(0o600)
+    with pytest.raises(ValueError, match="invalid session manifest") as failure:
+        discover_sessions()
 
-    unreadable = session_store_root() / "unreadable"
-    unreadable.mkdir(mode=0o700)
-    unreadable.chmod(0)
-    try:
-        with pytest.raises(OSError, match=r"failed to scan session store .*Permission denied"):
-            query_session_summaries()
-    finally:
-        unreadable.chmod(0o700)
-
-
-def test_malformed_manifest_error_includes_path_and_cause(tmp_path: Path) -> None:
-    generation = tmp_path / "codex" / "lineage" / ("a" * 64)
-    generation.mkdir(mode=0o700, parents=True)
-    for directory in (tmp_path / "codex", tmp_path / "codex" / "lineage", generation):
-        directory.chmod(0o700)
-    manifest = generation / "manifest.json"
-    manifest.write_text("{broken\n", encoding="utf-8")
-    manifest.chmod(0o600)
-
-    with pytest.raises(ValueError, match="failed to read session manifest") as failure:
-        discover_session_generations(tmp_path)
-
-    assert str(manifest) in str(failure.value)
+    assert str(path) in str(failure.value)
     assert "Expecting property name" in str(failure.value)
 
 
 def test_time_filter_excludes_non_rfc3339_manifest_timestamp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    generation = _ingest("codex", "bad-time", fingerprint="8" * 64)
-    _rewrite_manifest(generation, ingested_at="2026-09-01T12:00:00")
+    path = _ingest("codex", "bad-time")
+    _rewrite_manifest(path, ingested_at="2026-09-01T12:00:00")
 
     assert query_session_summaries(SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC))) == []
 
     # A value can match the RFC3339 shape while still naming an impossible day.
-    _rewrite_manifest(generation, ingested_at="2026-02-30T12:00:00Z")
+    _rewrite_manifest(path, ingested_at="2026-02-30T12:00:00Z")
     assert query_session_summaries(SessionQuery(since=datetime(2026, 2, 1, tzinfo=UTC))) == []

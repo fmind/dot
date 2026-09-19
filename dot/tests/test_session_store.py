@@ -1,9 +1,9 @@
+"""One private, atomically replaced bundle per agent session."""
+
 from __future__ import annotations
 
 import hashlib
 import json
-import os
-import shutil
 import stat
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -11,182 +11,145 @@ from pathlib import Path
 
 import pytest
 
-import fmind_dot.archive.store as session_store
 from fmind_dot.archive.store import (
-    SessionIngestionResult,
+    SESSION_PARSER_VERSION,
     SessionLog,
     SessionManifest,
     SessionSource,
-    fingerprint_bytes,
+    discover_session_bundles,
     fingerprint_json,
     fingerprint_logs,
     ingest_session,
     is_valid_session_id,
     marshal_session_logs,
+    read_session_bundle,
     read_session_manifest,
     report_ingestion,
-    session_generation_id,
-    session_lineage_id,
+    session_bundle_path,
     session_store_root,
-    stored_generation,
-    validate_session_generation,
 )
 
 
-def _generation(agent: str, session_id: str, fingerprint: str) -> tuple[Path, SessionManifest]:
-    logs = [SessionLog("2026-08-01T12:00:00Z", agent, session_id, "user", "private")]
-    result = ingest_session(agent, session_id, logs, SessionSource(fingerprint=fingerprint))
-    assert result.manifest is not None
-    path = session_store_root() / agent / result.lineage_id / result.generation_id
-    return path, result.manifest
+def _logs(count: int, session_id: str = "session-1", agent: str = "codex") -> list[SessionLog]:
+    return [
+        SessionLog(f"2026-08-01T12:0{index}:00Z", agent, session_id, "user", f"private {index}", "/work")
+        for index in range(count)
+    ]
 
 
-def _write_generation(path: Path, manifest: SessionManifest, transcript: bytes) -> None:
-    path.mkdir(mode=0o700, parents=True)
-    path.chmod(0o700)
-    usage_path = path / "usage.json"
-    usage_path.write_bytes(b'{"schema":"dot.session.usage/v1","status":"unsupported","record":null}\n')
-    usage_path.chmod(0o600)
-    transcript_path = path / "transcript.jsonl"
-    transcript_path.write_bytes(transcript)
-    transcript_path.chmod(0o600)
-    manifest_path = path / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest.to_dict(), indent=2) + "\n", encoding="utf-8")
-    manifest_path.chmod(0o600)
-
-
-def _manifest_for(
-    transcript: bytes, *, record_count: int = 1, high_water: str = "2026-08-01T12:00:00Z"
-) -> SessionManifest:
-    return SessionManifest(
-        parser_version=session_store.SESSION_PARSER_VERSION,
+def _manifest_value(**changes: object) -> dict[str, object]:
+    value = SessionManifest(
         agent="codex",
         session_id="session-1",
-        lineage_id=session_lineage_id("codex", "session-1"),
+        parser_version=SESSION_PARSER_VERSION,
         source_type="fixture",
         source_fingerprint="a" * 64,
-        high_water_mark=high_water,
         ingested_at="2026-08-01T12:00:00Z",
         completeness="complete",
-        transcript_sha256=fingerprint_bytes(transcript),
-        schema_version=session_store.SESSION_SCHEMA_VERSION,
-        usage_sha256=fingerprint_bytes(b'{"schema":"dot.session.usage/v1","status":"unsupported","record":null}\n'),
-        record_count=record_count,
-        malformed_records=0,
-        skipped_records=0,
-    )
+        record_count=1,
+    ).to_dict()
+    value.update(changes)
+    return value
 
 
-def test_identity_and_atomic_private_generation(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+def _write_bundle(home: Path, header: dict[str, object] | bytes, transcript: bytes) -> Path:
+    path = home / ".agents/sessions/v3/codex/session-1.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    content = header if isinstance(header, bytes) else (json.dumps(header) + "\n").encode()
+    path.write_bytes(content + transcript)
+    return path
+
+
+def test_ingestion_publishes_one_private_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    assert (
-        session_lineage_id("codex", "session-1") == "b540336b2c776814303a05b68a90ac255ba738a435985fdb1709c224fd9416cc"
-    )
-    assert session_generation_id("a" * 64) == "e7ec75287c5d5d293c2d669d12a355f6bb5d2629127b03571e57cbd837134b96"
-    logs = [SessionLog("2026-08-01T12:00:00Z", "codex", "session-1", "user", "private", "/work")]
-    source = SessionSource(type="codex-jsonl", fingerprint="a" * 64)
-    result = ingest_session("codex", "session-1", logs, source)
+    logs = _logs(2)
+    usage = {"harness": "codex", "session_id": "session-1"}
+
+    result = ingest_session("codex", "session-1", logs, SessionSource(type="codex-jsonl", signature="1:2"), usage=usage)
+
+    path = session_bundle_path("codex", "session-1")
     assert result.status == "ingested"
-    assert result.manifest is not None
-    assert result.manifest.cwd == "/work"
-    assert result.manifest.to_dict()["cwd"] == "/work"
-    without_project = result.manifest.to_dict()
-    del without_project["cwd"]
-    assert SessionManifest.from_dict(without_project).cwd == ""
-    generation = session_store_root() / "codex" / result.lineage_id / result.generation_id
-    assert validate_session_generation(generation, result.manifest) == logs
-    assert stat.S_IMODE(generation.stat().st_mode) == 0o700
-    assert stat.S_IMODE((generation / "manifest.json").stat().st_mode) == 0o600
-    assert stat.S_IMODE((generation / "transcript.jsonl").stat().st_mode) == 0o600
-    assert ingest_session("codex", "session-1", logs, source).status == "duplicate"
-
-
-def test_concurrent_ingestion_converges_and_corruption_fails(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    logs = [SessionLog("", "claude", "same", "assistant", "answer")]
-    source = SessionSource(fingerprint="b" * 64)
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        statuses = list(executor.map(lambda _: ingest_session("claude", "same", logs, source).status, range(4)))
-    assert statuses.count("ingested") == 1
-    assert statuses.count("duplicate") == 3
-    lineage = session_lineage_id("claude", "same")
-    generation = session_store_root() / "claude" / lineage / session_generation_id("b" * 64)
-    (generation / "transcript.jsonl").write_text("{}\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="fingerprint mismatch"):
-        ingest_session("claude", "same", logs, source)
-
-
-def test_transcript_is_compact_utf8_jsonl(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    result = ingest_session(
-        "agy",
-        "unicode",
-        [SessionLog("", "agy", "unicode", "user", "café <ok>")],
-        SessionSource(fingerprint="c" * 64),
+    assert path == session_store_root() / "codex/session-1.jsonl"
+    assert discover_session_bundles() == [path]
+    manifest, records = read_session_bundle(path)
+    assert records == logs
+    assert manifest == read_session_manifest(path) == result.manifest
+    assert (manifest.cwd, manifest.source_signature, manifest.usage, manifest.record_count) == (
+        "/work",
+        "1:2",
+        usage,
+        2,
     )
-    path = session_store_root() / "agy" / result.lineage_id / result.generation_id / "transcript.jsonl"
-    assert json.loads(path.read_text(encoding="utf-8"))["content"] == "café <ok>"
-    assert b"caf\xc3\xa9 <ok>" in path.read_bytes()
+    assert stat.S_IMODE(session_store_root().stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert sorted(item.name for item in path.parent.iterdir()) == ["session-1.jsonl"]
 
 
-def test_ingestion_rejects_agent_paths_before_touching_outside_store(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    home = tmp_path / "home"
-    outside = tmp_path / "outside"
-    home.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    agent = str(outside)
+def test_replacement_never_shrinks_the_archived_transcript(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = session_bundle_path("codex", "session-1")
 
-    with pytest.raises(ValueError, match="invalid agent format"):
-        ingest_session(
-            agent,
-            "session-1",
-            [SessionLog("", agent, "session-1", "user", "private")],
-            SessionSource(fingerprint="d" * 64),
-        )
-
-    assert not outside.exists()
+    assert ingest_session("codex", "session-1", _logs(2), SessionSource(fingerprint="a" * 64)).status == "ingested"
+    # A truncated or rotated source keeps the longer archived copy.
+    retained = ingest_session("codex", "session-1", _logs(1), SessionSource(fingerprint="b" * 64))
+    assert (retained.status, retained.manifest.record_count) == ("retained", 2)
+    assert read_session_manifest(path).source_fingerprint == "a" * 64
+    # The same record count, or more, replaces the copy.
+    assert ingest_session("codex", "session-1", _logs(2), SessionSource(fingerprint="c" * 64)).status == "ingested"
+    assert ingest_session("codex", "session-1", _logs(3), SessionSource(fingerprint="d" * 64)).status == "ingested"
+    manifest, records = read_session_bundle(path)
+    assert (manifest.source_fingerprint, len(records)) == ("d" * 64, 3)
 
 
-def test_duplicate_ingestion_rejects_generation_with_public_transcript(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
+def test_unchanged_content_keeps_capture_time_and_refreshes_signature(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    logs = [SessionLog("", "codex", "private-session", "user", "secret")]
-    source = SessionSource(fingerprint="e" * 64)
-    result = ingest_session("codex", "private-session", logs, source)
-    generation = session_store_root() / "codex" / result.lineage_id / result.generation_id
-    transcript = generation / "transcript.jsonl"
-    transcript.chmod(0o644)
+    first = ingest_session("codex", "session-1", _logs(1), SessionSource(fingerprint="a" * 64, signature="old"))
+    path = session_bundle_path("codex", "session-1")
+    content = path.read_bytes()
 
-    with pytest.raises(ValueError, match="not owner-only"):
-        ingest_session("codex", "private-session", logs, source)
+    assert ingest_session(
+        "codex", "session-1", _logs(1), SessionSource(fingerprint="a" * 64, signature="old")
+    ).status == ("unchanged")
+    assert path.read_bytes() == content
+    touched = ingest_session("codex", "session-1", _logs(1), SessionSource(fingerprint="a" * 64, signature="new"))
+
+    assert touched.status == "unchanged"
+    stored = read_session_manifest(path)
+    assert (stored.source_signature, stored.ingested_at) == ("new", first.manifest.ingested_at)
 
 
-def test_atomic_publication_fsyncs_generation_and_lineage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_concurrent_ingestion_converges_without_temporary_residue(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    synced_directories: set[tuple[int, int]] = set()
-    real_fsync = session_store.os.fsync
+    logs = _logs(1, "same", "claude")
 
-    def record_fsync(descriptor: int) -> None:
-        info = os.fstat(descriptor)
-        if stat.S_ISDIR(info.st_mode):
-            synced_directories.add((info.st_dev, info.st_ino))
-        real_fsync(descriptor)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        statuses = list(
+            executor.map(
+                lambda index: ingest_session("claude", "same", logs, SessionSource(fingerprint=f"{index}" * 64)).status,
+                range(4),
+            )
+        )
 
-    monkeypatch.setattr(session_store.os, "fsync", record_fsync)
-    result = ingest_session(
-        "codex",
-        "durable",
-        [SessionLog("", "codex", "durable", "user", "private")],
-        SessionSource(fingerprint="f" * 64),
-    )
-    generation = session_store_root() / "codex" / result.lineage_id / result.generation_id
+    assert set(statuses) <= {"ingested", "unchanged"}
+    path = session_bundle_path("claude", "same")
+    assert read_session_bundle(path)[1] == logs
+    assert [item.name for item in path.parent.iterdir()] == ["same.jsonl"]
 
-    expected = {
-        (generation.stat().st_dev, generation.stat().st_ino),
-        (generation.parent.stat().st_dev, generation.parent.stat().st_ino),
-    }
-    assert expected <= synced_directories
+
+def test_bundle_content_is_compact_native_utf8(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("agy", "unicode", [SessionLog("", "agy", "unicode", "user", "café <ok>\u2028")])
+
+    content = session_bundle_path("agy", "unicode").read_bytes()
+
+    assert "café <ok>\u2028".encode() in content
+    assert content.count(b"\n") == 2
+    assert read_session_bundle(session_bundle_path("agy", "unicode"))[1][0].content == "café <ok>\u2028"
 
 
 def test_fingerprints_preserve_native_unicode_json() -> None:
@@ -201,176 +164,7 @@ def test_fingerprints_preserve_native_unicode_json() -> None:
         + '<&>\u2028\u2029","cwd":"/repo","model":"gpt"}\n'.encode()
     )
     assert encoded == native_transcript
-    assert json.loads(encoded)["cwd"] == "/repo"
-    assert json.loads(encoded)["model"] == "gpt"
     assert fingerprint_logs(logs) == hashlib.sha256(native_transcript).hexdigest()
-
-
-@pytest.mark.parametrize(
-    ("change", "match"),
-    [
-        ({"completeness": "unknown"}, "invalid completeness"),
-        ({"agent": ""}, "invalid manifest field agent"),
-        ({"record_count": True}, "invalid manifest field record_count"),
-        ({"malformed_records": -1}, "invalid manifest field malformed_records"),
-    ],
-)
-def test_manifest_rejects_invalid_fields(change: dict[str, object], match: str) -> None:
-    transcript = marshal_session_logs([SessionLog("", "codex", "session-1", "user", "hello")])
-    value = _manifest_for(transcript).to_dict()
-    value.update(change)
-
-    with pytest.raises(ValueError, match=match):
-        SessionManifest.from_dict(value)
-
-
-def test_manifest_and_records_reject_missing_or_wrong_typed_input(tmp_path: Path) -> None:
-    transcript = marshal_session_logs([SessionLog("", "codex", "session-1", "user", "hello")])
-    value = _manifest_for(transcript).to_dict()
-    del value["schema_version"]
-    with pytest.raises(ValueError, match="invalid session manifest"):
-        SessionManifest.from_dict(value)
-
-    required = {"ts": "", "agent": "codex", "sid": "session-1", "role": "user", "content": 1}
-    with pytest.raises(ValueError, match="invalid normalized transcript record"):
-        SessionLog.from_dict(required)
-    required["content"] = "hello"
-    required["cwd"] = []
-    with pytest.raises(ValueError, match="invalid normalized transcript record"):
-        SessionLog.from_dict(required)
-
-    generation = tmp_path / "generation"
-    generation.mkdir(mode=0o700)
-    manifest_path = generation / "manifest.json"
-    manifest_path.write_text("[]\n", encoding="utf-8")
-    manifest_path.chmod(0o600)
-    with pytest.raises(ValueError, match="invalid session manifest"):
-        read_session_manifest(generation)
-
-
-@pytest.mark.parametrize(
-    ("transcript", "record_count", "high_water", "match"),
-    [
-        (b"\xff", 1, "2026-08-01T12:00:00Z", "invalid normalized transcript record"),
-        (b"{broken\n", 1, "2026-08-01T12:00:00Z", "invalid normalized transcript record 1"),
-        (b"[]\n", 1, "2026-08-01T12:00:00Z", "invalid normalized transcript record 1"),
-        (
-            b'{"ts":"","agent":"codex","sid":"session-1","role":"user","content":1}\n',
-            1,
-            "2026-08-01T12:00:00Z",
-            "invalid normalized transcript record 1",
-        ),
-        (
-            b'{"ts":"","agent":"codex","sid":"session-1","role":"user","content":"ok","cwd":[]}\n',
-            1,
-            "2026-08-01T12:00:00Z",
-            "invalid normalized transcript record 1",
-        ),
-        (
-            b'{"ts":"2026-08-01T12:00:00Z","agent":"claude","sid":"session-1","role":"user","content":"ok"}\n',
-            1,
-            "2026-08-01T12:00:00Z",
-            "mismatched lineage",
-        ),
-        (
-            b'{"ts":"2026-08-01T12:00:00Z","agent":"codex","sid":"session-1","role":"user","content":"ok"}\n',
-            2,
-            "2026-08-01T12:00:00Z",
-            "contains 1 records, expected 2",
-        ),
-        (
-            b'{"ts":"2026-08-02T12:00:00Z","agent":"codex","sid":"session-1","role":"user","content":"ok"}\n',
-            1,
-            "2026-08-01T12:00:00Z",
-            "high-water mark",
-        ),
-    ],
-)
-def test_generation_integrity_rejects_malformed_or_contradictory_transcripts(
-    tmp_path: Path, transcript: bytes, record_count: int, high_water: str, match: str
-) -> None:
-    manifest = _manifest_for(transcript, record_count=record_count, high_water=high_water)
-    generation = tmp_path / "generation"
-    _write_generation(generation, manifest, transcript)
-
-    with pytest.raises(ValueError, match=match):
-        validate_session_generation(generation, manifest)
-
-
-def test_generation_integrity_rejects_manifest_round_trip_mismatch(tmp_path: Path) -> None:
-    transcript = marshal_session_logs([SessionLog("2026-08-01T12:00:00Z", "codex", "session-1", "user", "hello")])
-    manifest = _manifest_for(transcript)
-    generation = tmp_path / "generation"
-    _write_generation(generation, manifest, transcript)
-
-    with pytest.raises(ValueError, match="manifest did not round-trip"):
-        validate_session_generation(generation, replace(manifest, source_type="other"))
-
-
-def test_generation_validation_rejects_symlinks_and_hard_links(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
-
-    symlink_generation, symlink_manifest = _generation("codex", "symlinked", "1" * 64)
-    moved_generation = tmp_path / "moved-generation"
-    symlink_generation.rename(moved_generation)
-    symlink_generation.symlink_to(moved_generation, target_is_directory=True)
-    with pytest.raises(ValueError, match="directory is a symbolic link"):
-        validate_session_generation(symlink_generation, symlink_manifest)
-
-    file_generation, file_manifest = _generation("codex", "linked-file", "2" * 64)
-    transcript = file_generation / "transcript.jsonl"
-    outside_link = tmp_path / "outside-transcript.jsonl"
-    outside_link.hardlink_to(transcript)
-    with pytest.raises(ValueError, match="multiple hard links"):
-        validate_session_generation(file_generation, file_manifest)
-
-    manifest_generation, _ = _generation("codex", "manifest-link", "3" * 64)
-    manifest_path = manifest_generation / "manifest.json"
-    outside_manifest = tmp_path / "outside-manifest.json"
-    manifest_path.rename(outside_manifest)
-    manifest_path.symlink_to(outside_manifest)
-    with pytest.raises(ValueError, match="file is a symbolic link"):
-        read_session_manifest(manifest_generation)
-
-    wrong_type_generation, wrong_type_manifest = _generation("codex", "wrong-type", "a" * 64)
-    wrong_type_transcript = wrong_type_generation / "transcript.jsonl"
-    wrong_type_transcript.unlink()
-    wrong_type_transcript.mkdir(mode=0o700)
-    with pytest.raises(ValueError, match="path is not a file"):
-        validate_session_generation(wrong_type_generation, wrong_type_manifest)
-
-
-def test_ingestion_secures_directories_and_rejects_agent_symlink(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = session_store_root()
-    agent_directory = root / "codex"
-    lineage_directory = agent_directory / session_lineage_id("codex", "permissions")
-    lineage_directory.mkdir(mode=0o755, parents=True)
-    for path in (root, agent_directory, lineage_directory):
-        path.chmod(0o755)
-
-    ingest_session(
-        "codex",
-        "permissions",
-        [SessionLog("", "codex", "permissions", "user", "private")],
-        SessionSource(fingerprint="b" * 64),
-    )
-
-    assert all(stat.S_IMODE(path.stat().st_mode) == 0o700 for path in (root, agent_directory, lineage_directory))
-
-    outside = tmp_path / "outside-agent"
-    outside.mkdir(mode=0o700)
-    (root / "claude").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(ValueError, match="refusing symbolic link"):
-        ingest_session(
-            "claude",
-            "linked-agent",
-            [SessionLog("", "claude", "linked-agent", "user", "private")],
-            SessionSource(fingerprint="c" * 64),
-        )
-    assert list(outside.iterdir()) == []
 
 
 def test_ingestion_normalizes_models_and_default_source_metadata(
@@ -387,202 +181,119 @@ def test_ingestion_normalizes_models_and_default_source_metadata(
 
     result = ingest_session("codex", "models", logs)
 
-    assert result.manifest is not None
     assert [log.model for log in logs] == ["first", "first", "first", "second", "second"]
     assert result.manifest.source_type == "normalized"
     assert result.manifest.source_fingerprint == fingerprint_logs(logs)
     assert result.manifest.high_water_mark == "2026-08-01T14:00:00Z"
     assert result.manifest.completeness == "complete"
+    assert ingest_session(
+        "codex", "partial", _logs(1, "partial"), SessionSource(malformed=1)
+    ).manifest.completeness == ("partial")
 
 
-def test_ingestion_reports_skips_and_rejects_invalid_inputs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_ingestion_skips_empty_sessions_and_rejects_unsafe_identities(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     skipped = ingest_session("codex", "empty", [], SessionSource(type="fixture", malformed=2, skipped=3))
     assert skipped.status == "skipped"
-    assert skipped.manifest is not None
-    assert skipped.manifest.completeness == "partial"
-    assert skipped.manifest.skipped_records == 3
-    assert "records=0 malformed=2 skipped=3 completeness=partial" in report_ingestion(skipped)
-    assert not session_store_root().exists()
+    assert "skipped codex records=0 malformed=2 skipped=3 completeness=partial" in report_ingestion(skipped)
+    assert not (tmp_path / ".agents").exists()
 
-    default_skip = ingest_session("codex", "empty-default", [])
-    assert default_skip.manifest is not None
-    assert default_skip.manifest.completeness == "complete"
-    assert default_skip.manifest.skipped_records == 1
-    with pytest.raises(ValueError, match="missing its manifest"):
-        report_ingestion(SessionIngestionResult("skipped", "lineage"))
-
-    valid = SessionLog("", "codex", "valid", "user", "hello")
-    for invalid in ("", "../escape", "space separated"):
+    valid = _logs(1, "valid")[0]
+    for invalid in ("", "..", "../escape", "a/b", "space separated", "dot.ted"):
+        assert not is_valid_session_id(invalid)
         with pytest.raises(ValueError, match="invalid session_id format"):
             ingest_session("codex", invalid, [replace(valid, sid=invalid)])
-        assert not is_valid_session_id(invalid)
+        with pytest.raises(ValueError, match="invalid agent format"):
+            ingest_session(invalid, "valid", [replace(valid, agent=invalid)])
     assert is_valid_session_id("safe_ID-1")
-
-    with pytest.raises(ValueError, match="record 1 does not match its lineage"):
+    with pytest.raises(ValueError, match="record 1 does not match its session"):
         ingest_session("codex", "valid", [replace(valid, agent="claude")])
-    for fingerprint in ("short", "g" * 64):
-        with pytest.raises(ValueError, match="full SHA-256 digest"):
-            ingest_session("codex", "valid", [valid], SessionSource(fingerprint=fingerprint))
+    assert not (tmp_path / ".agents").exists()
 
 
-def test_stored_generation_requires_exact_safe_immutable_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_corrupt_stored_bundle_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    fingerprint = "4" * 64
-    assert stored_generation("codex", "stored", "") is None
-    assert stored_generation(str(tmp_path / "outside"), "stored", fingerprint) is None
-    assert stored_generation("codex", "../stored", fingerprint) is None
-    assert stored_generation("codex", "stored", fingerprint) is None
+    ingest_session("codex", "session-1", _logs(1))
+    path = session_bundle_path("codex", "session-1")
+    path.write_text("{}\n")
 
-    generation, manifest = _generation("codex", "stored", fingerprint)
-    assert stored_generation("codex", "stored", fingerprint) == manifest
-
-    manifest_path = generation / "manifest.json"
-    original = manifest.to_dict()
-    for field, value in (
-        ("schema_version", 999),
-        ("parser_version", "999"),
-        ("agent", "claude"),
-        ("session_id", "other"),
-        ("lineage_id", "0" * 64),
-        ("source_fingerprint", "5" * 64),
-    ):
-        changed = dict(original)
-        changed[field] = value
-        manifest_path.write_text(json.dumps(changed) + "\n", encoding="utf-8")
-        manifest_path.chmod(0o600)
-        message = (
-            "unsupported session format"
-            if field in {"schema_version", "parser_version"}
-            else "stored session generation does not match its immutable identity"
-        )
-        with pytest.raises(ValueError, match=message):
-            stored_generation("codex", "stored", fingerprint)
-
-    manifest_path.write_text("{broken\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="invalid session manifest"):
-        stored_generation("codex", "stored", fingerprint)
+    with pytest.raises(ValueError, match="unsupported session format"):
+        ingest_session("codex", "session-1", _logs(2))
+    assert path.read_text() == "{}\n"
 
 
 @pytest.mark.parametrize(
-    ("damage", "match"),
+    ("change", "match"),
     [
-        ("missing", "could not be read"),
-        ("corrupt", "fingerprint mismatch"),
-        ("public", "not owner-only"),
-        ("hard-linked", "multiple hard links"),
+        ({"schema_version": 2}, "unsupported session format; recapture available sources"),
+        ({"parser_version": "2"}, "unsupported session format"),
+        ({"completeness": "unknown"}, "invalid manifest field completeness"),
+        ({"agent": ""}, "invalid manifest field agent"),
+        ({"session_id": "../escape"}, "invalid session manifest identity"),
+        ({"record_count": True}, "invalid manifest field record_count"),
+        ({"malformed_records": -1}, "invalid manifest field malformed_records"),
+        ({"usage": []}, "invalid manifest field usage"),
     ],
 )
-def test_stored_generation_validates_complete_transcript(
-    damage: str, match: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    fingerprint = "d" * 64
-    generation, _ = _generation("codex", "stored-transcript", fingerprint)
-    transcript = generation / "transcript.jsonl"
-
-    if damage == "missing":
-        transcript.unlink()
-    elif damage == "corrupt":
-        transcript.write_text("{}\n", encoding="utf-8")
-    elif damage == "public":
-        transcript.chmod(0o644)
-    else:
-        (tmp_path / "outside-transcript.jsonl").hardlink_to(transcript)
-
+def test_manifest_rejects_invalid_fields(change: dict[str, object], match: str) -> None:
     with pytest.raises(ValueError, match=match):
-        stored_generation("codex", "stored-transcript", fingerprint)
+        SessionManifest.from_dict(_manifest_value(**change))
 
 
-def test_existing_generation_identity_mismatch_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    logs = [SessionLog("", "codex", "conflict", "user", "private")]
-    source = SessionSource(fingerprint="6" * 64)
-    generation, manifest = _generation("codex", "conflict", source.fingerprint)
-    manifest_path = generation / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(replace(manifest, source_fingerprint="7" * 64).to_dict()) + "\n",
-        encoding="utf-8",
-    )
+def test_manifest_and_records_reject_missing_or_wrong_typed_input() -> None:
+    value = _manifest_value()
+    del value["record_count"]
+    with pytest.raises(ValueError, match="invalid session manifest"):
+        SessionManifest.from_dict(value)
 
-    with pytest.raises(ValueError, match="does not match its immutable identity"):
-        ingest_session("codex", "conflict", logs, source)
+    required = {"ts": "", "agent": "codex", "sid": "session-1", "role": "user", "content": 1}
+    with pytest.raises(ValueError, match="invalid normalized transcript record"):
+        SessionLog.from_dict(required)
+    required["content"] = "hello"
+    required["cwd"] = []
+    with pytest.raises(ValueError, match="invalid normalized transcript record"):
+        SessionLog.from_dict(required)
 
 
-@pytest.mark.parametrize("outcome", ["same", "mismatch", "missing"])
-def test_ingestion_rename_races_converge_or_fail_without_temp_residue(
-    outcome: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize(
+    ("header", "transcript", "match"),
+    [
+        (b"[]\n", b"", "invalid session manifest"),
+        (b"{broken\n", b"", "invalid session manifest"),
+        (_manifest_value(session_id="other"), b"", "does not match its path"),
+        (_manifest_value(), b"\xff\n", "invalid normalized transcript record 1"),
+        (_manifest_value(), b"{broken\n", "invalid normalized transcript record 1"),
+        (
+            _manifest_value(),
+            b'{"ts":"","agent":"claude","sid":"session-1","role":"user","content":"ok"}\n',
+            "record 1 does not match its session",
+        ),
+        (
+            _manifest_value(record_count=2),
+            b'{"ts":"","agent":"codex","sid":"session-1","role":"user","content":"ok"}\n',
+            "contains 1 records, expected 2",
+        ),
+    ],
+)
+def test_bundle_reads_reject_malformed_or_contradictory_content(
+    tmp_path: Path, header: dict[str, object] | bytes, transcript: bytes, match: str
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    session_id = f"race-{outcome}"
-    logs = [SessionLog("", "codex", session_id, "user", "private")]
-    fingerprint = "8" * 64
-
-    lineage = session_store_root() / "codex" / session_lineage_id("codex", session_id)
-
-    def race(source_name, destination_name, *, src_dir_fd=None, dst_dir_fd=None) -> None:
-        assert src_dir_fd == dst_dir_fd
-        if outcome == "missing":
-            raise PermissionError("rename denied")
-        temp = lineage / source_name
-        final = lineage / destination_name
-        shutil.copytree(temp, final)
-        if outcome == "mismatch":
-            manifest_path = final / "manifest.json"
-            value = json.loads(manifest_path.read_text(encoding="utf-8"))
-            value["source_fingerprint"] = "9" * 64
-            manifest_path.write_text(json.dumps(value) + "\n", encoding="utf-8")
-            manifest_path.chmod(0o600)
-        raise FileExistsError("concurrent publication")
-
-    monkeypatch.setattr(session_store.os, "rename", race)
-    if outcome == "same":
-        assert ingest_session("codex", session_id, logs, SessionSource(fingerprint=fingerprint)).status == "duplicate"
-    elif outcome == "mismatch":
-        with pytest.raises(ValueError, match="concurrent session generation has mismatched identity"):
-            ingest_session("codex", session_id, logs, SessionSource(fingerprint=fingerprint))
-    else:
-        with pytest.raises(PermissionError, match="rename denied"):
-            ingest_session("codex", session_id, logs, SessionSource(fingerprint=fingerprint))
-
-    assert list(lineage.glob(".ingest-*")) == []
+    path = _write_bundle(tmp_path, header, transcript)
+    with pytest.raises(ValueError, match=match):
+        read_session_bundle(path)
 
 
-def test_ingestion_temp_generation_stays_confined_when_lineage_is_swapped(
+def test_discovery_ignores_temporary_files_sync_state_and_unsafe_names(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    home = tmp_path / "home"
-    home.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    session_id = "lineage-swap"
-    lineage = session_lineage_id("codex", session_id)
-    lineage_directory = session_store_root() / "codex" / lineage
-    moved = tmp_path / "moved-lineage"
-    outside = tmp_path / "outside"
-    outside.mkdir(mode=0o700)
-    original_mkdir = session_store.os.mkdir
-    swapped = False
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("codex", "session-1", _logs(1))
+    directory = session_store_root() / "codex"
+    (directory / ".session-1.jsonl.abc.tmp").write_text("partial")
+    (directory / ".sync.json").write_text("{}")
+    (directory / "unsafe.name.jsonl").write_text("{}")
+    (session_store_root() / "bad agent").mkdir()
 
-    def swap_lineage(path, mode=0o777, *, dir_fd=None):
-        nonlocal swapped
-        if Path(path).name.startswith(".ingest-") and not swapped:
-            lineage_directory.rename(moved)
-            lineage_directory.symlink_to(outside, target_is_directory=True)
-            swapped = True
-        return original_mkdir(path, mode, dir_fd=dir_fd)
-
-    monkeypatch.setattr(session_store.os, "mkdir", swap_lineage)
-
-    with pytest.raises(ValueError, match="lineage changed during ingestion"):
-        ingest_session(
-            "codex",
-            session_id,
-            [SessionLog("", "codex", session_id, "user", "private")],
-            SessionSource(fingerprint="a" * 64),
-        )
-
-    assert swapped
-    assert list(outside.iterdir()) == []
-    assert list(moved.iterdir()) == []
+    assert discover_session_bundles() == [directory / "session-1.jsonl"]

@@ -22,7 +22,6 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "cache",
         "prune",
     }
-    assert config.agent.doctor.scan_limit == 16384
     assert config.pull.timeout_seconds == 120.0
 
 
@@ -67,7 +66,6 @@ def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) ->
     [
         ("pull:\n  concurrency: VALUE\n", "concurrency"),
         ("doctor:\n  probe_concurrency: VALUE\n", "probe_concurrency"),
-        ("agent:\n  doctor:\n    scan_limit: VALUE\n", "scan_limit"),
         ("doctor:\n  secrets:\n    - path: ~/.config/key\n      required_perms: VALUE\n", "required_perms"),
     ],
 )

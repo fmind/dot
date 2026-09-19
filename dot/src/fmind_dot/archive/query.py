@@ -2,33 +2,24 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
-import stat
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO, Any
 
 from fmind_dot.archive.store import (
+    SESSION_PARSER_VERSION,
     SessionLog,
     SessionManifest,
-    delete_session_generation,
-    generation_files,
+    discover_session_bundles,
+    read_session_bundle,
     read_session_manifest,
-    read_session_usage,
-    session_digest,
-    session_lineage_id,
-    session_store_root,
-    sweep_stale_ingestion,
-    validate_session_generation,
 )
 
-SESSION_EXPORT_SCHEMA = "dot.agent.sessions/v1"
-_GENERATION_ID = re.compile(r"^[0-9a-f]{64}$")
+SESSION_EXPORT_SCHEMA = "dot.agent.sessions/v2"
+SESSION_STATUSES = ("current", "invalid", "legacy", "partial")
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?"
     r"(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
@@ -48,8 +39,7 @@ class SessionQuery:
 class SessionSummary:
     agent: str
     session_id: str
-    lineage_id: str
-    generation_id: str
+    parser_version: str
     source_type: str
     ingested_at: str
     completeness: str
@@ -60,17 +50,30 @@ class SessionSummary:
     cwd: str = ""
     records: list[SessionLog] = field(default_factory=list)
     status: list[str] = field(default_factory=list)
-    source_fingerprint: str = field(default="", repr=False)
+    path: Path = field(default_factory=Path, repr=False)
+
+    @classmethod
+    def from_manifest(cls, path: Path, manifest: SessionManifest) -> SessionSummary:
+        return cls(
+            agent=manifest.agent,
+            session_id=manifest.session_id,
+            parser_version=manifest.parser_version,
+            source_type=manifest.source_type,
+            ingested_at=manifest.ingested_at,
+            completeness=manifest.completeness,
+            record_count=manifest.record_count,
+            malformed_records=manifest.malformed_records,
+            skipped_records=manifest.skipped_records,
+            high_water_mark=manifest.high_water_mark,
+            cwd=manifest.cwd,
+            path=path,
+        )
 
     def to_dict(self, *, include_records: bool | None = None) -> dict[str, Any]:
-        result: dict[str, Any] = {
-            "agent": self.agent,
-            "session_id": self.session_id,
-            "lineage_id": self.lineage_id,
-            "generation_id": self.generation_id,
-        }
+        result: dict[str, Any] = {"agent": self.agent, "session_id": self.session_id}
         if self.cwd:
             result["cwd"] = self.cwd
+        result["parser_version"] = self.parser_version
         result["source_type"] = self.source_type
         result["ingested_at"] = self.ingested_at
         if self.high_water_mark:
@@ -89,210 +92,15 @@ class SessionSummary:
         return result
 
 
-@dataclass
-class _Generation:
-    path: Path
-    manifest: SessionManifest
-    summary: SessionSummary
-
-
-@dataclass(frozen=True)
-class SessionCompactionResult:
-    lineages: int
-    generations: int
-    retained: int
-    removable: int
-    removed: int
-    reclaimable_bytes: int
-    stale_ingestions: int = 0
-
-
-def _require_owner_only(path: Path) -> None:
-    metadata = path.lstat()
-    if stat.S_ISLNK(metadata.st_mode):
-        raise ValueError(f"session store contains a symbolic link: {path}")
-    if stat.S_IMODE(metadata.st_mode) & 0o077:
-        raise ValueError(f"session store path is not owner-only: {path}")
-
-
-def _walk_private_tree(root: Path, context: str) -> Iterator[tuple[Path, list[str], list[str]]]:
-    """Walk a private archive without following or silently skipping entries."""
-    try:
-        root_metadata = root.lstat()
-    except FileNotFoundError:
-        return
-    except OSError as error:
-        raise OSError(f"{context} {root}: {error}") from error
-    if stat.S_ISLNK(root_metadata.st_mode):
-        raise ValueError(f"session store contains a symbolic link: {root}")
-    _require_owner_only(root)
-
-    def fail(error: OSError) -> None:
-        raise OSError(f"{context} {root}: {error}") from error
-
-    for current, directories, files in os.walk(root, followlinks=False, onerror=fail):
-        current_path = Path(current)
-        try:
-            _require_owner_only(current_path)
-            directories.sort()
-            files.sort()
-            for name in [*directories, *files]:
-                _require_owner_only(current_path / name)
-        except OSError as error:
-            fail(error)
-        yield current_path, directories, files
-
-
-def discover_session_generations(root: Path | None = None) -> list[_Generation]:
-    root = root or session_store_root()
-    generations: list[_Generation] = []
-    for current_path, _, files in _walk_private_tree(root, "failed to scan session store"):
-        # An interrupted ingestion leaves a manifest in its temporary directory;
-        # only a published generation name identifies an archive entry.
-        if "manifest.json" not in files or not _GENERATION_ID.fullmatch(current_path.name):
-            continue
-        generation_path = current_path
-        try:
-            manifest = read_session_manifest(generation_path)
-        except (OSError, ValueError, json.JSONDecodeError) as error:
-            raise ValueError(f"failed to read session manifest {generation_path / 'manifest.json'}: {error}") from error
-        generations.append(
-            _Generation(
-                generation_path,
-                manifest,
-                SessionSummary(
-                    agent=manifest.agent,
-                    session_id=manifest.session_id,
-                    lineage_id=manifest.lineage_id,
-                    generation_id=generation_path.name,
-                    source_type=manifest.source_type,
-                    ingested_at=manifest.ingested_at,
-                    high_water_mark=manifest.high_water_mark,
-                    completeness=manifest.completeness,
-                    record_count=manifest.record_count,
-                    malformed_records=manifest.malformed_records,
-                    skipped_records=manifest.skipped_records,
-                    cwd=manifest.cwd,
-                    source_fingerprint=manifest.source_fingerprint,
-                ),
-            )
-        )
-    return generations
-
-
-def _allocated_bytes(path: Path) -> int:
-    return sum(entry.lstat().st_blocks * 512 for entry in (path, *path.iterdir()))
-
-
-def _validate_compaction_generation(root: Path, generation: _Generation) -> tuple[int, list[bytes]]:
-    manifest = generation.manifest
-    try:
-        parts = generation.path.relative_to(root).parts
-    except ValueError as error:
-        raise ValueError(f"session generation is outside the archive: {generation.path}") from error
-    expected_generation = session_digest(manifest.parser_version, manifest.source_fingerprint)
-    if (
-        len(parts) != 3
-        or parts != (manifest.agent, manifest.lineage_id, expected_generation)
-        or manifest.lineage_id != session_lineage_id(manifest.agent, manifest.session_id)
-    ):
-        raise ValueError(f"session generation does not match its immutable identity: {generation.path}")
-    records = validate_session_generation(generation.path, manifest)
-    entries = {entry.name for entry in generation.path.iterdir()}
-    if entries != generation_files(manifest):
-        raise ValueError(f"session generation contains unexpected entries: {generation.path}")
-    # Retain canonical record fingerprints, not every transcript in the archive.
-    # Field boundaries and all record metadata participate in prefix comparisons.
-    fingerprints = [
-        hashlib.sha256(json.dumps(record.to_dict(), sort_keys=True, ensure_ascii=False).encode()).digest()
-        for record in records
-    ]
-    return _allocated_bytes(generation.path), fingerprints
-
-
-def _compaction_sort_key(generation: _Generation) -> tuple[bool, int, str, str, str]:
-    manifest = generation.manifest
-    return (
-        manifest.completeness == "complete",
-        manifest.record_count,
-        manifest.high_water_mark,
-        manifest.ingested_at,
-        generation.path.name,
-    )
-
-
-def compact_session_generations(
-    output: IO[str], *, apply: bool = False, agent: str = "", root: Path | None = None
-) -> SessionCompactionResult:
-    """Retain the best verified generation per lineage and parser version."""
-    root = root or session_store_root()
-    generations = [item for item in discover_session_generations(root) if not agent or item.manifest.agent == agent]
-    verified = {item.path: _validate_compaction_generation(root, item) for item in generations}
-    measured = {item.path: read_session_usage(item.path, item.manifest) is not None for item in generations}
-    groups: dict[tuple[str, str, str], list[_Generation]] = {}
-    for generation in generations:
-        manifest = generation.manifest
-        groups.setdefault((manifest.agent, manifest.lineage_id, manifest.parser_version), []).append(generation)
-
-    retained: set[Path] = set()
-    for group in groups.values():
-        kept: list[_Generation] = []
-        for candidate in sorted(group, key=_compaction_sort_key, reverse=True):
-            candidate_records = verified[candidate.path][1]
-            # Usage grows with its source, so a strict transcript prefix is superseded
-            # whatever it measured, unless the longer generation failed to measure any;
-            # only equal transcripts keep distinct usage evidence.
-            covered = any(
-                candidate_records == verified[item.path][1][: len(candidate_records)]
-                and (
-                    (
-                        len(candidate_records) < len(verified[item.path][1])
-                        and (measured[item.path] or not measured[candidate.path])
-                    )
-                    or candidate.manifest.usage_sha256 == item.manifest.usage_sha256
-                )
-                for item in kept
-            )
-            if not covered:
-                # Divergent histories are not superseded merely because another
-                # generation has more records or a later timestamp.
-                kept.append(candidate)
-                retained.add(candidate.path)
-
-    removable = sorted((item for item in generations if item.path not in retained), key=lambda item: str(item.path))
-    reclaimable = sum(verified[item.path][0] for item in removable)
-    removed = 0
-    if apply:
-        for item in removable:
-            manifest = item.manifest
-            delete_session_generation(manifest.agent, manifest.lineage_id, item.path.name, manifest)
-            removed += 1
-    stale = sum(
-        sweep_stale_ingestion(path.parent.parent.name, path.parent.name, path.name, apply=apply)
-        for path in sorted(root.glob("*/*/.ingest-*"))
-        if not agent or path.parent.parent.name == agent
-    )
-    mode = "apply" if apply else "dry-run"
-    output.write(
-        f"session-compact: mode={mode} lineages={len(groups)} generations={len(generations)} "
-        f"retained={len(retained)} removable={len(removable)} removed={removed} "
-        f"reclaimable_bytes={reclaimable} stale_ingestions={stale}\n"
-    )
-    return SessionCompactionResult(
-        lineages=len(groups),
-        generations=len(generations),
-        retained=len(retained),
-        removable=len(removable),
-        removed=removed,
-        reclaimable_bytes=reclaimable,
-        stale_ingestions=stale,
-    )
+def discover_sessions(root: Path | None = None) -> list[SessionSummary]:
+    """Read every manifest; one unreadable bundle fails the whole query rather than hiding a session."""
+    return [SessionSummary.from_manifest(path, read_session_manifest(path)) for path in discover_session_bundles(root)]
 
 
 def _manifest_matches(summary: SessionSummary, query: SessionQuery) -> bool:
     if query.agent and summary.agent != query.agent:
         return False
-    if query.identity and query.identity not in {summary.session_id, summary.lineage_id, summary.generation_id}:
+    if query.identity and query.identity != summary.session_id:
         return False
     if query.since is None and query.until is None:
         return True
@@ -310,7 +118,6 @@ def query_session_summaries(
     *,
     include_content: bool = False,
     validate_content: bool = False,
-    latest_only: bool = False,
     statuses: set[str] | None = None,
     limit: int | None = None,
     root: Path | None = None,
@@ -318,50 +125,26 @@ def query_session_summaries(
     query = query or SessionQuery()
     if query.since and query.until and query.since > query.until:
         raise ValueError("--since must not be after --until")
-    generations = discover_session_generations(root)
-
-    newest: dict[tuple[str, str], tuple[str, str]] = {}
-    fingerprints: dict[tuple[str, str, str, str], int] = {}
-    for generation in generations:
-        summary = generation.summary
-        lineage = (summary.agent, summary.lineage_id)
-        candidate = (summary.ingested_at, summary.generation_id)
-        if lineage not in newest or candidate[0] > newest[lineage][0]:
-            newest[lineage] = candidate
-        key = (*lineage, summary.source_fingerprint, generation.manifest.parser_version)
-        fingerprints[key] = fingerprints.get(key, 0) + 1
-
     summaries: list[SessionSummary] = []
-    for generation in generations:
-        if not _manifest_matches(generation.summary, query):
+    for summary in discover_sessions(root):
+        # Discard known nonmatches before reading their transcripts; an absent
+        # manifest cwd still needs the content-based fallback below.
+        if not _manifest_matches(summary, query) or (query.cwd and summary.cwd and summary.cwd != query.cwd):
             continue
-        summary = generation.summary
-        manifest = generation.manifest
-        records: list[SessionLog] = []
-        lineage = (summary.agent, summary.lineage_id)
-        is_latest = newest[lineage][1] == summary.generation_id
-        # Discard known nonmatches before reading and validating their transcripts.
-        # An absent manifest cwd still needs the existing content-based fallback.
-        if latest_only and not is_latest:
-            continue
-        if query.cwd and summary.cwd and summary.cwd != query.cwd:
-            continue
-        if include_content or validate_content:
+        if include_content or validate_content or (query.cwd and not summary.cwd):
             try:
-                records = validate_session_generation(generation.path, manifest)
-            except OSError, ValueError, json.JSONDecodeError:
+                _, records = read_session_bundle(summary.path)
+            except OSError, ValueError:
                 summary.status.append("invalid")
             else:
                 if include_content:
                     summary.records = records
                 if not summary.cwd:
                     summary.cwd = next((record.cwd for record in records if record.cwd), "")
-        if manifest.completeness == "partial" or manifest.malformed_records:
+        if summary.completeness == "partial" or summary.malformed_records:
             summary.status.append("partial")
-        if not is_latest:
-            summary.status.append("stale")
-        if fingerprints[(*lineage, summary.source_fingerprint, manifest.parser_version)] > 1:
-            summary.status.append("duplicate")
+        if summary.parser_version != SESSION_PARSER_VERSION:
+            summary.status.append("legacy")
         if not summary.status:
             summary.status.append("current")
         summary.status.sort()
@@ -370,29 +153,18 @@ def query_session_summaries(
         if query.cwd and summary.cwd != query.cwd:
             continue
         summaries.append(summary)
-    summaries.sort(key=lambda item: item.lineage_id + item.generation_id)
+    summaries.sort(key=lambda item: (item.agent, item.session_id))
     summaries.sort(key=lambda item: item.ingested_at, reverse=True)
     return summaries if limit is None else summaries[:limit]
 
 
-def show_session(query: SessionQuery, *, include_content: bool = False, latest: bool = False) -> SessionSummary:
-    summaries = query_session_summaries(query, include_content=include_content, latest_only=latest)
+def show_session(query: SessionQuery, *, include_content: bool = False) -> SessionSummary:
+    summaries = query_session_summaries(query, include_content=include_content)
     if not summaries:
         raise ValueError("session not found")
     if len(summaries) > 1:
-        agents = sorted({summary.agent for summary in summaries})
-        if len(agents) > 1:
-            raise ValueError(
-                f"session identity is ambiguous: {len(summaries)} matches across agents {', '.join(agents)}; "
-                "add --agent or use a generation identity"
-            )
-        generations = [summary.generation_id for summary in summaries]
-        sample = ", ".join(generations[:3])
-        suffix = f" ({len(generations) - 3} more)" if len(generations) > 3 else ""
-        raise ValueError(
-            f"session identity is ambiguous: {len(summaries)} generations of this {agents[0]} session; "
-            f"pass --session with a generation identity, e.g. {sample}{suffix}"
-        )
+        agents = ", ".join(sorted(summary.agent for summary in summaries))
+        raise ValueError(f"session identity is ambiguous across agents {agents}; add --agent")
     return summaries[0]
 
 
@@ -432,11 +204,10 @@ def export_sessions(
 
 __all__ = [
     "SESSION_EXPORT_SCHEMA",
-    "SessionCompactionResult",
+    "SESSION_STATUSES",
     "SessionQuery",
     "SessionSummary",
-    "compact_session_generations",
-    "discover_session_generations",
+    "discover_sessions",
     "export_sessions",
     "query_session_summaries",
     "show_session",
