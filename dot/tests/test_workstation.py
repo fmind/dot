@@ -302,6 +302,30 @@ def test_missing_adc_triggers_login_and_both_postchecks(provider: RecordingRunne
     assert "private" not in result.output
 
 
+@pytest.mark.parametrize(
+    "diagnostic",
+    [
+        # gcloud 585 texts for an expired session (core/credentials/exceptions.py).
+        (
+            "There was a problem reauthenticating while refreshing your current auth tokens: private\n"
+            "Please retry your command or run:\n\n  $ gcloud auth login"
+        ),
+        "Please run:\n\n  $ gcloud auth login\n\nto complete reauthentication.",
+        (
+            "There was a problem refreshing your current auth tokens: private\nPlease run:\n\n"
+            "  $ gcloud auth application-default login\n\nto obtain new credentials."
+        ),
+    ],
+)
+def test_expired_gcloud_session_triggers_login(provider: RecordingRunner, diagnostic: str) -> None:
+    token = CommandResult("private", "", 0)
+    provider.responses = [CommandResult("", diagnostic, 1), token, token, token]
+    result = CliRunner().invoke(app, ["login", "gcp"])
+    assert result.exit_code == 0, result.exception
+    assert provider.actions == [["gcloud", "auth", "login", "--update-adc"]]
+    assert "private" not in result.output
+
+
 def test_gcp_network_failure_does_not_trigger_login(provider: RecordingRunner) -> None:
     provider.responses = [CommandResult("", "network private", 1)]
     result = CliRunner().invoke(app, ["login", "gcp"])
