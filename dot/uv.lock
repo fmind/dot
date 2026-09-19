@@ -118,7 +118,7 @@ wheels = [
 
 [[package]]
 name = "fmind-dot"
-version = "6.3.2"
+version = "7.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
