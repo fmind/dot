@@ -435,3 +435,50 @@ def test_sync_recaptures_migrated_sessions_from_available_sources(
     assert (summary.parser_version, summary.status) == ("5", ["current"])
     assert _tokens() == [(10, 5)]
     assert retired.read_text() == "{}"
+
+
+def test_dry_run_does_not_migrate_legacy_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state, _ = source_session(tmp_path, monkeypatch)
+    _v2_generation(tmp_path, "fixture-id", records=2, ingested_at="2026-09-01T10:00:00Z", usage=99)
+    before = _snapshot(tmp_path)
+
+    outcome = sync_sessions(state, agent="claude", dry_run=True)
+
+    assert outcome.selected == 1
+    assert not session_store_root().exists()
+    assert _snapshot(tmp_path) == before
+
+
+def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    state, source = source_session(tmp_path, monkeypatch)
+    sync_sessions(state, agent="claude")
+    adapter = parsers.AGENT_ADAPTERS["claude"]
+    with source.open("a") as stream:
+        stream.write(_answer("answer-2", "2026-09-01T10:02:00Z", 20, 7))
+    shorter = adapter.parser(source, "fixture-id", "")
+    with source.open("a") as stream:
+        stream.write(_answer("answer-3", "2026-09-01T10:03:00Z", 30, 9))
+    longer = adapter.parser(source, "fixture-id", "")
+    short_ready, long_written = Event(), Event()
+    write = session_store.write_private_file
+
+    def delayed_write(path: Path, content: bytes) -> None:
+        count = json.loads(content.split(b"\n", 1)[0])["record_count"]
+        if count == 3:
+            short_ready.set()
+            long_written.wait(timeout=1)
+        write(path, content)
+        if count == 4:
+            long_written.set()
+
+    monkeypatch.setattr(session_store, "write_private_file", delayed_write)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        pending = pool.submit(session_store.ingest_session, "claude", "fixture-id", shorter.logs)
+        assert short_ready.wait(timeout=5)
+        latest = pool.submit(session_store.ingest_session, "claude", "fixture-id", longer.logs)
+        pending.result(timeout=5)
+        latest.result(timeout=5)
+    assert read_session_manifest(session_bundle_path("claude", "fixture-id")).record_count == 4
