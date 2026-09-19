@@ -453,42 +453,54 @@ sessions = false
         assert data["ui"]["scroll_speed"] == 20
         assert self.render(template, rendered) == rendered
 
-    def test_capture_hooks_use_one_command_at_durable_boundaries(self):
+    def test_hooks_only_notify_and_clear_retired_capture_events(self):
         # Hooks name the CLI absolutely: a harness may start without ~/.local/bin on PATH.
         dot = str(self.home / ".local/bin/dot")
-        codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))["hooks"]
-        assert [hook["command"] for hook in codex["PreCompact"][0]["hooks"]] == [f"{dot} agent hook session codex"]
-        assert [hook["command"] for hook in codex["SessionEnd"][0]["hooks"]] == [f"{dot} agent hook session codex"]
-        assert codex["SessionEnd"][0]["hooks"][0]["timeout"] == 3
-        assert [hook["command"] for hook in codex["Stop"][0]["hooks"]] == [f"{dot} agent hook notify codex stop"]
-        assert [hook["command"] for hook in codex["SubagentStop"][0]["hooks"]] == [f"{dot} agent hook session codex"]
+        retired = {"PreCompact": [], "SessionEnd": [], "SubagentStop": []}
+        deployed = [{"hooks": [{"command": f"{dot} agent hook session codex", "type": "command"}], "matcher": ""}]
 
-        claude = json.loads(self.render("dot_claude/modify_settings.json", "{}"))["hooks"]
-        assert [hook["command"] for hook in claude["PreCompact"][0]["hooks"]] == [f"{dot} agent hook session claude"]
-        assert [hook["command"] for hook in claude["SessionEnd"][0]["hooks"]] == [f"{dot} agent hook session claude"]
+        codex_template = "dot_codex/modify_private_config.toml"
+        codex = tomllib.loads(self.render(codex_template, ""))["hooks"]
+        assert [hook["command"] for hook in codex["Stop"][0]["hooks"]] == [f"{dot} agent hook notify codex stop"]
+        assert {event: codex[event] for event in retired} == retired
+        # The merge never deletes keys: managed empty lists replace deployed capture hooks.
+        stale = "".join(
+            f'[[hooks.{event}]]\nmatcher = ""\n[[hooks.{event}.hooks]]\ncommand = "{dot} agent hook session codex"\n'
+            for event in retired
+        )
+        assert {
+            event: tomllib.loads(self.render(codex_template, stale))["hooks"][event] for event in retired
+        } == retired
+
+        claude_template = "dot_claude/modify_settings.json"
+        claude = json.loads(self.render(claude_template, "{}"))["hooks"]
         assert [hook["command"] for hook in claude["Stop"][0]["hooks"]] == [f"{dot} agent hook notify claude stop"]
-        assert [hook["command"] for hook in claude["SubagentStop"][0]["hooks"]] == [f"{dot} agent hook session claude"]
+        assert [hook["command"] for hook in claude["Notification"][0]["hooks"]] == [
+            f"{dot} agent hook notify claude needs-input"
+        ]
+        stale_claude = json.dumps({"hooks": dict.fromkeys(retired, deployed)})
+        merged = json.loads(self.render(claude_template, stale_claude))["hooks"]
+        assert {event: merged[event] for event in retired} == retired
 
         grok = json.loads(self.render("dot_grok/hooks/hooks.json.tmpl", ""))["hooks"]
+        assert set(grok) == {"Notification", "Stop"}
         assert [hook["command"] for hook in grok["Stop"][0]["hooks"]] == [f"{dot} agent hook notify grok stop"]
-        assert all("hook usage" not in json.dumps(value) for value in (codex, claude, grok))
 
         agy = json.loads(self.render("dot_gemini/private_config/private_hooks.json.tmpl", ""))
-        assert set(agy) == {"notify", "session-log"}
-        assert [hook["command"] for hook in agy["session-log"]["Stop"]] == [f"{dot} agent hook session agy"]
+        assert set(agy) == {"notify"}
         copilot = json.loads(self.render("dot_copilot/hooks/session-log.json.tmpl", ""))
+        assert set(copilot["hooks"]) == {"agentStop"}
         assert [hook["bash"] for hook in copilot["hooks"]["agentStop"]] == [f"{dot} agent hook notify copilot stop"]
-        assert [hook["bash"] for hook in copilot["hooks"]["sessionEnd"]] == [f"{dot} agent hook copilot-session-end"]
 
-        # Every hook command names the CLI absolutely; none relies on PATH order.
+        # Every hook notifies and names the CLI absolutely; none relies on PATH order.
         commands = [
             value
             for config in (codex, claude, grok, agy, copilot)
             for value in _strings(config)
             if " agent hook " in value
         ]
-        assert len(commands) == 18
-        assert all(command.startswith(f"{dot} ") for command in commands)
+        assert len(commands) == 7
+        assert all(command.startswith(f"{dot} agent hook notify ") for command in commands)
 
     def test_hook_commands_reject_home_directories_that_need_shell_quoting(self):
         self.home = self.home / "home with spaces"

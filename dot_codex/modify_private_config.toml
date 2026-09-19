@@ -1,7 +1,7 @@
 # chezmoi:modify-template
 {{- /* Hooks name the CLI absolutely: a harness started without ~/.local/bin on PATH
-       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and capture
-       fails silently. */ -}}
+       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and notifications
+       fail silently. */ -}}
 {{- $dot := joinPath .chezmoi.homeDir ".local/bin/dot" -}}
 {{- if not (regexMatch "^[A-Za-z0-9_@%+=:,./-]+$" $dot) }}{{ fail "home directory is not shell-safe for hook commands" }}{{ end -}}
 {{- $managedConfig := fromToml (replace "@dot@" $dot `
@@ -20,23 +20,11 @@ memories = true
 multi_agent_v2 = true
 prevent_idle_sleep = true
 
-[[hooks.PreCompact]]
-matcher = ""
-
-[[hooks.PreCompact.hooks]]
-command = "@dot@ agent hook session codex"
-statusMessage = "Syncing Codex session"
-timeout = 30
-type = "command"
-
-[[hooks.SessionEnd]]
-matcher = ""
-
-[[hooks.SessionEnd.hooks]]
-command = "@dot@ agent hook session codex"
-statusMessage = "Syncing Codex session"
-timeout = 3
-type = "command"
+# Retired session-capture events stay managed as empty: the merge never deletes deployed keys.
+[hooks]
+PreCompact = []
+SessionEnd = []
+SubagentStop = []
 
 [[hooks.Stop]]
 matcher = ""
@@ -44,15 +32,6 @@ matcher = ""
 [[hooks.Stop.hooks]]
 command = "@dot@ agent hook notify codex stop"
 statusMessage = "Notifying turn end"
-timeout = 30
-type = "command"
-
-[[hooks.SubagentStop]]
-matcher = ""
-
-[[hooks.SubagentStop.hooks]]
-command = "@dot@ agent hook session codex"
-statusMessage = "Syncing Codex session"
 timeout = 30
 type = "command"
 
