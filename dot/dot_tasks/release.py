@@ -37,10 +37,9 @@ _CD_URL = f"https://github.com/{_GITHUB_REPOSITORY}/actions/workflows/cd.yml"
 # has consumed the version.
 _RELEASE_GATES = ("format", "check", "test", "test:starters", "build", "check:completions")
 _REMOTE_TAG_OUTPUT_LIMIT = 4 * 1024
-_SEMVER_TAG = re.compile(
-    r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-    r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
-)
+# Release versions only: a SemVer pre-release or build suffix normalizes differently
+# in PEP 440 distribution names, so CD would reject the artifacts after tagging.
+_SEMVER_TAG = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 _PROJECT_SECTION = re.compile(r"(?m)^\[project\]\s*$")
 _SECTION = re.compile(r"(?m)^\[[^\n]+\]\s*$")
 _VERSION_ASSIGNMENT = re.compile(r'(?m)^version\s*=\s*"([^"\r\n]+)"\s*$')
