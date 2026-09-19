@@ -6,12 +6,12 @@ import stat
 from contextlib import suppress
 from pathlib import Path
 
-_DIRECTORY_FLAGS = (
+DIRECTORY_FLAGS = (
     os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
 )
 
 
-def _safe_agent_fs_available() -> bool:
+def safe_agent_fs_available() -> bool:
     required_dir_fd = (os.open, os.stat, os.unlink, os.mkdir, os.rmdir, os.rename)
     return (
         hasattr(os, "O_DIRECTORY")
@@ -28,11 +28,11 @@ def _same_file_identity(first: os.stat_result, second: os.stat_result) -> bool:
     return (first.st_dev, first.st_ino) == (second.st_dev, second.st_ino)
 
 
-def _open_verified_directory(path: Path) -> int:
+def open_verified_directory(path: Path) -> int:
     before = path.lstat()
     if stat.S_ISLNK(before.st_mode) or not stat.S_ISDIR(before.st_mode):
         raise OSError(f"unsafe directory {path}")
-    descriptor = os.open(path, _DIRECTORY_FLAGS)
+    descriptor = os.open(path, DIRECTORY_FLAGS)
     try:
         opened = os.fstat(descriptor)
         after = path.lstat()
@@ -48,7 +48,7 @@ def _open_directory_at(parent: int, name: str) -> int:
     before = os.stat(name, dir_fd=parent, follow_symlinks=False)
     if stat.S_ISLNK(before.st_mode) or not stat.S_ISDIR(before.st_mode):
         raise OSError(f"unsafe directory {name}")
-    descriptor = os.open(name, _DIRECTORY_FLAGS, dir_fd=parent)
+    descriptor = os.open(name, DIRECTORY_FLAGS, dir_fd=parent)
     try:
         opened = os.fstat(descriptor)
         after = os.stat(name, dir_fd=parent, follow_symlinks=False)
@@ -60,7 +60,7 @@ def _open_directory_at(parent: int, name: str) -> int:
     return descriptor
 
 
-def _open_or_create_directory_at(parent: int, name: str, mode: int, *, enforce_mode: bool = True) -> int:
+def open_or_create_directory_at(parent: int, name: str, mode: int, *, enforce_mode: bool = True) -> int:
     with suppress(FileExistsError):
         os.mkdir(name, mode=mode, dir_fd=parent)
     descriptor = _open_directory_at(parent, name)
@@ -73,7 +73,7 @@ def _open_or_create_directory_at(parent: int, name: str, mode: int, *, enforce_m
     return descriptor
 
 
-def _publish_owner_only_at(directory: int, name: str, content: bytes) -> None:
+def publish_owner_only_at(directory: int, name: str, content: bytes) -> None:
     temporary = f".{name}.{secrets.token_hex(8)}.tmp"
     descriptor = -1
     try:

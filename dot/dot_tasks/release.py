@@ -27,6 +27,15 @@ _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
 _RELEASE_LOCK_FILE = Path("dot/uv.lock")
 _RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, _RELEASE_LOCK_FILE)
 _RELEASE_CLIFF_CONFIG = Path("dot_config/git-cliff/cliff.toml")
+# --remote selects only the Git remote that receives the commit and tag; CD and
+# the public release are always observed on this GitHub repository.
+_GITHUB_REPOSITORY = "fmind/dot"
+_CD_URL = f"https://github.com/{_GITHUB_REPOSITORY}/actions/workflows/cd.yml"
+# Everything that can reject a release runs before the immutable tag exists. The
+# starter contracts resolve the latest upstream packages, so an upstream break
+# must stop preparation here (about 20 s) instead of failing CD after the tag
+# has consumed the version.
+_RELEASE_GATES = ("format", "check", "test", "test:starters", "build", "check:completions")
 _REMOTE_TAG_OUTPUT_LIMIT = 4 * 1024
 _SEMVER_TAG = re.compile(
     r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
@@ -262,7 +271,7 @@ def _calculate_release_version(state: State, root: Path) -> tuple[str, str]:
 
 
 def _validate_prepared_release(state: State, root: Path, expected_tag: str, *, require_clean: bool = False) -> None:
-    for task in ("format", "check", "test", "build", "check:completions"):
+    for task in _RELEASE_GATES:
         state.stdout.write(f"Running {task}...\n")
         code = state.runner.interactive(
             ["mise", "run", task], cwd=root, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr
@@ -359,9 +368,7 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
             push_prepared_commit(state, config.remote, config.default_branch, head)
         push_release_tag(state, config.remote, prepared, head)
         _refresh_installed_cli(state, root)
-        state.stdout.write(
-            f"✓ Publication dispatched for {prepared} at {head}.\nhttps://github.com/fmind/dot/actions/workflows/cd.yml\n"
-        )
+        state.stdout.write(f"✓ Publication dispatched for {prepared} at {head}.\n{_CD_URL}\n")
         return prepared
 
     bumped, current = _calculate_release_version(state, root)
@@ -405,9 +412,7 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
     push_prepared_commit(state, config.remote, config.default_branch, head)
     push_release_tag(state, config.remote, bumped, head)
     _refresh_installed_cli(state, root)
-    state.stdout.write(
-        f"✓ Publication dispatched for {bumped} at {head}.\nhttps://github.com/fmind/dot/actions/workflows/cd.yml\n"
-    )
+    state.stdout.write(f"✓ Publication dispatched for {bumped} at {head}.\n{_CD_URL}\n")
     return bumped
 
 
@@ -422,7 +427,7 @@ def wait_for_release(state: State, tag: str, *, timeout_seconds: float = 1800) -
                 "run",
                 "list",
                 "--repo",
-                "fmind/dot",
+                _GITHUB_REPOSITORY,
                 "--workflow",
                 "cd.yml",
                 "--commit",
@@ -445,9 +450,9 @@ def wait_for_release(state: State, tag: str, *, timeout_seconds: float = 1800) -
         selected = next((run for run in runs if isinstance(run, dict) and run.get("headSha") == head), None)
         if selected and selected.get("status") == "completed":
             if selected.get("conclusion") != "success":
-                raise DotError(f"CD failed for {tag}; inspect https://github.com/fmind/dot/actions/workflows/cd.yml")
+                raise DotError(f"CD failed for {tag}; inspect {_CD_URL}")
             release_result = state.runner.run_bounded(
-                ["gh", "release", "view", tag, "--repo", "fmind/dot", "--json", "tagName,isDraft,url,assets"],
+                ["gh", "release", "view", tag, "--repo", _GITHUB_REPOSITORY, "--json", "tagName,isDraft,url,assets"],
                 timeout=max(0.001, min(30, deadline - monotonic())),
                 max_output_bytes=64 * 1024,
             )
@@ -464,7 +469,7 @@ def wait_for_release(state: State, tag: str, *, timeout_seconds: float = 1800) -
             )
             if not any(name.endswith(".whl") for name in names) or not any(name.endswith(".tar.gz") for name in names):
                 raise DotError("published release is missing its wheel or source distribution")
-            url = f"https://github.com/fmind/dot/releases/tag/{tag}"
+            url = f"https://github.com/{_GITHUB_REPOSITORY}/releases/tag/{tag}"
             state.stdout.write(f"✓ Published {tag}: {url}\n")
             return url
         state.stderr.write(f"Waiting for publication of {tag} at {head[:12]}...\n")

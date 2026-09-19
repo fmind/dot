@@ -43,9 +43,12 @@ from fmind_dot.archive.store import (
 from fmind_dot.config import expand_path
 from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
-from fmind_dot.private_files import _DIRECTORY_FLAGS
+from fmind_dot.private_files import DIRECTORY_FLAGS
 from fmind_dot.state import State
 
+# Bounds the targeted chezmoi apply (or its dry run) started by --fix.
+_REPAIR_TIMEOUT_SECONDS = 300.0
+_CLI_NAME = "dot"
 _SHARED_PERSONA = "~/.agents/AGENTS.md"
 
 
@@ -303,39 +306,59 @@ def _inspect_skill_catalog(state: State) -> _SkillInspection:
     return _SkillInspection("skills-broken" if issues else "healthy", issues, examples)
 
 
-def _command_arguments(command: str) -> tuple[str, ...]:
-    fields = shlex.split(command)
-    if len(fields) < 2 or fields[0] != "dot":
-        return ()
+def _hook_invocation(command: str) -> tuple[str, tuple[str, ...]] | None:
+    """Split one configured hook into its CLI field and arguments.
+
+    The CLI field is the bare name or an absolute path ending in it.
+    """
+    try:
+        fields = shlex.split(command)
+    except ValueError:
+        return None
+    if len(fields) < 2:
+        return None
+    binary = fields[0]
+    if binary != _CLI_NAME and not (Path(binary).is_absolute() and Path(binary).name == _CLI_NAME):
+        return None
+    return binary, tuple(fields[1:])
+
+
+def _probe_arguments(arguments: tuple[str, ...]) -> tuple[str, ...]:
     agents = set(AGENT_ADAPTERS)
-    for index, argument in enumerate(fields[1:]):
+    for index, argument in enumerate(arguments):
         if argument.startswith("-") or argument in agents:
-            return tuple(fields[1 : index + 1])
-    return tuple(fields[1:])
+            return arguments[:index]
+    return arguments
 
 
-def _dot_command_prober(state: State) -> Callable[[tuple[str, ...]], bool]:
-    binary = state.runner.which("dot")
-    cache: dict[tuple[str, ...], bool] = {}
+def _hook_command_prober(state: State) -> Callable[[str, tuple[str, ...]], bool]:
+    cache: dict[tuple[str, tuple[str, ...]], bool] = {}
 
-    def runnable(arguments: tuple[str, ...]) -> bool:
+    def runnable(binary: str, arguments: tuple[str, ...]) -> bool:
         if not arguments:
             return True
-        if binary is None:
+        # Probe the configured path itself: PATH may resolve another executable.
+        executable = binary if Path(binary).is_absolute() else state.runner.which(binary)
+        if executable is None:
             return False
-        if arguments not in cache:
+        key = (str(executable), arguments)
+        if key not in cache:
             try:
-                result = state.runner.run([str(binary), *arguments, "--help"], check=False)
+                result = state.runner.run(
+                    [str(executable), *arguments, "--help"],
+                    check=False,
+                    timeout=state.config.doctor.probe_timeout_seconds,
+                )
             except OSError, DotError:
-                cache[arguments] = False
+                cache[key] = False
             else:
-                cache[arguments] = result.returncode == 0
-        return cache[arguments]
+                cache[key] = result.returncode == 0
+        return cache[key]
 
     return runnable
 
 
-def _check_hooks(definition: DoctorIntegration, runnable: Callable[[tuple[str, ...]], bool]) -> tuple[str, bool]:
+def _check_hooks(definition: DoctorIntegration, runnable: Callable[[str, tuple[str, ...]], bool]) -> tuple[str, bool]:
     if not definition.hook_path:
         return "sync-only", True
     try:
@@ -344,11 +367,17 @@ def _check_hooks(definition: DoctorIntegration, runnable: Callable[[tuple[str, .
         return "malformed", False
     if definition.agent == "copilot" and (not isinstance(config, dict) or config.get("version") != 1):
         return "unsupported-version", False
-    commands = set(_structured_strings(config))
+    configured: dict[tuple[str, ...], set[str]] = {}
+    for value in _structured_strings(config):
+        invocation = _hook_invocation(value)
+        if invocation is not None:
+            configured.setdefault(invocation[1], set()).add(invocation[0])
     for command in definition.hook_commands:
-        if command not in commands:
+        arguments = tuple(shlex.split(command)[1:])
+        binaries = configured.get(arguments)
+        if not binaries:
             return "command-mismatch", False
-        if not runnable(_command_arguments(command)):
+        if not all(runnable(binary, _probe_arguments(arguments)) for binary in sorted(binaries)):
             return "command-unavailable", False
     return "healthy", True
 
@@ -508,7 +537,7 @@ def _inspect_source(state: State, definition: DoctorIntegration, *, deep: bool =
         failed = True
 
     try:
-        root_fd = os.open(root, _DIRECTORY_FLAGS)
+        root_fd = os.open(root, DIRECTORY_FLAGS)
     except OSError:
         return _SourceInspection("unreadable", None, True, False)
     try:
@@ -635,7 +664,10 @@ def _inspect_lineage(state: State, definition: DoctorIntegration, *, deep: bool 
 
     for current, directories, files in os.walk(root, topdown=True, onerror=onerror, followlinks=False):
         current_path = Path(current)
-        directories[:] = sorted(name for name in directories if not (current_path / name).is_symlink())
+        # A temporary ingestion directory is in flight or awaits `session compact --apply`.
+        directories[:] = sorted(
+            name for name in directories if not name.startswith(".ingest-") and not (current_path / name).is_symlink()
+        )
         manifests.extend(current_path / name for name in sorted(files) if name == "manifest.json")
         if deep and len(manifests) > state.config.agent.doctor.scan_limit:
             summary.truncated = True
@@ -754,7 +786,7 @@ def gather_agent_doctor(
     if agent and agent not in {item.agent for item in _DOCTOR_INTEGRATIONS}:
         raise DotError(f"unknown integration {agent!r}")
     current = now or datetime.now(UTC)
-    runnable = _dot_command_prober(state)
+    runnable = _hook_command_prober(state)
     notifier_available = _notifier_available(state)
     skills = _inspect_skill_catalog(state)
     results: list[AgentDoctorResult] = []
@@ -836,12 +868,16 @@ def _doctor_repair_targets(agent: str = "") -> list[Path]:
 def repair_agent_integrations(state: State, *, dry_run: bool = False, agent: str = "") -> None:
     args = ["chezmoi", "apply"]
     if dry_run:
-        args.append("--dry-run")
+        # Chezmoi prints the pending diff only when a dry run is also verbose.
+        args.extend(("--dry-run", "--verbose"))
     args.extend(("--force", *(str(path) for path in _doctor_repair_targets(agent))))
     try:
-        state.runner.run(args)
+        result = state.runner.run(args, timeout=_REPAIR_TIMEOUT_SECONDS)
     except (OSError, DotError) as error:
         raise DotError("failed to repair agent integrations") from error
+    if dry_run:
+        # The preview stays off stdout so --json remains machine-readable.
+        state.stderr.write(result.stdout or "No managed agent integration changes.\n")
 
 
 def run_agent_doctor(

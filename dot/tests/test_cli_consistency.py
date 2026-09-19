@@ -54,7 +54,7 @@ def test_reports_include_whole_until_day_and_exact_timestamp() -> None:
             usage=usage.to_dict(),
         )
     runner = CliRunner()
-    for command in [["agent", "stats"], ["agent", "prompts", "stats"], ["agent", "usage", "stats"]]:
+    for command in [["agent", "stats"], ["agent", "stats", "--prompts-only"], ["agent", "stats", "--tokens-only"]]:
         result = runner.invoke(app, [*command, "--since", "2026-09-15", "--until", "2026-09-15", "--json"])
         assert result.exit_code == 0, result.output
         document = json.loads(result.stdout)
@@ -88,11 +88,10 @@ def test_google_login_dry_run_names_its_scope() -> None:
 
 
 @pytest.mark.parametrize("command", [["agent", "prompts", "stats"], ["agent", "usage", "stats"]])
-def test_deprecated_reports_keep_stdout_machine_readable(command: list[str]) -> None:
+def test_removed_report_routes_are_usage_errors(command: list[str]) -> None:
     result = CliRunner().invoke(app, [*command, "--json"])
-    assert result.exit_code == 0
-    assert json.loads(result.stdout)["schema"] == "dot.agent.stats/v2"
-    assert "Deprecated: use dot agent stats" in result.stderr
+    assert result.exit_code == 2
+    assert result.stdout == ""
 
 
 @pytest.mark.parametrize("flag", ["--agent", "--harness", "-a"])

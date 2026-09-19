@@ -17,18 +17,22 @@ STARTERS = {
     "python-stack": "skills/python-stack/references/foundation/templates/mise.toml",
     "terraform": "skills/infra-as-code/templates/mise.toml",
 }
+# A hung task must fail its own test instead of consuming the CI job limit.
+TIMEOUT_SECONDS = 120
 
 
-def materialize(root: Path, starter: str) -> dict[str, str]:
-    config = tomllib.loads((ROOT / STARTERS[starter]).read_text())
+def materialize(root: Path, starter: str, prefix: str = "") -> dict[str, str]:
+    config = tomllib.loads((ROOT / STARTERS.get(starter, starter)).read_text())
     lines = ["[settings.task]", "run_auto_install = false"]
     for name, task in config["tasks"].items():
+        if not name.startswith(prefix):
+            continue
         lines.append(f"[tasks.{json.dumps(name)}]")
         lines.extend(f"{key} = {json.dumps(value)}" for key, value in task.items())
     (root / "mise.toml").write_text("\n".join(lines))
     mise = shutil.which("mise")
     assert mise is not None
-    gitleaks = subprocess.check_output([mise, "which", "gitleaks"], cwd=ROOT, text=True).strip()
+    gitleaks = subprocess.check_output([mise, "which", "gitleaks"], cwd=ROOT, text=True, timeout=60).strip()
     return {
         "PATH": os.pathsep.join(
             [str(Path(mise).parent), str(Path(gitleaks).parent), str(Path(sys.executable).parent), os.defpath]
@@ -40,7 +44,32 @@ def materialize(root: Path, starter: str) -> dict[str, str]:
 
 
 def run(root: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, cwd=root, env=env, capture_output=True, text=True, check=False)
+    return subprocess.run(args, cwd=root, env=env, capture_output=True, text=True, check=False, timeout=TIMEOUT_SECONDS)
+
+
+def task_closure(tasks: dict[str, dict[str, object]], name: str) -> set[str]:
+    """Every task reachable through depends or a nested `mise run`, including the task itself."""
+    seen: set[str] = set()
+    pending = [name]
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        task = tasks[current]
+        run = task.get("run", [])
+        commands = [run] if isinstance(run, str) else run
+        assert isinstance(commands, list)
+        nested = [command.split()[2] for command in commands if str(command).startswith("mise run ")]
+        depends = task.get("depends", [])
+        assert isinstance(depends, list)
+        pending.extend([*depends, *nested])
+    return seen
+
+
+def hook_tasks(hook: str) -> list[str]:
+    commands = yaml.safe_load((ROOT / "lefthook.yml").read_text())[hook]["commands"]
+    return [command["run"].split()[2] for command in commands.values()]
 
 
 @pytest.mark.parametrize("starter", STARTERS)
@@ -134,6 +163,70 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
     assert not (tmp_path / "injected").exists()
     selected.write_text("invalid (\n")
     assert run(tmp_path, env, "mise", "run", "format:python").returncode != 0
+
+
+def test_repository_python_hooks_format_only_staged_files(tmp_path: Path) -> None:
+    env = materialize(tmp_path, "mise.toml", prefix="format:python:")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    ruff = ROOT / "dot/.venv/bin/ruff"
+    assert ruff.is_file()
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env python3\nimport os, sys\n"
+        'os.execv(os.environ["RUFF_BIN"], [os.environ["RUFF_BIN"], *sys.argv[sys.argv.index("ruff") + 1 :]])\n'
+    )
+    uv.chmod(0o755)
+    env.update({"PATH": f"{bin_dir}:{env['PATH']}", "RUFF_BIN": str(ruff)})
+    selected = tmp_path / "chosen space ' ; $(touch injected).py"
+    unrelated = tmp_path / "unrelated.py"
+    text = "import os\nx=1\n"
+    selected.write_text(text)
+    unrelated.write_text(text)
+    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["commands"]
+    formatters = sorted(
+        (hook for hook in hooks.values() if "**/*.py" in hook.get("glob", "")), key=lambda hook: hook["priority"]
+    )
+    assert formatters
+    for hook in formatters:
+        assert hook["run"].endswith(" {staged_files}")
+        assert hook["stage_fixed"] is True
+        result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], selected.name)
+        assert result.returncode == 0, result.stderr
+    # Ruff's defaults apply in the fixture: the fix task drops the unused import, the style task reflows.
+    assert selected.read_text() == "x = 1\n"
+    assert unrelated.read_text() == text
+    assert not (tmp_path / "injected").exists()
+
+
+def test_hooks_split_offline_and_network_checks_without_weakening_the_gate() -> None:
+    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
+    network = {"check:scan", "check:vuln"}
+    pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
+    pre_push = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-push")))
+    gate = task_closure(tasks, "all")
+    checks = {name for name in tasks if name.startswith("check:")}
+    # Host-dependent or credentialed audits are documented as separate from the gate.
+    outside_gate = {"check:actions:online", "check:completions", "check:leaks:staged", "check:vuln:tools"}
+
+    assert not network & pre_commit
+    assert network <= pre_push
+    assert "test" in pre_push
+    assert checks - outside_gate <= gate
+    assert checks - outside_gate - network <= pre_commit | {"check:network"}
+
+
+def test_pre_commit_rejects_a_stale_skill_index_instead_of_regenerating_it() -> None:
+    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
+    pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
+
+    # stage_fixed restages only staged files, so a generator in this hook would leave
+    # its output out of the commit and CI's clean-tree verification would fail later.
+    assert "format:skills" not in pre_commit
+    assert "check:skills" in pre_commit
+    # The complete formatter still generates indexes before dprint formats them.
+    assert {"format:skills", "format:dprint"} <= task_closure(tasks, "format")
+    assert tasks["format:dprint"]["wait_for"] == ["format:skills"]
 
 
 def test_terraform_formatter_forwards_files_and_failures(tmp_path: Path) -> None:

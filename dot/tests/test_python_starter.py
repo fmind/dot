@@ -56,6 +56,8 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
         env=environment,
         capture_output=True,
         text=True,
+        # Resolution and installs use the network; a stalled download must fail this test.
+        timeout=600,
     )
     assert result.returncode == expected_code, f"{' '.join(command)} failed:\n{result.stdout}{result.stderr}"
     return result.stdout

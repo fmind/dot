@@ -15,6 +15,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _strings(value: object) -> list[str]:
+    if isinstance(value, dict):
+        return [item for child in value.values() for item in _strings(child)]
+    if isinstance(value, list):
+        return [item for child in value for item in _strings(child)]
+    return [value] if isinstance(value, str) else []
+
+
 class HarnessConfigTests(unittest.TestCase):
     temp: tempfile.TemporaryDirectory[str]
     home: Path
@@ -53,7 +61,7 @@ class HarnessConfigTests(unittest.TestCase):
         # apply consumes the modify-template directive before rendering; execute-template
         # is lower level, so remove that directive to exercise the same template bytes.
         template_path = self.home / "input.tmpl"
-        template_path.write_text((ROOT / template).read_text().split("\n", 1)[1])
+        template_path.write_text((ROOT / template).read_text().removeprefix("# chezmoi:modify-template\n"))
         command: list[str] = [
             self.chezmoi,
             "--source",
@@ -139,6 +147,7 @@ two_pass_compaction = true
 codebase_indexing = true
 [models]
 default = "old-model"
+default_reasoning_effort = "xhigh"
 max_retries = 8
 [ui]
 fork_secondary_model = "old-fork-model"
@@ -156,7 +165,7 @@ sessions = false
             "two_pass_compaction": True,
             "codebase_indexing": True,
         }
-        assert data["models"] == {"default_reasoning_effort": "high", "default": "old-model", "max_retries": 8}
+        assert data["models"] == {"default_reasoning_effort": "xhigh", "default": "old-model", "max_retries": 8}
         assert data["ui"]["permission_mode"] == "always-approve"
         assert data["ui"]["fork_secondary_model"] == "old-fork-model"
         assert data["ui"]["yolo"] is False
@@ -164,6 +173,7 @@ sessions = false
         assert data["compat"]["claude"]["sessions"] is False
         assert data["memory"]["enabled"] is True
         assert self.render(template, rendered) == rendered
+        assert tomllib.loads(self.render(template, ""))["models"] == {"default_reasoning_effort": "high"}
 
     def test_claude_merge_preserves_host_environment_and_permissions(self):
         template = "dot_claude/modify_settings.json"
@@ -173,7 +183,10 @@ sessions = false
             "autoDreamEnabled": True,
             "skillListingMaxDescChars": 3000,
             "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1", "CUSTOM_SETTING": "preserved"},
-            "permissions": {"deny": ["Read(./private)"]},
+            "permissions": {"deny": ["Read(./private)"], "additionalDirectories": ["/synthetic/host-root"]},
+            "model": "host-model[1m]",
+            "effortLevel": "xhigh",
+            "enableAllProjectMcpServers": True,
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
@@ -183,8 +196,18 @@ sessions = false
         assert data["permissions"]["deny"] == ["Read(./private)"]
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
-        assert data["effortLevel"] == "high"
+        assert data["model"] == "host-model[1m]"
+        assert data["effortLevel"] == "xhigh"
+        assert data["enableAllProjectMcpServers"] is False
+        managed_roots = [str(self.home / name) for name in (".agents", ".local/share/chezmoi", "fmind")]
+        assert data["permissions"]["additionalDirectories"][:4] == ["/synthetic/host-root", *managed_roots]
         assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert fresh["model"] == "claude-fable-5-1[1m]"
+        assert fresh["effortLevel"] == "high"
+        assert fresh["permissions"]["additionalDirectories"][:3] == managed_roots
+        with pytest.raises(RuntimeError, match="additionalDirectories must be an array"):
+            self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"
@@ -283,7 +306,7 @@ sessions = false
         assert fresh["effortLevel"] == "high"
 
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
-        template = "dot_gemini/antigravity-cli/modify_settings.json"
+        template = "dot_gemini/antigravity-cli/modify_private_settings.json"
         original = {
             "model": "account-model",
             "gcp": {"project": "host-project", "location": "host-location", "extra": "preserved"},
@@ -304,7 +327,9 @@ sessions = false
         fresh = json.loads(self.render(template, ""))
         for key in ("model", "pickerGrouping", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
             assert key not in fresh
-        assert fresh["trustedWorkspaces"] == [str(self.home), str(self.home / ".local/share/chezmoi")]
+        claude = json.loads(self.render("dot_claude/modify_settings.json", ""))
+        assert fresh["trustedWorkspaces"] == claude["permissions"]["additionalDirectories"]
+        assert str(self.home) not in fresh["trustedWorkspaces"]
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
         template = "dot_gemini/private_config/modify_private_config.json"
@@ -341,7 +366,7 @@ sessions = false
         assert fresh["globalPermissionGrants"] == {"allow": ["read_url(*)", "execute_url(*)", "mcp(*)"]}
 
     def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
-        template = "dot_gemini/antigravity-cli/modify_settings.json"
+        template = "dot_gemini/antigravity-cli/modify_private_settings.json"
         original = json.dumps({"gcp": {"project": "host", "location": "region", "extra": True}})
         location_only = self.render(template, original, {"ANTIGRAVITY_CLOUD_LOCATION": "ignored"})
         assert json.loads(location_only)["gcp"] == json.loads(original)["gcp"]
@@ -370,6 +395,25 @@ sessions = false
         for content in ['{"unfinished":', "[]", "null", '"string"']:
             with self.subTest(content=content), pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
                 self.render("dot_copilot/modify_settings.json", content)
+
+    def test_json_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
+        # Hook timeouts, feedbackSurveyRate, and Copilot's version are managed integers.
+        template = "dot_claude/modify_settings.json"
+        converged = json.loads(self.render(template, ""))
+        converged["hostCounter"] = 9007199254740993
+        host = json.dumps(dict(reversed(converged.items())), indent=4)
+        assert self.render(template, host) == host
+        drifted = json.loads(self.render(template, json.dumps({"hostCounter": 9007199254740993, "editorMode": "x"})))
+        assert drifted["hostCounter"] == 9007199254740993
+        assert drifted["editorMode"] == "vim"
+        legacy = json.dumps({"theme": "fmind", "hostCounter": 9007199254740993})
+        migrated = json.loads(self.render("dot_config/opencode/modify_opencode.json", legacy))
+        assert migrated["hostCounter"] == 9007199254740993
+
+    def test_toml_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
+        template = "dot_codex/modify_private_config.toml"
+        host = "# host comment\nhost_counter = 9007199254740993\n" + self.render(template, "")
+        assert self.render(template, host) == host
 
     def test_gh_dash_commands_reach_repo_paths_with_spaces(self):
         self.home = self.home / "home with spaces"
@@ -412,70 +456,51 @@ sessions = false
         assert self.render(template, rendered) == rendered
 
     def test_capture_hooks_use_one_command_at_durable_boundaries(self):
+        # Hooks name the CLI absolutely: a harness may start without ~/.local/bin on PATH.
+        dot = str(self.home / ".local/bin/dot")
         codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))["hooks"]
-        assert [hook["command"] for hook in codex["PreCompact"][0]["hooks"]] == ["dot agent hook session codex"]
-        assert [hook["command"] for hook in codex["SessionEnd"][0]["hooks"]] == ["dot agent hook session codex"]
+        assert [hook["command"] for hook in codex["PreCompact"][0]["hooks"]] == [f"{dot} agent hook session codex"]
+        assert [hook["command"] for hook in codex["SessionEnd"][0]["hooks"]] == [f"{dot} agent hook session codex"]
         assert codex["SessionEnd"][0]["hooks"][0]["timeout"] == 3
-        assert [hook["command"] for hook in codex["Stop"][0]["hooks"]] == ["dot agent hook notify codex stop"]
+        assert [hook["command"] for hook in codex["Stop"][0]["hooks"]] == [f"{dot} agent hook notify codex stop"]
+        assert [hook["command"] for hook in codex["SubagentStop"][0]["hooks"]] == [f"{dot} agent hook session codex"]
 
         claude = json.loads(self.render("dot_claude/modify_settings.json", "{}"))["hooks"]
-        assert [hook["command"] for hook in claude["PreCompact"][0]["hooks"]] == ["dot agent hook session claude"]
-        assert [hook["command"] for hook in claude["SessionEnd"][0]["hooks"]] == ["dot agent hook session claude"]
-        assert [hook["command"] for hook in claude["Stop"][0]["hooks"]] == ["dot agent hook notify claude stop"]
-        assert [hook["command"] for hook in claude["SubagentStop"][0]["hooks"]] == ["dot agent hook session claude"]
+        assert [hook["command"] for hook in claude["PreCompact"][0]["hooks"]] == [f"{dot} agent hook session claude"]
+        assert [hook["command"] for hook in claude["SessionEnd"][0]["hooks"]] == [f"{dot} agent hook session claude"]
+        assert [hook["command"] for hook in claude["Stop"][0]["hooks"]] == [f"{dot} agent hook notify claude stop"]
+        assert [hook["command"] for hook in claude["SubagentStop"][0]["hooks"]] == [f"{dot} agent hook session claude"]
 
-        grok = json.loads((ROOT / "dot_grok/hooks/hooks.json").read_text())["hooks"]
-        assert [hook["command"] for hook in grok["Stop"][0]["hooks"]] == ["dot agent hook notify grok stop"]
+        grok = json.loads(self.render("dot_grok/hooks/hooks.json.tmpl", ""))["hooks"]
+        assert [hook["command"] for hook in grok["Stop"][0]["hooks"]] == [f"{dot} agent hook notify grok stop"]
         assert all("hook usage" not in json.dumps(value) for value in (codex, claude, grok))
 
-        agy = json.loads((ROOT / "dot_gemini/private_config/private_hooks.json").read_text())
+        agy = json.loads(self.render("dot_gemini/private_config/private_hooks.json.tmpl", ""))
         assert set(agy) == {"notify", "session-log"}
-        copilot = json.loads((ROOT / "dot_copilot/hooks/session-log.json").read_text())
-        assert [hook["bash"] for hook in copilot["hooks"]["agentStop"]] == ["dot agent hook notify copilot stop"]
-        assert [hook["bash"] for hook in copilot["hooks"]["sessionEnd"]] == ["dot agent hook copilot-session-end"]
+        assert [hook["command"] for hook in agy["session-log"]["Stop"]] == [f"{dot} agent hook session agy"]
+        copilot = json.loads(self.render("dot_copilot/hooks/session-log.json.tmpl", ""))
+        assert [hook["bash"] for hook in copilot["hooks"]["agentStop"]] == [f"{dot} agent hook notify copilot stop"]
+        assert [hook["bash"] for hook in copilot["hooks"]["sessionEnd"]] == [f"{dot} agent hook copilot-session-end"]
 
+        # Every hook command names the CLI absolutely; none relies on PATH order.
+        commands = [
+            value
+            for config in (codex, claude, grok, agy, copilot)
+            for value in _strings(config)
+            if " agent hook " in value
+        ]
+        assert len(commands) == 18
+        assert all(command.startswith(f"{dot} ") for command in commands)
 
-class CursorConfigTests(HarnessConfigTests):
-    def test_cursor_preserves_account_model_and_explicit_denials(self) -> None:
-        original = json.dumps(
-            {
-                "model": {"id": "account-model"},
-                "permissions": {"deny": ["Shell(rm)"]},
-                "mcpServers": {"local": {"command": "fixture"}},
-            }
-        )
-        result = self.render("dot_cursor/modify_private_cli-config.json", original)
-        config = json.loads(result)
-        assert config["model"] == {"id": "account-model"}
-        assert config["permissions"]["deny"] == ["Shell(rm)"]
-        assert config["approvalMode"] == "unrestricted"
-        assert config["sandbox"]["mode"] == "disabled"
-        assert config["editor"]["vimMode"]
-        assert not config["attribution"]["attributeCommitsToAgent"]
-        assert self.render("dot_cursor/modify_private_cli-config.json", result) == result
-        fresh = json.loads(self.render("dot_cursor/modify_private_cli-config.json", ""))
-        assert fresh["permissions"]["deny"] == []
-        partial = json.loads(self.render("dot_cursor/modify_private_cli-config.json", '{"permissions": {"allow": []}}'))
-        assert partial["permissions"]["deny"] == []
-
-    def test_cursor_persona_hook_outputs_json_and_preserves_other_events(self) -> None:
-        original = json.dumps(
-            {"version": 1, "hooks": {"stop": [{"command": "fixture"}], "sessionStart": [{"command": "existing-hook"}]}}
-        )
-        rendered = self.render("dot_cursor/modify_hooks.json", original)
-        config = json.loads(rendered)
-        assert config["hooks"]["stop"] == [{"command": "fixture"}]
-        assert config["hooks"]["sessionStart"][0]["command"] == "existing-hook"
-        command = config["hooks"]["sessionStart"][1]["command"]
-        persona = self.home / ".agents/AGENTS.md"
-        persona.parent.mkdir()
-        persona.write_text('Synthetic persona with "quotes" and\na newline.')
-        result = subprocess.run(
-            ["bash", "-c", command],
-            check=True,
-            capture_output=True,
-            text=True,
-            env={**os.environ, "HOME": str(self.home)},
-        )
-        assert json.loads(result.stdout) == {"additional_context": persona.read_text()}
-        assert self.render("dot_cursor/modify_hooks.json", rendered) == rendered
+    def test_hook_commands_reject_home_directories_that_need_shell_quoting(self):
+        self.home = self.home / "home with spaces"
+        self.home.mkdir()
+        for template in [
+            "dot_claude/modify_settings.json",
+            "dot_codex/modify_private_config.toml",
+            "dot_grok/hooks/hooks.json.tmpl",
+            "dot_gemini/private_config/private_hooks.json.tmpl",
+            "dot_copilot/hooks/session-log.json.tmpl",
+        ]:
+            with self.subTest(template=template), pytest.raises(RuntimeError, match="not shell-safe"):
+                self.render(template, "")

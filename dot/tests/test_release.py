@@ -489,7 +489,7 @@ def test_release_regenerates_valid_lock_and_stages_it(tmp_path: Path) -> None:
     assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") in runner.calls
 
 
-@pytest.mark.parametrize("task", ["test", "build", "check:completions"])
+@pytest.mark.parametrize("task", ["test", "test:starters", "build", "check:completions"])
 def test_release_failure_restores_regenerated_lock(tmp_path: Path, task: str) -> None:
     project, original_lock = copy_release_project(tmp_path)
     runner = release_runner(tmp_path)
@@ -661,13 +661,13 @@ def test_prepared_release_refreshes_installed_python_cli(tmp_path: Path) -> None
     state = make_state(runner)
 
     assert run_release(state, yes=True) == "v1.27.0"
-    assert [("mise", "run", task) for task in ("format", "check", "test", "build", "check:completions")] == [
-        call for call in runner.interactive_calls if call[:2] == ("mise", "run")
-    ]
+    assert [
+        ("mise", "run", task) for task in ("format", "check", "test", "test:starters", "build", "check:completions")
+    ] == [call for call in runner.interactive_calls if call[:2] == ("mise", "run")]
     assert ("mise", "run", "--force", "deploy") in runner.calls
 
 
-@pytest.mark.parametrize("task", ["check", "build", "check:completions"])
+@pytest.mark.parametrize("task", ["check", "test:starters", "build", "check:completions"])
 def test_prepared_release_gate_failure_blocks_remote_mutation(tmp_path: Path, task: str) -> None:
     pyproject = tmp_path / "dot" / "pyproject.toml"
     pyproject.parent.mkdir()

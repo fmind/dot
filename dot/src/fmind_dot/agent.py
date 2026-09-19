@@ -11,7 +11,7 @@ from typer import _click
 from fmind_dot.agent_doctor import run_agent_doctor
 from fmind_dot.archive.ingest import (
     HookIdentity,
-    _bounded_failure,
+    bounded_failure,
     ingest_agent_session,
     resolve_hook_identity,
     sync_sessions,
@@ -39,7 +39,7 @@ from fmind_dot.archive.usage import (
 from fmind_dot.command_group import JsonOption, help_group
 from fmind_dot.context_budget import register as register_context
 from fmind_dot.errors import DotError
-from fmind_dot.hooks import _spool_hook_failure, decode_copilot_session_end
+from fmind_dot.hooks import decode_copilot_session_end, spool_hook_failure
 from fmind_dot.reporting import write_report_line
 from fmind_dot.state import State, state_from
 from fmind_dot.system import build_notification, notification_title, send_notification
@@ -49,7 +49,6 @@ register_context(agent_app)
 session_app = help_group("Manage agent session logs")
 hook_app = help_group("Run observable agent hooks")
 usage_app = help_group("Inspect token usage from transactional session archives")
-prompts_app = help_group("Inspect archived user-message statistics without printing prompt text")
 
 
 def _parse_time(value: str, option: str) -> datetime | None:
@@ -245,29 +244,6 @@ def session_stats(
     _print_statistics(state_from(context), session_statistics(_query(agent, cwd, "", since, until)), as_json=as_json)
 
 
-@prompts_app.command("stats", help="Deprecated: use dot agent stats --prompts-only")
-def prompts_stats(
-    context: typer.Context,
-    agent: Annotated[str, typer.Option("--agent", "--harness", "-a")] = "",
-    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
-    since: Annotated[str, typer.Option("--since", help="Filter conversation timestamps, RFC3339 or YYYY-MM-DD")] = "",
-    until: Annotated[str, typer.Option("--until")] = "",
-    by_project: Annotated[bool, typer.Option("--by-project")] = False,
-    as_json: JsonOption = False,
-) -> None:
-    typer.echo("Deprecated: use dot agent stats --prompts-only.", err=True)
-    agent_stats(
-        context,
-        agent=agent,
-        cwd=cwd,
-        since=since,
-        until=until,
-        by_project=by_project,
-        as_json=as_json,
-        prompts_only=True,
-    )
-
-
 @session_app.command(
     "compact",
     help="Validate and plan generation compaction; dry-run unless --apply is set",
@@ -301,7 +277,7 @@ def hook_session(
     try:
         ingest_agent_session(state, agent, session_id, cwd, hook=True)
     except Exception as error:
-        _spool_hook_failure(state, agent, "session", session_id, error)
+        spool_hook_failure(state, agent, "session", session_id, error)
         raise
 
 
@@ -318,12 +294,12 @@ def copilot_session_end(context: typer.Context) -> None:
         # failures observable while always returning its neutral hook response.
         reported_error = error
         try:
-            _spool_hook_failure(state, "copilot", "sessionEnd", session_id, error)
+            spool_hook_failure(state, "copilot", "sessionEnd", session_id, error)
         except Exception as spool_error:
             reported_error = spool_error
         state.stderr.write(
             "copilot sessionEnd sync failed without blocking the session: "
-            f"{_bounded_failure(reported_error, session_id, state.config.agent.hook_failures.detail_limit)}\n"
+            f"{bounded_failure(reported_error, session_id, state.config.agent.hook_failures.detail_limit)}\n"
         )
     state.stdout.write("{}\n")
 
@@ -344,37 +320,8 @@ def hook_notify(
         cwd = Path(identity.cwd) if identity.cwd else None
         send_notification(state, build_notification(agent, event, cwd, title=notification_title(state.runner)))
     except (OSError, ValueError, DotError) as error:
-        _spool_hook_failure(state, agent, f"notify:{event}", identity.session_id if identity else "", error)
+        spool_hook_failure(state, agent, f"notify:{event}", identity.session_id if identity else "", error)
         raise
-
-
-@usage_app.command("stats", hidden=True, help="Deprecated: use dot agent stats --tokens-only")
-def usage_stats_command(
-    context: typer.Context,
-    harness: Annotated[str, typer.Option("--agent", "--harness", "-a", help="Filter by agent")] = "",
-    since: Annotated[str, typer.Option("--since")] = "",
-    until: Annotated[str, typer.Option("--until")] = "",
-    by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
-    as_json: JsonOption = False,
-    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
-    by_project: Annotated[bool, typer.Option("--by-project")] = False,
-    monthly: Annotated[bool, typer.Option("--monthly", help="Group by calendar month in UTC")] = False,
-    billing: Annotated[bool, typer.Option("--billing", help="Group by each harness subscription cycle")] = False,
-) -> None:
-    typer.echo("Deprecated: use dot agent stats --tokens-only.", err=True)
-    agent_stats(
-        context,
-        agent=harness,
-        since=since,
-        until=until,
-        by_model=by_model,
-        as_json=as_json,
-        cwd=cwd,
-        by_project=by_project,
-        monthly=monthly,
-        billing=billing,
-        tokens_only=True,
-    )
 
 
 @usage_app.command("list", help="List archived session usage measurements")
@@ -520,6 +467,3 @@ agent_app.add_typer(session_app, name="session")
 
 
 agent_app.add_typer(usage_app, name="usage")
-
-
-agent_app.add_typer(prompts_app, name="prompts", hidden=True)

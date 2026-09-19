@@ -90,7 +90,7 @@ def test_project_dot_and_prompt_json_contract(monkeypatch: pytest.MonkeyPatch, t
     listing = runner.invoke(app, ["agent", "session", "list", "--project", ".", "--json"])
     assert listing.exit_code == 0
     assert len(json.loads(listing.stdout)["sessions"]) == 1
-    result = runner.invoke(app, ["agent", "prompts", "stats", "--project", ".", "--json"])
+    result = runner.invoke(app, ["agent", "stats", "--prompts-only", "--project", ".", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.stdout)["prompts"]["prompts"] == 1
     assert "hidden text" not in result.stdout
@@ -113,7 +113,8 @@ def test_mixed_models_unknown_cost_and_comparable_statistics(tmp_path: Path) -> 
             ]
         )
     path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-    record = agent_parsers.extract_codex_usage(path, "example")
+    record = agent_parsers.parse_codex_session(path, "example").usage
+    assert record is not None
     assert record.model == "mixed"
     assert record.total_tokens == 150
     assert record.to_dict()["cost_usd"] is None
@@ -334,14 +335,14 @@ def test_prompt_stats_validate_only_selected_generation_and_report_corruption(
     root = session_store.session_store_root() / "codex" / old.lineage_id
     (root / old.generation_id / "transcript.jsonl").write_text("corrupt\n")
     assert prompt_statistics(SessionQuery())["complete"]
-    human = CliRunner().invoke(app, ["agent", "prompts", "stats"])
+    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only"])
     assert human.exit_code == 0
     assert "Prompt activity · 1 archived user messages" in human.stdout
     assert "Sessions: 1 · Prompts: 1 · Responses: 0" in human.stdout
     assert "Prompt coverage: complete" in human.stdout
     assert "private text" not in human.stdout
     (root / current.generation_id / "transcript.jsonl").write_text("corrupt\n")
-    broken = CliRunner().invoke(app, ["agent", "prompts", "stats", "--json"])
+    broken = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--json"])
     assert broken.exit_code != 0
     document = json.loads(broken.stdout)["prompts"]
     assert not document["complete"]

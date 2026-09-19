@@ -130,6 +130,24 @@ def _scope_entries(agents: Path, skills: Path, scope: Scope) -> list[ContextEntr
     return entries
 
 
+def _host_extras(skills: Path, scope: Scope) -> dict[str, int]:
+    """Measure host-owned reserved directories: visible exposure, never budgeted or validated."""
+    count = unmeasured = characters = 0
+    for name in sorted(_RESERVED_SKILL_DIRECTORIES):
+        for path in sorted((skills / name).rglob("SKILL.md")):
+            count += 1
+            try:
+                characters += _skill_entry(path, scope, catalog=skills).discovery_characters
+            except DotError:
+                # Hosts own this format; an unreadable entry must not fail the gate.
+                unmeasured += 1
+    return {
+        "skills": count,
+        "unmeasured": unmeasured,
+        "skill_index_estimated_tokens": estimated_tokens(characters),
+    }
+
+
 def _totals(entries: list[ContextEntry]) -> dict[str, int]:
     agents = sum(item.characters for item in entries if item.kind == "agents")
     skills = sum(item.discovery_characters for item in entries)
@@ -197,6 +215,10 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
         "totals": totals,
         "budgets": budgets,
         "passed": all(budget["passed"] for budget in budgets.values()),
+        "host_extras": {
+            "global": _host_extras(global_skills, "global"),
+            "local": _host_extras(project / ".agents/skills", "local"),
+        },
         "collisions": sorted(collisions),
         "entries": [entry.to_dict() for entry in [*global_entries, *local_entries]],
     }
@@ -228,6 +250,17 @@ def _print_report(report: dict[str, Any], *, details: bool) -> None:
     discovery = report["totals"]["combined"]["skill_index_estimated_tokens"]
     typer.echo(f"Combined discovery: {discovery:,} estimated tokens (informational)")
     typer.echo("Combined startup is informational. On-demand bodies and host/plugin extras are excluded.")
+    extras = report["host_extras"]
+    if any(item["skills"] for item in extras.values()):
+        typer.echo(
+            "Host extras (informational, not budgeted): "
+            + ", ".join(
+                f"{item['skills']:,} {scope} skills ≈ {item['skill_index_estimated_tokens']:,} discovery tokens"
+                for scope, item in extras.items()
+                if item["skills"]
+            )
+            + " in reserved directories other hosts may load."
+        )
     typer.echo("Estimated at ~4 characters/token; exact counts vary by model. Totals round independently.")
     if report["collisions"]:
         typer.echo("\nName collisions (both counted): " + ", ".join(report["collisions"]))

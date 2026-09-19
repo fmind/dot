@@ -6,13 +6,14 @@ import sys
 import time
 from io import StringIO
 from pathlib import Path
+from threading import Thread
 from typing import cast
 
 import pytest
 
 from fmind_dot import process as process_module
 from fmind_dot.errors import DotError
-from fmind_dot.process import Runner
+from fmind_dot.process import CommandResult, Runner
 
 
 @pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker"])
@@ -230,6 +231,97 @@ def test_bounded_capture_replaces_invalid_locale_bytes() -> None:
     assert not result.output_truncated
 
 
+def test_run_replaces_invalid_locale_bytes_like_bounded_capture() -> None:
+    script = "import os; os.write(1, b'ok\\xff\\n'); os.write(2, b'\\xfe')"
+
+    result = Runner().run([sys.executable, "-c", script])
+
+    assert result.stdout == "ok�\n"
+    assert result.stderr == "�"
+
+
+_TERM_CHILD = (
+    "import pathlib,signal,sys,time\n"
+    "def stop(*_): pathlib.Path(sys.argv[2]).write_text('clean'); raise SystemExit(0)\n"
+    "signal.signal(signal.SIGTERM, signal.SIG_IGN if sys.argv[3]=='ignore' else stop)\n"
+    "pathlib.Path(sys.argv[1]).write_text(str(__import__('os').getpid()))\n"
+    "time.sleep(30)\n"
+)
+
+
+def _wait_for(path: Path) -> None:
+    deadline = time.monotonic() + 5
+    while not path.exists() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert path.exists(), "child did not become ready before the startup deadline"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
+def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
+    ready, clean = tmp_path / "ready", tmp_path / "clean"
+
+    with pytest.raises(DotError, match="command timed out"):
+        Runner().run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], timeout=1.5)
+
+    assert ready.exists(), "child did not install its handler before the timeout"
+    assert clean.read_text() == "clean"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
+def test_cancel_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
+    ready, clean = tmp_path / "ready", tmp_path / "clean"
+    runner = Runner()
+    results: list[CommandResult] = []
+    worker = Thread(
+        target=lambda: results.append(
+            runner.run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], check=False)
+        )
+    )
+    worker.start()
+    try:
+        _wait_for(ready)
+        runner.cancel()
+    finally:
+        worker.join(timeout=10)
+
+    assert not worker.is_alive()
+    assert clean.read_text() == "clean"
+    assert [result.returncode for result in results] == [0]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
+@pytest.mark.parametrize("stop", ["timeout", "cancel"])
+def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
+    stop: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(process_module, "_TERMINATION_GRACE_SECONDS", 0.3)
+    ready, clean = tmp_path / "ready", tmp_path / "clean"
+    command = [sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "ignore"]
+    runner = Runner()
+    results: list[CommandResult] = []
+
+    if stop == "timeout":
+        started = time.monotonic()
+        with pytest.raises(DotError, match="command timed out"):
+            runner.run(command, timeout=1.5)
+    else:
+        worker = Thread(target=lambda: results.append(runner.run(command, check=False)))
+        worker.start()
+        try:
+            _wait_for(ready)
+            started = time.monotonic()
+            runner.cancel()
+        finally:
+            worker.join(timeout=10)
+        assert not worker.is_alive()
+        assert [result.returncode for result in results] == [-process_module.signal.SIGKILL]
+
+    assert time.monotonic() - started < 4
+    assert not clean.exists()
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(ready.read_text()), 0)
+
+
 def test_timeout_is_bounded_when_descendant_escapes_process_group() -> None:
     escaped_child = (
         "import os,time\n"
@@ -373,7 +465,7 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
         Runner().run(["command"])
 
     assert process.waited
-    assert signals == [(process.pid, process_module.signal.SIGKILL)]
+    assert signals == [(process.pid, process_module.signal.SIGTERM), (process.pid, process_module.signal.SIGKILL)]
     assert process.stdin.closed
     assert process.stdout.closed
     assert process.stderr.closed

@@ -14,7 +14,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote
 
-from fmind_dot.archive.store import SessionLog, fingerprint_bytes, fingerprint_json, is_valid_session_id
+from fmind_dot.archive.store import (
+    SessionLog,
+    fingerprint_bytes,
+    fingerprint_json,
+    is_valid_session_id,
+    propagate_models,
+)
 from fmind_dot.archive.usage import UsageRecord
 
 AGY_TRANSCRIPT_NAMES = ("transcript_full.jsonl", "transcript.jsonl")
@@ -43,19 +49,14 @@ class ParsedSession:
 
 
 SessionParser = Callable[[Path, str, str], ParsedSession]
-UsageParser = Callable[[Path, str, str], UsageRecord]
 
 
 @dataclass(frozen=True)
 class AgentAdapter:
     name: str
     label: str
-    alias: str
-    source_type: str
     database: bool
-    parser: SessionParser | None
-    usage_parser: UsageParser | None
-    verified: bool = True
+    parser: SessionParser
 
 
 def resolve_cwd(value: str) -> str:
@@ -69,12 +70,13 @@ def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]
     # Decode one LF-delimited record at a time: large Codex snapshots can be
     # nearly a gigabyte, and splitting a decoded copy multiplies peak memory.
     for raw_line in BytesIO(content):
-        line = raw_line.decode()
-        if not line.strip():
-            continue
         try:
+            line = raw_line.decode()
+            if not line.strip():
+                continue
             value = json.loads(line)
-        except json.JSONDecodeError:
+        except UnicodeDecodeError, json.JSONDecodeError:
+            # An undecodable record is malformed; it must not cost the rest of the session.
             yield None, True
             continue
         if not isinstance(value, dict):
@@ -86,21 +88,6 @@ def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]
 def _jsonl_snapshot(path: Path) -> tuple[Iterator[tuple[dict[str, Any] | None, bool]], str, int]:
     content = path.read_bytes()
     return _decode_jsonl(content), fingerprint_bytes(content), len(content)
-
-
-def _finalize_models(logs: list[SessionLog]) -> None:
-    active = ""
-    for log in logs:
-        if log.model:
-            active = log.model
-        elif active:
-            log.model = active
-    active = ""
-    for log in reversed(logs):
-        if log.model:
-            active = log.model
-        elif active:
-            log.model = active
 
 
 def _usage_token_count(value: object, field: str) -> int | None:
@@ -131,7 +118,8 @@ def _finalize_parsed_usage(
     try:
         return record.finalize(), None
     except ValueError as usage_error:
-        # Transcript archival stays useful when a provider emits bad metrics.
+        # Transcript archival stays useful when a provider emits bad metrics:
+        # ingestion publishes the transcript without usage, then reports this error.
         return None, usage_error
 
 
@@ -192,13 +180,6 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         parsed_usage,
         usage_error,
     )
-
-
-def extract_agy_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    parsed = parse_agy_session(path, session_id, cwd)
-    if parsed.usage is None:
-        raise parsed.usage_error or ValueError("agy session parser did not return usage")
-    return parsed.usage
 
 
 def claude_project_directory(cwd: str) -> str:
@@ -325,7 +306,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
                 model,
             )
         )
-    _finalize_models(logs)
+    propagate_models(logs)
     if messages:
         usage.set_samples(list(messages.values()), timed=timed)
         usage.timestamp = max(sample.timestamp for sample in messages.values())
@@ -334,13 +315,6 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
     return ParsedSession(logs, fingerprint, "claude-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
-
-
-def extract_claude_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    parsed = parse_claude_session(path, session_id, cwd)
-    if parsed.usage is None:
-        raise parsed.usage_error or ValueError("Claude session parser did not return usage")
-    return parsed.usage
 
 
 def codex_session_id(path: Path) -> str:
@@ -506,19 +480,12 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
                 _codex_field(raw, "model") or active_model,
             )
         )
-    _finalize_models(logs)
+    propagate_models(logs)
     if samples and timed:
         usage.set_samples(samples)
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
     return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
-
-
-def extract_codex_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    parsed = parse_codex_session(path, session_id, cwd)
-    if parsed.usage is None:
-        raise parsed.usage_error or ValueError("Codex session parser did not return usage")
-    return parsed.usage
 
 
 def grok_session_directory(cwd: str) -> str:
@@ -572,6 +539,8 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
     samples: list[UsageRecord] = []
     cost_ticks = 0
     cost_complete = True
+    usage: UsageRecord | None = None
+    usage_error: Exception | None = None
     # Both provider files participate in the generation identity. Read each once
     # so an updated measurement cannot be hidden by an unchanged transcript.
     transcript = b"" if path.name == "signals.json" else path.read_bytes()
@@ -600,10 +569,14 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
         if isinstance(model, str) and model:
             active_model = model
         if update.get("sessionUpdate") == "turn_completed":
-            turn, ticks, complete = _grok_turn_usage(update, _grok_timestamp(raw.get("timestamp")), session_id, cwd)
-            samples.extend(turn)
-            cost_ticks += ticks
-            cost_complete = cost_complete and complete
+            try:
+                turn, ticks, complete = _grok_turn_usage(update, _grok_timestamp(raw.get("timestamp")), session_id, cwd)
+            except ValueError as error:
+                usage_error = error
+            else:
+                samples.extend(turn)
+                cost_ticks += ticks
+                cost_complete = cost_complete and complete
         role = roles.get(update.get("sessionUpdate"))
         text = _mapping(update.get("content")).get("text")
         if role is None or not isinstance(text, str) or not text:
@@ -618,26 +591,15 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
             current_model = active_model
         parts.append(text)
     flush()
-    _finalize_models(logs)
-    try:
-        usage = _parse_grok_usage(signals, session_id, cwd, samples, cost_ticks, cost_complete)
-        # Both provider files are inspected to produce one measurement.
-        usage.source_bytes = len(transcript) + len(signals or b"")
-        usage_error = None
-    except (OSError, ValueError) as error:
-        usage = None
-        usage_error = error
+    propagate_models(logs)
+    if usage_error is None:
+        try:
+            usage = _parse_grok_usage(signals, session_id, cwd, samples, cost_ticks, cost_complete)
+            # Both provider files are inspected to produce one measurement.
+            usage.source_bytes = len(transcript) + len(signals or b"")
+        except (OSError, ValueError) as error:
+            usage_error = error
     return ParsedSession(logs, fingerprint, "grok-jsonl", malformed, decoded - len(logs), usage, usage_error)
-
-
-def extract_grok_usage(session_dir: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    path = session_dir / GROK_TRANSCRIPT_NAME
-    if not path.is_file():
-        path = session_dir / "signals.json"
-    parsed = parse_grok_session(path, session_id, cwd)
-    if parsed.usage is None:
-        raise parsed.usage_error or ValueError("Grok session parser did not return usage")
-    return parsed.usage
 
 
 def _grok_turn_usage(
@@ -711,10 +673,6 @@ def _parse_grok_usage(
         record.cost_usd = cost_ticks / _GROK_TICKS_PER_USD
         record.cost_known = True
     return record.finalize()
-
-
-def _extract_grok_usage_from_transcript(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    return extract_grok_usage(path.parent, session_id, cwd)
 
 
 def _connect_read_only(path: Path) -> sqlite3.Connection:
@@ -793,15 +751,6 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
     )
 
 
-def extract_copilot_usage(path: Path, session_id: str, cwd: str = "") -> UsageRecord:
-    if not is_valid_session_id(session_id):
-        raise ValueError(f"invalid copilot session id {session_id!r}")
-    with closing(_connect_read_only(path)) as connection:
-        record = _extract_copilot_usage(connection, session_id, cwd)
-    record.source_bytes = path.stat().st_size
-    return record
-
-
 def _extract_copilot_usage(connection: sqlite3.Connection, session_id: str, cwd: str) -> UsageRecord:
     rows = connection.execute(
         """SELECT model, input_tokens, output_tokens, cache_read_tokens,
@@ -835,20 +784,16 @@ def _extract_copilot_usage(connection: sqlite3.Connection, session_id: str, cwd:
 
 
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
-    "agy": AgentAdapter("agy", "agy", "a", "antigravity-jsonl", False, parse_agy_session, extract_agy_usage),
-    "claude": AgentAdapter("claude", "Claude", "c", "claude-jsonl", False, parse_claude_session, extract_claude_usage),
-    "codex": AgentAdapter("codex", "Codex", "x", "codex-jsonl", False, parse_codex_session, extract_codex_usage),
-    "grok": AgentAdapter(
-        "grok", "Grok", "g", "grok-jsonl", False, parse_grok_session, _extract_grok_usage_from_transcript
-    ),
-    "copilot": AgentAdapter(
-        "copilot", "Copilot", "p", "copilot-db", True, parse_copilot_session, extract_copilot_usage
-    ),
+    "agy": AgentAdapter("agy", "agy", False, parse_agy_session),
+    "claude": AgentAdapter("claude", "Claude", False, parse_claude_session),
+    "codex": AgentAdapter("codex", "Codex", False, parse_codex_session),
+    "grok": AgentAdapter("grok", "Grok", False, parse_grok_session),
+    "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session),
 }
 
 
-def agent_adapters(*, verified_only: bool = False) -> list[AgentAdapter]:
-    return [adapter for adapter in AGENT_ADAPTERS.values() if adapter.verified or not verified_only]
+def agent_adapters() -> list[AgentAdapter]:
+    return list(AGENT_ADAPTERS.values())
 
 
 def find_transcript(root: Path, agent: str, session_id: str, cwd: str = "") -> Path:
@@ -933,11 +878,6 @@ __all__ = [
     "claude_session_id",
     "codex_session_id",
     "enumerate_sessions",
-    "extract_agy_usage",
-    "extract_claude_usage",
-    "extract_codex_usage",
-    "extract_copilot_usage",
-    "extract_grok_usage",
     "find_transcript",
     "grok_cwd_from_path",
     "grok_session_directory",

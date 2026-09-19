@@ -19,10 +19,9 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
         return None, "measurement is not provider-reported"
     if record.harness not in {"codex", "claude", "copilot", "grok"}:
         return None, "unsupported accounting"
-    if record.total_tokens and not any(
-        (record.input_tokens, record.output_tokens, record.cached_tokens, record.cache_write_tokens)
-    ):
-        return None, "missing token breakdown"
+    if not any((record.input_tokens, record.output_tokens, record.cached_tokens, record.cache_write_tokens)):
+        # No billable tokens cost nothing at any rate, e.g. Claude's local "<synthetic>" rows.
+        return (None, "missing token breakdown") if record.total_tokens else (0.0, "")
     rate = pricing.models.get(record.model)
     if record.model in {"", "mixed", "unknown"} or rate is None:
         return None, "unknown or mixed model"

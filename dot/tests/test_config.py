@@ -43,7 +43,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
 
 def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
     config = Config()
-    expected = {"astro", "aws-sso-util", "databricks", "k3d", "kind", "kube-linter", "stern"}
+    expected = {"astro", "aws-sso-util", "databricks", "k3d", "kube-linter", "stern"}
     assert expected <= set(config.completions.tools)
     assert expected <= set(config.completions.custom_commands)
     assert config.completions.custom_commands["aws-sso-util"].binary == "env"
@@ -109,6 +109,15 @@ def test_removed_configuration_fields_are_rejected(tmp_path: Path, document: str
     path.write_text(document, encoding="utf-8")
 
     with pytest.raises(ValidationError):
+        load_config(path)
+
+
+@pytest.mark.parametrize("tool", ["../escape", "nested/tool", "*", "tool[ab]", "tool?", ".hidden", "-flag", "", "a b"])
+def test_completion_tools_must_be_safe_file_names(tmp_path: Path, tool: str) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text(f"completions:\n  tools: [{tool!r}]\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"completions\.tools"):
         load_config(path)
 
 

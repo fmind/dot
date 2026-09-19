@@ -308,6 +308,38 @@ def test_skills_contract_rejects_untracked_foreign_skill_root(tmp_path: Path) ->
     assert any("symbolic link" in finding for finding in checker.repository_findings(root))
 
 
+def test_skills_contract_rejects_root_with_files_but_no_entrypoint(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    (root / "skills/empty/references").mkdir(parents=True)
+    assert checker.repository_findings(root) == []
+
+    (root / "skills/orphan/references").mkdir(parents=True)
+    (root / "skills/orphan/references/guide.md").write_text("# Orphan\n", encoding="utf-8")
+
+    assert checker.repository_findings(root) == ["skills/orphan: skill root has files but no SKILL.md"]
+
+
+def test_skills_contract_rejects_retired_skill_names_as_link_labels(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    (root / "skills/fixture/references/uv.md").write_text("# uv\n", encoding="utf-8")
+    skill.write_text(
+        skill.read_text(encoding="utf-8")
+        + "- [uv](references/uv.md) keeps its name as a guide; [uv](https://docs.astral.sh/uv/) names the tool.\n",
+        encoding="utf-8",
+    )
+    assert checker.repository_findings(root) == []
+
+    skill.write_text(
+        skill.read_text(encoding="utf-8") + "- [terraform](../fixture-helper/SKILL.md)\n",
+        encoding="utf-8",
+    )
+
+    findings = checker.repository_findings(root)
+    assert len(findings) == 1
+    assert "link label 'terraform' is a retired skill name" in findings[0]
+
+
 def test_repository_skills_have_individual_chezmoi_links() -> None:
     packages = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
     links = ROOT / "dot_agents/skills"
@@ -316,37 +348,6 @@ def test_repository_skills_have_individual_chezmoi_links() -> None:
         assert (links / f"symlink_{name}.tmpl").read_text() == "{{ .chezmoi.sourceDir }}/skills/" + name + "\n"
     assert not (ROOT / "dot_agents/symlink_skills.tmpl").exists()
     assert not (ROOT / "dot_agents/exact_skills").exists()
-
-
-@pytest.mark.parametrize("existing_package", [False, True])
-def test_skills_documentation_installation_preserves_existing_packages(tmp_path: Path, existing_package: bool) -> None:
-    section = (ROOT / "README.md").read_text().split("## Agent skills\n", 1)[1].split("\n## ", 1)[0]
-    instructions = section.split("```markdown\n", 1)[1].split("```", 1)[0]
-    command = section.split("```bash\n", 1)[1].split("```", 1)[0]
-    package = tmp_path / "skill-library/meeting-prep"
-    package.mkdir(parents=True)
-    (package / "SKILL.md").write_text(instructions)
-    target = tmp_path / ".agents/skills/meeting-prep"
-    if existing_package:
-        target.mkdir(parents=True)
-        (target / "SKILL.md").write_text("Keep this package.\n")
-    environment = dict(os.environ, HOME=str(tmp_path))
-    result = subprocess.run(
-        ["bash", "-eu", "-c", command], env=environment, capture_output=True, text=True, check=False
-    )
-    assert result.returncode == (1 if existing_package else 0)
-    repeated = subprocess.run(
-        ["bash", "-eu", "-c", command], env=environment, capture_output=True, text=True, check=False
-    )
-    assert repeated.returncode != 0
-    if existing_package:
-        assert not target.is_symlink()
-        assert (target / "SKILL.md").read_text() == "Keep this package.\n"
-    else:
-        assert target.readlink() == package
-        assert (target / "SKILL.md").read_text() == instructions
-    assert list(package.iterdir()) == [package / "SKILL.md"]
-    assert list(target.iterdir()) == [target / "SKILL.md"]
 
 
 def test_skills_contract_enforces_catalog_and_routing_references(tmp_path: Path) -> None:
@@ -624,29 +625,61 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
 
 
 def test_deploy_uses_the_locked_python_runtime_graph() -> None:
-    tasks = (ROOT / "mise.toml").read_text(encoding="utf-8")
+    config = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
+    tasks = config["tasks"]
     deploy = (ROOT / "dot/src/fmind_dot/deploy.py").read_text(encoding="utf-8")
+    commands = {
+        name: " ".join([run] if isinstance(run := task.get("run", []), str) else run) for name, task in tasks.items()
+    }
 
-    assert (
-        'run = "\\"$(mise which python)\\" -I dot/src/fmind_dot/deploy.py \\"$PWD\\" \\"$(mise which uv)\\""' in tasks
-    )
-    assert "uv run --project dot --frozen python dot/src/fmind_dot/deploy.py" not in tasks
-    assert "uv run --frozen python dot/src/fmind_dot/deploy.py" not in tasks
+    # Deployment bootstraps from the mise-selected interpreter in isolated mode; going
+    # through `uv run` would make the installer depend on the environment it replaces.
+    assert '$(mise which python)" -I dot/src/fmind_dot/deploy.py' in commands["deploy"]
+    assert "$(mise which uv)" in commands["deploy"]
+    assert not [name for name, command in commands.items() if "deploy.py" in command and "uv run" in command]
+    assert not [name for name, command in commands.items() if "uv tool install" in command]
     assert '"--locked",' in deploy
     assert '"--require-hashes",' in deploy
     assert '"--only-binary",' in deploy
     assert '"--strict",' in deploy
     assert "--no-hashes" not in deploy
-    assert "uv tool install" not in tasks
     assert "from fmind_dot.system import write_install_receipt" in deploy
-    assert 'DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"' in tasks
-    assert "run = '\"$DOT_BIN\" completion'" in tasks
-    assert "run = '\"$DOT_BIN\" doctor'" in tasks
-    assert (
-        (ROOT / "dot_local/bin/symlink_dot.tmpl")
-        .read_text(encoding="utf-8")
-        .endswith("/.local/share/fmind-dot/current/bin/dot\n")
-    )
+    # Workstation tasks run the deployed entrypoint, and it is the launcher chezmoi links.
+    (launcher,) = (ROOT / "dot_local/bin").glob("symlink_*.tmpl")
+    target = launcher.read_text(encoding="utf-8").strip().removeprefix("{{ .chezmoi.homeDir }}")
+    assert config["env"]["DOT_BIN"] == "{{env.HOME}}" + target
+    assert target.startswith("/.local/share/fmind-dot/current/bin/")
+    for name in ("completions", "verify"):
+        assert commands[name].startswith('"$DOT_BIN" '), name
+
+
+# Backends that publish neither checksums nor provenance for their artifacts. Every
+# other tool must be verifiable from the lockfile alone; do not add uv or any
+# aqua/core/github tool here: relock it on a checksummed backend instead.
+_LOCK_WITHOUT_CHECKSUM = {
+    "neovim": "vfox:mise-plugins/vfox-neovim",  # the vfox plugin resolves release URLs but no digests
+}
+
+
+def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
+    config = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
+    document = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))
+    platforms = {f"platforms.{platform}" for platform in config["settings"]["lockfile_platforms"]}
+    assert platforms
+
+    findings = [f"{name}: not locked" for name in config["tools"] if name not in document["tools"]]
+    for name, entries in document["tools"].items():
+        for entry in entries:
+            for platform in sorted(platforms):
+                artifact = entry.get(platform, {})
+                if not artifact.get("url"):
+                    findings.append(f"{name} {platform}: no url ({entry.get('backend')})")
+                if _LOCK_WITHOUT_CHECKSUM.get(name) == entry.get("backend"):
+                    continue
+                if not str(artifact.get("checksum", "")).startswith(("sha256:", "sha512:", "blake3:")):
+                    findings.append(f"{name} {platform}: no checksum ({entry.get('backend')})")
+    assert findings == [], "\n".join(findings)
+    assert "uv" not in _LOCK_WITHOUT_CHECKSUM
 
 
 @pytest.mark.parametrize(("relative", "version"), [("mise.lock", 2), ("dot_config/mise/mise.lock", 1)])

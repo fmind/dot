@@ -75,12 +75,39 @@ def test_claude_cache_is_additive_and_zero_is_known() -> None:
     assert api_equivalent(record(), default_pricing()) == (0, "")
 
 
+def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complete() -> None:
+    priced = UsageRecord(
+        harness="claude",
+        session_id="one",
+        model="claude-sonnet-4-6",
+        measurement_kind="provider-reported",
+        timestamp="2026-05-01T10:00:00Z",
+        input_tokens=1_000_000,
+    ).finalize()
+    # Claude stamps local error/interrupt rows with a "<synthetic>" model and no tokens.
+    synthetic = UsageRecord(
+        harness="claude",
+        session_id="one",
+        model="<synthetic>",
+        measurement_kind="provider-reported",
+        timestamp="2026-05-01T10:01:00Z",
+    ).finalize()
+    session = UsageRecord(harness="claude", session_id="one", measurement_kind="provider-reported")
+    session.set_samples([priced, synthetic])
+
+    assert api_equivalent(synthetic, default_pricing()) == (0, "")
+    result = aggregate_usage([session.finalize()])[0].to_dict()
+    assert result["pricing_complete"] is True
+    assert result["unpriced_reasons"] == {}
+    assert result["api_equivalent_usd"] == pytest.approx(3.0)
+
+
 @pytest.mark.parametrize(
     "changes",
     [
         {"total_tokens": 500},
-        {"model": "mixed"},
-        {"model": "gpt-5.4-future"},
+        {"model": "mixed", "output_tokens": 1},
+        {"model": "gpt-5.4-future", "output_tokens": 1},
         {"measurement_kind": "estimated"},
         {"measurement_kind": "context-only"},
         {"cached_tokens": 3, "input_tokens": 2},
@@ -96,7 +123,7 @@ def test_unknown_accounting_is_never_free(changes: dict) -> None:
 
 def test_aggregate_partial_pricing_is_separate_from_recorded_cost() -> None:
     known = record(input_tokens=1_000_000, cost_usd=4, cost_known=True)
-    unknown = record()
+    unknown = record(output_tokens=1)
     unknown.model = "mixed"
     result = aggregate_usage([known, unknown])[0].to_dict()
     assert result["cost_usd"] == 4
@@ -127,10 +154,10 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert report["prompts"]["prompts"] == 1
     assert report["usage"][0]["api_equivalent_usd"] == 7
     assert report["usage"][0]["turns"] == 4
-    detailed = runner.invoke(app, ["--config", str(config), "agent", "usage", "stats", "--json"])
+    detailed = runner.invoke(app, ["--config", str(config), "agent", "stats", "--tokens-only", "--json"])
     assert detailed.exit_code == 0, detailed.output
     assert json.loads(detailed.stdout)["usage"][0]["api_equivalent_usd"] == 7
-    assert "Deprecated" in detailed.stderr
+    assert json.loads(detailed.stdout)["prompts"] is None
     human = runner.invoke(app, ["agent", "stats"])
     assert human.exit_code == 0
     assert "API equivalent:" in human.output

@@ -65,7 +65,6 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "hf": ToolConfig(binary="env", args=["_HF_COMPLETE=fish_source", "hf"]),
         "hyperfine": ToolConfig(package="hyperfine"),
         "k3d": ToolConfig(),
-        "kind": ToolConfig(),
         "kube-linter": ToolConfig(),
         "lazygit": ToolConfig(args=["completion", "fish"]),
         "lefthook": ToolConfig(),
@@ -95,10 +94,14 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
     }
 
 
+# Completion tools name `<tool>.fish` files and glob patterns: no separators or wildcards.
+ToolName = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")]
+
+
 class CompletionConfig(StrictModel):
     path: str = "~/.config/fish/completions"
     custom_commands: dict[str, ToolConfig] = Field(default_factory=_default_custom_completions)
-    tools: list[str] = Field(default_factory=lambda: sorted(_default_custom_completions()))
+    tools: list[ToolName] = Field(default_factory=lambda: sorted(_default_custom_completions()))
     timeout_seconds: Seconds = 60.0
 
 
