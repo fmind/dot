@@ -1,7 +1,5 @@
 // Docs: https://zellij.dev/documentation/configuration
 
-// Locked keeps Ctrl t/o/s/p/n/b/q for fish, fzf, and nvim; Ctrl g unlocks the Zellij modes.
-default_mode "locked"
 default_shell "fish"
 // Pane frames separate the content from tabs and the status bar.
 pane_frames true
@@ -10,7 +8,7 @@ theme "fmind"
 scroll_mode_sync false
 
 keybinds {
-    // Alt bindings stay available in the default Locked mode.
+    // Alt bindings also work in Locked mode (Ctrl g) when an app needs the Ctrl keys.
     shared {
         bind "Alt a" { Run "agy" { close_on_exit true; }; }
         bind "Alt y" { Run "yazi" { floating true; close_on_exit true; x "10%"; y "10%"; width "80%"; height "80%"; }; }
@@ -24,6 +22,6 @@ keybinds {
         bind "Alt m" { SwitchToMode "Move"; }
     }
     move {
-        bind "Alt m" { SwitchToMode "Locked"; }
+        bind "Alt m" { SwitchToMode "Normal"; }
     }
 }
