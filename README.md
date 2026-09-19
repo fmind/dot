@@ -52,7 +52,7 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 
 - **Terminal**: [Ghostty](https://ghostty.org/docs/install/binary).
 - **Containers**: A Docker-compatible container engine (Docker or Podman) if building container images.
-- **Desktop notifications**: Codex, Claude, Grok, Antigravity, and Copilot notify when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native service; headless sessions skip delivery. Restart open harnesses after their hook configuration changes. See [agent-harnesses](skills/agent-harnesses/SKILL.md).
+- **Desktop notifications**: Codex, Claude, Grok, Antigravity, and Copilot notify when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native service; headless sessions skip delivery. Restart open harnesses after their hook configuration changes. See [agent-harnesses](skills/agent-harnesses/SKILL.md) and [agy](skills/agy/SKILL.md) for Antigravity.
 
 ## Installation
 
@@ -225,7 +225,7 @@ chezmoi purge
 mise implode --config
 ```
 
-Left behind, to delete by hand: the deployed files listed by `chezmoi managed`, the `# chezmoi: mise-*` blocks in `~/.bashrc`, `~/.profile`, and `~/.zprofile`, the `dot` CLI under `~/.local/share/fmind-dot` with its `~/.local/bin/dot` link, the Grok (`~/.grok`) and Antigravity (`~/.local/bin/agy`) installations, installed fonts, `~/.agents`, your age key, and any data the tools wrote. To roll back an update, check out the previous release tag in `~/.local/share/chezmoi` and run `chezmoi apply --force`; files added since then stay in place.
+Left behind, to delete by hand: the deployed files listed by `chezmoi managed`, the `# chezmoi: mise-*` blocks in `~/.bashrc`, `~/.profile`, and `~/.zprofile`, the `dot` CLI under `~/.local/share/fmind-dot` with its `~/.local/bin/dot` link, the Grok installation (`~/.grok` with its `~/.local/bin/grok` and `~/.local/bin/agent` links) and Antigravity (`~/.local/bin/agy`) installations, installed fonts, `~/.agents`, your age key, and any data the tools wrote. To roll back an update, check out the previous release tag in `~/.local/share/chezmoi` and run `chezmoi apply --force`; files added since then stay in place.
 
 ## Security
 
