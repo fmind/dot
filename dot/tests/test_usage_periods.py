@@ -198,18 +198,25 @@ def test_public_monthly_and_subscription_config(tmp_path: Path, monkeypatch: pyt
     assert runner.invoke(app, ["--config", str(config), "config", "validate"]).exit_code != 0
 
 
-def test_usage_query_still_rejects_corrupt_transcript(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_usage_query_rejects_invalid_usage_and_mismatched_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fmind_dot.archive import store
+
     monkeypatch.setenv("HOME", str(tmp_path))
     ingest_session("codex", "one", [], usage=request("2026-09-01T00:00:00Z").to_dict())
     assert len(load_usage_records()) == 1
-    next(tmp_path.rglob("transcript.jsonl")).write_text("corrupt")
-    with pytest.raises(ValueError, match="transcript fingerprint"):
+    path = store.session_bundle_path("codex", "one")
+    manifest = json.loads(path.read_text())
+    path.write_text(json.dumps(manifest | {"usage": manifest["usage"] | {"input_tokens": -1}}) + "\n")
+    with pytest.raises(ValueError, match="non-negative integer"):
+        load_usage_records()
+    path.write_text(json.dumps(manifest | {"usage": manifest["usage"] | {"session_id": "two"}}) + "\n")
+    with pytest.raises(ValueError, match="does not match its session"):
         load_usage_records()
 
 
-def test_recapture_preserves_parser_three_and_selects_corrected_generation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_recapture_replaces_legacy_parser_accounting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from fmind_dot.archive import store
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -218,7 +225,6 @@ def test_recapture_preserves_parser_three_and_selects_corrected_generation(
     with monkeypatch.context() as previous:
         previous.setattr(store, "SESSION_PARSER_VERSION", "3")
         ingest_session("codex", "one", [], source, usage=original.to_dict())
-    old = {path: path.read_bytes() for path in store.session_store_root().rglob("*") if path.is_file()}
     assert load_usage_records()[0].legacy_accounting
     corrected = session(request("2026-09-01T00:00:00Z", tokens=100))
     ingest_session("codex", "one", [], source, usage=corrected.to_dict())
@@ -226,4 +232,4 @@ def test_recapture_preserves_parser_three_and_selects_corrected_generation(
     assert len(records) == 1
     assert records[0].total_tokens == 100
     assert not records[0].legacy_accounting
-    assert all(path.read_bytes() == content for path, content in old.items())
+    assert [path.name for path in store.discover_session_bundles()] == ["one.jsonl"]

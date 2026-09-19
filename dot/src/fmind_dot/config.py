@@ -111,17 +111,6 @@ class PullConfig(StrictModel):
     concurrency: int = Field(default=8, gt=0)
 
 
-class AgentDoctorConfig(StrictModel):
-    stale_lag_seconds: Seconds = 86400.0
-    scan_limit: int = Field(default=16384, gt=0)
-    example_limit: int = Field(default=5, ge=0, le=100)
-
-
-class HookFailureConfig(StrictModel):
-    limit: int = Field(default=100, gt=0)
-    detail_limit: int = Field(default=512, gt=0)
-
-
 TokenPrice = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
@@ -169,8 +158,6 @@ class AgentConfig(StrictModel):
     )
     pricing: PricingConfig = Field(default_factory=default_pricing)
     subscriptions: dict[str, SubscriptionConfig] = Field(default_factory=dict)
-    doctor: AgentDoctorConfig = Field(default_factory=AgentDoctorConfig)
-    hook_failures: HookFailureConfig = Field(default_factory=HookFailureConfig)
 
 
 class EnvVarsConfig(StrictModel):

@@ -127,9 +127,9 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
         ),
         (["config"], ["edit", "init", "path", "show", "validate"]),
         (["agent"], ["context", "doctor", "session", "stats", "usage"]),
-        (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),
+        (["agent", "session"], ["export", "list", "show", "stats", "sync"]),
         (["agent", "usage"], ["list", "show"]),
-        (["agent", "hook"], ["copilot-session-end", "notify", "session"]),
+        (["agent", "hook"], ["notify"]),
     ],
 )
 def test_help_lists_commands_alphabetically(
@@ -142,7 +142,7 @@ def test_help_lists_commands_alphabetically(
     assert [name for name in rows if name in names] == names
 
 
-def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> None:
+def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() -> None:
     root = get_command(app)
     assert isinstance(root, TyperGroup)
     agent = root.commands["agent"]
@@ -155,13 +155,14 @@ def test_agent_command_tree_keeps_hooks_internal_and_one_ingestion_command() -> 
         "stats",
     }
     assert agent.commands["hook"].hidden
+    hook = agent.commands["hook"]
+    assert isinstance(hook, TyperGroup)
+    assert set(hook.commands) == {"notify"}
 
     session = agent.commands["session"]
     assert isinstance(session, TyperGroup)
-    assert {name for name, child in session.commands.items() if not child.hidden} == {
-        "compact",
+    assert set(session.commands) == {
         "export",
-        "ingest",
         "list",
         "show",
         "stats",

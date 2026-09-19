@@ -3,31 +3,24 @@ from __future__ import annotations
 import io
 import json
 import sqlite3
-import stat
 import sys
-from collections.abc import Callable
 from contextlib import closing
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from typer import _click
 from typer.testing import CliRunner
 
-from fmind_dot import agent as agent_module
-from fmind_dot import agent_doctor as agent_doctor_module
 from fmind_dot import cli as cli_module
-from fmind_dot import hooks as hooks_module
-from fmind_dot import private_files as private_files_module
-from fmind_dot.archive import ingest as archive_ingest_module
-from fmind_dot.archive.ingest import resolve_hook_identity, sync_sessions
+from fmind_dot.archive import sync as archive_sync_module
 from fmind_dot.archive.parsers import AgentAdapter, ParsedSession
-from fmind_dot.archive.store import SessionLog, fingerprint_bytes, session_generation_id, session_lineage_id
+from fmind_dot.archive.store import SessionLog, read_session_bundle, read_session_manifest, session_bundle_path
+from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import UsageRecord, load_usage_records
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
+from fmind_dot.hooks import notification_workspace
 from fmind_dot.process import Runner
 from fmind_dot.state import State
 
@@ -43,15 +36,9 @@ def _state(*, runner: Runner | None = None, stdin: str = "") -> State:
     return state
 
 
-def _copilot_payload(session_id: str = "copilot-live", reason: object = "complete") -> str:
-    return json.dumps(
-        {
-            "sessionId": session_id,
-            "cwd": "/work/project",
-            "reason": reason,
-            "timestamp": 1_785_600_000_000,
-        }
-    )
+def _stderr(state: State) -> str:
+    assert isinstance(state.stderr, io.StringIO)
+    return state.stderr.getvalue()
 
 
 def _create_copilot_database(path: Path, *, complete_schema: bool = True) -> None:
@@ -102,157 +89,6 @@ def _create_copilot_database(path: Path, *, complete_schema: bool = True) -> Non
             )
 
 
-@pytest.mark.parametrize("sync", [sync_sessions])
-def test_sync_rejects_configured_source_with_wrong_kind(
-    sync: Callable[[State], int], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    source = tmp_path / "claude-source"
-    source.write_text("not a directory\n", encoding="utf-8")
-    state = _state()
-    state.config.agent.sources["claude"] = str(source)
-
-    with pytest.raises(DotError, match="Claude session path is not a directory"):
-        sync(state)
-
-    assert isinstance(state.stdout, io.StringIO)
-    assert "Synced 0" not in state.stdout.getvalue()
-
-
-def test_copilot_session_end_never_blocks_on_database_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _create_copilot_database(tmp_path / ".copilot/session-store.db", complete_schema=False)
-
-    result = CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload())
-
-    assert result.exit_code == 0
-    assert result.stdout == "{}\n"
-    records = list((tmp_path / ".agents/hook-failures/v1").glob("*.json"))
-    assert len(records) == 1
-    failure = json.loads(records[0].read_text(encoding="utf-8"))
-    assert failure["operation"] == "sessionEnd"
-    assert failure["session_hash"] != "copilot-live"
-    assert "copilot-live" not in failure["detail"]
-
-
-def test_copilot_session_hook_spools_database_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    database = tmp_path / ".copilot/session-store.db"
-    database.parent.mkdir(parents=True)
-    database.touch()
-
-    result = CliRunner().invoke(
-        app,
-        ["agent", "hook", "session", "copilot", "copilot-live", "/work/project"],
-    )
-
-    assert result.exit_code == 1
-    assert isinstance(result.exception, sqlite3.Error)
-    records = list((tmp_path / ".agents/hook-failures/v1").glob("*.json"))
-    assert len(records) == 1
-    failure = json.loads(records[0].read_text(encoding="utf-8"))
-    assert failure["operation"] == "session"
-    assert "no such table: turns" in failure["detail"]
-
-
-def test_copilot_session_end_rejects_malformed_field_types_without_blocking(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-    result = CliRunner().invoke(
-        app,
-        ["agent", "hook", "copilot-session-end"],
-        input=_copilot_payload(reason=["complete"]),
-    )
-
-    assert result.exit_code == 0
-    assert result.stdout == "{}\n"
-    records = list((tmp_path / ".agents/hook-failures/v1").glob("*.json"))
-    assert len(records) == 1
-    failure = json.loads(records[0].read_text(encoding="utf-8"))
-    assert failure["detail"] == "invalid Copilot sessionEnd payload: reason must be a string"
-
-
-def test_hook_failure_spool_refuses_symlinked_parent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (tmp_path / ".agents").symlink_to(outside, target_is_directory=True)
-
-    result = CliRunner().invoke(
-        app,
-        ["agent", "hook", "session", "claude", "private-session"],
-        input="{",
-    )
-
-    assert result.exit_code == 1
-    assert isinstance(result.exception, DotError)
-    assert "failed to parse agent hook input" in str(result.exception)
-    assert list(outside.iterdir()) == []
-
-
-def test_failure_spool_is_private_bounded_and_redacts_session_ids(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    state = _state()
-    state.config.agent.hook_failures.limit = 2
-    state.config.agent.hook_failures.detail_limit = 80
-    session_id = "01a0685e-853d-7c12-99a8-4866999e6f55"
-
-    for index in range(3):
-        hooks_module.spool_hook_failure(  # exercise the spool boundary directly.
-            state,
-            "codex",
-            "session",
-            session_id,
-            DotError(f"session {session_id} failed with private detail {index}"),
-        )
-
-    root = tmp_path / ".agents/hook-failures/v1"
-    records = sorted(root.glob("*.json"))
-    assert len(records) == 2
-    assert stat.S_IMODE(root.stat().st_mode) == 0o700
-    assert all(stat.S_IMODE(path.stat().st_mode) == 0o600 for path in records)
-    content = "".join(path.read_text(encoding="utf-8") for path in records)
-    assert session_id not in content
-    assert "<session>" in content
-
-
-def test_failure_spool_retention_stays_on_opened_root_when_path_is_swapped(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = tmp_path / ".agents/hook-failures/v1"
-    root.mkdir(parents=True)
-    (root / "20000101T000000.000000Z-old.json").write_text("{}\n", encoding="utf-8")
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    outside_records = [outside / "10000101T000000.000000Z-a.json", outside / "10000101T000000.000001Z-b.json"]
-    for path in outside_records:
-        path.write_text("preserve\n", encoding="utf-8")
-    moved = tmp_path / ".agents/hook-failures/v1-opened"
-    original_publish = private_files_module.publish_owner_only_at  # inject a deterministic race.
-
-    def publish_then_swap(directory: int, name: str, content: bytes) -> None:
-        original_publish(directory, name, content)
-        root.rename(moved)
-        root.symlink_to(outside, target_is_directory=True)
-
-    monkeypatch.setattr(hooks_module, "publish_owner_only_at", publish_then_swap)
-    state = _state()
-    state.config.agent.hook_failures.limit = 1
-
-    hooks_module.spool_hook_failure(  # exercise retention after the injected race.
-        state, "codex", "session", "private-session", DotError("failed")
-    )
-
-    assert root.is_symlink()
-    assert [path.read_text(encoding="utf-8") for path in outside_records] == ["preserve\n", "preserve\n"]
-    assert len(list(moved.glob("*.json"))) == 1
-
-
 def _write_jsonl(path: Path, *records: object, malformed: bool = False) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     lines = [json.dumps(record) for record in records]
@@ -261,48 +97,64 @@ def _write_jsonl(path: Path, *records: object, malformed: bool = False) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def test_session_sync_preserves_source_generations_and_standalone_usage(
+def _fixture_adapter(
+    monkeypatch: pytest.MonkeyPatch, state: State, tmp_path: Path, parser: object, session_id: str = "fixture-id"
+) -> None:
+    adapter = AgentAdapter("fixture", "Fixture", False, parser)  # ty: ignore[invalid-argument-type]
+    monkeypatch.setattr(archive_sync_module, "agent_adapters", lambda: [adapter])
+    monkeypatch.setattr(archive_sync_module, "enumerate_sessions", lambda *_args: [(session_id, "", tmp_path)])
+    state.config.agent.sources["fixture"] = str(tmp_path)
+
+
+def test_sync_rejects_configured_source_with_wrong_kind(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    source = tmp_path / "claude-source"
+    source.write_text("not a directory\n", encoding="utf-8")
+    state = _state()
+    state.config.agent.sources["claude"] = str(source)
+
+    with pytest.raises(DotError, match="Claude session path is not a directory"):
+        sync_sessions(state)
+
+    # A report's quiet refresh names the broken source and carries on.
+    outcome = sync_sessions(state, quiet=True)
+    assert outcome.failed == 1
+    assert "failed to inspect the session source for Claude: Claude session path is not a directory" in _stderr(state)
+
+
+def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     session_id = "shared-claude-session"
-    for index, content in enumerate(("first answer", "second answer"), start=1):
-        _write_jsonl(
-            tmp_path / f".claude/projects/project-{index}/{session_id}.jsonl",
-            {
-                "type": "assistant",
-                "timestamp": f"2026-09-06T08:00:0{index}Z",
-                "cwd": "/work/project",
-                "message": {
-                    "model": "claude-test",
-                    "content": [{"type": "text", "text": content}],
-                    "usage": {"input_tokens": 10 * index, "output_tokens": 4 * index},
-                },
+
+    def answer(index: int) -> dict[str, object]:
+        return {
+            "type": "assistant",
+            "timestamp": f"2026-09-06T08:00:0{index}Z",
+            "cwd": "/work/project",
+            "message": {
+                "id": f"message-{index}",
+                "model": "claude-test",
+                "content": [{"type": "text", "text": f"answer {index}"}],
+                "usage": {"input_tokens": 10 * index, "output_tokens": 4 * index},
             },
-            malformed=index == 2,
-        )
+        }
+
+    _write_jsonl(tmp_path / f".claude/projects/project-1/{session_id}.jsonl", answer(1), answer(2))
+    _write_jsonl(tmp_path / f".claude/projects/project-2/{session_id}.jsonl", answer(1), malformed=True)
     state = _state()
 
-    assert sync_sessions(state) == 2
+    first = sync_sessions(state)
+    second = sync_sessions(state)
 
-    lineage = tmp_path / ".agents/sessions/v2/claude"
-    manifests = sorted(lineage.glob("*/*/manifest.json"))
-    assert len(manifests) == 2
-    parsed = [json.loads(path.read_text(encoding="utf-8")) for path in manifests]
-    assert {manifest["completeness"] for manifest in parsed} == {"complete", "partial"}
-    assert {manifest["source_fingerprint"] for manifest in parsed} == {
-        fingerprint_bytes((tmp_path / f".claude/projects/project-{index}/{session_id}.jsonl").read_bytes())
-        for index in (1, 2)
-    }
-    usage = load_usage_records()[0].to_dict()
-    assert usage["total_tokens"] == 28
-
-    assert sync_sessions(state) == 2
-    assert len(list(lineage.glob("*/*/manifest.json"))) == 2
-    assert load_usage_records()[0].total_tokens == 28
-    assert isinstance(state.stderr, io.StringIO)
-    assert "claude: 2 checked" in state.stderr.getvalue()
-    assert "agent-session-sync: done (2 total processed)" in state.stderr.getvalue()
+    manifest, records = read_session_bundle(session_bundle_path("claude", session_id))
+    assert (manifest.record_count, manifest.completeness, len(records)) == (2, "complete", 2)
+    assert (first.ingested, first.retained) == (1, 1)
+    assert (second.ingested, second.unchanged, second.retained) == (0, 1, 1)
+    assert load_usage_records()[0].total_tokens == 42
+    assert "claude: 0 ingested, 1 unchanged, 1 retained" in _stderr(state)
+    assert "agent-session-sync: done (0 failed)" in _stderr(state)
 
 
 def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
@@ -342,24 +194,24 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
 
     assert synced.exit_code == 1
     outcomes = json.loads(synced.stdout)
-    assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (3, 3, 6)
-    assert "agent-session: failed to ingest session for Claude: " in synced.stderr
+    assert outcomes["schema"] == "dot.agent.session.sync/v2"
+    assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (3, 5, 6)
+    assert "agent-session: failed to capture session for Claude: " in synced.stderr
     assert "a-surrogate" not in synced.stderr
     assert synced.stderr.count("usage extraction failed; archived the transcript without usage") == 2
     assert isinstance(synced.exception, DotError)
     assert "session sync recorded 3 failure(s)" in str(synced.exception)
-    store = tmp_path / ".agents/sessions/v2"
     manifests = {
-        (manifest["session_id"], manifest["completeness"], manifest["malformed_records"])
-        for path in store.glob("*/*/*/manifest.json")
-        for manifest in [json.loads(path.read_text(encoding="utf-8"))]
+        (manifest.session_id, manifest.completeness, manifest.malformed_records, manifest.usage is None)
+        for path in (tmp_path / ".agents/sessions/v3").glob("*/*.jsonl")
+        for manifest in [read_session_manifest(path)]
     }
     assert manifests == {
-        ("b-rawbyte", "partial", 1),
-        ("c-negative", "complete", 0),
-        ("d-valid", "complete", 0),
-        ("codex-ok", "complete", 0),
-        ("grok-negative", "complete", 0),
+        ("b-rawbyte", "partial", 1, False),
+        ("c-negative", "complete", 0, True),
+        ("d-valid", "complete", 0, False),
+        ("codex-ok", "complete", 0, False),
+        ("grok-negative", "complete", 0, True),
     }
     assert {record.session_id for record in load_usage_records()} == {"b-rawbyte", "d-valid", "codex-ok"}
 
@@ -411,45 +263,60 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
     _create_copilot_database(tmp_path / ".copilot/session-store.db")
     state = _state()
 
-    assert sync_sessions(state) == 4
+    assert sync_sessions(state).ingested == 4
 
-    assert isinstance(state.stdout, io.StringIO)
     usage = {record.harness: record for record in load_usage_records()}
     assert set(usage) == {"agy", "claude", "copilot", "grok"}
     assert usage["agy"].turn_count == 1
     assert usage["grok"].total_tokens == 21
-    assert not (tmp_path / ".agents/usages").exists()
 
 
-def test_unsupported_typed_hook_fields_fail_instead_of_changing_control_flow(
+def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    state = _state(stdin=json.dumps({"sessionId": "grok-live", "stopHookActive": "false"}))
-
-    with pytest.raises(DotError, match="stopHookActive must be a boolean"):
-        resolve_hook_identity(state)
-
-
-def test_copilot_session_end_is_idempotent_and_writes_usage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
 
-    outputs = [CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload())]
+    first = CliRunner().invoke(app, ["agent", "usage", "show", "copilot", "copilot-live"])
     with closing(sqlite3.connect(database)) as connection:
         connection.execute("UPDATE assistant_usage_events SET input_tokens = 20 WHERE session_id = 'copilot-live'")
         connection.commit()
-    outputs.append(CliRunner().invoke(app, ["agent", "hook", "copilot-session-end"], input=_copilot_payload()))
+    second = CliRunner().invoke(app, ["agent", "usage", "show", "copilot", "copilot-live"])
 
-    assert all(result.exit_code == 0 and result.stdout == "{}\n" for result in outputs)
-    manifests = list((tmp_path / ".agents/sessions/v2/copilot").glob("*/*/manifest.json"))
-    assert len(manifests) == 2
-    manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
-    assert manifest["record_count"] == 2
-    usage = load_usage_records()[0].to_dict()
-    assert usage["model"] == "gpt-test"
-    assert usage["total_tokens"] == 27
+    assert first.exit_code == second.exit_code == 0
+    assert json.loads(first.stdout)["record"]["total_tokens"] == 17
+    record = json.loads(second.stdout)["record"]
+    assert (record["model"], record["total_tokens"]) == ("gpt-test", 27)
+    assert [path.name for path in (tmp_path / ".agents/sessions/v3/copilot").glob("*.jsonl")] == ["copilot-live.jsonl"]
+    assert read_session_manifest(session_bundle_path("copilot", "copilot-live")).record_count == 2
+
+
+def test_reports_sync_first_and_warn_without_blocking_on_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _write_jsonl(
+        tmp_path / ".claude/projects/project/fresh.jsonl",
+        {
+            "type": "assistant",
+            "timestamp": "2026-09-06T08:00:00Z",
+            "message": {"model": "m", "content": [{"type": "text", "text": "a"}], "usage": {"input_tokens": 4}},
+        },
+    )
+    broken = tmp_path / ".codex/sessions"
+    broken.parent.mkdir(parents=True)
+    broken.write_text("not a directory")
+
+    stats = CliRunner().invoke(app, ["agent", "stats", "--tokens-only", "--json"])
+    listed = CliRunner().invoke(app, ["agent", "usage", "list"])
+
+    assert stats.exit_code == 0
+    assert [row["harness"] for row in json.loads(stats.stdout)["usage"]] == ["claude"]
+    assert "failed to inspect the session source for Codex" in stats.stderr
+    assert "agent-session-sync" not in stats.stderr
+    assert listed.exit_code == 0
+    assert "fresh" in listed.stdout
 
 
 def test_session_and_usage_cli_surfaces_report_ingested_evidence(
@@ -514,10 +381,9 @@ def test_session_sync_main_normalizes_empty_copilot_database_error(
     assert captured.out == ""
     assert captured.err == (
         "agent-session: failed to scan sessions for Copilot: no such table: sessions\n"
-        "agent-session-sync: done (0 total processed)\n"
+        "agent-session-sync: done (1 failed)\n"
         "dot: session sync recorded 1 failure(s); see errors above\n"
     )
-    assert "Traceback" not in captured.err
 
 
 def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -532,113 +398,43 @@ def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatc
     assert "must not be after --until" in _click.utils.strip_ansi(result.stderr)
 
 
-def test_explicit_session_ingest_never_waits_on_stdin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _write_jsonl(
-        tmp_path / ".claude/projects/project/explicit-id.jsonl", {"type": "user", "message": {"content": "ask"}}
-    )
-
-    class OpenPipe(io.StringIO):
-        def read(self, size: int | None = -1) -> str:
-            del size
-            pytest.fail("explicit identifiers must not block on a harness pipe that never closes")
-
-    state = _state()
-    state.stdin = OpenPipe()
-
-    archive_ingest_module.ingest_agent_session(state, "claude", "explicit-id", "/work/project")
-
-    assert isinstance(state.stderr, io.StringIO)
-    assert "agent-session: ingested" in state.stderr.getvalue()
-
-
-def test_hook_identity_accepts_host_aliases_and_fails_closed_on_bad_identity(tmp_path: Path) -> None:
-    transcript = tmp_path / "transcript.jsonl"
-    transcript.touch()
-    aliased = resolve_hook_identity(
-        _state(
-            stdin=json.dumps(
-                {
-                    "conversationId": "conversation-id",
-                    "workspacePaths": [None, "/work/project"],
-                    "transcriptPath": str(transcript),
-                    "fullyIdle": True,
-                }
-            )
-        ),
-        require_idle=True,
-    )
-    assert (aliased.session_id, aliased.cwd, aliased.transcript_path, aliased.from_hook) == (
-        "conversation-id",
-        "/work/project",
-        str(transcript),
-        True,
-    )
-
-    direct = resolve_hook_identity(_state(), "direct-id", "/work/direct")
-    assert (direct.session_id, direct.cwd, direct.from_hook) == ("direct-id", "/work/direct", False)
-    assert resolve_hook_identity(_state(stdin='{"stop_hook_active":true}')).halt
-    assert resolve_hook_identity(_state(stdin='{"sessionId":"ignored"}'), require_idle=True).halt
+def test_notification_workspace_accepts_host_aliases_and_honors_guards() -> None:
+    aliased = io.StringIO(json.dumps({"workspacePaths": [None, "/work/project"], "fullyIdle": True}))
+    assert notification_workspace(aliased, "agy") == "/work/project"
+    assert notification_workspace(io.StringIO(json.dumps({"cwd": "/work/direct"})), "claude") == "/work/direct"
+    assert notification_workspace(io.StringIO(""), "codex") == ""
+    assert notification_workspace(io.StringIO('{"stop_hook_active":true}'), "claude") is None
+    assert notification_workspace(io.StringIO('{"cwd":"/work"}'), "agy") is None
 
     with pytest.raises(DotError, match="expected a JSON object"):
-        resolve_hook_identity(_state(stdin="[]"))
-    with pytest.raises(DotError, match="missing session_id"):
-        resolve_hook_identity(_state(stdin="{}"))
-    with pytest.raises(DotError, match="invalid session_id format"):
-        resolve_hook_identity(_state(stdin='{"sessionId":"invalid/id"}'))
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        "{",
-        "[]",
-        '{"sessionId":"only-one-field"}',
-        _copilot_payload("invalid/id"),
-        json.dumps({"sessionId": "id", "cwd": "", "reason": "complete", "timestamp": 1}),
-        json.dumps({"sessionId": "id", "cwd": "/work", "reason": "complete", "timestamp": True}),
-        json.dumps({"sessionId": "id", "cwd": "/work", "reason": "complete", "timestamp": 1.5}),
-        _copilot_payload(reason="unexpected"),
-    ],
-    ids=["malformed", "not-object", "fields", "session", "cwd", "timestamp-bool", "timestamp-float", "reason"],
-)
-def test_copilot_session_end_decoder_rejects_every_invalid_contract_shape(payload: str) -> None:
-    with pytest.raises(DotError, match="Copilot sessionEnd"):
-        hooks_module.decode_copilot_session_end(io.StringIO(payload))
-
-
-def test_copilot_session_end_decoder_requires_a_payload() -> None:
-    with pytest.raises(DotError, match="missing Copilot sessionEnd payload"):
-        hooks_module.decode_copilot_session_end(None)
+        notification_workspace(io.StringIO("[]"), "codex")
+    with pytest.raises(DotError, match="stopHookActive must be a boolean"):
+        notification_workspace(io.StringIO('{"stopHookActive":"false"}'), "grok")
 
 
 def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
     session_id = "01a0685e-853d-7c12-99a8-4866999e6f55"
 
     def parser(_path: Path, _session_id: str, _cwd: str) -> ParsedSession:
         raise TypeError(f"bad session {session_id}")
 
-    adapter = AgentAdapter("fixture", "Fixture", False, parser)
-
-    monkeypatch.setattr(archive_ingest_module, "agent_adapters", lambda: [adapter])
     state = _state()
-    state.config.agent.sources["fixture"] = str(tmp_path)
-    monkeypatch.setattr(archive_ingest_module, "enumerate_sessions", lambda _root, _agent: [(session_id, "", tmp_path)])
+    _fixture_adapter(monkeypatch, state, tmp_path, parser, session_id)
 
     with pytest.raises(DotError, match=r"session sync recorded 1 failure"):
         sync_sessions(state)
-    assert isinstance(state.stderr, io.StringIO)
-    assert "agent-session: failed to ingest session for Fixture: bad session <session>\n" in state.stderr.getvalue()
+    assert "agent-session: failed to capture session for Fixture: bad session <session>\n" in _stderr(state)
 
-    def scan_failure(_root: Path, _agent: str):
+    def scan_failure(_root: Path, _agent: str) -> list[tuple[str, str, Path]]:
         raise sqlite3.OperationalError(f"scan exposed {session_id}")
 
-    monkeypatch.setattr(archive_ingest_module, "enumerate_sessions", scan_failure)
+    monkeypatch.setattr(archive_sync_module, "enumerate_sessions", scan_failure)
     with pytest.raises(DotError, match=r"session sync recorded 1 failure"):
         sync_sessions(state)
-    assert "agent-session: failed to scan sessions for Fixture: scan exposed <session>\n" in state.stderr.getvalue()
+    assert "agent-session: failed to scan sessions for Fixture: scan exposed <session>\n" in _stderr(state)
 
 
 def test_session_sync_archives_transcript_then_reports_failed_usage(
@@ -646,245 +442,65 @@ def test_session_sync_archives_transcript_then_reports_failed_usage(
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     log = SessionLog("2026-09-06T08:00:00Z", "fixture", "fixture-id", "user", "kept")
-    adapter = AgentAdapter(
-        "fixture",
-        "Fixture",
-        False,
+    state = _state()
+    _fixture_adapter(
+        monkeypatch,
+        state,
+        tmp_path,
         lambda *_args: ParsedSession([log], "a" * 64, "fixture", usage_error=ValueError("private detail")),
     )
-    monkeypatch.setattr(archive_ingest_module, "agent_adapters", lambda: [adapter])
-    monkeypatch.setattr(archive_ingest_module, "enumerate_sessions", lambda *_args: [("fixture-id", "", tmp_path)])
-    state = _state()
-    state.config.agent.sources["fixture"] = str(tmp_path)
 
     with pytest.raises(DotError, match="session sync recorded 1 failure"):
         sync_sessions(state)
 
-    assert isinstance(state.stderr, io.StringIO)
-    assert "usage extraction failed; archived the transcript without usage" in state.stderr.getvalue()
-    assert "private detail" not in state.stderr.getvalue()
-    usage = [
-        json.loads(path.read_text(encoding="utf-8")) for path in tmp_path.glob(".agents/sessions/v2/*/*/*/usage.json")
-    ]
-    assert usage == [{"schema": "dot.session.usage/v1", "status": "unsupported", "record": None}]
-    assert "kept" in next(tmp_path.glob(".agents/sessions/v2/*/*/*/transcript.jsonl")).read_text(encoding="utf-8")
+    assert "usage extraction failed; archived the transcript without usage" in _stderr(state)
+    assert "private detail" not in _stderr(state)
+    manifest, records = read_session_bundle(session_bundle_path("fixture", "fixture-id"))
+    assert (manifest.usage, manifest.source_signature, records) == (None, "", [log])
 
 
-def test_usage_sync_normalizes_candidate_record_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    adapter = AgentAdapter(
-        "fixture", "Fixture", False, lambda _path, _session_id, _cwd: ParsedSession([], "a" * 64, "fixture")
-    )
+def test_sync_publishes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    usage = UsageRecord(
+        harness="fixture", agent="fixture", session_id="fixture-id", measurement_kind="provider-reported"
+    ).finalize()
+    state = _state()
+    _fixture_adapter(monkeypatch, state, tmp_path, lambda *_args: ParsedSession([], "a" * 64, "fixture", usage=usage))
 
-    monkeypatch.setattr(archive_ingest_module, "agent_adapters", lambda: [adapter])
-    monkeypatch.setattr(
-        archive_ingest_module, "enumerate_sessions", lambda _root, _agent: [("fixture-id", "", tmp_path)]
-    )
+    assert sync_sessions(state).ingested == 1
 
-    def record_failure(*_args, **_kwargs) -> None:
+    assert read_session_manifest(session_bundle_path("fixture", "fixture-id")).usage == usage.to_dict()
+
+
+def test_sync_normalizes_publication_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state = _state()
+    _fixture_adapter(monkeypatch, state, tmp_path, lambda *_args: ParsedSession([], "a" * 64, "fixture"))
+
+    def record_failure(*_args: object, **_kwargs: object) -> None:
         raise OSError("source vanished")
 
-    monkeypatch.setattr(archive_ingest_module, "ingest_session", record_failure)
-    state = _state()
-    state.config.agent.sources["fixture"] = str(tmp_path)
+    monkeypatch.setattr(archive_sync_module, "ingest_session", record_failure)
 
     with pytest.raises(DotError, match="session sync recorded 1 failure"):
         sync_sessions(state)
-    assert isinstance(state.stderr, io.StringIO)
-    assert "failed to ingest session for Fixture: source vanished" in state.stderr.getvalue()
+    assert "failed to capture session for Fixture: source vanished" in _stderr(state)
+
+
+def test_sync_rejects_unknown_agents() -> None:
+    with pytest.raises(DotError, match="unknown session agent"):
+        sync_sessions(_state(), agent="fixture")
 
 
 def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    compacted: list[tuple[bool, str]] = []
-    monkeypatch.setattr(
-        agent_module,
-        "compact_session_generations",
-        lambda _stream, *, apply=False, agent="": compacted.append((apply, agent)),
-    )
 
     usage = CliRunner().invoke(app, ["agent", "usage", "list"])
     shown = CliRunner().invoke(app, ["agent", "session", "show"])
-    compaction = CliRunner().invoke(app, ["agent", "session", "compact", "--apply", "--agent", "codex"])
 
     assert usage.exit_code == 0
     assert usage.stdout == "No usage records found.\n"
     assert shown.exit_code == 2
-    assert "show requires a session or lineage identity" in shown.stderr
-    assert compaction.exit_code == 0
-    assert compacted == [(True, "codex")]
-
-
-def test_session_ingestion_handles_invalid_duplicate_and_usage_failure_contracts(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    state = _state()
-
-    with pytest.raises(DotError, match="unknown session agent"):
-        archive_ingest_module.ingest_agent_session(state, "unknown", "session-id")
-    with pytest.raises(DotError, match="missing session_id"):
-        archive_ingest_module.ingest_agent_session(state, "copilot")
-    with pytest.raises(DotError, match="invalid session_id format"):
-        archive_ingest_module.ingest_agent_session(state, "copilot", "invalid/id")
-
-    halted = _state(stdin='{"conversationId":"agy-id","fullyIdle":false}')
-    archive_ingest_module.ingest_agent_session(halted, "agy", hook=True)
-    assert isinstance(halted.stdout, io.StringIO)
-    assert halted.stdout.getvalue() == '{"decision":""}\n'
-
-    missing = tmp_path / "missing.jsonl"
-    state.stdin = io.StringIO(json.dumps({"sessionId": "claude-id", "transcriptPath": str(missing)}))
-    with pytest.raises(DotError, match="transcript from hook payload is unavailable"):
-        archive_ingest_module.ingest_agent_session(state, "claude")
-
-    source = tmp_path / "claude"
-    state.config.agent.sources["claude"] = str(source)
-    duplicate = source / "nested/duplicate-id.jsonl"
-    _write_jsonl(duplicate, {"type": "user", "message": {"content": "ask"}})
-    monkeypatch.setattr(archive_ingest_module, "report_ingestion", lambda _result: "agent-session: duplicate")
-    state.stdin = io.StringIO()
-    archive_ingest_module.ingest_agent_session(state, "claude", "duplicate-id")
-    assert isinstance(state.stderr, io.StringIO)
-    assert state.stderr.getvalue().endswith("agent-session: duplicate\n")
-
-
-def test_session_ingestion_writes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    source = tmp_path / "source.jsonl"
-    source.write_text("{}\n", encoding="utf-8")
-    usage = UsageRecord(
-        harness="fixture",
-        agent="fixture",
-        session_id="fixture-id",
-        measurement_kind="provider-reported",
-    ).finalize()
-    adapter = AgentAdapter(
-        "fixture",
-        "Fixture",
-        False,
-        lambda _path, _session_id, _cwd: ParsedSession([], "a" * 64, "fixture", usage=usage),
-    )
-    monkeypatch.setitem(archive_ingest_module.AGENT_ADAPTERS, "fixture", adapter)
-    monkeypatch.setattr(archive_ingest_module, "_resolved_transcript", lambda *_args, **_kwargs: source)
-    monkeypatch.setattr(archive_ingest_module, "report_ingestion", lambda _result: "agent-session: ingested")
-    written = []
-
-    def capture(_agent, _session, _logs, _source, *, usage):
-        written.append(usage)
-        return SimpleNamespace(status="ingested")
-
-    monkeypatch.setattr(archive_ingest_module, "ingest_session", capture)
-    state = _state()
-    state.config.agent.sources["fixture"] = str(tmp_path)
-
-    archive_ingest_module.ingest_agent_session(state, "fixture", "fixture-id")
-
-    assert written == [usage.to_dict()]
-
-
-def test_ingest_agent_session_rejects_corrupt_duplicate_generation(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    session_id = "corrupt-duplicate"
-    source_root = tmp_path / ".claude/projects"
-    transcript = source_root / "project" / f"{session_id}.jsonl"
-    _write_jsonl(transcript, {"type": "user", "message": {"content": "ask"}})
-    state = _state()
-    state.config.agent.sources["claude"] = str(source_root)
-
-    archive_ingest_module.ingest_agent_session(state, "claude", session_id)
-    fingerprint = fingerprint_bytes(transcript.read_bytes())
-    generation = (
-        tmp_path
-        / ".agents/sessions/v2/claude"
-        / session_lineage_id("claude", session_id)
-        / session_generation_id(fingerprint)
-    )
-    normalized = generation / "transcript.jsonl"
-    normalized.write_text("{}\n", encoding="utf-8")
-    state.stderr = io.StringIO()
-
-    with pytest.raises(ValueError, match="session transcript fingerprint mismatch"):
-        archive_ingest_module.ingest_agent_session(state, "claude", session_id)
-
-    assert state.stderr.getvalue() == ""
-    assert normalized.read_text(encoding="utf-8") == "{}\n"
-
-
-def test_ingestion_rejects_unknown_adapters() -> None:
-    with pytest.raises(DotError, match="unknown session agent"):
-        archive_ingest_module.ingest_agent_session(_state(), "fixture", "fixture-id")
-
-
-def test_doctor_configuration_and_source_checks_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    persona = tmp_path / ".agents/AGENTS.md"
-    persona.parent.mkdir(parents=True)
-    persona.touch()
-    definition = agent_doctor_module.DoctorIntegration("fixture", "~/.agents/AGENTS.md")
-
-    assert agent_doctor_module._check_discovery(definition) == ("skills-missing", False)  # noqa: SLF001
-    skills = tmp_path / ".agents/skills"
-    skills.mkdir()
-    broken_skills = agent_doctor_module.DoctorIntegration(
-        "fixture", "~/.agents/AGENTS.md", skills_path="~/.fixture/skills"
-    )
-    assert agent_doctor_module._check_discovery(broken_skills) == ("skills-broken", False)  # noqa: SLF001
-    malformed = tmp_path / ".fixture/config.yaml"
-    malformed.parent.mkdir()
-    malformed.write_text("[", encoding="utf-8")
-    malformed_config = agent_doctor_module.DoctorIntegration(
-        "fixture", "~/.agents/AGENTS.md", skills_config="~/.fixture/config.yaml"
-    )
-    assert agent_doctor_module._check_discovery(malformed_config) == ("skills-broken", False)  # noqa: SLF001
-    malformed.write_text("skills: []\n", encoding="utf-8")
-    assert agent_doctor_module._check_discovery(malformed_config) == ("skills-broken", False)  # noqa: SLF001
-
-    unsupported = tmp_path / "config.txt"
-    unsupported.touch()
-    with pytest.raises(ValueError, match="unsupported configuration format"):
-        agent_doctor_module._load_configuration(unsupported, "text")  # noqa: SLF001
-    assert agent_doctor_module._hook_invocation("other command") is None  # noqa: SLF001
-
-    state = _state()
-    assert agent_doctor_module._inspect_source(state, definition).status == "unconfigured"  # noqa: SLF001
-    linked = tmp_path / "linked-source"
-    linked.symlink_to(tmp_path)
-    state.config.agent.sources["fixture"] = str(linked)
-    assert agent_doctor_module._inspect_source(state, definition).status == "linked"  # noqa: SLF001
-
-
-def test_doctor_database_lineage_and_failure_evidence_remain_conservative(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    fallback = datetime(2026, 1, 1, tzinfo=UTC)
-    definition = agent_doctor_module.DoctorIntegration("fixture", "~/.agents/AGENTS.md")
-    lineage = tmp_path / ".agents/sessions/v2/fixture"
-    lineage.parent.mkdir(parents=True)
-    lineage.symlink_to(tmp_path, target_is_directory=True)
-    state = _state()
-    assert agent_doctor_module._inspect_lineage(state, definition).unreadable  # noqa: SLF001
-
-    failures = tmp_path / ".agents/hook-failures/v1"
-    failures.mkdir(parents=True)
-    (failures / "new.json").write_text("[]", encoding="utf-8")
-    assert agent_doctor_module._inspect_last_hook_failure(state, "fixture") == ("unreadable", False)  # noqa: SLF001
-
-    source = agent_doctor_module._SourceInspection("present", fallback + timedelta(hours=2), True, True)  # noqa: SLF001
-    summary = agent_doctor_module._LineageSummary(  # noqa: SLF001
-        last_complete=fallback,
-        latest=fallback + timedelta(hours=1),
-        latest_partial=True,
-    )
-    ingestion, lag, healthy = agent_doctor_module._summarize_lineage(  # noqa: SLF001
-        state,
-        definition,
-        fallback + timedelta(hours=2),
-        source,
-        summary,
-    )
-    assert ingestion.endswith(":newer-partial")
-    assert lag == "unknown"
-    assert not healthy
+    assert "show requires a session identity" in shown.stderr
+    for removed in (["compact", "--apply"], ["ingest", "claude", "session-id"], ["show", "x", "--latest"]):
+        assert CliRunner().invoke(app, ["agent", "session", *removed]).exit_code == 2

@@ -66,74 +66,32 @@ def test_turn_notifications_obey_idle_and_reentry_guards(
     assert len(captured) == 1
 
 
-@pytest.mark.parametrize(("event", "exit_code"), [("SessionEnd", 0), ("PreCompact", 1), ("SubagentStop", 1)])
-def test_claude_missing_transcript_only_skips_session_end(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, event: str, exit_code: int
+@pytest.mark.parametrize("payload", ["{}", "not json"])
+def test_notify_failure_warns_on_stderr_without_failing_the_turn(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, payload: str
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    payload = {
-        "session_id": "unused-session",
-        "transcript_path": str(tmp_path / "absent.jsonl"),
-        "hook_event_name": event,
-        "reason": "prompt_input_exit",
-    }
-    result = CliRunner().invoke(app, ["agent", "hook", "session", "claude"], input=json.dumps(payload))
-    assert result.exit_code == exit_code
-    assert not (tmp_path / ".agents/sessions").exists()
-    if event == "SessionEnd":
-        assert "Session capture skipped" in result.stderr
-        assert not (tmp_path / ".agents/hook-failures").exists()
-        # Once the native transcript exists, the same event must capture it.
-        Path(payload["transcript_path"]).write_text('{"type":"user","message":{"content":"fixture"}}\n')
-        captured = CliRunner().invoke(app, ["agent", "hook", "session", "claude"], input=json.dumps(payload))
-        assert captured.exit_code == 0
-        assert "Session capture skipped" not in captured.stderr
-        assert (tmp_path / ".agents/sessions").exists()
-    else:
-        assert isinstance(result.exception, DotError)
-        assert "unavailable" in str(result.exception)
+    monkeypatch.setattr(agent_module, "send_notification", _fail)
 
+    result = CliRunner().invoke(app, ["agent", "hook", "notify", "codex", "stop"], input=payload)
 
-def test_claude_session_end_rejects_directory_transcript(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    result = CliRunner().invoke(
-        app,
-        ["agent", "hook", "session", "claude"],
-        input=json.dumps({"session_id": "fixture", "transcript_path": str(tmp_path), "hook_event_name": "SessionEnd"}),
-    )
-    assert result.exit_code == 1
-    assert "Session capture skipped" not in result.stderr
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert "agent hook notify failed:" in result.stderr
+    assert not (tmp_path / ".agents").exists()
 
 
 def _fail(_state: State, _notification: Notification) -> None:
     raise DotError("notifier exited with status 7")
 
 
-def test_notify_hook_spools_notifier_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "command", [["session", "claude"], ["session", "codex", "session-id"], ["copilot-session-end"]]
+)
+def test_retired_capture_hooks_are_usage_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, command: list[str]
+) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(agent_module, "send_notification", _fail)
-
-    result = CliRunner().invoke(app, ["agent", "hook", "notify", "codex", "session-end"], input="{}")
-
-    assert result.exit_code == 1
-    records = list((tmp_path / ".agents" / "hook-failures" / "v1").glob("*.json"))
-    assert len(records) == 1
-    failure = json.loads(records[0].read_text(encoding="utf-8"))
-    assert failure["agent"] == "codex"
-    assert failure["operation"] == "notify:session-end"
-    assert failure["detail"] == "notifier exited with status 7"
-
-
-def test_notify_hook_refuses_to_spool_through_a_symlinked_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    real = tmp_path / "real"
-    real.mkdir()
-    home = tmp_path / "home"
-    home.symlink_to(real, target_is_directory=True)
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setattr(agent_module, "send_notification", _fail)
-
-    result = CliRunner().invoke(app, ["agent", "hook", "notify", "codex", "session-end"], input="{}")
-
-    assert result.exit_code == 1
-    assert f"agent hook failure spool unavailable: unsafe directory {home}" in result.output
-    assert not (real / ".agents").exists()
+    result = CliRunner().invoke(app, ["agent", "hook", *command], input="{}")
+    assert result.exit_code == 2
+    assert not (tmp_path / ".agents").exists()

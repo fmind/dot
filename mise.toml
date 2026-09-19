@@ -339,10 +339,6 @@ run = [
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 
-[tasks."prune:sessions"]
-description = "Preview integrity-checked compaction of the dot archive"
-run = "uv run --frozen dot agent session compact"
-
 [tasks."migrate:skills"]
 description = "Preview skill links retired since v6.1.0; --apply moves confirmed links to a recoverable backup"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_links"

@@ -10,14 +10,12 @@ import pytest
 from typer.testing import CliRunner
 
 from dot_tasks import release as maintenance
-from fmind_dot import agent_doctor as agent_doctor_module
 from fmind_dot import repository
-from fmind_dot.archive import ingest as archive_ingest_module
 from fmind_dot.archive import parsers as agent_parsers
-from fmind_dot.archive import store as session_store
 from fmind_dot.archive.query import SessionQuery, query_session_summaries, show_session
 from fmind_dot.archive.statistics import prompt_statistics, session_statistics
-from fmind_dot.archive.store import SessionLog, SessionSource, ingest_session
+from fmind_dot.archive.store import SessionLog, SessionSource, ingest_session, session_bundle_path
+from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, write_usage_stats
 from fmind_dot.cli import app
 from fmind_dot.config import Config, PullConfig
@@ -47,7 +45,7 @@ def test_jsonl_unicode_preserves_valid_conversation(separator: str, tmp_path: Pa
     assert [log.content for log in parsed.logs] == [content]
 
 
-def test_retained_generations_and_statistics_do_not_double_count(
+def test_recaptured_sessions_and_statistics_do_not_double_count(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -55,19 +53,16 @@ def test_retained_generations_and_statistics_do_not_double_count(
         SessionLog("2026-09-01T10:00:00Z", "codex", "example", "user", "private two words", "/work"),
         SessionLog("2026-09-01T10:00:01Z", "codex", "example", "assistant", "private answer", "/work"),
     ]
-    previous = ingest_session("codex", "example", logs, SessionSource(fingerprint="b" * 64, skipped=4))
-    current = ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64, skipped=4))
-    assert previous.generation_id != current.generation_id
-    assert len(query_session_summaries()) == 2
-    assert show_session(SessionQuery(identity="example"), latest=True).status == ["current"]
-    assert show_session(SessionQuery(identity=previous.generation_id), include_content=True).records == logs
-    with pytest.raises(ValueError, match="ambiguous"):
-        show_session(SessionQuery(identity="example"))
+    ingest_session("codex", "example", logs, SessionSource(fingerprint="b" * 64, skipped=4))
+    ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64, skipped=4))
+    assert len(query_session_summaries()) == 1
+    assert show_session(SessionQuery(identity="example"), include_content=True).records == logs
     archive = session_statistics(SessionQuery())
+    assert archive["schema"] == "dot.agent.sessions.stats/v2"
     assert archive["sessions"] == 1
-    assert archive["generations"] == 2
     assert archive["ignored_records"] == 4
-    assert archive["archive_bytes"] > 0
+    assert archive["archive_bytes"] == session_bundle_path("codex", "example").stat().st_size
+    assert "generations" not in archive
     prompts = prompt_statistics(
         SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC), until=datetime(2026, 9, 2, tzinfo=UTC))
     )
@@ -203,40 +198,12 @@ def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch
     )
     state = state_with()
     state.config.agent.sources["claude"] = str(source)
-    assert (
-        archive_ingest_module.sync_sessions(state, agent="claude", session="selected", dry_run=True, as_json=True) == 1
-    )
+    assert sync_sessions(state, agent="claude", session="selected", dry_run=True, as_json=True).selected == 1
     assert isinstance(state.stdout, io.StringIO)
     assert json.loads(state.stdout.getvalue())["selected"] == 1
     assert not (tmp_path / ".agents/sessions").exists()
     with pytest.raises(DotError, match="unknown"):
-        archive_ingest_module.sync_sessions(state, agent="typo")
-
-
-def test_doctor_explanation_is_bounded_and_selectable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    state = state_with()
-    (tmp_path / ".agents/skills").mkdir(parents=True)
-    monkeypatch.setattr(state.runner, "which", lambda _command: None)
-    state.config.agent.doctor.example_limit = 1
-    source = tmp_path / "claude"
-    source.mkdir()
-    for name in ("first", "second"):
-        (source / f"{name}.jsonl").write_text("{}\n", encoding="utf-8")
-    state.config.agent.sources["claude"] = str(source)
-    with monkeypatch.context() as configured:
-        configured.setattr(agent_doctor_module, "_check_discovery", lambda *_args: ("healthy", True))
-        configured.setattr(agent_doctor_module, "_check_hooks", lambda *_args: ("healthy", True))
-        configured.setattr(agent_doctor_module, "_notifier_available", lambda *_args: True)
-        initial = agent_doctor_module.gather_agent_doctor(state, agent="claude")[0]
-    assert initial.last_ingestion == "none"
-    assert not initial.healthy
-    assert "sync --agent claude --dry-run" in initial.repair
-    results = agent_doctor_module.gather_agent_doctor(state, agent="claude", deep=True, explain=True)
-    assert len(results) == 1
-    assert results[0].issue_counts == {"missing-current-generation": 2}
-    assert len(results[0].examples) == 1
-    assert "--agent claude" in results[0].repair
+        sync_sessions(state, agent="typo")
 
 
 def test_managed_config_edit_routes_to_source_and_validates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -325,24 +292,25 @@ def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.Monk
     assert json.loads(result.stdout)["sessions"] == 1
 
 
-def test_prompt_stats_validate_only_selected_generation_and_report_corruption(
+def test_prompt_stats_validate_selected_sessions_and_report_corruption(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     logs = [SessionLog("2026-09-09T10:00:00Z", "codex", "example", "user", "private text")]
-    old = ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64))
-    current = ingest_session("codex", "example", logs, SessionSource(fingerprint="b" * 64))
-    root = session_store.session_store_root() / "codex" / old.lineage_id
-    (root / old.generation_id / "transcript.jsonl").write_text("corrupt\n")
-    assert prompt_statistics(SessionQuery())["complete"]
-    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only"])
+    ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64))
+    other = [SessionLog("2026-09-09T10:00:00Z", "claude", "other", "user", "other text")]
+    ingest_session("claude", "other", other)
+    path = session_bundle_path("codex", "example")
+    header = path.read_bytes().split(b"\n", 1)[0]
+    assert prompt_statistics(SessionQuery(agent="codex"))["complete"]
+    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--agent", "codex"])
     assert human.exit_code == 0
     assert "Prompt activity · 1 archived user messages" in human.stdout
     assert "Sessions: 1 · Prompts: 1 · Responses: 0" in human.stdout
     assert "Prompt coverage: complete" in human.stdout
     assert "private text" not in human.stdout
-    (root / current.generation_id / "transcript.jsonl").write_text("corrupt\n")
-    broken = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--json"])
+    path.write_bytes(header + b"\ncorrupt\n")
+    broken = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--json", "--agent", "codex"])
     assert broken.exit_code != 0
     document = json.loads(broken.stdout)["prompts"]
     assert not document["complete"]

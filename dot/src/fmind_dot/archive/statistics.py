@@ -7,26 +7,18 @@ from datetime import UTC, datetime
 from statistics import median
 from typing import Any
 
-from fmind_dot.archive.query import SessionQuery, discover_session_generations, query_session_summaries
-from fmind_dot.archive.store import generation_files, validate_session_generation
+from fmind_dot.archive.query import SessionQuery, query_session_summaries
+from fmind_dot.archive.store import read_session_bundle
 
 
 def session_statistics(query: SessionQuery) -> dict[str, Any]:
-    """Count current sessions separately from retained immutable generations."""
-    summaries = query_session_summaries(query, latest_only=True)
-    identities = {(item.agent, item.lineage_id) for item in summaries}
-    generations = [
-        item for item in discover_session_generations() if (item.manifest.agent, item.manifest.lineage_id) in identities
-    ]
+    """Count archived sessions from manifests without decoding transcripts."""
+    summaries = query_session_summaries(query)
     return {
-        "schema": "dot.agent.sessions.stats/v1",
-        "time_basis": "latest generation ingestion timestamp",
+        "schema": "dot.agent.sessions.stats/v2",
+        "time_basis": "latest ingestion timestamp",
         "sessions": len(summaries),
-        "generations": len(generations),
-        "superseded_generations": len(generations) - len(summaries),
-        "archive_bytes": sum(
-            (item.path / name).lstat().st_size for item in generations for name in generation_files(item.manifest)
-        ),
+        "archive_bytes": sum(item.path.stat().st_size for item in summaries),
         "conversation_records": sum(item.record_count for item in summaries),
         "malformed_records": sum(item.malformed_records for item in summaries),
         "ignored_records": sum(item.skipped_records for item in summaries),
@@ -42,14 +34,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         raise ValueError("--since must not be after --until")
     # A historical conversation may have been ingested today. Prompt date filters
     # therefore apply to record timestamps, never to archive ingestion time.
-    summaries = query_session_summaries(
-        SessionQuery(agent=query.agent, cwd=query.cwd, identity=query.identity),
-        latest_only=True,
-    )
-    generations = {
-        (item.summary.agent, item.summary.lineage_id, item.summary.generation_id): item
-        for item in discover_session_generations()
-    }
+    summaries = query_session_summaries(SessionQuery(agent=query.agent, cwd=query.cwd, identity=query.identity))
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     excluded = 0
     invalid_timestamps = 0
@@ -57,13 +42,9 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         if "invalid" in summary.status:
             excluded += 1
             continue
-        generation = generations.get((summary.agent, summary.lineage_id, summary.generation_id))
-        if generation is None:
-            excluded += 1
-            continue
         try:
             # Keep only one conversation in memory, not the entire private corpus.
-            records = validate_session_generation(generation.path, generation.manifest)
+            _, records = read_session_bundle(summary.path)
         except OSError, ValueError:
             excluded += 1
             continue
