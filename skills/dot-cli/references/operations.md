@@ -19,6 +19,7 @@ description: "Inspect repositories, diagnose workstation health, and manage sess
 | `dot doctor`     | Check local tools, permissions, environment, and installation; `--deep` adds provider authentication probes.  |
 | `dot pull`       | Fetch and fast-forward selected repositories with bounded concurrency and an explicit dirty-tree policy.      |
 | `dot status`     | Inspect selected repositories without fetching; optionally report attention counts.                           |
+| `dot trust`      | Pre-accept harness folder trust for a repository, or `all` for the configured workspaces.                     |
 
 ## Workflow
 

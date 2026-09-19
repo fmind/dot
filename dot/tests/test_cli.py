@@ -99,7 +99,19 @@ def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch
 def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
     command = get_command(app)
     assert isinstance(command, TyperGroup)
-    expected = {"agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status"}
+    expected = {
+        "agent",
+        "cache",
+        "completion",
+        "config",
+        "doctor",
+        "login",
+        "prune",
+        "pull",
+        "setup",
+        "status",
+        "trust",
+    }
     visible = [name for name in command.list_commands(_click.Context(command)) if not command.commands[name].hidden]
 
     assert set(visible) == expected
@@ -109,7 +121,10 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
 @pytest.mark.parametrize(
     ("path", "names"),
     [
-        ([], ["agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status"]),
+        (
+            [],
+            ["agent", "cache", "completion", "config", "doctor", "login", "prune", "pull", "setup", "status", "trust"],
+        ),
         (["config"], ["edit", "init", "path", "show", "validate"]),
         (["agent"], ["context", "doctor", "session", "stats", "usage"]),
         (["agent", "session"], ["compact", "export", "ingest", "list", "show", "stats", "sync"]),

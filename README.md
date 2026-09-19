@@ -57,7 +57,7 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 ## Installation
 
 > [!WARNING]
-> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use.
+> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use. Each apply runs `dot trust all`, so harnesses trust the `pull.directories` workspaces and their repositories without prompting (run `dot trust` in a new clone); mise trusts every configuration under home.
 
 ```bash
 # Clone into the chezmoi source directory

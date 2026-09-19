@@ -15,6 +15,16 @@ Explicit repository paths bypass configured workspace discovery. Status includes
 
 Pull fetches and fast-forwards; fetch failures always produce a nonzero exit, including on branches without an upstream; dirty repositories are skipped before fetching by default. `--dirty allow` explicitly permits a fast-forward attempt with local changes but never pushes a dirty checkout. `--push` also pushes clean repositories that are ahead and requires authority for those remote writes. Dry-run reports selected targets and policy without fetching or predicting remote changes. Cancellation stops worker subprocess groups and blocks subsequent worker commands.
 
+## Folder trust
+
+```bash
+dot trust --dry-run
+dot trust
+dot trust all
+```
+
+`dot trust [PATH]` pre-accepts folder trust for the repository containing `PATH` (default `.`) in every installed harness: Claude (`~/.claude.json`), Codex, Grok, agy, and Copilot. `all` covers each `pull.directories` workspace and the repositories directly inside it; `chezmoi apply` runs it. Entries are only added, never removed, and harnesses without a state directory are skipped. Claude, Codex, Grok, and agy key trust on the repository root, so a new clone needs `dot trust` (or the next apply). mise trusts every configuration under home through `trusted_config_paths`.
+
 ## Sessions and statistics
 
 ```bash

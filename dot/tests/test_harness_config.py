@@ -327,9 +327,7 @@ sessions = false
         fresh = json.loads(self.render(template, ""))
         for key in ("model", "pickerGrouping", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
             assert key not in fresh
-        claude = json.loads(self.render("dot_claude/modify_settings.json", ""))
-        assert fresh["trustedWorkspaces"] == claude["permissions"]["additionalDirectories"]
-        assert str(self.home) not in fresh["trustedWorkspaces"]
+        assert "trustedWorkspaces" not in fresh  # dot trust owns folder trust.
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
         template = "dot_gemini/private_config/modify_private_config.json"

@@ -147,7 +147,7 @@ app.add_typer(config_app, name="config")
 
 # Command modules register after the shared helpers exist, keeping each workflow
 # independently testable without a second framework layer.
-from fmind_dot import repository, system, workstation  # noqa: E402
+from fmind_dot import repository, system, trust, workstation  # noqa: E402
 from fmind_dot.agent import agent_app  # noqa: E402
 from fmind_dot.auth import login_app, setup_app  # noqa: E402
 
@@ -157,6 +157,7 @@ app.add_typer(setup_app, name="setup")
 workstation.register(app)
 system.register(app)
 repository.register_repository_commands(app)
+trust.register(app)
 
 
 def _invoke_app() -> int:

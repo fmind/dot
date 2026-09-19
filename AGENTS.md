@@ -46,5 +46,6 @@ Key routines:
 - `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host (with OpenCode in `dot_config/opencode/`).
 - `dot_config/` contains managed application configuration; root `dot_*` sources map directly to home targets.
 - `modify_dot_bashrc`, `modify_dot_profile`, and darwin-only `modify_dot_zprofile` add PATH and mise activation to existing shell files; `run_once_after_*` install Grok and Antigravity; `run_after_bat-theme` rebuilds the bat theme cache when the theme or bat changes.
+- `run_after_dot-trust` runs `dot trust all` so every harness trusts the configured workspaces and their repositories; mise trusts all of home through `trusted_config_paths`.
 - `.chezmoiexternal.toml.tmpl` fetches the theme files from `fmind/theme` during apply, while style blocks that must be merged are copied into managed sources.
 - `skills/` is the global Agent Skill catalog shared by every supported host.
