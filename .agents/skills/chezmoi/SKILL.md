@@ -21,9 +21,10 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 ## Workflow
 
 1. **Edit the source**, never the deployed copy; `chezmoi cd` opens a shell in the source root.
-1. **Manage an existing file**: `chezmoi add <target>` infers the attributes; `--template` templatizes, `--encrypt` imports a secret as `encrypted_private_dot_<name>.age`:
+1. **Manage an existing file**: `chezmoi add <target>` infers the attributes; `--template` templatizes; set a secret to `0600` before `--encrypt` imports it as `encrypted_private_dot_<name>.age`:
 
    ```bash
+   chmod 600 ~/.config/<tool>/secret
    chezmoi add --encrypt ~/.config/<tool>/secret   # import and encrypt into the source
    chezmoi edit ~/.config/<tool>/secret            # edit the plaintext, re-encrypt on save
    ```
