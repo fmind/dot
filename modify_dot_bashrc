@@ -1,4 +1,5 @@
 # chezmoi:modify-template
+{{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
 {{- $pathSentinel := "# chezmoi: mise-bash-path" -}}
 {{- $pathBlock := `# chezmoi: mise-bash-path
 # Make mise-installed tools available to non-interactive shells.

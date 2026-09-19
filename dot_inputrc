@@ -1,3 +1,4 @@
+# Docs: https://tiswww.case.edu/php/chet/readline/rluserman.html#Readline-Init-File
 # Vi mode
 set editing-mode vi
 set show-mode-in-prompt on

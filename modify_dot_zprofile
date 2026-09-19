@@ -1,12 +1,12 @@
 # chezmoi:modify-template
 {{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
 {{- $stdin := .chezmoi.stdin -}}
-{{- $sentinel := "# chezmoi: mise-bash-integration" -}}
-{{- $activationBlock := `# chezmoi: mise-bash-integration
-# Bootstrap mise for login shells; activation owns tool-version precedence.
+{{- $sentinel := "# chezmoi: mise-zsh-integration" -}}
+{{- $activationBlock := `# chezmoi: mise-zsh-integration
+# Bootstrap mise for macOS login shells; activation owns tool-version precedence.
 export PATH="${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
 if command -v mise >/dev/null 2>&1; then
-  mise_activation="$(mise activate bash)"
+  mise_activation="$(mise activate zsh)"
   eval "${mise_activation}"
 fi` -}}
 {{- if contains $sentinel $stdin -}}

@@ -28,7 +28,6 @@ if status is-interactive
     # k:kubectl
     abbr -a k kubectl
     # l:lsd
-    alias lsd="lsd --icon=always --git --group-directories-first --date=relative --literal"
     alias ls="lsd"
     abbr -a l "lsd --long --all"
     abbr -a la "lsd --all"
@@ -53,6 +52,8 @@ if status is-interactive
     # q:fzf
     abbr -a q fzf
     # r:ripgrep
+    # Truncate long lines for people only; agents inherit RIPGREP_CONFIG_PATH and need full matches.
+    alias rg="rg --max-columns=150 --max-columns-preview"
     abbr -a r rg
     # s:ssh
     abbr -a s ssh

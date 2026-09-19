@@ -29,10 +29,3 @@ gui:
 
 os:
   editPreset: nvim
-customCommands:
-  - key: "G"
-    context: "files"
-    description: "Generate Conventional Commit message with Antigravity (agy)"
-    loadingText: "Asking Antigravity..."
-    output: terminal
-    command: "git g"

@@ -1,10 +1,20 @@
 # chezmoi:modify-template
-{{- /* model must match what /model persists, or apply reverts the choice.
+{{- /* model and effortLevel are defaults rather than managed keys: they seed a fresh
+       file, then stay whatever /model and /effort last persisted.
        effortLevel stops at xhigh: max is session-only (/effort max), and an
        unknown value silently falls back to the default effort.
        theme: light-ansi paints the TUI from the terminal's own sixteen slots,
-       which is how fmind/theme reaches a tool that takes no theme file. */ -}}
-{{- $managedConfig := fromJson `
+       which is how fmind/theme reaches a tool that takes no theme file.
+       enableAllProjectMcpServers is managed as false, not removed: the merge never
+       deletes keys, so an already deployed true would otherwise keep auto-approving
+       every repository-provided MCP server.
+       Hooks name the CLI absolutely: a harness started without ~/.local/bin on PATH
+       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and capture
+       fails silently. */ -}}
+{{- $dot := joinPath .chezmoi.homeDir ".local/bin/dot" -}}
+{{- if not (regexMatch "^[A-Za-z0-9_@%+=:,./-]+$" $dot) }}{{ fail "home directory is not shell-safe for hook commands" }}{{ end -}}
+{{- $defaults := dict "effortLevel" "high" "model" "claude-fable-5-1[1m]" -}}
+{{- $managedConfig := fromJson (replace "@dot@" $dot `
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "agentPushNotifEnabled": true,
@@ -17,8 +27,7 @@
   "autoMemoryEnabled": true,
   "autoUpdatesChannel": "stable",
   "editorMode": "vim",
-  "effortLevel": "high",
-  "enableAllProjectMcpServers": true,
+  "enableAllProjectMcpServers": false,
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
     "BASH_MAX_TIMEOUT_MS": "1800000",
@@ -33,7 +42,7 @@
       {
         "hooks": [
           {
-            "command": "dot agent hook notify claude needs-input",
+            "command": "@dot@ agent hook notify claude needs-input",
             "timeout": 30,
             "type": "command"
           }
@@ -45,7 +54,7 @@
       {
         "hooks": [
           {
-            "command": "dot agent hook session claude",
+            "command": "@dot@ agent hook session claude",
             "timeout": 30,
             "type": "command"
           }
@@ -57,7 +66,7 @@
       {
         "hooks": [
           {
-            "command": "dot agent hook session claude",
+            "command": "@dot@ agent hook session claude",
             "timeout": 30,
             "type": "command"
           }
@@ -69,7 +78,7 @@
       {
         "hooks": [
           {
-            "command": "dot agent hook notify claude stop",
+            "command": "@dot@ agent hook notify claude stop",
             "timeout": 30,
             "type": "command"
           }
@@ -81,7 +90,7 @@
       {
         "hooks": [
           {
-            "command": "dot agent hook session claude",
+            "command": "@dot@ agent hook session claude",
             "timeout": 30,
             "type": "command"
           }
@@ -91,7 +100,6 @@
     ]
   },
   "inputNeededNotifEnabled": true,
-  "model": "opus[1m]",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
@@ -106,6 +114,11 @@
     "baseRef": "head"
   }
 }
-` -}}
-{{- $_ := set $managedConfig.permissions "additionalDirectories" (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+`) -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
+{{- $directories := dig "permissions" "additionalDirectories" (list) $current -}}
+{{- if not (kindIs "slice" $directories) }}{{ fail "permissions.additionalDirectories must be an array" }}{{ end -}}
+{{- /* Add the managed roots without replacing directories the host added. */ -}}
+{{- $_ := set $managedConfig.permissions "additionalDirectories" (concat $directories (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) | uniq) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

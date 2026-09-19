@@ -14,25 +14,19 @@ font-size = 14
 # Use the font's real italic faces when requested; never synthesise slanted glyphs.
 # The theme uses upright text and bold for structure.
 font-synthetic-style = no-italic,no-bold-italic
-# Preserve foreground colour when applications request bold.
-bold-is-bright = false
 
 {{- if eq .chezmoi.os "darwin" }}
 macos-option-as-alt = left
 {{- end }}
 
 # Quality of Life
-clipboard-paste-protection = true
-clipboard-trim-trailing-spaces = true
 copy-on-select = clipboard
-cursor-click-to-move = true
 # Compensate for fast Zellij scrolling on Linux; retain the macOS tuning.
 {{ if eq .chezmoi.os "linux" }}
 mouse-scroll-multiplier = precision:0.0625,discrete:0.25
 {{ else }}
 mouse-scroll-multiplier = precision:0.25,discrete:1
 {{ end }}
-mouse-shift-capture = false
 window-save-state = always
 
 # Performance Improvements

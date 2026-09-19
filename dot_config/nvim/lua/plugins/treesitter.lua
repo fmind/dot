@@ -10,6 +10,8 @@ return {
     "nvim-treesitter/nvim-treesitter",
     opts = function(_, opts)
       if type(opts.ensure_installed) == "table" then
+        -- Web parsers stay retired: snacks.image only misses inline images in TSX
+        -- documents, like its other optional languages; Markdown images still render.
         local retired = {
           angular = true,
           go = true,

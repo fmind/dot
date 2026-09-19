@@ -3,7 +3,7 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") }}
 set -euo pipefail
 if [ ! -x "${HOME}/.grok/bin/grok" ]; then
-  curl -fsSL https://storage.googleapis.com/grok-build-public-artifacts/cli/install.sh | bash
+  curl -fsSL https://x.ai/cli/install.sh | bash
 fi
 if [ -x "${HOME}/.grok/bin/grok" ]; then
   mkdir -p "${HOME}/.local/bin"

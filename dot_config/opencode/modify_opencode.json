@@ -25,7 +25,7 @@
 {{- $_ := set $managedConfig "skills" (dict "paths" (list (joinPath .chezmoi.homeDir ".agents/skills"))) -}}
 {{- /* Move the legacy managed theme to tui.json; preserve other host settings. */ -}}
 {{- $current := dict -}}
-{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- $input := .chezmoi.stdin -}}
 {{- if hasKey $current "theme" -}}
 {{-   $_ := unset $current "theme" -}}

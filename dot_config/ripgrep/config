@@ -10,8 +10,6 @@
 --glob=!node_modules/
 --glob=!package-lock.json
 --hidden
---max-columns-preview
---max-columns=150
 --smart-case
 
 # Source: https://github.com/fmind/theme/blob/main/themes/ripgrep/fmind.ripgreprc

@@ -8,15 +8,10 @@ blocks:
   - date
   - git
   - name
-classic: false
 color:
   theme: custom
-  when: auto
-date: date
-display: visible-only
+date: relative
 icons:
-  separator: " "
-  theme: fancy
   when: always
 ignore-globs:
   - .DS_Store
@@ -26,7 +21,6 @@ ignore-globs:
   - .pytest_cache
   - .ruff_cache
   - __pycache__
+literal: true
 sorting:
-  column: name
   dir-grouping: first
-  reverse: false

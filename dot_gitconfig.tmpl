@@ -1,3 +1,4 @@
+# Docs: https://git-scm.com/docs/git-config
 [alias]
     a = add
     b = branch
@@ -29,9 +30,6 @@
 [commit]
     verbose = true
 
-[gpg]
-    format = ssh
-
 [core]
     autocrlf = input
     editor = nvim
@@ -40,7 +38,6 @@
 [delta]
     pager = cat
     line-numbers = true
-    navigate = true
     side-by-side = true
 
 # Colours only. Fetched from github.com/fmind/theme by .chezmoiexternal.toml.tmpl,
@@ -71,9 +68,6 @@
 
 [interactive]
     diffFilter = delta --color-only --paging=never
-
-[maintenance]
-    auto = true
 
 [merge]
     conflictstyle = zdiff3
@@ -112,8 +106,6 @@
 
 # Source: https://github.com/fmind/theme/blob/main/themes/git/fmind.gitconfig
 # Quote hex colors: Git treats unquoted # characters as comments.
-[color]
-    ui = true
 [color "diff"]
     meta = "#595d62"
     frag = "#174ea6"

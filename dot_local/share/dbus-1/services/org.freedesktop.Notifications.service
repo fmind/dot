@@ -1,4 +1,4 @@
-# https://dbus.freedesktop.org/doc/dbus-daemon.1.html
+# Docs: https://dbus.freedesktop.org/doc/dbus-daemon.1.html
 [D-BUS Service]
 Name=org.freedesktop.Notifications
 Exec=/opt/google/cros-containers/bin/notificationd --virtwl_device=/dev/wl0
