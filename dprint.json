@@ -17,8 +17,7 @@
     "**/modify_*.json",
     "**/modify_*.toml",
     "**/modify_*.yaml",
-    "**/node_modules",
-    "**/references/**"
+    "**/node_modules"
   ],
   "markdown": {
     "textWrap": "never"

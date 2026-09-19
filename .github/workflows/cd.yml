@@ -10,18 +10,18 @@ concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  publish:
-    name: Publish GitHub release
+  # Privilege separation: everything that executes repository or third-party code
+  # (the full toolchain, the gate, the build backend) runs here with a read-only
+  # token. Only the distributions and release notes cross into the publish job.
+  build:
+    name: Build release distributions
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
     timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # git-cliff derives the release notes from the complete tag history.
           fetch-depth: 0
           persist-credentials: false
       - name: Install toolchain
@@ -32,15 +32,57 @@ jobs:
           version: 2026.9.10
       - name: Run canonical gate
         run: mise run all
-      - name: Run starter contracts
-        run: mise run test:starters
+      - name: Verify clean tree
+        run: |
+          status="$(git status --porcelain)"
+          printf '%s\n' "$status"
+          test -z "$status"
+      - name: Extract release notes
+        # dot/dist is ignored, so the notes travel with the distributions in one artifact.
+        run: git-cliff --config dot_config/git-cliff/cliff.toml --latest --strip all > dot/dist/notes.md
+      - name: Upload release payload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          path: dot/dist/
+          if-no-files-found: error
+          retention-days: 1
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install publication runtime
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache: false
+          # The publication task needs only the locked Python runtime; no build,
+          # lint, or scan tool is installed beside the write-scoped token.
+          install_args: uv python
+          version: 2026.9.10
+      - name: Download release payload
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release
+          path: dot/dist/
+      - name: Validate tag against built version
+        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md --validate-only
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: "dot/dist/*"
-      - name: Extract release notes
-        run: git-cliff --config dot_config/git-cliff/cliff.toml --latest --strip all > "$RUNNER_TEMP/notes.md"
+          subject-path: |
+            dot/dist/*.whl
+            dot/dist/*.tar.gz
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md

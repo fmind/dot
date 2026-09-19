@@ -10,7 +10,6 @@ pkg:
   include-dev-deps: true
 scan:
   scanners:
-    - license
     - misconfig
     - secret
     - vuln

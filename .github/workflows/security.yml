@@ -33,3 +33,10 @@ jobs:
         # hand-written copy had already lost --tf-vars and scanned the Terraform
         # module with unresolved variables.
         run: mise run check:scan
+      - name: Audit workflows online
+        # The CI gate stays offline for speed and determinism. This weekly pass adds
+        # the audits that query GitHub (impostor commits, ref confusion, known
+        # vulnerable actions); the job's read-only token is sufficient.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: mise run check:actions:online

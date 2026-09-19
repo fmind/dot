@@ -3,6 +3,8 @@ set -euo pipefail
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
+# The mise release that CI tests: installed when mise is absent, and the minimum
+# accepted from an existing installation. Keep equal to the workflow pins.
 MINIMUM_MISE_VERSION="2026.9.10"
 
 version_at_least() {
@@ -28,7 +30,7 @@ on_error() {
   echo "  Please check the following bootstrap prerequisites:" >&2
   echo "  1. Ensure you have active internet connectivity." >&2
   echo "  2. Confirm both git and curl are installed on your host." >&2
-  echo "  3. On Linux: verify 'build-essential' and 'gnome-keyring' are installed." >&2
+  echo "  3. On Linux: verify 'libatomic1', 'build-essential', and 'gnome-keyring' are installed." >&2
   echo "  4. Check that ~/.local/bin is writeable by your current user." >&2
   echo "==================================================" >&2
 }
@@ -37,7 +39,8 @@ trap 'on_error $LINENO' ERR
 # Install mise
 command -v mise >/dev/null || {
   echo "=> Installing mise..."
-  curl -fsSL https://mise.run | bash
+  # The installer honors MISE_VERSION and verifies the release checksum.
+  curl -fsSL https://mise.run | MISE_VERSION="v${MINIMUM_MISE_VERSION}" bash
 }
 
 mise_version="$(mise --version | awk '{print $1}')"
@@ -70,7 +73,7 @@ fi
 echo "=> Trusting mise config..."
 mise trust -y "${SOURCE_DIR}/mise.toml"
 
-# Complete the ordered bootstrap: apply, trust, tools, hooks, and editor.
+# Complete the ordered bootstrap: trust, tools (install, apply, deploy), hooks, and editor.
 echo "=> Completing environment bootstrap..."
 mise -C "${SOURCE_DIR}" run install
 

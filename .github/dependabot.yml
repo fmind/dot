@@ -2,7 +2,12 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    # "/" covers .github/workflows; any other directory is scanned for *.yml files,
+    # which keeps the SHA-pinned workflow templates shipped in skills current.
+    directories:
+      - /
+      - /skills/cloud-run/templates
+      - /skills/github-actions/references/ci-cd/templates
     schedule:
       interval: weekly
       day: monday
