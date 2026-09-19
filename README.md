@@ -10,7 +10,7 @@ My personal dotfiles for **AI-driven, CLI-first** development on Linux and macOS
 | Platform                           | Tool lockfiles | CI                                |
 | ---------------------------------- | -------------- | --------------------------------- |
 | Linux x86-64 (glibc 2.39 or newer) | Yes            | Repository gate on `ubuntu-24.04` |
-| macOS Apple Silicon                | Yes            | Not tested                        |
+| macOS Apple Silicon                | Yes            | Template rendering only           |
 | Anything else                      | No             | Not tested                        |
 
 The CI gate renders the chezmoi templates as a dry run and runs the static checks, tests, and build; it does not execute `install.sh` end to end.
@@ -138,30 +138,38 @@ Upgrading from v6.1.0? Follow the [skill-link migration](.agents/skills/dot-skil
 
 ### Secret Management
 
-API keys and credentials are split between two Fish configuration files:
+Secrets are no longer exported at shell startup. Native credential files work in Fish, Bash, Zsh, task runners, and Python SDKs; remaining keys are supplied explicitly to one command with `dot secret run`. Managed secret files are private (`0600`), with encrypted sources in Git; existing native files are preserved, including their permissions. This reduces inherited credentials; it does not isolate programs running as your user.
 
-1. **`~/.config/fish/conf.d/secrets.fish`** (encrypted in repo, mine only): `encrypted_private_secrets.fish.age` is encrypted to the age recipient hardcoded in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl). Only my private key decrypts it. Without `~/.config/chezmoi/key.txt`, [`.chezmoiignore`](.chezmoiignore) skips the file and apply succeeds without it; any other key at that path makes apply fail on decryption. It exports `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `HUGGINGFACE_API_TOKEN`, `JULES_API_KEY`, `KAGGLE_API_TOKEN`, `OPENROUTER_API_KEY`, `STITCH_ACCESS_TOKEN`, `STUDIO_API_KEY`, and `UV_PUBLISH_TOKEN`.
+| Tool                       | Personal default                    | Customer override                                                                |
+| -------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| Hugging Face CLI / Hub SDK | `~/.cache/huggingface/token`        | `HF_TOKEN`, or `HF_TOKEN_PATH` selecting a separate token file                   |
+| Kaggle CLI / SDK           | `~/.kaggle/access_token`            | `KAGGLE_API_TOKEN` containing a token or an absolute token-file path             |
+| OpenCode                   | `~/.local/share/opencode/auth.json` | Project provider configuration, or a separate `XDG_DATA_HOME` with its own login |
+| PyPI publishing            | `dot secret publish`                | Use ordinary `uv publish` with the customer's credentials and registry           |
 
-   To use encrypted secrets in a fork, generate your own key, replace the recipient, and replace the `.age` file with one encrypted to it (see [Adapting this](#adapting-this)):
+Native files are seeded only when absent (`create_` sources); Kaggle seeding is also skipped when a default legacy or OAuth credential file exists: later logins and account switches survive apply. Deleting a seeded file allows the next apply to recreate the personal default; to stop seeding it, add its target path to your chezmoi ignore rules or remove its source. Seeds use the default paths above; custom `HF_HOME`, `HF_TOKEN_PATH`, `XDG_CACHE_HOME`, or `XDG_DATA_HOME` need their own login. Use `hf auth login`, `kaggle auth login`, and OpenCode's `/connect` for native authentication.
 
-   ```bash
-   mkdir -p ~/.config/chezmoi
-   age-keygen -o ~/.config/chezmoi/key.txt
-   chmod 600 ~/.config/chezmoi/key.txt
-   ```
+Customer credentials must be selected explicitly; native tools have different precedence and fallback rules. See [customer overrides and isolation](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation), including Kaggle legacy/OAuth behavior and OpenCode project configuration.
 
-   > [!WARNING]
-   > **Back up `~/.config/chezmoi/key.txt`.** It is not managed by chezmoi. If lost, encrypted repo files are unrecoverable.
+```bash
+# Paths contain no secrets and work in Fish, Bash, and Zsh.
+env HF_TOKEN_PATH="$HOME/.config/customer/hf-token" hf auth whoami
+env KAGGLE_API_TOKEN="$HOME/.config/customer/kaggle-token" kaggle datasets list --mine
 
-1. **`~/.private.fish`** (local, untracked): Sourced automatically by `config.fish` for machine or project overrides. Without the encrypted file, export your API keys here:
+# Explicit personal credentials for one process tree, including a Python SDK or task.
+dot secret run GEMINI_API_KEY -- uv run app.py
+dot secret run STITCH_ACCESS_TOKEN -- mise run design
 
-   ```fish
-   set -gx ANTIGRAVITY_CLOUD_PROJECT   "my-vertex-project"
-   set -gx ANTIGRAVITY_CLOUD_LOCATION  "global"
-   set -gx GOOGLE_CLOUD_PROJECT        "my-agent-project"
-   set -gx GOOGLE_CLOUD_LOCATION       "global"
-   set -gx GWS_PROJECT                 "my-workspace-project"
-   ```
+# PyPI only; ordinary uv / uv run never load this token.
+dot secret publish --dry-run
+dot secret publish
+```
+
+`dot secret run` preserves an existing environment value; an empty value fails instead of selecting the personal key. It loads only the named credential and preserves child arguments, terminal I/O, and exit status. The migrated scoped keys are `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `JULES_API_KEY`, `STITCH_ACCESS_TOKEN`, and `STUDIO_API_KEY`. Use ordinary commands for customer profiles and ADC. See [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials) for validation and publishing restrictions.
+
+**Upgrade:** apply the dotfiles and install the updated `dot` CLI together, then restart terminals, terminal multiplexers, editors, and agents from a clean login session. Existing processes retain their old environment; merely sourcing the new file or launching a child shell does not remove it. The retained `secrets.fish` is an inert migration stub. Remove any duplicate key exports from your local `~/.private.fish`; keep that file for non-secret machine settings.
+
+Only the owner's age key decrypts the committed seeds. Without `~/.config/chezmoi/key.txt`, apply skips the encrypted credentials; a different key at that path fails decryption. **Back up this key.** For a fork, replace the recipient in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and remove/re-encrypt all credential sources. To add a scoped key, create `~/.config/dot/secrets/NAME` privately using an editor or secret manager, set its mode to `0600`, then `chezmoi add --encrypt --private` that file; never put the value in command arguments. Native credential files can be captured with `chezmoi add --encrypt --private --create <path>`; seeded files are not overwritten by subsequent source changes, so rotate the active native credential through its tool and refresh the encrypted seed separately.
 
 ### Authentication & Logins
 
@@ -196,7 +204,7 @@ Agent harnesses authenticate themselves:
 | **GitHub Copilot CLI** | `copilot login` (or `copilot` → `/login`)    | Interactive / browser |
 | **Grok Build CLI**     | `grok login` (or `XAI_API_KEY`)              | Interactive / API key |
 | **OpenAI Codex CLI**   | `codex login`                                | Interactive           |
-| **OpenCode CLI**       | `opencode` (reads `OPENROUTER_API_KEY`)      | OpenRouter API key    |
+| **OpenCode CLI**       | `opencode` → `/connect`                      | OpenRouter API key    |
 
 Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
 
@@ -205,7 +213,7 @@ Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABL
 Fork rather than install as-is. Owner-specific values to replace:
 
 1. **Identity prompts**: the defaults in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), and the clone URL in [`install.sh`](install.sh).
-1. **Secrets**: the age `recipient` in `.chezmoi.toml.tmpl` and [`encrypted_private_secrets.fish.age`](dot_config/fish/conf.d/encrypted_private_secrets.fish.age); re-encrypt with `chezmoi add --encrypt ~/.config/fish/conf.d/secrets.fish`, or delete the file and rely on `~/.private.fish`.
+1. **Secrets**: the age `recipient` in `.chezmoi.toml.tmpl` and all encrypted credential sources; replace or remove them and configure your own native logins and scoped keys as described in [Secret Management](#secret-management).
 1. **Persona**: [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) deploys to `~/.agents/AGENTS.md`, names me, and encodes my working rules; every harness loads it.
 1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are granted to agents in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and [`dot_gemini/antigravity-cli/modify_private_settings.json`](dot_gemini/antigravity-cli/modify_private_settings.json), and are the `pull.directories` default of the `dot` CLI (override in `~/.config/dot.yaml`).
 1. **Theme**: files track [fmind/theme](https://github.com/fmind/theme) `main`; point [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl) at your own or pin a commit.

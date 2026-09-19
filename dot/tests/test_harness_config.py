@@ -230,10 +230,7 @@ sessions = false
         assert data["default_agent"] == "build"
         assert data["share"] == "disabled"
         assert data["snapshot"] is True
-        assert data["provider"]["openrouter"]["options"] == {
-            "apiKey": "{env:OPENROUTER_API_KEY}",
-            "timeout": 60000,
-        }
+        assert data["provider"]["openrouter"]["options"] == {"timeout": 60000}
         assert data["permission"] == "allow"
         assert data["agent"] == original["agent"]
         assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "auto": True, "prune": True}
@@ -251,8 +248,21 @@ sessions = false
                 {"OPENROUTER_API_KEY": "synthetic-private-value", "GOOGLE_CLOUD_PROJECT": "unrelated"},
             )
         )
-        assert data["provider"] == {"openrouter": {"options": {"apiKey": "{env:OPENROUTER_API_KEY}"}}}
+        assert "provider" not in data
         assert "synthetic-private-value" not in json.dumps(data)
+
+    def test_opencode_retires_only_legacy_managed_credential(self):
+        template = "dot_config/opencode/modify_opencode.json"
+        for value in ("{env:OPENROUTER_API_KEY}", "{env:CUSTOMER_OPENROUTER_KEY}", "{file:/customer/token}"):
+            original = {"provider": {"openrouter": {"options": {"apiKey": value, "timeout": 123}}}}
+            rendered = self.render(template, json.dumps(original))
+            options = json.loads(rendered)["provider"]["openrouter"]["options"]
+            assert options["timeout"] == 123
+            if value == "{env:OPENROUTER_API_KEY}":
+                assert "apiKey" not in options
+            else:
+                assert options["apiKey"] == value
+            assert self.render(template, rendered) == rendered
 
     def test_opencode_tui_merge_preserves_keyboard_preferences(self):
         template = "dot_config/opencode/modify_tui.json"

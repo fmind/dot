@@ -161,17 +161,12 @@ class AgentConfig(StrictModel):
 
 
 class EnvVarsConfig(StrictModel):
-    required: list[str] = Field(default_factory=lambda: ["STITCH_ACCESS_TOKEN"])
+    required: list[str] = Field(default_factory=list)
     optional: list[str] = Field(
         default_factory=lambda: [
-            "STUDIO_API_KEY",
-            "KAGGLE_API_TOKEN",
-            "HUGGINGFACE_API_TOKEN",
             "GWS_PROJECT",
             "ANTIGRAVITY_CLOUD_PROJECT",
             "ANTIGRAVITY_CLOUD_LOCATION",
-            "ANTIGRAVITY_SDK_API_KEY",
-            "GEMINI_API_KEY",
         ]
     )
 

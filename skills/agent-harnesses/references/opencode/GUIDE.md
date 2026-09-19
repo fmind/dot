@@ -11,7 +11,7 @@ Operate OpenCode with the project's provider, permissions, and Python tooling. P
 
 Follow the shared [workflow](../../SKILL.md#workflow) using `opencode --version`, `opencode run --help`, and project instructions; host specifics:
 
-1. **Resolve the provider** through [model-providers](../../../model-providers/SKILL.md). This workstation explicitly uses OpenRouter with `OPENROUTER_API_KEY`; its model IDs start with `openrouter/`. Preserve that choice even though new application integrations default to GCP Agent Platform. Check credentials without dumping resolved configuration.
+1. **Resolve the provider** through [model-providers](../../../model-providers/SKILL.md). This workstation explicitly uses OpenRouter through its native `/connect` login; its model IDs start with `openrouter/`. Preserve that choice even though new application integrations default to GCP Agent Platform. Check credentials without dumping resolved configuration.
 1. **Run the requested task** with the configured model, or an explicitly selected available `provider/model`. `--auto` approves permissions that are not explicitly denied; it preserves denials and does not expand the user's task authority.
 
    ```bash
@@ -32,7 +32,7 @@ Use `opencode mcp add --help` for the installed setup interface and [mcp-setup](
 
 ## Gotchas
 
-- **Provider errors**: distinguish a missing or invalid `OPENROUTER_API_KEY`, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
+- **Provider errors**: distinguish a missing or invalid native login or project credential override, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
 - **Sharing is publication**: `--share` can expose session contents; require explicit sharing authority.
 
 ## Official Skills
