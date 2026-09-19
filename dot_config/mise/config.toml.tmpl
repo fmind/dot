@@ -38,6 +38,8 @@ lockfile_platforms = ["linux-x64", "macos-arm64"]
 minimum_release_age = "3d"
 minimum_release_age_excludes = ["pipx:fkf", "pipx:fmind"]
 slsa = false
+# Repository configs anywhere under home need no `mise trust` (prefix match).
+trusted_config_paths = [{{ .chezmoi.homeDir | quote }}]
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
