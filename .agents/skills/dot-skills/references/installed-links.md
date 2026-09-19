@@ -33,4 +33,4 @@ The shared catalog must be a real directory. Apply rejects a whole-catalog symli
 
 ## Verification
 
-Run `dot agent doctor --agent codex --explain` to check bounded filesystem metadata and expected repository links when chezmoi is available. Package names appear only on request; instruction bodies are never read. A healthy filesystem does not prove host selection; exercise the skill in the affected host separately.
+Run `mise run check:skills` to check both catalogs and their local links, and inspect `~/.agents/skills` for the expected repository links. A healthy filesystem does not prove host selection; exercise the skill in the affected host separately.

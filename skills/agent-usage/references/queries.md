@@ -2,18 +2,17 @@
 
 ## Directory layout and schema
 
-New measurements live inside immutable session generations:
+Each session keeps one bundle with its latest measurement:
 
 ```text
-~/.agents/sessions/v2/<agent>/<lineage>/<generation>/
-  manifest.json
-  transcript.jsonl
-  usage.json
+~/.agents/sessions/v3/<agent>/<session_id>.jsonl
+  line 1: manifest (schema_version 3), with the usage record in `usage` (null when unsupported)
+  line 2+: normalized transcript records
 ```
 
-Directories are private (`0o700`), and files are private (`0o600`). `usage.json` has schema `dot.session.usage/v1`, a status (`available` or `unsupported`), and a `record` object when available. `dot agent session sync` captures all five verified adapters. Only the current store is queried; earlier stores and standalone usage files are outside its scope.
+Directories are private (`0o700`), and files are private (`0o600`). `dot agent session sync` captures all five verified adapters; reports sync first. Only the current store is queried; earlier stores and standalone usage files are outside its scope.
 
-Query the CLI's selected projection instead of globbing every generation: otherwise older measurements would be counted repeatedly. `dot agent usage list --limit 0 --json` exports selected session usage records for local analysis. Prefer statistics JSON for monthly/model aggregation: optional `samples` contain per-request measurements and must never be summed together with their parent session totals.
+Prefer the CLI projection to reading bundles directly: it validates each record. `dot agent usage list --limit 0 --json` exports selected session usage records for local analysis. Prefer statistics JSON for monthly/model aggregation: optional `samples` contain per-request measurements and must never be summed together with their parent session totals.
 
 CLI list output wraps records in `{ "schema": "dot.agent.usage.list/v1", "records": [...] }`. Statistics use the `usage` array of `dot.agent.stats/v2`; prompt-only statistics use its `prompts` object.
 
@@ -64,7 +63,7 @@ Missing costs serialize as `null`. A partial group reports its known subtotal an
 
 Since parser 4, Claude blocks sharing request/message identity are deduplicated, retaining peak counters within a response. Codex derives increments from cumulative counters, skips repeated snapshots, and treats cached reads as a subset of input and reasoning as a subset of output. A decreasing cumulative counter keeps the provider's final session total but disables request allocation. Copilot uses its session timestamp. Antigravity is an estimate; Grok is final context size, with capture-time fallback. OpenCode usage capture is unsupported. Never combine estimated or context-only tokens with provider-reported totals.
 
-Generations from older admitted parsers remain readable and explicitly flagged through `legacy_accounting_sessions`; parser 3 Claude totals can contain duplicate response blocks. Recapture creates current-parser generations without editing history; [contracts](../../dot-cli/references/contracts.md) owns the current and readable parser versions. Usage chooses one bundle per session, preferring the newest admitted parser. Request samples reconcile to session totals and carry no prompt text. Token queries verify transcript and usage hashes without decoding transcript content; deep doctor still validates normalized record structure.
+Bundles migrated from older admitted parsers remain readable and are flagged through `legacy_accounting_sessions`; parser 3 Claude totals can contain duplicate response blocks. Sync recaptures available sources with the current parser; [contracts](../../dot-cli/references/contracts.md) owns the current and readable parser versions. Request samples reconcile to session totals and carry no prompt text. Token queries read only manifest lines, never transcript content.
 
 ## Monthly and subscription reports
 
@@ -91,4 +90,4 @@ The example does not infer a real subscription. `renewal_day` accepts 1–31; mi
 
 Billing cycles start at local midnight on the renewal day and end exclusively at the next renewal. Missing subscription settings remain unknown. `period_start` is inclusive and `period_end` exclusive. `first_timestamp` and `last_timestamp` describe observed usage, not guaranteed continuous capture or the subscription start date. Sessions spanning periods/models appear in multiple rows, so row session counts are not additive. Empty periods are omitted, not asserted to have zero usage. `session_timestamp_sessions` identifies approximate allocations; `legacy_accounting_sessions` identifies records needing recapture. `priced_measurements` counts priced requests (or session fallbacks), and `priced_sessions` counts sessions whose selected measurements were all priced. API-value ratios are shown only with complete pricing and a configured fee; partial capture can still make them incomplete. Model/project breakdowns omit the ratio to avoid charging the same subscription to each subgroup.
 
-For conversation activity, use `dot agent stats --prompts-only --since 2026-09-01 --by-project --json`; it counts archived user messages and reports lengths, active UTC days, responses, and evidence gaps without printing content. `dot agent session stats --json` reports latest sessions versus retained generations and archive bytes. These are descriptive archive statistics, not efficiency or quality scores.
+For conversation activity, use `dot agent stats --prompts-only --since 2026-09-01 --by-project --json`; it counts archived user messages and reports lengths, active UTC days, responses, and evidence gaps without printing content. `dot agent session stats --json` reports archived sessions, records, and archive bytes. These are descriptive archive statistics, not efficiency or quality scores.

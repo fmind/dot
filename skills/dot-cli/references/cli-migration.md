@@ -1,17 +1,24 @@
 # CLI Migration
 
-These changes follow Dot 5.2.0. Update scripts before deploying this checkout; archived files and their schemas do not change.
+These changes follow Dot 5.2.0; the session archive changes follow Dot 6.3.2. Update scripts before deploying this checkout. The first archive access migrates `~/.agents/sessions/v2` into `v3` without modifying `v2`; remove `v2` after verifying the new store. Managed harness hooks now only notify: apply them so no harness calls a removed capture hook.
 
 ## Commands
 
-| Previous command                | Replacement                                                                                               |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `dot login all`                 | `dot login google` authenticates Workspace, then Google Cloud and ADC. GitHub remains `dot login github`. |
-| `dot agent usage stats`         | `dot agent stats --tokens-only`                                                                           |
-| `dot agent prompts stats`       | `dot agent stats --prompts-only`                                                                          |
-| `dot agent clean`               | Removed. Review and manage retained project documents explicitly.                                         |
-| `dot status` Docker section     | `dot doctor` for Docker health; `dot cache docker` for space usage.                                       |
-| `dot --verbose` / `DOT_VERBOSE` | Removed; native provider tools own detailed diagnostics.                                                  |
+| Previous command                                  | Replacement                                                                                               |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `dot login all`                                   | `dot login google` authenticates Workspace, then Google Cloud and ADC. GitHub remains `dot login github`. |
+| `dot agent usage stats`                           | `dot agent stats --tokens-only`                                                                           |
+| `dot agent prompts stats`                         | `dot agent stats --prompts-only`                                                                          |
+| `dot agent clean`                                 | Removed. Review and manage retained project documents explicitly.                                         |
+| `dot status` Docker section                       | `dot doctor` for Docker health; `dot cache docker` for space usage.                                       |
+| `dot --verbose` / `DOT_VERBOSE`                   | Removed; native provider tools own detailed diagnostics.                                                  |
+| `dot agent session compact`                       | Removed: the store keeps one copy per session. `mise run prune:sessions` is removed too.                  |
+| `dot agent session ingest`                        | `dot agent session sync --agent <agent> --session <id>`                                                   |
+| `dot agent hook session`                          | Removed with its harness hooks; `dot agent session sync`, which `stats` and `usage` run first.            |
+| `dot agent hook copilot-session-end`              | Removed; sync reads `~/.copilot/session-store.db` directly.                                               |
+| `dot agent doctor --fix`/`--dry-run`              | `chezmoi diff` and `chezmoi apply --force` on the named hook configuration.                               |
+| `dot agent doctor --deep`/`--explain`             | Removed; the doctor reports notify hooks, last sync, and archive readability per agent.                   |
+| `session list --all-generations`, `show --latest` | Removed; one copy per session. Statuses are `current`, `partial`, `legacy`, `invalid`.                    |
 
 The two old report routes (`dot agent usage stats` and `dot agent prompts stats`) are removed and exit 2; use `dot agent stats --tokens-only` or `--prompts-only`. Session storage health remains under `dot agent session stats`; usage record inspection remains under `dot agent usage list` and `show`.
 
@@ -27,16 +34,19 @@ Help works even with missing or malformed configuration. Commands still validate
 
 Public JSON reports use a top-level `schema` field. Update selectors as follows; warnings and errors remain on stderr. A failure before report construction may produce no JSON, so always check the exit status.
 
-| Command                         | Schema                      | Data selector                                                    |
-| ------------------------------- | --------------------------- | ---------------------------------------------------------------- |
-| `dot pull --json`               | `dot.pull/v1`               | `.repositories[]` instead of `.[]`; `.complete` records success. |
-| `dot pull --dry-run --json`     | `dot.pull.plan/v1`          | `.repositories[]` (unchanged).                                   |
-| `dot status --json`             | `dot.status/v1`             | `.repositories[]`; `.docker` is removed.                         |
-| `dot status --stats --json`     | `dot.status.stats/v1`       | Top-level counts (unchanged).                                    |
-| `dot agent session list --json` | `dot.agent.session.list/v1` | `.sessions[]` instead of `.[]`.                                  |
-| `dot agent session show`        | `dot.agent.session.show/v1` | `.session` instead of the root object.                           |
-| `dot agent usage list --json`   | `dot.agent.usage.list/v1`   | `.records[]` instead of `.[]`.                                   |
-| `dot agent usage show`          | `dot.agent.usage.show/v1`   | `.record` instead of the root object.                            |
-| `dot agent stats --json`        | `dot.agent.stats/v2`        | `.prompts` and `.usage[]` (unchanged).                           |
+| Command                          | Schema                        | Data selector                                                                |
+| -------------------------------- | ----------------------------- | ---------------------------------------------------------------------------- |
+| `dot pull --json`                | `dot.pull/v1`                 | `.repositories[]` instead of `.[]`; `.complete` records success.             |
+| `dot pull --dry-run --json`      | `dot.pull.plan/v1`            | `.repositories[]` (unchanged).                                               |
+| `dot status --json`              | `dot.status/v1`               | `.repositories[]`; `.docker` is removed.                                     |
+| `dot status --stats --json`      | `dot.status.stats/v1`         | Top-level counts (unchanged).                                                |
+| `dot agent session list --json`  | `dot.agent.session.list/v2`   | `.sessions[]`; no `lineage_id`/`generation_id`, adds `parser_version`.       |
+| `dot agent session show`         | `dot.agent.session.show/v2`   | `.session`; same fields as list.                                             |
+| `dot agent session export`       | `dot.agent.sessions/v2`       | `.sessions[]` (JSON) or `.session` (NDJSON); same fields as list.            |
+| `dot agent session sync --json`  | `dot.agent.session.sync/v2`   | Counts `selected`, `ingested`, `unchanged`, `retained`, `skipped`, `failed`. |
+| `dot agent session stats --json` | `dot.agent.sessions.stats/v2` | No `generations`/`superseded_generations`.                                   |
+| `dot agent usage list --json`    | `dot.agent.usage.list/v1`     | `.records[]` instead of `.[]`.                                               |
+| `dot agent usage show`           | `dot.agent.usage.show/v1`     | `.record` instead of the root object.                                        |
+| `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` and `.usage[]` (unchanged).                                       |
 
-Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Session export, sync, storage statistics, and diagnostics retain their existing envelopes. Native cache/provider output and internal host hook protocols retain their native formats.
+Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Diagnostics retain the `dot.diagnostics/v1` envelope; agent doctor details now carry `hooks`, `source`, `last_sync`, `sync_failures`, `archive`, `sessions`, and `next`. The `agent.doctor` and `agent.hook_failures` configuration keys are removed; delete them from custom configuration files, and delete `~/.agents/hook-failures` once no longer needed. Native cache/provider output and internal host hook protocols retain their native formats.
