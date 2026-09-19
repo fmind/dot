@@ -9,10 +9,10 @@ Operate the Grok Build coding harness. The Grok chat product and model API have 
 
 ## Workflow
 
-1. Inspect `grok --version` and `grok --help`, then identify the workspace and intended session.
-1. Open the relevant Build documentation and Build changelog before relying on new flags, settings, or feature availability. Resolve disagreements against installed help; keep release-specific details upstream.
-1. Use `grok inspect` locally to check discovered configuration, instructions, and extensions before changing them. Its output can contain private context; report only the fields needed for the task.
-1. Run or resume through the documented interface and verify resulting artifacts. Use [agent-project](../../../agent-project/SKILL.md) for shared discovery and [mcp-setup](../../../mcp-setup/SKILL.md) for MCP registration.
+Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
+
+- Inspect `grok --version` and `grok --help`; read the Build documentation and Build changelog, not the chat product's.
+- Use `grok inspect` locally to check discovered configuration, instructions, and extensions before changing them. Its output can contain private context; report only the fields needed for the task.
 
 ## Official Skills
 

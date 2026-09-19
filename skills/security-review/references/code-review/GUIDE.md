@@ -3,13 +3,13 @@ name: code-review
 description: "Assess code and repository security; verify findings and repairs."
 ---
 
-# Secure a Python Repository
+# Code and Repository Security Review
 
-Review security-sensitive code and the delivery chain of a uv-managed Python project. For implementation or a specific finding, start with [code review](references/code-review.md); for a repository audit, use the workflow below. The linked tool skills own scanner commands. Reuse the task's authorization and preserve deliberate autonomy settings; a review does not authorize configuration changes.
+Review security-sensitive code and the delivery chain of a uv-managed Python project. For implementation or a specific finding, start with [code review](references/trace-and-verify.md); for a repository audit, use the workflow below. The linked tool skills own scanner commands. Reuse the task's authorization and preserve deliberate autonomy settings; a review does not authorize configuration changes.
 
 ## Workflow
 
-1. **Code and controls**: trace attacker-controlled inputs to security decisions with [code review](references/code-review.md). Check the actual callers and effective configuration; validate suspected findings and search for related defects before reporting coverage.
+1. **Code and controls**: trace attacker-controlled inputs to security decisions with [code review](references/trace-and-verify.md). Check the actual callers and effective configuration; validate suspected findings and search for related defects before reporting coverage.
 1. **Leaks**: run the full-history scan and wire the staged hook per [gitleaks](../gitleaks.md). Treat a confirmed credential exposure as an incident; prepare rotation and perform it only within the established credential and service authority.
 1. **Secrets at rest**: move plaintext credentials to environment variables or encrypted `*.enc.*` files per [sops-secrets](../../../sops-secrets/SKILL.md). Cloud Run receives runtime values from Secret Manager.
 1. **Dependency graphs**: run `uv audit --preview-features audit-command --locked` against `uv.lock` without the experimental-command warning. Audit exact installed `npm:` and `pipx:` tool graphs separately with [installed-tools.md](references/installed-tools.md); do not substitute a newly resolved graph for installed evidence.
@@ -18,7 +18,7 @@ Review security-sensitive code and the delivery chain of a uv-managed Python pro
 1. **Workflows**: run `check:actions` per [zizmor](../../../github-actions/references/zizmor.md). Keep permissions least privilege, avoid template injection, pin actions, and set `persist-credentials: false`.
 1. **Updates**: configure [dependabot](../../../github-actions/references/dependabot.md) for the Python lock and GitHub Actions so the same gates inspect upgrades.
 1. **Images and provenance**: build the pinned non-root image per [containerize](../../../containerize/references/image-build/GUIDE.md). Scan the exact digest, generate an SBOM, then sign, verify, and attest it per [cosign](../../../containerize/references/cosign.md).
-1. **Runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../../../cloud-run/SKILL.md). Review declarative infrastructure with [terraform](../../../infra-as-code/SKILL.md).
+1. **Runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../../../cloud-run/SKILL.md). Review declarative infrastructure with [infra-as-code](../../../infra-as-code/SKILL.md).
 1. **Threat boundaries**: run [threat-model](../../../threat-model/SKILL.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
 1. **AI systems**: use [ai-security-assessment](../../../ai-security-assessment/SKILL.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
 

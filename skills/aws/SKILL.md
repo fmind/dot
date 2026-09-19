@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Amazon Web Services CLI
 
-Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch operations. [terraform](../infra-as-code/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
+Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch operations. [infra-as-code](../infra-as-code/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
 
 ## Workflow
 
@@ -52,4 +52,4 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 
 - [AWS CLI User Guide](https://docs.aws.amazon.com/cli/latest/userguide/) · [AWS CLI Command Reference](https://awscli.amazonaws.com/v2/documentation/api/latest/index.html)
 - Releases: [AWS CLI GitHub Releases](https://github.com/aws/aws-cli/releases)
-- Companion skills: [terraform](../infra-as-code/SKILL.md) (provisioning), [secure](../security-review/SKILL.md) (IAM audits), [incident-response](../incident-response/SKILL.md) (outages).
+- Companion skills: [infra-as-code](../infra-as-code/SKILL.md) (provisioning), [security-review](../security-review/SKILL.md) (IAM audits), [incident-response](../incident-response/SKILL.md) (outages).

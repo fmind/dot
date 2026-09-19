@@ -7,18 +7,18 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Google Developer Catalog
 
-Route Google product work to the relevant selection in [google/skills](https://github.com/google/skills). Existing owners keep their procedures: [gcloud](../gcloud/SKILL.md) for CLI identity and cloud defaults, [cloud-run](../cloud-run/SKILL.md) for service deployment, [terraform](../infra-as-code/SKILL.md) for provisioning, and [gws](../gws/SKILL.md) for Workspace.
+Route Google product work to the relevant selection in [google/skills](https://github.com/google/skills). Existing owners keep their procedures: [gcloud](../gcloud/SKILL.md) for CLI identity and cloud defaults, [cloud-run](../cloud-run/SKILL.md) for service deployment, [infra-as-code](../infra-as-code/SKILL.md) for provisioning, and [gws](../gws/SKILL.md) for Workspace.
 
 ## Workflow
 
 1. Identify the product and operation, then inspect the catalog with `skills add google/skills --list`. Choose the product group below; the developer index can locate guidance in sibling repositories.
 1. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) to review the selected immutable snapshot and install only the required project-scoped guidance. A catalog lookup does not authorize executing its results.
-1. Compare the selected guidance with installed tools and current official docs before acting. Use [technical-research](../technical-research/SKILL.md) when the API contract is uncertain.
+1. Compare the selected guidance with installed tools and current official docs before acting. Use [research-brief](../implementation-plan/references/research-brief.md) when the API contract is uncertain.
 
 | Task                                           | Catalog group and selection                                                        |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- |

@@ -4,14 +4,14 @@ Default to a short opening sentence, a few parallel bullets and one relevant lin
 
 Choose one syntax for the entire text body:
 
-| Element | Native Chat (default) | Markdown mode |
-| --- | --- | --- |
-| Bold | `*bold*` | `**bold**` |
-| Italic | `_italic_` | `*italic*` |
-| Strike | `~strike~` | `~~strike~~` |
-| Link | `<https://example.com|Label>` | `[Label](https://example.com)` |
-| Bullets | `- Item` | `- Item` |
-| Inline code | Single backticks | Single backticks |
+| Element     | Native Chat (default) | Markdown mode    |
+| ----------- | --------------------- | ---------------- |
+| Bold        | `*bold*`              | `**bold**`       |
+| Italic      | `_italic_`            | `*italic*`       |
+| Strike      | `~strike~`            | `~~strike~~`     |
+| Link        | `<https://example.com | Label>`          | `[Label](https://example.com)` |
+| Bullets     | `- Item`              | `- Item`         |
+| Inline code | Single backticks      | Single backticks |
 
 Current Chat documentation and the observed discovery schema expose `markupSyntax`; `MARKUP_SYNTAX_MARKDOWN` selects Markdown interpretation. Confirm availability in the current schema/account before relying on it. Native Chat remains the portable default. Do not set `formattedText`: it is output-only. Text messages use this markup; card text uses a separate HTML subset, and card capabilities depend on authentication. Author user-authenticated messages as text unless the current API explicitly supports the requested card operation.
 

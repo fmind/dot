@@ -2,7 +2,7 @@
 
 Challenge the premise before refining the solution, and keep doing nothing, a manual service, or a smaller change among the alternatives. Close with the discovery brief from [briefs](briefs.md).
 
-1. **Recover context**: read supplied research, product artifacts, and repository constraints; use [technical-research](../../technical-research/SKILL.md) when external facts could change the decision.
+1. **Recover context**: read supplied research, product artifacts, and repository constraints; use [research-brief](../../implementation-plan/references/research-brief.md) when external facts could change the decision.
 1. **State the thesis**: target user, painful job, proposed change, expected outcome, and why now in one sentence; mark unsupported parts as assumptions.
 1. **Interrogate the problem**: how users solve it today, how often, what it costs them, who chooses or pays, and what evidence shows urgency.
 1. **Find the wedge**: the smallest end-to-end result with standalone value; reject bundles of independent products and defer scale architecture until demand justifies it.

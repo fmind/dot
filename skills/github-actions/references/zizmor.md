@@ -33,7 +33,7 @@ zizmor --fix .github/workflows/                           # experimental; the de
 ## Gotchas
 
 - **Config exceptions**: add narrow, reasoned ignores only when the workflow cannot satisfy a rule; do not relax `unpinned-uses` globally.
-- **Offline is the gate**: online audits need `GH_TOKEN` and hit rate limits; keep them for manual reviews.
+- **Offline is the gate**: online audits need `GH_TOKEN` and hit rate limits; keep them for manual reviews or a scheduled, non-blocking workflow.
 - **Fix mode edits files**: run it on a clean tree and review every change before committing.
 
 ## Documentation

@@ -20,13 +20,13 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 - Give a general guide an informative name such as `foundation`, `bootstrap`, `image-build`, or `code-review`; reserve tool names for tool-specific guides. Repeating the parent name makes the extra read hard to predict.
 - Keep one live canonical name after migration. Update metadata, resources, consumers, contracts, generated indexes, and installed links together; keep a migration table in the change report instead of permanent alias skills or a second catalog.
 
-| Request boundary | Owners |
-| --- | --- |
-| Browser UI, Python server, documentation site, notebook | [web-frontend](../../web-frontend/SKILL.md), [python-web](../../python-web/SKILL.md), [documentation-site](../../documentation-site/SKILL.md), [marimo](../../python-mlops/references/marimo.md) |
-| Project creation, repository upkeep, code audit | [project-scaffolding](../../project-scaffolding/SKILL.md), [repository-maintenance](../../repository-maintenance/SKILL.md), [repository-review](../../repository-review/SKILL.md) |
-| Task handoff, embedded application prompt, sustained agent work | [task-prompts](../../task-prompts/SKILL.md), [prompt-design](../../prompt-design/SKILL.md), [agent-loops](../../agent-loops/SKILL.md) |
-| Configure coding hosts, connect MCP, implement protocols | [agent-harnesses](../../agent-harnesses/SKILL.md), [mcp-setup](../../mcp-setup/SKILL.md), [agent-protocols](../../agent-protocols/SKILL.md) |
-| Test code, assess user journeys, evaluate stochastic agents | [python-testing](../../python-testing/SKILL.md), [quality-assurance](../../quality-assurance/SKILL.md), [agent-evaluation](../../agent-evaluation/SKILL.md) |
+| Request boundary                                                | Owners                                                                                                                                                                                           |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Browser UI, Python server, documentation site, notebook         | [web-frontend](../../web-frontend/SKILL.md), [python-web](../../python-web/SKILL.md), [documentation-site](../../documentation-site/SKILL.md), [marimo](../../python-mlops/references/marimo.md) |
+| Project creation, repository upkeep, code audit                 | [project-scaffolding](../../project-scaffolding/SKILL.md), [repository-maintenance](../../repository-maintenance/SKILL.md), [repository-review](../../repository-review/SKILL.md)                |
+| Task handoff, embedded application prompt, sustained agent work | [task-prompts](../../task-prompts/SKILL.md), [prompt-design](../../prompt-design/SKILL.md), [agent-loops](../../agent-loops/SKILL.md)                                                            |
+| Configure coding hosts, connect MCP, implement protocols        | [agent-harnesses](../../agent-harnesses/SKILL.md), [mcp-setup](../../mcp-setup/SKILL.md), [agent-protocols](../../agent-protocols/SKILL.md)                                                      |
+| Test code, assess user journeys, evaluate stochastic agents     | [python-testing](../../python-testing/SKILL.md), [quality-assurance](../../quality-assurance/SKILL.md), [agent-evaluation](../../agent-evaluation/SKILL.md)                                      |
 
 ## Entrypoints and guides
 

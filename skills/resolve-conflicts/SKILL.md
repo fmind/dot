@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Resolve Conflicts
@@ -37,7 +37,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
    git add <file>...
    git rebase --continue   # or: git merge --continue
    ```
-1. **Prove it**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)). Fix what the merge broke before pushing.
+1. **Prove it**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
 1. **Push only when already authorized**: a rewritten private branch may need `git push --force-with-lease`; resolving conflicts alone does not authorize that history update, and never force-push a shared branch (`main`, or one others build on), merge into it instead.
 
 ## Gotchas

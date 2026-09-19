@@ -35,7 +35,7 @@ Preview first; `--apply` adds missing local GitHub checkouts without network acc
 
 ## Shell completions
 
-After upgrades, compare native help with `dot_config/fish/completions/agy.fish`. Use a native generator if one becomes available; otherwise maintain this completion and its Carapace exclusion. Verify Fish syntax and representative completions, including `agy mic-serve --` and `agy remote-control st`; `dot completion` refreshes configured generators and caches.
+After upgrades, compare native help with the deployed `~/.config/fish/completions/agy.fish` (chezmoi-managed; edit its source, not the deployed copy). Use a native generator if one becomes available; otherwise maintain this completion and its Carapace exclusion. Verify Fish syntax and representative completions, including `agy mic-serve --` and `agy remote-control st`; `dot completion` refreshes configured generators and caches.
 
 ## Official Skills
 

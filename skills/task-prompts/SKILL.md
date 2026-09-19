@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Task and Continuation Prompts
@@ -30,4 +30,4 @@ Prepare instructions the receiving agent can use without this conversation. [pro
 
 ## Documentation
 
-- Companion skills: [technical-research](../technical-research/SKILL.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [agent-project](../agent-project/SKILL.md) (host layout).
+- Companion skills: [research-brief](../implementation-plan/references/research-brief.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [agent-project](../agent-project/SKILL.md) (host layout).

@@ -5,7 +5,7 @@ description: "Dependency resolution, environments, packaging, and lockfiles."
 
 # uv
 
-Use uv for Python dependency and environment operations; [python-stack](foundation/GUIDE.md) owns project defaults and [python-script](../../python-script/SKILL.md) owns PEP 723 scripts.
+Use uv for Python dependency and environment operations; [python-stack](foundation/GUIDE.md) owns project defaults and [python-script](python-script/GUIDE.md) owns PEP 723 scripts.
 
 ## Workflow
 

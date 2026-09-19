@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Mise
@@ -28,24 +28,23 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 
 Every project exposes the same core tasks with short aliases so agents, hooks, and CI stay portable:
 
-| Task      | Alias | Purpose                                                                                                                                                                        |
-| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                                  |
-| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                   |
-| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                         |
-| `test`    | `t`   | Run the test suite.                                                                                                                                                            |
-| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                          |
-| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [terraform](../infra-as-code/templates/mise.toml). |
-| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                                 |
+| Task      | Alias | Purpose                                                                                                                                                                            |
+| --------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                                      |
+| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                       |
+| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                             |
+| `test`    | `t`   | Run the test suite.                                                                                                                                                                |
+| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                              |
+| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [infra-as-code](../infra-as-code/templates/mise.toml). |
+| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                                     |
 
-Python projects start from [python-stack](../python-stack/references/foundation/templates/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [terraform](../infra-as-code/templates/mise.toml).
+Python projects start from [python-stack](../python-stack/references/foundation/templates/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [infra-as-code](../infra-as-code/templates/mise.toml).
 
 ## Gotchas
 
 - **Dotenv**: `[env]` with `_.file = ".env"` loads dotenv values for tasks; use it only when the project needs that file. `_.source` expects a shell script.
-
 - **Local builds**: builds and checks must not publish, deploy, or spend by default; expose consequential operations only as explicit on-demand paths.
-- **Dirty trees**: `all` includes formatters. Use [git-worktree](../git-worktree/SKILL.md) to materialize the current candidate in isolation; check that the tested files match before transferring proof.
+- **Dirty trees**: `mise run all` includes formatters that write the whole tree. When unrelated changes are present, use [git-worktree](../git-worktree/SKILL.md) to materialize the current candidate in isolation and check that the tested files match before transferring proof, or fall back to `mise run check` and `mise run test`.
 - **Argument forwarding**: keep shell quoting and tool arguments intact; verify raw argument behavior with a small local example when adding wrapper tasks.
 - **Tool ownership**: distinguish global interactive tools from project pins used by hooks and CI; inspect [provenance pilot](references/provenance-pilot.md) only for that optional provider experiment.
 

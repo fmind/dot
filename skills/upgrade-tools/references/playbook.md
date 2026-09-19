@@ -48,7 +48,7 @@ tofu init -upgrade                                                 # providers a
 tofu providers lock -platform=linux_amd64 -platform=darwin_arm64   # platform hashes for CI
 ```
 
-Validate with `tofu validate`, `tflint`, and `trivy config`. See [terraform](../../infra-as-code/SKILL.md).
+Validate with `tofu validate`, `tflint`, and `trivy config`. See [infra-as-code](../../infra-as-code/SKILL.md).
 
 ## Container images (`Dockerfile`)
 

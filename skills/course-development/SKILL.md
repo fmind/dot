@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Develop a Technical Course
 
-Build a course learners can understand, execute, and finish. Use [zensical](../documentation-site/SKILL.md) as the default course publisher; an existing course repository owns its platform, page schema, and task names. Use [quality-assurance](../quality-assurance/SKILL.md) for a broader test campaign.
+Build a course learners can understand, execute, and finish. Use [documentation-site](../documentation-site/SKILL.md) as the default course publisher; an existing course repository owns its platform, page schema, and task names. Use [quality-assurance](../quality-assurance/SKILL.md) for a broader test campaign.
 
 ## Workflow
 

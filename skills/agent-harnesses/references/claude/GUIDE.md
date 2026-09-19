@@ -9,10 +9,11 @@ Operate Claude Code's harness and session features. Application development with
 
 ## Workflow
 
-1. Inspect `claude --version` and `claude --help`, then identify the workspace, configuration scope, and session to start or resume.
-1. Read the relevant official page and changelog before using evolving flags or settings. Compare installed help with the version-specific CLI reference; help can omit supported flags. Report confirmed version gaps before applying a newer recipe to an older installation.
-1. Use the documented session, customization, or Remote Control interface for the requested operation. Read setting precedence before changing permissions or hooks; hook commands execute code.
-1. Verify the session result and configuration or skill discovery in Claude Code. Use [agent-project](../../../agent-project/SKILL.md) for shared instruction layout and [mcp-setup](../../../mcp-setup/SKILL.md) for MCP registration.
+Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
+
+- Inspect `claude --version` and `claude --help`; compare installed help with the version-specific CLI reference.
+- Use the documented session, customization, or Remote Control interface. Read setting precedence before changing permissions or hooks.
+- Verify the session result and configuration or skill discovery in Claude Code.
 
 ## Official Skills
 

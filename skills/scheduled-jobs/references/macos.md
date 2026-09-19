@@ -4,14 +4,14 @@ Use a per-user LaunchAgent for a logged-in user. Check the installed `man launch
 
 Generate the plist with Python `plistlib` when templating it, so XML values are escaped correctly. Define these fields from the actual job:
 
-| Field | Contract |
-| --- | --- |
-| `Label` | Stable unique name, such as `dev.example.report` |
-| `ProgramArguments` | Array of literal arguments starting with an absolute executable path; no shell command string |
-| `WorkingDirectory` | Absolute project directory |
-| `EnvironmentVariables` | Only required non-secret values; login-shell setup is not inherited |
-| `StartCalendarInterval` | Explicit `Hour` and `Minute` values for a daily local-time schedule |
-| `StandardOutPath`, `StandardErrorPath` | Separate bounded/rotated log destinations in an existing user-owned directory |
+| Field                                  | Contract                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `Label`                                | Stable unique name, such as `dev.example.report`                                              |
+| `ProgramArguments`                     | Array of literal arguments starting with an absolute executable path; no shell command string |
+| `WorkingDirectory`                     | Absolute project directory                                                                    |
+| `EnvironmentVariables`                 | Only required non-secret values; login-shell setup is not inherited                           |
+| `StartCalendarInterval`                | Explicit `Hour` and `Minute` values for a daily local-time schedule                           |
+| `StandardOutPath`, `StandardErrorPath` | Separate bounded/rotated log destinations in an existing user-owned directory                 |
 
 Resolve home-relative source values to absolute paths when generating the plist: `~`, `$HOME`, globbing, and shell substitution do not expand in `ProgramArguments`. Keep `KeepAlive` and `RunAtLoad` absent unless their extra executions are part of the requested behavior. Bound the actual command in application code; `ExitTimeOut` is a shutdown grace period, not a job runtime limit.
 

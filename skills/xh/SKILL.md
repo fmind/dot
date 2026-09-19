@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # xh HTTP Inspection
 
-Use xh for bounded read-only HTTP inspection; debugging a known failure belongs to [systematic-debugging](../systematic-debugging/SKILL.md), and API research to [technical-research](../technical-research/SKILL.md).
+Use xh for bounded read-only HTTP inspection; debugging a known failure belongs to [systematic-debugging](../systematic-debugging/SKILL.md), and API research to [research-brief](../implementation-plan/references/research-brief.md).
 
 ## Workflow
 
@@ -47,4 +47,4 @@ xh has no upstream skill bundle. Use the installed CLI and verify flags with `xh
 
 - [xh](https://github.com/ducaale/xh) · [command reference](https://github.com/ducaale/xh#usage)
 - Releases: [xh](https://github.com/ducaale/xh/releases) · [changelog](https://github.com/ducaale/xh/blob/master/CHANGELOG.md)
-- Companion skills: [technical-research](../technical-research/SKILL.md), [systematic-debugging](../systematic-debugging/SKILL.md), [gws](../gws/SKILL.md) (authenticated Google Workspace operations).
+- Companion skills: [research-brief](../implementation-plan/references/research-brief.md), [systematic-debugging](../systematic-debugging/SKILL.md), [gws](../gws/SKILL.md) (authenticated Google Workspace operations).

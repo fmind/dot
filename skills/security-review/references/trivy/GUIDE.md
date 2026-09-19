@@ -52,4 +52,4 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 
 - [Trivy](https://trivy.dev)
 - Releases: [Trivy](https://github.com/aquasecurity/trivy/releases) · [changelog](https://github.com/aquasecurity/trivy/blob/main/CHANGELOG.md)
-- Companion skills: [security-review](../code-review/GUIDE.md) (the repository checklist), [containerize](../../../containerize/references/image-build/GUIDE.md) (image scans), [github-actions](../../../github-actions/references/ci-cd/GUIDE.md) (`security.yml` scheduled scan).
+- Companion skills: [code-review](../code-review/GUIDE.md) (the repository checklist), [containerize](../../../containerize/references/image-build/GUIDE.md) (image scans), [github-actions](../../../github-actions/references/ci-cd/GUIDE.md) (`security.yml` scheduled scan).

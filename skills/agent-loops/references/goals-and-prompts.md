@@ -4,11 +4,11 @@ The user supplies outcome, scope and bounds. The native goal drives persistence.
 
 ## Choose a completion contract
 
-| Goal type | Completion evidence | Boundary |
-| --- | --- | --- |
-| Objective | A stated observable acceptance condition verified in its authoritative system | Stop when achieved; record blocked or interrupted if required evidence is unavailable |
-| Time window | Actual start/end and observed work, waits and interruptions across the window | Reaching the end closes the campaign, even if its aspirational outcome remains unmet |
-| Objective with deadline | Objective verified before the deadline, or a terminal report when the deadline arrives | State which event ends the goal and how unmet success will be reported |
+| Goal type               | Completion evidence                                                                    | Boundary                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Objective               | A stated observable acceptance condition verified in its authoritative system          | Stop when achieved; record blocked or interrupted if required evidence is unavailable |
+| Time window             | Actual start/end and observed work, waits and interruptions across the window          | Reaching the end closes the campaign, even if its aspirational outcome remains unmet  |
+| Objective with deadline | Objective verified before the deadline, or a terminal report when the deadline arrives | State which event ends the goal and how unmet success will be reported                |
 
 Avoid unbounded objectives whose outcome the agent cannot control. Separate “produce a reproducible candidate for owner review” from later third-party acceptance or payment, and local validation from a private leaderboard outcome. Use an ambitious aspiration to guide selection while retaining an achievable operational contract. Never mark an objective achieved merely because the token budget is nearly exhausted or a subtask returned successfully. Map blocked/completed states to the host's actual goal contract; do not invent fixed blocker counts across harnesses.
 

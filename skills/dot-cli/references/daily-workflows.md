@@ -25,7 +25,7 @@ dot agent stats --prompts-only --project . --since 2026-09-01 --json
 dot agent stats --tokens-only --project . --by-model --by-project --json
 ```
 
-Sync supports `--agent`, `--session`, `--project`/`--cwd`, and `--since`; its date filter uses source modification time. Dry-run parses candidates but writes neither archives nor usage. Without dry-run, sync publishes transcript and usage together. Failed extraction or publication aborts that generation; repeat the command after repairing the cause. Earlier successfully published sessions remain valid and retries deduplicate them. `--json` emits outcome counts after completed processing, with progress on stderr; a source scan or ingestion failure can abort before a summary is available.
+Sync supports `--agent`, `--session`, `--project`/`--cwd`, and `--since`; its date filter uses source modification time. Dry-run parses candidates but writes neither archives nor usage. Without dry-run, sync publishes transcript and usage together. A failed session or source scan writes one stderr line, increments the `failed` outcome, and sync continues with the remaining sessions and agents; it exits 1 at the end if anything failed. A usage extraction failure still publishes the transcript with usage marked `unsupported` and counts as `failed`. Repeat the command after repairing the cause; retries deduplicate published sessions. `--json` emits outcome counts after processing, with progress on stderr; a misconfigured source path still fails fast.
 
 Session statistics separate latest sessions from retained generations and bytes; their date filter uses latest ingestion time. They report metadata status without claiming transcript validation. Prompt statistics read validated latest transcripts but emit only counts and length summaries, never message text. A prompt means an archived user message, possibly including injected context, not necessarily one human-authored turn. Dates use conversation timestamps in UTC; bounded queries exclude unparseable timestamps. Excluded or partial sessions and bounded timestamp gaps report incomplete coverage with a nonzero exit while retaining the available statistics. Neither command measures productivity or answer quality.
 
@@ -60,7 +60,7 @@ dot agent session compact
 dot agent session compact --agent codex --apply
 ```
 
-Compaction validates the complete selection before deletion, retains divergent transcripts and distinct usage evidence, and groups by parser version. Unsupported formats stop the operation before any deletion. Project prompts, proposals, and reports are retained documents; Dot no longer deletes these directories.
+Compaction validates the complete selection before deletion and groups by parser version. A strict transcript prefix of a retained generation is removable whatever its usage; divergent transcripts, and equal transcripts with distinct usage evidence, are retained. Interrupted `.ingest-*` directories older than one hour are counted as `stale_ingestions` and removed with `--apply`. Unsupported formats stop the operation before any deletion. Project prompts, proposals, and reports are retained documents; Dot no longer deletes these directories.
 
 ## Repository publication
 

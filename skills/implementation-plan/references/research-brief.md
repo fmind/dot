@@ -1,0 +1,35 @@
+---
+name: research-brief
+description: "Decision-ready research brief for an unfamiliar API or architecture choice: evidence table, options, and proof boundaries."
+---
+
+# Research Brief
+
+Produce a decision-ready answer whose important claims trace to current, authoritative evidence before the [implementation plan](../SKILL.md) depends on it.
+
+## Workflow
+
+1. **Frame the decision**: the concrete question, decision owner, constraints, alternatives, required freshness, and what evidence would be decisive.
+1. **Record the local baseline**: exact versions and platform constraints from manifests, lockfiles, configuration, and the installed dependency source.
+1. **Plan the evidence**: list the smallest set of primary sources (official docs, source repositories, specifications, advisories, vendor status pages) and local experiments that answer the question; use secondary sources only to discover or contrast primary ones.
+1. **Test cheaply**: when documentation leaves ambiguity, run the smallest reversible experiment in an isolated temporary directory and record commands, inputs, outputs, version, and limitations.
+1. **Compare consistently**: evaluate alternatives on the same dimensions, such as fit, complexity, maintenance, security, portability, cost, reversibility, and migration risk.
+1. **Challenge the favorite**: name the strongest counterargument, hidden operational burden, and simplest adequate alternative.
+1. **Synthesize**: recommend one path, explain why it wins for the stated constraints, and state confidence, freshness, unresolved gaps, and the next verification step.
+
+## Brief
+
+- **Question and constraints**
+- **Local baseline** with exact versions
+- **Evidence table** mapping each claim to a primary source or experiment; cite the exact page, file, commit, version, or experiment
+- **Options and recommendation** compared on consistent dimensions, with the decisive trade-off and the counterargument that would reverse the choice
+- **Proof boundaries and open gaps** separating documented, locally reproduced, runtime-proven, and inferred facts, with the cheapest next check
+
+## Gotchas
+
+- **Side effects**: Use disposable scratch dependencies and local research artifacts when needed for the requested investigation. Preserve project configuration; paid services, implementation, and consequential external changes require authority for their actual effect.
+
+## Documentation
+
+- Companion skills: [product-loop](../../product-loop/SKILL.md) (product decisions), [systematic-debugging](../../systematic-debugging/SKILL.md) (unknown-cause failures).
+- Adapted from [agent-skills source-driven development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/source-driven-development/SKILL.md), [ECC research-ops](https://github.com/affaan-m/ECC/blob/59a99d669f5466d99d5be8b6fce8c5f2677766d0/skills/research-ops/SKILL.md).

@@ -8,12 +8,12 @@ Use generated cases when a broad input space or operation sequence makes example
 1. Exercise the actual parser, codec, migration, or state machine against an independent observable invariant. Introduce a small relevant fault in isolation to verify the property detects it before trusting the test.
 1. Retain the minimized counterexample as an explicit regression when it explains a real defect. Record the Hypothesis/runtime versions and use its failure replay mechanism for investigation; a seed alone is not a permanent cross-version guarantee.
 
-| Boundary | Useful property | Additional evidence needed |
-| --- | --- | --- |
-| Codec | Decoding an encoded supported value preserves its declared meaning | Fixed wire-format examples: encoder and decoder can share the same defect |
-| Parser | Valid generated documents parse; malformed variants fail with the declared error | Unicode separators, empty fields, size bounds, and explicit expected values |
-| Migration | A second invocation changes nothing; interrupted/resumed output equals uninterrupted output | Independent counts/relationships and old-version fixture read-back |
-| State machine | Every permitted action sequence preserves the invariant; forbidden transitions are rejected | A simple independent model, isolated state, and realistic stop/retry paths |
+| Boundary      | Useful property                                                                             | Additional evidence needed                                                  |
+| ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Codec         | Decoding an encoded supported value preserves its declared meaning                          | Fixed wire-format examples: encoder and decoder can share the same defect   |
+| Parser        | Valid generated documents parse; malformed variants fail with the declared error            | Unicode separators, empty fields, size bounds, and explicit expected values |
+| Migration     | A second invocation changes nothing; interrupted/resumed output equals uninterrupted output | Independent counts/relationships and old-version fixture read-back          |
+| State machine | Every permitted action sequence preserves the invariant; forbidden transitions are rejected | A simple independent model, isolated state, and realistic stop/retry paths  |
 
 For a JSON-shaped domain, build a bounded strategy from `none()`, `booleans()`, domain-sized `integers()`, finite `floats(allow_nan=False, allow_infinity=False)`, and `text()`; combine with `recursive`, `lists`, and `dictionaries` only to the depth the application supports. Generate Unicode rather than restricting to ASCII unless the contract requires it. If NaN or non-string keys are supported, define their comparison and serialization semantics explicitly.
 

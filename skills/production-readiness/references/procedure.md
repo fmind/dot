@@ -11,7 +11,7 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
 1. **Audit capacity and cost**: Compare measured demand and headroom with explicit thresholds across saturation, rate limits, concurrency, timeouts, retries, quotas, degraded modes, and cost guardrails, without inventing traffic evidence.
 1. **Audit rollout and recovery**: Prefer the smallest reversible exposure; define preflight checks, canary or staged progression, health windows, stop signals, the rollback owner and mechanism (see [cloud-run](../../cloud-run/SKILL.md) for revision rollback), and post-rollback verification.
 1. **Audit operations**: Confirm service ownership, support and escalation paths, dependency contacts, access, runbooks, maintenance burden, disaster recovery, and the first-hours monitoring plan.
-1. **Gate the candidate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../../mise/SKILL.md)).
+1. **Gate the candidate**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../mise/SKILL.md#gotchas).
 1. **Verify proportionally**: Run only the authorized runtime or staging checks. Failed, stale, unavailable, or differently-scoped evidence remains a gap.
 1. **Place the candidate on the proof ladder**: Never collapse these states; a candidate may be ready at one rung and blocked at the next, and every claim records artifact identity, environment, command or observation, timestamp, and source.
    - `source-ready`: the intended source and configuration are reviewable.

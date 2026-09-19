@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Databricks CLI
@@ -59,7 +59,7 @@ Resolve the workspace, profile, and bundle target before mutations; deployments 
 ## Gotchas
 
 - **Explicit bundle target**: omitting `--target` uses the bundle's configured default target or fails when none exists; always pass `--target dev` or the intended target explicitly.
-- **Token management**: never commit workspace credentials or tokens to version control; use `~/.databrickscfg` or `DATABRICKS_HOST` and `DATABRICKS_TOKEN` environment variables.
+- **Credentials**: never commit workspace credentials or tokens to version control; keep OAuth profiles in `~/.databrickscfg` and select one with `--profile` or `DATABRICKS_CONFIG_PROFILE`. For automation prefer OAuth machine-to-machine (`DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`); use a static `DATABRICKS_TOKEN` with `DATABRICKS_HOST` only where OAuth is unavailable, supplied from the environment.
 - **Compute costs**: verify cluster autotermination policies when launching compute to prevent unexpected idle billing.
 
 ## Official Skills
