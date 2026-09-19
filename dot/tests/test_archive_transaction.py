@@ -11,8 +11,9 @@ import pytest
 from fmind_dot.archive import ingest as archive_ingest_module
 from fmind_dot.archive import store as session_store
 from fmind_dot.archive.parsers import GROK_TRANSCRIPT_NAME
-from fmind_dot.archive.query import SessionQuery, query_session_summaries
+from fmind_dot.archive.query import SessionQuery, compact_session_generations, query_session_summaries
 from fmind_dot.archive.usage import load_usage_records
+from fmind_dot.errors import DotError
 from fmind_dot.state import State
 
 
@@ -96,6 +97,39 @@ def test_usage_survives_source_removal_and_counts_latest_generation_once(
     assert len(usage) == 1
     assert usage[0].input_tokens == 30
     assert usage[0].output_tokens == 12
+
+
+def test_usage_error_generation_keeps_the_last_measured_usage_through_compaction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state, source = source_session(tmp_path, monkeypatch)
+    archive_ingest_module.ingest_agent_session(state, "claude", "fixture-id")
+    with source.open("a") as stream:
+        stream.write(
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-09-01T10:02:00Z",
+                    "message": {
+                        "id": "answer-2",
+                        "model": "fixture",
+                        "content": [{"type": "text", "text": "more"}],
+                        "usage": {"input_tokens": -1, "output_tokens": 7},
+                    },
+                }
+            )
+            + "\n"
+        )
+    with pytest.raises(DotError, match="without usage"):
+        archive_ingest_module.ingest_agent_session(state, "claude", "fixture-id")
+    assert len(query_session_summaries(SessionQuery(agent="claude"))) == 2
+
+    for _ in range(2):
+        usage = load_usage_records()
+        assert [(record.input_tokens, record.output_tokens) for record in usage] == [(10, 5)]
+        # The shorter generation is the only usage evidence, so compaction keeps it.
+        compact_session_generations(io.StringIO(), apply=True)
+    assert len(query_session_summaries(SessionQuery(agent="claude"))) == 2
 
 
 def test_corrupt_usage_rejects_duplicate_and_statistics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
