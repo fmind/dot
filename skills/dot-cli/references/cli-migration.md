@@ -39,4 +39,4 @@ Public JSON reports use a top-level `schema` field. Update selectors as follows;
 | `dot agent usage show`          | `dot.agent.usage.show/v1`   | `.record` instead of the root object.                            |
 | `dot agent stats --json`        | `dot.agent.stats/v2`        | `.prompts` and `.usage[]` (unchanged).                           |
 
-Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Deprecated report aliases now return that same envelope. Session export, sync, storage statistics, and diagnostics retain their existing envelopes. Native cache/provider output and internal host hook protocols retain their native formats.
+Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Session export, sync, storage statistics, and diagnostics retain their existing envelopes. Native cache/provider output and internal host hook protocols retain their native formats.
