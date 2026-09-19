@@ -856,7 +856,8 @@ def test_release_metadata_rejects_missing_ambiguous_and_invalid_versions(tmp_pat
     with pytest.raises(DotError, match="ambiguous project version"):
         read_release_version(tmp_path)
 
-    with pytest.raises(DotError, match="invalid semantic version tag"):
-        write_release_version(tmp_path, "1.2")
+    for tag in ("1.2", "v1.2.3-rc.1", "v1.2.3+build.1"):
+        with pytest.raises(DotError, match="invalid semantic version tag"):
+            write_release_version(tmp_path, tag)
     with pytest.raises(DotError, match="malformed git status record"):
         validate_release_status("bad\0")
