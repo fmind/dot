@@ -18,14 +18,11 @@ OpenCode uses `opencode mcp add <name>` for its setup interface; inspect `--help
 
 ## Configuration files
 
-Cursor's installed CLI manages existing registrations rather than offering `mcp add`. Inspect `cursor-agent mcp --help`, then merge the reviewed server into `mcpServers` in the selected JSON file below. A local entry uses `command`, `args`, and optional `env`; remote configuration follows [Cursor MCP documentation](https://cursor.com/docs/context/mcp). Preserve unrelated entries and supported secret references. `cursor-agent mcp enable <identifier>` changes approval, and `login` performs authentication; listing status or tools can start or connect to servers, so review their configuration first. Verify with `list` and `list-tools <identifier>` after configuration. [cursor](../../agent-harnesses/references/cursor/GUIDE.md) owns session operation.
-
 | Host        | User scope                                           | Project scope                                        |
 | ----------- | ---------------------------------------------------- | ---------------------------------------------------- |
 | Antigravity | `~/.gemini/config/mcp_config.json` (per its docs)    | `.agents/mcp_config.json` (per its docs)             |
 | Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                      |
 | Codex       | `~/.codex/config.toml` under `[mcp_servers.<name>]`  | `.codex/config.toml` (trusted projects, hand-edited) |
 | Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited)      |
-| Cursor | `~/.cursor/mcp.json` | `.cursor/mcp.json` |
-| OpenCode | `~/.config/opencode/opencode.json` or `.jsonc` | `opencode.json` or `.jsonc` |
+| OpenCode    | `~/.config/opencode/opencode.json` or `.jsonc`       | `opencode.json` or `.jsonc`                          |
 | Grok        | `~/.grok/config.toml`                                | `./.grok/config.toml`                                |

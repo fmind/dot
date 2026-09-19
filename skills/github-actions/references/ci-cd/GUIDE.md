@@ -21,7 +21,7 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
    run = ["actionlint", "zizmor --offline .github/"]
    ```
 
-1. **Verify locally**: run `mise run all`; when unrelated changes make a write-formatting gate unsafe, use an isolated working-tree copy containing the candidate edits or run `mise run check` and `mise run test` (see [mise](../../../mise/SKILL.md)).
+1. **Verify locally**: run `mise run all`; when the tree carries unrelated changes, apply the [dirty-tree rule](../../../mise/SKILL.md#gotchas).
 
 ## Principles
 

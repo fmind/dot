@@ -1,13 +1,13 @@
 ---
 name: repository-docs
-description: "Write and synchronize README, AGENTS.md, and repository instructions with verified behavior."
+description: "Write and synchronize README, AGENTS.md content, and repository instructions with verified behavior."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-docs
   created: "2026-09-07"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Repository Documentation

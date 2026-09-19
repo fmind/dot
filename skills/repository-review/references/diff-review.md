@@ -12,7 +12,7 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
    - Path names alone do not prove scope creep; never stage, revert, discard, or rewrite the candidate because a detector labels a path unrelated.
 1. **Verify each finding**: Reproduce it by code tracing, a focused test, or a safe temporary experiment, and quote the file and line that make it real.
 1. **Run proportional checks**: Start with focused tests and static analysis, and record which candidate each result covers.
-1. **Gate when proportionate**: run the full gate only for explicit full qualification, repository requirements, or cross-cutting risk. A read-only review can finish with focused evidence and stated limits. Reuse passing results; isolate write-formatting checks when unrelated work is present (see [mise](../../mise/SKILL.md)).
+1. **Gate when proportionate**: run the full gate only for explicit full qualification, repository requirements, or cross-cutting risk. A read-only review can finish with focused evidence and stated limits. Reuse passing results; apply the [dirty-tree rule](../../mise/SKILL.md#gotchas) when unrelated work is present.
 1. **Calibrate**: Discard preferences and speculation; rank what remains by user impact, exploitability, data loss, regression likelihood, and confidence. Do not manufacture findings to make the review look useful.
 1. **Report**: use the shared severity scale in [repository-review](../SKILL.md); lead with findings, then candidate identity, checks run, and residual risks. A finding can use this compact shape:
 

@@ -10,10 +10,10 @@ Use Cookiecutter for existing or explicitly requested Cookiecutter templates; [C
 ## Workflow
 
 1. Inspect the template source, immutable revision, `cookiecutter.json`, hooks, extensions, and generated destination names before execution. Templates can execute code.
-1. Define required context and defaults; keep secrets out of context, replay files, and generated examples. Prefer `uvx cookiecutter --help` for an isolated invocation.
+1. Define required context and defaults; keep secrets out of context, replay files, and generated examples. Prefer `uvx --from 'cookiecutter==<version>' cookiecutter --help` for an isolated invocation, resolving `<version>` to a reviewed exact release.
 1. Generate into a fresh disposable directory. For an already reviewed local template, adapt:
    ```bash
-   uvx cookiecutter ./template --no-input --accept-hooks no --output-dir ./generated project_slug=demo
+   uvx --from 'cookiecutter==<version>' cookiecutter ./template --no-input --accept-hooks no --output-dir ./generated project_slug=demo
    ```
 1. Permit hooks only after reviewing their commands and effects; a template that needs hooks must be tested with those reviewed hooks too. For remote sources, pass the reviewed commit with `--checkout`.
 1. Verify filenames, rendered content, executable modes, and absence of unresolved template markers. Exercise default and non-default context, invalid input, and generation failure without overwriting existing work.

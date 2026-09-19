@@ -27,14 +27,14 @@ For an authorized write, save stdout to a response file and inspect its exit sta
 
 ## Failure decisions
 
-| Failure | Next action |
-| --- | --- |
-| Exit 2, 401, wrong effective identity | Inspect auth status/profile and environment override presence without values; repair the intended profile once |
-| 403 | Inspect returned reason, scope, API enablement and resource permissions; changing accounts or enabling an API needs the applicable authority |
-| Exit 3 or 400 | Recheck help/schema, JSON types, resource names, query syntax and field mask; no identical retry |
-| Exit 4 or schema crash | Retry a bounded discovery read or inspect an unexpanded schema and referenced type; report persistent failure |
-| 429 or transient 5xx on a read | Honor Retry-After when provided and use bounded backoff within the task window |
-| Timeout/transport error on a write | Record unknown outcome and reconcile remote state before retry; retain the same idempotency ID/body/account when supported |
+| Failure                               | Next action                                                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Exit 2, 401, wrong effective identity | Inspect auth status/profile and environment override presence without values; repair the intended profile once                               |
+| 403                                   | Inspect returned reason, scope, API enablement and resource permissions; changing accounts or enabling an API needs the applicable authority |
+| Exit 3 or 400                         | Recheck help/schema, JSON types, resource names, query syntax and field mask; no identical retry                                             |
+| Exit 4 or schema crash                | Retry a bounded discovery read or inspect an unexpanded schema and referenced type; report persistent failure                                |
+| 429 or transient 5xx on a read        | Honor Retry-After when provided and use bounded backoff within the task window                                                               |
+| Timeout/transport error on a write    | Record unknown outcome and reconcile remote state before retry; retain the same idempotency ID/body/account when supported                   |
 
 Chat supports a `requestId` query value for idempotency; generate it once per intended message, save it with the params, and reuse it only for an identical retry. `messageId` is a separate optional custom resource identifier with a `client-` prefix and documented constraints. Gmail send, Sheets append and Docs append must not be blindly repeated after an uncertain reply. A newly generated UUID does not deduplicate the previous write.
 

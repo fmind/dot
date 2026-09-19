@@ -9,10 +9,11 @@ Operate Codex's harness, sessions, and customization. Use a host-provided OpenAI
 
 ## Workflow
 
-1. Inspect `codex --version` and `codex --help`; identify CLI, app, or cloud context and the workspace or session involved.
-1. Open the relevant official page and changelog before relying on flags, configuration keys, models, or feature availability. Compare with installed help and report any version gap; do not freeze model lists or release details in this skill.
-1. Use the documented session or configuration interface. Resolve configuration precedence and permission mode before changing execution behavior; app features are not automatically CLI commands.
-1. Verify the requested behavior and resulting artifacts. Use [agent-project](../../../agent-project/SKILL.md) for shared instruction and skill discovery, and [mcp-setup](../../../mcp-setup/SKILL.md) for MCP registration.
+Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
+
+- Inspect `codex --version` and `codex --help`; identify CLI, app, or cloud context. App features are not automatically CLI commands.
+- Resolve configuration precedence and permission mode before changing execution behavior.
+- Do not freeze model lists or release details in this skill.
 
 ## Official Skills
 

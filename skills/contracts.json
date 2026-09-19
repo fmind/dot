@@ -14,10 +14,7 @@
       "claude",
       "codex",
       "copilot",
-      "cursor-agent",
-      "gcloud",
       "grok",
-      "jules",
       "opencode",
       "uv"
     ],
@@ -30,8 +27,8 @@
       "uv"
     ],
     "agent-usage": [
-      "dot",
-      "duckdb"
+      "duckdb",
+      "dot"
     ],
     "agy": [
       "agy",
@@ -216,7 +213,6 @@
       "claude",
       "codex",
       "copilot",
-      "cursor-agent",
       "grok",
       "opencode"
     ],
@@ -229,7 +225,6 @@
     "observability": [
       "gcloud"
     ],
-    "plan-review": [],
     "playwright": [
       "playwright"
     ],
@@ -250,9 +245,6 @@
     "prompt-design": [],
     "python-mlops": [
       "marimo",
-      "uv"
-    ],
-    "python-script": [
       "uv"
     ],
     "python-stack": [
@@ -326,7 +318,6 @@
       "git"
     ],
     "technical-publishing": [],
-    "technical-research": [],
     "terms-review": [],
     "threat-model": [],
     "upgrade-tools": [

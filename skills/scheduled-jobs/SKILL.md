@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Scheduled Jobs
 
-Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-script/SKILL.md) owns program code, [mise](../mise/SKILL.md) owns task commands, and [agent-loops](../agent-loops/SKILL.md) owns agent continuation and decisions.
+Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-stack/references/python-script/GUIDE.md) owns program code, [mise](../mise/SKILL.md) owns task commands, and [agent-loops](../agent-loops/SKILL.md) owns agent continuation and decisions.
 
 ## Workflow
 

@@ -5,7 +5,7 @@ description: "Secret scanning and verified exposure handling."
 
 # Gitleaks
 
-Find credentials before they reach a remote and the ones that already did; each scope answers a different question, and [security-review](code-review/GUIDE.md) orders the pass.
+Find credentials before they reach a remote and the ones that already did; each scope answers a different question, and [code-review](code-review/GUIDE.md) orders the pass.
 
 ## Commands
 
@@ -57,4 +57,4 @@ run = "gitleaks git --redact=100 --staged --verbose"
 
 - [gitleaks](https://github.com/gitleaks/gitleaks)
 - Releases: [gitleaks](https://github.com/gitleaks/gitleaks/releases)
-- Companion skills: [security-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (also reports secrets in `fs` scans).
+- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (also reports secrets in `fs` scans).

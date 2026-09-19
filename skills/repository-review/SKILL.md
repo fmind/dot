@@ -1,18 +1,18 @@
 ---
 name: repository-review
-description: "Review code, diffs, PRs, or repositories for correctness, regressions, and security."
+description: "Review code, diffs, PRs, or repositories for correctness and regressions."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-review
   created: "2026-08-01"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Repository Review
 
-Review code or a repository read-only and report actionable defects. Select the requested scope before loading a procedure; a patch review does not imply a whole-repository audit. [plan-review](../plan-review/SKILL.md) owns proposals; [repository-maintenance](../repository-maintenance/SKILL.md) owns applying broad fixes.
+Review code or a repository read-only and report actionable defects. Select the requested scope before loading a procedure; a patch review does not imply a whole-repository audit. [plan-review](../implementation-plan/references/plan-review.md) owns proposals; [repository-maintenance](../repository-maintenance/SKILL.md) owns applying broad fixes.
 
 ## Workflow
 

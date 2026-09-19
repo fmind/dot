@@ -1,13 +1,13 @@
 ---
 name: repository-maintenance
-description: "Fix repository tools, checks, dependency hygiene, and documentation consistency."
+description: "Run a repository upkeep pass: fix tools, checks, dead code, stale config, and documentation consistency."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-maintenance
   created: "2026-09-02"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Repository Maintenance
@@ -24,7 +24,7 @@ The recurring pass that makes an existing repository current, consistent, simple
 1. **Security**: run the scans the repository has adopted; use [security-review](../security-review/references/code-review/GUIDE.md) for broader security work when the requested scope calls for it.
 1. **Docs**: create or synchronize `README.md`, `AGENTS.md`, skills, and wider docs per [repository-docs](../repository-docs/SKILL.md).
 1. **Agent files**: promote repeated instructions into `.agents/skills/` per [skillify](../skillify/SKILL.md).
-1. **Final gate**: Run the full gate (`mise run all`); if the tree carries unrelated changes and the gate write-formats, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test` (see [mise](../mise/SKILL.md)).
+1. **Final gate**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../mise/SKILL.md#gotchas).
 1. **Report**: what changed per area (the tree holds only intended changes), what was left alone and why, and the highest proven rung of the [proof ladder](../production-readiness/SKILL.md).
 
 ## Documentation

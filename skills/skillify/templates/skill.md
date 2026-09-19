@@ -1,13 +1,13 @@
 ---
 name: <name>
-description: <What the skill does in one sentence.> Use when <trigger>.
+description: "<The work the skill performs, with its distinctive tools and triggers; at most 180 characters.>"
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/<name>
-  created: <YYYY-MM-DD>
-  updated: <YYYY-MM-DD>
+  created: "<YYYY-MM-DD>"
+  updated: "<YYYY-MM-DD>"
 ---
 
 # <Title>

@@ -8,15 +8,15 @@ Split a task into `<task>:<x>` when one piece must run alone; each family keys `
 - **`build:<output>`**: the artifact produced — `build:package`, `build:docs`, or `build:image` (OCI image).
 - **`check:<concern>`**: the property verified, identical across languages so `mise run check:lint` means the same everywhere; the names are fixed:
 
-| Task            | Concern                          | Tool                                                            |
-| --------------- | -------------------------------- | --------------------------------------------------------------- |
-| `check:format`  | formatting drift                 | `dprint check` plus the stack formatter's check mode            |
-| `check:lint`    | lint rules                       | `ruff check`                                                    |
-| `check:types`   | static types                     | `ty check`                                                      |
-| `check:vuln`    | dependency CVEs                  | `uv audit`                                                      |
-| `check:leaks`   | working-tree and committed secrets                | [gitleaks](../../security-review/references/gitleaks.md)                                |
-| `check:scan`    | IaC and config misconfigurations | [trivy](../../security-review/references/trivy/GUIDE.md)                                      |
-| `check:actions` | workflow lint and audit          | `actionlint` + [zizmor](../../github-actions/references/zizmor.md)                     |
+| Task            | Concern                            | Tool                                                               |
+| --------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `check:format`  | formatting drift                   | `dprint check` plus the stack formatter's check mode               |
+| `check:lint`    | lint rules                         | `ruff check`                                                       |
+| `check:types`   | static types                       | `ty check`                                                         |
+| `check:vuln`    | dependency CVEs                    | `uv audit`                                                         |
+| `check:leaks`   | working-tree and committed secrets | [gitleaks](../../security-review/references/gitleaks.md)           |
+| `check:scan`    | IaC and config misconfigurations   | [trivy](../../security-review/references/trivy/GUIDE.md)           |
+| `check:actions` | workflow lint and audit            | `actionlint` + [zizmor](../../github-actions/references/zizmor.md) |
 
 Those names are reserved: never respell one (`check:audit`, `check:dprint`) when the table already covers the concern. A stack adds a name only for a concern the table has none for, and the shipped set is closed: `check:deps` (unused files and dependencies), `check:doc` (document compiles), `check:pkg` (publishable surface), `check:site` (site builds clean), `check:validate` (configuration syntax). A repository with multiple source families may split a repeated concern (`check:python`, `check:shell`), while a shared concern keeps its common name (`check:format` for the one dprint check). Aliases are best-effort: a repository that already spends `f`, `t`, or `i` keeps them; the task names are the contract.
 
@@ -28,7 +28,6 @@ Those names are reserved: never respell one (`check:audit`, `check:dprint`) when
 - **Staged vs whole-tree**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
 - **Argument passthrough**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
 - **Complexity ceiling**: short command arrays and small setup/cleanup sequences are acceptable. Prefer native flags to conditions and explicit tasks to mode detection. Do not wrap commands in `bash -c` or `sh -c`, compress a program onto one line, or relocate a large shell block into TOML. Keep unavoidable branching, retries, and response parsing in maintained source.
-- **Dotenv**: `[env]` with `_.file = ".env"` auto-loads the file.
 
 ## Tool Management
 
@@ -46,7 +45,7 @@ mise upgrade --bump      # explicit independent upgrade, not baseline alignment
 
 ## Additional task gotchas
 
-- **Full gate on a dirty tree**: `mise run all` write-formats the whole tree; when unrelated changes are present, run it in an isolated working-tree copy containing the candidate edits or fall back to `mise run check` and `mise run test`.
+- **Dotenv and dirty trees**: the [mise gotchas](../SKILL.md#gotchas) own dotenv loading and the full gate on a tree with unrelated changes.
 - **Trust**: in normal mode `mise run`, `mise install`, `mise exec`, and `mise watch` trust the active config automatically; `mise trust` is only needed for other commands or in paranoid mode.
 - **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
 - **Non-interactive scripts**: pass `-y` (`mise install -y`) in scripts and CI steps that would otherwise prompt.

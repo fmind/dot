@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-loops
   created: "2026-09-06"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Agent Loops
@@ -19,7 +19,6 @@ Design the smallest durable system that can learn, resume, stop, and prove what 
 1. **Define the decisions**: State the objective, evidence that can change direction, authority, budget or horizon, external side effects, and hard stop conditions. Separate scientific or task success from operational completion.
 1. **Make the goal the driver**: Use the active harness's native `/goal` when the user requests a sustained goal. Define whether completion means an evidenced objective, a finished time window, or an objective bounded by a deadline. Follow [goals, prompts and continuation](references/goals-and-prompts.md); verify actual host capabilities instead of implementing another goal engine.
 1. **Challenge the topology**: Keep a layer only when it closes a distinct feedback horizon. Merge any layer that merely renames another role. Read [loop topology](references/topology.md) when several decision horizons are needed.
-
 1. **Choose minimal durable state**: Prefer a human-readable portfolio checkpoint, one checkpoint per work item, an append-only event log, concise sourced lessons, and derived reports. Give every fact one owner; do not create a second task database. For explicitly assigned concurrent sessions, record disjoint work scope, session identity, shared writer and account-wide resource allocation before writes.
 1. **Write the agent skills**: Create one narrowly routed skill per retained loop using [the loop skill contracts](references/skill-contracts.md). Put research, critique, implementation, and reflection inside the loop step that needs them instead of scheduling role-shaped loops.
 1. **Keep entry prompts thin**: Put reusable `prompts/run.md` and `prompts/improve.md` entry points in the project. They read `AGENTS.md`, name the owning skill and pass goal scope; skills own procedure, evidence, continuation and stop rules. Add a named start prompt only for a real session assignment or distinct scenario.

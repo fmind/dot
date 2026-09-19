@@ -1,13 +1,13 @@
 ---
 name: agent-project
-description: "Set up repository AGENTS.md, shared skills, and coding-agent discovery and host bridges."
+description: "Set up a repository's agent layer: AGENTS.md and shared skills layout, coding-agent discovery, and host bridges."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Set Up Agents on a Project

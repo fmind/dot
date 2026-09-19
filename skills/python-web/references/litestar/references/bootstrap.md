@@ -11,8 +11,7 @@ The bundled example uses typed settings, SQLAlchemy async sessions with asyncpg,
    uv add 'litestar>=2.24.0' 'granian[reload,uvloop]>=2.8.1' 'sqlalchemy>=2.0.52' 'asyncpg>=0.31.0' 'pydantic>=2.13.4' 'pydantic-settings>=2.15.0' 'structlog>=26.1.0'
    uv add --dev 'anyio>=4.14.2' 'testcontainers>=4.15.0'
    ```
-   These constraints preserve the example baseline; verify selected versions against the lock and installed APIs.
-   The base package already ships the CLI, `TestClient`, msgspec, and Polyfactory: add `[jinja]` only when the service renders templates, and avoid `[standard]`, which installs a second ASGI server (uvicorn) next to Granian. Granian selects rloop, then uvloop, then asyncio at startup, so pin `[uvloop]` explicitly instead of inheriting it from another package.
+   These constraints preserve the example baseline; verify selected versions against the lock and installed APIs. The base package already ships the CLI, `TestClient`, msgspec, and Polyfactory: add `[jinja]` only when the service renders templates, and avoid `[standard]`, which installs a second ASGI server (uvicorn) next to Granian. Granian selects rloop, then uvloop, then asyncio at startup, so pin `[uvloop]` explicitly instead of inheriting it from another package.
 1. Replace the foundation example with [init.py](../templates/init.py) at `src/<package>/__init__.py`. Add `src/<package>/__main__.py`:
    ```python
    from . import main

@@ -22,14 +22,14 @@ Do not use `--prototype` or the `--adk` create shortcut here: they select a redu
 
 Inspect generated artifacts rather than trusting the success banner:
 
-| Feature | Evidence |
-| --- | --- |
-| ADK app and guidance | `app/agent.py`, `AGENTS.md`, template identity in `agents-cli-manifest.yaml` |
-| Agent Runtime | Manifest `create_params.deployment_target: agent_runtime`; runtime-aware session factory in `app/app_utils/services.py` |
-| Gateway readiness | Manifest `agent_gateway: true`; Dockerfile accepts `AGENT_GATEWAY_ROOT_CERTIFICATES` and configures trust paths |
-| BigQuery analytics | `BigQueryAgentAnalyticsPlugin` initialization in `app/agent.py`; this flag is not recorded in the 1.5.0 manifest |
-| GitHub Actions | `.github/workflows/pr_checks.yaml`, `staging.yaml`, `deploy-to-prod.yaml`; manifest runner selection |
-| Infrastructure | `deployment/terraform/` including CI identity/IAM and service definitions |
+| Feature              | Evidence                                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| ADK app and guidance | `app/agent.py`, `AGENTS.md`, template identity in `agents-cli-manifest.yaml`                                            |
+| Agent Runtime        | Manifest `create_params.deployment_target: agent_runtime`; runtime-aware session factory in `app/app_utils/services.py` |
+| Gateway readiness    | Manifest `agent_gateway: true`; Dockerfile accepts `AGENT_GATEWAY_ROOT_CERTIFICATES` and configures trust paths         |
+| BigQuery analytics   | `BigQueryAgentAnalyticsPlugin` initialization in `app/agent.py`; this flag is not recorded in the 1.5.0 manifest        |
+| GitHub Actions       | `.github/workflows/pr_checks.yaml`, `staging.yaml`, `deploy-to-prod.yaml`; manifest runner selection                    |
+| Infrastructure       | `deployment/terraform/` including CI identity/IAM and service definitions                                               |
 
 `--session-type agent_platform_sessions` is incompatible with `agent_runtime` in 1.5.0: the generator warns and stores `session_type: none`. This means no separately selected session backend, not absence of managed sessions. Generated services choose `VertexAiSessionService` when the runtime injects its agent-engine identity, falling back to in-memory locally; `SESSION_SERVICE_URI` can override that selection. Use the explicit session flag only with a compatible target when that architecture is requested.
 

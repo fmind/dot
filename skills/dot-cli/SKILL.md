@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Dot CLI
@@ -38,6 +38,7 @@ Use [conventional-commit](../git-delivery/references/conventional-commit.md) for
 ## Documentation
 
 - [fmind/dot](https://github.com/fmind/dot) — setup, implementation, and repository tasks.
-- [CLI migration](references/cli-migration.md) — command changes, date boundaries, and JSON selectors.
+- [Daily workflows](references/daily-workflows.md) — command examples for repositories, sessions and statistics, cleanup, publication, and completions.
+- [CLI migration](references/cli-migration.md) — command changes, date boundaries, JSON selectors.
 - Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
 - Companion skills: [agent-usage](../agent-usage/SKILL.md), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

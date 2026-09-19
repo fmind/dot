@@ -8,7 +8,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/deleguate-tasks
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Deleguate Tasks
@@ -41,8 +41,7 @@ The default agy command is built into the runner; no setup probes are needed on 
 ## Documentation
 
 - [Tracking and execution](references/tracking.md): manifest schema, acceptance checks, compact output, and recovery.
-- [Batch runner](scripts/run.py): Python 3.12+ standard library; invokes `agy` by default, with no SDK or extra dependencies.
-- [Batch execution helper](scripts/run.py): executes bounded task batches and keeps worker transcripts outside coordinator context.
+- [Batch runner](scripts/run.py): Python 3.12+ standard library; invokes `agy` by default, with no SDK or extra dependencies. It executes bounded task batches and keeps worker transcripts outside coordinator context.
 - [Codex invocation policy](agents/openai.yaml) disables implicit selection; Claude's frontmatter does the same. These controls govern skill selection, not subprocess permissions.
 - [Antigravity headless mode](https://antigravity.google/docs/cli/headless/) · [Claude skill invocation](https://code.claude.com/docs/en/skills) · [Codex skills](https://learn.chatgpt.com/docs/build-skills).
 - Releases: [Antigravity](https://antigravity.google/changelog). The selected harness skill owns its evolving command and authentication details.

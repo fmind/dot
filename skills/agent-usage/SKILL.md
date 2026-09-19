@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Agent Usage
@@ -31,9 +31,9 @@ API equivalents use the offline rate card in `agent.pricing`, independently of r
 - **Model attribution and dates**: Claude/Codex request samples retain per-request models and timestamps, including model switches and month boundaries. Sources without reliable samples use whole-session timestamps; check `session_timestamp_sessions`. A Codex cumulative-counter correction disables request allocation for that session rather than inventing deltas.
 - **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's final context size. Statistics group these separately and do not combine unlike measurements into one total.
 - **Atomic generations prevent split state**: transcript and usage publish together. Queries choose one measurement per session and do not sum retained generations.
-- **Capture uses one write path**: session hooks and `session sync` publish the same complete bundle. Earlier stores and standalone usage files are outside current queries. Parser 3 remains readable but may overcount Claude streaming blocks; recapture available sources to parser 4 before comparisons.
+- **Capture uses one write path**: session hooks and `session sync` publish the same complete bundle. Earlier stores and standalone usage files are outside current queries. Older parser generations remain readable and flagged as legacy accounting; parser 3 may overcount Claude streaming blocks. Recapture available sources to the current parser ([contracts](../dot-cli/references/contracts.md)) before comparisons.
 - **Both harness and agent fields exist**: queries can group by either `harness` or `agent` interchangeably.
-- **`sync` fails loud, hooks fail soft**: `dot agent session sync` aborts on an unreadable store rather than reporting `Synced 0`, and creates a new generation when the source or parser changes. Reingestion backfills derivable records without rewriting history.
+- **`sync` fails loud, hooks fail soft**: `dot agent session sync` records each failed session, continues, and exits 1 at the end rather than reporting `Synced 0`, and creates a new generation when the source or parser changes. Reingestion backfills derivable records without rewriting history.
 - **Background hooks fail soft**: hooks spool errors to `~/.agents/hook-failures` so a failure in usage tracking never aborts the agent CLI.
 
 ## Documentation

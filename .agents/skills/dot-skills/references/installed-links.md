@@ -8,7 +8,7 @@ After removing or renaming a declaration, chezmoi leaves its previously installe
 
 ## Catalog consolidation migration
 
-The catalog consolidated after v6.1.0 retires 55 names. From the updated source checkout, preview the frozen migration inventory, then apply it when cleanup is authorized:
+The frozen migration inventory covers the 58 names retired since v6.1.0. From the updated source checkout, preview it, then apply it when cleanup is authorized:
 
 ```bash
 mise run migrate:skills

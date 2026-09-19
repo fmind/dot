@@ -9,8 +9,8 @@ Operate OpenCode with the project's provider, permissions, and Python tooling. P
 
 ## Workflow
 
-1. **Inspect the installed contract**: use `opencode --version`, `opencode run --help`, and project instructions. Resolve the intended workspace and existing session before starting or resuming work.
-1. **Refresh evolving details**: read the relevant official page and changelog before relying on new flags, provider options, or feature availability. Compare with installed help, report version gaps, and keep release-specific details upstream.
+Follow the shared [workflow](../../SKILL.md#workflow) using `opencode --version`, `opencode run --help`, and project instructions; host specifics:
+
 1. **Resolve the provider** through [model-providers](../../../model-providers/SKILL.md). This workstation explicitly uses OpenRouter with `OPENROUTER_API_KEY`; its model IDs start with `openrouter/`. Preserve that choice even though new application integrations default to GCP Agent Platform. Check credentials without dumping resolved configuration.
 1. **Run the requested task** with the configured model, or an explicitly selected available `provider/model`. `--auto` approves permissions that are not explicitly denied; it preserves denials and does not expand the user's task authority.
 
@@ -32,7 +32,7 @@ Use `opencode mcp add --help` for the installed setup interface and [mcp-setup](
 
 ## Gotchas
 
-- **Provider errors**: distinguish expired/revoked ADC, wrong project, unavailable model, IAM denial, and quota exhaustion before reauthenticating; never print an access token to diagnose them.
+- **Provider errors**: distinguish a missing or invalid `OPENROUTER_API_KEY`, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
 - **Sharing is publication**: `--share` can expose session contents; require explicit sharing authority.
 
 ## Official Skills
@@ -48,4 +48,4 @@ For session recovery, automation, and integration decisions, read the [operation
 - [OpenCode CLI](https://opencode.ai/docs/cli/) · [Agents](https://opencode.ai/docs/agents/) · [Skills](https://opencode.ai/docs/skills/) · [Providers](https://opencode.ai/docs/providers/)
 - [Changelog](https://opencode.ai/changelog) · [Releases](https://github.com/anomalyco/opencode/releases)
 - [Configuration](https://opencode.ai/docs/config/) · [Permissions](https://opencode.ai/docs/permissions/) · [MCP servers](https://opencode.ai/docs/mcp-servers/)
-- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [gcloud](../../../gcloud/SKILL.md), [mcp-setup](../../../mcp-setup/SKILL.md), [agent-project](../../../agent-project/SKILL.md).
+- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [model-providers](../../../model-providers/SKILL.md), [mcp-setup](../../../mcp-setup/SKILL.md), [agent-project](../../../agent-project/SKILL.md).

@@ -6,10 +6,10 @@ Use this first as a manual, preview-only repository report. The deliberately sma
 
 Choose exactly one path:
 
-| Path | Workflow configuration | Credential boundary |
-| --- | --- | --- |
+| Path                        | Workflow configuration               | Credential boundary                                                                                               |
+| --------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | Organization-billed Copilot | Keep `copilot-requests: write` below | Requires an organization Copilot subscription with centralized billing; inference uses the per-run Actions token. |
-| Copilot subscription | Remove `copilot-requests: write` | Store a fine-grained PAT with Copilot Requests access in the `COPILOT_GITHUB_TOKEN` repository secret. |
+| Copilot subscription        | Remove `copilot-requests: write`     | Store a fine-grained PAT with Copilot Requests access in the `COPILOT_GITHUB_TOKEN` repository secret.            |
 
 ## Workflow Source
 

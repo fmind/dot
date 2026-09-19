@@ -13,4 +13,3 @@ Choose the target type first, then use its allowed attributes in order from the 
 | `modify_<name>`                                    | a script that rewrites the existing target; with the `# chezmoi:modify-template` marker it renders as a template with the target on `.chezmoi.stdin`. |
 | `create_` / `remove_`                              | write only when absent / remove a file, symlink, or empty directory.                                                                                  |
 | `run_[once_\|onchange_][before_\|after_]<name>.sh` | hook run during apply: `once_` per unique content hash (bootstrap), `onchange_` whenever the body changes (derived state).                            |
-

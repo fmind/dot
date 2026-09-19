@@ -17,7 +17,7 @@ Bootstrap a repository by composing the selected foundation and application owne
    - Litestar web app: the Python foundation, then [litestar](../../python-web/references/litestar/GUIDE.md) for the application, optional database integration, settings, and request tests.
    - Django web application: [django](../../python-web/references/django/GUIDE.md)
    - Python agent with the agents CLI: [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md), then [google-adk](../../agent-frameworks/references/google-adk.md) for SDK code
-   - Documentation or course site: [zensical](../../documentation-site/SKILL.md), with [course-development](../../course-development/SKILL.md) for lessons; infrastructure: [terraform](../../infra-as-code/SKILL.md)
+   - Documentation or course site: [documentation-site](../../documentation-site/SKILL.md), with [course-development](../../course-development/SKILL.md) for lessons; infrastructure: [infra-as-code](../../infra-as-code/SKILL.md)
 1. **Add the shared layer**, skipping what the foundation or application owner already produced:
    - `LICENSE` and manifest field: [project-license](project-license/GUIDE.md)
    - `dprint.json`: [dprint](../../dprint/SKILL.md); hooks installed: [lefthook](../../github-actions/references/lefthook.md)

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-19"
 ---
 
 # Google Colab CLI
@@ -25,7 +25,7 @@ The reviewed CLI 0.6.0 has no compute-balance command. Use an already available,
 Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
 
 1. **Authenticate**: OAuth by default (`--auth oauth2`), or `--auth adc` to reuse the Application Default Credentials from [gcloud](../gcloud/SKILL.md); session state lives under `~/.config/colab-cli/`.
-1. **Prefer ephemeral runs**: `colab run` rents a VM, runs the script, and releases it; a shebang `#!/usr/bin/env -S colab run --gpu T4` makes a single file self-contained per [python-script](../python-script/SKILL.md).
+1. **Prefer ephemeral runs**: `colab run` rents a VM, runs the script, and releases it; a shebang `#!/usr/bin/env -S colab run --gpu T4` makes a single file self-contained per [python-script](../python-stack/references/python-script/GUIDE.md).
 
    ```bash
    colab run --gpu T4 --timeout 3600 train.py
@@ -38,7 +38,7 @@ Follow this workflow only when remote execution is in scope; establish the autho
 ## Gotchas
 
 - **30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
-- **Pinned dependency**: mise uses `with = ["jupyter-kernel-client==0.15.0"]` to retain the compatible client in its format-2 dependency graph; 1.0.0 renamed the client class and breaks every session.
+- **Pinned dependency**: mise uses `with = ["jupyter-kernel-client==0.15.0"]` to retain the compatible client on every reinstall, because the format-1 mise lockfile pins only the tool version, not its dependencies; 1.0.0 renamed the client class and breaks every session.
 - **Tiers**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
 - **Disposable VM**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
 
@@ -51,4 +51,4 @@ Upstream: `googlecolab/google-colab-cli`, the same source `colab skill` prints. 
 - [Colab CLI](https://github.com/googlecolab/google-colab-cli)
 - Releases: [google-colab-cli](https://github.com/googlecolab/google-colab-cli/releases)
 - ML workflows: [python-mlops](../python-mlops/SKILL.md) owns data validation, training, experiments, and model delivery.
-- Companion skills: [kaggle](../kaggle/SKILL.md), [hf](../hf/SKILL.md), [python-script](../python-script/SKILL.md), [gcloud](../gcloud/SKILL.md).
+- Companion skills: [kaggle](../kaggle/SKILL.md), [hf](../hf/SKILL.md), [python-script](../python-stack/references/python-script/GUIDE.md), [gcloud](../gcloud/SKILL.md).
