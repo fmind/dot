@@ -12,7 +12,7 @@ metadata:
 
 # Dot CLI
 
-Use `dot` for bounded repository operations, local diagnostics, and immutable agent-session archives. The installed command and its `--help` own the active interface. Dot also owns workstation login, setup, and cache workflows; native CLIs retain credentials and provider behavior. Skills own AI writing, release, and provider-source retention.
+Use `dot` for bounded repository operations, local diagnostics, and agent-session archives. The installed command and its `--help` own the active interface. Dot also owns workstation login, setup, and cache workflows; native CLIs retain credentials and provider behavior. Skills own AI writing, release, and provider-source retention.
 
 ## Workflow
 
@@ -26,7 +26,7 @@ Use `dot` for bounded repository operations, local diagnostics, and immutable ag
 
 - [authentication](references/authentication.md): Inspect and apply configured provider login, OAuth scopes, and account policy.
 - [context](references/context.md): Measure discovery and instruction budgets in source or installed skill catalogs.
-- [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and immutable archive compatibility.
+- [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and session archive compatibility.
 - [operations](references/operations.md): Inspect repositories, diagnose workstation health, and manage session archives with dot.
 
 <!-- guides:end -->

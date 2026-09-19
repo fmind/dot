@@ -25,11 +25,11 @@ Every host follows these steps; read only the matching guide for its specifics a
 
 ## Workstation hooks
 
-On the `fmind/dot` workstation, managed hooks call `dot agent hook` for desktop notifications and session capture; restart open harnesses after changing hook configuration.
+On the `fmind/dot` workstation, managed hooks call `dot agent hook notify` for desktop notifications; `dot agent session sync` captures sessions from each harness's own store. Restart open harnesses after changing hook configuration.
 
 - **Delivery**: Linux uses `notify-send` or D-Bus; macOS uses the built-in `osascript` notification command. On ChromeOS, a managed user D-Bus activation file starts the bundled Crostini `notificationd` bridge on demand. Headless sessions without a notification service skip delivery; operating-system notification settings still control visible banners.
 - **Content**: Notifications show the harness, project, a short status, and the originating terminal title when available, limited to 80 characters. They have no click actions, pane numbers, or session labels and never read prompt or transcript content.
-- **Capture**: Codex session-end capture respects its three-second hook limit. A Claude session that ends before its transcript exists reports a skipped capture without failing the hook; `dot agent session sync --agent claude` recovers it later.
+- **Failures**: a failed notification writes one stderr line and exits 0, so it never fails the agent turn.
 
 ## Task guides
 
