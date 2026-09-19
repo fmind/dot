@@ -10,13 +10,16 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
 from fmind_dot.archive.store import is_valid_session_id
 from fmind_dot.config import PricingConfig, SubscriptionConfig, default_pricing
 from fmind_dot.reporting import write_report_line
+
+if TYPE_CHECKING:
+    from fmind_dot.archive.query import _Generation
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
@@ -311,23 +314,24 @@ def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
     from fmind_dot.archive.query import discover_session_generations
     from fmind_dot.archive.store import SESSION_PARSER_VERSION, read_session_usage
 
-    latest = {}
+    sessions: dict[tuple[str, str], list[_Generation]] = {}
     for generation in discover_session_generations(root):
         manifest = generation.manifest
-        identity = (manifest.agent, manifest.session_id)
-        previous = latest.get(identity)
-        if previous is None or (int(manifest.parser_version), manifest.ingested_at, generation.path.name) > (
-            int(previous.manifest.parser_version),
-            previous.manifest.ingested_at,
-            previous.path.name,
-        ):
-            latest[identity] = generation
-    for generation in latest.values():
-        value = read_session_usage(generation.path, generation.manifest)
-        if value is not None:
-            record = UsageRecord.from_dict(value)
-            record.legacy_accounting = generation.manifest.parser_version != SESSION_PARSER_VERSION
-            yield record
+        sessions.setdefault((manifest.agent, manifest.session_id), []).append(generation)
+    for generations in sessions.values():
+        generations.sort(
+            key=lambda item: (int(item.manifest.parser_version), item.manifest.ingested_at, item.path.name),
+            reverse=True,
+        )
+        # A generation whose usage extraction failed archives no usage; the newest
+        # earlier measurement then still counts instead of the session vanishing.
+        for generation in generations:
+            value = read_session_usage(generation.path, generation.manifest)
+            if value is not None:
+                record = UsageRecord.from_dict(value)
+                record.legacy_accounting = generation.manifest.parser_version != SESSION_PARSER_VERSION
+                yield record
+                break
 
 
 def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:

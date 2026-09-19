@@ -19,6 +19,7 @@ from fmind_dot.archive.store import (
     delete_session_generation,
     generation_files,
     read_session_manifest,
+    read_session_usage,
     session_digest,
     session_lineage_id,
     session_store_root,
@@ -227,6 +228,7 @@ def compact_session_generations(
     root = root or session_store_root()
     generations = [item for item in discover_session_generations(root) if not agent or item.manifest.agent == agent]
     verified = {item.path: _validate_compaction_generation(root, item) for item in generations}
+    measured = {item.path: read_session_usage(item.path, item.manifest) is not None for item in generations}
     groups: dict[tuple[str, str, str], list[_Generation]] = {}
     for generation in generations:
         manifest = generation.manifest
@@ -238,11 +240,15 @@ def compact_session_generations(
         for candidate in sorted(group, key=_compaction_sort_key, reverse=True):
             candidate_records = verified[candidate.path][1]
             # Usage grows with its source, so a strict transcript prefix is superseded
-            # whatever it measured; only equal transcripts keep distinct usage evidence.
+            # whatever it measured, unless the longer generation failed to measure any;
+            # only equal transcripts keep distinct usage evidence.
             covered = any(
                 candidate_records == verified[item.path][1][: len(candidate_records)]
                 and (
-                    len(candidate_records) < len(verified[item.path][1])
+                    (
+                        len(candidate_records) < len(verified[item.path][1])
+                        and (measured[item.path] or not measured[candidate.path])
+                    )
                     or candidate.manifest.usage_sha256 == item.manifest.usage_sha256
                 )
                 for item in kept
