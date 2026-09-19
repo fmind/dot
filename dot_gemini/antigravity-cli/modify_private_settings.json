@@ -1,8 +1,7 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/cli/settings
-       Account, model, and trust choices belong to the host after initial setup. */ -}}
-{{- /* Seed the same roots as Claude's additionalDirectories, never the whole home. */ -}}
-{{- $defaults := dict "trustedWorkspaces" (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) -}}
+       Account and model choices belong to the host after initial setup; `dot trust`
+       owns trustedWorkspaces. */ -}}
 {{- $managedConfig := fromJson `
 {
   "allowNonWorkspaceAccess": true,
@@ -17,4 +16,4 @@
 {{- if $gcp_project -}}
 {{- $_ := set $managedConfig "gcp" (dict "project" $gcp_project "location" (env "ANTIGRAVITY_CLOUD_LOCATION" | default "global")) -}}
 {{- end -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" dict "managed" $managedConfig) -}}
