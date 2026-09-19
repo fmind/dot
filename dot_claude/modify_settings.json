@@ -9,9 +9,11 @@
        deletes keys, so an already deployed true would otherwise keep auto-approving
        every repository-provided MCP server; enabledMcpjsonServers approves the owner's
        project servers by name instead; `dot trust` pre-accepts folder trust.
+       PreCompact, SessionEnd, and SubagentStop stay managed as empty lists for the same
+       reason: they clear retired session-capture hooks; `dot agent session sync` captures now.
        Hooks name the CLI absolutely: a harness started without ~/.local/bin on PATH
-       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and capture
-       fails silently. */ -}}
+       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and notifications
+       fail silently. */ -}}
 {{- $dot := joinPath .chezmoi.homeDir ".local/bin/dot" -}}
 {{- if not (regexMatch "^[A-Za-z0-9_@%+=:,./-]+$" $dot) }}{{ fail "home directory is not shell-safe for hook commands" }}{{ end -}}
 {{- $defaults := dict "effortLevel" "high" "model" "claude-fable-5-1[1m]" -}}
@@ -54,30 +56,8 @@
         "matcher": ""
       }
     ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "command": "@dot@ agent hook session claude",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "command": "@dot@ agent hook session claude",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ],
+    "PreCompact": [],
+    "SessionEnd": [],
     "Stop": [
       {
         "hooks": [
@@ -90,18 +70,7 @@
         "matcher": ""
       }
     ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "command": "@dot@ agent hook session claude",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ]
+    "SubagentStop": []
   },
   "inputNeededNotifEnabled": true,
   "permissions": {
