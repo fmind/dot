@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # Kaggle CLI
@@ -33,7 +33,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
    kaggle competitions submissions <slug>
    ```
 
-1. **Publish with authority**: `kaggle datasets create -p <dir>` and `kaggle datasets version -p <dir> -m "<message>"` are private by default (`--public` flips it); confirm the license and visibility in the metadata before the first push.
+1. **Publish with authority**: `kaggle datasets create -p <dir>` creates a private dataset unless `--public` is explicitly authorized. `kaggle datasets version -p <dir> -m "<message>"` updates an existing dataset and retains its visibility; it has no `--public` flag. Verify the target dataset's current visibility before uploading a version, and confirm the license and intended audience before either operation.
 
 ## Gotchas
 

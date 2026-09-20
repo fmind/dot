@@ -1,6 +1,6 @@
 # AGENTS.md (Project)
 
-This is `fmind/dot` — chezmoi + mise dotfiles for AI-CLI-first, Python-first development on Linux and macOS. Setup and install documentation lives in `README.md`.
+This is `fmind/dot` — chezmoi + mise dotfiles for AI-CLI-first, Python-first development on Linux and macOS. Setup, usage, and common tasks live in `README.md`.
 
 ## House rules
 
@@ -10,20 +10,20 @@ This is `fmind/dot` — chezmoi + mise dotfiles for AI-CLI-first, Python-first d
 - **No-Sudo**: Stay user-space; install via `mise`.
 - **Tool baseline**: This repository tracks `latest` by default, including Python; `dot_config/mise/config.toml.tmpl` and `dot_config/mise/mise.lock` own the workstation baseline. Other repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` pin exact versions from it. [Mise](skills/mise/SKILL.md) owns selection and exceptions; [upgrade-tools](skills/upgrade-tools/SKILL.md) owns validated propagation.
 - **Dependency locks**: Keep the global mise lockfile at format 1 for version-only npm/pipx installs; do not upgrade its format. The repository lockfile may use format 2 for native tools. npm/pipx entries lock the version only; transitive dependencies can drift on reinstall. Preserve the Colab and pgcli `with` requirements. `mise run lock` captures the shared global lockfile. Python application dependencies remain locked in `dot/uv.lock`.
-- **README Scope**: Keep setup and auth instructions in `README.md`; exclude repository tasks, aliases, and workflows.
+- **README Scope**: Keep setup, auth, everyday usage, and a short task reference in `README.md`; keep detailed contributor workflows in skills.
 - **Theme**: [fmind/theme](https://github.com/fmind/theme) owns the palette and native app files. Fetch standalone themes from upstream `main` via chezmoi externals; when tools require merged styles, copy only the native theme block with an upstream source comment. Terminal tools follow the Ghostty ANSI palette or select terminal-aligned themes.
 - **Fonts**: Terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty.
 - **Vim mode**: Enable in every TUI that supports it.
 
 ## Workflows
 
-Tasks run via `mise run <task>` (if `mise` is not in `$PATH`, call `~/.local/bin/mise` directly). Invoking tasks from `dot/` resolves to the same root definitions.
+See [common tasks](README.md#repository-tasks); `mise tasks` lists all tasks and aliases. Tasks run via `mise run <task>` (if `mise` is not in `$PATH`, call `~/.local/bin/mise` directly). Invoking tasks from `dot/` resolves to the same root definitions.
 
 Key routines:
 
 - **Iterate**: Edit source → run the relevant checks above → preview the affected chezmoi diff → apply when deployment is in scope. Apply executes eligible installation hooks as well as writing managed files. Lefthook runs commit/push checks; pre-run them only to diagnose a failure. CI retains the full gate.
 - **Documentation**: `mise run check:docs` checks documentation contracts; `mise run check:skills` checks both skill catalogs and their local links. [repository-docs](skills/repository-docs/SKILL.md) owns documentation synchronization.
-- **Workstation vs Gate**: `mise run verify` and `mise run doctor` inspect local workstation health; `mise run check`, `test`, and `all` validate the repository.
+- **Workstation vs Gate**: `mise run verify` and `mise run doctor` inspect local workstation health; `mise run check`, `test`, and `all` validate the repository. `all` also formats files; isolate it when unrelated edits are present.
 - **Add tool**: Insert into `[tools]` in `dot_config/mise/config.toml.tmpl`, alphabetically within its group (backend-prefixed entries, registry names, then per-platform tables) → `chezmoi apply --force ~/.config/mise` → `mise run lock` → `mise run tools`.
 - **Upgrade tools**: `mise run upgrade` updates this workstation's tools and lockfiles; [upgrade-tools](skills/upgrade-tools/SKILL.md) also inventories and aligns the other local repositories. The task alone does not perform that cross-repository migration.
 - **Workstation commands**: `dot login`, `setup`, `cache`, and `prune` own native provider operations; mise owns repository installation and validation. Authentication and cleanup are explicit commands, not apply hooks.

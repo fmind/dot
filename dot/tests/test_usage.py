@@ -83,8 +83,10 @@ def test_usage_record_serializes_every_explicit_field() -> None:
 
 
 def test_usage_record_rejects_unknown_measurement_kind() -> None:
+    value = UsageRecord(harness="codex", session_id="session").finalize().to_dict()
+    value["measurement_kind"] = "magic"
     with pytest.raises(ValueError, match="measurement_kind"):
-        UsageRecord(harness="codex", session_id="session", measurement_kind="magic").finalize()
+        UsageRecord.from_dict(value)
 
 
 def test_usage_record_from_dict_rejects_empty_object() -> None:
@@ -312,6 +314,18 @@ def test_list_usage_records_filters_sorts_and_applies_limit() -> None:
     assert [record.session_id for record in list_usage_records(records, limit=-1)] == ["new", "other", "old"]
 
 
+@pytest.mark.parametrize(
+    ("older", "newer"),
+    [
+        ("2026-09-20T12:00:00Z", "2026-09-20T12:00:00.500Z"),
+        ("2026-09-20T12:00:00+02:00", "2026-09-20T11:00:00Z"),
+    ],
+)
+def test_usage_limit_selects_latest_instant(older: str, newer: str) -> None:
+    records = [UsageRecord(timestamp=older, session_id="old"), UsageRecord(timestamp=newer, session_id="new")]
+    assert list_usage_records(records, limit=1)[0].session_id == "new"
+
+
 def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
     rows = [
         UsageStats(
@@ -352,8 +366,10 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
     assert "Total tokens:" in text
     assert "API equivalent:" in text
     assert "1,014" in text
-    assert "1,018" in text
-    assert "$0.6250" in text
+    assert "TOTAL" not in text
+    assert "no combined session total" in text
+    assert "$0.5000" in text
+    assert "$0.1250" in text
     assert "Coverage:" in text
     assert "sonnet" in text
     assert "gpt" in text
@@ -362,6 +378,11 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
     write_usage_stats(output, rows[:1], by_model=False)
     assert "Model:" not in output.getvalue()
     assert "TOTAL · unknown\n  Sessions: 1 · Total tokens: 1,014" in output.getvalue()
+
+    output = StringIO()
+    write_usage_stats(output, rows, by_model=False)
+    assert "Sessions: 3 · Total tokens: 1,018" in output.getvalue()
+    assert "$0.6250" in output.getvalue()
 
 
 def test_usage_cli_lists_filters_aggregates_and_shows_records(
@@ -472,3 +493,37 @@ def test_usage_show_validates_identity_and_reports_missing(monkeypatch: pytest.M
     with pytest.raises(ValueError, match="usage record not found"):
         show_usage_record("codex", "missing")
     assert load_usage_records() == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("input_tokens", True),
+        ("output_tokens", "1"),
+        ("source_bytes", 1.5),
+        ("cost_known", 1),
+        ("samples", ()),
+        ("samples", [{"timestamp": "2026-09-06T10:00:00Z", "input_tokens": True}]),
+        ("samples", [{"model": "test"}]),
+        ("samples", [{"timestamp": "2026-09-06T10:00:00Z", "private-marker": "private-marker"}]),
+        ("samples", [{"timestamp": "private-marker"}]),
+        ("cost_usd", "private-marker"),
+        ("cwd", {"private-marker": "private-marker"}),
+    ],
+)
+def test_usage_validation_is_strict_and_does_not_expose_input(field: str, value: object) -> None:
+    import traceback
+
+    document = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    document[field] = value
+    with pytest.raises(ValueError, match=field) as caught:
+        UsageRecord.from_dict(document)
+    assert "private-marker" not in "".join(traceback.format_exception(caught.value))
+
+
+def test_usage_ignores_unknown_session_fields_but_preserves_unknown_cost() -> None:
+    value = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    loaded = UsageRecord.from_dict(value | {"__pydantic_config__": "untrusted", "future": True})
+    assert loaded.to_dict() == value
+    assert loaded.to_dict()["cost_usd"] is None
+    assert loaded.to_dict()["cost_known"] is False

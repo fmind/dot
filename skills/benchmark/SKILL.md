@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/benchmark
   created: "2026-09-02"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # Benchmark

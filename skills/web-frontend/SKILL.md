@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-09-19"
+  updated: "2026-09-20"
 ---
 
 # Web Frontend
@@ -35,7 +35,7 @@ Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an exis
 ## Gotchas
 
 - **Preview status**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
-- **Version refresh**: the CLI example is review-pinned; verify the latest stable npm release and update both commands together before adopting newer guidance.
+- **Version refresh**: the CLI example is review-pinned; verify the latest stable npm release eligible under the configured release-age policy and update both commands together after qualification. Retain the working pin while a newer release is inside npm's cooldown; do not disable that policy to make a freshness check pass.
 - **Application integration**: keep browser behavior in native HTML, CSS, and JavaScript; use [litestar](../python-web/references/litestar/GUIDE.md) or [django](../python-web/references/django/GUIDE.md) for server rendering, APIs, and application tests.
 - **Progressive enhancement**: Native dialogs, popovers, and top-layer elements require careful focus and accessibility management; verify keyboard navigation.
 

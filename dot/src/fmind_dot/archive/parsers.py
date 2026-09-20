@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+import stat
 from collections.abc import Callable, Iterator
 from contextlib import closing
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from fnmatch import fnmatchcase
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -180,10 +182,6 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         parsed_usage,
         usage_error,
     )
-
-
-def claude_project_directory(cwd: str) -> str:
-    return "-" + cwd.replace("/", "-").replace(".", "-").lstrip("-")
 
 
 def claude_session_id(path: Path) -> str:
@@ -486,10 +484,6 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error)
     return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
-
-
-def grok_session_directory(cwd: str) -> str:
-    return quote(cwd, safe="")
 
 
 def grok_cwd_from_path(root: Path, path: Path) -> str:
@@ -796,32 +790,18 @@ def agent_adapters() -> list[AgentAdapter]:
     return list(AGENT_ADAPTERS.values())
 
 
-def find_transcript(root: Path, agent: str, session_id: str, cwd: str = "") -> Path:
-    if agent == "agy":
-        for name in AGY_TRANSCRIPT_NAMES:
-            candidate = root / session_id / ".system_generated" / "logs" / name
-            if candidate.is_file():
-                return candidate
-    elif agent == "claude":
-        candidate = root / claude_project_directory(cwd) / f"{session_id}.jsonl"
-        if candidate.is_file():
-            return candidate
-        for path in root.rglob(f"{session_id}.jsonl"):
-            if path.name != "memory.jsonl":
-                return path
-    elif agent == "codex":
-        for path in root.rglob("*.jsonl"):
-            if codex_session_id(path) == session_id:
-                return path
-    elif agent == "grok":
-        if cwd:
-            candidate = root / grok_session_directory(cwd) / session_id / GROK_TRANSCRIPT_NAME
-            if candidate.is_file():
-                return candidate
-        for path in root.rglob(GROK_TRANSCRIPT_NAME):
-            if path.parent.name == session_id:
-                return path
-    raise FileNotFoundError(f"session file not found for {agent} session {session_id}")
+def _raise_walk_error(error: OSError) -> None:
+    raise error
+
+
+def _session_files(root: Path, names: tuple[str, ...]) -> list[Path]:
+    """Enumerate without hiding inaccessible directories or following directory links."""
+    return sorted(
+        directory / name
+        for directory, _, files in root.walk(on_error=_raise_walk_error)
+        for name in files
+        if any(fnmatchcase(name, pattern) for pattern in names)
+    )
 
 
 def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
@@ -829,25 +809,29 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
     candidates: list[tuple[str, str, Path]] = []
     if agent == "agy":
         for directory in sorted(root.iterdir()):
-            if not directory.is_dir():
+            if not stat.S_ISDIR(directory.lstat().st_mode):
                 continue
             for name in AGY_TRANSCRIPT_NAMES:
                 path = directory / ".system_generated" / "logs" / name
-                if path.is_file():
+                try:
+                    mode = path.stat().st_mode
+                except FileNotFoundError:
+                    continue
+                if stat.S_ISREG(mode):
                     candidates.append((directory.name, "", path))
                     break
     elif agent == "claude":
-        for path in sorted(root.rglob("*.jsonl")):
+        for path in _session_files(root, ("*.jsonl",)):
             session_id = claude_session_id(path)
             if is_valid_session_id(session_id):
                 candidates.append((session_id, "", path))
     elif agent == "codex":
-        for path in sorted(root.rglob("*.jsonl")):
+        for path in _session_files(root, ("*.jsonl",)):
             session_id = codex_session_id(path)
             if is_valid_session_id(session_id):
                 candidates.append((session_id, "", path))
     elif agent == "grok":
-        directories = {path.parent for name in (GROK_TRANSCRIPT_NAME, "signals.json") for path in root.rglob(name)}
+        directories = {path.parent for path in _session_files(root, (GROK_TRANSCRIPT_NAME, "signals.json"))}
         for directory in sorted(directories):
             path = directory / GROK_TRANSCRIPT_NAME
             if not path.is_file():
@@ -874,13 +858,10 @@ __all__ = [
     "AgentAdapter",
     "ParsedSession",
     "agent_adapters",
-    "claude_project_directory",
     "claude_session_id",
     "codex_session_id",
     "enumerate_sessions",
-    "find_transcript",
     "grok_cwd_from_path",
-    "grok_session_directory",
     "parse_agy_session",
     "parse_claude_session",
     "parse_codex_session",

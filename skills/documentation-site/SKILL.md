@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # Documentation Sites
@@ -45,7 +45,7 @@ Use Zensical as the default static publisher for documentation and courses; [cou
 - **Build output is disposable**: ignore `site/`, `.cache/`, and `.venv/`; retain `pyproject.toml`, `uv.lock`, configuration, and source content.
 - **Plugin compatibility is explicit**: Zensical reimplements selected MkDocs plugins; check the supported list for the locked version before adding a plugin package.
 - **Theme**: preserve the site's established design tokens and use documented palette/CSS customization. For a new Fmind publication, follow the published brand in [fmind-visuals](../fmind-visuals/SKILL.md); the workstation's terminal palette has a separate scope and does not redefine the site's identity.
-- **Reproducibility**: use `uv sync --locked` in CI and clean builds; verify the current stable release before upgrading. The local bootstrap and strict build were exercised with Zensical 0.0.60.
+- **Reproducibility**: use `uv sync --locked` in CI and clean builds; verify the current stable release before upgrading. The local bootstrap and strict build were exercised with Zensical 0.0.63.
 
 ## Official Skills
 

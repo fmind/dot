@@ -17,18 +17,23 @@ import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Any, Literal
+from typing import IO, Annotated, Any, Literal
+
+from pydantic import Field, StrictStr, TypeAdapter, ValidationError
 
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
 SESSION_PARSER_VERSION = "5"
 # Parsers 3 and 4 arrive only through the v2 migration; their usage is flagged as legacy accounting.
-READABLE_PARSER_VERSIONS = {"3", "4", SESSION_PARSER_VERSION}
+READABLE_PARSER_VERSIONS = ("3", "4", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 LEGACY_STORE_VERSION = "v2"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
+
+NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
+NonEmptyStr = Annotated[str, Field(strict=True, min_length=1)]
 
 Completeness = Literal["complete", "partial"]
 IngestionStatus = Literal["ingested", "unchanged", "retained", "skipped"]
@@ -43,38 +48,26 @@ def is_valid_session_id(value: str) -> bool:
 class SessionLog:
     """One source-neutral conversation record."""
 
-    ts: str
-    agent: str
-    sid: str
-    role: str
-    content: str
-    cwd: str = ""
-    model: str = ""
+    ts: StrictStr
+    agent: StrictStr
+    sid: StrictStr
+    role: StrictStr
+    content: StrictStr
+    cwd: StrictStr = ""
+    model: StrictStr = ""
 
     def to_dict(self) -> dict[str, Any]:
-        value: dict[str, Any] = {
-            "ts": self.ts,
-            "agent": self.agent,
-            "sid": self.sid,
-            "role": self.role,
-            "content": self.content,
-        }
-        if self.cwd:
-            value["cwd"] = self.cwd
-        if self.model:
-            value["model"] = self.model
-        return value
+        return _LOG_ADAPTER.dump_python(self, exclude_defaults=True)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> SessionLog:
-        required = ("ts", "agent", "sid", "role", "content")
-        if any(not isinstance(value.get(key), str) for key in required):
-            raise ValueError("invalid normalized transcript record")
-        cwd = value.get("cwd", "")
-        model = value.get("model", "")
-        if not isinstance(cwd, str) or not isinstance(model, str):
-            raise ValueError("invalid normalized transcript record")
-        return cls(*(value[key] for key in required), cwd=cwd, model=model)
+        try:
+            return _LOG_ADAPTER.validate_python(value)
+        except ValidationError:
+            raise ValueError("invalid normalized transcript record") from None
+
+
+_LOG_ADAPTER = TypeAdapter(SessionLog)
 
 
 @dataclass
@@ -93,20 +86,20 @@ class SessionSource:
 class SessionManifest:
     """Provenance, counts, and usage for the stored copy of one session."""
 
-    agent: str
-    session_id: str
-    parser_version: str
-    source_type: str
-    source_fingerprint: str
-    ingested_at: str
+    agent: NonEmptyStr
+    session_id: NonEmptyStr
+    parser_version: NonEmptyStr
+    source_type: NonEmptyStr
+    source_fingerprint: NonEmptyStr
+    ingested_at: NonEmptyStr
     completeness: Completeness
-    record_count: int
-    malformed_records: int = 0
-    skipped_records: int = 0
-    high_water_mark: str = ""
-    cwd: str = ""
-    source_signature: str = ""
-    usage: dict[str, Any] | None = None
+    record_count: NonNegativeInt
+    malformed_records: NonNegativeInt = 0
+    skipped_records: NonNegativeInt = 0
+    high_water_mark: StrictStr = ""
+    cwd: StrictStr = ""
+    source_signature: StrictStr = ""
+    usage: Annotated[dict[str, Any], Field(strict=True)] | None = None
     schema_version: int = SESSION_SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -130,38 +123,25 @@ class SessionManifest:
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> SessionManifest:
+        if (
+            value.get("schema_version") != SESSION_SCHEMA_VERSION
+            or value.get("parser_version") not in READABLE_PARSER_VERSIONS
+        ):
+            raise ValueError("unsupported session format; recapture available sources with dot agent session sync")
+        # Constructor defaults support new captures; all three counters are required on disk.
+        if not {"record_count", "malformed_records", "skipped_records"} <= value.keys():
+            raise ValueError("invalid session manifest")
         try:
-            if value.get("schema_version") != SESSION_SCHEMA_VERSION or (
-                value.get("parser_version") not in READABLE_PARSER_VERSIONS
-            ):
-                raise ValueError("unsupported session format; recapture available sources with dot agent session sync")
-            completeness = value["completeness"]
-            if completeness not in {"complete", "partial"}:
-                raise ValueError("invalid manifest field completeness")
-            usage = value.get("usage")
-            if usage is not None and not isinstance(usage, dict):
-                raise ValueError("invalid manifest field usage")
-            manifest = cls(
-                agent=_string(value, "agent"),
-                session_id=_string(value, "session_id"),
-                parser_version=_string(value, "parser_version"),
-                source_type=_string(value, "source_type"),
-                source_fingerprint=_string(value, "source_fingerprint"),
-                ingested_at=_string(value, "ingested_at"),
-                completeness=completeness,
-                record_count=_integer(value, "record_count"),
-                malformed_records=_integer(value, "malformed_records"),
-                skipped_records=_integer(value, "skipped_records"),
-                high_water_mark=_string(value, "high_water_mark", required=False),
-                cwd=_string(value, "cwd", required=False),
-                source_signature=_string(value, "source_signature", required=False),
-                usage=usage,
-            )
-        except (KeyError, TypeError) as error:
-            raise ValueError("invalid session manifest") from error
+            manifest = _MANIFEST_ADAPTER.validate_python(value)
+        except ValidationError as error:
+            field = error.errors(include_input=False, include_context=False, include_url=False)[0]["loc"][0]
+            raise ValueError(f"invalid manifest field {field}") from None
         if not is_valid_session_id(manifest.agent) or not is_valid_session_id(manifest.session_id):
             raise ValueError("invalid session manifest identity")
         return manifest
+
+
+_MANIFEST_ADAPTER = TypeAdapter(SessionManifest)
 
 
 @dataclass
@@ -356,11 +336,12 @@ def ingest_session(
         if stored is not None:
             if preserve_existing:
                 return SessionIngestionResult("retained", stored)
-            if (stored.parser_version, stored.source_fingerprint, stored.usage) == (
+            if (stored.parser_version, stored.source_fingerprint) == (
                 manifest.parser_version,
                 manifest.source_fingerprint,
-                manifest.usage,
-            ):
+            ) and (stored.usage == manifest.usage or stored.source_type == manifest.source_type == "copilot-db"):
+                # Copilot's fingerprint includes usage; whole-database source_bytes
+                # can grow for unrelated sessions without changing this measurement.
                 # Same content: keep its capture time, refresh only the source signature.
                 if stored.source_signature != manifest.source_signature:
                     manifest.ingested_at = stored.ingested_at

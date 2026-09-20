@@ -172,7 +172,8 @@ def _pull_repository(
             return RepoResult(path=path, branch=branch, dirty=dirty, no_upstream=True)
         behind_raw = git(["rev-list", "--count", "HEAD..@{u}"])
         behind = _count(behind_raw, "behind")
-        git(["pull", "--ff-only"])
+        # Fetch once, then fast-forward the upstream snapshot inspected above.
+        git(["merge", "--ff-only", "@{u}"])
         ahead = _count(git(["rev-list", "--count", "@{u}..HEAD"]), "ahead")
         pushed = False
         push_error = ""

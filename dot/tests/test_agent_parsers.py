@@ -11,7 +11,6 @@ from fmind_dot.archive.parsers import (
     ParsedSession,
     agent_adapters,
     enumerate_sessions,
-    find_transcript,
     parse_agy_session,
     parse_claude_session,
     parse_codex_session,
@@ -455,11 +454,6 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
         "grok",
         "copilot",
     ]
-    assert find_transcript(agy_root, "agy", "agy-id") == preferred_agy
-    assert find_transcript(claude_root, "claude", "claude-direct", "/work/project") == direct_claude
-    assert find_transcript(claude_root, "claude", "claude-fallback") == fallback_claude
-    assert find_transcript(codex_root, "codex", "codex-id") == codex
-    assert find_transcript(grok_root, "grok", "grok-id", "/work/grok") == grok
     assert enumerate_sessions(agy_root, "agy") == [("agy-id", "", preferred_agy)]
     assert {candidate[0] for candidate in enumerate_sessions(claude_root, "claude")} == {
         "claude-direct",
@@ -473,8 +467,6 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
         "signals-id",
     }
 
-    with pytest.raises(FileNotFoundError, match="missing"):
-        find_transcript(grok_root, "grok", "missing")
     with pytest.raises(ValueError, match="no verified session parser"):
         enumerate_sessions(tmp_path, "unknown")
 

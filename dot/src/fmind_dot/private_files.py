@@ -1,4 +1,4 @@
-"""Owner-only directories and atomically replaced files."""
+"""Owner-only directories and atomic file publication with explicit permissions."""
 
 import os
 import tempfile
@@ -13,7 +13,12 @@ def private_directory(path: Path) -> Path:
 
 
 def write_private_file(path: Path, content: bytes) -> None:
-    """Replace a file atomically: readers see the previous or the new content, never a mix."""
+    """Publish an owner-only file, including when replacing a less restrictive file."""
+    write_atomic_file(path, content, mode=0o600)
+
+
+def write_atomic_file(path: Path, content: bytes, *, mode: int) -> None:
+    """Replace a file atomically after writing, setting permissions, and syncing it."""
     # mkstemp creates the file with 0600 in the target directory, so the replace stays atomic.
     descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     temporary = Path(name)
@@ -21,6 +26,7 @@ def write_private_file(path: Path, content: bytes) -> None:
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(content)
             stream.flush()
+            os.fchmod(stream.fileno(), mode)
             os.fsync(stream.fileno())
         temporary.replace(path)
     except BaseException:

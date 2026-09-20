@@ -14,7 +14,7 @@ hyperfine --warmup 3 --runs 10 'old-cmd' 'new-cmd'                       # A/B w
 hyperfine --warmup 3 --prepare 'uv sync --frozen' 'uv run --frozen pytest -q'   # measure the test run, not uv's lock check
 hyperfine --parameter-list n 10,100,1000 'tool --items {n}'               # scaling curve
 hyperfine --export-markdown bench.md --export-json bench.json 'cmd'       # tables for the PR, raw data for later
-oha -z 30s -c 50 --latency-correction http://localhost:8080/health        # 30 s, 50 connections, record the load model and correction setting
+oha -z 30s -c 50 -q 100 --latency-correction http://localhost:8080/health # 30 s, 50 connections, target 100 requests/s; adapt to the authorized load
 oha -n 2000 -c 20 -m POST -H 'Content-Type: application/json' -d '{"q":1}' http://localhost:8080/api
 oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080/   # scriptable output for CI or a report
 ```
@@ -31,6 +31,7 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 
 - **Never load-test a remote service you do not own** or a production system without explicit approval; agree a load bound and stop condition appropriate to the target's capacity.
 - **Localhost numbers exclude the network**: `oha` against `localhost` measures the server, not the user experience.
+- **Correction needs a rate**: oha ignores `--latency-correction` without `-q`; set an authorized request rate and report that rate, concurrency, and achieved throughput together.
 - **Shell startup pollutes short commands**: use `--shell=none` in hyperfine for sub-10 ms commands, or `-N`.
 - **Caches lie**: a second run of a build or query hits caches; use `--prepare` to clear them when the cold path is what matters.
 - **Cloud Run cold starts**: benchmark with `--min-instances` known, and separate first-request latency from steady state per the [cloud-run skill](../../cloud-run/SKILL.md).

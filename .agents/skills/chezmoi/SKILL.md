@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-09-19"
+  updated: "2026-09-20"
 ---
 
 # Chezmoi Source Standard
@@ -29,12 +29,12 @@ Read [source names](references/source-names.md) when adding or renaming a manage
    chezmoi edit ~/.config/<tool>/secret            # edit the plaintext, re-encrypt on save
    ```
 
-1. **Preview**: `mise run diff` (`chezmoi diff`; add `--force` in automation to skip prompts).
+1. **Preview**: `mise run diff` (`chezmoi diff --force`; restrict to affected non-secret targets).
 1. **Validate rendering**: `mise run check:chezmoi` uses temporary configuration and destination with a dry run excluding encrypted files. It checks the current platform; exercise changed Linux/macOS branches separately and report unexercised branches or encrypted targets.
-1. **Check repeatability**: for Bash/profile modifier changes, add existing-target and second-pass cases under `dot/tests/`, using the isolated rendering approach in `test_harness_config.py`. Inspect affected `run_once_*` and `run_onchange_*` hooks: changing their content can trigger installation or other commands.
+1. **Check repeatability**: for Bash/profile modifier changes, add existing-target and second-pass cases under `dot/tests/`, using the isolated rendering approach in `test_harness_config.py`. Inspect affected `run_*` hooks: ordinary hooks run on each apply; once/onchange hooks can rerun when their content changes.
 1. **Apply within scope**: `mise run apply` (`chezmoi apply --force`); `mise run apply:externals` (`chezmoi apply --force --refresh-externals`) forces re-fetching upstream themes and font archives. `--force` is mandatory in scripts and hooks so a diverged target never blocks on a prompt, `--dry-run` previews without writing. Applying also executes eligible hooks; `--force` does not expand authorized targets or side effects.
 1. **Pull target edits back**: `chezmoi re-add` folds manual changes to a managed file (a regenerated lockfile, for example) into the source.
-1. **Diagnose**: `mise run doctor` (`chezmoi doctor` and `mise doctor`); `chezmoi managed` and `chezmoi unmanaged` list coverage; the [installed-link recovery guide](../dot-skills/references/installed-links.md) previews former managed targets; approved cleanup moves them to recoverable backups. Use command help and [dot-cli](../../../skills/dot-cli/SKILL.md) for cleanup flags.
+1. **Diagnose**: `mise run doctor` (`chezmoi doctor`, `mise doctor`, and installed npm/pipx vulnerability audits); `chezmoi managed` and `chezmoi unmanaged` list coverage; the [installed-link recovery guide](../dot-skills/references/installed-links.md) previews former managed targets; approved cleanup moves them to recoverable backups. Use command help and [dot-cli](../../../skills/dot-cli/SKILL.md) for cleanup flags.
 
 ## Gotchas
 

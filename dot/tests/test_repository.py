@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 from threading import Barrier, Lock
@@ -100,7 +101,7 @@ class ConcurrentPullRunner(RecordingRunner):
             ("git", "rev-list", "--count", "@{u}..HEAD"),
         }:
             return result("0\n")
-        if command == ("git", "pull", "--ff-only"):
+        if command == ("git", "merge", "--ff-only", "@{u}"):
             return result()
         raise AssertionError(f"unexpected command: {command}")
 
@@ -152,6 +153,42 @@ def test_repository_discovery_does_not_follow_workspace_symlinks(tmp_path: Path)
     assert linked.is_symlink()
 
 
+def test_pull_fast_forwards_a_local_remote_and_rejects_divergence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    runner = Runner()
+
+    def git(path: Path, *args: str) -> str:
+        return runner.run(
+            ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args],
+            cwd=path,
+            timeout=10,
+        ).stdout.strip()
+
+    remote, seed, checkout = (tmp_path / name for name in ("remote.git", "seed", "checkout"))
+    git(tmp_path, "init", "--bare", "--initial-branch=main", str(remote))
+    git(tmp_path, "clone", str(remote), str(seed))
+    git(seed, "commit", "--allow-empty", "-m", "initial")
+    git(seed, "push", "origin", "main")
+    git(tmp_path, "clone", str(remote), str(checkout))
+    git(seed, "commit", "--allow-empty", "-m", "remote update")
+    git(seed, "push", "origin", "main")
+    state = state_with(runner, Config(pull=PullConfig(directories=[str(checkout)])))
+    [pulled] = run_pull(state)
+    assert pulled.commits == 1
+    assert git(checkout, "rev-parse", "HEAD") == git(seed, "rev-parse", "HEAD")
+    git(checkout, "commit", "--allow-empty", "-m", "local update")
+    local = git(checkout, "rev-parse", "HEAD")
+    git(seed, "commit", "--allow-empty", "-m", "diverging update")
+    git(seed, "push", "origin", "main")
+    with pytest.raises(DotError, match="failed to pull"):
+        run_pull(state)
+    assert git(checkout, "rev-parse", "HEAD") == local
+    assert git(checkout, "status", "--porcelain") == ""
+
+
 @pytest.mark.parametrize("blocked", ["root", "entry"])
 def test_repository_discovery_reports_unreadable_paths(tmp_path: Path, blocked: str) -> None:
     workspace = tmp_path / "workspace"
@@ -178,7 +215,7 @@ def test_pull_fast_forwards_but_does_not_push_a_dirty_repository(tmp_path: Path)
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("2\n")],
-            ("git", "pull", "--ff-only"): [result()],
+            ("git", "merge", "--ff-only", "@{u}"): [result()],
             ("git", "rev-list", "--count", "@{u}..HEAD"): [result("1\n")],
         },
         {"git"},
@@ -339,7 +376,7 @@ def test_pull_pushes_clean_detached_repository_that_is_ahead(tmp_path: Path) -> 
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("0\n")],
-            ("git", "pull", "--ff-only"): [result()],
+            ("git", "merge", "--ff-only", "@{u}"): [result()],
             ("git", "rev-list", "--count", "@{u}..HEAD"): [result("2\n")],
             ("git", "push"): [result()],
         },
@@ -367,7 +404,7 @@ def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path)
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("1\n")],
-            ("git", "pull", "--ff-only"): [result()],
+            ("git", "merge", "--ff-only", "@{u}"): [result()],
             ("git", "rev-list", "--count", "@{u}..HEAD"): [result("1\n")],
             ("git", "push"): [result(returncode=1)],
         },
