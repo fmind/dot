@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.0.2] - 2026-09-20
+
+### 🐛 Bug Fixes
+
+- Harden session archives and streamline workstation workflows
+
 ## [7.0.1] - 2026-09-19
 
 ### 🐛 Bug Fixes
