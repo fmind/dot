@@ -3,36 +3,25 @@
 from __future__ import annotations
 
 import json
-import math
 import re
 from calendar import monthrange
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Annotated, Any, Literal, Required, TypedDict
 from zoneinfo import ZoneInfo
 
+from pydantic import AfterValidator, Field, StrictBool, StrictStr, TypeAdapter, ValidationError, with_config
+
 from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
-from fmind_dot.archive.store import is_valid_session_id
+from fmind_dot.archive.store import NonNegativeInt, is_valid_session_id
 from fmind_dot.config import PricingConfig, SubscriptionConfig, default_pricing
 from fmind_dot.reporting import write_report_line
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
 USAGE_EXTRACTOR_VERSION = "2"
-_MEASUREMENT_KINDS = {"", "provider-reported", "estimated", "context-only"}
-_USAGE_STRING_FIELDS = (
-    "timestamp",
-    "harness",
-    "agent",
-    "session_id",
-    "model",
-    "cwd",
-    "schema_version",
-    "extractor_version",
-    "measurement_kind",
-)
 _USAGE_IDENTITY_FIELDS = ("timestamp", "harness", "agent", "session_id")
 _USAGE_INTEGER_FIELDS = (
     "input_tokens",
@@ -56,30 +45,51 @@ def _parse_usage_timestamp(value: str) -> datetime:
         raise ValueError("usage record field 'timestamp' must be a valid ISO 8601 timestamp") from error
 
 
+def _sample_timestamp(value: str) -> str:
+    _parse_usage_timestamp(value)
+    return value
+
+
+@with_config(extra="forbid", strict=True)
+class UsageSample(TypedDict, total=False):
+    """Only request timing, model, and counters may enter compact measurements."""
+
+    timestamp: Required[Annotated[str, AfterValidator(_sample_timestamp)]]
+    model: str
+    input_tokens: NonNegativeInt
+    output_tokens: NonNegativeInt
+    cached_tokens: NonNegativeInt
+    cache_write_tokens: NonNegativeInt
+    reasoning_tokens: NonNegativeInt
+    total_tokens: NonNegativeInt
+    turn_count: NonNegativeInt
+
+
+@with_config(revalidate_instances="always")
 @dataclass
 class UsageRecord:
-    timestamp: str = ""
-    harness: str = ""
-    agent: str = ""
-    session_id: str = ""
-    model: str = ""
-    cwd: str = ""
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cached_tokens: int = 0
-    cache_write_tokens: int = 0
-    reasoning_tokens: int = 0
-    total_tokens: int = 0
-    cost_usd: float = 0.0
-    cost_known: bool = False
-    turn_count: int = 0
-    schema_version: str = USAGE_SCHEMA_VERSION
-    extractor_version: str = USAGE_EXTRACTOR_VERSION
-    measurement_kind: str = ""
-    source_bytes: int = 0
-    legacy_accounting: bool = False
+    timestamp: StrictStr = ""
+    harness: StrictStr = ""
+    agent: StrictStr = ""
+    session_id: StrictStr = ""
+    model: StrictStr = ""
+    cwd: StrictStr = ""
+    input_tokens: NonNegativeInt = 0
+    output_tokens: NonNegativeInt = 0
+    cached_tokens: NonNegativeInt = 0
+    cache_write_tokens: NonNegativeInt = 0
+    reasoning_tokens: NonNegativeInt = 0
+    total_tokens: NonNegativeInt = 0
+    cost_usd: Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] = 0.0
+    cost_known: StrictBool = False
+    turn_count: NonNegativeInt = 0
+    schema_version: StrictStr = USAGE_SCHEMA_VERSION
+    extractor_version: StrictStr = USAGE_EXTRACTOR_VERSION
+    measurement_kind: Literal["", "provider-reported", "estimated", "context-only"] = ""
+    source_bytes: NonNegativeInt = 0
+    legacy_accounting: StrictBool = False
     # Compact request measurements: timestamp, model, and token counters only.
-    samples: list[dict[str, Any]] = field(default_factory=list)
+    samples: Annotated[list[UsageSample], Field(strict=True)] = field(default_factory=list)
 
     def set_samples(self, samples: list[UsageRecord], *, timed: bool = True) -> None:
         """Reconcile a session to deduplicated request measurements."""
@@ -120,43 +130,28 @@ class UsageRecord:
 
     def to_dict(self) -> dict[str, Any]:
         self._validate(complete=True)
-        result: dict[str, Any] = {
-            "timestamp": self.timestamp,
-            "harness": self.harness,
-            "agent": self.agent,
-            "session_id": self.session_id,
+        optional = {
+            "model",
+            "cwd",
+            "cached_tokens",
+            "cache_write_tokens",
+            "reasoning_tokens",
+            "turn_count",
+            "measurement_kind",
+            "source_bytes",
         }
-        if self.model:
-            result["model"] = self.model
-        if self.cwd:
-            result["cwd"] = self.cwd
-        result["input_tokens"] = self.input_tokens
-        result["output_tokens"] = self.output_tokens
-        if self.cached_tokens:
-            result["cached_tokens"] = self.cached_tokens
-        if self.cache_write_tokens:
-            result["cache_write_tokens"] = self.cache_write_tokens
-        if self.reasoning_tokens:
-            result["reasoning_tokens"] = self.reasoning_tokens
-        result["total_tokens"] = self.total_tokens
+        result = _USAGE_ADAPTER.dump_python(
+            self, exclude={name for name in optional if not getattr(self, name)} | {"legacy_accounting", "samples"}
+        )
         result["cost_usd"] = self.cost_usd if self.cost_known or self.cost_usd > 0 else None
         result["cost_known"] = self.cost_known or self.cost_usd > 0
-        if self.turn_count:
-            result["turn_count"] = self.turn_count
-        result["schema_version"] = self.schema_version
-        result["extractor_version"] = self.extractor_version
-        if self.measurement_kind:
-            result["measurement_kind"] = self.measurement_kind
-        if self.source_bytes:
-            result["source_bytes"] = self.source_bytes
         if self.samples:
             result["samples"] = self.samples
         return result
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> UsageRecord:
-        fields = cls.__dataclass_fields__
-        arguments = {key: value[key] for key in fields if key in value}
+        arguments = {item.name: value[item.name] for item in fields(cls) if item.name in value}
         if arguments.get("cost_usd") is None:
             arguments.pop("cost_usd", None)
         if (
@@ -171,11 +166,17 @@ class UsageRecord:
         return record
 
     def _validate(self, *, complete: bool) -> None:
-        if not isinstance(self.cost_known, bool):
-            raise ValueError("usage cost_known must be a boolean")
-        for name in _USAGE_STRING_FIELDS:
-            if not isinstance(getattr(self, name), str):
-                raise ValueError(f"usage record field {name!r} must be a string")
+        try:
+            validated = _USAGE_ADAPTER.validate_python(self)
+        except ValidationError as error:
+            # Only expose the declared top-level field, never source values or nested keys.
+            field = error.errors(include_input=False, include_context=False, include_url=False)[0]["loc"][0]
+            if field in {*_USAGE_INTEGER_FIELDS, "source_bytes"}:
+                raise ValueError(f"usage record field {field!r} must be a non-negative integer") from None
+            raise ValueError(f"invalid usage record field {field!r}") from None
+        except OverflowError:
+            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number") from None
+        self.cost_usd = validated.cost_usd
         if complete:
             for name in _USAGE_IDENTITY_FIELDS:
                 if not getattr(self, name):
@@ -185,41 +186,17 @@ class UsageRecord:
         if self.timestamp:
             _parse_usage_timestamp(self.timestamp)
         if self.harness and not is_valid_session_id(self.harness):
-            raise ValueError(f"invalid harness {self.harness!r}; expected an ASCII name without path separators")
-        for name in _USAGE_INTEGER_FIELDS:
-            item = getattr(self, name)
-            if isinstance(item, bool) or not isinstance(item, int) or item < 0:
-                raise ValueError(f"usage record field {name!r} must be a non-negative integer")
-        if isinstance(self.source_bytes, bool) or not isinstance(self.source_bytes, int) or self.source_bytes < 0:
-            raise ValueError("usage record field 'source_bytes' must be a non-negative integer")
-        if self.measurement_kind not in _MEASUREMENT_KINDS:
-            raise ValueError(f"unknown usage measurement_kind {self.measurement_kind!r}")
-        cost = self.cost_usd
-        if isinstance(cost, bool) or not isinstance(cost, (int, float)):
-            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number")
-        try:
-            normalized_cost = float(cost)
-        except OverflowError as error:
-            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number") from error
-        if not math.isfinite(normalized_cost) or normalized_cost < 0:
-            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number")
-        self.cost_usd = normalized_cost
-        if not isinstance(self.samples, list):
-            raise ValueError("usage samples must be a list")
-        for sample in self.samples:
-            if not isinstance(sample, dict) or set(sample) - {"timestamp", "model", *_USAGE_INTEGER_FIELDS}:
-                raise ValueError("invalid usage sample fields")
-            if not sample.get("timestamp"):
-                raise ValueError("usage sample requires a timestamp")
-            # Reuse the same strict boundary for compact samples and session totals.
-            _sample_record(self, sample).to_dict()
+            raise ValueError("invalid harness; expected an ASCII name without path separators")
         if self.samples and any(
             sum(sample.get(name, 0) for sample in self.samples) != getattr(self, name) for name in _USAGE_INTEGER_FIELDS
         ):
             raise ValueError("usage samples do not reconcile with session totals")
 
 
-def _sample_record(record: UsageRecord, sample: dict[str, Any]) -> UsageRecord:
+_USAGE_ADAPTER = TypeAdapter(UsageRecord)
+
+
+def _sample_record(record: UsageRecord, sample: UsageSample) -> UsageRecord:
     return UsageRecord(
         harness=record.harness,
         agent=record.agent or record.harness,
@@ -449,7 +426,7 @@ def aggregate_usage(
 
 def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: int = 50) -> list[UsageRecord]:
     filtered = [record for record in records if not harness or harness in {record.harness, record.agent}]
-    filtered.sort(key=lambda record: record.timestamp, reverse=True)
+    filtered.sort(key=lambda record: _parse_usage_timestamp(record.timestamp), reverse=True)
     return filtered[:limit] if limit > 0 else filtered
 
 
@@ -530,6 +507,9 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
     kinds = {row.measurement_kind for row in rows}
     if len(kinds) > 1:
         write("No combined total: measurement kinds are not comparable.")
+        return
+    if by_model:
+        write("Sessions using multiple models appear in each model row; no combined session total.")
         return
     total.measurement_kind = next(iter(kinds))
     write_row(total)

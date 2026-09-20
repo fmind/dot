@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-09-19"
+  updated: "2026-09-20"
 ---
 
 # Dot Release
@@ -24,8 +24,8 @@ Use the checkout's release task as the single owner of preparation and publicati
 1. **Verify delivery**: the tag triggers [cd.yml](../../../.github/workflows/cd.yml): a read-only `build` job runs the gate and uploads the distributions; a `publish` job holding the write and OIDC permissions validates tag and version, attests, then publishes. `mise run release -- --wait` observes the exact head/tag CD and checks public wheel/source assets within `--timeout-seconds` (default 1800); without it, success reports dispatch only. Follow the global release skill's [verification](../../../skills/git-delivery/references/release/references/verify.md) and [asset checks](../../../skills/git-delivery/references/release/references/verify-assets.md) for deeper artifact and installed-version proof. Local command success does not prove CD completion.
 
 ```bash
-mise run release          # interactive preparation and publication
-mise run release -- -y     # non-interactive, within an authorized release
+mise run release -- --wait     # interactive release with delivery verification
+mise run release -- -y --wait  # non-interactive, within an authorized release
 ```
 
 ## Recovery

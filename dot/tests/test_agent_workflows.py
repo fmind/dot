@@ -5,6 +5,7 @@ import json
 import sqlite3
 import sys
 from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -290,6 +291,115 @@ def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
     assert (record["model"], record["total_tokens"]) == ("gpt-test", 27)
     assert [path.name for path in (tmp_path / ".agents/sessions/v3/copilot").glob("*.jsonl")] == ["copilot-live.jsonl"]
     assert read_session_manifest(session_bundle_path("copilot", "copilot-live")).record_count == 2
+
+
+@pytest.mark.parametrize("agent", ["claude", "codex", "grok", "agy"])
+def test_sync_reports_inaccessible_project_directories(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state = _state()
+    source = tmp_path / "source"
+    blocked = source / "project"
+    blocked.mkdir(parents=True)
+    (blocked / "session.jsonl").write_text("{}\n")
+    state.config.agent.sources[agent] = str(source)
+    blocked.chmod(0)
+    try:
+        with pytest.raises(DotError, match="1 failure"):
+            sync_sessions(state, agent=agent)
+    finally:
+        blocked.chmod(0o700)
+    checkpoint = json.loads((tmp_path / f".agents/sessions/v3/{agent}/.sync.json").read_text())
+    assert checkpoint["failed"] == 1
+    assert "failed to scan sessions" in _stderr(state)
+
+
+def test_copilot_checkpoint_skips_reads_and_keeps_unchanged_bundles(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    database = tmp_path / ".copilot/session-store.db"
+    _create_copilot_database(database)
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute("INSERT INTO sessions SELECT 'other', cwd, created_at, updated_at FROM sessions")
+        connection.execute(
+            "INSERT INTO turns SELECT 2, 'other', turn_index, user_message, assistant_response, timestamp FROM turns"
+        )
+        connection.execute(
+            "INSERT INTO assistant_usage_events SELECT 'other', model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, reasoning_tokens FROM assistant_usage_events"
+        )
+        connection.commit()
+    state = _state()
+    sync_sessions(state, agent="copilot")
+    unchanged = session_bundle_path("copilot", "other")
+    original = unchanged.read_bytes(), unchanged.stat().st_mtime_ns, unchanged.stat().st_ino
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute("UPDATE assistant_usage_events SET input_tokens=20 WHERE session_id='copilot-live'")
+        # A growing shared database must not update source_bytes in unrelated bundles.
+        connection.execute("CREATE TABLE unrelated(payload TEXT)")
+        connection.execute("INSERT INTO unrelated VALUES (?)", ("x" * 20000,))
+        connection.commit()
+    outcome = sync_sessions(state, agent="copilot")
+    assert (outcome.ingested, outcome.unchanged) == (1, 1)
+    assert (unchanged.read_bytes(), unchanged.stat().st_mtime_ns, unchanged.stat().st_ino) == original
+    assert sync_sessions(state, agent="copilot").selected == 0
+    # Checkpoints cannot hide deleted bundles: only existing current bundles can skip.
+    unchanged.unlink()
+    assert sync_sessions(state, agent="copilot").ingested == 1
+    assert unchanged.exists()
+
+
+@pytest.mark.parametrize("interruption", ["filtered", "failed", "changed-during-scan"])
+def test_copilot_partial_scans_never_publish_a_skip_checkpoint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, interruption: str
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    database = tmp_path / ".copilot/session-store.db"
+    _create_copilot_database(database)
+    state = _state()
+    adapter = archive_sync_module.AGENT_ADAPTERS["copilot"]
+
+    def parse(path: Path, session_id: str, cwd: str) -> ParsedSession:
+        result = adapter.parser(path, session_id, cwd)
+        if interruption == "failed":
+            result.usage_error = ValueError("synthetic extraction failure")
+        elif interruption == "changed-during-scan":
+            with closing(sqlite3.connect(database)) as connection:
+                connection.execute("UPDATE assistant_usage_events SET input_tokens=20")
+                connection.commit()
+        return result
+
+    with monkeypatch.context() as temporary:
+        temporary.setitem(archive_sync_module.AGENT_ADAPTERS, "copilot", replace(adapter, parser=parse))
+        sync_sessions(state, agent="copilot", session="copilot-live" if interruption == "filtered" else "", quiet=True)
+    # The unchanged source still needs a full parse after partial/failed capture.
+    outcome = sync_sessions(state, agent="copilot")
+    assert outcome.selected == 1
+    manifest = read_session_manifest(session_bundle_path("copilot", "copilot-live"))
+    assert manifest.usage is not None
+    assert manifest.usage["input_tokens"] == (20 if interruption == "changed-during-scan" else 10)
+    assert sync_sessions(state, agent="copilot").selected == 0
+
+
+def test_copilot_checkpoint_detects_wal_updates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    database = tmp_path / ".copilot/session-store.db"
+    _create_copilot_database(database)
+    state = _state()
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("UPDATE assistant_usage_events SET input_tokens=15")
+        connection.commit()
+        sync_sessions(state, agent="copilot")
+        before = database.stat().st_size, database.stat().st_mtime_ns
+        connection.execute("UPDATE assistant_usage_events SET input_tokens=20")
+        connection.commit()
+        assert (database.stat().st_size, database.stat().st_mtime_ns) == before
+        assert sync_sessions(state, agent="copilot").ingested == 1
+        manifest = read_session_manifest(session_bundle_path("copilot", "copilot-live"))
+        assert manifest.usage is not None
+        assert manifest.usage["input_tokens"] == 20
 
 
 def test_reports_sync_first_and_warn_without_blocking_on_failures(

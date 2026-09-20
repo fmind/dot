@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # Atlassian CLI
@@ -16,7 +16,7 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
 
 ## Workflow
 
-1. **Resolve the account**: `acli auth status`, then `acli auth login` for OAuth or an API token piped on stdin, never as an argument; `acli auth switch` selects the site when several are configured.
+1. **Resolve the account**: use `acli auth status`, `acli auth login`, and `acli auth switch` for OAuth accounts. Jira API-token authentication uses `acli jira auth status` and the service-specific login below; pipe the token on stdin, never as an argument.
 
    ```bash
    acli jira auth login --site <site>.atlassian.net --email <email> --token < token.txt

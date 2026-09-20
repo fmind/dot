@@ -27,7 +27,6 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 - Require explicit authority for destructive actions, history rewrites, production changes, spending, and contacting others. Prepare a reviewable result before requesting missing approval. Run non-interactively; `--force`/`--yes` do not expand authority.
 - Use relevant private records locally; share only non-sensitive conclusions. Never expose secrets, private passages, identifiers, or revealing paths/citations in shared outputs or external queries. Check dates and current checkout/service behavior.
 - Stop relevant work, waits, retries, and continuations promptly when asked; do not launch successor work.
-- Evidence over confidence: test observable outcomes and realistic failures, not implementation copies. Claim a defect only with a reproducer, failing fixture, or observed state; otherwise label it inference. Re-run the reproducer after the fix. Run required gates without warnings, bypassed hooks, weakened assertions, added skips, or suppressed warnings. Report blockers, unverified behavior, and recovery. Distinguish local checks, exact-commit CI, publication, and live runtime; refresh external state before claiming success.
 
 ## Skills and environment
 

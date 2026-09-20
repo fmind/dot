@@ -15,6 +15,8 @@ My personal dotfiles for **AI-driven, CLI-first** development on Linux and macOS
 
 The CI gate renders the chezmoi templates as a dry run and runs the static checks, tests, and build; it does not execute `install.sh` end to end.
 
+[Install](#installation) · [Use](#everyday-use) · [Tasks](#repository-tasks) · [Credentials](#credentials) · [Adapt](#adapting-this)
+
 ## Highlights
 
 - **Shell & Terminal** — [Fish](https://fishshell.com/) with [Starship](https://starship.rs/), [Atuin](https://atuin.sh/), [zoxide](https://github.com/ajeetdsouza/zoxide), [fzf](https://github.com/junegunn/fzf), [Ghostty](https://ghostty.org/), and [Zellij](https://zellij.dev/).
@@ -123,6 +125,35 @@ agent:
 ```
 
 See the [billing reference](skills/agent-usage/references/queries.md#monthly-and-subscription-reports) for cycle boundaries and coverage limitations.
+
+## Everyday use
+
+```bash
+dot --help                # Discover commands
+dot doctor                # Check workstation health
+dot config show           # Inspect effective settings
+dot agent stats           # Review agent usage and prompt statistics
+```
+
+Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply them. See the [Dot CLI guide](skills/dot-cli/SKILL.md) for command details.
+
+## Repository tasks
+
+Run these from `~/.local/share/chezmoi`. Use `mise tasks` for the full list and aliases; [`mise.toml`](mise.toml) owns the definitions.
+
+| Command                                         | Purpose                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `mise run diff`                                 | Preview pending dotfile changes                               |
+| `mise run apply`                                | Apply dotfiles and eligible hooks                             |
+| `mise run deploy`                               | Build and install the local `dot` CLI                         |
+| `mise run upgrade`                              | Upgrade dependencies, tools, and plugins; apply and reinstall |
+| `mise run check:docs` / `mise run check:skills` | Validate documentation and skill contracts                    |
+| `mise run check`                                | Run static checks and security scans                          |
+| `mise run test`                                 | Run Python and repository tests                               |
+| `mise run all`                                  | Format, check, test, and build                                |
+| `mise run release -- --wait`                    | Commit, push, publish, and verify a release                   |
+
+`all` rewrites formatting; it does not apply dotfiles. Release prerequisites and recovery live in the [release guide](.agents/skills/dot-release/SKILL.md); contributor rules live in [AGENTS.md](AGENTS.md).
 
 ## Agent skills
 

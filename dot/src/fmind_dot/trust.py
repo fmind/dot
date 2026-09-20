@@ -1,9 +1,7 @@
 """Pre-accept coding-harness folder trust for repositories the owner works in."""
 
 import json
-import os
 import re
-import tempfile
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
@@ -13,6 +11,7 @@ import typer
 
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
+from fmind_dot.private_files import write_atomic_file
 from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State, state_from
 from fmind_dot.workstation import DryRun
@@ -26,15 +25,7 @@ _COPILOT_COMMENT = re.compile(r"^\s*//")
 def _write(path: Path, text: str) -> None:
     """Replace the file atomically, keeping its permissions (new files are owner-only)."""
     mode = path.stat().st_mode & 0o777 if path.exists() else 0o600
-    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(text)
-        Path(temporary).chmod(mode)
-        Path(temporary).replace(path)
-    except BaseException:
-        Path(temporary).unlink(missing_ok=True)
-        raise
+    write_atomic_file(path, text.encode("utf-8"), mode=mode)
 
 
 def _load_json(path: Path, text: str) -> dict[str, Any]:

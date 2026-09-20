@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # dprint
@@ -43,7 +43,7 @@ run = "dprint check"
 
 ## Gotchas
 
-- **Plugin references**: prefer the `npm:` form (`npm:@dprint/markdown@0.23.3`, `npm:dprint-plugin-yaml@0.6.0`) over `https://plugins.dprint.dev/...wasm` URLs; both resolve, and the npm form makes the current version one `npm view <plugin> version` away.
+- **Plugin references**: prefer the `npm:` form (`npm:@dprint/markdown@0.24.0`, `npm:dprint-plugin-yaml@0.6.0`) over `https://plugins.dprint.dev/...wasm` URLs; both resolve, and the npm form makes the current version one `npm view <plugin> version` away.
 - **Plugin order is precedence**: the `plugins` array order decides which plugin claims a file; keep specialized plugins before generic ones.
 - **Embedded code blocks**: the Markdown plugin formats fenced JSON, TOML, and YAML only when those plugins are loaded too.
 - **Staged vs whole-tree**: `format:dprint` takes `{staged_files}` from the hook and restages fixes; `check:format` always runs on the whole tree.

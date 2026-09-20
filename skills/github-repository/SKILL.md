@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # GitHub Repository
@@ -23,11 +23,10 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
    - `README.md`: the first paragraphs give a one-line description under ~140 characters.
    - Homepage: derive from hosting, e.g. `https://<owner>.github.io/<repo>` for GitHub Pages.
    - Topics: 3 to 6 lowercase tags for language, frameworks, tools, or domain (`agent`, `python`, `cli`); letters, numbers, and hyphens only, 50 characters max, 20 per repository.
-1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated:
+1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated. Resolve repository identity through `gh`; never print raw remote URLs, which can contain credentials:
 
    ```bash
    gh auth status
-   git config --get remote.origin.url
    gh repo view --json nameWithOwner,visibility,isInOrganization,description,homepageUrl,repositoryTopics,deleteBranchOnMerge,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed,hasIssuesEnabled,hasProjectsEnabled,hasWikiEnabled,hasDiscussionsEnabled
    ```
 

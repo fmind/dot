@@ -297,3 +297,24 @@ def test_discovery_ignores_temporary_files_sync_state_and_unsafe_names(
     (session_store_root() / "bad agent").mkdir()
 
     assert discover_session_bundles() == [directory / "session-1.jsonl"]
+
+
+def test_archive_validation_does_not_echo_transcripts_or_manifest_values() -> None:
+    import traceback
+
+    transcript = {"ts": "", "agent": "codex", "sid": "one", "role": "user", "content": {"private-marker": 1}}
+    manifest = _manifest_value(source_type={"private-marker": 1})
+    with pytest.raises(ValueError, match="invalid normalized transcript record") as transcript_error:
+        SessionLog.from_dict(transcript)
+    with pytest.raises(ValueError, match="invalid manifest field source_type") as manifest_error:
+        SessionManifest.from_dict(manifest)
+    for error in (transcript_error, manifest_error):
+        assert "private-marker" not in "".join(traceback.format_exception(error.value))
+
+
+def test_transcript_serialization_preserves_empty_required_fields_and_optional_order() -> None:
+    log = SessionLog("", "codex", "one", "user", "café", model="test")
+    assert marshal_session_logs([log]) == (
+        '{"ts":"","agent":"codex","sid":"one","role":"user","content":"café","model":"test"}\n'.encode()
+    )
+    assert SessionLog.from_dict(log.to_dict() | {"future": "ignored"}) == log

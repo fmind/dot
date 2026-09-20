@@ -6,13 +6,14 @@ Read this before changing discovery, parser output, replacement rules, or storag
 
 1. Identify whether the change affects source discovery, normalized transcript bytes, usage extraction, the bundle manifest, or queries. Check callers in `agent.py` and the matching parser/store/query tests.
 1. For changed normalized output from the same source, bump `SESSION_PARSER_VERSION`: sync reparses every source whose stored parser differs and replaces the copy when the new parse has at least as many records. Evaluate `SESSION_SCHEMA_VERSION` and `SESSION_STORE_VERSION` separately when the bundle structure or layout changes; a new store needs a migration from the previous one that never modifies the old store.
-1. Preserve the replacement rules: one bundle per agent and session; never replace with fewer records; never replace when usage extraction fails (a new session keeps its transcript without usage and retries on the next sync). Keep the stat signature complete enough that sync never skips a changed source.
+1. Preserve the replacement rules: one bundle per agent and session; never replace with fewer records; never replace when usage extraction fails (a new session keeps its transcript without usage and retries on the next sync). File sources use size/mtime signatures. SQLite sources include the WAL and share a database checkpoint; publish that checkpoint only after a complete, unfiltered pass with no failures, retained bundles, or source changes.
 1. Keep owner-only permissions, locked read/compare/write publication, atomic file replacement, and safe path components for agent and session identities. Keep private transcript content out of fixtures and diagnostic output; use synthetic records.
 1. Test repeated sync, truncated sources, failed usage, malformed input, migration, and query selection. Verify that unsupported formats stop queries and sync before mutation.
 
 ## Useful evidence
 
 - [Parser tests](../../../../dot/tests/test_agent_parsers.py): source snapshots, malformed records, supported formats, and usage metrics.
+- [Workflow tests](../../../../dot/tests/test_agent_workflows.py): database checkpoints, filtered sync, failed captures, and changes during a pass.
 - [Storage tests](../../../../dot/tests/test_session_store.py): bundle layout, private permissions, replacement rules, and corruption.
 - [Transaction tests](../../../../dot/tests/test_archive_transaction.py): incremental sync, usage retention, and v2 migration.
 - [Query tests](../../../../dot/tests/test_session_query.py): status, filters, and archive retrieval.

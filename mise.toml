@@ -235,7 +235,11 @@ run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --syn
 [tasks."format:lua"]
 alias = "fu"
 description = "Format Neovim Lua sources"
-run = "stylua dot_config/nvim"
+run = "mise run format:lua:files dot_config/nvim"
+
+[tasks."format:lua:files"]
+description = "Format only the supplied Lua files (pre-commit passes staged files)"
+run = "stylua"
 
 [tasks."format:python"]
 alias = "fp"

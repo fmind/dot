@@ -13,10 +13,10 @@ pre-commit:
       priority: 10
       run: mise run format:dprint {staged_files}
       stage_fixed: true
-    format:lua:
+    format:lua:files:
       glob: "**/*.lua"
       priority: 10
-      run: mise run format:lua {staged_files}
+      run: mise run format:lua:files {staged_files}
       stage_fixed: true
     format:python:fix:
       glob: "**/*.py"

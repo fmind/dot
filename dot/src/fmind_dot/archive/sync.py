@@ -142,11 +142,30 @@ def _capture(
     return result, DotError("usage extraction failed; archived the transcript without usage")
 
 
-def _write_sync_state(root: Path, agent: str, failed: int) -> None:
+def _database_checkpoint(root: Path, agent: str) -> str:
+    """Only a successful, complete scan by the current parser can skip database reads."""
+    try:
+        document = json.loads((root / agent / SYNC_STATE_NAME).read_bytes())
+    except OSError, ValueError:
+        return ""
+    if (
+        not isinstance(document, dict)
+        or document.get("schema") != SYNC_STATE_SCHEMA
+        or document.get("parser_version") != SESSION_PARSER_VERSION
+        or document.get("failed") != 0
+    ):
+        return ""
+    signature = document.get("database_signature", "")
+    return signature if isinstance(signature, str) else ""
+
+
+def _write_sync_state(root: Path, agent: str, failed: int, database_signature: str = "") -> None:
     document = {
         "schema": SYNC_STATE_SCHEMA,
         "synced_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "failed": failed,
+        "parser_version": SESSION_PARSER_VERSION,
+        "database_signature": database_signature,
     }
     directory = private_directory(private_directory(root) / agent)
     write_private_file(directory / SYNC_STATE_NAME, (json.dumps(document) + "\n").encode())
@@ -189,23 +208,37 @@ def sync_sessions(
             continue
         if source is None:
             continue
+        database_signature = checkpoint = ""
+        signature, modified = "", 0.0
+        scanned = True
         try:
+            if adapter.database:
+                signature, modified = _source_signature(_source_files(adapter, source))
+                database_signature = f"{source.resolve()}:{signature}"
+                checkpoint = _database_checkpoint(root, adapter.name)
             candidates = enumerate_sessions(source, adapter.name)
         except _SESSION_ERRORS as error:
             # One unreadable store must not block the adapters after it.
             fail(adapter, "scan sessions", error)
-            continue
+            candidates = []
+            scanned = False
         stored = _stored_sources(root, adapter.name)
         counts = SyncOutcome()
         for session_id, source_cwd, path in candidates:
             if session and session_id != session:
                 continue
             try:
-                signature, modified = _source_signature(_source_files(adapter, path))
+                if not adapter.database:
+                    signature, modified = _source_signature(_source_files(adapter, path))
                 if since and datetime.fromtimestamp(modified, UTC) < since:
                     continue
                 previous = stored.get(session_id)
-                if previous and signature and previous[:2] == (SESSION_PARSER_VERSION, signature):
+                unchanged = (
+                    bool(database_signature) and database_signature == checkpoint
+                    if adapter.database
+                    else bool(signature) and previous is not None and previous[1] == signature
+                )
+                if previous and previous[0] == SESSION_PARSER_VERSION and unchanged:
                     if not cwd or previous[2] == cwd:
                         counts.unchanged += 1
                     continue
@@ -216,7 +249,10 @@ def sync_sessions(
                 counts.selected += 1
                 if dry_run:
                     continue
-                result, failure = _capture(adapter, session_id, parsed, signature)
+                # Database stat changes belong to the shared checkpoint, not every bundle.
+                result, failure = _capture(
+                    adapter, session_id, parsed, parsed.fingerprint if adapter.database else signature
+                )
             except _SESSION_ERRORS as error:
                 # One malformed session must not block the sessions and adapters after it.
                 fail(adapter, "capture session", error, session_id)
@@ -229,7 +265,7 @@ def sync_sessions(
                 fail(adapter, "capture session", failure, session_id)
         for name in ("selected", "ingested", "unchanged", "retained", "skipped"):
             setattr(outcome, name, getattr(outcome, name) + getattr(counts, name))
-        if not quiet:
+        if not quiet and scanned:
             verb = "selected" if dry_run else "ingested"
             state.stderr.write(
                 f"{adapter.name}: {getattr(counts, verb)} {verb}, {counts.unchanged} unchanged, "
@@ -237,7 +273,15 @@ def sync_sessions(
             )
         if complete_pass:
             try:
-                _write_sync_state(root, adapter.name, outcome.failed - failed_before)
+                if database_signature:
+                    current, _ = _source_signature(_source_files(adapter, source))
+                    if (
+                        outcome.failed != failed_before
+                        or counts.retained
+                        or database_signature != f"{source.resolve()}:{current}"
+                    ):
+                        database_signature = ""
+                _write_sync_state(root, adapter.name, outcome.failed - failed_before, database_signature)
             except OSError as error:
                 fail(adapter, "record sync state", error)
     if not quiet:

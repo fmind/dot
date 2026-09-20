@@ -199,6 +199,26 @@ def test_repository_python_hooks_format_only_staged_files(tmp_path: Path) -> Non
     assert not (tmp_path / "injected").exists()
 
 
+def test_repository_lua_hook_preserves_unselected_files(tmp_path: Path) -> None:
+    env = materialize(tmp_path, "mise.toml", prefix="format:lua")
+    stylua = subprocess.check_output(["mise", "which", "stylua"], cwd=ROOT, text=True, timeout=60).strip()
+    env["PATH"] = f"{Path(stylua).parent}:{env['PATH']}"
+    directory = tmp_path / "dot_config/nvim"
+    directory.mkdir(parents=True)
+    selected, unrelated = directory / "selected space.lua", directory / "unrelated.lua"
+    source = "local x={1,2,3}\n"
+    selected.write_text(source)
+    unrelated.write_text(source)
+    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["commands"]
+    [hook] = [hook for hook in hooks.values() if hook.get("glob") == "**/*.lua"]
+    result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], str(selected))
+    assert result.returncode == 0, result.stderr
+    assert selected.read_text() != source
+    assert unrelated.read_text() == source
+    assert run(tmp_path, env, "mise", "run", "format:lua").returncode == 0
+    assert unrelated.read_text() != source
+
+
 def test_hooks_split_offline_and_network_checks_without_weakening_the_gate() -> None:
     tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
     network = {"check:scan", "check:vuln"}

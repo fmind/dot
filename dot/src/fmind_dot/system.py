@@ -1,6 +1,5 @@
 """Workstation diagnostics, notifications, completions, and installation evidence."""
 
-import hashlib
 import html
 import json
 import os
@@ -21,8 +20,10 @@ from typer.completion import get_completion_script
 from fmind_dot import __version__
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
+from fmind_dot.deploy import _install_basis_digest, _package_digest
 from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
+from fmind_dot.private_files import write_atomic_file, write_private_file
 from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, Runner
 from fmind_dot.state import State, require_tools, state_from
 
@@ -304,21 +305,9 @@ def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> 
     except (DotError, OSError) as error:
         raise DotError(f"generated Fish script failed syntax validation: {path.name}") from error
     try:
-        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        write_atomic_file(path, content.encode("utf-8"), mode=mode)
     except OSError as error:
-        raise DotError(f"failed to create temporary Fish script: {path.name}") from error
-    try:
-        try:
-            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-                stream.write(content)
-                stream.flush()
-                os.fsync(stream.fileno())
-            Path(temporary).chmod(mode)
-            Path(temporary).replace(path)
-        except OSError as error:
-            raise DotError(f"failed to publish Fish script: {path.name}") from error
-    finally:
-        Path(temporary).unlink(missing_ok=True)
+        raise DotError(f"failed to publish Fish script: {path.name}") from error
 
 
 def _completion_available(state: State, tool: str) -> bool:
@@ -633,40 +622,6 @@ def _docker_results(state: State) -> list[CheckResult]:
     ]
 
 
-def _package_digest(directory: Path) -> str:
-    # Bundled rate cards affect runtime behavior just as Python modules do.
-    files = sorted(path for path in directory.rglob("*") if path.is_file() and path.suffix in {".py", ".yaml"})
-    if not files:
-        raise FileNotFoundError(directory)
-    digest = hashlib.sha256()
-    for path in files:
-        relative = path.relative_to(directory).as_posix().encode()
-        content = path.read_bytes()
-        digest.update(len(relative).to_bytes(4, "big"))
-        digest.update(relative)
-        digest.update(len(content).to_bytes(8, "big"))
-        digest.update(content)
-    return digest.hexdigest()
-
-
-def _install_basis_digest(source: Path) -> str:
-    package = source / "dot/src/fmind_dot"
-    project = source / "dot/pyproject.toml"
-    lock = source / "dot/uv.lock"
-    digest = hashlib.sha256()
-    for name, content in (
-        ("package", _package_digest(package).encode()),
-        ("pyproject", project.read_bytes()),
-        ("lock", lock.read_bytes()),
-    ):
-        encoded_name = name.encode()
-        digest.update(len(encoded_name).to_bytes(4, "big"))
-        digest.update(encoded_name)
-        digest.update(len(content).to_bytes(8, "big"))
-        digest.update(content)
-    return digest.hexdigest()
-
-
 def _install_receipt(source: Path, wheel_sha256: str, basis_sha256: str) -> dict[str, str | int]:
     resolved = source.expanduser().resolve(strict=True)
     return {
@@ -707,19 +662,7 @@ def write_install_receipt(source_root: Path, wheel_sha256: str, expected_basis_s
         raise DotError("source changed during deployment")
     payload = _install_receipt(source, wheel_sha256, expected_basis_sha256)
     target = _PACKAGE_DIRECTORY / _INSTALL_RECEIPT_NAME
-    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{_INSTALL_RECEIPT_NAME}.", dir=_PACKAGE_DIRECTORY)
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            os.fchmod(stream.fileno(), 0o600)
-            json.dump(payload, stream, sort_keys=True, separators=(",", ":"))
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        temporary.replace(target)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise
+    write_private_file(target, (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8"))
     return target
 
 

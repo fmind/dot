@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-19"
+  updated: "2026-09-20"
 ---
 
 # Secrets with sops and age
@@ -23,7 +23,8 @@ Encrypted secrets live in git next to their configuration. Use environment varia
 
 ## Keys
 
-1. **Generate** once per machine: `age-keygen -o ~/.config/sops/age/keys.txt` (sops' default key location); print the public half with `age-keygen -y ~/.config/sops/age/keys.txt`.
+1. **Resolve the key file**: preserve an existing `SOPS_AGE_KEY_FILE` or key. Otherwise use `$XDG_CONFIG_HOME/sops/age/keys.txt` when configured, `~/.config/sops/age/keys.txt` on Linux, or `~/Library/Application Support/sops/age/keys.txt` on macOS. Set `SOPS_AGE_KEY_FILE` explicitly when choosing another location; see the [age key lookup implementation](https://github.com/getsops/sops/blob/main/age/keysource.go).
+1. **Generate** only when the key file is absent: create its parent directory with mode `0700`, then run `age-keygen -o "<key-file>"`. It creates a private file and refuses to overwrite an existing one. Print only the public half with `age-keygen -y "<key-file>"`.
 1. **Distribute** only the public key, as the `age:` recipient in each repo's `.sops.yaml`.
 1. **Back up** the private key in a password manager; never commit it to any dotfiles repo.
 1. **Rotate**: add the new recipient to `.sops.yaml`, run `sops updatekeys <file>` on every encrypted file, then remove the old recipient and repeat; `sops rotate -i <file>` re-keys the data key after an exposure.

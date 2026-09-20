@@ -52,6 +52,15 @@ def test_monthly_splits_one_session_and_prices_each_model() -> None:
     assert aggregate_usage([record], since=datetime(2026, 9, 1, tzinfo=UTC))[0].total_tokens == 1_000_000
 
 
+def test_model_breakdown_does_not_sum_overlapping_sessions() -> None:
+    record = session(request("2026-09-01T00:00:00Z"), request("2026-09-01T01:00:00Z", model="gpt-5.5"))
+    output = io.StringIO()
+    write_usage_stats(output, aggregate_usage([record], by_model=True), by_model=True)
+    assert output.getvalue().count("Sessions: 1") == 2
+    assert "TOTAL" not in output.getvalue()
+    assert "Sessions using multiple models appear in each model row" in output.getvalue()
+
+
 def test_billing_clamps_month_end_and_respects_timezone_and_dst() -> None:
     record = session(request("2026-02-28T22:59:59Z"), request("2026-03-30T22:00:00Z"))
     subscriptions = {"codex": SubscriptionConfig(renewal_day=31, timezone="Europe/Paris", monthly_usd=20)}
