@@ -9,6 +9,8 @@ Review security-sensitive code and the delivery chain of a uv-managed Python pro
 
 ## Workflow
 
+For a broad or repeated audit, use [coverage and finding records](references/audit-coverage.md) and, when persistent artifacts are useful, the optional [audit record](templates/audit-record.json). A focused finding review does not need a ledger.
+
 1. **Code and controls**: trace attacker-controlled inputs to security decisions with [code review](references/trace-and-verify.md). Check the actual callers and effective configuration; validate suspected findings and search for related defects before reporting coverage.
 1. **Leaks**: run the full-history scan and wire the staged hook per [gitleaks](../gitleaks.md). Treat a confirmed credential exposure as an incident; prepare rotation and perform it only within the established credential and service authority.
 1. **Secrets at rest**: move plaintext credentials to environment variables or encrypted `*.enc.*` files per [sops-secrets](../../../sops-secrets/SKILL.md). Cloud Run receives runtime values from Secret Manager.
