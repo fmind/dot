@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.0.3] - 2026-09-20
+
+### 🐛 Bug Fixes
+
+- _(release)_ Include dependency upgrades in patch releases
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade workstation tools and Neovim plugins
+
 ## [7.0.2] - 2026-09-20
 
 ### 🐛 Bug Fixes
@@ -52,6 +62,10 @@ All notable changes to this project are documented in this file.
 ### ⚙️ Build & CI
 
 - Split local and network checks and stage release publishing
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Update Tree-sitter plugin
 
 ## [6.3.2] - 2026-09-18
 
@@ -157,6 +171,10 @@ All notable changes to this project are documented in this file.
 ### 🧪 Testing
 
 - Give the harness renderer the theme_variant it now needs
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade toolchain and dependency locks
 
 ## [5.0.2] - 2026-09-11
 
@@ -331,6 +349,10 @@ All notable changes to this project are documented in this file.
 - _(agent)_ Prune Grok's chat_history.jsonl sibling with its transcript
 - _(skills)_ Correct stale version pins and a renamed task reference
 
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade mise tools, Go modules, and formatter plugins
+
 ## [1.20.0] - 2026-08-21
 
 ### 🚀 Features
@@ -350,11 +372,19 @@ All notable changes to this project are documented in this file.
 
 - _(fish)_ Drop the GROK_WEB_FETCH rationale comment
 
+### 🧹 Miscellaneous
+
+- _(deps)_ Bump mason-lspconfig.nvim
+
 ## [1.18.2] - 2026-08-16
 
 ### 🐛 Bug Fixes
 
 - _(grok)_ Correct the lock note now that mise checksums grok
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade mise toolchain and Neovim plugins
 
 ## [1.18.1] - 2026-08-16
 
@@ -373,6 +403,11 @@ All notable changes to this project are documented in this file.
 ### 🐛 Bug Fixes
 
 - _(mise)_ Use asdf backend for ollama on macOS (#76)
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Update stack templates, skills, and tool pins
+- _(deps)_ Update lockfiles and bump default antigravity model
 
 ## [1.17.0] - 2026-08-11
 
