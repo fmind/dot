@@ -33,7 +33,6 @@ commit_parsers = [
   { message = "^test", group = "<!-- 5 -->🧪 Testing" },
   { message = "^(build|ci)", group = "<!-- 6 -->⚙️ Build & CI" },
   { message = "^chore\\(release\\)", skip = true },
-  { message = "^chore\\(deps\\)", skip = true },
   { message = "^(chore|style)", group = "<!-- 7 -->🧹 Miscellaneous" },
   { message = "^revert", group = "<!-- 8 -->⏪ Reverts" },
   { message = ".*", group = "<!-- 9 -->📦 Other" },
