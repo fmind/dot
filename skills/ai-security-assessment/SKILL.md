@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ai-security-assessment
   created: "2026-09-11"
-  updated: "2026-09-16"
+  updated: "2026-09-20"
 ---
 
 # AI Security Assessment

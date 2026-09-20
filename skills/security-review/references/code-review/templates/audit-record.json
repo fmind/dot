@@ -1,0 +1,26 @@
+{
+  "source_ref": "REPLACE_WITH_COMMIT",
+  "dirty_changes": [],
+  "scope": ["REPLACE_WITH_IN_SCOPE_PATH_OR_BOUNDARY"],
+  "limits": [],
+  "coverage_review": {
+    "independent": false,
+    "status": "pending",
+    "gaps": []
+  },
+  "coverage": [
+    {
+      "id": "REPLACE_WITH_STABLE_SURFACE_AND_BOUNDARY_ID",
+      "entry_point": "REPLACE_WITH_SOURCE_ENTRY_POINT",
+      "boundary": "REPLACE_WITH_ENFORCING_CONTROL",
+      "status": "planned",
+      "reviewed_paths": [],
+      "checks": [],
+      "evidence": [],
+      "finding_ids": [],
+      "reason": null
+    }
+  ],
+  "findings": [],
+  "run_status": "in_progress"
+}
