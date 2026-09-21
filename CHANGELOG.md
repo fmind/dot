@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.0.4] - 2026-09-21
+
+### 📚 Documentation
+
+- _(security)_ Add audit coverage records and AI boundary checks
+
 ## [7.0.3] - 2026-09-20
 
 ### 🐛 Bug Fixes
