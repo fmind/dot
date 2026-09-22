@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.1.0] - 2026-09-22
+
+### 🚀 Features
+
+- _(bootstrap)_ Defer hooks until tools install and add full task
+- _(security)_ Narrow workspace trust and harden release, deploy, and hooks
+
 ## [7.0.4] - 2026-09-21
 
 ### 📚 Documentation
