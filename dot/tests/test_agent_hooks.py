@@ -9,8 +9,8 @@ from typer.testing import CliRunner
 from fmind_dot import agent as agent_module
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
+from fmind_dot.hooks import Notification
 from fmind_dot.state import State
-from fmind_dot.system import Notification
 
 
 @pytest.fixture(autouse=True)

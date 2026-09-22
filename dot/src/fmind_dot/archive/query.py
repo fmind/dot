@@ -123,8 +123,6 @@ def query_session_summaries(
     root: Path | None = None,
 ) -> list[SessionSummary]:
     query = query or SessionQuery()
-    if query.since and query.until and query.since > query.until:
-        raise ValueError("--since must not be after --until")
     summaries: list[SessionSummary] = []
     for summary in discover_sessions(root):
         # Discard known nonmatches before reading their transcripts; an absent

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from calendar import monthrange
 from collections.abc import Iterable, Iterator
@@ -115,12 +114,14 @@ class UsageRecord:
         if model:
             self.model = model if not self.model or self.model == model else "mixed"
 
-    def finalize(self) -> UsageRecord:
+    def finalize(self, *, fallback_timestamp: str = "") -> UsageRecord:
+        """Complete derived fields; an undated measurement takes the caller's source evidence, never the clock."""
         self._validate(complete=False)
         if not self.agent:
             self.agent = self.harness
         if not self.timestamp:
-            self.timestamp = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+            # A capture-time stamp would move usage between periods and change on every recapture.
+            self.timestamp = fallback_timestamp
         if self.total_tokens == 0:
             self.total_tokens = self.input_tokens + self.output_tokens
             if self.harness not in CACHE_INCLUSIVE_INPUT_HARNESSES:
@@ -361,8 +362,6 @@ def aggregate_usage(
     billing: bool = False,
     subscriptions: dict[str, SubscriptionConfig] | None = None,
 ) -> list[UsageStats]:
-    if since and until and since > until:
-        raise ValueError("--since must not be after --until")
     if monthly and billing:
         raise ValueError("choose --monthly or --billing, not both")
     pricing = pricing if pricing is not None else default_pricing()
@@ -430,12 +429,12 @@ def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: 
     return filtered[:limit] if limit > 0 else filtered
 
 
-def show_usage_record(harness: str, session_id: str, *, root: Path | None = None) -> bytes:
+def show_usage_record(harness: str, session_id: str, *, root: Path | None = None) -> UsageRecord:
     if not harness or not session_id:
         raise ValueError("usage: dot agent usage show <harness> <session-id>")
-    for record in load_usage_records(root=root):
+    for record in iter_usage_records(root=root):
         if record.harness == harness and record.session_id == session_id:
-            return (json.dumps(record.to_dict(), ensure_ascii=False, indent=2) + "\n").encode()
+            return record
     raise ValueError(f"usage record not found for {harness} session {session_id}")
 
 

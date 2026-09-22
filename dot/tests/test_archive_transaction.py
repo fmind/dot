@@ -1,13 +1,12 @@
-"""Observable capture, replacement, migration, and usage selection contracts."""
+"""Observable capture, replacement, retired-store, and usage selection contracts."""
 
-import hashlib
 import io
 import json
 import os
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Any
+from typing import IO
 
 import pytest
 
@@ -23,9 +22,12 @@ from fmind_dot.archive.store import (
     session_store_root,
 )
 from fmind_dot.archive.sync import sync_sessions
-from fmind_dot.archive.usage import UsageRecord, load_usage_records
+from fmind_dot.archive.usage import load_usage_records
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
+
+# A correct lock always exhausts this window, so it bounds the test's cost as well.
+_RACE_WINDOW_SECONDS = 0.2
 
 
 def _text(stream: IO[str]) -> str:
@@ -269,177 +271,44 @@ def test_public_queries_report_unsupported_store_without_traceback(
     assert "Traceback" not in captured.err
 
 
-# --- v2 migration -------------------------------------------------------------------------------------------------
+# --- retired v2 store ---------------------------------------------------------------------------------------------
 
 
-def _digest(*values: str) -> str:
-    return hashlib.sha256("".join(f"{value}\0" for value in values).encode()).hexdigest()
-
-
-def _usage(agent: str, session_id: str, tokens: int) -> dict[str, Any]:
-    return (
-        UsageRecord(timestamp="2026-09-01T10:00:00Z", harness=agent, session_id=session_id, input_tokens=tokens)
-        .finalize()
-        .to_dict()
-    )
-
-
-def _v2_generation(
-    home: Path,
-    session_id: str,
-    *,
-    records: int,
-    ingested_at: str,
-    usage: int | None = None,
-    parser: str = "5",
-    agent: str = "claude",
-    corrupt: bool = False,
-    schema: int = 2,
-) -> Path:
-    """Write one generation exactly as the v2 writer laid it out."""
-    fingerprint = _digest(session_id, str(records), ingested_at)
-    lineage = _digest(agent, session_id)
-    path = home / ".agents/sessions/v2" / agent / lineage / _digest(parser, fingerprint)
-    path.mkdir(parents=True, mode=0o700)
-    transcript = b"".join(
-        json.dumps(
-            {
-                "ts": f"2026-09-01T10:0{index}:00Z",
-                "agent": agent,
-                "sid": session_id,
-                "role": "user",
-                "content": f"m{index}",
-            }
-        ).encode()
-        + b"\n"
-        for index in range(records)
-    )
-    usage_document = {
-        "schema": "dot.session.usage/v1",
-        "status": "available" if usage is not None else "unsupported",
-        "record": _usage(agent, session_id, usage) if usage is not None else None,
-    }
-    usage_content = (json.dumps(usage_document) + "\n").encode()
-    manifest = {
-        "parser_version": parser,
-        "agent": agent,
-        "session_id": session_id,
-        "lineage_id": lineage,
-        "source_type": "claude-jsonl",
-        "source_fingerprint": fingerprint,
-        "high_water_mark": f"2026-09-01T10:0{records - 1}:00Z",
-        "ingested_at": ingested_at,
-        "completeness": "complete",
-        "transcript_sha256": hashlib.sha256(transcript).hexdigest(),
-        "schema_version": schema,
-        "record_count": records,
-        "malformed_records": 0,
-        "skipped_records": 0,
-        "usage_sha256": hashlib.sha256(usage_content).hexdigest(),
-    }
-    (path / "transcript.jsonl").write_bytes(transcript + (b"tampered\n" if corrupt else b""))
-    (path / "usage.json").write_bytes(usage_content)
-    (path / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    return path
+def _v2_store(home: Path) -> dict[Path, bytes]:
+    """Write a stand-in for the retired v2 layout and return its exact content."""
+    manifest = home / ".agents/sessions/v2/claude/lineage/generation/manifest.json"
+    manifest.parent.mkdir(parents=True, mode=0o700)
+    manifest.write_text('{"schema_version": 2}\n')
+    return _snapshot(home / ".agents/sessions/v2")
 
 
 def _snapshot(root: Path) -> dict[Path, bytes]:
     return {path: path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
 
 
-def test_migration_keeps_the_longest_generation_with_its_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _v2_generation(tmp_path, "grown", records=1, ingested_at="2026-09-01T10:00:00Z", usage=10)
-    _v2_generation(tmp_path, "grown", records=3, ingested_at="2026-09-02T10:00:00Z", usage=30)
-    _v2_generation(tmp_path, "grown", records=2, ingested_at="2026-09-03T10:00:00Z", usage=20)
-    _v2_generation(tmp_path, "tied", records=2, ingested_at="2026-09-01T10:00:00Z", usage=1, parser="4")
-    _v2_generation(tmp_path, "tied", records=2, ingested_at="2026-09-02T10:00:00Z", usage=2)
-    legacy = tmp_path / ".agents/sessions/v2"
-    before = _snapshot(legacy)
-    report = io.StringIO()
+def test_retired_v2_store_fails_closed_without_modifying_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state, _ = source_session(tmp_path, monkeypatch)
+    before = _v2_store(tmp_path)
 
-    root = ensure_session_store(report)
+    with pytest.raises(DotError, match=r"sessions/v2 predates sessions/v3; migrate it once with dot v7\.0\.4"):
+        sync_sessions(state, agent="claude")
 
-    assert "migrated 2 sessions from sessions/v2 to sessions/v3 (0 unreadable generations skipped)" in report.getvalue()
-    grown = read_session_manifest(root / "claude/grown.jsonl")
-    assert (grown.record_count, grown.ingested_at, grown.source_signature) == (3, "2026-09-02T10:00:00Z", "")
-    assert [log.content for log in read_session_bundle(root / "claude/grown.jsonl")[1]] == ["m0", "m1", "m2"]
-    assert read_session_manifest(root / "claude/tied.jsonl").ingested_at == "2026-09-02T10:00:00Z"
-    assert sorted((record.session_id, record.input_tokens) for record in load_usage_records()) == [
-        ("grown", 30),
-        ("tied", 2),
-    ]
-    # v2 is never modified; repeated access neither re-migrates nor rewrites v3.
-    after = _snapshot(root)
-    assert ensure_session_store(report) == root
-    assert _snapshot(legacy) == before
-    assert _snapshot(root) == after
-    assert report.getvalue().count("migrated") == 1
+    assert not session_store_root().exists()
+    assert _snapshot(tmp_path / ".agents/sessions/v2") == before
 
 
-def test_migration_carries_earlier_usage_when_the_longest_generation_has_none(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _v2_generation(tmp_path, "session", records=1, ingested_at="2026-09-01T10:00:00Z", usage=10, parser="4")
-    _v2_generation(tmp_path, "session", records=2, ingested_at="2026-09-02T10:00:00Z", usage=12)
-    _v2_generation(tmp_path, "session", records=3, ingested_at="2026-09-03T10:00:00Z", usage=None)
-
-    ensure_session_store()
-
-    assert read_session_manifest(session_bundle_path("claude", "session")).record_count == 3
-    assert [record.input_tokens for record in load_usage_records()] == [12]
-
-
-def test_migration_skips_unreadable_generations_and_legacy_parsers_stay_flagged(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _v2_generation(tmp_path, "session", records=2, ingested_at="2026-09-01T10:00:00Z", usage=5, parser="4")
-    _v2_generation(tmp_path, "session", records=3, ingested_at="2026-09-02T10:00:00Z", usage=9, corrupt=True)
-    _v2_generation(tmp_path, "unsupported", records=1, ingested_at="2026-09-01T10:00:00Z", schema=1)
-    report = io.StringIO()
-
-    ensure_session_store(report)
-
-    assert "migrated 1 sessions" in report.getvalue()
-    assert "(1 unreadable generations skipped)" in report.getvalue()
-    [summary] = query_session_summaries()
-    assert (summary.record_count, summary.status) == (2, ["legacy"])
-    [record] = load_usage_records()
-    assert (record.input_tokens, record.legacy_accounting) == (5, True)
-
-
-def test_existing_v3_store_is_never_replaced_by_migration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_existing_v3_store_ignores_a_leftover_v2_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state, _ = source_session(tmp_path, monkeypatch)
     sync_sessions(state, agent="claude")
-    _v2_generation(tmp_path, "legacy-only", records=4, ingested_at="2026-09-01T10:00:00Z", usage=1)
+    _v2_store(tmp_path)
 
     assert ensure_session_store() == session_store_root()
     assert [summary.session_id for summary in query_session_summaries()] == ["fixture-id"]
 
 
-def test_sync_recaptures_migrated_sessions_from_available_sources(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_does_not_touch_a_retired_v2_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state, _ = source_session(tmp_path, monkeypatch)
-    _v2_generation(tmp_path, "fixture-id", records=2, ingested_at="2026-09-01T10:00:00Z", usage=99, parser="4")
-    retired = tmp_path / ".agents/sessions/v1/claude/fixture.json"
-    retired.parent.mkdir(parents=True)
-    retired.write_text("{}")
-
-    outcome = sync_sessions(state, agent="claude")
-
-    assert (outcome.selected, outcome.ingested) == (1, 1)
-    [summary] = query_session_summaries()
-    assert (summary.parser_version, summary.status) == ("5", ["current"])
-    assert _tokens() == [(10, 5)]
-    assert retired.read_text() == "{}"
-
-
-def test_dry_run_does_not_migrate_legacy_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
-    _v2_generation(tmp_path, "fixture-id", records=2, ingested_at="2026-09-01T10:00:00Z", usage=99)
+    _v2_store(tmp_path)
     before = _snapshot(tmp_path)
 
     outcome = sync_sessions(state, agent="claude", dry_run=True)
@@ -469,7 +338,7 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
         count = json.loads(content.split(b"\n", 1)[0])["record_count"]
         if count == 3:
             short_ready.set()
-            long_written.wait(timeout=1)
+            long_written.wait(timeout=_RACE_WINDOW_SECONDS)
         write(path, content)
         if count == 4:
             long_written.set()

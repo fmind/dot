@@ -1,6 +1,6 @@
 # CLI Migration
 
-These changes follow Dot 5.2.0; the session archive changes follow Dot 6.3.2. Update scripts before deploying this checkout. The first archive access (except sync dry-run) migrates `~/.agents/sessions/v2` into `v3` without modifying `v2`; remove `v2` after verifying the new store. Managed harness hooks now only notify: apply them so no harness calls a removed capture hook.
+These changes follow Dot 5.2.0; the session archive changes follow Dot 6.3.2. Update scripts before deploying this checkout. Dot 7.0.4 is the last release that migrates `~/.agents/sessions/v2` into `v3`: later releases refuse a store that exists only as `v2` and name the migrating release, never modifying `v2`. Remove `v2` after verifying the new store. Managed harness hooks now only notify: apply them so no harness calls a removed capture hook.
 
 ## Commands
 

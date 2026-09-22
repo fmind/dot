@@ -15,6 +15,7 @@ import typer
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
+from fmind_dot.process import CommandResult, diagnostic_line
 from fmind_dot.state import State, require_tools, state_from
 
 
@@ -54,13 +55,74 @@ class RepositoryStatus:
         return bool(self.error or self.dirty or not self.upstream or self.ahead or self.behind or self.operation)
 
 
+# Read-only inspection must not refresh the index: that takes index.lock and can
+# collide with an editor, hook, or agent writing the same repository.
+_STATUS = ("--no-optional-locks", "status", "--porcelain")
+_GIT_ROOT_TIMEOUT_SECONDS = 30
+# Ordered classification of git stderr into stable causes that never echo remote output.
+_GIT_FAILURE_CAUSES = (
+    (
+        "non-fast-forward",
+        ("non-fast-forward", "not possible to fast-forward", "diverging branches", "fetch first", "[rejected]"),
+    ),
+    (
+        "authentication failed",
+        (
+            "authentication failed",
+            "permission denied",
+            "could not read username",
+            "terminal prompts disabled",
+            "invalid username or password",
+        ),
+    ),
+    ("remote repository not found", ("repository not found", "does not appear to be a git repository")),
+    (
+        "network unavailable",
+        (
+            "could not resolve host",
+            "unable to access",
+            "connection timed out",
+            "connection refused",
+            "network is unreachable",
+            "could not read from remote repository",
+            "early eof",
+        ),
+    ),
+    ("repository locked", ("index.lock", "cannot lock ref")),
+)
+
+
+def git_failure(arguments: Sequence[str], result: CommandResult) -> str:
+    """Describe a failed git command by a classified cause, else its sanitized first stderr line."""
+    subcommand = next((argument for argument in arguments if not argument.startswith("-")), "command")
+    diagnostic = f"{result.stderr}\n{result.stdout}".lower()
+    cause = next(
+        (label for label, markers in _GIT_FAILURE_CAUSES if any(marker in diagnostic for marker in markers)),
+        "",
+    ) or diagnostic_line(result.stderr)
+    return f"git {subcommand} failed ({result.returncode})" + (f": {cause}" if cause else "")
+
+
+def _git(state: State, path: Path, arguments: Sequence[str], deadline: float, *, check: bool = True) -> str:
+    result = state.runner.run(["git", *arguments], cwd=path, timeout=_remaining_timeout(deadline), check=False)
+    if check and result.returncode:
+        raise DotError(git_failure(arguments, result))
+    return result.stdout
+
+
 def git_root(state: State, cwd: Path | None = None) -> Path:
     """Resolve the repository root and fail with a safe diagnostic."""
     require_tools(state, [["git"]])
+    location = str(cwd) if cwd is not None else "current directory"
     try:
-        output = state.runner.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd).stdout.strip()
-    except DotError as error:
-        raise DotError("current directory is not inside a git work tree") from error
+        result = state.runner.run(
+            ["git", "rev-parse", "--show-toplevel"], cwd=cwd, timeout=_GIT_ROOT_TIMEOUT_SECONDS, check=False
+        )
+    except (DotError, OSError) as error:
+        raise DotError(f"failed to inspect {location} with git: {error}") from error
+    if result.returncode:
+        raise DotError(f"{location} is not inside a git work tree")
+    output = result.stdout.strip()
     if not output:
         raise DotError("git returned an empty repository root")
     return Path(output)
@@ -106,14 +168,8 @@ def _remaining_timeout(deadline: float) -> float:
 
 
 def _branch(state: State, path: Path, deadline: float) -> str:
-    branch = state.runner.run(
-        ["git", "branch", "--show-current"], cwd=path, timeout=_remaining_timeout(deadline)
-    ).stdout.strip()
-    if branch:
-        return branch
-    return state.runner.run(
-        ["git", "rev-parse", "--short", "HEAD"], cwd=path, timeout=_remaining_timeout(deadline)
-    ).stdout.strip()
+    branch = _git(state, path, ["branch", "--show-current"], deadline).strip()
+    return branch or _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
 
 
 def _count(value: str, label: str) -> int:
@@ -136,15 +192,10 @@ def _pull_repository(
     branch = ""
     dirty = False
 
-    def git(arguments: Sequence[str], *, check: bool = True) -> str:
+    def git(arguments: Sequence[str]) -> str:
         if cancelled is not None and cancelled.is_set():
             raise DotError("operation cancelled")
-        return state.runner.run(
-            ["git", *arguments],
-            cwd=path,
-            timeout=_remaining_timeout(deadline),
-            check=check,
-        ).stdout
+        return _git(state, path, arguments, deadline)
 
     def has_upstream() -> bool:
         result = state.runner.run(
@@ -157,7 +208,7 @@ def _pull_repository(
 
     try:
         branch = _branch(state, path, deadline)
-        dirty = bool(git(["status", "--porcelain"]).strip())
+        dirty = bool(git(_STATUS).strip())
         if dirty and dirty_policy == "skip":
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         try:
@@ -294,11 +345,7 @@ def _repository_status(state: State, path: Path) -> RepositoryStatus:
     deadline = monotonic() + 30
     try:
         branch = _branch(state, path, deadline)
-        dirty = bool(
-            state.runner.run(
-                ["git", "status", "--porcelain"], cwd=path, timeout=_remaining_timeout(deadline)
-            ).stdout.strip()
-        )
+        dirty = bool(_git(state, path, _STATUS, deadline).strip())
         upstream_result = state.runner.run(
             ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
             cwd=path,
@@ -308,17 +355,11 @@ def _repository_status(state: State, path: Path) -> RepositoryStatus:
         upstream = upstream_result.stdout.strip() if upstream_result.returncode == 0 else ""
         ahead = behind = 0
         if upstream:
-            counts = state.runner.run(
-                ["git", "rev-list", "--left-right", "--count", "HEAD...@{u}"],
-                cwd=path,
-                timeout=_remaining_timeout(deadline),
-            ).stdout.split()
+            counts = _git(state, path, ["rev-list", "--left-right", "--count", "HEAD...@{u}"], deadline).split()
             if len(counts) != 2:
                 raise DotError("failed to parse upstream counts")
             ahead, behind = (_count(value, "upstream") for value in counts)
-        git_directory = state.runner.run(
-            ["git", "rev-parse", "--absolute-git-dir"], cwd=path, timeout=_remaining_timeout(deadline)
-        ).stdout.strip()
+        git_directory = _git(state, path, ["rev-parse", "--absolute-git-dir"], deadline).strip()
         if not git_directory:
             raise DotError("Git returned an empty metadata directory")
         metadata = Path(git_directory)

@@ -18,12 +18,73 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
-from dot_tasks.skill_links import RETIRED_SKILLS
 from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     Scope,
     estimated_tokens,
     skill_index_entry,
+)
+
+# Skill names retired since v6.1.0; prose may use one only to label the guide or package that kept it.
+RETIRED_SKILLS = (
+    "a2a-python-sdk",
+    "agent-mcp",
+    "agent-prompt",
+    "agents-cli",
+    "antigravity-sdk",
+    "claude",
+    "cli-contracts",
+    "codex",
+    "conventional-commit",
+    "cookiecutter",
+    "copier",
+    "copilot",
+    "cosign",
+    "cursor",
+    "d2",
+    "dependabot",
+    "django",
+    "fastapi",
+    "git-add-commit-push",
+    "github-agentic-workflow",
+    "gitleaks",
+    "google-adk",
+    "gradio",
+    "grok",
+    "jules",
+    "langchain",
+    "langextract",
+    "langgraph",
+    "lefthook",
+    "litestar",
+    "locust",
+    "loop-engineering",
+    "marimo",
+    "mcp-server",
+    "mermaid",
+    "modern-web",
+    "new-project",
+    "nicegui",
+    "opencode",
+    "plan-review",
+    "project-health",
+    "project-license",
+    "pydantic",
+    "python-async",
+    "python-script",
+    "release",
+    "ruff",
+    "secure",
+    "sherlock",
+    "technical-research",
+    "terraform",
+    "test-driven-development",
+    "trivy",
+    "ty",
+    "typer",
+    "uv",
+    "zensical",
+    "zizmor",
 )
 
 MAX_DESCRIPTION = 180
@@ -978,6 +1039,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.details and not args.report:
         parser.error("--details requires --report")
+    if args.sync and args.report:
+        parser.error("choose --sync or --report")
     root = Path(__file__).resolve().parents[2]
     if args.sync:
         discovered, errors = _discover_skills(root)

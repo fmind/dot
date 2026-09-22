@@ -29,7 +29,7 @@ Key routines:
 - **Workstation commands**: `dot login`, `setup`, `cache`, and `prune` own native provider operations; mise owns repository installation and validation. Authentication and cleanup are explicit commands, not apply hooks.
 - **Usage statistics**: [agent-usage](skills/agent-usage/SKILL.md) owns reports and subscription configuration. Token totals, API equivalents, recorded cost, and subscription charges are separate measurements; never let a failed extraction replace an archived measurement.
 - **CLI (`dot`)**: Follow [dot-development](.agents/skills/dot-development/SKILL.md) for implementation, tests, and installation proof; [dot-cli](skills/dot-cli/SKILL.md) owns command operation.
-- **Manage skills**: [dot-skills](.agents/skills/dot-skills/SKILL.md) owns catalog changes and validation; [skillify](skills/skillify/SKILL.md) owns authoring and admission. Each scope (AGENTS.md + skill discovery: names, descriptions, and paths) stays below 5,000 estimated tokens (characters / 4, rounded up); on-demand bodies and host/plugin catalogs are not measured, and combined totals are informational. `dot agent context --source . --project . --check` measures both scopes; `mise run report:skills` adds routing diagnostics; `mise run format:skills` regenerates parent indexes. Never nest `SKILL.md`.
+- **Manage skills**: [dot-skills](.agents/skills/dot-skills/SKILL.md) owns catalog changes and validation; [skillify](skills/skillify/SKILL.md) owns authoring and admission. dot-skills owns the 5,000-token scope budget and its checks; `mise run format:skills` regenerates parent indexes. Never nest `SKILL.md`.
 - **Completions**: Run `mise run check:completions` before release on the configured workstation; it validates active generators and Fish syntax in temporary directories. This host-dependent check is separate from `all`; inactive optional tools are skipped. `mise run completions` installs the scripts using the deployed CLI.
 - **Release**: Follow [dot-release](.agents/skills/dot-release/SKILL.md) for `mise run release`, recovery, and publication verification.
 
@@ -44,8 +44,8 @@ Key routines:
 - `.github/` owns CI, release, security, audit, and dependency-update automation.
 - `dot/` contains the runtime package, repository-only `dot_tasks/`, uv lock, and pytest suite.
 - `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host (with OpenCode in `dot_config/opencode/`).
-- `dot_config/` contains managed application configuration; root `dot_*` sources map directly to home targets.
+- Every root `dot_*` or `private_dot_*` source maps to its home target (`dot_config/` holds application configuration); `.chezmoitemplates/` holds the shared JSON/TOML merge and skill-catalog helpers used by modify templates.
 - `modify_dot_bashrc`, `modify_dot_profile`, and darwin-only `modify_dot_zprofile` add PATH and mise activation to existing shell files; `run_once_after_*` install Grok and Antigravity; `run_after_bat-theme` rebuilds the bat theme cache when the theme or bat changes.
-- `run_after_dot-trust` runs `dot trust all` so every harness trusts the configured workspaces and their repositories; mise trusts all of home through `trusted_config_paths`.
+- `run_after_dot-trust` runs `dot trust all` and `dot trust <sourceDir>` so every harness trusts the configured workspaces, their owner-allowlisted repositories, and this checkout; mise `trusted_config_paths` covers the same workspaces and source directory only.
 - `.chezmoiexternal.toml.tmpl` fetches the theme files from `fmind/theme` during apply, while style blocks that must be merged are copied into managed sources.
 - `skills/` is the global Agent Skill catalog shared by every supported host.

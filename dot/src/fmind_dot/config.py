@@ -111,6 +111,16 @@ class PullConfig(StrictModel):
     concurrency: int = Field(default=8, gt=0)
 
 
+# GitHub account and organization names: alphanumeric runs joined by single hyphens.
+GitHubOwner = Annotated[str, Field(pattern=r"^[A-Za-z0-9](?:-?[A-Za-z0-9])*$", max_length=39)]
+
+
+class TrustConfig(StrictModel):
+    # `dot trust all` trusts a workspace repository only when its origin is a
+    # github.com repository of one of these owners (compared case-insensitively).
+    github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind", "fmind-ai", "mlops-courses"])
+
+
 TokenPrice = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
@@ -324,6 +334,7 @@ class Config(StrictModel):
     prune: PruneConfig = Field(default_factory=PruneConfig)
     completions: CompletionConfig = Field(default_factory=CompletionConfig)
     pull: PullConfig = Field(default_factory=PullConfig)
+    trust: TrustConfig = Field(default_factory=TrustConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
     doctor: DoctorConfig = Field(default_factory=DoctorConfig)
 
@@ -343,11 +354,20 @@ def config_file_path(path: str | Path | None) -> tuple[Path, bool]:
     return expand_path(path), False
 
 
-def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+# Mappings whose entries are complete records: an override replaces a default entry instead of
+# merging into it, so switching a completion source (package vs. binary/args) never mixes both.
+_WHOLE_ENTRY_MAPPINGS = {("completions", "custom_commands")}
+
+
+def _deep_merge(base: dict[str, Any], overlay: dict[str, Any], path: tuple[str, ...] = ()) -> dict[str, Any]:
     merged = copy.deepcopy(base)
     for key, value in overlay.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged[key], value)
+            location = (*path, key)
+            if location in _WHOLE_ENTRY_MAPPINGS:
+                merged[key] = merged[key] | copy.deepcopy(value)
+            else:
+                merged[key] = _deep_merge(merged[key], value, location)
         else:
             merged[key] = copy.deepcopy(value)
     return merged

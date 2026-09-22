@@ -18,10 +18,12 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "doctor",
         "completions",
         "pull",
+        "trust",
         "auth",
         "cache",
         "prune",
     }
+    assert config.trust.github_owners == ["fmind", "fmind-ai", "mlops-courses"]
     assert config.pull.timeout_seconds == 120.0
 
 
@@ -92,6 +94,26 @@ def test_config_overlay_replaces_lists_and_merges_maps(tmp_path: Path) -> None:
     assert config.doctor.tools == ["python"]
     assert "uv" in config.completions.custom_commands
     assert config.completions.custom_commands["custom"].args == ["completion", "fish"]
+
+
+def test_custom_completion_override_replaces_the_default_entry(tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    # btm defaults to a bundled package; a command source must not inherit that field.
+    path.write_text(
+        "completions:\n  custom_commands:\n    btm:\n      binary: btm\n      args: [--completion, fish]\n"
+        "    atuin:\n      package: atuin\n",
+        encoding="utf-8",
+    )
+
+    commands = load_config(path).completions.custom_commands
+
+    assert (commands["btm"].binary, commands["btm"].args, commands["btm"].package) == (
+        "btm",
+        ["--completion", "fish"],
+        "",
+    )
+    assert (commands["atuin"].package, commands["atuin"].args) == ("atuin", [])
+    assert commands["zoxide"].package == "zoxide"
 
 
 @pytest.mark.parametrize(

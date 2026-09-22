@@ -37,6 +37,14 @@ _CD_URL = f"https://github.com/{_GITHUB_REPOSITORY}/actions/workflows/cd.yml"
 # has consumed the version.
 _RELEASE_GATES = ("format", "check", "test", "test:starters", "build", "check:completions")
 _REMOTE_TAG_OUTPUT_LIMIT = 4 * 1024
+# Generous bounds: a hung tool must fail the release instead of blocking it forever.
+_GIT_TIMEOUT_SECONDS = 300
+_TOOL_TIMEOUT_SECONDS = 600
+# Commits run Lefthook checks and deploys rebuild the runtime; both can take minutes.
+_LONG_TIMEOUT_SECONDS = 1800
+_GH_OUTPUT_LIMIT = 64 * 1024
+# Consecutive failed GitHub queries tolerated while waiting; one network blip must not abort the wait.
+_WAIT_RETRIES = 3
 # Release versions only: a SemVer pre-release or build suffix normalizes differently
 # in PEP 440 distribution names, so CD would reject the artifacts after tagging.
 _SEMVER_TAG = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
@@ -158,7 +166,7 @@ def _restore_release(root: Path, snapshot: _ReleaseSnapshot) -> None:
 
 
 def _git_output(state: State, *args: str, cwd: Path | None = None, check: bool = True) -> str:
-    return state.runner.run(["git", *args], cwd=cwd, check=check).stdout.strip()
+    return state.runner.run(["git", *args], cwd=cwd, timeout=_GIT_TIMEOUT_SECONDS, check=check).stdout.strip()
 
 
 def push_prepared_commit(state: State, remote: str, branch: str, commit: str) -> None:
@@ -182,6 +190,7 @@ def _remote_release_tag_objects(state: State, remote: str, refspec: str) -> tupl
     result = state.runner.run_bounded(
         ["git", "ls-remote", "--tags", remote, refspec, peeled_ref],
         max_output_bytes=_REMOTE_TAG_OUTPUT_LIMIT,
+        timeout=_GIT_TIMEOUT_SECONDS,
     )
     if result.output_truncated:
         raise DotError(f"remote tag query for {refspec} exceeded {_REMOTE_TAG_OUTPUT_LIMIT} bytes")
@@ -259,7 +268,9 @@ def _prepared_release_tag(state: State, root: Path) -> str | None:
 
 def _calculate_release_version(state: State, root: Path) -> tuple[str, str]:
     config = str(_RELEASE_CLIFF_CONFIG)
-    bumped = state.runner.run(["git-cliff", "--config", config, "--bumped-version"], cwd=root).stdout.strip()
+    bumped = state.runner.run(
+        ["git-cliff", "--config", config, "--bumped-version"], cwd=root, timeout=_TOOL_TIMEOUT_SECONDS
+    ).stdout.strip()
     if not _SEMVER_TAG.fullmatch(bumped):
         raise DotError(f"git-cliff returned invalid semantic version tag {bumped!r}")
     try:
@@ -278,7 +289,7 @@ def _validate_prepared_release(state: State, root: Path, expected_tag: str, *, r
         if code != 0:
             raise DotError(f"project {task} failed")
     status_output = state.runner.run(
-        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd=root
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd=root, timeout=_GIT_TIMEOUT_SECONDS
     ).stdout
     if require_clean:
         if status_output:
@@ -325,7 +336,7 @@ def _recover_interrupted_release(state: State, root: Path, snapshot: _ReleaseSna
 def _refresh_installed_cli(state: State, root: Path) -> None:
     # The release commit changes package metadata, so refresh the workstation
     # entrypoint before reporting success. A retry is safe after a remote push.
-    state.runner.run(["mise", "run", "--force", "deploy"], cwd=root)
+    state.runner.run(["mise", "run", "--force", "deploy"], cwd=root, timeout=_LONG_TIMEOUT_SECONDS)
 
 
 def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | None = None) -> str | None:
@@ -334,7 +345,7 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
     if _git_output(state, "status", "--porcelain"):
         raise DotError("working directory has uncommitted or staged changes; commit or stash them first")
     _require_tool(state, "gh")
-    state.runner.run(["gh", "auth", "status"])
+    state.runner.run(["gh", "auth", "status"], timeout=_TOOL_TIMEOUT_SECONDS)
     _require_tool(state, "git-cliff", "run 'mise run tools' or install it via mise")
     _require_tool(state, "mise", "release validation cannot run")
     _require_tool(state, "uv", "release lock regeneration cannot run")
@@ -387,8 +398,11 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
         state.runner.run(
             ["git-cliff", "--config", str(_RELEASE_CLIFF_CONFIG), "--bump", "-o", str(_RELEASE_CHANGELOG_FILE)],
             cwd=root,
+            timeout=_TOOL_TIMEOUT_SECONDS,
         )
-        state.runner.run(["uv", "lock", "--project", str(_RELEASE_VERSION_FILE.parent)], cwd=root)
+        state.runner.run(
+            ["uv", "lock", "--project", str(_RELEASE_VERSION_FILE.parent)], cwd=root, timeout=_TOOL_TIMEOUT_SECONDS
+        )
         _validate_prepared_release(state, root, bumped)
     except KeyboardInterrupt:
         _recover_interrupted_release(state, root, snapshot, staged=False)
@@ -400,8 +414,10 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
             raise DotError(f"{error}; failed to restore release files: {restore_error}") from error
         raise
     try:
-        state.runner.run(["git", "add", *(str(path) for path in _RELEASE_GENERATED_FILES)], cwd=root)
-        state.runner.run(["git", "commit", "-m", f"chore(release): {bumped}"], cwd=root)
+        state.runner.run(
+            ["git", "add", *(str(path) for path in _RELEASE_GENERATED_FILES)], cwd=root, timeout=_GIT_TIMEOUT_SECONDS
+        )
+        state.runner.run(["git", "commit", "-m", f"chore(release): {bumped}"], cwd=root, timeout=_LONG_TIMEOUT_SECONDS)
     except KeyboardInterrupt:
         _recover_interrupted_release(state, root, snapshot, staged=True)
         raise
@@ -415,12 +431,32 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
     return bumped
 
 
+def _gh_json(state: State, args: list[str], deadline: float, label: str) -> object | None:
+    """Decode one GitHub CLI response; None marks a transient failure worth retrying."""
+    try:
+        response = state.runner.run_bounded(
+            args, timeout=max(0.001, min(30, deadline - monotonic())), max_output_bytes=_GH_OUTPUT_LIMIT, check=False
+        )
+    except DotError:
+        return None
+    if response.output_truncated:
+        raise DotError(f"{label} exceeded the output limit")
+    if response.returncode:
+        return None
+    try:
+        return json.loads(response.stdout)
+    except ValueError:
+        return None
+
+
 def wait_for_release(state: State, tag: str, *, timeout_seconds: float = 1800) -> str:
     """Observe the exact release commit's CD and its published artifacts."""
     head = _git_output(state, "rev-parse", "HEAD")
     deadline = monotonic() + timeout_seconds
+    failures = 0
     while monotonic() < deadline:
-        response = state.runner.run_bounded(
+        runs = _gh_json(
+            state,
             [
                 "gh",
                 "run",
@@ -438,42 +474,51 @@ def wait_for_release(state: State, tag: str, *, timeout_seconds: float = 1800) -
                 "--json",
                 "headSha,status,conclusion,url",
             ],
-            timeout=max(0.001, min(30, deadline - monotonic())),
-            max_output_bytes=64 * 1024,
+            deadline,
+            "release workflow response",
         )
-        if response.output_truncated:
-            raise DotError("release workflow response exceeded the output limit")
-        runs = json.loads(response.stdout)
-        if not isinstance(runs, list):
+        if runs is not None and not isinstance(runs, list):
             raise DotError("invalid release workflow response")
-        selected = next((run for run in runs if isinstance(run, dict) and run.get("headSha") == head), None)
-        if selected and selected.get("status") == "completed":
+        selected = next((run for run in runs or [] if isinstance(run, dict) and run.get("headSha") == head), None)
+        release: object | None = None
+        completed = bool(selected and selected.get("status") == "completed")
+        if selected and completed:
             if selected.get("conclusion") != "success":
                 raise DotError(f"CD failed for {tag}; inspect {_CD_URL}")
-            release_result = state.runner.run_bounded(
+            release = _gh_json(
+                state,
                 ["gh", "release", "view", tag, "--repo", _GITHUB_REPOSITORY, "--json", "tagName,isDraft,url,assets"],
-                timeout=max(0.001, min(30, deadline - monotonic())),
-                max_output_bytes=64 * 1024,
+                deadline,
+                "release metadata",
             )
-            if release_result.output_truncated:
-                raise DotError("release metadata exceeded the output limit")
-            release = json.loads(release_result.stdout)
-            if not isinstance(release, dict) or release.get("tagName") != tag or release.get("isDraft") is not False:
-                raise DotError("CD succeeded but the expected public release is unavailable")
-            assets = release.get("assets", [])
-            names = (
-                [asset["name"] for asset in assets if isinstance(asset, dict) and isinstance(asset.get("name"), str)]
-                if isinstance(assets, list)
-                else []
-            )
-            if not any(name.endswith(".whl") for name in names) or not any(name.endswith(".tar.gz") for name in names):
-                raise DotError("published release is missing its wheel or source distribution")
-            url = f"https://github.com/{_GITHUB_REPOSITORY}/releases/tag/{tag}"
-            state.stdout.write(f"✓ Published {tag}: {url}\n")
-            return url
-        state.stderr.write(f"Waiting for publication of {tag} at {head[:12]}...\n")
+            if release is not None:
+                return _verified_release_url(state, tag, release)
+        if runs is None or completed:
+            failures += 1
+            if failures > _WAIT_RETRIES:
+                raise DotError(f"GitHub queries kept failing while waiting for {tag}; publication may still complete")
+            state.stderr.write(f"GitHub query failed; retrying ({failures}/{_WAIT_RETRIES})...\n")
+        else:
+            failures = 0
+            state.stderr.write(f"Waiting for publication of {tag} at {head[:12]}...\n")
         sleep(min(5, max(0, deadline - monotonic())))
     raise DotError(f"timed out waiting for {tag}; publication may still complete")
+
+
+def _verified_release_url(state: State, tag: str, release: object) -> str:
+    if not isinstance(release, dict) or release.get("tagName") != tag or release.get("isDraft") is not False:
+        raise DotError("CD succeeded but the expected public release is unavailable")
+    assets = release.get("assets", [])
+    names = (
+        [asset["name"] for asset in assets if isinstance(asset, dict) and isinstance(asset.get("name"), str)]
+        if isinstance(assets, list)
+        else []
+    )
+    if not any(name.endswith(".whl") for name in names) or not any(name.endswith(".tar.gz") for name in names):
+        raise DotError("published release is missing its wheel or source distribution")
+    url = f"https://github.com/{_GITHUB_REPOSITORY}/releases/tag/{tag}"
+    state.stdout.write(f"✓ Published {tag}: {url}\n")
+    return url
 
 
 def main() -> int:

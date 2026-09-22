@@ -9,7 +9,7 @@
 # and conda dependencies, and minimum_release_age below delays fuzzy `latest`
 # resolution so a compromised release has time to be pulled. npm and pipx tools
 # use version-only locking, so their transitive dependencies can change on
-# reinstall. Registry tools such as gcloud and neovim may still pin only a version.
+# reinstall. Registry tools such as gcloud may still pin only a version.
 # First fetches are unverified.
 aqua.cosign = false
 aqua.github_attestations = false
@@ -38,11 +38,20 @@ lockfile_platforms = ["linux-x64", "macos-arm64"]
 minimum_release_age = "3d"
 minimum_release_age_excludes = ["pipx:fkf", "pipx:fmind"]
 slsa = false
-# Repository configs anywhere under home need no `mise trust` (prefix match).
-trusted_config_paths = [{{ .chezmoi.homeDir | quote }}]
+# Only the owner's workspaces and this source tree skip `mise trust` (prefix match);
+# a third-party checkout elsewhere under home keeps the trust prompt, because a
+# trusted config runs its [env] templates and [hooks] on `cd`.
+trusted_config_paths = [
+  {{ joinPath .chezmoi.homeDir "fmind" | quote }},
+  {{ joinPath .chezmoi.homeDir "fmind-ai" | quote }},
+  {{ joinPath .chezmoi.homeDir "mlops-courses" | quote }},
+  {{ .chezmoi.sourceDir | quote }},
+]
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
+# The registry default (vfox) locks release URLs without digests; aqua locks checksums.
+neovim = "aqua:neovim/neovim"
 
 [settings.hook_env]
 chpwd_only = true

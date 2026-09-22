@@ -6,12 +6,16 @@
 export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"` -}}
 {{- $activationBlock := `# chezmoi: mise-bash-integration
 # Set up mise activation for interactive bash shells.
-if command -v mise >/dev/null 2>&1; then
+# Claude Code snapshots this shell but not the hook state that mise() needs, which
+# makes every mise call exit 127 there; its shells rely on the shims instead.
+if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate bash)"
   eval "${mise_activation}"
 fi` -}}
-{{- if contains $pathSentinel .chezmoi.stdin -}}
-{{- .chezmoi.stdin -}}
+{{- /* Rewrite an activation block deployed before the Claude Code guard. */ -}}
+{{- $stdin := .chezmoi.stdin | replace "\nif command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" "\nif [ -z \"${CLAUDECODE:-}\" ] && command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" -}}
+{{- if contains $pathSentinel $stdin -}}
+{{- $stdin -}}
 {{- else -}}
 {{ $pathBlock }}
 {{- if ne (trim .chezmoi.stdin) "" }}

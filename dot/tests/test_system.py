@@ -9,14 +9,10 @@ import pytest
 
 from fmind_dot import system
 from fmind_dot.config import Config
+from fmind_dot.hooks import Notification, build_notification, notification_command
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
-from fmind_dot.system import (
-    Notification,
-    build_notification,
-    notification_command,
-    run_doctor,
-)
+from fmind_dot.system import run_doctor
 
 
 class FakeRunner(Runner):

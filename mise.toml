@@ -2,17 +2,10 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 [settings]
-aqua.cosign = false
-aqua.github_attestations = false
-aqua.minisign = false
-aqua.slsa = false
-github.github_attestations = false
-github.slsa = false
-github_attestations = false
-locked_verify_provenance = false
+# Signature and provenance verification keep mise defaults here, so CI (which has no
+# home config) verifies every repository tool; the workstation config opts out globally.
 lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
-slsa = false
 
 [settings.task]
 run_auto_install = false
@@ -34,6 +27,8 @@ python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/ag
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
+# The registry default (vfox) locks release URLs without digests; aqua locks checksums.
+neovim = "aqua:neovim/neovim"
 
 [tools]
 actionlint = "latest"
@@ -266,7 +261,6 @@ run = "shfmt -w -i 2 -s install.sh"
 alias = "i"
 description = "Bootstrap a freshly initialized checkout"
 run = [
-  "mise trust -y mise.toml",
   "mise run tools",
   "mise run hooks",
   "mise run vim",
@@ -348,10 +342,6 @@ run = [
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 
-[tasks."migrate:skills"]
-description = "Preview skill links retired since v6.1.0; --apply moves confirmed links to a recoverable backup"
-run = "uv run --frozen --directory dot python -m dot_tasks.skill_links"
-
 [tasks.release]
 alias = "mr"
 description = "Prepare and dispatch an exact-head GitHub release"
@@ -369,7 +359,6 @@ run = [
   "mise --locked install -y",
   # Seed tool configuration without invoking missing or outdated hook executables.
   "chezmoi apply --force --exclude scripts",
-  "mise trust -y ~/.config/mise/config.toml",
   "mise -C \"$HOME\" --locked install -y",
   "mise run deploy",
   # Hooks now see the current dot and global tools on the very first bootstrap.
@@ -379,11 +368,8 @@ run = [
 
 [tasks.trust]
 alias = "mtr"
-description = "Trust repository and home mise configs"
-run = [
-  "mise trust -y mise.toml",
-  "mise trust -y ~/.config/mise/config.toml",
-]
+description = "Trust the repository mise config (the home config needs no trust)"
+run = "mise trust -y mise.toml"
 
 [tasks.upgrade]
 alias = "mu"

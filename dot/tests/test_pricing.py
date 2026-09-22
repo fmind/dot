@@ -16,7 +16,7 @@ from fmind_dot.config import default_pricing
 def record(**kwargs) -> UsageRecord:
     return UsageRecord(
         harness="codex", session_id="example", model="gpt-5.4", measurement_kind="provider-reported", **kwargs
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
 
 
 def test_codex_cached_and_reasoning_tokens_are_not_charged_twice() -> None:
@@ -37,7 +37,7 @@ def test_grok_cache_buckets_are_subsets_of_reported_input() -> None:
         cached_tokens=600_000,
         cache_write_tokens=100_000,
         output_tokens=50_000,
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     # Grok reports input as the whole prompt, so the session total excludes the cache subsets.
     assert usage.total_tokens == 1_050_000
     pricing = default_pricing()
@@ -56,7 +56,7 @@ def test_grok_without_rates_stays_unpriced_rather_than_free() -> None:
         measurement_kind="provider-reported",
         input_tokens=1_000,
         output_tokens=10,
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     assert api_equivalent(usage, default_pricing()) == (None, "unknown or mixed model")
 
 
@@ -70,7 +70,7 @@ def test_claude_cache_is_additive_and_zero_is_known() -> None:
         cached_tokens=1_000_000,
         cache_write_tokens=1_000_000,
         output_tokens=100_000,
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     assert api_equivalent(usage, default_pricing())[0] == pytest.approx(8.55)
     assert api_equivalent(record(), default_pricing()) == (0, "")
 
@@ -83,7 +83,7 @@ def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complet
         measurement_kind="provider-reported",
         timestamp="2026-05-01T10:00:00Z",
         input_tokens=1_000_000,
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     # Claude stamps local error/interrupt rows with a "<synthetic>" model and no tokens.
     synthetic = UsageRecord(
         harness="claude",
@@ -91,12 +91,12 @@ def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complet
         model="<synthetic>",
         measurement_kind="provider-reported",
         timestamp="2026-05-01T10:01:00Z",
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     session = UsageRecord(harness="claude", session_id="one", measurement_kind="provider-reported")
     session.set_samples([priced, synthetic])
 
     assert api_equivalent(synthetic, default_pricing()) == (0, "")
-    result = aggregate_usage([session.finalize()])[0].to_dict()
+    result = aggregate_usage([session.finalize(fallback_timestamp="2026-09-01T00:00:00Z")])[0].to_dict()
     assert result["pricing_complete"] is True
     assert result["unpriced_reasons"] == {}
     assert result["api_equivalent_usd"] == pytest.approx(3.0)

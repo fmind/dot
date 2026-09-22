@@ -13,6 +13,8 @@ from typer.core import TyperGroup, TyperOption
 from typer.main import get_command
 from typer.testing import CliRunner
 
+import fmind_dot.deploy as deploy
+import fmind_dot.hooks as hooks
 import fmind_dot.system as system
 from fmind_dot.config import Config, SecretConfig, ToolConfig
 from fmind_dot.errors import DotError
@@ -216,8 +218,7 @@ def test_completion_collects_both_shell_integration_failures(monkeypatch: pytest
 
     runner = ScriptedRunner({"fish", "atuin", "carapace"}, run=fail_integrations)
     state = state_with(runner, config)
-    with pytest.raises(DotError, match=r"atuin-init\.fish.*carapace-init\.fish"):
-        system.run_completion(state)
+    system.run_completion(state)
     assert isinstance(state.stdout, StringIO)
     output = state.stdout.getvalue()
     assert "Failed to generate atuin-init.fish" in output
@@ -245,28 +246,43 @@ def test_completion_generation_reports_missing_generators_and_empty_output() -> 
     assert "provider-private" not in str(raised.value)
 
 
+@pytest.mark.parametrize("check_only", [False, True])
 def test_completion_run_skips_missing_tools_and_reports_failed_generators(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    check_only: bool,
 ) -> None:
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     config = Config()
     config.completions.path = str(tmp_path / "completions")
-    config.completions.tools = ["missing", "broken"]
+    config.completions.tools = ["missing", "broken", "working"]
+    directory = Path(config.completions.path)
+    directory.mkdir()
+    previous = directory / "broken.fish"
+    previous.write_text("# known good\n")
 
     def scripts(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
         if args[0] == "fish":
             return CommandResult("", "", 0)
+        if args[0] == "working":
+            return CommandResult("# working\n", "", 0)
         return CommandResult("", "private", 7)
 
-    state = state_with(ScriptedRunner({"fish", "broken"}, run=scripts), config)
-    with pytest.raises(DotError, match="broken"):
+    state = state_with(ScriptedRunner({"fish", "broken", "working"}, run=scripts), config)
+    if check_only:
+        with pytest.raises(DotError, match="broken"):
+            system.run_completion(state, check_only=True)
+    else:
         system.run_completion(state)
+        assert (directory / "working.fish").read_text() == "# working\n"
+    assert previous.read_text() == "# known good\n"
     assert isinstance(state.stdout, StringIO)
     output = state.stdout.getvalue()
     assert "missing is not installed or active, skipping" in output
     assert "Failed to generate completions for broken" in output
+    assert "Generated completions for working" in output
+    assert "finished with failures" in output
     assert "Completions updated" not in output
 
 
@@ -281,17 +297,17 @@ def test_completion_rejects_empty_scripts_before_replacing_existing_file(tmp_pat
 
 
 def test_notification_commands_cover_linux_fallback_and_darwin_escaping() -> None:
-    linux = system.notification_command(
+    linux = hooks.notification_command(
         ScriptedRunner({"gdbus"}),
-        system.Notification("Done", "Turn finished", ("~/dot",)),
+        hooks.Notification("Done", "Turn finished", ("~/dot",)),
         system="linux",
     )
     assert linux[0] == "gdbus"
     assert {"uint32 0", "@as []", "@a{sv} {}", "int32 10000"} <= set(linux)
 
-    darwin = system.notification_command(
+    darwin = hooks.notification_command(
         ScriptedRunner(),
-        system.Notification('Done "now"', "Turn finished", (r"~/a\b",)),
+        hooks.Notification('Done "now"', "Turn finished", (r"~/a\b",)),
         system="darwin",
     )
     assert darwin[0:2] == ["osascript", "-e"]
@@ -301,18 +317,18 @@ def test_notification_commands_cover_linux_fallback_and_darwin_escaping() -> Non
 
 def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -> None:
     with pytest.raises(DotError, match="agent name is required"):
-        system.build_notification("", "stop", None)
+        hooks.build_notification("", "stop", None)
     with pytest.raises(DotError, match="unknown agent notify event"):
-        system.build_notification("codex", "unknown", None)
+        hooks.build_notification("codex", "unknown", None)
 
-    minimal = system.build_notification("custom", "session-end", None)
-    assert minimal == system.Notification("🏁 custom", "Session ended")
+    minimal = hooks.build_notification("custom", "session-end", None)
+    assert minimal == hooks.Notification("🏁 custom", "Session ended")
     assert (
         'display notification "Session ended"'
-        in system.notification_command(ScriptedRunner(), minimal, system="darwin")[2]
+        in hooks.notification_command(ScriptedRunner(), minimal, system="darwin")[2]
     )
 
-    session_only = system.build_notification(
+    session_only = hooks.build_notification(
         "codex",
         "stop",
         tmp_path / "outside",
@@ -320,9 +336,9 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
     assert session_only.details == ()
 
     with pytest.raises(DotError, match="unsupported on plan9"):
-        system.notification_command(ScriptedRunner(), minimal, system="plan9")
+        hooks.notification_command(ScriptedRunner(), minimal, system="plan9")
     with pytest.raises(DotError, match="install notify-send or gdbus"):
-        system.notification_command(ScriptedRunner(), minimal, system="linux")
+        hooks.notification_command(ScriptedRunner(), minimal, system="linux")
 
 
 def test_hook_payload_is_strict() -> None:
@@ -330,17 +346,17 @@ def test_hook_payload_is_strict() -> None:
         def isatty(self) -> bool:
             return True
 
-    assert system.read_hook_payload(TTYInput("ignored")) is None
-    assert system.read_hook_payload(StringIO("  \n")) is None
+    assert hooks.read_hook_payload(TTYInput("ignored")) is None
+    assert hooks.read_hook_payload(StringIO("  \n")) is None
     with pytest.raises(DotError, match="failed to parse agent hook input"):
-        system.read_hook_payload(StringIO("{"))
+        hooks.read_hook_payload(StringIO("{"))
     with pytest.raises(DotError, match="expected a JSON object"):
-        system.read_hook_payload(StringIO("[]"))
+        hooks.read_hook_payload(StringIO("[]"))
     with pytest.raises(DotError, match="stopHookActive must be a boolean"):
-        system.read_hook_payload(StringIO('{"stopHookActive":"false"}'))
+        hooks.read_hook_payload(StringIO('{"stopHookActive":"false"}'))
     with pytest.raises(DotError, match="fullyIdle must be a boolean"):
-        system.read_hook_payload(StringIO('{"fullyIdle":1}'))
-    assert system.read_hook_payload(StringIO('{"fullyIdle":true,"cwd":"/workspace"}')) == {
+        hooks.read_hook_payload(StringIO('{"fullyIdle":1}'))
+    assert hooks.read_hook_payload(StringIO('{"fullyIdle":true,"cwd":"/workspace"}')) == {
         "fullyIdle": True,
         "cwd": "/workspace",
     }
@@ -354,14 +370,14 @@ def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failu
         run=lambda _args, _cwd, _input_text, _check: CommandResult("", "oauth-token=secret", 4),
     )
     state = state_with(runner)
-    monkeypatch.setattr(system.platform, "system", lambda: "Plan9")
-    system.send_notification(state, system.Notification("Done"))
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Plan9")
+    hooks.send_notification(state, hooks.Notification("Done"))
     assert runner.calls == []
 
-    monkeypatch.setattr(system.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
     with pytest.raises(DotError, match="failed to send desktop notification with notify-send") as raised:
-        system.send_notification(state, system.Notification("Done"))
+        hooks.send_notification(state, hooks.Notification("Done"))
     assert "secret" not in str(raised.value)
 
 
@@ -376,10 +392,10 @@ def test_notification_dispatch_skips_missing_desktop_service(monkeypatch: pytest
         ),
     )
     state = state_with(runner)
-    monkeypatch.setattr(system.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
 
-    system.send_notification(state, system.Notification("Done"))
+    hooks.send_notification(state, hooks.Notification("Done"))
 
     assert isinstance(state.stderr, StringIO)
     assert "notification skipped: no desktop notification service" in state.stderr.getvalue()
@@ -650,9 +666,9 @@ def test_verify_compares_installed_python_package_with_source(
     (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
     for package in (source_package, installed_package):
         (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(system, "_PACKAGE_VERSION", "1.26.2")
-    receipt = system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
+    receipt = deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
     assert stat.S_IMODE(receipt.stat().st_mode) == 0o600
     config = _minimal_verify_config()
 
@@ -684,22 +700,22 @@ def test_install_receipt_rejects_stale_package_and_binds_wheel_digest(
     project = source / "dot/pyproject.toml"
     project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(system, "_PACKAGE_VERSION", "1.26.2")
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
     wheel_digest = _WHEEL_SHA256
 
-    with pytest.raises(DotError, match="installed Python package differs from source"):
-        system.write_install_receipt(source, wheel_digest, system._install_basis_digest(source))  # noqa: SLF001
-    assert not (installed_package / system._INSTALL_RECEIPT_NAME).exists()  # noqa: SLF001
+    with pytest.raises(RuntimeError, match="installed Python package differs from source"):
+        deploy.write_install_receipt(source, wheel_digest, deploy._install_basis_digest(source))  # noqa: SLF001
+    assert not (installed_package / deploy.INSTALL_RECEIPT_NAME).exists()
 
     (installed_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    receipt = system.write_install_receipt(
+    receipt = deploy.write_install_receipt(
         source,
         wheel_digest,
-        system._install_basis_digest(source),  # noqa: SLF001
+        deploy._install_basis_digest(source),  # noqa: SLF001
     )
     assert json.loads(receipt.read_text(encoding="utf-8")) == {
-        "basis_sha256": system._install_basis_digest(source),  # noqa: SLF001
+        "basis_sha256": deploy._install_basis_digest(source),  # noqa: SLF001
         "installed_version": "1.26.2",
         "schema_version": 2,
         "source_root": str(source),
@@ -708,11 +724,11 @@ def test_install_receipt_rejects_stale_package_and_binds_wheel_digest(
     payload = json.loads(receipt.read_text(encoding="utf-8"))
     payload["wheel_sha256"] = "not-a-digest"
     receipt.write_text(json.dumps(payload), encoding="utf-8")
-    assert system._install_receipt_matches(source) is False  # noqa: SLF001
+    assert deploy.install_receipt_matches(source) is False
 
     project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.3"\n', encoding="utf-8")
-    with pytest.raises(DotError, match="installed version differs from source project"):
-        system.write_install_receipt(source, wheel_digest, system._install_basis_digest(source))  # noqa: SLF001
+    with pytest.raises(RuntimeError, match="installed version differs from source project"):
+        deploy.write_install_receipt(source, wheel_digest, deploy._install_basis_digest(source))  # noqa: SLF001
 
 
 def test_install_receipt_rejects_source_basis_changed_since_export(
@@ -729,14 +745,14 @@ def test_install_receipt_rejects_source_basis_changed_since_export(
     (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     lock = source / "dot/uv.lock"
     lock.write_text("version = 1\n", encoding="utf-8")
-    expected_basis = system._install_basis_digest(source)  # noqa: SLF001
+    expected_basis = deploy._install_basis_digest(source)  # noqa: SLF001
     lock.write_text("version = 2\n", encoding="utf-8")
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(system, "_PACKAGE_VERSION", "1.26.2")
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
 
-    with pytest.raises(DotError, match="source changed during deployment"):
-        system.write_install_receipt(source, _WHEEL_SHA256, expected_basis)
-    assert not (installed_package / system._INSTALL_RECEIPT_NAME).exists()  # noqa: SLF001
+    with pytest.raises(RuntimeError, match="source changed during deployment"):
+        deploy.write_install_receipt(source, _WHEEL_SHA256, expected_basis)
+    assert not (installed_package / deploy.INSTALL_RECEIPT_NAME).exists()
 
 
 def test_verify_receipt_binds_project_metadata_and_lock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -751,9 +767,9 @@ def test_verify_receipt_binds_project_metadata_and_lock(monkeypatch: pytest.Monk
     lock.write_text("version = 1\n", encoding="utf-8")
     for package in (source_package, installed_package):
         (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(system, "_PACKAGE_VERSION", "1.26.2")
-    system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
+    deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
     config = _minimal_verify_config()
 
     def source_path(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
@@ -768,12 +784,12 @@ def test_verify_receipt_binds_project_metadata_and_lock(monkeypatch: pytest.Monk
     metadata_stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert metadata_stale["install"][0]["details"] == "STALE: install receipt differs from source"
 
-    system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
+    deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
     lock.write_text("version = 2\n", encoding="utf-8")
     lock_stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert lock_stale["install"][0]["details"] == "STALE: install receipt differs from source"
 
-    receipt = system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
+    receipt = deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
     receipt.chmod(0o644)
     exposed_receipt = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert exposed_receipt["install"][0]["details"] == "STALE: install receipt differs from source"
@@ -817,7 +833,7 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
     (installed_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     project = source / "dot/pyproject.toml"
     project.write_text("not = [valid", encoding="utf-8")
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
     runner = ScriptedRunner(
         {"chezmoi"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{source}\n", "", 0),
@@ -830,11 +846,31 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
     assert stale[0].details == "STALE: installed version differs from source"
 
 
+def test_doctor_from_a_source_checkout_skips_install_freshness(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # `uv run --project dot dot doctor` imports the checkout itself, which never carries a receipt.
+    source = tmp_path / "checkout"
+    package = source / "dot/src/fmind_dot"
+    package.mkdir(parents=True)
+    (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "0.0.0"\n', encoding="utf-8")
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", package)
+    runner = ScriptedRunner(
+        {"chezmoi"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{source}\n", "", 0),
+    )
+
+    [result] = system._install_results(state_with(runner, _minimal_verify_config()))  # noqa: SLF001
+
+    assert (result.status, result.condition) == ("skip", "skipped")
+    assert "source checkout" in result.details
+    assert "STALE" not in result.details
+
+
 def test_install_receipt_fails_closed_for_symlinked_package_and_atomic_publish_error(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setattr(system, "_PACKAGE_VERSION", "1.26.2")
+    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
     source = tmp_path / "source"
     source_package = source / "dot/src/fmind_dot"
     source_package.mkdir(parents=True)
@@ -845,34 +881,34 @@ def test_install_receipt_fails_closed_for_symlinked_package_and_atomic_publish_e
     real_package.mkdir()
     package_link = tmp_path / "installed-link"
     package_link.symlink_to(real_package, target_is_directory=True)
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", package_link)
-    with pytest.raises(DotError, match="must be a real directory"):
-        system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", package_link)
+    with pytest.raises(RuntimeError, match="must be a real directory"):
+        deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
 
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", real_package)
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", real_package)
     (real_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     original_replace = Path.replace
 
     def fail_receipt_replace(path: Path, target: Path) -> Path:
-        if path.name.startswith(f".{system._INSTALL_RECEIPT_NAME}."):  # noqa: SLF001
+        if path.name.startswith(f".{deploy.INSTALL_RECEIPT_NAME}."):
             raise OSError("publish denied")
         return original_replace(path, target)
 
     monkeypatch.setattr(Path, "replace", fail_receipt_replace)
     with pytest.raises(OSError, match="publish denied"):
-        system.write_install_receipt(source, _WHEEL_SHA256, system._install_basis_digest(source))  # noqa: SLF001
+        deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
     assert [path.name for path in real_package.iterdir()] == ["module.py"]
 
 
 def test_malformed_install_receipt_is_never_accepted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     package = tmp_path / "installed"
     package.mkdir()
-    receipt = package / system._INSTALL_RECEIPT_NAME  # noqa: SLF001
+    receipt = package / deploy.INSTALL_RECEIPT_NAME
     receipt.write_text("{malformed", encoding="utf-8")
     receipt.chmod(0o600)
-    monkeypatch.setattr(system, "_PACKAGE_DIRECTORY", package)
+    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", package)
 
-    assert system._install_receipt_matches(tmp_path) is False  # noqa: SLF001 - receipt is an external trust boundary.
+    assert deploy.install_receipt_matches(tmp_path) is False
 
 
 def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1017,8 +1053,15 @@ def test_completion_check_leaves_installed_scripts_and_cache_unchanged(
     assert not cache.exists()
     assert isinstance(state.stdout, StringIO)
     assert "Completion check passed" in state.stdout.getvalue()
+    # The temporary check directory is not an installation target worth reporting.
+    assert "Completions updated" not in state.stdout.getvalue()
     assert ["atuin", "init", "fish"] in runner.calls
     assert ["carapace", "_carapace", "fish"] in runner.calls
+
+    installing = state_with(ScriptedRunner({"fish"}), config)
+    system.run_completion(installing)
+    assert isinstance(installing.stdout, StringIO)
+    assert installing.stdout.getvalue().endswith(f"\n✓ Completions updated in {completions}\n")
 
 
 def test_completion_mise_resolution_error_is_not_a_missing_tool(
@@ -1048,7 +1091,7 @@ def test_completion_mise_resolution_error_is_not_a_missing_tool(
 )
 def test_notification_title_uses_only_originating_terminal(output: str, expected: str) -> None:
     runner = ScriptedRunner({"zellij"}, run=lambda *_args: CommandResult(output, "", 0))
-    assert system.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == expected
+    assert hooks.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == expected
     assert runner.output_limits == [PROBE_OUTPUT_LIMIT_BYTES]
 
 
@@ -1060,34 +1103,34 @@ def test_notification_title_failure_keeps_plain_notification(failure: str) -> No
         return CommandResult("[]", "", int(failure == "exited"), stdout_truncated=failure == "truncated")
 
     runner = ScriptedRunner({"zellij"}, run=run)
-    assert system.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == ""
-    assert system.build_notification("codex", "stop", Path("/work/project")).details == ()
+    assert hooks.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == ""
+    assert hooks.build_notification("codex", "stop", Path("/work/project")).details == ()
 
 
 @pytest.mark.parametrize("pane", ["", "terminal_7", "-1", "\uff17"])
 def test_notification_title_skips_unavailable_origin(pane: str) -> None:
     runner = ScriptedRunner({"zellij"})
-    assert system.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": pane}.get) == ""
+    assert hooks.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": pane}.get) == ""
     assert runner.calls == []
 
 
 def test_notification_text_is_short_and_has_no_terminal_controls() -> None:
-    notification = system.build_notification(
+    notification = hooks.build_notification(
         "codex", "stop", Path("/work/project"), title="\x1b[31mFix\n hooks\x1b[0m\x00"
     )
     assert notification.details == ("Fix hooks",)
-    long = system.build_notification("codex", "stop", None, title="x" * 100)
+    long = hooks.build_notification("codex", "stop", None, title="x" * 100)
     assert long.details == ("x" * 79 + "…",)
-    assert system.build_notification("codex", "stop", Path("/work/project"), title="project").details == ()
+    assert hooks.build_notification("codex", "stop", Path("/work/project"), title="project").details == ()
 
 
 @pytest.mark.parametrize("agent", ["codex", "claude", "grok", "agy", "copilot"])
 def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: pytest.MonkeyPatch, agent: str) -> None:
-    monkeypatch.setattr(system.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Darwin")
     monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
     runner = ScriptedRunner()
-    notification = system.build_notification(agent, "stop", Path("/work/project"), title='Fix "quoted" paths')
-    system.send_notification(state_with(runner), notification)
+    notification = hooks.build_notification(agent, "stop", Path("/work/project"), title='Fix "quoted" paths')
+    hooks.send_notification(state_with(runner), notification)
     assert len(runner.calls) == 1
     assert runner.calls[0][:2] == ["osascript", "-e"]
     assert 'subtitle "Turn finished"' in runner.calls[0][2]
@@ -1097,9 +1140,9 @@ def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: p
 
 
 def test_linux_notification_renders_title_as_text_without_actions() -> None:
-    notification = system.build_notification("codex", "stop", Path("/work/project"), title="Fix <hooks> & tests")
+    notification = hooks.build_notification("codex", "stop", Path("/work/project"), title="Fix <hooks> & tests")
     for installed in ({"notify-send", "gdbus"}, {"gdbus"}):
-        command = system.notification_command(ScriptedRunner(installed), notification, system="linux")
+        command = hooks.notification_command(ScriptedRunner(installed), notification, system="linux")
         assert "Turn finished\nFix &lt;hooks&gt; &amp; tests" in command
         if command[0] == "gdbus":
             assert "@as []" in command

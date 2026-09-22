@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from contextlib import closing
 
@@ -601,3 +602,56 @@ def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path)
     (grok_dir / "signals.json").write_text("[]", encoding="utf-8")
     with pytest.raises(ValueError, match="JSON object"):
         _grok_usage(grok_dir, "grok-id")
+
+
+# 2026-09-03T04:05:06Z: a source modification time far from both the transcript and the test clock.
+_SOURCE_MTIME = 1_788_408_306
+
+
+def test_undated_usage_takes_the_latest_transcript_timestamp_never_the_clock(tmp_path) -> None:
+    claude = tmp_path / "claude.jsonl"
+    _jsonl(
+        claude,
+        [
+            {"type": "user", "timestamp": "2026-02-01T10:00:00Z", "message": {"content": "question"}},
+            # An assistant block without its own timestamp cannot be dated as a request.
+            {
+                "type": "assistant",
+                "message": {"id": "m", "content": [{"type": "text", "text": "a"}], "usage": {"input_tokens": 4}},
+            },
+            {"type": "user", "timestamp": "2026-02-01T10:05:00+00:00", "message": {"content": "later"}},
+        ],
+    )
+    os.utime(claude, (_SOURCE_MTIME, _SOURCE_MTIME))
+
+    first = _usage(parse_claude_session(claude, "claude-id"))
+    again = _usage(parse_claude_session(claude, "claude-id"))
+
+    assert first.timestamp == again.timestamp == "2026-02-01T10:05:00+00:00"
+    assert (first.samples, first.input_tokens) == ([], 4)
+
+
+def test_undated_usage_without_transcript_timestamps_takes_the_source_mtime(tmp_path) -> None:
+    signals = tmp_path / "signals.json"
+    signals.write_text('{"contextTokensUsed":21}', encoding="utf-8")
+    os.utime(signals, (_SOURCE_MTIME, _SOURCE_MTIME))
+    assert _grok_usage(tmp_path, "grok-id").timestamp == "2026-09-03T04:05:06Z"
+
+    updates = tmp_path / "updates.jsonl"
+    # An undated turn keeps its tokens but no longer claims a request timestamp.
+    _jsonl(updates, [{"params": {"update": {"sessionUpdate": "turn_completed", "usage": {"inputTokens": 7}}}}])
+    os.utime(updates, (_SOURCE_MTIME - 60, _SOURCE_MTIME - 60))
+    turn = _grok_usage(tmp_path, "grok-id")
+    assert (turn.timestamp, turn.samples, turn.input_tokens) == ("2026-09-03T04:05:06Z", [], 7)
+
+    database = tmp_path / "copilot.db"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.executescript(
+            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
+            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
+            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
+            INSERT INTO sessions VALUES('cp-id','/repo',NULL);
+            INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-03-01T00:00:01Z');
+            INSERT INTO assistant_usage_events VALUES('cp-id','gpt',10,5,0,0,0);"""
+        )
+    assert _usage(parse_copilot_session(database, "cp-id")).timestamp == "2026-03-01T00:00:01Z"

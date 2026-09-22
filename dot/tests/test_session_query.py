@@ -85,10 +85,9 @@ def test_query_filters_metadata_and_reports_status(monkeypatch: pytest.MonkeyPat
 def test_empty_store_and_inverted_window(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
     assert discover_sessions(missing) == []
-    with pytest.raises(ValueError, match="--since must not be after --until"):
-        query_session_summaries(
-            SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC)), root=missing
-        )
+    # The CLI rejects an inverted window once; the library simply selects nothing.
+    inverted = SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC))
+    assert query_session_summaries(inverted, root=missing) == []
 
 
 def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(

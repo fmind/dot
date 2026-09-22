@@ -185,7 +185,7 @@ def sync_sessions(
     """Capture changed sessions; quiet mode reports only failures and never raises for them."""
     if agent and agent not in AGENT_ADAPTERS:
         raise DotError(f"unknown session agent {agent!r}")
-    root = session_store_root() if dry_run else ensure_session_store(state.stderr)
+    root = session_store_root() if dry_run else ensure_session_store()
     outcome = SyncOutcome()
     # Only an unfiltered pass proves every available session of an agent was considered.
     complete_pass = not (session or cwd or since or dry_run)

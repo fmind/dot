@@ -1,23 +1,37 @@
-"""Build and install the dot wheel with its exact hashed runtime dependency graph."""
+"""Build and install the dot wheel with its exact hashed runtime dependency graph.
+
+This module also runs as a standalone script under the bootstrap interpreter (`python -I deploy.py`),
+so it imports only the standard library at module level. The install receipt helpers run inside the
+deployed runtime, where the installed package and its metadata exist.
+"""
 
 from __future__ import annotations
 
 import fcntl
 import hashlib
+import importlib.metadata
+import json
 import os
 import pathlib
 import shutil
+import stat
 import subprocess
 import sys
+import tomllib
 import uuid
 
 PYTHON_VERSION = "3.14"
 SLOTS = ("venv-a", "venv-b")
+# Generous ceiling for one build, export, sync, or probe step; a hung tool must not block deploy forever.
+_STEP_TIMEOUT_SECONDS = 1800
+PACKAGE_DIRECTORY = pathlib.Path(__file__).resolve().parent
+INSTALL_RECEIPT_NAME = ".fmind-dot-install.json"
+_INSTALL_RECEIPT_SCHEMA = 2
 
 
 def _run(command: list[str], *, cwd: pathlib.Path, environment: dict[str, str]) -> None:
     # Every caller constructs the executable and arguments from trusted local paths.
-    subprocess.run(command, cwd=cwd, env=environment, check=True)  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+    subprocess.run(command, cwd=cwd, env=environment, check=True, timeout=_STEP_TIMEOUT_SECONDS)  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
 
 
 def _clean_environment() -> dict[str, str]:
@@ -72,6 +86,88 @@ def _install_basis_digest(source: pathlib.Path) -> str:
         digest.update(len(content).to_bytes(8, "big"))
         digest.update(content)
     return digest.hexdigest()
+
+
+def _installed_version() -> str:
+    # Resolved on demand: the standalone deploy script runs where no fmind-dot metadata exists.
+    return importlib.metadata.version("fmind-dot")
+
+
+def _is_sha256(value: str) -> bool:
+    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
+def _install_receipt(source: pathlib.Path, wheel_sha256: str, basis_sha256: str) -> dict[str, str | int]:
+    return {
+        "schema_version": _INSTALL_RECEIPT_SCHEMA,
+        "source_root": str(source.expanduser().resolve(strict=True)),
+        "basis_sha256": basis_sha256,
+        "installed_version": _installed_version(),
+        "wheel_sha256": wheel_sha256,
+    }
+
+
+def write_install_receipt(source_root: pathlib.Path, wheel_sha256: str, expected_basis_sha256: str) -> pathlib.Path:
+    """Atomically attest, from inside the deployed runtime, the exact checkout basis it was built from."""
+    # Deferred: the standalone script path must stay standard-library only.
+    from fmind_dot.private_files import write_private_file
+
+    if not PACKAGE_DIRECTORY.is_dir() or PACKAGE_DIRECTORY.is_symlink():
+        raise RuntimeError("installed package directory must be a real directory")
+    source = source_root.expanduser().resolve(strict=True)
+    if not _is_sha256(expected_basis_sha256):
+        raise RuntimeError("source basis digest must be a lowercase SHA-256")
+    if not _is_sha256(wheel_sha256):
+        raise RuntimeError("wheel digest must be a lowercase SHA-256")
+    if _package_digest(source / "dot/src/fmind_dot") != _package_digest(PACKAGE_DIRECTORY):
+        raise RuntimeError("installed Python package differs from source")
+    with (source / "dot/pyproject.toml").open("rb") as stream:
+        metadata = tomllib.load(stream).get("project", {})
+    if metadata.get("name") != "fmind-dot":
+        raise RuntimeError("source project name is not fmind-dot")
+    if metadata.get("version") != _installed_version():
+        raise RuntimeError("installed version differs from source project")
+    # One check after every source read binds them to the pre-export basis, which is recorded verbatim.
+    if _install_basis_digest(source) != expected_basis_sha256:
+        raise RuntimeError("source changed during deployment")
+    target = PACKAGE_DIRECTORY / INSTALL_RECEIPT_NAME
+    payload = _install_receipt(source, wheel_sha256, expected_basis_sha256)
+    write_private_file(target, (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8"))
+    return target
+
+
+def install_receipt_matches(source: pathlib.Path) -> bool:
+    """Accept only an owner-only receipt that attests the current source basis and installed version."""
+    receipt = PACKAGE_DIRECTORY / INSTALL_RECEIPT_NAME
+    try:
+        info = receipt.lstat()
+        if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600:
+            return False
+        decoded = json.loads(receipt.read_text(encoding="utf-8"))
+        wheel_sha256 = decoded.get("wheel_sha256") if isinstance(decoded, dict) else None
+        return (
+            isinstance(wheel_sha256, str)
+            and _is_sha256(wheel_sha256)
+            and decoded == _install_receipt(source, wheel_sha256, _install_basis_digest(source))
+        )
+    except OSError, RuntimeError, ValueError:
+        return False
+
+
+def install_staleness(source: pathlib.Path) -> str:
+    """Return why the installed package is stale against a source checkout, or "" when it matches.
+
+    Raises OSError or tomllib.TOMLDecodeError when the checkout cannot be read.
+    """
+    with (source / "dot/pyproject.toml").open("rb") as stream:
+        version = tomllib.load(stream).get("project", {}).get("version")
+    if not isinstance(version, str) or version != _installed_version():
+        return "installed version differs from source"
+    if _package_digest(source / "dot/src/fmind_dot") != _package_digest(PACKAGE_DIRECTORY):
+        return "installed Python package differs from source"
+    if not install_receipt_matches(source):
+        return "install receipt differs from source"
+    return ""
 
 
 def _uv_executable(candidate: pathlib.Path | None, environment: dict[str, str]) -> pathlib.Path:
@@ -222,7 +318,7 @@ def _install_locked(
                 "-c",
                 (
                     "import sys; from pathlib import Path; "
-                    "from fmind_dot.system import write_install_receipt; "
+                    "from fmind_dot.deploy import write_install_receipt; "
                     "write_install_receipt(Path(sys.argv[1]), sys.argv[2], sys.argv[3])"
                 ),
                 str(source),
@@ -284,7 +380,7 @@ def main() -> int:
         return 2
     try:
         entrypoint = install(source, uv_executable=uv_executable)
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         sys.stderr.write(f"error: {error}\n")
         return 1
     sys.stdout.write(f"dot is ready at {entrypoint}\n")
