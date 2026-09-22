@@ -115,7 +115,7 @@ def test_mixed_models_unknown_cost_and_comparable_statistics(tmp_path: Path) -> 
     assert record.to_dict()["cost_usd"] is None
     estimate = UsageRecord(
         harness="agy", session_id="estimate", measurement_kind="estimated", total_tokens=50
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     stats = aggregate_usage([record, estimate], by_model=True)
     output = io.StringIO()
     write_usage_stats(output, stats, by_model=True)
@@ -277,6 +277,39 @@ def test_release_wait_requires_exact_cd_and_public_artifacts(monkeypatch: pytest
         assert len(calls) == 1
 
 
+@pytest.mark.parametrize("failures", [1, 4])
+def test_release_wait_retries_transient_github_failures(monkeypatch: pytest.MonkeyPatch, failures: int) -> None:
+    head = "a" * 40
+    monkeypatch.setattr(maintenance, "_git_output", lambda *_args: head)
+    monkeypatch.setattr(maintenance, "monotonic", lambda: 0.0)
+    monkeypatch.setattr(maintenance, "sleep", lambda _seconds: None)
+    responses = [CommandResult("", "HTTP 502", 1) for _ in range(failures)] + [
+        CommandResult(json.dumps([{"headSha": head, "status": "completed", "conclusion": "success"}]), "", 0),
+        CommandResult(
+            json.dumps({"tagName": "v2.2.0", "isDraft": False, "assets": [{"name": "d.whl"}, {"name": "d.tar.gz"}]}),
+            "",
+            0,
+        ),
+    ]
+
+    class FlakyRunner(Runner):
+        def run_bounded(self, args, **kwargs):
+            assert args[0] == "gh"
+            assert kwargs["check"] is False
+            return responses.pop(0)
+
+    state = state_with()
+    state.runner = FlakyRunner()
+    if failures <= maintenance._WAIT_RETRIES:  # noqa: SLF001 - the retry budget is the contract under test.
+        assert maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
+    else:
+        with pytest.raises(DotError, match="GitHub queries kept failing"):
+            maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1)
+    assert isinstance(state.stderr, io.StringIO)
+    assert "GitHub query failed; retrying (1/3)" in state.stderr.getvalue()
+    assert "HTTP 502" not in state.stderr.getvalue()
+
+
 def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     ingest_session("codex", "missing-time", [SessionLog("", "codex", "missing-time", "user", "text")])
@@ -285,8 +318,11 @@ def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.Monk
     assert report["invalid_timestamps"] == 1
     assert not report["complete"]
     assert not report["prompts"]
-    with pytest.raises(ValueError, match="since"):
-        prompt_statistics(SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC)))
+    # The CLI boundary rejects an inverted window; the library selects nothing for it.
+    inverted = SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC))
+    assert prompt_statistics(inverted)["prompts"] == 0
+    rejected = CliRunner().invoke(app, ["agent", "stats", "--since", "2026-09-02", "--until", "2026-09-01"])
+    assert rejected.exit_code == 2
     result = CliRunner().invoke(app, ["agent", "session", "stats", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.stdout)["sessions"] == 1

@@ -1,47 +1,29 @@
-"""Workstation diagnostics, notifications, completions, and installation evidence."""
+"""Workstation diagnostics, completions, and installation freshness."""
 
-import html
 import json
 import os
-import platform
-import re
 import stat
 import tempfile
 import tomllib
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Annotated, Any
+from typing import Annotated, Any
 
 import typer
 from typer.completion import get_completion_script
 
-from fmind_dot import __version__
+from fmind_dot import deploy
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
-from fmind_dot.deploy import _install_basis_digest, _package_digest
 from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
-from fmind_dot.private_files import write_atomic_file, write_private_file
-from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, Runner
+from fmind_dot.private_files import write_atomic_file
+from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult
 from fmind_dot.state import State, require_tools, state_from
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
-_NOTIFY_EVENTS = {
-    "stop": ("✅", "Turn finished"),
-    "session-end": ("🏁", "Session ended"),
-    "needs-input": ("⏳", "Needs your input"),
-}
-_NOTIFY_AGENTS = {
-    "agy": "Antigravity",
-    "antigravity": "Antigravity",
-    "claude": "Claude Code",
-    "codex": "Codex",
-    "copilot": "Copilot",
-    "grok": "Grok Build",
-}
-_NOTIFY_EXPIRE_MS = "10000"
 _AUTH_PROBES = {
     "gh": (["gh", "auth", "status"], False),
     "gcloud": (["gcloud", "auth", "print-access-token"], True),
@@ -89,17 +71,6 @@ _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "ty": ("--version",),
     "uv": ("--version",),
 }
-_PACKAGE_DIRECTORY = Path(__file__).resolve().parent
-_PACKAGE_VERSION = __version__
-_INSTALL_RECEIPT_NAME = ".fmind-dot-install.json"
-_INSTALL_RECEIPT_SCHEMA = 2
-
-
-@dataclass(frozen=True)
-class Notification:
-    summary: str
-    headline: str = ""
-    details: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -121,178 +92,6 @@ def _check_result_payload(result: CheckResult) -> dict[str, str]:
     if result.details:
         payload["details"] = result.details
     return payload
-
-
-def notification_title(runner: Runner, getenv: Callable[[str], str | None] = os.environ.get) -> str:
-    """Read only the originating terminal title; unavailable metadata is optional."""
-    pane = getenv("ZELLIJ_PANE_ID") or ""
-    if not getenv("ZELLIJ_SESSION_NAME") or not pane.isascii() or not pane.isdecimal() or not runner.which("zellij"):
-        return ""
-    try:
-        result = runner.run_bounded(
-            ["zellij", "action", "list-panes", "--json"],
-            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=1,
-            check=False,
-        )
-        if result.returncode or result.stdout_truncated:
-            return ""
-        panes = json.loads(result.stdout)
-    except DotError, OSError, ValueError:
-        return ""
-    if not isinstance(panes, list):
-        return ""
-    for item in panes:
-        if not isinstance(item, dict) or item.get("is_plugin") is not False or item.get("id") != int(pane):
-            continue
-        title = item.get("title")
-        if not isinstance(title, str):
-            return ""
-        # Codex titles include a changing status and project around the task.
-        parts = title.split(" | ")
-        if len(parts) >= 3 and re.match(r"^\[[^\]]+\] ", parts[0]):
-            title = " | ".join(parts[1:-1])
-        return title
-    return ""
-
-
-def _short_notification_text(value: str) -> str:
-    # Titles are untrusted terminal metadata: remove escapes/control characters
-    # and keep desktop banners to one short line per field.
-    value = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
-    text = " ".join("".join(char for char in value if char.isprintable() or char.isspace()).split())
-    return text if len(text) <= 80 else text[:79].rstrip() + "…"
-
-
-def build_notification(
-    agent: str,
-    event: str,
-    cwd: Path | None,
-    *,
-    title: str = "",
-) -> Notification:
-    if not agent:
-        raise DotError("agent name is required")
-    try:
-        icon, headline = _NOTIFY_EVENTS[event]
-    except KeyError as error:
-        choices = ", ".join(sorted(_NOTIFY_EVENTS))
-        raise DotError(f"unknown agent notify event {event!r} (want one of: {choices})") from error
-    label = _NOTIFY_AGENTS.get(agent, agent)
-    summary = f"{icon} {label}"
-    project = ""
-    if cwd is not None:
-        expanded = cwd.expanduser()
-        resolved = expanded if expanded.is_absolute() else (Path.cwd() / expanded).absolute()
-        project = _short_notification_text(resolved.name)
-        summary += f" · {project}"
-    title = _short_notification_text(title)
-    details = (
-        (title,) if title and title.casefold() not in {agent.casefold(), label.casefold(), project.casefold()} else ()
-    )
-    return Notification(summary, headline, details)
-
-
-def _notification_body(notification: Notification) -> str:
-    return "\n".join((notification.headline, *notification.details)).strip()
-
-
-def _apple_script_string(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def notification_command(runner: Runner, notification: Notification, *, system: str | None = None) -> list[str]:
-    host = (system or platform.system()).lower()
-    if host == "darwin":
-        details = " · ".join(notification.details)
-        if details:
-            script = (
-                f"display notification {_apple_script_string(details)} "
-                f"with title {_apple_script_string(notification.summary)} "
-                f"subtitle {_apple_script_string(notification.headline)}"
-            )
-        else:
-            script = (
-                f"display notification {_apple_script_string(notification.headline)} "
-                f"with title {_apple_script_string(notification.summary)}"
-            )
-        return ["osascript", "-e", script]
-    if host != "linux":
-        raise DotError(f"desktop notifications are unsupported on {host}")
-    body = html.escape(_notification_body(notification), quote=False)
-    if runner.which("notify-send") is not None:
-        return [
-            "notify-send",
-            "--app-name=dot",
-            f"--expire-time={_NOTIFY_EXPIRE_MS}",
-            notification.summary,
-            body,
-        ]
-    if runner.which("gdbus") is not None:
-        return [
-            "gdbus",
-            "call",
-            "--session",
-            "--dest",
-            "org.freedesktop.Notifications",
-            "--object-path",
-            "/org/freedesktop/Notifications",
-            "--method",
-            "org.freedesktop.Notifications.Notify",
-            "dot",
-            "uint32 0",
-            "dialog-information",
-            notification.summary,
-            body,
-            "@as []",
-            "@a{sv} {}",
-            f"int32 {_NOTIFY_EXPIRE_MS}",
-        ]
-    raise DotError("install notify-send or gdbus to send desktop notifications")
-
-
-def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
-    """Decode the common hook envelope and reject ambiguous boolean guards."""
-    if stream is None:
-        return None
-    try:
-        if stream.isatty():
-            return None
-    except AttributeError, OSError:
-        pass
-    payload = stream.read()
-    if not payload.strip():
-        return None
-    try:
-        decoded = json.loads(payload)
-    except json.JSONDecodeError as error:
-        raise DotError(f"failed to parse agent hook input: {error}") from error
-    if not isinstance(decoded, dict):
-        raise DotError("failed to parse agent hook input: expected a JSON object")
-    for field in ("stop_hook_active", "stopHookActive", "fullyIdle"):
-        if field in decoded and not isinstance(decoded[field], bool):
-            raise DotError(f"failed to parse agent hook input: {field} must be a boolean")
-    return decoded
-
-
-def send_notification(state: State, notification: Notification) -> None:
-    host = platform.system().lower()
-    if host not in {"darwin", "linux"} or (host == "linux" and not os.environ.get("DBUS_SESSION_BUS_ADDRESS")):
-        return
-    command = notification_command(state.runner, notification, system=host)
-    try:
-        result = state.runner.run(command, timeout=10, check=False)
-    except (DotError, OSError) as error:
-        raise DotError(f"failed to send desktop notification with {command[0]}") from error
-    if result.returncode != 0:
-        # A session bus can exist in a container without a desktop notification
-        # service. Treat that like a headless session, not a failed agent turn.
-        if command[0] == "gdbus" and result.stderr.startswith(
-            "Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown:"
-        ):
-            state.stderr.write("Desktop notification skipped: no desktop notification service.\n")
-            return
-        raise DotError(f"failed to send desktop notification with {command[0]}")
 
 
 def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
@@ -366,17 +165,19 @@ def run_completion(state: State, *, check_only: bool = False) -> None:
     if check_only:
         with tempfile.TemporaryDirectory(prefix="dot-completion-check-") as temporary:
             root = Path(temporary)
-            _run_completion(state, root / "completions", root / "cache")
+            failures = _run_completion(state, root / "completions", root / "cache")
+        if failures:
+            raise DotError("completion generation failed: " + "; ".join(failures))
         typer.echo("Completion check passed; installed scripts were not changed.", file=state.stdout)
         return
-    _run_completion(
-        state,
-        expand_path(state.config.completions.path),
-        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish",
-    )
+    directory = expand_path(state.config.completions.path)
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
+    # Generator failures are reported above and leave previous scripts intact; setup continues.
+    if not _run_completion(state, directory, cache):
+        typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
 
 
-def _run_completion(state: State, directory: Path, cache: Path) -> None:
+def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
     try:
         directory.mkdir(mode=0o755, parents=True, exist_ok=True)
     except OSError as error:
@@ -409,9 +210,9 @@ def _run_completion(state: State, directory: Path, cache: Path) -> None:
             ("atuin", "atuin-init.fish", ["init", "fish"]),
             ("carapace", "carapace-init.fish", ["_carapace", "fish"]),
         ):
-            if not _completion_available(state, tool):
-                continue
             try:
+                if not _completion_available(state, tool):
+                    continue
                 # Native scripts must win over Carapace's generic completers;
                 # in particular its "dot" completer is for Graphviz, not this CLI.
                 excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(state.config.completions.tools)
@@ -425,8 +226,8 @@ def _run_completion(state: State, directory: Path, cache: Path) -> None:
                 failures.append(f"{filename}: {error}")
                 typer.echo(f"  ✗ Failed to generate {filename}", file=state.stdout)
     if failures:
-        raise DotError("completion generation failed: " + "; ".join(failures))
-    typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
+        typer.echo("\nCompletion generation finished with failures: " + "; ".join(failures), file=state.stdout)
+    return failures
 
 
 def _environment_results(state: State) -> list[CheckResult]:
@@ -622,74 +423,6 @@ def _docker_results(state: State) -> list[CheckResult]:
     ]
 
 
-def _install_receipt(source: Path, wheel_sha256: str, basis_sha256: str) -> dict[str, str | int]:
-    resolved = source.expanduser().resolve(strict=True)
-    return {
-        "schema_version": _INSTALL_RECEIPT_SCHEMA,
-        "source_root": str(resolved),
-        "basis_sha256": basis_sha256,
-        "installed_version": _PACKAGE_VERSION,
-        "wheel_sha256": wheel_sha256,
-    }
-
-
-def _is_sha256(value: str) -> bool:
-    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
-
-
-def write_install_receipt(source_root: Path, wheel_sha256: str, expected_basis_sha256: str) -> Path:
-    """Atomically attest the exact checkout basis used to deploy this package."""
-    if not _PACKAGE_DIRECTORY.is_dir() or _PACKAGE_DIRECTORY.is_symlink():
-        raise DotError("installed package directory must be a real directory")
-    source = source_root.expanduser().resolve(strict=True)
-    if not _is_sha256(expected_basis_sha256):
-        raise DotError("source basis digest must be a lowercase SHA-256")
-    if _install_basis_digest(source) != expected_basis_sha256:
-        raise DotError("source changed during deployment")
-    if _package_digest(source / "dot/src/fmind_dot") != _package_digest(_PACKAGE_DIRECTORY):
-        raise DotError("installed Python package differs from source")
-    project = source / "dot/pyproject.toml"
-    with project.open("rb") as stream:
-        metadata = tomllib.load(stream).get("project", {})
-    if metadata.get("name") != "fmind-dot":
-        raise DotError("source project name is not fmind-dot")
-    if metadata.get("version") != _PACKAGE_VERSION:
-        raise DotError("installed version differs from source project")
-    if not _is_sha256(wheel_sha256):
-        raise DotError("wheel digest must be a lowercase SHA-256")
-    # Recheck after reading package and project metadata, then record the pre-export basis verbatim.
-    if _install_basis_digest(source) != expected_basis_sha256:
-        raise DotError("source changed during deployment")
-    payload = _install_receipt(source, wheel_sha256, expected_basis_sha256)
-    target = _PACKAGE_DIRECTORY / _INSTALL_RECEIPT_NAME
-    write_private_file(target, (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8"))
-    return target
-
-
-def _install_receipt_matches(source: Path) -> bool:
-    receipt = _PACKAGE_DIRECTORY / _INSTALL_RECEIPT_NAME
-    try:
-        info = receipt.lstat()
-        if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600:
-            return False
-        decoded = json.loads(receipt.read_text(encoding="utf-8"))
-        wheel_sha256 = decoded.get("wheel_sha256") if isinstance(decoded, dict) else None
-        return (
-            isinstance(wheel_sha256, str)
-            and _is_sha256(wheel_sha256)
-            and decoded == _install_receipt(source, wheel_sha256, _install_basis_digest(source))
-        )
-    except OSError, RuntimeError, ValueError:
-        return False
-
-
-def _source_version(project: Path) -> str:
-    with project.open("rb") as stream:
-        parsed = tomllib.load(stream)
-    value = parsed.get("project", {}).get("version")
-    return value if isinstance(value, str) else ""
-
-
 def _install_results(state: State) -> list[CheckResult]:
     name = "dot"
     chezmoi = state.runner.which("chezmoi")
@@ -717,21 +450,27 @@ def _install_results(state: State) -> list[CheckResult]:
     project = source / "dot/pyproject.toml"
     if not source_package.is_dir() or not project.is_file():
         return [CheckResult(name, "skip", "chezmoi source is not a Python dot checkout", condition="skipped")]
+    installed_path = str(deploy.PACKAGE_DIRECTORY)
+    # `uv run --project dot dot doctor` imports a src-layout checkout, which has no deployed receipt.
+    if (
+        deploy.PACKAGE_DIRECTORY.parent.name == "src"
+        and (deploy.PACKAGE_DIRECTORY.parents[1] / "pyproject.toml").is_file()
+    ):
+        return [
+            CheckResult(
+                name,
+                "skip",
+                "running from a source checkout; check the deployed dot instead",
+                installed_path,
+                "skipped",
+            )
+        ]
     try:
-        version = _source_version(project)
-        source_digest = _package_digest(source_package)
-        installed_digest = _package_digest(_PACKAGE_DIRECTORY)
+        stale = deploy.install_staleness(source)
     except OSError, tomllib.TOMLDecodeError:
         return [CheckResult(name, "fail", "could not verify installed Python package", condition="broken")]
-    installed_path = str(_PACKAGE_DIRECTORY)
-    if not version or version != _PACKAGE_VERSION:
-        return [CheckResult(name, "fail", "STALE: installed version differs from source", installed_path, "stale")]
-    if source_digest != installed_digest:
-        return [
-            CheckResult(name, "fail", "STALE: installed Python package differs from source", installed_path, "stale")
-        ]
-    if not _install_receipt_matches(source):
-        return [CheckResult(name, "fail", "STALE: install receipt differs from source", installed_path, "stale")]
+    if stale:
+        return [CheckResult(name, "fail", f"STALE: {stale}", installed_path, "stale")]
     return [CheckResult(name, "pass", "installed Python package matches source", installed_path, "healthy")]
 
 

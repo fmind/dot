@@ -14,6 +14,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.repository import (
     find_git_repositories,
+    git_failure,
     run_pull,
     run_status,
 )
@@ -87,7 +88,7 @@ class ConcurrentPullRunner(RecordingRunner):
         command = tuple(args)
         if command == ("git", "branch", "--show-current"):
             return result("main\n")
-        if command == ("git", "status", "--porcelain"):
+        if command == ("git", "--no-optional-locks", "status", "--porcelain"):
             return result()
         if command == ("git", "fetch", "--prune"):
             with self.lock:
@@ -211,7 +212,7 @@ def test_pull_fast_forwards_but_does_not_push_a_dirty_repository(tmp_path: Path)
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result(" M work.py\n")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result(" M work.py\n")],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("2\n")],
@@ -237,7 +238,7 @@ def test_pull_reports_rev_list_failure_instead_of_claiming_no_upstream(tmp_path:
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result("")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result("")],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("", returncode=128)],
@@ -261,7 +262,7 @@ def test_pull_timeout_during_upstream_probe_is_a_failure(monkeypatch: pytest.Mon
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result("")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result("")],
             ("git", "fetch", "--prune"): [result()],
         },
         {"git"},
@@ -288,7 +289,7 @@ def test_pull_classifies_nonzero_upstream_probe_as_no_upstream(tmp_path: Path) -
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result("")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result("")],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result(returncode=128)],
         },
@@ -309,7 +310,7 @@ def test_status_emits_machine_readable_repository_state(tmp_path: Path) -> None:
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result("")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result("")],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main")],
             ("git", "rev-list", "--left-right", "--count", "HEAD...@{u}"): [result("0\t0")],
             ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
@@ -372,7 +373,7 @@ def test_pull_pushes_clean_detached_repository_that_is_ahead(tmp_path: Path) -> 
         {
             ("git", "branch", "--show-current"): [result()],
             ("git", "rev-parse", "--short", "HEAD"): [result("abc123\n")],
-            ("git", "status", "--porcelain"): [result()],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("0\n")],
@@ -400,7 +401,7 @@ def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path)
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result()],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("1\n")],
@@ -429,7 +430,7 @@ def test_pull_classifies_fetch_failure_by_upstream_state(tmp_path: Path, has_ups
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result()],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
             ("git", "fetch", "--prune"): [result(returncode=1)],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [
                 result("origin/main\n" if has_upstream else "", returncode=0 if has_upstream else 128)
@@ -467,7 +468,7 @@ def test_pull_propagates_user_cancellation(tmp_path: Path) -> None:
     runner = InterruptingPullRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result()],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
         },
         {"git"},
     )
@@ -491,7 +492,7 @@ def test_status_human_output_shows_dirty_repository_without_probing_docker(tmp_p
         {
             docker_info: [result("desktop (Containers: 3, Running: 2)\n")],
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "status", "--porcelain"): [result(" M changed.py\n")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result(" M changed.py\n")],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main")],
             ("git", "rev-list", "--left-right", "--count", "HEAD...@{u}"): [result("0\t0")],
             ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
@@ -535,7 +536,7 @@ def test_status_json_reports_probe_and_repository_failures(tmp_path: Path) -> No
     assert "docker" not in document
     assert not document["complete"]
     assert document["repositories"][0]["branch"] == ""
-    assert "command failed" in document["repositories"][0]["error"]
+    assert document["repositories"][0]["error"] == "git branch failed (1)"
 
 
 def test_status_human_output_reports_empty_workspace(tmp_path: Path) -> None:
@@ -549,3 +550,42 @@ def test_status_human_output_reports_empty_workspace(tmp_path: Path) -> None:
     assert isinstance(state.stdout, io.StringIO)
     assert "Docker" not in state.stdout.getvalue()
     assert "No repositories found" in state.stdout.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        (
+            " ! [rejected]        main -> main (non-fast-forward)\n",
+            "git push failed (1): non-fast-forward",
+        ),
+        (
+            "fatal: Authentication failed for 'https://github.com/o/r.git/'\n",
+            "git fetch failed (128): authentication failed",
+        ),
+        (
+            "fatal: unable to access 'https://x/': Could not resolve host: x\n",
+            "git fetch failed (128): network unavailable",
+        ),
+        (
+            "error: https://user:ghp_0123456789abcdefghijklmnopqrstuvwxyz@host/r odd\nsecond line\n",
+            "git fetch failed (128): error: https://<redacted>@host/r odd",
+        ),
+        ("", "git fetch failed (128)"),
+    ],
+)
+def test_git_failures_name_a_secret_free_cause(stderr: str, expected: str) -> None:
+    subcommand = "push" if "rejected" in stderr else "fetch"
+    code = 1 if subcommand == "push" else 128
+    message = git_failure(["--no-optional-locks", subcommand], CommandResult("", stderr, code))
+    assert message == expected
+    assert "ghp_" not in message
+
+
+def test_status_names_an_explicit_path_outside_a_work_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    outside = tmp_path / "plain"
+    outside.mkdir()
+
+    with pytest.raises(DotError, match=rf"^{outside} is not inside a git work tree$"):
+        run_status(state_with(Runner()), paths=[outside])

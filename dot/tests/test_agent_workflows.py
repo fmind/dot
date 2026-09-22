@@ -12,6 +12,7 @@ import pytest
 from typer import _click
 from typer.testing import CliRunner
 
+from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
 from fmind_dot.archive import sync as archive_sync_module
 from fmind_dot.archive.parsers import AgentAdapter, ParsedSession
@@ -573,7 +574,7 @@ def test_sync_publishes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("HOME", str(tmp_path))
     usage = UsageRecord(
         harness="fixture", agent="fixture", session_id="fixture-id", measurement_kind="provider-reported"
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     state = _state()
     _fixture_adapter(monkeypatch, state, tmp_path, lambda *_args: ParsedSession([], "a" * 64, "fixture", usage=usage))
 
@@ -614,3 +615,56 @@ def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, 
     assert "show requires a session identity" in shown.stderr
     for removed in (["compact", "--apply"], ["ingest", "claude", "session-id"], ["show", "x", "--latest"]):
         assert CliRunner().invoke(app, ["agent", "session", *removed]).exit_code == 2
+
+
+def test_reports_reject_unknown_agents_before_any_sync(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    def forbidden(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("an unknown agent must not trigger a sync")
+
+    monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
+    for arguments in (
+        ["agent", "stats", "--agent", "claud"],
+        ["agent", "usage", "list", "--agent", "claud"],
+        ["agent", "usage", "show", "claud", "session-id"],
+    ):
+        result = CliRunner().invoke(app, arguments)
+        assert result.exit_code == 2, arguments
+        assert "unknown agent 'claud'" in _click.utils.strip_ansi(result.stderr)
+    assert not (tmp_path / ".agents").exists()
+
+
+def test_reports_with_no_sync_read_the_archive_as_stored(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    session_id = "stored"
+    _write_jsonl(
+        tmp_path / f".claude/projects/project/{session_id}.jsonl",
+        {
+            "type": "assistant",
+            "timestamp": "2026-09-06T08:00:00Z",
+            "message": {"model": "m", "content": [{"type": "text", "text": "a"}], "usage": {"input_tokens": 4}},
+        },
+    )
+    assert CliRunner().invoke(app, ["agent", "session", "sync"]).exit_code == 0
+    # A newer source must stay invisible: --no-sync never captures it.
+    _write_jsonl(
+        tmp_path / ".claude/projects/project/unsynced.jsonl",
+        {"type": "assistant", "timestamp": "2026-09-07T08:00:00Z", "message": {"usage": {"input_tokens": 1}}},
+    )
+
+    def forbidden(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("--no-sync must not capture sessions")
+
+    monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
+    stats = CliRunner().invoke(app, ["agent", "stats", "--no-sync", "--tokens-only", "--json"])
+    listed = CliRunner().invoke(app, ["agent", "usage", "list", "--no-sync", "--json"])
+    shown = CliRunner().invoke(app, ["agent", "usage", "show", "--no-sync", "claude", session_id])
+
+    assert stats.exit_code == 0
+    assert "without a sync" in json.loads(stats.stdout)["coverage"]
+    assert [row["sessions"] for row in json.loads(stats.stdout)["usage"]] == [1]
+    assert listed.exit_code == 0
+    assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == [session_id]
+    assert shown.exit_code == 0
+    assert json.loads(shown.stdout)["record"]["input_tokens"] == 4

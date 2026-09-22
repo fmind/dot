@@ -20,6 +20,13 @@ from fmind_dot.workstation import DryRun
 # Claude, Codex, Grok, and agy key trust on the repository root, so a trusted parent
 # never covers the repositories below it; Copilot trusts every path below an entry.
 _COPILOT_COMMENT = re.compile(r"^\s*//")
+# github.com origins over HTTPS, ssh:// URLs, or scp-like SSH; the owner is the first path segment.
+_GITHUB_ORIGIN = re.compile(
+    r"^(?:https://(?:[^@/]+@)?github\.com(?::443)?/|ssh://(?:[^@/]+@)?github\.com(?::22)?/|[^@/:]+@github\.com:)"
+    r"(?P<owner>[A-Za-z0-9-]+)/[^/]+?/?$",
+    re.IGNORECASE,
+)
+_ORIGIN_TIMEOUT_SECONDS = 10
 
 
 def _write(path: Path, text: str) -> None:
@@ -146,33 +153,66 @@ def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = Non
     return changed
 
 
-def _target_folders(state: State, target: str) -> list[Path]:
+def github_owner(origin: str) -> str | None:
+    """Return the owner of a github.com origin URL, or None for any other remote."""
+    match = _GITHUB_ORIGIN.fullmatch(origin.strip())
+    return match.group("owner") if match else None
+
+
+def _allowed_origin(state: State, repository: Path) -> bool:
+    """Only an origin under a configured GitHub owner is trusted; unknown or unreadable remotes fail closed."""
+    try:
+        result = state.runner.run(
+            ["git", "remote", "get-url", "origin"], cwd=repository, timeout=_ORIGIN_TIMEOUT_SECONDS, check=False
+        )
+    except DotError, OSError:
+        return False
+    owner = github_owner(result.stdout) if result.returncode == 0 else None
+    allowed = {name.casefold() for name in state.config.trust.github_owners}
+    return owner is not None and owner.casefold() in allowed
+
+
+def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
+    """Return the folders to trust and the workspace repositories skipped by the owner allowlist."""
     if target != "all":
         path = expand_path(target).resolve()
         if not path.is_dir():
             raise DotError(f"{path} is not a directory")
         try:
-            return find_git_repositories(state, [path])
+            return find_git_repositories(state, [path]), []
         except DotError:
-            return [path]
+            return [path], []
     # Configured workspaces themselves cover their non-repository subfolders in Claude
     # and every path below them in Copilot; each repository needs its own entry.
     roots = [expand_path(directory).resolve() for directory in state.config.pull.directories]
-    return sorted({*(root for root in roots if root.is_dir()), *find_git_repositories(state)})
+    trusted = {root for root in roots if root.is_dir()}
+    skipped = []
+    for repository in find_git_repositories(state):
+        if repository in trusted or _allowed_origin(state, repository):
+            trusted.add(repository)
+        else:
+            skipped.append(repository)
+    return sorted(trusted), skipped
 
 
 def run_trust(state: State, target: str = ".", *, dry_run: bool = False) -> None:
-    for folder in _target_folders(state, target):
+    folders, skipped = _target_folders(state, target)
+    for folder in folders:
         changed = trust_folder(folder, dry_run=dry_run)
         verb = "would trust" if dry_run else "trusted"
         detail = f"{verb} in {', '.join(changed)}" if changed else "already trusted"
         state.stdout.write(f"{'✓' if not changed else '+'} {folder}: {detail}\n")
+    for folder in skipped:
+        state.stdout.write(f"- {folder}: skipped (origin is not a github.com repository of trust.github_owners)\n")
 
 
 def register(app: typer.Typer) -> None:
     @app.command(
         "trust",
-        help="Pre-accept folder trust in Claude, Codex, Grok, agy, and Copilot; 'all' covers pull.directories",
+        help=(
+            "Pre-accept folder trust in Claude, Codex, Grok, agy, and Copilot; "
+            "'all' covers pull.directories and their trust.github_owners repositories"
+        ),
     )
     def trust(
         context: typer.Context,

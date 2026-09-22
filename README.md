@@ -59,7 +59,7 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 ## Installation
 
 > [!WARNING]
-> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use. Each apply runs `dot trust all`, so harnesses trust the `pull.directories` workspaces and their repositories without prompting (run `dot trust` in a new clone); mise trusts every configuration under home.
+> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use. Each apply runs `dot trust all`, so harnesses trust the `pull.directories` workspaces and their repositories whose GitHub `origin` owner is in `trust.github_owners`, without prompting (run `dot trust` in a new clone); mise trusts configurations only in those workspaces and this checkout.
 
 ```bash
 # Clone into the chezmoi source directory
@@ -69,7 +69,7 @@ git clone https://github.com/fmind/dot.git ~/.local/share/chezmoi
 bash ~/.local/share/chezmoi/install.sh
 ```
 
-Open a new shell and run `dot doctor` to check your installation. Use `dot completion --check` to check Fish completions, or `dot completion` to regenerate them.
+Open a new shell and run `dot doctor` to check your installation. Use `dot completion --check` to check Fish completions, or `dot completion` to regenerate them. Generation reports individual tool failures and continues without failing setup; `--check` returns a failure status if any generator fails. Failed generators leave existing scripts intact.
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
@@ -80,10 +80,10 @@ To finish an interrupted setup, rerun the installer. From an initialized checkou
 Read [`install.sh`](install.sh) first. It executes third-party code with your user's privileges:
 
 1. When mise is absent, it pipes `https://mise.run` to `bash`, then installs chezmoi through mise.
-1. `chezmoi init` prompts for your identity (below), then `chezmoi apply --force --exclude scripts` writes files before installing tools. Hooks wait until the locked global tools and current `dot` are installed; a complete `chezmoi apply --force` then sets folder trust and builds the bat theme cache.
-1. Apply pipes the [Grok](run_once_after_install-grok.sh.tmpl) and [Antigravity](run_once_after_install-antigravity-cli.sh.tmpl) vendor installers to `bash` when those CLIs are missing.
+1. `chezmoi init` prompts for your identity (below). The locked repository tools install first, then `chezmoi apply --force --exclude scripts` writes files before the global tools install. Hooks wait until the locked global tools and current `dot` are installed; a complete `chezmoi apply --force` then sets folder trust and builds the bat theme cache.
+1. Apply downloads the [Grok](run_once_after_install-grok.sh.tmpl) and [Antigravity](run_once_after_install-antigravity-cli.sh.tmpl) vendor installers over HTTPS and runs them with `bash` when those CLIs are missing; both CLIs then update themselves.
 1. Apply fetches theme files from [fmind/theme](https://github.com/fmind/theme) `main` without a checksum ([`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl)); font archives are pinned by SHA-256.
-1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off; the compensating controls are lockfile digests where the backend records them and a three-day `minimum_release_age` cooldown on `latest` resolution (my own `pipx:fkf` and `pipx:fmind` are exempt). npm and pipx tools lock the version only, and first fetches are unverified; that file states the trade-off.
+1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off on the workstation; the repository `mise.toml` keeps mise's defaults, so CI verifies the repository toolset. The workstation's compensating controls are lockfile digests where the backend records them and a three-day `minimum_release_age` cooldown on `latest` resolution (my own `pipx:fkf` and `pipx:fmind` are exempt). npm and pipx tools lock the version only, and first fetches are unverified; that file states the trade-off.
 
 Setup installs Google Sans for text, Google Sans Code for code, and [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) for terminals.
 
@@ -166,7 +166,7 @@ Authoring: [skillify](skills/skillify/SKILL.md). Catalog maintenance and diagnos
 
 ### Upgrading the skill catalog
 
-Upgrading from v6.1.0? Follow the [skill-link migration](.agents/skills/dot-skills/references/installed-links.md#catalog-consolidation-migration) to back up retired links, then restart your agents. Fresh installations need no migration.
+Upgrading from any v6.x release? Links to retired skills stay in `~/.agents/skills`; back up confirmed links as described in [retired links](.agents/skills/dot-skills/references/installed-links.md#retired-links), then restart your agents. Fresh installations need no cleanup.
 
 ## Credentials
 
@@ -240,7 +240,7 @@ Agent harnesses authenticate themselves:
 | **OpenAI Codex CLI**   | `codex login`                                | Interactive           |
 | **OpenCode CLI**       | `opencode` → `/connect`                      | OpenRouter API key    |
 
-Define PATs or session tokens for workspace MCP integrations on demand: `AIRTABLE_PAT`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `DATABRICKS_HOST` / `DATABRICKS_TOKEN`, and `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`.
+No workspace MCP server is preconfigured; add one with [mcp-setup](skills/mcp-setup/SKILL.md) and pass its token to one command with `dot secret run`.
 
 ## Adapting this
 
@@ -249,7 +249,7 @@ Fork rather than install as-is. Owner-specific values to replace:
 1. **Identity prompts**: the defaults in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), and the clone URL in [`install.sh`](install.sh).
 1. **Secrets**: the age `recipient` in `.chezmoi.toml.tmpl` and all encrypted credential sources; replace or remove them and configure your own native logins and scoped keys as described in [Secret Management](#secret-management).
 1. **Persona**: [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) deploys to `~/.agents/AGENTS.md`, names me, and encodes my working rules; every harness loads it.
-1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are granted to agents in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and [`dot_gemini/antigravity-cli/modify_private_settings.json`](dot_gemini/antigravity-cli/modify_private_settings.json), and are the `pull.directories` default of the `dot` CLI (override in `~/.config/dot.yaml`).
+1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are Claude `additionalDirectories` in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json), mise `trusted_config_paths` in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl), and the `pull.directories` default of the `dot` CLI, which `dot trust all` uses for every harness (override in `~/.config/dot.yaml`).
 1. **Theme**: files track [fmind/theme](https://github.com/fmind/theme) `main`; point [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl) at your own or pin a commit.
 
 ## Uninstall / rollback

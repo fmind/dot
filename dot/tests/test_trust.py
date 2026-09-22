@@ -11,7 +11,7 @@ import pytest
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
-from fmind_dot.trust import run_trust, trust_folder
+from fmind_dot.trust import github_owner, run_trust, trust_folder
 
 COPILOT_HEADER = "// User settings belong in settings.json.\n// This file is managed automatically.\n"
 
@@ -101,19 +101,58 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
     monkeypatch.setenv("HOME", str(tmp_path))
     harness_home(tmp_path)
     workspace = tmp_path / "work"
-    for name in ("one", "two"):
+    origins = {
+        "one": "https://github.com/fmind/one.git",
+        "two": "git@github.com:MLOps-Courses/two.git",
+        "foreign": "https://github.com/someone-else/foreign",
+        "lookalike": "https://github.com.evil.example/fmind/lookalike",
+        "local": "",
+    }
+    for name, origin in origins.items():
         subprocess.run(["git", "init", "-q", str(workspace / name)], check=True)
+        if origin:
+            subprocess.run(["git", "-C", str(workspace / name), "remote", "add", "origin", origin], check=True)
     (workspace / "notes").mkdir()
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
     state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace), str(tmp_path / "missing")]))
 
+    run_trust(state, "all", dry_run=True)
+    assert isinstance(state.stdout, io.StringIO)
+    assert state.stdout.getvalue().count("skipped (origin is not a github.com repository") == 3
+    assert not (tmp_path / ".gemini/antigravity-cli/settings.json").read_text().count("trustedWorkspaces")
+
+    state.stdout = io.StringIO()
     run_trust(state, "all")
 
     trusted = json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"]
     assert trusted == [str(workspace), str(workspace / "one"), str(workspace / "two")]
-    assert isinstance(state.stdout, io.StringIO)
-    assert state.stdout.getvalue().count("trusted in claude, codex, grok, agy, copilot") == 3
+    output = state.stdout.getvalue()
+    assert output.count("trusted in claude, codex, grok, agy, copilot") == 3
+    for name in ("foreign", "lookalike", "local"):
+        assert f"- {workspace / name}: skipped" in output
+
+    # An explicitly named repository is trusted regardless of its origin.
+    state.stdout = io.StringIO()
+    run_trust(state, str(workspace / "local"))
+    assert state.stdout.getvalue() == f"+ {workspace / 'local'}: trusted in claude, codex, grok, agy, copilot\n"
 
     state.stdout = io.StringIO()
     run_trust(state, str(workspace / "one" / "."))
     assert state.stdout.getvalue() == f"✓ {workspace / 'one'}: already trusted\n"
+
+
+@pytest.mark.parametrize(
+    ("origin", "owner"),
+    [
+        ("https://github.com/fmind/dot.git", "fmind"),
+        ("https://token@GitHub.com/fmind-ai/repo", "fmind-ai"),
+        ("git@github.com:MLOps-Courses/course.git", "MLOps-Courses"),
+        ("ssh://git@github.com:22/fmind/dot.git\n", "fmind"),
+        ("https://gitlab.com/fmind/dot.git", None),
+        ("https://github.com/fmind", None),
+        ("https://github.com/fmind/dot/extra", None),
+        ("git@github.com.example:fmind/dot.git", None),
+    ],
+)
+def test_github_owner_accepts_only_github_origins(origin: str, owner: str | None) -> None:
+    assert github_owner(origin) == owner

@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
 {{- /* Run only on supported platforms; the upstream installer covers Linux and macOS. */}}
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") }}
+# Grok stays outside mise so its native auto_update can track releases; the
+# installer is downloaded completely before it runs, so a truncated transfer
+# cannot execute half a script.
 set -euo pipefail
 if [ ! -x "${HOME}/.grok/bin/grok" ]; then
-  curl -fsSL https://x.ai/cli/install.sh | bash
+  installer="$(mktemp)"
+  trap 'rm -f "${installer}"' EXIT
+  curl -fsSL --proto '=https' --tlsv1.2 -o "${installer}" https://x.ai/cli/install.sh
+  bash "${installer}"
 fi
-if [ -x "${HOME}/.grok/bin/grok" ]; then
-  mkdir -p "${HOME}/.local/bin"
-  ln -sf "${HOME}/.grok/bin/grok" "${HOME}/.local/bin/grok"
-  ln -sf "${HOME}/.grok/bin/agent" "${HOME}/.local/bin/agent"
-fi
+mkdir -p "${HOME}/.local/bin"
+for command in grok agent; do
+  target="${HOME}/.grok/bin/${command}"
+  link="${HOME}/.local/bin/${command}"
+  [ -x "${target}" ] || continue
+  # Never replace another tool's generic `agent` executable or link.
+  if [ -e "${link}" ] || [ -L "${link}" ]; then
+    [ "$(readlink "${link}" || true)" = "${target}" ] || continue
+  fi
+  ln -sf "${target}" "${link}"
+done
 {{- else }}
 exit 0
 {{- end }}

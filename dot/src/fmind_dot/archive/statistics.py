@@ -30,8 +30,6 @@ def session_statistics(query: SessionQuery) -> dict[str, Any]:
 
 def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[str, Any]:
     """Aggregate user-message lengths without returning any conversation text."""
-    if query.since and query.until and query.since > query.until:
-        raise ValueError("--since must not be after --until")
     # A historical conversation may have been ingested today. Prompt date filters
     # therefore apply to record timestamps, never to archive ingestion time.
     summaries = query_session_summaries(SessionQuery(agent=query.agent, cwd=query.cwd, identity=query.identity))

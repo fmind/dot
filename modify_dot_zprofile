@@ -1,11 +1,14 @@
 # chezmoi:modify-template
 {{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
-{{- $stdin := .chezmoi.stdin -}}
+{{- /* Rewrite an activation block deployed before the Claude Code guard. */ -}}
+{{- $stdin := .chezmoi.stdin | replace "\nif command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate zsh)\"" "\nif [ -z \"${CLAUDECODE:-}\" ] && command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate zsh)\"" -}}
 {{- $sentinel := "# chezmoi: mise-zsh-integration" -}}
 {{- $activationBlock := `# chezmoi: mise-zsh-integration
 # Bootstrap mise for macOS login shells; activation owns tool-version precedence.
 export PATH="${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
-if command -v mise >/dev/null 2>&1; then
+# Claude Code snapshots this shell but not the hook state that mise() needs, which
+# makes every mise call exit 127 there; its shells rely on the shims instead.
+if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate zsh)"
   eval "${mise_activation}"
 fi` -}}

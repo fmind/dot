@@ -643,7 +643,7 @@ def test_deploy_uses_the_locked_python_runtime_graph() -> None:
     assert '"--only-binary",' in deploy
     assert '"--strict",' in deploy
     assert "--no-hashes" not in deploy
-    assert "from fmind_dot.system import write_install_receipt" in deploy
+    assert "from fmind_dot.deploy import write_install_receipt" in deploy
     # Workstation tasks run the deployed entrypoint, and it is the launcher chezmoi links.
     (launcher,) = (ROOT / "dot_local/bin").glob("symlink_*.tmpl")
     target = launcher.read_text(encoding="utf-8").strip().removeprefix("{{ .chezmoi.homeDir }}")
@@ -651,14 +651,6 @@ def test_deploy_uses_the_locked_python_runtime_graph() -> None:
     assert target.startswith("/.local/share/fmind-dot/current/bin/")
     for name in ("completions", "verify"):
         assert commands[name].startswith('"$DOT_BIN" '), name
-
-
-# Backends that publish neither checksums nor provenance for their artifacts. Every
-# other tool must be verifiable from the lockfile alone; do not add uv or any
-# aqua/core/github tool here: relock it on a checksummed backend instead.
-_LOCK_WITHOUT_CHECKSUM = {
-    "neovim": "vfox:mise-plugins/vfox-neovim",  # the vfox plugin resolves release URLs but no digests
-}
 
 
 def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
@@ -674,12 +666,11 @@ def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
                 artifact = entry.get(platform, {})
                 if not artifact.get("url"):
                     findings.append(f"{name} {platform}: no url ({entry.get('backend')})")
-                if _LOCK_WITHOUT_CHECKSUM.get(name) == entry.get("backend"):
-                    continue
                 if not str(artifact.get("checksum", "")).startswith(("sha256:", "sha512:", "blake3:")):
                     findings.append(f"{name} {platform}: no checksum ({entry.get('backend')})")
+    # Every tool must be verifiable from the lockfile alone: relock an unverifiable
+    # tool on a checksummed backend (aqua, core, github) instead of exempting it.
     assert findings == [], "\n".join(findings)
-    assert "uv" not in _LOCK_WITHOUT_CHECKSUM
 
 
 @pytest.mark.parametrize(("relative", "version"), [("mise.lock", 2), ("dot_config/mise/mise.lock", 1)])
@@ -691,3 +682,23 @@ def test_mise_lockfiles_remain_self_contained(relative: str, version: int) -> No
             assert entry["version"]
             assert not {"uv", "aube"}.intersection(entry)
     assert not (ROOT / "dot_config/mise/locks").exists()
+
+
+# age's ASCII-armored and binary headers; the repository commits armored files.
+_AGE_HEADERS = (b"-----BEGIN AGE ENCRYPTED FILE-----\n", b"age-encryption.org/v1\n")
+
+
+def test_tracked_age_files_are_encrypted() -> None:
+    # Reads only the header line and never decrypts: a plaintext secret committed under
+    # a .age name would otherwise deploy as though it were protected.
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--", "*.age"], cwd=ROOT, capture_output=True, check=True, timeout=30
+    ).stdout
+    paths = [ROOT / name for name in listed.decode().split("\0") if name]
+    assert paths, "expected encrypted chezmoi sources"
+    plaintext = []
+    for path in paths:
+        with path.open("rb") as stream:
+            if not stream.read(64).startswith(_AGE_HEADERS):
+                plaintext.append(path.relative_to(ROOT).as_posix())
+    assert plaintext == [], "tracked .age files without an age header"

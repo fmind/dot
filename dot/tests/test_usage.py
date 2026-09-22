@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
@@ -33,10 +34,16 @@ def test_usage_record_finalizes_defaults_and_computed_total() -> None:
         cache_write_tokens=4,
     )
 
-    assert record.finalize() is record
+    with pytest.raises(ValueError, match="missing timestamp in usage record"):
+        replace(record).finalize()
+    assert record.finalize(fallback_timestamp="2026-09-01T00:00:00Z") is record
     assert record.agent == "codex"
-    assert datetime.fromisoformat(record.timestamp).tzinfo is not None
+    assert record.timestamp == "2026-09-01T00:00:00Z"
     assert record.total_tokens == 3
+    # An own timestamp always wins over the fallback.
+    assert replace(record, timestamp="2026-09-02T00:00:00Z").finalize(fallback_timestamp="x").timestamp == (
+        "2026-09-02T00:00:00Z"
+    )
 
 
 def test_usage_record_serializes_every_explicit_field() -> None:
@@ -59,7 +66,7 @@ def test_usage_record_serializes_every_explicit_field() -> None:
         source_bytes=123,
     )
 
-    assert record.finalize().to_dict() == {
+    assert record.finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict() == {
         "timestamp": "2026-09-06T10:00:00Z",
         "harness": "codex",
         "agent": "worker",
@@ -83,7 +90,9 @@ def test_usage_record_serializes_every_explicit_field() -> None:
 
 
 def test_usage_record_rejects_unknown_measurement_kind() -> None:
-    value = UsageRecord(harness="codex", session_id="session").finalize().to_dict()
+    value = (
+        UsageRecord(harness="codex", session_id="session").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    )
     value["measurement_kind"] = "magic"
     with pytest.raises(ValueError, match="measurement_kind"):
         UsageRecord.from_dict(value)
@@ -144,7 +153,7 @@ def test_usage_rejects_malformed_timestamp_at_every_boundary(tmp_path: Path) -> 
     )
 
     with pytest.raises(ValueError, match="timestamp"):
-        record.finalize()
+        record.finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     with pytest.raises(ValueError, match="timestamp"):
         record.to_dict()
     with pytest.raises(ValueError, match="timestamp"):
@@ -407,7 +416,12 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
             cost_usd=0.25,
         ),
     ):
-        ingest_session(record.harness, record.session_id, [], usage=record.finalize().to_dict())
+        ingest_session(
+            record.harness,
+            record.session_id,
+            [],
+            usage=record.finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict(),
+        )
 
     runner = CliRunner()
     listed = runner.invoke(app, ["agent", "usage", "list", "--harness", "codex", "--limit", "1", "--json"])
@@ -452,7 +466,9 @@ def test_parse_flexible_time_rejects_invalid_values(value: str) -> None:
 
 @pytest.mark.parametrize("field", ["timestamp", "harness", "agent", "session_id", "model", "cwd"])
 def test_usage_record_rejects_non_string_fields(field: str) -> None:
-    value = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    value = (
+        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    )
     value[field] = 1
     with pytest.raises(ValueError, match=field):
         UsageRecord.from_dict(value)
@@ -460,7 +476,9 @@ def test_usage_record_rejects_non_string_fields(field: str) -> None:
 
 @pytest.mark.parametrize("cost", ["0.25", float("nan"), -0.25, True, 10**400])
 def test_usage_record_rejects_invalid_cost(cost: object) -> None:
-    value = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    value = (
+        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    )
     value["cost_usd"] = cost
     with pytest.raises(ValueError, match="cost_usd"):
         UsageRecord.from_dict(value)
@@ -476,7 +494,9 @@ def test_usage_record_rejects_invalid_cost(cost: object) -> None:
     ],
 )
 def test_usage_record_rejects_unsupported_formats(field: str, value: str | None) -> None:
-    document = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    document = (
+        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    )
     if value is None:
         del document[field]
     else:
@@ -514,7 +534,9 @@ def test_usage_show_validates_identity_and_reports_missing(monkeypatch: pytest.M
 def test_usage_validation_is_strict_and_does_not_expose_input(field: str, value: object) -> None:
     import traceback
 
-    document = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    document = (
+        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    )
     document[field] = value
     with pytest.raises(ValueError, match=field) as caught:
         UsageRecord.from_dict(document)
@@ -522,7 +544,9 @@ def test_usage_validation_is_strict_and_does_not_expose_input(field: str, value:
 
 
 def test_usage_ignores_unknown_session_fields_but_preserves_unknown_cost() -> None:
-    value = UsageRecord(harness="codex", session_id="fixture").finalize().to_dict()
+    value = (
+        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    )
     loaded = UsageRecord.from_dict(value | {"__pydantic_config__": "untrusted", "future": True})
     assert loaded.to_dict() == value
     assert loaded.to_dict()["cost_usd"] is None

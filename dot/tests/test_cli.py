@@ -25,6 +25,12 @@ runner = CliRunner()
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.fixture(autouse=True)
+def unmanaged_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep config commands from querying the workstation's real chezmoi inventory."""
+    monkeypatch.setattr(cli, "_managed_config", lambda _state: False)
+
+
 def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     result = runner.invoke(app, ["--help"])
@@ -467,6 +473,9 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
     blocked_parent.write_text("not a directory", encoding="utf-8")
     environment = os.environ.copy()
     environment["HOME"] = str(tmp_path)
+    # An empty PATH hides chezmoi, so the child cannot query the workstation's managed files.
+    (tmp_path / "bin").mkdir()
+    environment["PATH"] = str(tmp_path / "bin")
 
     result = subprocess.run(
         [

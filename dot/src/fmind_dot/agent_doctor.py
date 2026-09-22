@@ -1,4 +1,4 @@
-"""Read-only agent checks: notify hooks, session sync, and archive readability."""
+"""Read-only agent checks: notify hooks, last sync state, and archive readability; nothing is captured or rewritten."""
 
 import json
 import shlex
@@ -132,7 +132,7 @@ def _check_archive(root: Path, agent: str) -> tuple[str, int]:
 def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorResult]:
     if agent and agent not in _DOCTOR_INTEGRATIONS:
         raise DotError(f"unknown agent {agent!r}; choose one of {', '.join(_DOCTOR_INTEGRATIONS)}")
-    root = ensure_session_store(state.stderr)
+    root = ensure_session_store()
     results: list[AgentDoctorResult] = []
     for name in AGENT_ADAPTERS:
         if agent and name != agent:

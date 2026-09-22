@@ -63,6 +63,23 @@ def test_lookup_failure_never_becomes_success(tmp_path: Path) -> None:
     assert state.stdout.getvalue() == ""
 
 
+def test_create_failure_cause_is_surfaced_without_credentials(tmp_path: Path) -> None:
+    state, runner, notes, _ = publication(tmp_path)
+    state.stderr = io.StringIO()
+    token = "ghs_" + "x" * 36
+    runner.run.side_effect = [
+        CommandResult("", f"HTTP 403: Resource not accessible by integration ({token})\nmore\n", 1),
+        DotError("command failed (1): gh"),
+    ]
+
+    with pytest.raises(DotError, match=r"gh release create failed \(1\): HTTP 403: Resource not accessible") as raised:
+        publish_release(state, tmp_path, "v1.2.3", notes)
+
+    assert token not in str(raised.value)
+    assert "verifying the existing release" in state.stderr.getvalue()
+    assert token not in state.stderr.getvalue()
+
+
 @pytest.mark.parametrize("problem", ["tag", "notes", "wheel"])
 def test_invalid_inputs_do_not_publish(tmp_path: Path, problem: str) -> None:
     state, runner, notes, _ = publication(tmp_path)

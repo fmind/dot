@@ -46,7 +46,9 @@ def test_usage_errors_exit_two(arguments: list[str]) -> None:
 
 def test_reports_include_whole_until_day_and_exact_timestamp() -> None:
     for identity, timestamp in [("day", "2026-09-15T12:00:00Z"), ("next", "2026-09-16T00:00:00Z")]:
-        usage = UsageRecord(timestamp=timestamp, harness="codex", session_id=identity, input_tokens=10).finalize()
+        usage = UsageRecord(timestamp=timestamp, harness="codex", session_id=identity, input_tokens=10).finalize(
+            fallback_timestamp="2026-09-01T00:00:00Z"
+        )
         ingest_session(
             "codex",
             identity,
@@ -99,7 +101,7 @@ def test_agent_filter_aliases_select_the_same_usage(flag: str) -> None:
     for agent in ["codex", "claude"]:
         record = UsageRecord(
             timestamp="2026-09-15T12:00:00Z", harness=agent, session_id=agent, input_tokens=10
-        ).finalize()
+        ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
         ingest_session(agent, agent, [], usage=record.to_dict())
     result = CliRunner().invoke(app, ["agent", "usage", "list", flag, "codex", "--limit", "0", "--json"])
     assert result.exit_code == 0
@@ -137,7 +139,7 @@ def test_stats_are_readable_in_a_narrow_terminal_and_preserve_json(monkeypatch: 
         model="unknown-model",
         input_tokens=1234567,
         measurement_kind="provider-reported",
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     ingest_session(
         "codex",
         "readable",

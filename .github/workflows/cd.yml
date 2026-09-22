@@ -12,7 +12,7 @@ concurrency:
 jobs:
   # Privilege separation: everything that executes repository or third-party code
   # (the full toolchain, the gate, the build backend) runs here with a read-only
-  # token. Only the distributions and release notes cross into the publish job.
+  # token. Only the distributions and release notes cross into the attest and publish jobs.
   build:
     name: Build release distributions
     runs-on: ubuntu-24.04
@@ -40,6 +40,9 @@ jobs:
       - name: Extract release notes
         # dot/dist is ignored, so the notes travel with the distributions in one artifact.
         run: git-cliff --config dot_config/git-cliff/cliff.toml --latest --strip all > dot/dist/notes.md
+      - name: Validate tag against built version
+        # Bind the tag to the distributions before the attest job signs them.
+        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md --validate-only
       - name: Upload release payload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -47,14 +50,35 @@ jobs:
           path: dot/dist/
           if-no-files-found: error
           retention-days: 1
-  publish:
-    name: Publish GitHub release
+  # The OIDC token lives in a job that executes no repository code or dependency:
+  # it only downloads the validated payload and signs its digests.
+  attest:
+    name: Attest build provenance
     needs: build
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
-      id-token: write
       attestations: write
+      contents: read
+      id-token: write
+    timeout-minutes: 10
+    steps:
+      - name: Download release payload
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release
+          path: dot/dist/
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dot/dist/*.whl
+            dot/dist/*.tar.gz
+  publish:
+    name: Publish GitHub release
+    needs: [build, attest]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -76,12 +100,6 @@ jobs:
           path: dot/dist/
       - name: Validate tag against built version
         run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md --validate-only
-      - name: Attest build provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: |
-            dot/dist/*.whl
-            dot/dist/*.tar.gz
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

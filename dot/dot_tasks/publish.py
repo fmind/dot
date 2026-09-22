@@ -8,9 +8,13 @@ from pathlib import Path
 
 from dot_tasks.release import read_release_version
 from fmind_dot.errors import DotError
+from fmind_dot.process import diagnostic_line
 from fmind_dot.state import State
 
 ROOT = Path(__file__).resolve().parents[2]
+# Uploading two distributions is slow on a busy runner; a hung gh must still end the job.
+_CREATE_TIMEOUT_SECONDS = 900
+_VIEW_TIMEOUT_SECONDS = 120
 
 
 def validate_release_inputs(root: Path, tag: str, notes: Path) -> list[Path]:
@@ -52,12 +56,29 @@ def publish_release(state: State, root: Path, tag: str, notes: Path) -> None:
             str(notes),
         ],
         cwd=root,
+        timeout=_CREATE_TIMEOUT_SECONDS,
         check=False,
     )
-    result = state.runner.run(["gh", "release", "view", tag, "--json", "tagName,isDraft,assets"], cwd=root)
+    # gh reports why create failed (existing release, auth, network) on stderr; keep one sanitized line.
+    create_failure = (
+        f"gh release create failed ({created.returncode}): {diagnostic_line(created.stderr) or 'no diagnostic'}"
+        if created.returncode
+        else ""
+    )
+    if create_failure:
+        state.stderr.write(f"{create_failure}; verifying the existing release\n")
+    try:
+        result = state.runner.run(
+            ["gh", "release", "view", tag, "--json", "tagName,isDraft,assets"], cwd=root, timeout=_VIEW_TIMEOUT_SECONDS
+        )
+    except DotError as error:
+        raise DotError(f"{error}; {create_failure}" if create_failure else str(error)) from error
     release = json.loads(result.stdout)
     if not isinstance(release, dict) or release.get("tagName") != tag or release.get("isDraft") is not False:
-        raise DotError("publication did not produce the expected public release; inspect the release before retrying")
+        suffix = f" ({create_failure})" if create_failure else ""
+        raise DotError(
+            f"publication did not produce the expected public release{suffix}; inspect the release before retrying"
+        )
     remote_assets = release.get("assets")
     if not isinstance(remote_assets, list):
         raise DotError("release response has no asset list")

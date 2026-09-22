@@ -79,7 +79,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         # Only permit the side effect after cancellation returned; host scheduling
         # cannot let a short timer fire before this test delivers SIGTERM.
         release.touch()
-        time.sleep(0.4)
+        time.sleep(0.1)
 
         assert process.returncode == 130
         assert stdout == ""
@@ -231,6 +231,15 @@ def test_bounded_capture_replaces_invalid_locale_bytes() -> None:
     assert not result.output_truncated
 
 
+def test_run_shares_bounded_capture_and_fails_instead_of_truncating(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(process_module, "RUN_OUTPUT_LIMIT_BYTES", 8)
+    script = "import os; os.write(1, b'a\\r\\nb\\rc')"
+    assert Runner().run([sys.executable, "-c", script]).stdout == "a\nb\nc"
+
+    with pytest.raises(DotError, match="command output exceeded 8 bytes"):
+        Runner().run([sys.executable, "-c", "print('x' * 64)"], check=False)
+
+
 def test_run_replaces_invalid_locale_bytes_like_bounded_capture() -> None:
     script = "import os; os.write(1, b'ok\\xff\\n'); os.write(2, b'\\xfe')"
 
@@ -261,7 +270,7 @@ def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
     ready, clean = tmp_path / "ready", tmp_path / "clean"
 
     with pytest.raises(DotError, match="command timed out"):
-        Runner().run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], timeout=1.5)
+        Runner().run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], timeout=0.75)
 
     assert ready.exists(), "child did not install its handler before the timeout"
     assert clean.read_text() == "clean"
@@ -303,7 +312,7 @@ def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
     if stop == "timeout":
         started = time.monotonic()
         with pytest.raises(DotError, match="command timed out"):
-            runner.run(command, timeout=1.5)
+            runner.run(command, timeout=0.75)
     else:
         worker = Thread(target=lambda: results.append(runner.run(command, check=False)))
         worker.start()
@@ -439,10 +448,6 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
         def poll(self) -> None:
             return None
 
-        def communicate(self, _input: str | None, timeout: float | None) -> tuple[str, str]:
-            del timeout
-            raise KeyboardInterrupt
-
         def kill(self) -> None:
             self.returncode = -9
 
@@ -458,7 +463,11 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
         del args, kwargs
         return process
 
+    def interrupted(*_args: object) -> None:
+        raise KeyboardInterrupt
+
     monkeypatch.setattr(process_module.subprocess, "Popen", popen)
+    monkeypatch.setattr(process_module, "_communicate_bounded", interrupted)
     monkeypatch.setattr(process_module.os, "killpg", lambda pid, sig: signals.append((pid, sig)))
 
     with pytest.raises(KeyboardInterrupt):

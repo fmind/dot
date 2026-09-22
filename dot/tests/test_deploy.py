@@ -13,7 +13,6 @@ from unittest import mock
 
 import pytest
 
-import fmind_dot.system as dot_system
 from fmind_dot import deploy as deploy_dot
 
 BUILT_WHEEL = b"wheel built from the captured source basis"
@@ -213,7 +212,7 @@ def test_install_snapshots_source_basis_before_export(tmp_path: pathlib.Path) ->
     source = _source(tmp_path / "source")
     install_root = tmp_path / "runtime"
     trusted_uv = _trusted_uv(tmp_path)
-    original_basis = dot_system._install_basis_digest(source)
+    original_basis = deploy_dot._install_basis_digest(source)
     calls, base_run = _fake_run()
 
     def mutate_after_export(command: list[str], *, cwd: pathlib.Path, environment: dict[str, str]) -> None:

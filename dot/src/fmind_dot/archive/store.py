@@ -12,23 +12,23 @@ import hashlib
 import json
 import os
 import re
-import shutil
-import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Annotated, Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, StrictStr, TypeAdapter, ValidationError
 
+from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
 SESSION_PARSER_VERSION = "5"
-# Parsers 3 and 4 arrive only through the v2 migration; their usage is flagged as legacy accounting.
+# Parsers 3 and 4 remain in stores migrated from v2; their usage is flagged as legacy accounting.
 READABLE_PARSER_VERSIONS = ("3", "4", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 LEGACY_STORE_VERSION = "v2"
+_LAST_MIGRATING_RELEASE = "7.0.4"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -148,20 +148,6 @@ _MANIFEST_ADAPTER = TypeAdapter(SessionManifest)
 class SessionIngestionResult:
     status: IngestionStatus
     manifest: SessionManifest
-
-
-def _string(value: dict[str, Any], key: str, *, required: bool = True) -> str:
-    item = value.get(key, "")
-    if not isinstance(item, str) or (required and not item):
-        raise ValueError(f"invalid manifest field {key}")
-    return item
-
-
-def _integer(value: dict[str, Any], key: str) -> int:
-    item = value[key]
-    if isinstance(item, bool) or not isinstance(item, int) or item < 0:
-        raise ValueError(f"invalid manifest field {key}")
-    return item
 
 
 def fingerprint_bytes(content: bytes) -> str:
@@ -363,141 +349,16 @@ def report_ingestion(result: SessionIngestionResult) -> str:
     )
 
 
-# --- v2 migration -------------------------------------------------------------------------------------------------
-
-
-@dataclass
-class _LegacyGeneration:
-    path: Path
-    manifest: dict[str, Any]
-
-    @property
-    def order(self) -> tuple[int, str]:
-        return self.manifest["record_count"], self.manifest["ingested_at"]
-
-    @property
-    def usage_order(self) -> tuple[int, str]:
-        return int(self.manifest["parser_version"]), self.manifest["ingested_at"]
-
-
-def _legacy_generations(legacy: Path) -> tuple[dict[tuple[str, str], list[_LegacyGeneration]], int]:
-    sessions: dict[tuple[str, str], list[_LegacyGeneration]] = {}
-    skipped = 0
-    for path in sorted(legacy.glob("*/*/*/manifest.json")):
-        try:
-            value = json.loads(path.read_bytes())
-            if (
-                not isinstance(value, dict)
-                or value.get("schema_version") != 2
-                or value.get("parser_version") not in READABLE_PARSER_VERSIONS
-                or value.get("agent") != path.parent.parent.parent.name
-                or not is_valid_session_id(str(value.get("session_id")))
-            ):
-                raise ValueError("unsupported legacy manifest")
-            _integer(value, "record_count")
-            _string(value, "ingested_at")
-        except OSError, ValueError, TypeError, KeyError:
-            skipped += 1
-            continue
-        sessions.setdefault((value["agent"], value["session_id"]), []).append(_LegacyGeneration(path.parent, value))
-    return sessions, skipped
-
-
-def _legacy_usage(generation: _LegacyGeneration) -> dict[str, Any] | None:
-    # Load the boundary model on demand to avoid a store/model import cycle.
-    from fmind_dot.archive.usage import UsageRecord
-
-    content = (generation.path / "usage.json").read_bytes()
-    if fingerprint_bytes(content) != generation.manifest.get("usage_sha256"):
-        raise ValueError("legacy usage fingerprint mismatch")
-    value = json.loads(content)
-    record = value.get("record") if isinstance(value, dict) else None
-    if not isinstance(record, dict) or value.get("status") != "available":
-        return None
-    UsageRecord.from_dict(record)
-    return record
-
-
-def _legacy_bundle(generation: _LegacyGeneration) -> tuple[SessionManifest, list[SessionLog]]:
-    value = generation.manifest
-    transcript = (generation.path / "transcript.jsonl").read_bytes()
-    if fingerprint_bytes(transcript) != value.get("transcript_sha256"):
-        raise ValueError("legacy transcript fingerprint mismatch")
-    manifest = SessionManifest.from_dict(
-        {
-            **value,
-            "schema_version": SESSION_SCHEMA_VERSION,
-            "source_signature": "",
-            "malformed_records": value.get("malformed_records", 0),
-            "skipped_records": value.get("skipped_records", 0),
-            "usage": _legacy_usage(generation),
-        }
-    )
-    lines = [line for line in transcript.split(b"\n") if line.strip()]
-    return manifest, _parse_records(lines, manifest, generation.path / "transcript.jsonl")
-
-
-def _migrate_session(root: Path, generations: list[_LegacyGeneration]) -> bool:
-    """Keep the generation with the most records (then newest), carrying the best available usage."""
-    for candidate in sorted(generations, key=lambda item: item.order, reverse=True):
-        try:
-            manifest, logs = _legacy_bundle(candidate)
-        except OSError, ValueError, TypeError, KeyError:
-            continue
-        if manifest.usage is None:
-            # A failed extraction archived no usage: the newest earlier measurement still counts.
-            for other in sorted(generations, key=lambda item: item.usage_order, reverse=True):
-                try:
-                    usage = _legacy_usage(other)
-                except OSError, ValueError, TypeError, KeyError:
-                    continue
-                if usage is not None:
-                    manifest.usage = usage
-                    break
-        _write_bundle(root, manifest, logs)
-        return True
-    return False
-
-
-def migrate_legacy_store(sessions: Path) -> tuple[int, int] | None:
-    """Build v3 from v2 in a staging directory, then publish it with one rename; v2 is never modified."""
-    target = sessions / SESSION_STORE_VERSION
-    legacy = sessions / LEGACY_STORE_VERSION
-    if target.exists() or not legacy.is_dir():
-        return None
-    staging = Path(tempfile.mkdtemp(prefix=f".{SESSION_STORE_VERSION}-migration-", dir=sessions))
-    try:
-        generations, skipped = _legacy_generations(legacy)
-        migrated = 0
-        for key in sorted(generations):
-            if _migrate_session(staging, generations[key]):
-                migrated += 1
-            else:
-                skipped += len(generations[key])
-        try:
-            staging.rename(target)
-        except OSError:
-            if target.exists():
-                # A concurrent process published the same migration first.
-                return None
-            raise
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
-    return migrated, skipped
-
-
-def ensure_session_store(report: IO[str] | None = None) -> Path:
-    """Return the active store root, migrating the v2 store on first access."""
+def ensure_session_store() -> Path:
+    """Return the active store root; a store that only exists in the retired v2 layout fails closed."""
     root = session_store_root()
-    if not root.exists():
-        result = migrate_legacy_store(root.parent)
-        if result is not None and report is not None:
-            migrated, skipped = result
-            report.write(
-                f"agent-session: migrated {migrated} sessions from sessions/{LEGACY_STORE_VERSION} to "
-                f"sessions/{SESSION_STORE_VERSION} ({skipped} unreadable generations skipped); "
-                f"sessions/{LEGACY_STORE_VERSION} is unchanged and can be removed after verification\n"
-            )
+    if not root.exists() and (root.parent / LEGACY_STORE_VERSION).is_dir():
+        # v2 migration shipped through dot 7.0.4; the v2 files are never modified or removed here.
+        raise DotError(
+            f"session archive ~/.agents/sessions/{LEGACY_STORE_VERSION} predates sessions/{SESSION_STORE_VERSION}; "
+            f"migrate it once with dot v{_LAST_MIGRATING_RELEASE} (check out that tag in a separate worktree and "
+            f"run 'uv run --frozen --project dot dot agent session list'), then retry"
+        )
     return root
 
 
@@ -517,7 +378,6 @@ __all__ = [
     "ingest_session",
     "is_valid_session_id",
     "marshal_session_logs",
-    "migrate_legacy_store",
     "propagate_models",
     "read_session_bundle",
     "read_session_manifest",

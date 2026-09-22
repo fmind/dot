@@ -6,6 +6,7 @@ import codecs
 import io
 import locale
 import os
+import re
 import selectors
 import shutil
 import signal
@@ -14,7 +15,7 @@ import sys
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import Event, Lock
 from typing import IO
@@ -27,6 +28,8 @@ _TERMINATION_TIMEOUT_SECONDS = 3
 _PIPE_WRITE_BYTES = 4096
 # Shared ceiling for every status probe captured with run_bounded.
 PROBE_OUTPUT_LIMIT_BYTES = 64 * 1024
+# Ceiling for ordinary captured commands; exceeding it fails instead of truncating their output.
+RUN_OUTPUT_LIMIT_BYTES = 32 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,23 @@ class CommandResult:
     def output_truncated(self) -> bool:
         """Report whether either captured stream exceeded the shared byte budget."""
         return self.stdout_truncated or self.stderr_truncated
+
+
+_CREDENTIAL_URL = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]+@")
+# Provider token prefixes, plus any long opaque run that could be a credential or signature.
+_OPAQUE_TOKEN = re.compile(r"\b(?:gh[opsur]_|github_pat_|glpat-)?[A-Za-z0-9_+/=-]{32,}")
+
+
+def diagnostic_line(text: str, limit: int = 160) -> str:
+    """Return the first non-empty output line without credentials, control characters, or excess length."""
+    line = next((item.strip() for item in text.splitlines() if item.strip()), "")
+    line = "".join(character for character in line if character.isprintable())
+    line = _OPAQUE_TOKEN.sub("<redacted>", _CREDENTIAL_URL.sub(r"\1<redacted>@", line))
+    return line if len(line) <= limit else line[: limit - 1].rstrip() + "…"
+
+
+def _universal_newlines(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 class _BoundedCapture:
@@ -289,7 +309,20 @@ class Runner:
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        return self._run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
+        """Run a command whose complete output the caller needs; oversized output is an error."""
+        result = self._run(
+            args,
+            cwd=cwd,
+            input_text=input_text,
+            env=env,
+            timeout=timeout,
+            check=check,
+            max_output_bytes=RUN_OUTPUT_LIMIT_BYTES,
+        )
+        if result.output_truncated:
+            raise DotError(f"command output exceeded {RUN_OUTPUT_LIMIT_BYTES} bytes: {args[0]}")
+        # Keep the universal-newline text contract callers had before capture became bounded.
+        return replace(result, stdout=_universal_newlines(result.stdout), stderr=_universal_newlines(result.stderr))
 
     def run_bounded(
         self,
@@ -322,11 +355,11 @@ class Runner:
         env: Mapping[str, str] | None,
         timeout: float | None,
         check: bool,
-        max_output_bytes: int | None = None,
+        max_output_bytes: int,
     ) -> CommandResult:
         if not args:
             raise DotError("cannot run an empty command")
-        if max_output_bytes is not None and max_output_bytes <= 0:
+        if max_output_bytes <= 0:
             raise DotError("maximum captured output must be positive")
         if self._cancelled.is_set():
             raise DotError("operation cancelled")
@@ -341,10 +374,6 @@ class Runner:
             stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=max_output_bytes is None,
-            # Both capture modes replace undecodable bytes; tool output is not trusted text.
-            encoding=encoding if max_output_bytes is None else None,
-            errors="replace" if max_output_bytes is None else None,
             start_new_session=os.name == "posix",
         )
         with self._process_lock:
@@ -352,23 +381,20 @@ class Runner:
             if self._cancelled.is_set():
                 _terminate(process)
         try:
-            if max_output_bytes is None:
-                stdout, stderr = process.communicate(input_text, timeout=timeout)
-                result = CommandResult(stdout=stdout, stderr=stderr, returncode=process.returncode)
-            else:
-                capture = _communicate_bounded(
-                    process,
-                    input_text.encode(encoding) if input_text is not None else None,
-                    timeout,
-                    max_output_bytes,
-                )
-                result = CommandResult(
-                    stdout=capture.stdout.decode(encoding, errors="replace"),
-                    stderr=capture.stderr.decode(encoding, errors="replace"),
-                    returncode=process.returncode,
-                    stdout_truncated=capture.stdout_truncated,
-                    stderr_truncated=capture.stderr_truncated,
-                )
+            capture = _communicate_bounded(
+                process,
+                input_text.encode(encoding) if input_text is not None else None,
+                timeout,
+                max_output_bytes,
+            )
+            # Undecodable bytes are replaced; tool output is not trusted text.
+            result = CommandResult(
+                stdout=capture.stdout.decode(encoding, errors="replace"),
+                stderr=capture.stderr.decode(encoding, errors="replace"),
+                returncode=process.returncode,
+                stdout_truncated=capture.stdout_truncated,
+                stderr_truncated=capture.stderr_truncated,
+            )
         except subprocess.TimeoutExpired as error:
             _terminate(process)
             raise DotError(f"command timed out: {args[0]}") from error

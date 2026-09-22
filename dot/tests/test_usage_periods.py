@@ -24,13 +24,13 @@ def request(timestamp: str, *, model: str = "gpt-5.4", tokens: int = 1_000_000) 
         measurement_kind="provider-reported",
         input_tokens=tokens,
         turn_count=1,
-    ).finalize()
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
 
 
 def session(*samples: UsageRecord) -> UsageRecord:
     record = request(samples[-1].timestamp)
     record.set_samples(list(samples))
-    return record.finalize()
+    return record.finalize(fallback_timestamp="2026-09-01T00:00:00Z")
 
 
 def test_monthly_splits_one_session_and_prices_each_model() -> None:

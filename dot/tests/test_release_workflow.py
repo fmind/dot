@@ -59,22 +59,35 @@ def test_workflows_default_to_read_only_pinned_bounded_jobs(path: Path) -> None:
             assert "${{" not in step.get("run", ""), (name, step.get("name"))
 
 
+def _needs(job: Job) -> list[str]:
+    return job["needs"] if isinstance(job["needs"], list) else [job["needs"]]
+
+
 def test_release_credentials_never_share_a_job_with_the_build_toolchain() -> None:
     jobs = _jobs(ROOT / ".github/workflows/cd.yml")
     privileged = {name: job for name, job in jobs.items() if _writes(job)}
     unprivileged = {name: job for name, job in jobs.items() if not _writes(job)}
 
-    assert len(privileged) == 1
-    ((_, publish),) = privileged.items()
-    assert _writes(publish) == {"contents", "id-token", "attestations"}
-    needs = publish["needs"] if isinstance(publish["needs"], list) else [publish["needs"]]
-    assert needs
-    assert set(needs) <= set(unprivileged)
+    # The OIDC signing identity and the release-writing token live in separate jobs.
+    (attest,) = (job for job in privileged.values() if "id-token" in _writes(job))
+    (publish,) = (job for job in privileged.values() if "contents" in _writes(job))
+    assert len(privileged) == 2
+    assert _writes(attest) == {"id-token", "attestations"}
+    assert _writes(publish) == {"contents"}
 
     # The gate, the build backend, and the complete toolchain stay beside a read-only token.
     gate = [name for name, job in unprivileged.items() if any("mise run all" in run for run in _commands(job))]
     assert gate
-    assert set(gate) <= set(needs)
+    assert set(gate) <= set(_needs(attest))
+    assert set(gate) <= set(_needs(publish))
+    assert set(_needs(attest)) <= set(unprivileged)
+
+    # The signing job executes no repository code: no checkout, no shell, only pinned actions.
+    assert _commands(attest) == []
+    assert {step["uses"].split("@")[0] for step in attest["steps"]} == {
+        "actions/download-artifact",
+        "actions/attest",
+    }
     for command in _commands(publish):
         assert command.startswith("mise run release:publish "), command
     for step in publish["steps"]:
@@ -85,24 +98,30 @@ def test_release_credentials_never_share_a_job_with_the_build_toolchain() -> Non
 
 def test_release_payload_is_verified_before_it_is_attested_or_published() -> None:
     jobs = _jobs(ROOT / ".github/workflows/cd.yml")
-    (publish,) = (job for job in jobs.values() if _writes(job))
-    (build,) = (jobs[name] for name in ([publish["needs"]] if isinstance(publish["needs"], str) else publish["needs"]))
+    (attest,) = (job for job in jobs.values() if "id-token" in _writes(job))
+    (publish,) = (job for job in jobs.values() if "contents" in _writes(job))
+    (build,) = (jobs[name] for name in _needs(attest))
+    assert set(_needs(publish)) == {*_needs(attest), next(name for name, job in jobs.items() if job is attest)}
 
     gate = _index(build, lambda step: "mise run all" in step.get("run", ""))
     clean = _index(build, lambda step: "git status --porcelain" in step.get("run", ""))
+    validate_build = _index(build, lambda step: "--validate-only" in step.get("run", ""))
     upload = _index(build, lambda step: step.get("uses", "").startswith("actions/upload-artifact@"))
-    assert gate < clean < upload
+    assert gate < clean < validate_build < upload
     assert build["steps"][upload]["with"]["if-no-files-found"] == "error"
 
+    signed = _index(attest, lambda step: step.get("uses", "").startswith("actions/attest@"))
     download = _index(publish, lambda step: step.get("uses", "").startswith("actions/download-artifact@"))
     validate = _index(publish, lambda step: "--validate-only" in step.get("run", ""))
-    attest = _index(publish, lambda step: step.get("uses", "").startswith("actions/attest@"))
     release = _index(
         publish, lambda step: "release:publish" in step.get("run", "") and "--validate-only" not in step["run"]
     )
-    assert download < validate < attest < release
-    assert publish["steps"][download]["with"]["name"] == build["steps"][upload]["with"]["name"]
-    assert publish["steps"][download]["with"]["path"] == build["steps"][upload]["with"]["path"]
+    assert _index(attest, lambda step: step.get("uses", "").startswith("actions/download-artifact@")) < signed
+    assert download < validate < release
+    for job in (attest, publish):
+        (fetch,) = (step for step in job["steps"] if step.get("uses", "").startswith("actions/download-artifact@"))
+        assert fetch["with"]["name"] == build["steps"][upload]["with"]["name"]
+        assert fetch["with"]["path"] == build["steps"][upload]["with"]["path"]
     # Only the publishing step receives the token.
     assert [index for index, step in enumerate(publish["steps"]) if "env" in step] == [release]
 
