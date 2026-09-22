@@ -73,12 +73,14 @@ Open a new shell and run `dot doctor` to check your installation. Use `dot compl
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
+To finish an interrupted setup, rerun the installer. From an initialized checkout, `mise run full` reapplies files and synchronizes the locked tools, current `dot`, trust, theme cache, and completions. It also repairs an older `dot` that lacks `trust`; no manual trust command or second apply is needed.
+
 ### What the installer does
 
 Read [`install.sh`](install.sh) first. It executes third-party code with your user's privileges:
 
 1. When mise is absent, it pipes `https://mise.run` to `bash`, then installs chezmoi through mise.
-1. `chezmoi init` prompts for your identity (below) and the bootstrap applies the source tree over existing files with `chezmoi apply --force`.
+1. `chezmoi init` prompts for your identity (below), then `chezmoi apply --force --exclude scripts` writes files before installing tools. Hooks wait until the locked global tools and current `dot` are installed; a complete `chezmoi apply --force` then sets folder trust and builds the bat theme cache.
 1. Apply pipes the [Grok](run_once_after_install-grok.sh.tmpl) and [Antigravity](run_once_after_install-antigravity-cli.sh.tmpl) vendor installers to `bash` when those CLIs are missing.
 1. Apply fetches theme files from [fmind/theme](https://github.com/fmind/theme) `main` without a checksum ([`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl)); font archives are pinned by SHA-256.
 1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off; the compensating controls are lockfile digests where the backend records them and a three-day `minimum_release_age` cooldown on `latest` resolution (my own `pipx:fkf` and `pipx:fmind` are exempt). npm and pipx tools lock the version only, and first fetches are unverified; that file states the trade-off.
@@ -141,17 +143,18 @@ Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply 
 
 Run these from `~/.local/share/chezmoi`. Use `mise tasks` for the full list and aliases; [`mise.toml`](mise.toml) owns the definitions.
 
-| Command                                         | Purpose                                                       |
-| ----------------------------------------------- | ------------------------------------------------------------- |
-| `mise run diff`                                 | Preview pending dotfile changes                               |
-| `mise run apply`                                | Apply dotfiles and eligible hooks                             |
-| `mise run deploy`                               | Build and install the local `dot` CLI                         |
-| `mise run upgrade`                              | Upgrade dependencies, tools, and plugins; apply and reinstall |
-| `mise run check:docs` / `mise run check:skills` | Validate documentation and skill contracts                    |
-| `mise run check`                                | Run static checks and security scans                          |
-| `mise run test`                                 | Run Python and repository tests                               |
-| `mise run all`                                  | Format, check, test, and build                                |
-| `mise run release -- --wait`                    | Commit, push, publish, and verify a release                   |
+| Command                                         | Purpose                                                              |
+| ----------------------------------------------- | -------------------------------------------------------------------- |
+| `mise run diff`                                 | Preview pending dotfile changes                                      |
+| `mise run apply`                                | Apply dotfiles and eligible hooks                                    |
+| `mise run full` / `mise run mf`                 | Apply files, install locked tools and dot, run hooks and completions |
+| `mise run deploy`                               | Build and install the local `dot` CLI                                |
+| `mise run upgrade`                              | Upgrade dependencies, tools, and plugins; apply and reinstall        |
+| `mise run check:docs` / `mise run check:skills` | Validate documentation and skill contracts                           |
+| `mise run check`                                | Run static checks and security scans                                 |
+| `mise run test`                                 | Run Python and repository tests                                      |
+| `mise run all`                                  | Format, check, test, and build                                       |
+| `mise run release -- --wait`                    | Commit, push, publish, and verify a release                          |
 
 `all` rewrites formatting; it does not apply dotfiles. Release prerequisites and recovery live in the [release guide](.agents/skills/dot-release/SKILL.md); contributor rules live in [AGENTS.md](AGENTS.md).
 

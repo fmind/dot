@@ -331,6 +331,11 @@ alias = "mh"
 description = "Install repository Git hooks"
 run = "lefthook install"
 
+[tasks.full]
+alias = "mf"
+description = "Apply dotfiles and synchronize locked tools, dot, and completions"
+run = "mise run tools"
+
 [tasks.lock]
 alias = "mk"
 description = "Refresh Python, repo, home, and Neovim lockfiles"
@@ -362,10 +367,13 @@ alias = "mt"
 description = "Install the locked repository and global tools"
 run = [
   "mise --locked install -y",
-  "mise run apply",
+  # Seed tool configuration without invoking missing or outdated hook executables.
+  "chezmoi apply --force --exclude scripts",
   "mise trust -y ~/.config/mise/config.toml",
   "mise -C \"$HOME\" --locked install -y",
   "mise run deploy",
+  # Hooks now see the current dot and global tools on the very first bootstrap.
+  "mise run apply",
   "mise run completions",
 ]
 

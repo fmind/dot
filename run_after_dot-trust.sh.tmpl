@@ -3,7 +3,7 @@
 # repositories, and this source directory; `dot trust` only adds missing entries.
 set -eu
 dot="{{ .chezmoi.homeDir }}/.local/bin/dot"
-# The first apply runs before `mise run deploy` installs dot; the next apply trusts.
+# Bare apply can precede installation; tools/full defer hooks until dot is deployed.
 [ -x "${dot}" ] || exit 0
 "${dot}" trust all >/dev/null
 "${dot}" trust {{ .chezmoi.sourceDir | quote }} >/dev/null

@@ -6,7 +6,7 @@
 set -eu
 bat="{{ .chezmoi.homeDir }}/.local/share/mise/shims/bat"
 theme="{{ .chezmoi.homeDir }}/.config/bat/themes/fmind.tmTheme"
-# Global tools install after the first apply; the next apply builds the cache.
+# Bare apply can precede installation; tools/full defer hooks until bat is installed.
 [ -x "${bat}" ] && [ -f "${theme}" ] || exit 0
 cache="$("${bat}" --cache-dir)"
 checksum="$(cksum <"${theme}")"

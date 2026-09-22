@@ -7,10 +7,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from typing import TypedDict, cast
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -160,3 +162,184 @@ class BootstrapTest(unittest.TestCase):
 
         assert len(copies) >= 5
         assert set(copies.values()) == {pinned_mise_version()}, copies
+
+
+# Run the real mise task graph and chezmoi hooks in an empty home. Only installation
+# and bat are substitutes: no vendor downloads or writes to the real workstation.
+TASK_TOOL = r"""#!{python}
+import os
+from pathlib import Path
+import sys
+
+home = Path.home()
+tool = Path(sys.argv[0]).name
+args = sys.argv[1:]
+def record(event):
+    with Path(os.environ["TASK_LOG"]).open("a") as stream:
+        stream.write(event + "\n")
+
+if tool == "mise":
+    if "install" in args and "--locked" in args:
+        if "-C" in args:
+            record("global-install")
+            if os.environ.get("FAIL_STEP") == "global-install":
+                raise SystemExit(42)
+            bat = home / ".local/share/mise/shims/bat"
+            bat.parent.mkdir(parents=True, exist_ok=True)
+            if not bat.exists():
+                bat.symlink_to(__file__)
+        else:
+            record("repository-install")
+        raise SystemExit(0)
+    os.execv(os.environ["REAL_MISE"], [os.environ["REAL_MISE"], *args])
+elif tool == "chezmoi":
+    record("seed" if "scripts" in args else "apply")
+    os.execv(os.environ["REAL_CHEZMOI"], [os.environ["REAL_CHEZMOI"],
+        "--source", os.environ["TASK_SOURCE"], "--destination", str(home),
+        "--config", os.environ["TASK_CONFIG"],
+        "--persistent-state", str(home / "chezmoi-state.boltdb"), *args])
+elif tool == "bat":
+    cache = home / ".cache/bat"
+    if args == ["--cache-dir"]:
+        print(cache)
+    elif args == ["--version"]:
+        print("bat fixture")
+    elif args == ["cache", "--build"]:
+        cache.mkdir(parents=True, exist_ok=True)
+        record("theme-cache")
+    else:
+        raise SystemExit(43)
+elif tool == "dot":
+    record("dot " + " ".join(args))
+    if args != ["completion"]:
+        sys.path.insert(0, os.environ["DOT_SOURCE"])
+        from fmind_dot.cli import main
+        main()
+elif args == ["deploy"]:
+    record("deploy")
+    if os.environ.get("FAIL_STEP") == "deploy":
+        raise SystemExit(42)
+    dot = home / ".local/share/fmind-dot/current/bin/dot"
+    dot.parent.mkdir(parents=True, exist_ok=True)
+    dot.unlink(missing_ok=True)
+    dot.symlink_to(__file__)
+else:
+    record(" ".join(args))
+"""
+
+
+def run_task_bootstrap(
+    root: Path, task: str, *, old_dot: bool = False, fail_step: str = "", repeat: bool = False
+) -> tuple[subprocess.CompletedProcess[str], Path, list[str]]:
+    home = root / "home with spaces"
+    source = home / "source"
+    source.mkdir(parents=True)
+    bin_directory = root / "bin"
+    bin_directory.mkdir()
+    tool = bin_directory / "fixture-tool"
+    tool.write_text(TASK_TOOL.replace("{python}", sys.executable))
+    tool.chmod(0o755)
+    for name in ("mise", "chezmoi"):
+        (bin_directory / name).symlink_to(tool)
+    config = tomllib.loads((ROOT / "mise.toml").read_text())
+    # Keep task bodies and environment from the repository, but install no real
+    # tools. The deployment implementation has separate locked-wheel tests.
+    lines = ["[settings.task]", "run_auto_install = false", "[task_config]", 'dir = "{{config_root}}"', "[env]"]
+    lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["env"].items())
+    for name in ("tools", "full", "install", "apply", "completions"):
+        lines.append(f"[tasks.{name}]")
+        lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["tasks"][name].items())
+    for name in ("deploy", "hooks", "vim"):
+        lines.extend((f"[tasks.{name}]", f'run = "fixture-tool {name}"'))
+    (source / "mise.toml").write_text("\n".join(lines))
+    (source / ".chezmoiignore").write_text("mise.toml\n")
+    (source / "dot_config/mise").mkdir(parents=True)
+    (source / "dot_config/mise/config.toml").write_text("[tools]\n")
+    (source / "dot_codex").mkdir()
+    (source / "dot_codex/config.toml").write_text('model = "fixture"\n')
+    (source / "dot_config/bat/themes").mkdir(parents=True)
+    (source / "dot_config/bat/themes/fmind.tmTheme").write_text("fixture theme\n")
+    (source / "dot_local/bin").mkdir(parents=True)
+    shutil.copyfile(ROOT / "dot_local/bin/symlink_dot.tmpl", source / "dot_local/bin/symlink_dot.tmpl")
+    for name in ("run_after_dot-trust.sh.tmpl", "run_after_bat-theme.sh.tmpl"):
+        shutil.copyfile(ROOT / name, source / name)
+    if old_dot:
+        installed = home / ".local/share/fmind-dot/current/bin/dot"
+        installed.parent.mkdir(parents=True)
+        installed.write_text('#!/bin/sh\necho "old dot has no trust command" >&2\nexit 99\n')
+        installed.chmod(0o755)
+        (home / ".local/bin").mkdir(parents=True)
+        (home / ".local/bin/dot").symlink_to(installed)
+    chezmoi_config = root / "chezmoi.toml"
+    chezmoi_config.write_text("")
+    real_mise, real_chezmoi = shutil.which("mise"), shutil.which("chezmoi")
+    assert real_mise
+    assert real_chezmoi
+    log = root / "events"
+    environment = {
+        "HOME": str(home),
+        "PATH": f"{bin_directory}{os.pathsep}/usr/bin{os.pathsep}/bin",
+        "MISE_TRUSTED_CONFIG_PATHS": str(home),
+        "MISE_DATA_DIR": str(root / "mise-data"),
+        "REAL_MISE": real_mise,
+        "REAL_CHEZMOI": real_chezmoi,
+        "TASK_SOURCE": str(source),
+        "TASK_CONFIG": str(chezmoi_config),
+        "TASK_LOG": str(log),
+        "DOT_SOURCE": str(ROOT / "dot/src"),
+        "FAIL_STEP": fail_step,
+    }
+    result = subprocess.run(
+        [real_mise, "-C", str(source), "run", task],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+    if repeat:
+        assert result.returncode == 0, result.stdout + result.stderr
+        result = subprocess.run(
+            [real_mise, "-C", str(source), "run", task],
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_SECONDS,
+            check=False,
+        )
+    return result, home, log.read_text().splitlines() if log.exists() else []
+
+
+@pytest.mark.parametrize("task", ["tools", "full", "mf", "install"])
+@pytest.mark.parametrize("old_dot", [False, True], ids=["fresh", "older-dot"])
+def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str, old_dot: bool) -> None:
+    result, home, events = run_task_bootstrap(tmp_path, task, old_dot=old_dot)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert events[:5] == ["repository-install", "seed", "global-install", "deploy", "apply"]
+    assert events[5:9] == ["theme-cache", "dot trust all", f"dot trust {home / 'source'}", "dot completion"]
+    assert events[9:] == (["hooks", "vim"] if task == "install" else [])
+    codex = tomllib.loads((home / ".codex/config.toml").read_text())
+    assert codex["projects"][str(home / "source")]["trust_level"] == "trusted"
+    assert (home / ".cache/bat/fmind-theme.stamp").is_file()
+
+
+@pytest.mark.parametrize("fail_step", ["global-install", "deploy"])
+def test_bootstrap_failure_does_not_run_hooks_or_completions(tmp_path: Path, fail_step: str) -> None:
+    result, home, events = run_task_bootstrap(tmp_path, "full", old_dot=True, fail_step=fail_step)
+
+    assert result.returncode != 0
+    assert events[-1] == fail_step
+    assert "apply" not in events
+    assert not any(event.startswith("dot ") for event in events)
+    assert not (home / ".cache/bat/fmind-theme.stamp").exists()
+
+
+def test_full_can_be_rerun_without_rebuilding_unchanged_theme(tmp_path: Path) -> None:
+    result, home, events = run_task_bootstrap(tmp_path, "full", repeat=True)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert events.count("theme-cache") == 1
+    assert events.count("dot completion") == 2
+    codex = tomllib.loads((home / ".codex/config.toml").read_text())
+    assert codex["projects"] == {str(home / "source"): {"trust_level": "trusted"}}
