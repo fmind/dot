@@ -3,8 +3,11 @@
 {{- /* chezmoi's fromJson, not sprig's mustFromJson: callers build managed values with it, and
        sprig decodes every number as float64, so deepEqual never matched an integer (the target
        was rewritten on each apply) and integers above 2^53 lost precision. Both fail on
-       invalid JSON. */ -}}
-{{- if ne (trim .stdin) "" }}{{ $current = fromJson .stdin }}{{ end -}}
+       invalid JSON. JSONC is opt-in for hosts that accept comments and trailing commas;
+       fromJsonc retains the same integer precision. */ -}}
+{{- if ne (trim .stdin) "" -}}
+  {{- if get . "jsonc" }}{{ $current = fromJsonc .stdin }}{{ else }}{{ $current = fromJson .stdin }}{{ end -}}
+{{- end -}}
 {{- if not (kindIs "map" $current) }}{{ fail "existing JSON configuration must be an object" }}{{ end -}}
 {{- $defaults := get . "defaults" | default dict -}}
 {{- $desired := mergeOverwrite (deepCopy $defaults) (deepCopy $current) .managed -}}

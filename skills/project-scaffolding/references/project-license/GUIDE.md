@@ -9,7 +9,7 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 
 ## Workflow
 
-1. **Detect the namespace**: `git remote -v`, Python's `pyproject.toml`, or the parent directory gives the owning organization or user.
+1. **Detect the namespace**: use `gh repo view --json nameWithOwner` for an existing GitHub repository; otherwise inspect project metadata and the agreed destination. Do not print raw Git remotes, which can contain embedded credentials.
 1. **Read the existing license first**: `ls LICENSE*` and `gh repo view --json nameWithOwner,isPrivate,licenseInfo`; an existing license stays unless the user asked to replace it.
 1. **Select the license**:
    - Public code under `fmind`, `fmind-ai`, or `mlops-courses`: MIT, from [MIT](templates/MIT).
@@ -30,5 +30,5 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 ## Documentation
 
 - [Choose an Open Source License](https://choosealicense.com/) · [SPDX license list](https://spdx.org/licenses/) · [PEP 639](https://peps.python.org/pep-0639/)
-- [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — the legal code shipped in `references/CC-BY-4.0`.
+- [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — the legal code shipped in [templates/CC-BY-4.0](templates/CC-BY-4.0).
 - Companion skills: [project-scaffolding](../bootstrap.md) (calls this skill when bootstrapping), [github-repository](../../../github-repository/SKILL.md) (repository settings).

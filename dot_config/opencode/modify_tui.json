@@ -1,4 +1,6 @@
 # chezmoi:modify-template
-{{- /* Docs: https://opencode.ai/docs/config/#tui */ -}}
-{{- $managedConfig := dict "$schema" "https://opencode.ai/tui.json" "theme" "fmind" -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+{{- /* Docs: https://opencode.ai/docs/config/#tui
+       attention raises desktop notifications for questions, permissions, completion, and
+       errors; OpenCode has no hook for `dot agent hook notify`. */ -}}
+{{- $managedConfig := dict "$schema" "https://opencode.ai/tui.json" "theme" "fmind" "attention" (dict "enabled" true) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "jsonc" true) -}}

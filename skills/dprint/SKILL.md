@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-09-20"
+  updated: "2026-09-23"
 ---
 
 # dprint
@@ -16,7 +16,7 @@ The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); d
 
 ## Configuration
 
-dprint searches the current directory upward for `dprint.json` or `dprint.jsonc` and falls back to the global config (`DPRINT_CONFIG_DIR`) only when nothing is found, so every project needs its own resolvable config or it silently inherits whatever the global one contains.
+dprint searches the current directory upward for `dprint.json` or `dprint.jsonc` and falls back to the global config (`DPRINT_CONFIG_DIR`) only when nothing is found. Global fallback can prompt before `fmt`; use a local, version-pinned configuration for non-interactive project gates.
 
 1. **Copy (default)**: copy a known-good `dprint.json` into the project root; it is self-contained and version-pinned. The first run downloads uncached plugins; later runs use dprint's local cache. Bump plugin versions per repository.
 1. **Extends (DRY)**: set `"extends"` to a single source of truth, a local path or a commit-pinned URL such as `"https://raw.githubusercontent.com/fmind/dot/<commit>/dprint.json"`; override rules or add plugins locally.

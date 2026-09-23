@@ -10,7 +10,7 @@ Use `google-antigravity` when embedding the Antigravity harness itself provides 
 ## Workflow
 
 1. **Verify the installed SDK**: inspect the uv dependency and source before using its evolving API; distinguish the local SDK from the interactive `agy` CLI and hosted Interactions agent.
-1. **Choose authentication**: Gemini API key (`ANTIGRAVITY_SDK_API_KEY` or `GEMINI_API_KEY`) or Vertex ADC through gcloud; read [setup and configuration](references/sdk-usage.md). The SDK uses Gemini API billing, not the CLI/IDE subscription.
+1. **Choose authentication**: default to GCP Agent Platform with ADC per [model-providers](../../../model-providers/SKILL.md); read [setup and configuration](references/sdk-usage.md). SDK calls use the selected Cloud or Gemini API billing, not the CLI/IDE subscription. API keys require explicit selection; never switch backends after an ADC failure.
 1. **Bound the run**: explicitly select tools, policies, token/call budgets, subagent roster and depth, and result schemas; custom tools must enforce their own side-effect constraints.
 1. **Implement the smallest topology**: adapt [orchestrator.py](templates/orchestrator.py) only when independent workers are needed; follow the matching SDK skill for detailed APIs.
 1. **Verify and observe**: use local fakes first, then authorized live access; record calls, denials, failures, usage, and termination. Do not infer completion from a running or detached process.
@@ -24,7 +24,7 @@ Use `google-antigravity` when embedding the Antigravity harness itself provides 
 - **Python compatibility**: the example selects Python 3.13. The reviewed `google-genai==2.22.0` dependency raises an `_UnionGenericAlias` deprecation warning on Python 3.14 under warnings-as-errors; recheck dependencies before widening the example's Python range.
 - **Two products, one name**: this SDK runs the harness locally, while the `antigravity-preview-*` agent on the Gemini Interactions API runs in a Google-hosted sandbox and is billed and configured separately.
 
-The example requires `ANTIGRAVITY_MODEL` and an API key supplied through the environment, validates its workspace and final result, and logs event metadata rather than prompts. Its local configuration checks do not prove that the provider accepts the model or that the bundled harness enforces policies; exercise those separately within authorized access.
+The example requires `GOOGLE_CLOUD_PROJECT` and ADC, defaults to `gemini-3.8-flash`, `global`, and high thinking, validates its workspace and final result, and logs event metadata rather than prompts. Its local configuration checks do not prove that the provider accepts the model or that the bundled harness enforces policies; exercise those separately within authorized access.
 
 ## Official Skills
 

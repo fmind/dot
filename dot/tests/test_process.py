@@ -16,7 +16,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 
 
-@pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker"])
+@pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker", "status-worker", "doctor-worker"])
 def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str, tmp_path: Path) -> None:
     started = tmp_path / "started"
     release = tmp_path / "release"
@@ -34,6 +34,8 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         "import os,sys\n"
         "import fmind_dot.cli as cli\n"
         "import fmind_dot.repository as repository\n"
+        "import fmind_dot.system as system\n"
+        "from fmind_dot.config import Config\n"
         "from fmind_dot.state import State\n"
         "from pathlib import Path\n"
         "from fmind_dot.process import Runner\n"
@@ -45,6 +47,18 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         "  repository.find_git_repositories=lambda *_args: [Path('.')]\n"
         "  repository._pull_repository=lambda *_args,**_kwargs: runner.run(command)\n"
         "  repository.run_pull(State(runner=runner))\n"
+        " elif os.environ['DOT_MODE']=='status-worker':\n"
+        "  repository.find_git_repositories=lambda *_args: [Path('.')]\n"
+        "  repository._repository_status=lambda *_args: runner.run(command)\n"
+        "  repository.gather_status(State(runner=runner))\n"
+        " elif os.environ['DOT_MODE']=='doctor-worker':\n"
+        "  runner.which=lambda _tool: Path(sys.executable)\n"
+        "  bounded=runner.run_bounded\n"
+        "  runner.run_bounded=lambda _args,**kwargs: bounded(command,**kwargs)\n"
+        "  state=State(runner=runner)\n"
+        "  state._config=Config()\n"
+        "  state.config.doctor.tools=['fixture']\n"
+        "  system._tool_results(state)\n"
         " else: runner.interactive(command)\n"
         " return 0\n"
         "cli._invoke_app=invoke\n"
@@ -89,6 +103,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         # Startup/assertion failures must not leak a child or pipe handles into
         # later tests; cancellation timing is still asserted above.
         if process.poll() is None:
+            release.touch()
             process.terminate()
         process.communicate(timeout=5)
 
@@ -112,6 +127,37 @@ def test_cancel_prohibits_subsequent_worker_commands(tmp_path: Path) -> None:
     with pytest.raises(DotError, match="cancelled"):
         runner.run([sys.executable, "-c", "from pathlib import Path; Path('should-not-exist').touch()"], cwd=tmp_path)
     assert not (tmp_path / "should-not-exist").exists()
+
+
+def test_cancellation_during_launch_reports_cancellation_and_reaps_child(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = Runner()
+    popen = subprocess.Popen
+    children: list[subprocess.Popen[str] | subprocess.Popen[bytes]] = []
+
+    def launch(*args, **kwargs):
+        child = popen(*args, **kwargs)
+        children.append(child)
+        # Cancellation lands after the OS launch, before Runner registers the child.
+        runner.cancel()
+        return child
+
+    monkeypatch.setattr(process_module.subprocess, "Popen", launch)
+    try:
+        with pytest.raises(DotError, match="operation cancelled"):
+            runner.run([sys.executable, "-c", "import time; time.sleep(30)"], timeout=2)
+        assert children[0].poll() is not None
+        assert children[0].stdout is not None
+        assert children[0].stdout.closed
+        assert children[0].stderr is not None
+        assert children[0].stderr.closed
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+            for stream in (child.stdout, child.stderr):
+                if stream is not None:
+                    stream.close()
 
 
 def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: Path) -> None:

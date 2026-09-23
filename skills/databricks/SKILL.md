@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Databricks CLI
@@ -28,30 +28,30 @@ Resolve the workspace, profile, and bundle target before mutations; deployments 
 1. **Authenticate via OAuth**: use browser-based OAuth user-to-machine (U2M) login; avoid static personal access tokens.
 
    ```bash
-   databricks auth login --host <workspace-url>
+   databricks auth login --host <workspace-url> --profile <profile>
    ```
 
 1. **Validate and deploy Asset Bundles (DABs)**: validate bundle structure before deploying to an isolated target.
 
    ```bash
-   databricks bundle validate --target dev
-   databricks bundle deploy --target dev
-   databricks bundle run <job-or-pipeline-key> --target dev
+   databricks bundle validate --target dev --profile <profile>
+   databricks bundle deploy --target dev --profile <profile>
+   databricks bundle run <job-or-pipeline-key> --target dev --profile <profile>
    ```
 
-1. **Inspect Unity Catalog assets**: list catalogs, schemas, and tables with bounded read calls.
+1. **Inspect Unity Catalog assets**: fetch a known resource directly. For discovery, current catalog, schema, and table `list` commands accept `--limit` to cap total results (verified with CLI 1.17.0); scope them to the intended catalog/schema and inspect help when using another version. Omitting a limit can enumerate every visible match.
 
    ```bash
-   databricks catalogs list
-   databricks schemas list <catalog>
-   databricks tables list <catalog> <schema>
+   databricks catalogs get <catalog> --profile <profile> --output json
+   databricks schemas get <catalog>.<schema> --profile <profile> --output json
+   databricks tables get <catalog>.<schema>.<table> --profile <profile> --output json
    ```
 
 1. **Inspect compute and job runs**: check cluster state and recent job executions before scheduling changes.
 
    ```bash
-   databricks clusters list --output json
-   databricks jobs list-runs --job-id <job-id> --limit 10
+   databricks clusters get <cluster-id> --profile <profile> --output json
+   databricks jobs list-runs --job-id <job-id> --limit 10 --profile <profile>
    ```
 
 1. **Plan mutations and confirm**: production deployments (`--target prod`), cluster restarts, permission changes, and schema alterations require user authorization; reuse existing authority.

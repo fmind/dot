@@ -3,7 +3,12 @@
 import argparse
 import hashlib
 import json
+import re
 import sys
+import tarfile
+import tomllib
+import zipfile
+from email.parser import BytesParser
 from pathlib import Path
 
 from dot_tasks.release import read_release_version
@@ -15,6 +20,47 @@ ROOT = Path(__file__).resolve().parents[2]
 # Uploading two distributions is slow on a busy runner; a hung gh must still end the job.
 _CREATE_TIMEOUT_SECONDS = 900
 _VIEW_TIMEOUT_SECONDS = 120
+_METADATA_LIMIT = 1024 * 1024
+
+
+def _validate_distribution(path: Path, name: str, version: str) -> None:
+    """Inspect archive identity without extracting or executing package contents."""
+    normalized_name = re.sub(r"[-_.]+", "_", name).lower()
+    prefix = f"{normalized_name}-{version}"
+    try:
+        if path.suffix == ".whl":
+            # This project emits a pure-Python wheel without a build tag.
+            if path.name != f"{prefix}-py3-none-any.whl":
+                raise DotError(f"distribution filename must match project {name} version {version}")
+            with zipfile.ZipFile(path) as archive:
+                entries = [entry for entry in archive.infolist() if entry.filename.endswith(".dist-info/METADATA")]
+                if len(entries) != 1 or entries[0].filename != f"{prefix}.dist-info/METADATA":
+                    raise DotError("wheel must contain exactly one matching distribution metadata file")
+                if entries[0].file_size > _METADATA_LIMIT:
+                    raise DotError("distribution metadata exceeds 1 MiB")
+                content = archive.read(entries[0])
+        else:
+            if path.name != f"{prefix}.tar.gz":
+                raise DotError(f"distribution filename must match project {name} version {version}")
+            with tarfile.open(path, "r:gz") as archive:
+                entries = [entry for entry in archive if entry.name == f"{prefix}/PKG-INFO"]
+                if len(entries) != 1 or not entries[0].isfile():
+                    raise DotError("source distribution must contain one regular root PKG-INFO file")
+                if entries[0].size > _METADATA_LIMIT:
+                    raise DotError("distribution metadata exceeds 1 MiB")
+                stream = archive.extractfile(entries[0])
+                if stream is None:
+                    raise DotError("source distribution metadata is unreadable")
+                with stream:
+                    content = stream.read(_METADATA_LIMIT + 1)
+        metadata = BytesParser().parsebytes(content, headersonly=True)
+        names, versions = metadata.get_all("Name", []), metadata.get_all("Version", [])
+        if len(names) != 1 or re.sub(r"[-_.]+", "_", str(names[0])).lower() != normalized_name or versions != [version]:
+            raise DotError(f"distribution metadata must match project {name} version {version}")
+    except DotError:
+        raise
+    except (OSError, EOFError, tarfile.TarError, zipfile.BadZipFile, RuntimeError) as error:
+        raise DotError(f"cannot read distribution metadata from {path.name}: {type(error).__name__}") from error
 
 
 def validate_release_inputs(root: Path, tag: str, notes: Path) -> list[Path]:
@@ -26,9 +72,11 @@ def validate_release_inputs(root: Path, tag: str, notes: Path) -> list[Path]:
     sources = sorted((root / "dot/dist").glob("*.tar.gz"))
     if len(wheels) != 1 or len(sources) != 1 or not notes.is_file():
         raise DotError("publication requires one wheel, one source distribution, and a release notes file")
-    # CD builds the distributions in another job; reject an artifact built from a different version.
-    if f"-{version}-" not in wheels[0].name or not sources[0].name.endswith(f"-{version}.tar.gz"):
-        raise DotError(f"built distributions do not carry the project version {version}")
+    name = tomllib.loads((root / "dot/pyproject.toml").read_text())["project"].get("name")
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+        raise DotError("project name must be a valid distribution name")
+    for asset in wheels + sources:
+        _validate_distribution(asset, name, version)
     return wheels + sources
 
 

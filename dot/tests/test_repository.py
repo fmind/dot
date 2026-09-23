@@ -3,7 +3,8 @@ from __future__ import annotations
 import io
 import json
 import os
-from collections.abc import Sequence
+import shutil
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from threading import Barrier, Lock
 
@@ -231,6 +232,95 @@ def test_pull_fast_forwards_but_does_not_push_a_dirty_repository(tmp_path: Path)
     assert not any(call[0] == ("git", "push") for call in runner.calls)
 
 
+def test_pull_rechecks_worktree_after_fetch_before_push(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+    class EditingRunner(Runner):
+        def run(
+            self,
+            args: Sequence[str],
+            *,
+            cwd: Path | None = None,
+            input_text: str | None = None,
+            env: Mapping[str, str] | None = None,
+            timeout: float | None = None,
+            check: bool = True,
+        ) -> CommandResult:
+            response = super().run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
+            if list(args) == ["git", "fetch", "--prune"]:
+                (checkout / "editor-work.txt").write_text("unsaved work committed to disk\n")
+            return response
+
+    runner = EditingRunner()
+
+    def git(path: Path, *args: str) -> str:
+        return runner.run(
+            ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args],
+            cwd=path,
+            timeout=10,
+        ).stdout.strip()
+
+    remote, checkout = tmp_path / "remote.git", tmp_path / "checkout"
+    git(tmp_path, "init", "--bare", "--initial-branch=main", str(remote))
+    git(tmp_path, "clone", str(remote), str(checkout))
+    git(checkout, "commit", "--allow-empty", "-m", "initial")
+    git(checkout, "push", "-u", "origin", "main")
+    previous = git(remote, "rev-parse", "main")
+    git(checkout, "commit", "--allow-empty", "-m", "ahead")
+    state = state_with(runner)
+
+    [pulled] = run_pull(state, paths=[checkout], push=True, as_json=True)
+
+    assert pulled.dirty
+    assert not pulled.pushed
+    assert git(remote, "rev-parse", "main") == previous
+    assert isinstance(state.stdout, io.StringIO)
+    assert json.loads(state.stdout.getvalue())["repositories"][0]["dirty"] is True
+
+
+@pytest.mark.parametrize("operation", ["status", "pull"])
+def test_repository_disappearing_keeps_partial_json_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    gone, kept = tmp_path / "gone", tmp_path / "kept"
+
+    class RemovingRunner(Runner):
+        def run(
+            self,
+            args: Sequence[str],
+            *,
+            cwd: Path | None = None,
+            input_text: str | None = None,
+            env: Mapping[str, str] | None = None,
+            timeout: float | None = None,
+            check: bool = True,
+        ) -> CommandResult:
+            response = super().run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
+            if list(args) == ["git", "branch", "--show-current"] and cwd == gone:
+                shutil.rmtree(gone)
+            return response
+
+    runner = RemovingRunner()
+    for path in (gone, kept):
+        runner.run(["git", "init", "--initial-branch=main", str(path)], timeout=10)
+    state = state_with(runner)
+
+    command = run_status if operation == "status" else run_pull
+    with pytest.raises(DotError):
+        command(state, paths=[gone, kept], as_json=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    document = json.loads(state.stdout.getvalue())
+    assert document["complete"] is False
+    assert len(document["repositories"]) == 2
+    by_path = {row["path"]: row for row in document["repositories"]}
+    assert by_path[str(gone)]["error"]
+    assert not by_path[str(kept)].get("error")
+
+
 def test_pull_reports_rev_list_failure_instead_of_claiming_no_upstream(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
@@ -373,7 +463,7 @@ def test_pull_pushes_clean_detached_repository_that_is_ahead(tmp_path: Path) -> 
         {
             ("git", "branch", "--show-current"): [result()],
             ("git", "rev-parse", "--short", "HEAD"): [result("abc123\n")],
-            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result(), result()],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("0\n")],
@@ -401,7 +491,7 @@ def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path)
     runner = RecordingRunner(
         {
             ("git", "branch", "--show-current"): [result("main\n")],
-            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result(), result()],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("1\n")],

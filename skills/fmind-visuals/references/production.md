@@ -10,11 +10,11 @@
 
    ```bash
    typstyle -i deck.typ
-   typst compile deck.typ deck.pdf
-   typst watch deck.typ deck.pdf
+   typst compile --font-path fonts deck.typ deck.pdf
+   typst watch --font-path fonts deck.typ deck.pdf
    ```
 
-1. **Export review images**: use `typst compile deck.typ 'slide-{p}.png'` when a page-by-page review or social preview is useful.
+1. **Export review images**: use `typst compile --font-path fonts deck.typ 'slide-{p}.png'` when a page-by-page review or social preview is useful.
 1. **Inspect every page**: review the PDF at projector and mobile-preview sizes; confirm font loading, contrast, clipping, and alt text before distribution.
 
 ## Diagrams

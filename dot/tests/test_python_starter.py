@@ -157,6 +157,22 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     )
     if profile == "cli":
         for command in ([str(runtime / "bin/starter-py")], [str(runtime / "bin/python"), "-m", "starter_py"]):
-            assert _run(outside, *command, "--name", "Ada") == "Hello, Ada!\n"
-            assert "--name" in _run(outside, *command, "--help")
+            assert _run(outside, *command, "greet", "--name", "Ada") == "Hello, Ada!\n"
+            assert _run(outside, *command, "--version") == "0.1.0\n"
+            for flag in ("-h", "--help"):
+                assert "greet" in _run(outside, *command, flag)
+                assert "--name" in _run(outside, *command, "greet", flag)
             _run(outside, *command, "--unknown-option", expected_code=2)
+        for shell in ("bash", "zsh", "fish"):
+            result = subprocess.run(
+                [str(runtime / "bin/starter-py")],
+                cwd=outside,
+                env={**os.environ, "_STARTER_PY_COMPLETE": f"source_{shell}"},
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            assert result.returncode == 0, result.stderr
+            assert "starter-py" in result.stdout
+            assert result.stderr == ""

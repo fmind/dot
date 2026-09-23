@@ -3,6 +3,7 @@
   "lineWidth": 120,
   "excludes": [
     "**/*-lock.json",
+    "dot_config/mise/locks/**",
     "**/.cache",
     "**/.git",
     "**/.mypy_cache",

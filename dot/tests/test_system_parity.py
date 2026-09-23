@@ -410,6 +410,33 @@ def _minimal_verify_config() -> Config:
     return config
 
 
+@pytest.mark.parametrize(
+    ("payload", "status", "condition"),
+    [
+        ({"auth_method": "none"}, "fail", "unauthenticated"),
+        ({"auth_method": "oauth", "token_valid": False}, "fail", "unauthenticated"),
+        ({"auth_method": "oauth", "token_valid": True}, "pass", "healthy"),
+        ({"auth_method": "oauth", "token_valid": "true"}, "fail", "broken"),
+        ({"unexpected": "private-response"}, "fail", "broken"),
+        ([], "fail", "broken"),
+        ("private-invalid-json", "fail", "broken"),
+    ],
+    ids=["no-credentials", "invalid-token", "valid-token", "wrong-type", "unknown-shape", "array", "bad-json"],
+)
+def test_doctor_workspace_auth_inspects_native_status(payload: object, status: str, condition: str) -> None:
+    output = payload if isinstance(payload, str) else json.dumps(payload)
+    runner = ScriptedRunner({"gws"}, run=lambda _args, _cwd, _input, _check: CommandResult(output, "", 0))
+    config = Config()
+    config.doctor.tools = []
+    config.doctor.secrets = []
+
+    report = system.run_doctor(state_with(runner, config), fix=False, deep=True)
+
+    result = next(item for item in report["auth"] if item["name"] == "gws")
+    assert (result["status"], result["condition"]) == (status, condition)
+    assert "private-" not in json.dumps(report)
+
+
 def test_verify_github_auth_uses_configured_host_without_changing_scopes() -> None:
     config = _minimal_verify_config()
     config.doctor.github_host = "github.example.test"
@@ -664,6 +691,7 @@ def test_verify_compares_installed_python_package_with_source(
     installed_package.mkdir(parents=True)
     (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
+    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
     for package in (source_package, installed_package):
         (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
@@ -700,6 +728,7 @@ def test_install_receipt_rejects_stale_package_and_binds_wheel_digest(
     project = source / "dot/pyproject.toml"
     project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
+    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
     monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
     monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
     wheel_digest = _WHEEL_SHA256
@@ -745,6 +774,7 @@ def test_install_receipt_rejects_source_basis_changed_since_export(
     (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     lock = source / "dot/uv.lock"
     lock.write_text("version = 1\n", encoding="utf-8")
+    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
     expected_basis = deploy._install_basis_digest(source)  # noqa: SLF001
     lock.write_text("version = 2\n", encoding="utf-8")
     monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
@@ -765,6 +795,7 @@ def test_verify_receipt_binds_project_metadata_and_lock(monkeypatch: pytest.Monk
     lock = source / "dot/uv.lock"
     project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     lock.write_text("version = 1\n", encoding="utf-8")
+    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
     for package in (source_package, installed_package):
         (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
@@ -877,6 +908,7 @@ def test_install_receipt_fails_closed_for_symlinked_package_and_atomic_publish_e
     (source_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
     (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
+    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
     real_package = tmp_path / "installed"
     real_package.mkdir()
     package_link = tmp_path / "installed-link"

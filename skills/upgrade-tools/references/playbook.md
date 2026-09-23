@@ -52,7 +52,7 @@ Validate with `tofu validate`, `tflint`, and `trivy config`. See [infra-as-code]
 
 ## Container images (`Dockerfile`)
 
-Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with `mise run build`, and scan with `trivy --config trivy.yaml image --skip-dirs ''`. See [containerize](../../containerize/references/image-build/GUIDE.md).
+Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with the project's image task, and scan the resulting local archive with `trivy --config trivy.yaml image --skip-dirs '' --input <image.tar>` or the published immutable `<registry>/<slug>@<digest>`. An image scan requires one of those targets. See [containerize](../../containerize/references/image-build/GUIDE.md).
 
 ## GitHub Actions (`.github/workflows/*.yml`)
 
@@ -61,7 +61,7 @@ Resolve every action release to its full commit SHA and keep the human-readable 
 ## dprint (`dprint.json`)
 
 ```sh
-dprint config update   # rewrite plugin URLs to the latest versions
+dprint config update --yes   # update reviewed plugins without interactive prompts
 ```
 
 Run it for each config (root and nested `extends`); validate with `dprint check`. See [dprint](../../dprint/SKILL.md).

@@ -79,6 +79,7 @@ def _install_basis_digest(source: pathlib.Path) -> str:
         ("package", _package_digest(source / "dot/src/fmind_dot").encode()),
         ("pyproject", (source / "dot/pyproject.toml").read_bytes()),
         ("lock", (source / "dot/uv.lock").read_bytes()),
+        ("license", (source / "dot/LICENSE").read_bytes()),
     ):
         encoded_name = name.encode()
         digest.update(len(encoded_name).to_bytes(4, "big"))

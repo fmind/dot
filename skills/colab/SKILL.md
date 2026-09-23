@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Google Colab CLI
@@ -16,15 +16,15 @@ Use `colab` to inspect existing sessions or run work on an accelerator the works
 
 ## Inspect without allocating
 
-For session or account inspection, use `colab sessions` and `colab status` with the existing authentication provider; consult installed help before selecting commands. These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
+For session or account inspection, check `colab version` and installed help, then use `colab sessions` and `colab status` with the existing authentication provider. These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
 
-The reviewed CLI 0.6.0 has no compute-balance command. Use an already available, authorized provider interface for that lookup or report the missing capability; `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
+The installed CLI 0.6.0 has no compute-balance command; current upstream documents `colab usage` for usage rate and balance. Check that `usage` exists in the installed help before using it. Otherwise use an already available, authorized provider interface or report the missing capability; `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
 
 ## Run accelerator work
 
 Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
 
-1. **Authenticate**: OAuth by default (`--auth oauth2`), or `--auth adc` to reuse the Application Default Credentials from [gcloud](../gcloud/SKILL.md); session state lives under `~/.config/colab-cli/`.
+1. **Authenticate**: select the existing provider explicitly with the global `--auth oauth2` or `--auth adc` option before the subcommand. Version 0.6.0 defaults to OAuth; current upstream documents ADC as the default, so do not rely on the implicit choice across upgrades. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); session state lives under `~/.config/colab-cli/`.
 1. **Prefer ephemeral runs**: `colab run` rents a VM, runs the script, and releases it; a shebang `#!/usr/bin/env -S colab run --gpu T4` makes a single file self-contained per [python-script](../python-stack/references/python-script/GUIDE.md).
 
    ```bash

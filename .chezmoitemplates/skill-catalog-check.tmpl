@@ -5,7 +5,14 @@
 {{- if and $catalogInfo (or (eq $catalogInfo.type "symlink") (not $catalogInfo.isDir)) -}}
   {{- fail "global skills catalog must be a real directory; resolve its owner before applying" -}}
 {{- end -}}
-{{- range glob (joinPath .chezmoi.sourceDir "dot_agents/skills/symlink_*.tmpl") -}}
+{{- /* Character classes keep the directory literal, including backslashes that
+       doublestar's literal-prefix optimization would otherwise leave escaped. */ -}}
+{{- $escapes := dict "\\" "[\\\\]" "[" "[[]" "]" "[\\]]" "*" "[*]" "?" "[?]" "{" "[\\{]" "}" "[\\}]" -}}
+{{- $directory := "" -}}
+{{- range $character := splitList "" (joinPath .chezmoi.sourceDir "dot_agents/skills") -}}
+  {{- $directory = print $directory (get $escapes $character | default $character) -}}
+{{- end -}}
+{{- range glob (printf "%s/symlink_*.tmpl" $directory) -}}
 {{- $name := base . | trimPrefix "symlink_" | trimSuffix ".tmpl" -}}
 {{- $target := joinPath $catalog $name -}}
 {{- $expected := joinPath $source $name -}}

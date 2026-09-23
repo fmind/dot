@@ -24,4 +24,4 @@
   "respectGitignore": false
 }
 ` -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "jsonc" true) -}}

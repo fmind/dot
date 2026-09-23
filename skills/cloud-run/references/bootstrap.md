@@ -28,6 +28,8 @@ Use the approved account/configuration and pass `--project=<project>` on each co
 
    Separate bootstrap permissions from routine deployment. Use `roles/run.developer` at the required service/project scope, `roles/artifactregistry.writer` on the image repository when CI pushes, and `roles/iam.serviceAccountUser` on the runtime SA. Changing invocation IAM requires additional permissions; do that through an authorized bootstrap step rather than giving every deployment project-wide administration. Grant the runtime identity Secret Manager access only to the secrets it reads.
 
+   Establish the private-access invariant during bootstrap: enable the Invoker IAM check and remove broad invocation grants, including inherited organization/folder grants. The CD postcondition also reads the service and project policies, so grant its deployer `run.services.getIamPolicy` and `resourcemanager.projects.getIamPolicy` at those scopes. It conservatively rejects any `allUsers` or `allAuthenticatedUsers` binding, including custom roles and conditions; do not weaken this check to hide missing read permissions. Explicit IAM changes need `run.services.setIamPolicy`; keep that authority scoped or perform them through the authorized bootstrap identity. See [Cloud Run public-access controls](https://docs.cloud.google.com/run/docs/authenticating/public).
+
 ## Documentation
 
 - [Deployment permissions](https://docs.cloud.google.com/run/docs/deploying#required_roles) · [Federation mappings and conditions](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines)

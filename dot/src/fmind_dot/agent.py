@@ -52,7 +52,7 @@ def _parse_time(value: str, option: str) -> datetime | None:
 
 def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> SessionQuery:
     query = SessionQuery(
-        agent=agent,
+        agent=_known_agent(agent),
         cwd=resolve_cwd(cwd),
         identity=identity,
         since=_parse_time(since, "--since"),
@@ -71,7 +71,9 @@ NoSyncOption = Annotated[
 def _known_agent(agent: str, param_hint: str = "--agent") -> str:
     """Reject a misspelled agent before a report syncs, so a typo never becomes an all-agent capture."""
     if agent and agent not in AGENT_ADAPTERS:
-        raise typer.BadParameter(f"unknown agent {agent!r}; choose {', '.join(AGENT_ADAPTERS)}", param_hint=param_hint)
+        raise typer.BadParameter(
+            f"unknown agent {agent!r}; choose {', '.join(sorted(AGENT_ADAPTERS))}", param_hint=param_hint
+        )
     return agent
 
 
@@ -197,7 +199,7 @@ def session_sync(
 ) -> None:
     sync_sessions(
         state_from(context),
-        agent=agent,
+        agent=_known_agent(agent),
         session=session,
         cwd=resolve_cwd(cwd),
         since=_parse_time(since, "--since"),
@@ -263,7 +265,7 @@ def hook_notify(
     agent: Annotated[str, typer.Argument()],
     event: Annotated[str, typer.Argument()],
 ) -> None:
-    state = state_from(context)
+    state = state_from(context, require_config=False)
     try:
         # Consume the hook payload so re-entrant and mid-turn events remain quiet.
         workspace = notification_workspace(state.stdin, agent)
@@ -351,7 +353,7 @@ def agent_stats(
         raise _click.exceptions.UsageError("choose --monthly or --billing")
     if prompts_only and (monthly or billing or by_model):
         raise _click.exceptions.UsageError("--monthly, --billing, and --by-model require token statistics")
-    query = _query(_known_agent(agent), cwd, "", since, until)
+    query = _query(agent, cwd, "", since, until)
     _refresh(state, agent, sync=not no_sync)
     prompts = None if tokens_only else prompt_statistics(query, by_project=by_project)
     rows = (
@@ -402,7 +404,7 @@ def agent_doctor(
     agent: Annotated[str, typer.Option("--agent", "--harness", "-a", help="Inspect only one agent")] = "",
     as_json: JsonOption = False,
 ) -> None:
-    run_agent_doctor(state_from(context), as_json=as_json, agent=agent)
+    run_agent_doctor(state_from(context), as_json=as_json, agent=_known_agent(agent))
 
 
 agent_app.add_typer(hook_app, name="hook", hidden=True)

@@ -1,9 +1,5 @@
 # chezmoi:modify-template
-{{- /* Hooks name the CLI absolutely: a harness started without ~/.local/bin on PATH
-       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and notifications
-       fail silently. */ -}}
-{{- $dot := joinPath .chezmoi.homeDir ".local/bin/dot" -}}
-{{- if not (regexMatch "^[A-Za-z0-9_@%+=:,./-]+$" $dot) }}{{ fail "home directory is not shell-safe for hook commands" }}{{ end -}}
+{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
 {{- $managedConfig := fromToml (replace "@dot@" $dot `
 # Docs: https://learn.chatgpt.com/docs/config-file/config-reference
 approval_policy = "never"
@@ -11,9 +7,6 @@ background_terminal_max_timeout = 1200000
 sandbox_mode = "danger-full-access"
 suppress_unstable_features_warning = true
 web_search = "live"
-
-[agents]
-job_max_runtime_seconds = 10800
 
 [features]
 memories = true
@@ -27,20 +20,14 @@ SessionEnd = []
 SubagentStop = []
 
 [[hooks.Stop]]
-matcher = ""
-
 [[hooks.Stop.hooks]]
 command = "@dot@ agent hook notify codex stop"
 statusMessage = "Notifying turn end"
 timeout = 30
 type = "command"
 
-[memories]
-generate_memories = true
-
 [otel]
 metrics_exporter = "none"
-trace_exporter = "none"
 
 [tui]
 vim_mode_default = true

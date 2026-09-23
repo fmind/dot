@@ -10,8 +10,8 @@ concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  build-python-package:
-    if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
+  validate:
+    if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' || vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -20,14 +20,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 100
           persist-credentials: false
       - name: Install tools using mise
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: false
-      - name: Build distributions
-        run: mise run build
+      - name: Validate the tagged revision
+        run: mise run all
+      - name: Verify no changes
+        run: |
+          status="$(git status --porcelain)"
+          printf '%s\n' "$status"
+          test -z "$status"
       - name: Upload distributions
+        if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package-distributions
@@ -37,7 +44,7 @@ jobs:
 
   publish-python-package:
     if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
-    needs: build-python-package
+    needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: pypi
@@ -56,11 +63,13 @@ jobs:
 
   deploy-python-container:
     if: ${{ vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
+    needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/cd.yml@${{ github.ref }}
       ISSUER: https://token.actions.githubusercontent.com
+      PLATFORMS: linux/amd64,linux/arm64
     permissions:
       contents: read
       packages: write
@@ -95,11 +104,10 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: |
-            ${{ steps.image.outputs.repository }}:latest
-            ${{ steps.image.outputs.repository }}:${{ github.ref_name }}
+          # Candidate tags never replace a consumer's release or latest image.
+          tags: ${{ steps.image.outputs.repository }}:candidate-${{ github.sha }}
       - name: Validate image digest
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -108,16 +116,40 @@ jobs:
         run: |
           [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf 'IMAGE=%s@%s\n' "$IMAGE_REPOSITORY" "$DIGEST" >> "$GITHUB_ENV"
-          printf 'SBOM=%s/sbom.cdx.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
-      - name: Scan image
-        run: trivy --config trivy.yaml image --skip-dirs '' "$IMAGE"
-      - name: Generate image SBOM
-        run: trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output "$SBOM" "$IMAGE"
+          printf 'IMAGE_REPOSITORY=%s\n' "$IMAGE_REPOSITORY" >> "$GITHUB_ENV"
+      - name: Resolve platform digests
+        run: |
+          docker buildx imagetools inspect "$IMAGE" --raw > "$RUNNER_TEMP/index.json"
+          python .github/scripts/image-platforms.py "$RUNNER_TEMP/index.json" "$PLATFORMS" > "$RUNNER_TEMP/platforms.tsv"
+      - name: Scan every platform
+        run: |
+          while IFS=$'\t' read -r platform digest; do
+            trivy --config trivy.yaml image --skip-dirs '' --platform "$platform" "$IMAGE_REPOSITORY@$digest"
+          done < "$RUNNER_TEMP/platforms.tsv"
+      - name: Generate platform SBOMs
+        run: |
+          while IFS=$'\t' read -r platform digest; do
+            trivy --config trivy.yaml image --skip-dirs '' --platform "$platform" --format cyclonedx --output "$RUNNER_TEMP/sbom-${platform//\//-}.cdx.json" "$IMAGE_REPOSITORY@$digest"
+          done < "$RUNNER_TEMP/platforms.tsv"
       - name: Sign image
         run: cosign sign --yes "$IMAGE"
       - name: Verify image signature
         run: cosign verify --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE"
-      - name: Attest image SBOM
-        run: cosign attest --yes --type cyclonedx --predicate "$SBOM" "$IMAGE"
-      - name: Verify image attestation
-        run: cosign verify-attestation --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE"
+      - name: Attest platform SBOMs
+        run: |
+          while IFS=$'\t' read -r platform digest; do
+            cosign attest --yes --type cyclonedx --predicate "$RUNNER_TEMP/sbom-${platform//\//-}.cdx.json" "$IMAGE_REPOSITORY@$digest"
+          done < "$RUNNER_TEMP/platforms.tsv"
+      - name: Verify platform attestations
+        run: |
+          while IFS=$'\t' read -r _platform digest; do
+            cosign verify-attestation --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE_REPOSITORY@$digest"
+          done < "$RUNNER_TEMP/platforms.tsv"
+      - name: Promote verified image
+        env:
+          IMAGE_REPOSITORY: ${{ steps.image.outputs.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          [[ "$RELEASE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || { echo "Invalid image release tag" >&2; exit 1; }
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE_REPOSITORY:$RELEASE_TAG" --tag "$IMAGE_REPOSITORY:latest" "$IMAGE"

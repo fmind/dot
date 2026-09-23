@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-20"
+  updated: "2026-09-23"
 ---
 
 # Secrets with sops and age
@@ -27,7 +27,7 @@ Encrypted secrets live in git next to their configuration. Use environment varia
 1. **Generate** only when the key file is absent: create its parent directory with mode `0700`, then run `age-keygen -o "<key-file>"`. It creates a private file and refuses to overwrite an existing one. Print only the public half with `age-keygen -y "<key-file>"`.
 1. **Distribute** only the public key, as the `age:` recipient in each repo's `.sops.yaml`.
 1. **Back up** the private key in a password manager; never commit it to any dotfiles repo.
-1. **Rotate**: add the new recipient to `.sops.yaml`, run `sops updatekeys <file>` on every encrypted file, then remove the old recipient and repeat; `sops rotate -i <file>` re-keys the data key after an exposure.
+1. **Rotate**: add the new recipient to `.sops.yaml`, review the recipient diff, then run `sops updatekeys --yes <file>` on every encrypted file, then remove the old recipient and repeat; `sops rotate -i <file>` re-keys the data key after an exposure.
 
 ## Commands
 
@@ -51,7 +51,7 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 - **Key names still leak**: sops encrypts values, not keys, so `stripe_production_key:` in a public repo is information; name keys neutrally when the repo is public.
 - **Never edit ciphertext by hand**: sops stores a MAC over the file and out-of-band edits fail decryption; go through `sops edit` or `sops set`.
 - **Rule match is positional**: `sops edit` picks the first `creation_rules` entry whose `path_regex` matches the path relative to `.sops.yaml`, so run sops from the repo root, and run `updatekeys` after any recipient change.
-- **gitleaks coexists**: encrypted `ENC[AES256_GCM,…]` values do not trip `check:leaks`; a finding in an `*.enc.*` file means a value was committed before encryption, so rotate it per [gitleaks](../security-review/references/gitleaks.md).
+- **gitleaks coexists**: inspect the redacted rule and location for every finding, including `*.enc.*` files; the suffix does not prove that comments, keys, or excluded fields are encrypted. Confirm whether plaintext was exposed before rotating credentials per [gitleaks](../security-review/references/gitleaks.md).
 - **Staged hook**: the [lefthook](../github-actions/references/lefthook.md) pre-commit runs gitleaks on staged content, catching a staged plaintext sibling of an `*.enc.*` file.
 
 ## Documentation

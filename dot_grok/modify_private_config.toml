@@ -6,6 +6,8 @@ feedback = false
 # Python code intelligence uses the ty server declared in lsp.json.
 lsp_tools = true
 telemetry = false
+# Web fetch is off by default; set here rather than GROK_WEB_FETCH so every launcher gets it.
+web_fetch = true
 
 [memory]
 enabled = true
@@ -20,15 +22,14 @@ simple_mode = false
 theme = "grokday"
 vim_mode = true
 
-# Allow ordinary repository gates to finish and retain useful failure output.
+# Allow ordinary repository gates to finish and retain useful failure output; a command
+# still running at the timeout moves to the background instead of being killed.
 [toolset.bash]
+auto_background_on_timeout = true
 output_byte_limit = 131072
 timeout_secs = 300.0
 
-[tools]
-respect_gitignore = false
-
-# GROK_WEB_FETCH enables fetching; retain its local-network boundary.
+# Keep fetching off the local network explicitly (the default).
 [toolset.web_fetch]
 allow_local = false
 

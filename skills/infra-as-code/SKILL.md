@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # Infrastructure as Code
@@ -36,11 +36,11 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
    - `tests/main.tftest.hcl` from [main.tftest.hcl](templates/main.tftest.hcl) — plan-only native tests.
 1. **Validate**: `git init --initial-branch=main`, then `mise run install` and `mise run all` — no cloud API access for this starter because the backend is commented and the test uses `mock_provider`; downloading tools/providers still needs network access.
 1. **Lock providers**: commit `.terraform.lock.hcl`; on multi-platform teams run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64`.
-1. **Promote the backend**: once backend creation and state migration are authorized, create the versioned GCS bucket (commands in [versions.tf](templates/versions.tf)), uncomment `backend "gcs"`, and re-run `mise run install`; `tofu init` migrates local state after a prompt.
+1. **Promote the backend**: once backend creation and state migration are authorized, create the versioned GCS bucket (commands in [versions.tf](templates/versions.tf)), back up the current state, verify the source workspace and destination prefix, and uncomment `backend "gcs"`. Run `tofu init -migrate-state` for the reviewed move; authorized non-interactive migration uses `tofu init -migrate-state -force-copy -input=false`. Verify the destination state before removing the local backup.
 
 ## 3. State & Secrets
 
-- **State is secret**: state stores every attribute in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block (GCP KMS, sketched in [versions.tf](templates/versions.tf)).
+- **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block (GCP KMS, sketched in [versions.tf](templates/versions.tf)).
 - **Variable files**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets at plan time per [sops-secrets](../sops-secrets/SKILL.md): `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'` with `TF_VAR_<name>` entries.
 - **Credentials**: Application Default Credentials locally; Workload Identity Federation in CI per [github-actions](../github-actions/references/ci-cd/GUIDE.md) — no service-account keys.
 

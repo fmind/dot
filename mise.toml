@@ -59,7 +59,7 @@ run = ["mise run format", "mise run check", "mise run test", "mise run build"]
 alias = "b"
 description = "Build the dot Python source distribution and wheel"
 run = "uv build --out-dir dot/dist --clear"
-sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/src/**/*.py", "dot/src/**/*.yaml"]
+sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/LICENSE", "dot/src/**/*.py", "dot/src/**/*.yaml"]
 outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 
 [tasks.check]
@@ -103,8 +103,9 @@ run = """
 render_config="$(mktemp -d)"
 render_destination="$(mktemp -d)"
 trap 'rm -rf "$render_destination" "$render_config"' EXIT
-chezmoi init --source "$PWD" --config-path "$render_config/chezmoi.toml" --promptDefaults
-chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destination" --config "$render_config/chezmoi.toml" --exclude=encrypted
+# Separate state also prevents parallel validation from locking the live workstation.
+chezmoi init --source "$PWD" --config-path "$render_config/chezmoi.toml" --persistent-state "$render_config/state.boltdb" --promptDefaults
+chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destination" --config "$render_config/chezmoi.toml" --persistent-state "$render_config/state.boltdb" --exclude=encrypted
 """
 
 [tasks."check:docs"]
@@ -175,9 +176,9 @@ description = "Lint shell scripts and rendered chezmoi shell templates; format-c
 run = """
 rendered="$(mktemp -d)"
 trap 'rm -rf "$rendered"' EXIT
-chezmoi init --source "$PWD" --config-path "$rendered/chezmoi.toml" --promptDefaults
+chezmoi init --source "$PWD" --config-path "$rendered/chezmoi.toml" --persistent-state "$rendered/state.boltdb" --promptDefaults
 for template in run_*.sh.tmpl modify_dot_*; do
-  chezmoi execute-template --source "$PWD" --config "$rendered/chezmoi.toml" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
+  chezmoi execute-template --source "$PWD" --config "$rendered/chezmoi.toml" --persistent-state "$rendered/state.boltdb" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
 shellcheck --rcfile dot_config/shellcheckrc install.sh "$rendered"/*.bash
 shfmt -d -i 2 -s install.sh
@@ -337,8 +338,9 @@ run = [
   "uv lock",
   "mise lock --yes",
   "mise lock --global --yes",
+  # Capture only referenced native dependency files, preserving their digest bytes.
+  "uv run --frozen --directory dot python -m dot_tasks.mise_locks",
   # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
-  'chezmoi re-add --source "$(pwd -P)" ~/.config/mise/mise.lock',
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 

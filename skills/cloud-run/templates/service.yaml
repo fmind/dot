@@ -7,6 +7,8 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: <slug>
+  annotations:
+    run.googleapis.com/invoker-iam-disabled: "false"
   labels:
     cloud.googleapis.com/location: <region>
 spec:

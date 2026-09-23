@@ -2,8 +2,8 @@
 # Pre-accept coding-harness folder trust for the configured workspaces, their
 # repositories, and this source directory; `dot trust` only adds missing entries.
 set -eu
-dot="{{ .chezmoi.homeDir }}/.local/bin/dot"
+dot={{ joinPath .chezmoi.homeDir ".local/bin/dot" | shellQuote }}
 # Bare apply can precede installation; tools/full defer hooks until dot is deployed.
 [ -x "${dot}" ] || exit 0
 "${dot}" trust all >/dev/null
-"${dot}" trust {{ .chezmoi.sourceDir | quote }} >/dev/null
+"${dot}" trust {{ .chezmoi.sourceDir | shellQuote }} >/dev/null

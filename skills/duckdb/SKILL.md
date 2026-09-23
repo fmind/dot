@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # DuckDB and SQLite
@@ -44,7 +44,7 @@ Use [data-migration](../data-migration/SKILL.md) when changing an application sc
 - **Glob paths quote as strings**: `'events/*.parquet'` works, unquoted paths do not.
 - **Memory**: large joins spill to disk automatically; set `SET memory_limit='4GB'` and `SET threads=4` on a shared machine.
 - **Extensions load on demand**: `httpfs`, `spatial`, `postgres` install once with `INSTALL <ext>; LOAD <ext>;` and need network the first time.
-- **Secrets**: `CREATE SECRET` from environment variables or Application Default Credentials, never literal credentials in SQL.
+- **Secrets**: use the selected extension's credential provider, never literal credentials in SQL. Core `httpfs` accesses GCS through the S3 API and needs HMAC credentials; its `credential_chain` does not consume Google ADC. ADC requires a separately reviewed compatible extension, such as the community [gcs extension](https://duckdb.org/community_extensions/extensions/gcs), or downloading through an authorized Google client first.
 
 ## Official Skills
 

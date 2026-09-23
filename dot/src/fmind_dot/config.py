@@ -199,6 +199,7 @@ class DoctorConfig(StrictModel):
             "copilot",
             "docker",
             "dprint",
+            "file",
             "fkf",
             "gcloud",
             "gh",

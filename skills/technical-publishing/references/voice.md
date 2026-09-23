@@ -7,4 +7,4 @@ Read the publishing project's current identity and editorial instructions, plus 
 1. Distinguish supplied personal facts from externally verified background; never invent clients, measurements, quotations, credentials, or approval.
 1. Cut hype, throat-clearing, repeated conclusions, and empty corporate language. Use lists and headings only when they clarify the argument.
 1. Follow the project's immutable-publication rule. Prepare a proposed erratum, follow-up, or dated edition when required; site ownership alone does not authorize rewriting published copy.
-1. Prepare only the requested channel copy. Sending, scheduling, publication, and spending require the authority and workflow of the owning project.
+1. Prepare the session's selected channel copy, or the owning project's default set when none was selected. Sending, scheduling, publication, and spending require the authority and workflow of the owning project.

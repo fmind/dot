@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # Observability
@@ -18,10 +18,10 @@ Use one Python telemetry stack for services and agents: `structlog` JSON on stdo
 
 1. **Add only the Python packages in use**: `structlog`, OpenTelemetry API and SDK, the OTLP exporter, and explicit instrumentation packages for the service's HTTP framework and clients. Lock them with `uv`; avoid a vendor SDK in application code.
 1. **Emit structured logs**: render one JSON object per line to stdout in production. Use `severity`, `message`, and `time` for Cloud Logging while retaining stable event names and machine-readable fields.
-1. **Configure traces and metrics** through `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, and `OTEL_EXPORTER_OTLP_ENDPOINT`. A missing endpoint should leave local development quiet and should never make request handling fail.
+1. **Configure traces and metrics** through `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and an explicit protocol. Keep local development quiet by disabling export when it is not configured; an SDK's default localhost endpoint does not disable telemetry.
 1. **Correlate signals**: a `structlog` processor reads `trace.get_current_span().get_span_context()` and adds `trace_id`, `span_id`, `logging.googleapis.com/trace`, and `logging.googleapis.com/spanId` only when the context is valid.
 1. **Describe agent work** with current GenAI semantic conventions: model calls carry `gen_ai.operation.name`, provider and request model, and input/output token usage; agent and tool spans carry their stable agent or tool names. Do not record prompt or completion bodies by default.
-1. **Export on Google Cloud** through the Google-built OpenTelemetry Collector as a Cloud Run sidecar. Send OTLP to `http://localhost:4317`; let the collector authenticate with ADC and forward telemetry to Google Cloud.
+1. **Export on Google Cloud** through the Google-built OpenTelemetry Collector as a Cloud Run sidecar. Match the exporter and receiver: `grpc` with `http://localhost:4317`, or `http/protobuf` with `http://localhost:4318`. For environment-configured instrumentation set `OTEL_EXPORTER_OTLP_PROTOCOL`; for manually constructed Python exporters choose the matching gRPC or HTTP class. Let the collector authenticate with ADC and forward telemetry to Google Cloud.
 1. **Evaluate separately**: operational telemetry detects failures and drift but does not prove response quality. Link a trace ID to Langfuse or MLflow scores when used, and use [agent-evaluation](../agent-evaluation/SKILL.md) for repeated comparisons through the project's existing runner.
 1. **Verify all three signals**: send one request, locate its trace, read the correlated log events, confirm the expected metric, then exercise shutdown to prove buffered telemetry flushes within the platform grace period.
    ```bash
@@ -42,6 +42,6 @@ Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, and `grafana/sk
 
 ## Documentation
 
-- [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) · [Cloud Logging structured logs](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google-built OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel)
+- [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [OTLP configuration](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/) · [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) · [Cloud Logging structured logs](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google-built OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel)
 - Releases: [OpenTelemetry Python](https://github.com/open-telemetry/opentelemetry-python/releases)
 - Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-adk](../agent-frameworks/references/google-adk.md), [gcloud](../gcloud/SKILL.md), [benchmark](../benchmark/references/command-http.md).

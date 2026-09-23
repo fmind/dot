@@ -43,9 +43,18 @@ elif tool == "chezmoi" and "https://github.com/fmind/dot.git" in args:
     source = Path(args[args.index("--source") + 1])
     source.mkdir(parents=True)
 elif tool == "curl" and "FAKE_MISE_STOCK" in os.environ:
-    # Stand in for https://mise.run: the piped script records the requested release.
-    print('printf "%s" "${{MISE_VERSION:-}}" > "$BOOTSTRAP_LOG.requested"')
-    print('mkdir -p "$HOME/.local/bin" && cp "$FAKE_MISE_STOCK" "$HOME/.local/bin/mise"')
+    # Stand in for https://mise.run, including an interrupted transfer of valid shell.
+    if os.environ.get("FAKE_MISE_TRUNCATED"):
+        script = 'touch "$BOOTSTRAP_LOG.executed"\\n'
+    else:
+        script = 'printf "%s" "${{MISE_VERSION:-}}" > "$BOOTSTRAP_LOG.requested"\\n'
+        script += 'mkdir -p "$HOME/.local/bin" && cp "$FAKE_MISE_STOCK" "$HOME/.local/bin/mise"\\n'
+    if "-o" in args:
+        Path(args[args.index("-o") + 1]).write_text(script)
+    else:
+        print(script)
+    if os.environ.get("FAKE_MISE_TRUNCATED"):
+        raise SystemExit(18)
 elif tool == "curl":
     raise SystemExit(99)
 """
@@ -146,6 +155,19 @@ class BootstrapTest(unittest.TestCase):
             requested = Path(f"{fixture.log}.requested").read_text(encoding="utf-8")
             assert requested == f"v{pinned_mise_version()}"
             assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "mise"]
+
+    def test_interrupted_mise_download_is_never_executed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = BootstrapFixture(Path(directory), pinned_mise_version(), mise_installed=False)
+            fixture.environment["FAKE_MISE_TRUNCATED"] = "1"
+            result = fixture.run()
+
+            assert result.returncode == 18, result.stdout + result.stderr
+            assert not Path(f"{fixture.log}.executed").exists()
+            assert not fixture.source.exists()
+            (download,) = fixture.calls()
+            assert download["tool"] == "curl"
+            assert not Path(download["args"][download["args"].index("-o") + 1]).exists()
 
     def test_every_copy_of_the_mise_version_agrees(self) -> None:
         copies = {"install.sh": pinned_mise_version()}

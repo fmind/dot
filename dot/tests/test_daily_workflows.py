@@ -206,9 +206,19 @@ def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch
         sync_sessions(state, agent="typo")
 
 
-def test_managed_config_edit_routes_to_source_and_validates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize("alias", ["direct", "parent", "symlink"])
+def test_managed_config_edit_routes_to_source_and_validates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, alias: str
+) -> None:
     config = tmp_path / "dot.yaml"
     config.write_text("{}\n")
+    selected = config
+    if alias == "parent":
+        (tmp_path / "nested").mkdir()
+        selected = tmp_path / "nested/../dot.yaml"
+    elif alias == "symlink":
+        selected = tmp_path / "linked.yaml"
+        selected.symlink_to(config)
     calls = []
     monkeypatch.setattr(Runner, "which", lambda _self, name: Path("/tools") / name)
 
@@ -224,10 +234,10 @@ def test_managed_config_edit_routes_to_source_and_validates(monkeypatch: pytest.
     monkeypatch.setattr(Runner, "run", inventory)
     monkeypatch.setattr(Runner, "interactive", edit)
     cli = CliRunner()
-    initialized = cli.invoke(app, ["--config", str(config), "config", "init", "--force"])
+    initialized = cli.invoke(app, ["--config", str(selected), "config", "init", "--force"])
     assert initialized.exit_code != 0
     assert config.read_text() == "{}\n"
-    edited = cli.invoke(app, ["--config", str(config), "config", "edit"])
+    edited = cli.invoke(app, ["--config", str(selected), "config", "edit"])
     assert edited.exit_code != 0
     assert calls == [["chezmoi", "edit", "--apply", "--force", str(config)]]
     assert "valid" not in edited.stdout

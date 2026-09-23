@@ -228,6 +228,10 @@ def _pull_repository(
         ahead = _count(git(["rev-list", "--count", "@{u}..HEAD"]), "ahead")
         pushed = False
         push_error = ""
+        # Fetch/merge can take long enough for an editor or another process to
+        # change the worktree. Never authorize a push using the pre-fetch check.
+        if push and ahead and not dirty:
+            dirty = bool(git(_STATUS).strip())
         if push and ahead and not dirty:
             try:
                 git(["push"])
@@ -243,7 +247,7 @@ def _pull_repository(
             pushed=pushed,
             push_error=push_error,
         )
-    except DotError as error:
+    except (DotError, OSError) as error:
         return RepoResult(path=path, branch=branch, dirty=dirty, error=str(error))
 
 
@@ -388,7 +392,7 @@ def _repository_status(state: State, path: Path) -> RepositoryStatus:
             behind=behind,
             operation=operation,
         )
-    except DotError as error:
+    except (DotError, OSError) as error:
         return RepositoryStatus(path.name, path.parent.name, error=str(error), path=str(path))
 
 
@@ -396,8 +400,14 @@ def gather_status(state: State, paths: Sequence[Path] = ()) -> list[RepositorySt
     """Collect repository status concurrently."""
     require_tools(state, [["git"]])
     repositories = find_git_repositories(state, paths)
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    executor = ThreadPoolExecutor(max_workers=8)
+    try:
         return list(executor.map(lambda path: _repository_status(state, path), repositories))
+    except BaseException:
+        state.runner.cancel()
+        raise
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
 
 
 def run_status(

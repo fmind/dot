@@ -93,16 +93,28 @@ def _jsonl_snapshot(path: Path) -> tuple[Iterator[tuple[dict[str, Any] | None, b
 
 
 def _usage_token_count(value: object, field: str) -> int | None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
+    if value is None:
         return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"usage record field {field!r} must be a non-negative integer")
     if value < 0 or (isinstance(value, float) and (not math.isfinite(value) or not value.is_integer())):
         raise ValueError(f"usage record field {field!r} must be a non-negative integer")
     return int(value)
 
 
+def _usage_mapping(value: object, field: str, *, optional: bool = True) -> dict[str, Any]:
+    if value is None and optional:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"usage record field {field!r} must be an object")
+    return value
+
+
 def _usage_cost(value: object) -> float | None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
+    if value is None:
         return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError("usage record field 'cost_usd' must be a non-negative finite number")
     try:
         cost = float(value)
     except OverflowError as error:
@@ -128,8 +140,15 @@ def _undated_usage_timestamp(logs: list[SessionLog], *sources: Path) -> str:
             latest = (parsed, log.ts)
     if latest is not None:
         return latest[1]
-    modified = max(source.stat().st_mtime for source in sources if source.exists())
-    return datetime.fromtimestamp(modified, UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    mtimes: list[float] = []
+    for source in sources:
+        try:
+            mtimes.append(source.stat().st_mtime)
+        except FileNotFoundError:
+            continue  # A source removed mid-sync leaves the others as evidence.
+    if not mtimes:
+        return ""
+    return datetime.fromtimestamp(max(mtimes), UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _finalize_parsed_usage(
@@ -224,15 +243,14 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     if kind != "assistant":
         return
     record.turn_count += 1
-    message = raw.get("message")
-    if not isinstance(message, dict):
-        return
+    message = _usage_mapping(raw.get("message"), "message")
     model = message.get("model")
     if isinstance(model, str) and model:
         record.observe_model(model)
-    usage = message.get("usage")
-    if not isinstance(usage, dict):
-        return
+    if model == "<synthetic>":
+        # Claude's local error/interrupt responses do not make a billed request.
+        record.measurement_kind = "provider-reported"
+    usage = _usage_mapping(message.get("usage"), "usage")
     for source, target in (
         ("input_tokens", "input_tokens"),
         ("output_tokens", "output_tokens"),
@@ -242,6 +260,8 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
         count = _usage_token_count(usage.get(source), target)
         if count is not None:
             setattr(record, target, getattr(record, target) + count)
+            if target in {"input_tokens", "output_tokens"}:
+                record.measurement_kind = "provider-reported"
 
 
 def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -253,7 +273,6 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         agent="claude",
         session_id=session_id,
         cwd=resolve_cwd(cwd),
-        measurement_kind="provider-reported",
     )
     messages: dict[tuple[str, str], UsageRecord] = {}
     timed = True
@@ -270,7 +289,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         try:
             if raw.get("type") == "assistant":
                 message = _mapping(raw.get("message"))
-                sample = UsageRecord(harness="claude", session_id=session_id, measurement_kind="provider-reported")
+                sample = UsageRecord(harness="claude", session_id=session_id)
                 _observe_claude_usage(sample, raw)
                 timed = timed and bool(sample.timestamp)
                 sample.finalize(fallback_timestamp=sample_fallback)
@@ -283,6 +302,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
                 )
                 previous = messages.get(key)
                 if previous:
+                    sample.measurement_kind = sample.measurement_kind or previous.measurement_kind
                     # Partial blocks can report increasing output; preserve the high water.
                     for name in ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens"):
                         setattr(sample, name, max(getattr(previous, name), getattr(sample, name)))
@@ -301,7 +321,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         content = ""
         if kind == "user" and isinstance(message.get("content"), str):
             content = message["content"]
-        elif kind == "assistant" and isinstance(message.get("content"), list):
+        elif isinstance(message.get("content"), list):
             texts = [
                 part["text"]
                 for part in message["content"]
@@ -327,13 +347,19 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             )
         )
     propagate_models(logs)
-    if messages:
+    measured = bool(messages) and all(sample.measurement_kind for sample in messages.values())
+    if measured:
+        usage.measurement_kind = "provider-reported"
         usage.set_samples(list(messages.values()), timed=timed)
         usage.timestamp = max(sample.timestamp for sample in messages.values()) if timed else ""
         if not usage.cwd:
             usage.cwd = next((sample.cwd for sample in messages.values() if sample.cwd), "")
     usage.source_bytes = source_bytes
-    parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
+    if not measured and not usage.cost_known:
+        # An absent measurement is unknown, not a zero-token provider request.
+        parsed_usage = None
+    else:
+        parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
     return ParsedSession(logs, fingerprint, "claude-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
 
 
@@ -415,7 +441,8 @@ def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     elif kind == "response_item" and payload.get("role") == "assistant":
         record.turn_count += 1
     elif kind == "event_msg" and payload.get("type") == "token_count":
-        total = _mapping(_mapping(payload.get("info")).get("total_token_usage"))
+        info = _usage_mapping(payload.get("info"), "info")
+        total = _usage_mapping(info.get("total_token_usage"), "total_token_usage")
         for source, target in (
             ("input_tokens", "input_tokens"),
             ("output_tokens", "output_tokens"),
@@ -427,6 +454,8 @@ def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
             count = _usage_token_count(total.get(source), target)
             if count is not None:
                 setattr(record, target, count)
+                if target in {"input_tokens", "output_tokens", "total_tokens"}:
+                    record.measurement_kind = "provider-reported"
 
 
 def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -440,7 +469,6 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         agent="codex",
         session_id=session_id,
         cwd=active_cwd,
-        measurement_kind="provider-reported",
     )
     samples: list[UsageRecord] = []
     previous_counts = dict.fromkeys(
@@ -504,7 +532,9 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
     if samples and timed:
         usage.set_samples(samples)
     usage.source_bytes = source_bytes
-    parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
+    parsed_usage = None
+    if usage.measurement_kind:
+        parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
     return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
 
 
@@ -557,6 +587,7 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
     cost_complete = True
     usage: UsageRecord | None = None
     usage_error: Exception | None = None
+    usage_complete = True
     timed = True
     # Both provider files participate in the generation identity. Read each once
     # so an updated measurement cannot be hidden by an unchanged transcript.
@@ -594,6 +625,11 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
                 usage_error = error
             else:
                 timed = timed and (bool(turn_timestamp) or not turn)
+                # A failed or cancelled turn without usage (e.g. an HTTP 402) billed nothing
+                # measurable; only a turn that should have reported usage leaves a gap.
+                unbilled = not turn and update.get("stop_reason") in {"error", "cancelled"}
+                measured = bool(turn) and all(sample.measurement_kind for sample in turn)
+                usage_complete = usage_complete and (unbilled or measured)
                 samples.extend(turn)
                 cost_ticks += ticks
                 cost_complete = cost_complete and complete
@@ -625,7 +661,10 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
                 fallback_timestamp=_undated_usage_timestamp(logs, path, signals_path),
             )
             # Both provider files are inspected to produce one measurement.
-            usage.source_bytes = len(transcript) + len(signals or b"")
+            if not usage_complete:
+                usage = None
+            if usage is not None:
+                usage.source_bytes = len(transcript) + len(signals or b"")
         except (OSError, ValueError) as error:
             usage_error = error
     return ParsedSession(logs, fingerprint, "grok-jsonl", malformed, decoded - len(logs), usage, usage_error)
@@ -635,22 +674,21 @@ def _grok_turn_usage(
     update: dict[str, Any], timestamp: str, session_id: str, cwd: str, fallback_timestamp: str
 ) -> tuple[list[UsageRecord], int, bool]:
     """Return request measurements, reported cost ticks, and completeness for one turn."""
-    usage = _mapping(update.get("usage"))
+    usage = _usage_mapping(update.get("usage"), "usage")
     if not usage:
         return [], 0, True
     # Per-model counters partition the turn exactly, including finished subagents.
-    models = _mapping(usage.get("modelUsage")) or {"": usage}
+    models = _usage_mapping(usage.get("modelUsage"), "modelUsage") or {"": usage}
     samples: list[UsageRecord] = []
     ticks = 0
     for index, model in enumerate(sorted(models)):
-        counters = _mapping(models[model])
+        counters = _usage_mapping(models[model], "modelUsage entry", optional=False)
         sample = UsageRecord(
             harness="grok",
             session_id=session_id,
             cwd=resolve_cwd(cwd),
             model=model if isinstance(model, str) else "",
             timestamp=timestamp,
-            measurement_kind="provider-reported",
             # One completed turn is one prompt however many models billed it.
             turn_count=1 if index == 0 else 0,
         )
@@ -658,6 +696,8 @@ def _grok_turn_usage(
             count = _usage_token_count(counters.get(source), target)
             if count is not None:
                 setattr(sample, target, count)
+                if target in {"input_tokens", "output_tokens", "total_tokens"}:
+                    sample.measurement_kind = "provider-reported"
         value = _usage_token_count(counters.get("costUsdTicks"), "cost_usd")
         if value is not None:
             ticks += value
@@ -677,10 +717,11 @@ def _parse_grok_usage(
     *,
     timed: bool = True,
     fallback_timestamp: str,
-) -> UsageRecord:
+) -> UsageRecord | None:
     record = UsageRecord(
         harness="grok", agent="grok", session_id=session_id, cwd=resolve_cwd(cwd), measurement_kind="context-only"
     )
+    context_known = False
     if content is not None:
         record.source_bytes = len(content)
         value = json.loads(content)
@@ -692,12 +733,13 @@ def _parse_grok_usage(
         tokens = _usage_token_count(value.get("contextTokensUsed"), "input_tokens")
         if tokens is not None:
             record.input_tokens = tokens
+            context_known = True
         turns = _usage_token_count(value.get("turnCount"), "turn_count")
         if turns is not None:
             record.turn_count = turns
     if not samples:
         # Signals hold one final context reading, not what the session consumed.
-        return record.finalize(fallback_timestamp=fallback_timestamp)
+        return record.finalize(fallback_timestamp=fallback_timestamp) if context_known else None
     record.measurement_kind = "provider-reported"
     record.set_samples(samples, timed=timed)
     record.timestamp = max(sample.timestamp for sample in samples) if timed else ""
@@ -786,7 +828,7 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
 
 def _extract_copilot_usage(
     connection: sqlite3.Connection, session_id: str, cwd: str, fallback_timestamp: str
-) -> UsageRecord:
+) -> UsageRecord | None:
     rows = connection.execute(
         """SELECT model, input_tokens, output_tokens, cache_read_tokens,
                   cache_write_tokens, reasoning_tokens
@@ -814,6 +856,8 @@ def _extract_copilot_usage(
         record.cache_write_tokens += _usage_token_count(row[4], "cache_write_tokens") or 0
         record.reasoning_tokens += _usage_token_count(row[5], "reasoning_tokens") or 0
         record.turn_count += 1
+    if not rows or any(all(value is None for value in row[1:3]) for row in rows):
+        return None
     record.total_tokens = record.input_tokens + record.output_tokens + record.cached_tokens + record.cache_write_tokens
     return record.finalize(fallback_timestamp=fallback_timestamp)
 

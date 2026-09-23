@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,9 +24,9 @@ from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
-SESSION_PARSER_VERSION = "5"
-# Parsers 3 and 4 remain in stores migrated from v2; their usage is flagged as legacy accounting.
-READABLE_PARSER_VERSIONS = ("3", "4", SESSION_PARSER_VERSION)
+SESSION_PARSER_VERSION = "7"
+# Earlier captures remain readable and are flagged as legacy until their sources are recaptured.
+READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 LEGACY_STORE_VERSION = "v2"
 _LAST_MIGRATING_RELEASE = "7.0.4"
@@ -276,6 +277,19 @@ def _write_bundle(root: Path, manifest: SessionManifest, logs: list[SessionLog])
     write_private_file(directory / f"{manifest.session_id}{BUNDLE_SUFFIX}", _bundle_content(manifest, logs))
 
 
+def _loses_measurement(previous: dict[str, Any], current: dict[str, Any] | None) -> bool:
+    """Token measurements and recorded cost are independent evidence, including known zero."""
+    if current is None:
+        return True
+    return (
+        previous.get("measurement_kind") == "provider-reported"
+        and current.get("measurement_kind") != "provider-reported"
+    ) or bool(
+        (previous.get("cost_known") or previous.get("cost_usd"))
+        and not (current.get("cost_known") or current.get("cost_usd"))
+    )
+
+
 def ingest_session(
     agent: str,
     session_id: str,
@@ -284,6 +298,7 @@ def ingest_session(
     *,
     usage: dict[str, Any] | None = None,
     preserve_existing: bool = False,
+    expected_generation: tuple[str, str] | None = None,
 ) -> SessionIngestionResult:
     """Keep the latest copy of a session, but never replace it with a shorter transcript."""
     source = source or SessionSource()
@@ -319,8 +334,41 @@ def ingest_session(
     with os.fdopen(descriptor, "rb") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
         stored = read_session_manifest(path) if path.exists() else None
+        generation = (stored.parser_version, stored.source_fingerprint) if stored else ("", "")
+        if expected_generation is not None and generation != expected_generation:
+            # The source was parsed before taking this lock. A competing publication
+            # wins even when both captures contain the same number of messages.
+            return SessionIngestionResult("retained", stored or manifest)
         if stored is not None:
             if preserve_existing:
+                return SessionIngestionResult("retained", stored)
+            # Older parsers classified absent counters as measured zero. An identical
+            # source can correct that classification without discarding actual usage.
+            reinterpreted_zero = (
+                stored.parser_version != manifest.parser_version
+                and stored.source_fingerprint == manifest.source_fingerprint
+                and stored.usage is not None
+                and not any(
+                    stored.usage.get(name)
+                    for name in (
+                        "input_tokens",
+                        "output_tokens",
+                        "cached_tokens",
+                        "cache_write_tokens",
+                        "reasoning_tokens",
+                        "total_tokens",
+                    )
+                )
+                and (
+                    not (stored.usage.get("cost_known") or stored.usage.get("cost_usd"))
+                    or (
+                        usage is not None
+                        and (usage.get("cost_known"), usage.get("cost_usd"))
+                        == (stored.usage.get("cost_known"), stored.usage.get("cost_usd"))
+                    )
+                )
+            )
+            if stored.usage is not None and not reinterpreted_zero and _loses_measurement(stored.usage, usage):
                 return SessionIngestionResult("retained", stored)
             if (stored.parser_version, stored.source_fingerprint) == (
                 manifest.parser_version,
@@ -336,6 +384,16 @@ def ingest_session(
             if len(logs) < stored.record_count:
                 # A truncated or rotated source must not shrink the archived conversation.
                 return SessionIngestionResult("retained", stored)
+            _, previous_logs = read_session_bundle(path)
+            lengths: dict[tuple[str, str], deque[int]] = {}
+            for log in logs:
+                lengths.setdefault((log.role, log.ts), deque()).append(len(log.content))
+            for old in previous_logs:
+                matches = lengths.get((old.role, old.ts))
+                if matches and matches.popleft() < len(old.content):
+                    # Match in source order without confusing inserted user records or
+                    # model/CWD corrections with an earlier assistant's streamed chunks.
+                    return SessionIngestionResult("retained", stored)
         _write_bundle(root, manifest, logs)
         return SessionIngestionResult("ingested", manifest)
 

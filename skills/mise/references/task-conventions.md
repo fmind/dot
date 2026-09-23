@@ -39,7 +39,7 @@ mise use --pin <tool>@<exact-version> # record the selected baseline version and
 mise install             # install everything pinned
 mise lock                # refresh metadata for the locked versions
 mise lock --bump         # advance baseline selectors without installing
-mise lock --upgrade      # migrate legacy locks to request-specific bindings
+mise lock --upgrade      # migrate legacy locks; retain and validate generated dependency files
 mise upgrade --bump      # explicit independent upgrade, not baseline alignment
 ```
 

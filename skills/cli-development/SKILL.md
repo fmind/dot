@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cli-development
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # CLI Development
 
-Design the observable command contract before implementing it with Typer. Preserve established streams, exit statuses, help, and machine-readable output unless their change is requested.
+Design the observable command contract before implementing it with Typer. Use the [CLI defaults](references/cli-contracts.md#defaults-for-new-clis) for new applications; preserve established streams, exit statuses, help, and machine-readable output unless their change is requested.
 
 ## Workflow
 

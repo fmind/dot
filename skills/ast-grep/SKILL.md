@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # ast-grep
 
-Structural code search and rewrite: a pattern is real code with meta-variables, matched against the syntax tree, so it ignores formatting and never matches inside strings or comments. Use it where `rg` gives false positives and where a refactor must touch every call site exactly once; plain text search stays with `rg`.
+Structural code search and rewrite: a pattern is real code with meta-variables, matched against the syntax tree. A call-expression pattern distinguishes a call from similar text inside a string or comment; string and comment nodes can also be matched deliberately. Use it where `rg` gives false positives; plain text search stays with `rg`.
 
 ## Commands
 
@@ -38,6 +38,7 @@ ast-grep scan -r rules/no-print.yml --format github                             
 - **Meta-variables are uppercase**: `$a` is plain text; `$A`, `$ARGS`, `$_` are meta-variables.
 - **Pattern must be a complete node**: `foo(` does not parse; match `foo($$$)` and narrow with `--selector`.
 - **Rewrite scope**: `-r` replaces the whole matched node, not a substring inside it.
+- **Syntax is not name resolution**: inspect imports, aliases, and shadowed names before rewriting; identical syntax can refer to different functions.
 - **Language id**: pass `-l python` for inline patterns; under `scan`, the `.py` extension selects the grammar.
 
 ## Official Skills

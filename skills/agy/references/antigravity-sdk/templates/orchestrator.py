@@ -4,8 +4,9 @@
 # ///
 """Fan work out to static subagents under explicit budgets and an explicit policy.
 
-Set `ANTIGRAVITY_MODEL` and `ANTIGRAVITY_SDK_API_KEY` (or `GEMINI_API_KEY`) in the environment,
-then run `uv run orchestrator.py <workspace>`;
+Set `GOOGLE_CLOUD_PROJECT` for the authorized ADC identity, then run
+`uv run orchestrator.py <workspace>`; optional `ANTIGRAVITY_MODEL` and
+`GOOGLE_CLOUD_LOCATION` override the model and location defaults.
 every knob below is the orchestration contract, so change it here rather than in the prompt.
 """
 
@@ -61,15 +62,26 @@ def build(workspace: str) -> LocalAgentConfig:
     if not path.is_dir():
         raise ValueError("workspace must be an existing directory")
     root = str(path)
-    model = os.environ.get("ANTIGRAVITY_MODEL", "").strip()
-    if not model:
-        raise ValueError("set ANTIGRAVITY_MODEL to a model available to your API project")
-    api_key = os.environ.get("ANTIGRAVITY_SDK_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("set ANTIGRAVITY_SDK_API_KEY or GEMINI_API_KEY")
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
+    if not project:
+        raise ValueError("set GOOGLE_CLOUD_PROJECT to the authorized ADC project")
+    model = os.environ.get("ANTIGRAVITY_MODEL", "gemini-3.8-flash").strip()
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION", "global").strip()
+    if not model or not location:
+        raise ValueError("model and location overrides must be nonempty")
     return LocalAgentConfig(
-        model=model,
-        api_key=api_key,
+        vertex=True,
+        project=project,
+        location=location,
+        model=types.ModelTarget(
+            name=model,
+            types=[types.ModelType.TEXT],
+            endpoint=types.VertexEndpoint(
+                project=project,
+                location=location,
+                options=types.GeminiModelOptions(thinking_level=types.ThinkingLevel.HIGH),
+            ),
+        ),
         workspaces=[root],
         tools=[record_finding],  # subagent tools must also be registered here
         subagents=[READER, CRITIC],

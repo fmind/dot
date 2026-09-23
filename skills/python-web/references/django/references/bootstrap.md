@@ -6,6 +6,7 @@ Use this only for a new Django application. Preserve an existing project's layou
 
 - Define the repository slug, description, first cohesive domain app, and deployment boundary.
 - Select the latest stable Django series from the official download page, or the current LTS when the upgrade cadence is constrained, and a supported stable Python version; let `uv.lock` pin the patch release and exclude development, alpha, beta, and release-candidate builds.
+- Match the recipes below to that series: built-in CSP, template partials, and tasks require Django 6.0+; `MAILERS`, fetch modes, and the cited mail/CSP checks require 6.1+. On an older supported LTS, use that version's documented equivalents rather than importing newer APIs.
 - Choose the database from expected production behavior. SQLite is the smallest local or prototype default; use PostgreSQL in development and CI too when PostgreSQL semantics, concurrency, or extensions matter.
 - Decide whether authentication will remain Django's built-in shape. If user identity is likely to evolve, create a minimal `AbstractUser` subclass and set `AUTH_USER_MODEL` before the first migration.
 - Default to Django templates, forms, and admin. Add an API, background-task backend, cache, object storage, or frontend toolchain only when a concrete use case needs it.

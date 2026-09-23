@@ -144,7 +144,7 @@ def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
         }
 
     _write_jsonl(tmp_path / f".claude/projects/project-1/{session_id}.jsonl", answer(1), answer(2))
-    _write_jsonl(tmp_path / f".claude/projects/project-2/{session_id}.jsonl", answer(1), malformed=True)
+    _write_jsonl(tmp_path / f".claude/projects/project-2/{session_id}.jsonl", answer(1))
     state = _state()
 
     first = sync_sessions(state)
@@ -197,25 +197,25 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
     assert synced.exit_code == 1
     outcomes = json.loads(synced.stdout)
     assert outcomes["schema"] == "dot.agent.session.sync/v2"
-    assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (3, 5, 6)
+    assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (4, 5, 6)
     assert "agent-session: failed to capture session for Claude: " in synced.stderr
     assert "a-surrogate" not in synced.stderr
-    assert synced.stderr.count("usage extraction failed; archived the transcript without usage") == 2
+    assert synced.stderr.count("usage extraction failed; archived the transcript without usage") == 3
     assert isinstance(synced.exception, DotError)
-    assert "session sync recorded 3 failure(s)" in str(synced.exception)
+    assert "session sync recorded 4 failure(s)" in str(synced.exception)
     manifests = {
         (manifest.session_id, manifest.completeness, manifest.malformed_records, manifest.usage is None)
         for path in (tmp_path / ".agents/sessions/v3").glob("*/*.jsonl")
         for manifest in [read_session_manifest(path)]
     }
     assert manifests == {
-        ("b-rawbyte", "partial", 1, False),
+        ("b-rawbyte", "partial", 1, True),
         ("c-negative", "complete", 0, True),
         ("d-valid", "complete", 0, False),
-        ("codex-ok", "complete", 0, False),
+        ("codex-ok", "complete", 0, True),
         ("grok-negative", "complete", 0, True),
     }
-    assert {record.session_id for record in load_usage_records()} == {"b-rawbyte", "d-valid", "codex-ok"}
+    assert {record.session_id for record in load_usage_records()} == {"d-valid"}
 
 
 def test_usage_sync_covers_file_database_and_signals_only_sources(
@@ -617,21 +617,32 @@ def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, 
         assert CliRunner().invoke(app, ["agent", "session", *removed]).exit_code == 2
 
 
-def test_reports_reject_unknown_agents_before_any_sync(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["agent", "stats", "--agent", "claud"],
+        ["agent", "usage", "list", "--agent", "claud"],
+        ["agent", "usage", "show", "claud", "session-id"],
+        ["agent", "session", "list", "--agent", "claud"],
+        ["agent", "session", "show", "session-id", "--agent", "claud"],
+        ["agent", "session", "export", "--agent", "claud"],
+        ["agent", "session", "stats", "--agent", "claud"],
+        ["agent", "session", "sync", "--agent", "claud"],
+        ["agent", "doctor", "--agent", "claud"],
+    ],
+)
+def test_reports_reject_unknown_agents_before_any_sync(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, arguments: list[str]
+) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
     def forbidden(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("an unknown agent must not trigger a sync")
 
     monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
-    for arguments in (
-        ["agent", "stats", "--agent", "claud"],
-        ["agent", "usage", "list", "--agent", "claud"],
-        ["agent", "usage", "show", "claud", "session-id"],
-    ):
-        result = CliRunner().invoke(app, arguments)
-        assert result.exit_code == 2, arguments
-        assert "unknown agent 'claud'" in _click.utils.strip_ansi(result.stderr)
+    result = CliRunner().invoke(app, arguments)
+    assert result.exit_code == 2, arguments
+    assert "unknown agent 'claud'" in _click.utils.strip_ansi(result.stderr)
     assert not (tmp_path / ".agents").exists()
 
 
