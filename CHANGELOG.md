@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.2.0] - 2026-09-23
+
+### 🚀 Features
+
+- _(fkf)_ Declare FKF 8 bases, hourly updates and the knowledge skill
+
+### 🧹 Miscellaneous
+
+- _(mise)_ Lock fkf 8.0.0
+
 ## [7.1.0] - 2026-09-22
 
 ### 🚀 Features
