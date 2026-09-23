@@ -139,6 +139,10 @@ dot agent stats           # Review agent usage and prompt statistics
 
 Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply them. See the [Dot CLI guide](skills/dot-cli/SKILL.md) for command details.
 
+### Knowledge base
+
+[FKF](https://github.com/fmind/fkf) is installed with the other tools. [`~/.config/fkf/config.yaml`](dot_config/fkf/config.yaml) registers the bases that `fkf search` covers from any directory (bases absent on a machine are skipped) and trusts the brain to collect on this machine. The `fkf-update` user timer (a LaunchAgent on macOS) runs `fkf update` hourly; inspect it with `systemctl --user list-timers fkf-update.timer` and `fkf status`. The [fkf-use](skills/fkf-use/SKILL.md) skill teaches agents to search, read and update the bases.
+
 ## Repository tasks
 
 Run these from `~/.local/share/chezmoi`. Use `mise tasks` for the full list and aliases; [`mise.toml`](mise.toml) owns the definitions.

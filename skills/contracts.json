@@ -135,8 +135,7 @@
       "sqlite3"
     ],
     "fkf-use": [
-      "fkf",
-      "uv"
+      "fkf"
     ],
     "fmind-visuals": [
       "ffmpeg",

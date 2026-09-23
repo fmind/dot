@@ -1,0 +1,11 @@
+# https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
+[Unit]
+Description=Collect due FKF sources hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
