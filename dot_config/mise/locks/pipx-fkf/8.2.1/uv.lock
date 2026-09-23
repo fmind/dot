@@ -171,7 +171,7 @@ wheels = [
 
 [[package]]
 name = "fkf"
-version = "8.1.0"
+version = "8.2.1"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -180,9 +180,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/71/32/8d29e18eb34c3c3107b1c39b4741fa5936de2513bcf875ae48f64e046989/fkf-8.1.0.tar.gz", hash = "sha256:fc44dfae9ad2ac74b7c81f0cdff541dfbcfb3e02c90471aaf73001e4cab57c69", size = 45815, upload-time = "2026-09-23T06:21:25.28Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/10/42d1ced55dcf66422e2b3858d6b74c93f4d3afd5f8ccebfd150760bd7b35/fkf-8.2.1.tar.gz", hash = "sha256:9b698d1ca86b97fa5e1584898f4193dc93c9a505ec3e07ce6b30a34879ad48fb", size = 53721, upload-time = "2026-09-23T20:42:42.714Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/39/071127d8f75efd36d6fed1e294a32f890ba20f88480b02d0d79918658421/fkf-8.1.0-py3-none-any.whl", hash = "sha256:0378449c390ab10438b8fc34d7bdf5d3716b624379196de48d76c171758f2ad5", size = 53723, upload-time = "2026-09-23T06:21:23.865Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/71/fd09b4e3791bd2b42e88752ba6d0d550061ae0de168f6ec9d5c73d7aefbe/fkf-8.2.1-py3-none-any.whl", hash = "sha256:e39d7fad76d04542489fac7c5865129a64c6c002f5d1bfd394e57a17f5610025", size = 62682, upload-time = "2026-09-23T20:42:41.295Z" },
 ]
 
 [[package]]
@@ -336,7 +336,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "fkf", specifier = "==8.1.0" }]
+requires-dist = [{ name = "fkf", specifier = "==8.2.1" }]
 
 [[package]]
 name = "opentelemetry-api"
