@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.3.0] - 2026-09-23
+
+### 🚀 Features
+
+- Lock tool dependency graphs and harden archives, hooks, and trust
+
+### 🧹 Miscellaneous
+
+- _(mise)_ Lock fkf 8.0.1
+- _(fkf)_ Lock fkf 8.1.0 and sync the learning guide
+- _(mise)_ Update fmind CLI to 2.0.1
+
 ## [7.2.0] - 2026-09-23
 
 ### 🚀 Features
