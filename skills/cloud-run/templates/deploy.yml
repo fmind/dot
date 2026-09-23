@@ -8,8 +8,28 @@ on:
 permissions:
   contents: read
 jobs:
+  validate:
+    if: ${{ vars.ENABLE_DEPLOY_CLOUDRUN == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 100
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache: false
+      - name: Validate the tagged revision
+        run: mise run all
+      - name: Verify no changes
+        run: |
+          status="$(git status --porcelain)"
+          printf '%s\n' "$status"
+          test -z "$status"
   deploy-cloud-run:
     if: ${{ vars.ENABLE_DEPLOY_CLOUDRUN == 'true' }}
+    needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -35,6 +55,7 @@ jobs:
           [[ "$(cosign version | awk '$1 == "GitVersion:" { print $2 }')" == "v3.1.3" ]] || { echo "Unexpected cosign version" >&2; exit 1; }
           [[ "$(trivy --version | awk '$1 == "Version:" { print $2; exit }')" == "0.74.0" ]] || { echo "Unexpected Trivy version" >&2; exit 1; }
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        id: auth
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
@@ -60,6 +81,7 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
+          platforms: linux/amd64
           push: true
           tags: ${{ vars.GCP_ARTIFACT_IMAGE }}:${{ github.ref_name }}
       - name: Validate image digest
@@ -74,9 +96,9 @@ jobs:
           printf 'IMAGE=%s@%s\n' "$IMAGE_REPOSITORY" "$DIGEST" >> "$GITHUB_ENV"
           printf 'SBOM=%s/sbom.cdx.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Scan image
-        run: trivy --config trivy.yaml image --skip-dirs '' "$IMAGE"
+        run: trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 "$IMAGE"
       - name: Generate image SBOM
-        run: trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output "$SBOM" "$IMAGE"
+        run: trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 --format cyclonedx --output "$SBOM" "$IMAGE"
       - name: Sign image
         run: cosign sign --yes "$IMAGE"
       - name: Verify image signature
@@ -87,6 +109,7 @@ jobs:
         run: cosign verify-attestation --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE"
       - uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3.0.1
         with:
+          project_id: ${{ steps.auth.outputs.project_id }}
           service: ${{ vars.CLOUDRUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ steps.image.outputs.ref }}
@@ -96,4 +119,15 @@ jobs:
           # Required by the Python database-backed starter; adapt to the app.
           secrets: |
             DATABASE_URL=database-url:latest
-          flags: --service-account=${{ vars.GCP_RUNTIME_SA }} --no-allow-unauthenticated
+          flags: --service-account=${{ vars.GCP_RUNTIME_SA }} --invoker-iam-check --no-allow-unauthenticated
+      - name: Verify private invocation
+        env:
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          CLOUDRUN_SERVICE: ${{ vars.CLOUDRUN_SERVICE }}
+        run: |
+          : "${GCP_PROJECT:?Missing deployment project}"
+          gcloud run services describe "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
+          gcloud run services get-iam-policy "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION" --format=json > "$RUNNER_TEMP/service-iam.json"
+          gcloud projects get-iam-policy "$GCP_PROJECT" --format=json > "$RUNNER_TEMP/project-iam.json"
+          python .github/scripts/verify-private.py "$RUNNER_TEMP" "$CLOUDRUN_SERVICE"

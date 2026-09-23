@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # GitHub Issues
@@ -18,7 +18,7 @@ Plan, read, and mutate GitHub issues from verified repository and remote state. 
 
 Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request serialization when needed.
 
-1. **Confirm the target**: resolve the repository from the explicit URL or `git remote get-url origin` and state `OWNER/REPO`; never infer another repository from a similarly named checkout.
+1. **Confirm the target**: resolve the repository from the explicit URL or `gh repo view --json nameWithOwner,visibility` and state `OWNER/REPO`; never print raw remote URLs, which can contain credentials; never infer another repository from a similarly named checkout.
 1. **Refresh current state** before proposing a change:
 
    ```bash

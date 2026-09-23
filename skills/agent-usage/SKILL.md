@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Agent Usage

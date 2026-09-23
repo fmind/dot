@@ -25,6 +25,7 @@ def _source(root: pathlib.Path) -> pathlib.Path:
     (package / "__init__.py").write_text("", encoding="utf-8")
     (dot / "pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.0.0"\n', encoding="utf-8")
     (dot / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    (dot / "LICENSE").write_text("Fixture license\n", encoding="utf-8")
     dist = dot / "dist"
     dist.mkdir()
     (dist / "fmind_dot-1.0.0-py3-none-any.whl").write_bytes(b"approved local wheel")
@@ -160,7 +161,7 @@ def test_install_rebuilds_wheel_after_project_scripts_change(tmp_path: pathlib.P
     assert f"--hash=sha256:{stale_digest}" not in requirements
 
 
-@pytest.mark.parametrize("changed_file", ["dot/pyproject.toml", "dot/src/fmind_dot/api-prices.yaml"])
+@pytest.mark.parametrize("changed_file", ["dot/pyproject.toml", "dot/LICENSE", "dot/src/fmind_dot/api-prices.yaml"])
 def test_install_rejects_source_changed_during_wheel_build_and_preserves_active_runtime(
     tmp_path: pathlib.Path,
     changed_file: str,

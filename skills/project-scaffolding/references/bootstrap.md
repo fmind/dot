@@ -9,7 +9,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 
 ## Workflow
 
-1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to `~/fmind` for personal `fmind` repositories, `~/fmind-ai` for `fmind-ai`, and `~/mlops-courses` for `mlops-courses`; ask only for consequential details not established by the task.
+1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to private visibility; public resources require explicit user instruction. Default to `~/fmind` for personal `fmind` repositories, `~/fmind-ai` for `fmind-ai`, and `~/mlops-courses` for `mlops-courses`; ask only for consequential details not established by the task.
 1. **Choose template ownership**: [Copier](copier.md) is the default when creating or maintaining a reusable project template. Keep existing Cookiecutter/Cruft projects on [their workflow](cookiecutter/GUIDE.md) unless migration is requested; a one-off repository does not require a new template.
 1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, and project `AGENTS.md` where supplied:
    - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md) owns the minimal package and quality defaults.
@@ -29,7 +29,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 1. **Publish only within existing authorization**: when the user requested the initial commit and GitHub creation/push, create the remote after that commit (`chore: initial commit`, see [conventional-commit](../../git-delivery/references/conventional-commit.md)), then apply [github-repository](../../github-repository/SKILL.md):
 
    ```bash
-   gh repo create <owner>/<slug> --<visibility> --source . --push
+   gh repo create <owner>/<slug> --private --source . --push
    ```
 
 1. **Ship when authorized**: a first `v0.1.0` through [release](../../git-delivery/references/release/GUIDE.md) once CI is green; a deploy target through [cloud-run](../../cloud-run/SKILL.md) when the project serves traffic.

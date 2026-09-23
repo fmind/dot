@@ -19,12 +19,12 @@ articles/<slug>_<YYYY-MM-DD>/
 └── posts/
     ├── seo.txt           # Metadata (title, description, tags, slug)
     ├── published.md      # Publication log (channel | date | URL)
-    └── <channel files>   # linkedin.txt, x.txt, bluesky.txt, medium.md
+    └── <channel files>   # linkedin.txt, x.txt; others when selected
 ```
 
 The directory name defines the public slug and date: `<slug>` is the URL slug and `<YYYY-MM-DD>` is the public date. `posts/seo.txt` can override the slug.
 
-Prepare and review article and channel deliverables through the project workflow before authorized publication.
+Prepare and review article and channel deliverables through the project workflow before authorized publication. With no channel selection, prepare SEO, LinkedIn, and X. After successful publication, Pub removes `article.md` and the canonical site owns the body; read that source for subsequent channel copy. Medium imports its live URL manually; create no duplicate article or `medium.md`, and preserve historical copies.
 
 ### Announcements
 

@@ -6,13 +6,14 @@ The standalone example selects Python 3.13 through PEP 723 metadata and was chec
 
 ```bash
 uv add google-antigravity==0.1.16  # version exercised by the example; includes a harness binary
-# Supply ANTIGRAVITY_MODEL and either API key variable through your secret environment.
+# Select the authorized ADC project; optionally override ANTIGRAVITY_MODEL/location.
+export GOOGLE_CLOUD_PROJECT=<project-id>
 uv run orchestrator.py <workspace>
 ```
 
-**Billing is the Gemini API, never the Antigravity subscription.** The SDK reads `ANTIGRAVITY_SDK_API_KEY` or `GEMINI_API_KEY` (or `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` with Vertex ADC); it never touches the OAuth login the `agy` CLI and IDE write to `~/.gemini`, so a Google AI Pro/Ultra plan grants it nothing. Without a key it fails closed at connect time with `AntigravityValidationError: A Gemini API key is required.` Keep the key in the environment or a secret manager per [sops-secrets](../../../../sops-secrets/SKILL.md); never inline it in `LocalAgentConfig(api_key=...)` in committed code.
+**SDK calls use the selected Cloud or Gemini API billing, never the Antigravity subscription.** Reuse ADC for the authorized project; when authentication setup is requested, use `gcloud auth application-default login`. The example explicitly selects `LocalAgentConfig(vertex=True, project=..., location=...)` plus a `VertexEndpoint` with high thinking, so ambient Google API keys cannot choose the Developer API. It requires a project rather than silently charging the personal account; [model-providers](../../../../model-providers/SKILL.md) owns personal defaults and customer overrides.
 
-For Vertex ADC instead, authenticate with `gcloud auth application-default login` and configure `LocalAgentConfig(vertex=True, project=..., location=...)` for the selected project. The bundled example deliberately uses the API-key path; do not combine both authentication recipes.
+For an explicitly requested Developer API integration, supply an application-scoped key directly to `LocalAgentConfig(vertex=False, api_key=...)` through [sops-secrets](../../../../sops-secrets/SKILL.md); the SDK's native fallback is `GEMINI_API_KEY`, while `ANTIGRAVITY_SDK_API_KEY` must be read and passed by application code. Do not export auto-discovered keys globally, inline them in committed code, or fall back to this path after ADC errors. The bundled example implements only the ADC path. Its local configuration smoke does not verify credentials, billing, model access, or inference.
 
 ## 2. Orchestrate
 

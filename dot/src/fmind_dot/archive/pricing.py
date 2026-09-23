@@ -20,8 +20,14 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
     if record.harness not in {"codex", "claude", "copilot", "grok"}:
         return None, "unsupported accounting"
     if not any((record.input_tokens, record.output_tokens, record.cached_tokens, record.cache_write_tokens)):
-        # No billable tokens cost nothing at any rate, e.g. Claude's local "<synthetic>" rows.
-        return (None, "missing token breakdown") if record.total_tokens else (0.0, "")
+        if record.total_tokens:
+            return None, "missing token breakdown"
+        if record.legacy_accounting and not (record.harness == "claude" and record.model == "<synthetic>"):
+            # Earlier parsers conflated absent counters with explicit zero; the
+            # normalized archive alone cannot recover that missing evidence.
+            return None, "legacy zero lacks measurement evidence"
+        # Current explicit zeros and Claude's local synthetic responses are known zero.
+        return 0.0, ""
     rate = pricing.models.get(record.model)
     if record.model in {"", "mixed", "unknown"} or rate is None:
         return None, "unknown or mixed model"

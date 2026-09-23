@@ -147,6 +147,93 @@ def test_usage_error_keeps_the_last_measured_copy(tmp_path: Path, monkeypatch: p
     assert _tokens() == [(30, 12)]
 
 
+@pytest.mark.parametrize("field", ["input_tokens", "cost_usd"])
+@pytest.mark.parametrize("value", ["private-invalid-metric", True, [], {}], ids=["string", "boolean", "list", "object"])
+def test_wrong_type_usage_keeps_the_last_measured_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, value: object
+) -> None:
+    state, source = source_session(tmp_path, monkeypatch)
+    rows = [json.loads(line) for line in source.read_text().splitlines()]
+    rows.append({"type": "cost-state", "totalCostUSD": 0.25})
+    source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    sync_sessions(state, agent="claude")
+    path = session_bundle_path("claude", "fixture-id")
+    measured = path.read_bytes()
+    if field == "input_tokens":
+        rows[1]["message"]["usage"][field] = value
+    else:
+        rows[-1]["totalCostUSD"] = value
+    source_info = source.stat()
+    source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    # Equal-length replacements must advance mtime even on a coarse-clock filesystem.
+    os.utime(source, ns=(source_info.st_atime_ns, source_info.st_mtime_ns + 1_000_000_000))
+
+    for _ in range(2):
+        with pytest.raises(DotError, match="1 failure"):
+            sync_sessions(state, agent="claude")
+        assert path.read_bytes() == measured
+        assert "kept the archived copy and its usage" in _text(state.stderr)
+        assert "private-invalid-metric" not in _text(state.stderr)
+
+
+@pytest.mark.parametrize(
+    "value", [[], "private-invalid-container", True, 1], ids=["list", "string", "boolean", "number"]
+)
+def test_malformed_usage_container_keeps_the_last_measured_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: object
+) -> None:
+    state, source = source_session(tmp_path, monkeypatch)
+    sync_sessions(state, agent="claude")
+    path = session_bundle_path("claude", "fixture-id")
+    measured = path.read_bytes()
+    rows = [json.loads(line) for line in source.read_text().splitlines()]
+    rows[1]["message"]["usage"] = value
+    source_info = source.stat()
+    source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    os.utime(source, ns=(source_info.st_atime_ns, source_info.st_mtime_ns + 1_000_000_000))
+
+    for _ in range(2):
+        with pytest.raises(DotError, match="1 failure"):
+            sync_sessions(state, agent="claude")
+        assert path.read_bytes() == measured
+        assert _tokens() == [(10, 5)]
+        assert "kept the archived copy and its usage" in _text(state.stderr)
+        assert "private-invalid-container" not in _text(state.stderr)
+
+
+def test_sync_recaptures_version_five_user_text_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fmind_dot.archive.sync import _source_signature
+
+    state, source = source_session(tmp_path, monkeypatch)
+    rows = [json.loads(line) for line in source.read_text().splitlines()]
+    rows[0]["message"]["content"] = [{"type": "text", "text": "fixture"}]
+    source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    parsed = parsers.parse_claude_session(source, "fixture-id")
+    assert parsed.usage is not None
+    with monkeypatch.context() as legacy:
+        legacy.setattr(session_store, "SESSION_PARSER_VERSION", "5")
+        session_store.ingest_session(
+            "claude",
+            "fixture-id",
+            [record for record in parsed.logs if record.role == "assistant"],
+            session_store.SessionSource(
+                type=parsed.source_type,
+                fingerprint=parsed.fingerprint,
+                signature=_source_signature([source])[0],
+            ),
+            usage=parsed.usage.to_dict(),
+        )
+    assert load_usage_records()[0].legacy_accounting
+
+    result = sync_sessions(state, agent="claude")
+
+    manifest, records = read_session_bundle(session_bundle_path("claude", "fixture-id"))
+    assert result.ingested == 1
+    assert manifest.parser_version != "5"
+    assert [record.content for record in records] == ["fixture", "response answer-1"]
+    assert not load_usage_records()[0].legacy_accounting
+
+
 def test_new_session_with_failed_usage_archives_its_transcript_and_retries(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -331,6 +418,8 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
     with source.open("a") as stream:
         stream.write(_answer("answer-3", "2026-09-01T10:03:00Z", 30, 9))
     longer = adapter.parser(source, "fixture-id", "")
+    assert shorter.usage is not None
+    assert longer.usage is not None
     short_ready, long_written = Event(), Event()
     write = session_store.write_private_file
 
@@ -345,9 +434,13 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
 
     monkeypatch.setattr(session_store, "write_private_file", delayed_write)
     with ThreadPoolExecutor(max_workers=2) as pool:
-        pending = pool.submit(session_store.ingest_session, "claude", "fixture-id", shorter.logs)
+        pending = pool.submit(
+            session_store.ingest_session, "claude", "fixture-id", shorter.logs, usage=shorter.usage.to_dict()
+        )
         assert short_ready.wait(timeout=5)
-        latest = pool.submit(session_store.ingest_session, "claude", "fixture-id", longer.logs)
+        latest = pool.submit(
+            session_store.ingest_session, "claude", "fixture-id", longer.logs, usage=longer.usage.to_dict()
+        )
         pending.result(timeout=5)
         latest.result(timeout=5)
     assert read_session_manifest(session_bundle_path("claude", "fixture-id")).record_count == 4

@@ -4,7 +4,7 @@ import json
 import re
 import sqlite3
 import stat
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -20,6 +20,7 @@ from fmind_dot.archive.parsers import (
 from fmind_dot.archive.store import (
     SESSION_PARSER_VERSION,
     SessionIngestionResult,
+    SessionManifest,
     SessionSource,
     ensure_session_store,
     ingest_session,
@@ -102,9 +103,9 @@ def _source_signature(files: list[Path]) -> tuple[str, float]:
     return ",".join(parts), modified
 
 
-def _stored_sources(root: Path, agent: str) -> dict[str, tuple[str, str, str]]:
-    """Map session ids to stored parser version, source signature, and CWD."""
-    stored: dict[str, tuple[str, str, str]] = {}
+def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
+    """Snapshot manifests before parsing, including the publication generation."""
+    stored: dict[str, SessionManifest] = {}
     directory = root / agent
     if not directory.is_dir():
         return stored
@@ -114,12 +115,17 @@ def _stored_sources(root: Path, agent: str) -> dict[str, tuple[str, str, str]]:
         except OSError, ValueError:
             # Publication reports the unreadable bundle for this session instead of skipping it.
             continue
-        stored[manifest.session_id] = (manifest.parser_version, manifest.source_signature, manifest.cwd)
+        # Keep only capture metadata in memory, not every session's request samples.
+        stored[manifest.session_id] = replace(manifest, usage=None)
     return stored
 
 
 def _capture(
-    adapter: AgentAdapter, session_id: str, parsed: ParsedSession, signature: str
+    adapter: AgentAdapter,
+    session_id: str,
+    parsed: ParsedSession,
+    signature: str,
+    previous: SessionManifest | None,
 ) -> tuple[SessionIngestionResult | None, DotError | None]:
     """Publish one parse; a usage extraction failure never replaces the archived copy."""
     source = SessionSource(
@@ -129,14 +135,19 @@ def _capture(
         malformed=parsed.malformed,
         skipped=parsed.skipped,
     )
-    if parsed.usage_error is None:
+    generation = (previous.parser_version, previous.source_fingerprint) if previous else ("", "")
+    if parsed.usage_error is None and not parsed.malformed:
         usage = parsed.usage.to_dict() if parsed.usage is not None else None
-        return ingest_session(adapter.name, session_id, parsed.logs, source, usage=usage), None
+        return ingest_session(
+            adapter.name, session_id, parsed.logs, source, usage=usage, expected_generation=generation
+        ), None
     # Provider metric errors can quote source values: report the outcome, not the detail.
     # If nothing is archived, keep the transcript without usage. Check under the publication
     # lock; an empty signature makes the next sync retry rather than skip this source.
     source.signature = ""
-    result = ingest_session(adapter.name, session_id, parsed.logs, source, preserve_existing=True)
+    result = ingest_session(
+        adapter.name, session_id, parsed.logs, source, preserve_existing=True, expected_generation=generation
+    )
     if result.status == "retained":
         return None, DotError("usage extraction failed; kept the archived copy and its usage")
     return result, DotError("usage extraction failed; archived the transcript without usage")
@@ -236,13 +247,17 @@ def sync_sessions(
                 unchanged = (
                     bool(database_signature) and database_signature == checkpoint
                     if adapter.database
-                    else bool(signature) and previous is not None and previous[1] == signature
+                    else bool(signature) and previous is not None and previous.source_signature == signature
                 )
-                if previous and previous[0] == SESSION_PARSER_VERSION and unchanged:
-                    if not cwd or previous[2] == cwd:
+                if previous and previous.parser_version == SESSION_PARSER_VERSION and unchanged:
+                    if not cwd or previous.cwd == cwd:
                         counts.unchanged += 1
                     continue
+                # SQLite has a shared checkpoint, but each parse needs its own stable snapshot.
+                observed = _source_signature(_source_files(adapter, path))[0] if adapter.database else signature
                 parsed = adapter.parser(path, session_id, source_cwd)
+                if _source_signature(_source_files(adapter, path))[0] != observed:
+                    raise DotError("session source changed during capture; retry sync")
                 parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), source_cwd)
                 if cwd and resolve_cwd(parsed_cwd) != cwd:
                     continue
@@ -251,13 +266,14 @@ def sync_sessions(
                     continue
                 # Database stat changes belong to the shared checkpoint, not every bundle.
                 result, failure = _capture(
-                    adapter, session_id, parsed, parsed.fingerprint if adapter.database else signature
+                    adapter, session_id, parsed, parsed.fingerprint if adapter.database else signature, previous
                 )
             except _SESSION_ERRORS as error:
                 # One malformed session must not block the sessions and adapters after it.
                 fail(adapter, "capture session", error, session_id)
                 continue
             if result is not None:
+                stored[session_id] = replace(result.manifest, usage=None)
                 setattr(counts, result.status, getattr(counts, result.status) + 1)
                 if not quiet and result.status in {"ingested", "retained"}:
                     state.stderr.write(report_ingestion(result) + "\n")

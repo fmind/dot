@@ -204,6 +204,7 @@ def _sample_record(record: UsageRecord, sample: UsageSample) -> UsageRecord:
         session_id=record.session_id,
         cwd=record.cwd,
         measurement_kind=record.measurement_kind,
+        legacy_accounting=record.legacy_accounting,
         **sample,
     )
 

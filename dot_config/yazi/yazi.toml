@@ -9,7 +9,7 @@ sort_by = "natural"
 sort_dir_first = true
 
 [opener]
-edit = [{ run = 'nvim "$@"', block = true, desc = "nvim" }]
+edit = [{ run = "nvim %s", block = true, desc = "nvim" }]
 
 [open]
 prepend_rules = [{ mime = "text/*", use = "edit" }]

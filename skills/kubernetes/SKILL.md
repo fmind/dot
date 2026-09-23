@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -21,11 +21,8 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
 1. **Verify active context and namespace**: inspect the current cluster context before running any command; never assume terminal defaults point to dev.
 
    ```bash
-   kubectl config current-context
-   kubectl cluster-info
-   # Switch context or namespace if needed:
-   kubectl config use-context <context>
-   kubectl config set-context --current --namespace <namespace>
+   kubectl config get-contexts
+   kubectl --context <context> cluster-info
    ```
 
 1. **Lint and validate manifests**: validate schemas and verify security practices prior to applying manifests.
@@ -39,14 +36,14 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
 1. **Spin up local clusters on demand**: create isolated local clusters with `k3d` when testing locally, and stop them promptly when finished to conserve memory.
 
    ```bash
-   k3d cluster create local --agents 1
+   k3d cluster create local --agents 1 --kubeconfig-switch-context=false
    ```
 
 1. **Deploy declaratively**: apply configurations using Helm or Kustomize; preview changes before mutating cluster state.
 
    ```bash
-   helm upgrade --install <release-name> <chart-path> --namespace <namespace> --dry-run=server --hide-secret
-   kubectl diff -k <kustomization-dir>
+   helm upgrade --install <release-name> <chart-path> --kube-context <context> --namespace <namespace> --dry-run=server --hide-secret
+   kubectl --context <context> --namespace <namespace> diff -k <kustomization-dir>
    ```
 
    A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope. Diffs may contain Secret values; exclude secrets from captured output.
@@ -54,9 +51,9 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
 1. **Inspect workloads and tail logs**: monitor cluster state interactively with `k9s` or follow multi-pod logs with `stern`.
 
    ```bash
-   k9s
-   stern <pod-query> -n <namespace> --tail 50
-   kubectl get pods,events -n <namespace>
+   k9s --context <context> --namespace <namespace>
+   stern <pod-query> --context <context> -n <namespace> --tail 50
+   kubectl --context <context> get pods,events -n <namespace>
    ```
 
 1. **Teardown local clusters**: stop or delete ephemeral clusters after testing.
@@ -69,7 +66,7 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
 
 ## Gotchas
 
-- **Context hijacking**: commands run against `kubectl config current-context`; verify active context on every session before executing changes.
+- **Context changes**: omitted context flags use mutable kubeconfig defaults. Pass the selected context on each call; change the persistent current context only when that change is requested.
 - **Off-by-default local clusters**: local k3d nodes consume significant CPU and RAM inside Docker or Colima; stop clusters when inactive.
 - **Secret redaction**: avoid running unbounded `kubectl get secret -o yaml`; inspect metadata and annotate keys without printing raw base64 payloads to terminal logs.
 

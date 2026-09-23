@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from fmind_dot.archive import store
 from fmind_dot.archive.pricing import api_equivalent
-from fmind_dot.archive.store import SessionLog, ingest_session
+from fmind_dot.archive.store import SessionLog, ingest_session, session_bundle_path
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage
 from fmind_dot.cli import app
 from fmind_dot.config import default_pricing
@@ -75,7 +77,8 @@ def test_claude_cache_is_additive_and_zero_is_known() -> None:
     assert api_equivalent(record(), default_pricing()) == (0, "")
 
 
-def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complete() -> None:
+@pytest.mark.parametrize("legacy", [False, True], ids=["current", "legacy"])
+def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complete(legacy: bool) -> None:
     priced = UsageRecord(
         harness="claude",
         session_id="one",
@@ -89,10 +92,12 @@ def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complet
         harness="claude",
         session_id="one",
         model="<synthetic>",
+        legacy_accounting=legacy,
         measurement_kind="provider-reported",
         timestamp="2026-05-01T10:01:00Z",
     ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     session = UsageRecord(harness="claude", session_id="one", measurement_kind="provider-reported")
+    session.legacy_accounting = legacy
     session.set_samples([priced, synthetic])
 
     assert api_equivalent(synthetic, default_pricing()) == (0, "")
@@ -100,6 +105,39 @@ def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complet
     assert result["pricing_complete"] is True
     assert result["unpriced_reasons"] == {}
     assert result["api_equivalent_usd"] == pytest.approx(3.0)
+
+
+@pytest.mark.parametrize("sampled", [False, True], ids=["session-measurement", "request-measurement"])
+def test_public_stats_leave_unproven_legacy_zero_unpriced_without_changing_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sampled: bool
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    usage = UsageRecord(
+        harness="copilot",
+        session_id="legacy-zero",
+        model="gpt-5.4",
+        measurement_kind="provider-reported",
+        cost_known=True,
+        cost_usd=0.25,
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+    if sampled:
+        usage.set_samples([replace(usage, cost_known=False, cost_usd=0.0)])
+    with monkeypatch.context() as legacy:
+        legacy.setattr(store, "SESSION_PARSER_VERSION", "6")
+        ingest_session("copilot", "legacy-zero", [], usage=usage.to_dict())
+    bundle = session_bundle_path("copilot", "legacy-zero")
+    before = bundle.read_bytes()
+
+    result = CliRunner().invoke(app, ["agent", "stats", "--agent", "copilot", "--no-sync", "--tokens-only", "--json"])
+
+    assert result.exit_code == 0
+    [row] = json.loads(result.stdout)["usage"]
+    assert row["legacy_accounting_sessions"] == 1
+    assert row["cost_usd"] == 0.25
+    assert row["api_equivalent_usd"] is None
+    assert row["pricing_complete"] is False
+    assert row["unpriced_reasons"] == {"legacy zero lacks measurement evidence": 1}
+    assert bundle.read_bytes() == before
 
 
 @pytest.mark.parametrize(

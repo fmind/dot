@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -109,3 +111,90 @@ def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path
             assert values["SBOM"] == f"{case}/sbom.cdx.json"
         else:
             assert environment_file.read_text() == ""
+
+
+@pytest.mark.parametrize(
+    "problem",
+    [
+        "none",
+        "implicit-default",
+        "disabled",
+        "unknown-setting",
+        "wrong-service",
+        "service-public",
+        "project-public",
+        "malformed-policy",
+        "policy-read-fails",
+        "conditional-custom-role",
+    ],
+)
+def test_private_deployment_requires_both_access_postconditions(tmp_path: Path, problem: str) -> None:
+    steps = _workflow_steps()
+    deploy = next(
+        step for step in steps if str(step.get("uses", "")).startswith("google-github-actions/deploy-cloudrun@")
+    )
+    assert "--invoker-iam-check" in str(deploy["with"])
+    assert "--no-allow-unauthenticated" in str(deploy["with"])
+    verify = next(step for step in steps if step.get("name") == "Verify private invocation")
+    assert steps.index(verify) > steps.index(deploy)
+    service = {"metadata": {"name": "fixture", "annotations": {"run.googleapis.com/invoker-iam-disabled": "false"}}}
+    policies: dict[str, object] = {"service": {"bindings": []}, "project": {"bindings": []}}
+    if problem == "implicit-default":
+        service["metadata"].pop("annotations")
+    elif problem in {"disabled", "unknown-setting"}:
+        service["metadata"]["annotations"]["run.googleapis.com/invoker-iam-disabled"] = (
+            "true" if problem == "disabled" else "unknown"
+        )
+    elif problem == "wrong-service":
+        service["metadata"]["name"] = "other"
+    elif problem in {"service-public", "project-public", "conditional-custom-role"}:
+        role = "projects/fixture/roles/customInvoker" if problem == "conditional-custom-role" else "roles/run.invoker"
+        policies["project" if problem == "project-public" else "service"] = {
+            "bindings": [
+                {
+                    "role": role,
+                    "members": ["allAuthenticatedUsers" if problem == "project-public" else "allUsers"],
+                    "condition": {"expression": "false"},
+                }
+            ]
+        }
+    elif problem == "malformed-policy":
+        policies["service"] = {"bindings": "unknown"}
+    fixture = {"service": service, "policies": policies, "problem": problem}
+    (tmp_path / "fixture.json").write_text(json.dumps(fixture))
+    executable = tmp_path / "gcloud"
+    executable.write_text(
+        f"#!{sys.executable}\n"
+        """import json, os, sys
+from pathlib import Path
+fixture = json.loads(Path(os.environ["FIXTURE"]).read_text())
+if "describe" in sys.argv:
+    print(json.dumps(fixture["service"]))
+elif fixture["problem"] == "policy-read-fails":
+    sys.exit(1)
+else:
+    print(json.dumps(fixture["policies"]["project" if "projects" in sys.argv else "service"]))
+"""
+    )
+    executable.chmod(0o755)
+    environment = {
+        "PATH": os.pathsep.join((str(tmp_path), str(Path(sys.executable).parent), os.defpath)),
+        "RUNNER_TEMP": str(tmp_path),
+        "FIXTURE": str(tmp_path / "fixture.json"),
+        "GCP_PROJECT": "fixture-project",
+        "GCP_REGION": "europe-west1",
+        "CLOUDRUN_SERVICE": "fixture",
+    }
+    scripts = tmp_path / ".github/scripts"
+    scripts.mkdir(parents=True)
+    helper = ROOT / "skills/cloud-run/templates/verify-private.py"
+    (scripts / helper.name).write_bytes(helper.read_bytes())
+    result = subprocess.run(
+        ["bash", "-e", "-o", "pipefail", "-c", str(verify["run"])],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert (result.returncode == 0) is (problem in {"none", "implicit-default"}), result.stderr

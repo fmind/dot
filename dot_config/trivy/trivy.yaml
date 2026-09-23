@@ -1,8 +1,12 @@
 # Docs: https://trivy.dev/docs/latest/references/configuration/config-file/
 
+exit-code: 1
 severity:
   - HIGH
   - CRITICAL
+pkg:
+  # Development tools execute locally and in CI, so include their dependencies.
+  include-dev-deps: true
 scan:
   scanners:
     - license

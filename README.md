@@ -54,12 +54,12 @@ ssh-keygen -t ed25519 -a 100 -C "your_email@example.com"
 
 - **Terminal**: [Ghostty](https://ghostty.org/docs/install/binary).
 - **Containers**: A Docker-compatible container engine (Docker or Podman) if building container images.
-- **Desktop notifications**: Codex, Claude, Grok, Antigravity, and Copilot notify when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native service; headless sessions skip delivery. Restart open harnesses after their hook configuration changes. See [agent-harnesses](skills/agent-harnesses/SKILL.md) and [agy](skills/agy/SKILL.md) for Antigravity.
+- **Desktop notifications**: Codex, Claude, Grok, Antigravity, and Copilot notify when a prompt finishes. Linux needs a session D-Bus and a notification service; macOS uses its native service; headless sessions skip delivery. Restart open harnesses after their hook configuration changes. In Codex, review and trust new or changed hooks through `/hooks` before they can run. See [agent-harnesses](skills/agent-harnesses/SKILL.md) and [agy](skills/agy/SKILL.md) for Antigravity.
 
 ## Installation
 
 > [!WARNING]
-> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use. Each apply runs `dot trust all`, so harnesses trust the `pull.directories` workspaces and their repositories whose GitHub `origin` owner is in `trust.github_owners`, without prompting (run `dot trust` in a new clone); mise trusts configurations only in those workspaces and this checkout.
+> Agent configurations default to autonomous execution with broad permissions. Use in trusted workspaces and review each harness's settings before use. Each apply runs `dot trust all`, so harnesses trust the `pull.directories` workspaces and their repositories whose GitHub `origin` owner is in `trust.github_owners`, without prompting (run `dot trust` in a new clone). Mise trust is separate and machine-local (see [Adapting this](#adapting-this)).
 
 ```bash
 # Clone into the chezmoi source directory
@@ -79,11 +79,11 @@ To finish an interrupted setup, rerun the installer. From an initialized checkou
 
 Read [`install.sh`](install.sh) first. It executes third-party code with your user's privileges:
 
-1. When mise is absent, it pipes `https://mise.run` to `bash`, then installs chezmoi through mise.
+1. When mise is absent, it downloads `https://mise.run` completely over HTTPS before running it with `bash`, then installs chezmoi through mise. An interrupted download fails without executing a partial script.
 1. `chezmoi init` prompts for your identity (below). The locked repository tools install first, then `chezmoi apply --force --exclude scripts` writes files before the global tools install. Hooks wait until the locked global tools and current `dot` are installed; a complete `chezmoi apply --force` then sets folder trust and builds the bat theme cache.
 1. Apply downloads the [Grok](run_once_after_install-grok.sh.tmpl) and [Antigravity](run_once_after_install-antigravity-cli.sh.tmpl) vendor installers over HTTPS and runs them with `bash` when those CLIs are missing; both CLIs then update themselves.
 1. Apply fetches theme files from [fmind/theme](https://github.com/fmind/theme) `main` without a checksum ([`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl)); font archives are pinned by SHA-256.
-1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off on the workstation; the repository `mise.toml` keeps mise's defaults, so CI verifies the repository toolset. The workstation's compensating controls are lockfile digests where the backend records them and a three-day `minimum_release_age` cooldown on `latest` resolution (my own `pipx:fkf` and `pipx:fmind` are exempt). npm and pipx tools lock the version only, and first fetches are unverified; that file states the trade-off.
+1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off on the workstation; the repository `mise.toml` keeps mise's defaults, so CI verifies the repository toolset. The workstation uses lockfile digests where the backend records them; `minimum_release_age = "0d"` makes new releases eligible immediately when resolving `latest`. Format 2 also locks supported npm and pipx dependency graphs in `dot_config/mise/locks/`; `mise run lock` captures those files with the global lockfile. First fetches are unverified; that file states the trade-off.
 
 Setup installs Google Sans for text, Google Sans Code for code, and [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) for terminals.
 
@@ -141,7 +141,7 @@ Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply 
 
 ### Knowledge base
 
-[FKF](https://github.com/fmind/fkf) is installed with the other tools. [`~/.config/fkf/config.yaml`](dot_config/fkf/config.yaml) registers the bases that `fkf search` covers from any directory (bases absent on a machine are skipped) and trusts the brain to collect on this machine. The `fkf-update` user timer (a LaunchAgent on macOS) runs `fkf update` hourly; inspect it with `systemctl --user list-timers fkf-update.timer` and `fkf status`. The [fkf-use](skills/fkf-use/SKILL.md) skill teaches agents to search, read and update the bases.
+[FKF](https://github.com/fmind/fkf) is installed with the other tools. Base registration is machine-local in `~/.config/fkf/config.yaml`; use `fkf register /path/to/base --collect` on the machine that owns a base. Dotfiles do not manage this registry or collection schedules. The base owns any optional scheduled job and its installation. The [fkf-use](skills/fkf-use/SKILL.md) skill teaches agents to search, read and update registered bases.
 
 ## Repository tasks
 
@@ -195,7 +195,7 @@ env HF_TOKEN_PATH="$HOME/.config/customer/hf-token" hf auth whoami
 env KAGGLE_API_TOKEN="$HOME/.config/customer/kaggle-token" kaggle datasets list --mine
 
 # Explicit personal credentials for one process tree, including a Python SDK or task.
-dot secret run GEMINI_API_KEY -- uv run app.py
+dot secret run VERTEX_API_KEY -- uv run app.py # Explicit GCP Agent Platform key fallback; app reads this name.
 dot secret run STITCH_ACCESS_TOKEN -- mise run design
 
 # PyPI only; ordinary uv / uv run never load this token.
@@ -203,7 +203,7 @@ dot secret publish --dry-run
 dot secret publish
 ```
 
-`dot secret run` preserves an existing environment value; an empty value fails instead of selecting the personal key. It loads only the named credential and preserves child arguments, terminal I/O, and exit status. The migrated scoped keys are `ANTIGRAVITY_SDK_API_KEY`, `GEMINI_API_KEY`, `JULES_API_KEY`, `STITCH_ACCESS_TOKEN`, and `STUDIO_API_KEY`. Use ordinary commands for customer profiles and ADC. See [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials) for validation and publishing restrictions.
+`dot secret run` preserves an existing environment value; an empty value fails instead of selecting the personal key. It loads only the named credential and preserves child arguments, terminal I/O, and exit status. The scoped keys are `ANTIGRAVITY_SDK_API_KEY`, `VERTEX_API_KEY`, `JULES_API_KEY`, and `STITCH_ACCESS_TOKEN`. Use ordinary commands for customer profiles and ADC. Personal model integrations default to GCP Agent Platform with ADC, project `ai-studio-fmind`, location `global`, model `gemini-3.8-flash`, and high thinking; OpenCode keeps OpenRouter. The GCP Agent Platform key replaces the personal AI Studio key and is explicit-only or a last resort after reporting ADC failure. Never export it as `GEMINI_API_KEY` or `GOOGLE_API_KEY`. See [model defaults and billing](skills/model-providers/references/gcp-agent-platform.md) and [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials).
 
 **Upgrade:** apply the dotfiles and install the updated `dot` CLI together, then restart terminals, terminal multiplexers, editors, and agents from a clean login session. Existing processes retain their old environment; merely sourcing the new file or launching a child shell does not remove it. The retained `secrets.fish` is an inert migration stub. Remove any duplicate key exports from your local `~/.private.fish`; keep that file for non-secret machine settings.
 
@@ -253,7 +253,7 @@ Fork rather than install as-is. Owner-specific values to replace:
 1. **Identity prompts**: the defaults in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), and the clone URL in [`install.sh`](install.sh).
 1. **Secrets**: the age `recipient` in `.chezmoi.toml.tmpl` and all encrypted credential sources; replace or remove them and configure your own native logins and scoped keys as described in [Secret Management](#secret-management).
 1. **Persona**: [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) deploys to `~/.agents/AGENTS.md`, names me, and encodes my working rules; every harness loads it.
-1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are Claude `additionalDirectories` in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json), mise `trusted_config_paths` in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl), and the `pull.directories` default of the `dot` CLI, which `dot trust all` uses for every harness (override in `~/.config/dot.yaml`).
+1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are Claude `additionalDirectories` in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and the `pull.directories` default of the `dot` CLI, which `dot trust all` uses for every harness (override in `~/.config/dot.yaml`). Mise trust is separate and machine-local: run `mise trust /path/to/mise.toml` for individual configs, or set `[settings].trusted_config_paths` in unmanaged `~/.config/mise/conf.d/trust.toml` to trust selected directory trees. Chezmoi does not overwrite that file.
 1. **Theme**: files track [fmind/theme](https://github.com/fmind/theme) `main`; point [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl) at your own or pin a commit.
 
 ## Uninstall / rollback

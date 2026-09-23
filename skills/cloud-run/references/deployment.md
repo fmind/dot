@@ -15,7 +15,7 @@
    trivy --version
    ```
 
-1. **Validate locally**: run the Python project's complete gate and scan the local image archive before any registry write.
+1. **Validate locally**: set the Cloud Run project's `build:image` task to `--platform linux/amd64`, including on ARM development hosts, then run its complete gate and scan the local image archive before any registry write.
 
    ```bash
    uv sync --locked
@@ -33,17 +33,17 @@
    [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]
    gcloud auth configure-docker "<region>-docker.pkg.dev" --quiet
    mkdir -p tmp
-   docker buildx build --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .
+   docker buildx build --platform linux/amd64 --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .
    DIGEST="$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' tmp/image-metadata.json)"
    IMAGE="$IMAGE_REPOSITORY@$DIGEST"
    printf '%s\n' "$IMAGE" >tmp/image-ref.txt
    ```
 
-1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Replace the certificate identity with the authorized workflow or developer identity.
+1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Public Sigstore discloses permanent signing identity and digest metadata even for a private image; include this in publication authority per [Cosign](../../containerize/references/cosign.md). Replace the certificate identity with the authorized workflow or developer identity.
 
    ```bash
-   trivy --config trivy.yaml image --skip-dirs '' "$IMAGE"
-   trivy --config trivy.yaml image --skip-dirs '' --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
+   trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 "$IMAGE"
+   trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
    cosign sign --yes "$IMAGE"
    cosign verify --certificate-identity '<identity>' --certificate-oidc-issuer '<issuer>' "$IMAGE"
    cosign attest --yes --type cyclonedx --predicate tmp/sbom.cdx.json "$IMAGE"
@@ -57,8 +57,10 @@
      --service-account="<slug>-runtime@<project>.iam.gserviceaccount.com" \
      --set-env-vars=HOST=0.0.0.0,ENVIRONMENT=production,LOG_LEVEL=info \
      --set-secrets=DATABASE_URL=database-url:latest,API_KEY=api-key:latest \
-     --no-allow-unauthenticated
+     --invoker-iam-check --no-allow-unauthenticated
    ```
+
+   Treat private invocation as a postcondition, not a successful deploy exit code. Run the `Verify private invocation` checks in [deploy.yml](../templates/deploy.yml) after imperative or declarative deployment, using [verify-private.py](../templates/verify-private.py) at `.github/scripts/verify-private.py`: the Invoker IAM check must be enabled, and service/project IAM policies must contain neither `allUsers` nor `allAuthenticatedUsers`. Reject those principals even in conditional bindings or custom roles. A failed policy read, unknown setting, or remaining grant fails verification; gcloud can otherwise turn a failed IAM removal into a warning. Resolve inherited organization/folder access during bootstrap; these service/project checks are not a general IAM policy evaluator. Verify an unauthenticated request is denied before exposing sensitive traffic.
 
 1. **Seed a runtime secret when authorized**: decrypt only into the pipe; do not write plaintext to disk.
 
@@ -76,8 +78,9 @@
    set -euo pipefail
    : "${IMAGE_REF:?Set IMAGE_REF to the reviewed digest reference}"
    [[ "$IMAGE_REF" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-   gcloud run deploy <slug> --image "$IMAGE_REF" --region <region> --service-account <slug>-runtime@<project>.iam.gserviceaccount.com --no-allow-unauthenticated
+   gcloud run deploy <slug> --image "$IMAGE_REF" --region <region> --service-account <slug>-runtime@<project>.iam.gserviceaccount.com --invoker-iam-check --no-allow-unauthenticated
+   # Then run the private-invocation postcondition from deploy.yml; do not report success without it.
    '''
    ```
 
-1. **Wire CD**: adapt [deploy.yml](../templates/deploy.yml), set `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, and `CLOUDRUN_SERVICE`, then set `ENABLE_DEPLOY_CLOUDRUN=true`.
+1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` and [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`; commit both. The helper uses only Python's standard library. Set `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, and `CLOUDRUN_SERVICE`, then set `ENABLE_DEPLOY_CLOUDRUN=true`. Preserve its read-only `mise run all` gate and clean-tree check on the tagged revision; the cloud job must depend on their success.

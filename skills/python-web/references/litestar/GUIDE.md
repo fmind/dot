@@ -22,7 +22,7 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 
 ## Gotchas
 
-- The upstream bundle also documents Advanced Alchemy, SQLSpec, msgspec, and Polyfactory. msgspec and Polyfactory ship inside Litestar, so never `uv add` them; keep Pydantic for request, response, and settings models, which Litestar registers automatically, and reach for msgspec `Struct` only in a measured hot path.
+- The upstream bundle also documents Advanced Alchemy, SQLSpec, msgspec, and Polyfactory. Litestar already depends on msgspec and Polyfactory; declare either as a direct dependency only when application code imports it. Keep Pydantic for request, response, and settings models, which Litestar supports directly, and reach for msgspec `Struct` only in a measured hot path.
 - A skills-only install does not install plugin hooks, reviewer agents, slash commands, or MCP servers; those are separate host integrations.
 
 ## Official Skills

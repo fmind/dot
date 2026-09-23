@@ -1,6 +1,6 @@
 # Linux User Timers
 
-Check installed `systemd --version` and `man systemd.timer` / `man systemd.service`; installed documentation owns supported directives. Use `systemctl --user`, without sudo. A user manager may stop at logout; do not silently enable lingering.
+Check installed `systemctl --version` and `man systemd.timer` / `man systemd.service`; installed documentation owns supported directives. Use `systemctl --user`, without sudo. A user manager may stop at logout; do not silently enable lingering.
 
 Keep the service and timer in the job's source repository and deploy them to `~/.config/systemd/user/` using its existing configuration manager. Adapt this example's paths, timezone, interval, and limit to the job; replace the illustrative command with a real task before validation.
 

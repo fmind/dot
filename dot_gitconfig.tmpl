@@ -44,7 +44,7 @@
 # and included after [delta] so the theme owns syntax-theme and the diff styles
 # while the block above keeps the behaviour settings.
 [include]
-    path = {{ .chezmoi.homeDir }}/.config/git/theme.gitconfig
+    path = {{ joinPath .chezmoi.homeDir ".config/git/theme.gitconfig" | quote }}
 
 [diff]
     algorithm = histogram
@@ -58,7 +58,7 @@
     prune = true
 
 [github]
-    user = {{ .github_user }}
+    user = {{ .github_user | quote }}
 
 [help]
     autocorrect = prompt
@@ -101,8 +101,8 @@
     pushInsteadOf = "https://github.com/"
 
 [user]
-    name = {{ .git_name }}
-    email = {{ .git_email }}
+    name = {{ .git_name | quote }}
+    email = {{ .git_email | quote }}
 
 # Source: https://github.com/fmind/theme/blob/main/themes/git/fmind.gitconfig
 # Quote hex colors: Git treats unquoted # characters as comments.

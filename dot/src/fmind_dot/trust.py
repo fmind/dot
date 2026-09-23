@@ -2,12 +2,13 @@
 
 import json
 import re
-import tomllib
-from collections.abc import Callable
+from collections.abc import Callable, MutableMapping
 from pathlib import Path
 from typing import Annotated, Any
 
+import tomlkit
 import typer
+from tomlkit.exceptions import TOMLKitError
 
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
@@ -16,7 +17,7 @@ from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State, state_from
 from fmind_dot.workstation import DryRun
 
-# Each harness stores trust in a file it also writes itself; an edit only adds entries.
+# Each harness stores trust in a file it also writes itself; preserve unrelated state.
 # Claude, Codex, Grok, and agy key trust on the repository root, so a trusted parent
 # never covers the repositories below it; Copilot trusts every path below an entry.
 _COPILOT_COMMENT = re.compile(r"^\s*//")
@@ -80,38 +81,27 @@ def _claude(path: Path, folder: str, *, dry_run: bool) -> bool:
     return True
 
 
-def _toml_table(path: Path, table: str, folder: str, key: str, value: str, *, dry_run: bool) -> bool:
-    """Set `[<table>."<folder>"] <key> = <value>` without reformatting the host's TOML."""
+def _toml_table(path: Path, table: str, folder: str, key: str, value: str | bool, *, dry_run: bool) -> bool:
+    """Update a trust entry while preserving the host's TOML syntax and comments."""
     text = path.read_text(encoding="utf-8") if path.exists() else ""
     try:
-        entry = tomllib.loads(text).get(table, {}).get(folder)
-    except tomllib.TOMLDecodeError as error:
+        document = tomlkit.parse(text)
+    except TOMLKitError as error:
         raise DotError(f"{path} is not valid TOML; repair it before trusting folders") from error
-    wanted = tomllib.loads(f"{key} = {value}")[key]
-    if isinstance(entry, dict) and entry.get(key) == wanted:
+    tables = document.setdefault(table, tomlkit.table())
+    if not isinstance(tables, MutableMapping):
+        raise DotError(f"{path}: {table} must be a TOML table")
+    # Let the parent choose an inline or regular table for a new entry.
+    entry = tables.setdefault(folder, {})
+    if not isinstance(entry, MutableMapping):
+        raise DotError(f"{path}: {table} entry must be a TOML table")
+    current = entry.get(key)
+    if current == value and (not isinstance(value, bool) or isinstance(current, bool)):
         return False
     if dry_run:
         return True
-    quoted = json.dumps(folder, ensure_ascii=False)
-    header = re.compile(rf"(?m)^([ \t]*)\[{re.escape(table)}\.{re.escape(quoted)}\][ \t]*\n")
-    match = header.search(text)
-    if match is None:
-        separator = "" if not text or text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")
-        text = f"{text}{separator}[{table}.{quoted}]\n{key} = {value}\n"
-    else:
-        # Replace the key inside this table, or insert it right after the header.
-        body_start = match.end()
-        next_table = re.compile(r"(?m)^[ \t]*\[").search(text, body_start)
-        body_end = next_table.start() if next_table else len(text)
-        body = text[body_start:body_end]
-        line = re.compile(rf"(?m)^([ \t]*){re.escape(key)}[ \t]*=.*$")
-        if line.search(body):
-            body = line.sub(lambda found: f"{found.group(1)}{key} = {value}", body, count=1)
-        else:
-            body = f"{match.group(1)}{key} = {value}\n{body}"
-        text = text[:body_start] + body + text[body_end:]
-    tomllib.loads(text)
-    _write(path, text)
+    entry[key] = value
+    _write(path, tomlkit.dumps(document))
     return True
 
 
@@ -121,13 +111,13 @@ def _harnesses(home: Path) -> dict[str, tuple[Path, Callable[[Path, str, bool], 
         "claude": (home / ".claude.json", lambda path, folder, dry: _claude(path, folder, dry_run=dry)),
         "codex": (
             home / ".codex" / "config.toml",
-            lambda path, folder, dry: _toml_table(path, "projects", folder, "trust_level", '"trusted"', dry_run=dry),
+            lambda path, folder, dry: _toml_table(path, "projects", folder, "trust_level", "trusted", dry_run=dry),
         ),
         "grok": (
             home / ".grok" / "trusted_folders.toml",
             # Grok refuses to trust the home directory itself.
             lambda path, folder, dry: (
-                folder != str(home) and _toml_table(path, "folders", folder, "trusted", "true", dry_run=dry)
+                folder != str(home) and _toml_table(path, "folders", folder, "trusted", True, dry_run=dry)
             ),
         ),
         "agy": (

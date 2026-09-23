@@ -1,8 +1,11 @@
 # chezmoi:modify-template
-{{- /* model and effortLevel are defaults rather than managed keys: they seed a fresh
-       file, then stay whatever /model and /effort last persisted.
-       effortLevel stops at xhigh: max is session-only (/effort max), and an
-       unknown value silently falls back to the default effort.
+{{- /* model and modelSettings are defaults rather than managed keys: they seed a fresh
+       file, then stay whatever /model and /effort last persisted. Effort is seeded per
+       model because Opus 5.5 ignores the top-level effortLevel and starts at medium;
+       levels stop at xhigh: max is session-only (/effort max).
+       DISABLE_AUTOUPDATER leaves the version to mise, which installs latest.
+       permissions.deny blocks the usual spelling of a few irreversible commands, even in
+       bypass mode; it is a guardrail, not a boundary: other spellings still run.
        theme: light-ansi paints the TUI from the terminal's own sixteen slots,
        which is how fmind/theme reaches a tool that takes no theme file.
        enableAllProjectMcpServers is managed as false, not removed: the merge never
@@ -10,13 +13,9 @@
        every repository-provided MCP server; enabledMcpjsonServers approves the owner's
        project servers by name instead; `dot trust` pre-accepts folder trust.
        PreCompact, SessionEnd, and SubagentStop stay managed as empty lists for the same
-       reason: they clear retired session-capture hooks; `dot agent session sync` captures now.
-       Hooks name the CLI absolutely: a harness started without ~/.local/bin on PATH
-       cannot resolve dot, or resolves Graphviz's /usr/bin/dot instead, and notifications
-       fail silently. */ -}}
-{{- $dot := joinPath .chezmoi.homeDir ".local/bin/dot" -}}
-{{- if not (regexMatch "^[A-Za-z0-9_@%+=:,./-]+$" $dot) }}{{ fail "home directory is not shell-safe for hook commands" }}{{ end -}}
-{{- $defaults := dict "effortLevel" "high" "model" "claude-fable-5-1[1m]" -}}
+       reason: they clear retired session-capture hooks; `dot agent session sync` captures now. */ -}}
+{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
+{{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) -}}
 {{- $managedConfig := fromJson (replace "@dot@" $dot `
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -28,7 +27,6 @@
   },
   "autoContinueAtUsageLimit": true,
   "autoMemoryEnabled": true,
-  "autoUpdatesChannel": "stable",
   "editorMode": "vim",
   "enableAllProjectMcpServers": false,
   "enabledMcpjsonServers": [
@@ -37,7 +35,8 @@
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
     "BASH_MAX_TIMEOUT_MS": "1800000",
-    "CLAUDE_AUTO_BACKGROUND_TASKS": "1"
+    "CLAUDE_AUTO_BACKGROUND_TASKS": "1",
+    "DISABLE_AUTOUPDATER": "1"
   },
   "fallbackModel": [
     "sonnet"
@@ -66,8 +65,7 @@
             "timeout": 30,
             "type": "command"
           }
-        ],
-        "matcher": ""
+        ]
       }
     ],
     "SubagentStop": []
@@ -94,4 +92,9 @@
 {{- if not (kindIs "slice" $directories) }}{{ fail "permissions.additionalDirectories must be an array" }}{{ end -}}
 {{- /* Add the managed roots without replacing directories the host added. */ -}}
 {{- $_ := set $managedConfig.permissions "additionalDirectories" (concat $directories (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) | uniq) -}}
+{{- $deny := dig "permissions" "deny" (list) $current -}}
+{{- if not (kindIs "slice" $deny) }}{{ fail "permissions.deny must be an array" }}{{ end -}}
+{{- /* Add the managed rules without replacing rules the host added. A trailing *main also
+       matches --force-with-lease and any remote. */ -}}
+{{- $_ = set $managedConfig.permissions "deny" (concat $deny (list "Bash(rm -rf /)" "Bash(rm -rf ~)" "Bash(rm -rf ~/)" "Bash(rm -rf $HOME)" "Bash(git push --force *main)" "Bash(git push -f *main)") | uniq) -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

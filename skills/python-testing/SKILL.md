@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-testing
   created: "2026-08-08"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Python Testing
@@ -25,7 +25,7 @@ For pytest fixture, collection, or assertion maintenance, use [pytest mechanics]
 1. **Protect the neighborhood**: Run the package or subsystem tests; fix production code when the new behavior breaks a valid existing contract and revisit the spec when contracts conflict.
 1. **REFACTOR**: Improve names, structure, duplication, and types only while everything stays green; add no behavior.
 1. **Repeat**: Take the next smallest behavior, edge case, or failure path through a new red cycle.
-1. **Prove the regression test**: For a bug fix, temporarily reverse the fix when safe, confirm the test fails, then restore it and confirm green.
+1. **Prove the regression test**: Reuse the observed red result. If implementation preceded the test or its ability to detect the defect remains uncertain, safely exercise the test against the unfixed code in isolation, then confirm green with the fix.
 1. **Qualify proportionately**: reuse passing focused and subsystem results while relevant inputs remain unchanged; add affected static checks. Run the full gate only when repository policy or cross-cutting risk requires it. Apply the [dirty-tree rule](../mise/SKILL.md#gotchas) when unrelated work is present.
 1. **Report evidence**: summarize the observed red and green outcomes, checks actually run, and remaining limits; do not run additional suites merely to fill the report.
 

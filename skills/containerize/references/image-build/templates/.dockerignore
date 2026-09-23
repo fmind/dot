@@ -20,3 +20,5 @@
 tmp
 **/.env*
 !**/.env.example
+# Generated Workload Identity Federation credentials must not enter build layers.
+**/gha-creds-*.json

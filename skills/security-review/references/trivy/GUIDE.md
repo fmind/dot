@@ -5,7 +5,7 @@ description: "Dependency, configuration, image, license, and SBOM scanning."
 
 # Trivy
 
-One scanner for the whole repository: dependencies, infrastructure as code, secrets, licenses, container images, and SBOMs. The policy lives in `trivy.yaml` (`HIGH`/`CRITICAL`, `ignore-unfixed`, scanners: vuln, misconfig, secret, license) so local runs and CI report the same findings.
+Scan dependencies, infrastructure as code, secrets, licenses, container images, and SBOMs according to the project's `trivy.yaml`. Inspect its enabled scanners, severity, exclusions, and `ignore-unfixed` setting before claiming coverage. Blocking policies need `exit-code: 1`; findings otherwise default to a successful exit.
 
 ## Commands
 
@@ -25,10 +25,10 @@ Expose the repository scan as `check:scan` in `mise.toml` per [mise](../../../mi
 ```toml
 [tasks."check:scan"]
 description = "Scan dependencies, IaC, licenses, and secrets (Trivy)"
-run = "trivy --config trivy.yaml fs ." # mise appends extra path arguments
+run = "trivy --config trivy.yaml fs ."
 ```
 
-Python's native dependency scanner stays separate as `check:vuln` (`uv audit`) because it understands `uv.lock` semantics; keep both tasks, while `trivy fs` adds IaC, secrets, and licenses on top.
+Python's native dependency scanner stays separate as `check:vuln` (`uv audit`) because it understands `uv.lock` semantics; keep both tasks, while `trivy fs` adds the configured IaC, secret, and license scanners.
 
 For scheduled visibility into advisories that the blocking policy intentionally excludes, use the separate [fixed and unfixed report](references/unfixed-report.md). It never replaces the blocking gate.
 
@@ -36,8 +36,8 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 
 1. Group findings by severity, then split fixable from `unfixed`.
 1. Prefer the minimal upgrade of the affected dependency or base image; re-run the scan to prove the fix.
-1. Record an accepted risk in `.trivyignore` (one CVE or path per line, with a `#` reason) instead of lowering the global severity bar.
-1. Treat a secret finding as compromised: rotate it, then clean the history per [gitleaks](../gitleaks.md).
+1. Record an accepted risk in `.trivyignore` (one finding ID per line, with a `#` reason) instead of lowering the global severity bar. Use `.trivyignore.yaml` with explicit `--ignorefile` for path-scoped findings, expiry, or license ignores; see [filtering](https://trivy.dev/docs/latest/configuration/filtering/).
+1. Verify a secret finding's exposure, then coordinate authorized rotation and cleanup per [gitleaks](../gitleaks.md); history rewrites require explicit authority.
 
 ## Gotchas
 
@@ -46,7 +46,7 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 - **Image coverage**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.
 - **License findings remain findings**: the shared license policy can reject Debian base packages. Review the owning project's distribution requirements and explicit license policy before publication; do not disable the scanner or add blanket ignores to make an image pass.
 - **Scan digests, not tags**: a tag can move after the scan; the digest is what ships.
-- **Databases update on first run**: a scan needs network access once per day for the vulnerability database; use `--skip-db-update` in offline reruns.
+- **Offline scans**: cache the required vulnerability database, Java database, and checks bundle first. `--skip-db-update` alone does not prevent other downloads; use the applicable `--skip-java-db-update`, `--skip-check-update`, and `--offline-scan` options per the [network guide](https://trivy.dev/docs/latest/advanced/air-gap/). Report missing data and database age instead of claiming a fresh or complete offline scan.
 
 ## Documentation
 

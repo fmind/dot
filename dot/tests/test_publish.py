@@ -3,6 +3,8 @@
 import hashlib
 import io
 import json
+import tarfile
+import zipfile
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -14,17 +16,36 @@ from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 
 
+def distribution(path: Path, metadata: bytes, *, duplicate: bool = False, link: bool = False) -> None:
+    """Write real archive metadata while keeping fixtures independent of a build backend."""
+    if path.suffix == ".whl":
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("package-1.2.3.dist-info/METADATA", metadata)
+            if duplicate:
+                archive.writestr("another-1.2.3.dist-info/METADATA", metadata)
+    else:
+        with tarfile.open(path, "w:gz") as archive:
+            entry = tarfile.TarInfo("package-1.2.3/PKG-INFO")
+            entry.size = len(metadata)
+            if link:
+                entry.type, entry.linkname, entry.size = tarfile.SYMTYPE, "/not-extracted", 0
+            archive.addfile(entry, None if link else io.BytesIO(metadata))
+            if duplicate:
+                archive.addfile(entry, io.BytesIO(metadata))
+
+
 def publication(tmp_path: Path) -> tuple[State, Mock, Path, dict[str, object]]:
     (tmp_path / "dot/dist").mkdir(parents=True)
-    (tmp_path / "dot/pyproject.toml").write_text('[project]\nversion = "1.2.3"\n')
+    (tmp_path / "dot/pyproject.toml").write_text('[project]\nname = "package"\nversion = "1.2.3"\n')
     names = ["package-1.2.3-py3-none-any.whl", "package-1.2.3.tar.gz"]
     for name in names:
-        (tmp_path / "dot/dist" / name).write_text(f"fixture {name}")
+        distribution(tmp_path / "dot/dist" / name, b"Metadata-Version: 2.4\nName: package\nVersion: 1.2.3\n")
     notes = tmp_path / "release notes.md"
     notes.write_text("Release notes")
     runner = Mock(spec=Runner)
     assets = [
-        {"name": name, "digest": "sha256:" + hashlib.sha256(f"fixture {name}".encode()).hexdigest()} for name in names
+        {"name": name, "digest": "sha256:" + hashlib.sha256((tmp_path / "dot/dist" / name).read_bytes()).hexdigest()}
+        for name in names
     ]
     release: dict[str, object] = {"tagName": "v1.2.3", "isDraft": False, "assets": assets}
     return State(runner=runner, stdout=io.StringIO()), runner, notes, release
@@ -112,7 +133,50 @@ def test_distributions_from_another_version_are_rejected_before_any_remote_call(
     state, runner, notes, _ = publication(tmp_path)
     wheel = tmp_path / "dot/dist/package-1.2.3-py3-none-any.whl"
     wheel.rename(wheel.with_name("package-1.2.2-py3-none-any.whl"))
-    with pytest.raises(DotError, match=r"project version 1\.2\.3"):
+    with pytest.raises(DotError, match=r"project package version 1\.2\.3"):
+        publish_release(state, tmp_path, "v1.2.3", notes)
+    runner.run.assert_not_called()
+
+
+@pytest.mark.parametrize("extension", ["whl", "tar.gz"])
+@pytest.mark.parametrize(
+    "problem", ["name", "version", "duplicate-header", "missing-header", "duplicate-file", "invalid", "oversized"]
+)
+def test_archive_metadata_must_match_project_before_remote_calls(tmp_path: Path, extension: str, problem: str) -> None:
+    state, runner, notes, _ = publication(tmp_path)
+    archive = next((tmp_path / "dot/dist").glob(f"*.{extension}"))
+    metadata = b"Metadata-Version: 2.4\nName: package\nVersion: 1.2.3\n"
+    if problem == "name":
+        metadata = metadata.replace(b"package", b"different-package")
+    elif problem == "version":
+        metadata = metadata.replace(b"1.2.3", b"1.2.2")
+    elif problem == "duplicate-header":
+        metadata += b"Version: 1.2.3\n"
+    elif problem == "missing-header":
+        metadata = b"Name: package\n"
+    elif problem == "oversized":
+        metadata += b"\n" + b"x" * (1024 * 1024)
+    distribution(archive, metadata, duplicate=problem == "duplicate-file")
+    if problem == "invalid":
+        archive.write_bytes(b"not an archive")
+    with pytest.raises(DotError):
+        publish_release(state, tmp_path, "v1.2.3", notes)
+    runner.run.assert_not_called()
+
+
+def test_wheel_build_tag_cannot_impersonate_release_version(tmp_path: Path) -> None:
+    state, runner, notes, _ = publication(tmp_path)
+    wheel = next((tmp_path / "dot/dist").glob("*.whl"))
+    wheel.rename(wheel.with_name("package-1.2.2-1.2.3-py3-none-any.whl"))
+    with pytest.raises(DotError, match="filename"):
+        publish_release(state, tmp_path, "v1.2.3", notes)
+    runner.run.assert_not_called()
+
+
+def test_sdist_metadata_must_be_a_regular_file(tmp_path: Path) -> None:
+    state, runner, notes, _ = publication(tmp_path)
+    distribution(next((tmp_path / "dot/dist").glob("*.tar.gz")), b"", link=True)
+    with pytest.raises(DotError, match="regular"):
         publish_release(state, tmp_path, "v1.2.3", notes)
     runner.run.assert_not_called()
 

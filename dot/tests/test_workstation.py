@@ -500,10 +500,33 @@ def test_custom_cache_and_prune_selections_replace_defaults(provider: RecordingR
     ]
 
 
-def test_ensure_hf_cache_dir_creates_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    target = tmp_path / "custom-hf"
-    monkeypatch.setenv("HF_HUB_CACHE", str(target))
-    from fmind_dot.workstation import _ensure_hf_cache_dir
+@pytest.mark.parametrize(
+    ("environment", "target"),
+    [
+        ({}, ".cache/huggingface/hub"),
+        ({"XDG_CACHE_HOME": "~/xdg"}, "xdg/huggingface/hub"),
+        ({"XDG_CACHE_HOME": "~/xdg", "HF_HOME": "$HOME/hf"}, "hf/hub"),
+        ({"HF_HOME": "~/hf", "HUGGINGFACE_HUB_CACHE": "$HOME/legacy"}, "legacy"),
+        ({"HUGGINGFACE_HUB_CACHE": "~/legacy", "HF_HUB_CACHE": "$HOME/custom"}, "custom"),
+    ],
+)
+def test_hf_cache_creates_the_native_cache_location(
+    provider: RecordingRunner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    environment: dict[str, str],
+    target: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    for name in ("HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE", "HF_HOME", "XDG_CACHE_HOME"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
 
-    _ensure_hf_cache_dir()
-    assert target.is_dir()
+    preview = CliRunner().invoke(app, ["cache", "hf", "--dry-run"])
+    assert preview.exit_code == 0
+    assert not (tmp_path / target).exists()
+    result = CliRunner().invoke(app, ["cache", "hf"])
+    assert result.exit_code == 0, result.exception
+    assert (tmp_path / target).is_dir()
+    assert provider.actions == [["hf", "cache", "ls"]]

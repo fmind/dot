@@ -1,24 +1,28 @@
 # chezmoi:modify-template
+{{- /* Docs: https://opencode.ai/docs/config/
+       The persona comes from the symlinked ~/.config/opencode/AGENTS.md and skills from
+       OpenCode's native ~/.agents/skills scan; listing either again loads it twice.
+       mise owns the version. An lsp object enables the built-ins with overrides: Python
+       uses the shared ty server instead of pyright (built-in ty is still experimental). */ -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["~/.agents/AGENTS.md"],
   "model": "openrouter/google/gemini-3.8-flash",
   "small_model": "openrouter/google/gemini-3.8-flash",
-  "default_agent": "build",
   "share": "disabled",
-  "snapshot": true,
-  "autoupdate": "notify",
-  "compaction": {"auto": true, "prune": true},
+  "autoupdate": false,
+  "compaction": {"prune": true},
   "formatter": true,
-  "lsp": true,
+  "lsp": {
+    "pyright": {"disabled": true},
+    "ty": {"command": ["ty", "server"], "extensions": [".py", ".pyi"]}
+  },
   "permission": "allow"
 }
 ` -}}
-{{- $_ := set $managedConfig "skills" (dict "paths" (list (joinPath .chezmoi.homeDir ".agents/skills"))) -}}
 {{- /* Move the legacy managed theme to tui.json; preserve other host settings. */ -}}
 {{- $current := dict -}}
-{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJsonc .chezmoi.stdin }}{{ end -}}
 {{- $input := .chezmoi.stdin -}}
 {{- /* Retire only our old environment placeholder; preserve explicit host credentials. */ -}}
 {{- $options := dig "provider" "openrouter" "options" dict $current -}}
@@ -30,4 +34,20 @@
 {{-   $_ := unset $current "theme" -}}
 {{-   $input = $current | toJson -}}
 {{- end -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" $input "managed" $managedConfig) -}}
+{{- /* Retire only the formerly managed persona and skill entries; keep host additions. */ -}}
+{{- if deepEqual (get $current "instructions") (list "~/.agents/AGENTS.md") -}}
+{{-   $_ := unset $current "instructions" -}}
+{{-   $input = $current | toJson -}}
+{{- end -}}
+{{- $skills := get $current "skills" -}}
+{{- if and (kindIs "map" $skills) (deepEqual (get $skills "paths") (list (joinPath .chezmoi.homeDir ".agents/skills"))) -}}
+{{-   $_ := unset $skills "paths" -}}
+{{-   if not $skills }}{{ $_ = unset $current "skills" }}{{ end -}}
+{{-   $input = $current | toJson -}}
+{{- end -}}
+{{- /* A boolean lsp cannot take the ty override; the object form keeps built-ins enabled. */ -}}
+{{- if eq (toString (get $current "lsp")) "true" -}}
+{{-   $_ := unset $current "lsp" -}}
+{{-   $input = $current | toJson -}}
+{{- end -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" $input "managed" $managedConfig "jsonc" true) -}}

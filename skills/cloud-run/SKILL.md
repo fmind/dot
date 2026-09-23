@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Cloud Run Deployment
@@ -21,9 +21,9 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 1. **Install the deployment toolchain**: pin Trivy and Cosign to exact stable versions in the Python project's mise configuration, lock them, and install them before any image scan or registry push; use [deployment.md](references/deployment.md).
 1. **Validate locally**: build the pinned non-root Python image and run its tests and `check:image` scan per [containerize](../containerize/references/image-build/GUIDE.md).
 1. **Publish and prove provenance**: after push authority is explicit, follow [deployment.md](references/deployment.md). Use the build action's digest output in CI, or extract one digest from BuildKit metadata locally, scan it, generate an SBOM, sign it, verify the expected identity and issuer, and attest the SBOM before deployment.
-1. **Deploy privately**: pass the digest reference and dedicated `--service-account`; keep `--no-allow-unauthenticated`. Use [service.yaml](templates/service.yaml) when settings warrant a declarative service specification.
+1. **Deploy privately**: pass the digest reference and dedicated `--service-account`; keep `--invoker-iam-check --no-allow-unauthenticated` and verify both access controls after deployment. Use [service.yaml](templates/service.yaml) when settings warrant a declarative service specification; a successful update does not prove private IAM.
 1. **Use infrastructure as code when needed**: manage repeatable services, IAM, registries, and fleet-level infrastructure per [infra-as-code](../infra-as-code/SKILL.md); review the plan before apply.
-1. **Wire CD when requested**: adapt [deploy.yml](templates/deploy.yml), set its `GCP_*` variables and full `GCP_ARTIFACT_IMAGE`, then opt in with `ENABLE_DEPLOY_CLOUDRUN=true`. Keep build outputs in action outputs and scans/signing as direct named steps per [github-actions](../github-actions/references/ci-cd/GUIDE.md); short input-validation sequences are sufficient.
+1. **Wire CD when requested**: copy [deploy.yml](templates/deploy.yml) to `.github/workflows/cd.yml` and [verify-private.py](templates/verify-private.py) to `.github/scripts/verify-private.py`. Commit both, set the workflow's `GCP_*` variables and full `GCP_ARTIFACT_IMAGE`, then opt in with `ENABLE_DEPLOY_CLOUDRUN=true`. Its read-only job validates the tagged revision before the deployment job obtains cloud credentials. Keep build outputs in action outputs and scans/signing as direct named steps per [github-actions](../github-actions/references/ci-cd/GUIDE.md); short input-validation sequences are sufficient.
 1. **Verify the live result**: record the ready revision, deployed digest, runtime account, IAM policy, health result, and traffic split. Keep a known-good revision for rollback.
 
 ## Gotchas

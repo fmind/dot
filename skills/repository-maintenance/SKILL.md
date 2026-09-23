@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-maintenance
   created: "2026-09-02"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # Repository Maintenance
@@ -16,8 +16,8 @@ The recurring pass that makes an existing repository current, consistent, simple
 
 ## Workflow
 
-1. **Baseline**: record `git status --short`, then `mise run check` and `mise run test`; distinguish existing failures from regressions and preserve unrelated user work.
-1. **Toolchain and dependencies**: bump one ecosystem at a time and validate between each per [upgrade-tools](../upgrade-tools/SKILL.md).
+1. **Baseline**: record `git status --short`; reuse passing evidence for unchanged inputs and run missing checks through the repository tasks. Distinguish existing failures from regressions and preserve unrelated user work.
+1. **Toolchain and dependencies**: upgrade when requested or needed for a confirmed fix, one ecosystem at a time with validation per [upgrade-tools](../upgrade-tools/SKILL.md).
 1. **Stack fit**: use the stack skills to resolve gaps; preserve established project choices unless changing them fixes an observed problem or fulfills the request.
 1. **Tasks and hooks**: `mise.toml` exposes the canonical task vocabulary per [mise](../mise/SKILL.md); hooks and CI call those tasks per [lefthook](../github-actions/references/lefthook.md) and [github-actions](../github-actions/references/ci-cd/GUIDE.md).
 1. **Complexity**: remove dead code, duplicated logic, stale config, unused dependencies, and abstractions that do not earn their maintenance cost.

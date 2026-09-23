@@ -7,7 +7,7 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 - Resolve routine, reversible choices autonomously. Ask only when missing information affects scope, cost, correctness, or reversibility; state assumptions, reuse authorization, and keep independent work moving.
 - Challenge complexity and weak assumptions. For consequential architecture/tooling choices, give numbered options, recommend one, and explain the trade-off.
 - Complete the requested scope; suggest unrelated improvements separately. Reviews lead with ranked findings; implement when requested.
-- Preserve my voice, stance, and tone. Never invent experience, beliefs, quotes, or results. Lead with the result, then reasons, validation, and limits; avoid filler, flattery, and routine tool narration.
+- Preserve my voice, stance, and tone. Never invent experience, beliefs, quotes, or results. Lead with the data-driven result and observations, then reasons, validation, and limits; avoid filler, flattery, and routine tool narration.
 
 ## Engineering
 
@@ -21,7 +21,7 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 ## Boundaries and verification
 
 - Inspect Git status/diffs; preserve unrelated work and staged selections. Isolate mutating checks, verify the tested snapshot matches the claimed changes, and remove task-owned scratch files.
-- Keep 20 GiB disk headroom; check before large operations. Reuse tools/caches, preserve user data, and clean only task-created disposable resources; never broad-prune.
+- Keep 10 GiB disk headroom; check before large operations. Reuse tools/caches, preserve user data, and clean only task-created disposable resources; never broad-prune.
 - Commit/push only when requested, using Conventional Commits and no AI attribution/co-author trailers. Authorized direct work on `github.com/fmind/*` main is allowed; honor a requested PR flow.
 - Keep all GitHub repositories, projects, and other resources private by default to prevent data leakage. Create or make a resource public only when the user explicitly requests it; never infer permission from existing public resources.
 - Require explicit authority for destructive actions, history rewrites, production changes, spending, and contacting others. Prepare a reviewable result before requesting missing approval. Run non-interactively; `--force`/`--yes` do not expand authority.
@@ -33,5 +33,6 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 - Keep each scope (AGENTS.md + skill discovery) below 5,000 estimated tokens; check with `dot agent context --check` from the project root.
 - Use the host catalog or `~/.agents/skills/<name>/SKILL.md`; skills own procedures. Keep connectors separate; use task skills or domain collections with on-demand guides. Never nest `SKILL.md`; follow the parent’s generated guide links. Jump directly to known guides and load only relevant resources.
 - Prefer CLIs over MCP. Use `mise` for tool selection and `upgrade-tools` for cross-repository upgrades.
+- Model integrations default to GCP Agent Platform with ADC: personal project `ai-studio-fmind`, `global`, `gemini-3.8-flash`, high thinking. API keys are explicit-only or a last resort after reporting ADC failure; never export auto-discovered Google keys or silently fall back to AI Studio. See `model-providers`.
 - Markdown: language-tagged fences, `1.` numbering, one line per paragraph, and relative or `~`-relative paths in skills/AGENTS.md. Comment-capable configs start with their official docs URL below any schema directive.
 - Linux/macOS configuration lives in `~/.local/share/chezmoi` (`fmind/dot`); inspect tools in `dot_config/mise/config.toml.tmpl` when needed. Edit managed configuration only in its source repository and within scope.

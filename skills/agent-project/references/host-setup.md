@@ -14,6 +14,7 @@
    ```
    When `.claude/` or `CLAUDE.md` is gitignored (globally or in the repository), un-ignore both tracked entries so every clone gets them; a directory rule cannot be re-included, so ignore the contents instead:
    ```gitignore
+   !.claude/
    .claude/*
    !.claude/skills
    !CLAUDE.md

@@ -42,7 +42,7 @@ run = "gitleaks git --redact=100 --staged --verbose"
 
 ## When a Secret Is Found
 
-1. **Rotate first**: a secret in history is compromised even after the commit disappears.
+1. **Contain confirmed exposure**: treat an exposed credential as compromised even after the commit disappears. Prepare rotation first and execute it only within the established credential and service authority; a scanning request alone does not authorize rotation.
 1. **Remove it from the source**: move the value to an environment variable or an encrypted file per [sops-secrets](../../sops-secrets/SKILL.md).
 1. **Rewrite history only when asked**: rewrites affect every clone; confirm with the user before `git filter-repo`.
 1. **Allowlist true false positives** with an inline `gitleaks:allow` comment or a rule in `.gitleaks.toml`, each with a reason.

@@ -81,6 +81,23 @@ def test_notify_failure_warns_on_stderr_without_failing_the_turn(
     assert not (tmp_path / ".agents").exists()
 
 
+@pytest.mark.parametrize("exists", [False, True], ids=["missing-config", "malformed-config"])
+def test_notify_does_not_load_unrelated_configuration(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, exists: bool
+) -> None:
+    config = tmp_path / "broken.yaml"
+    if exists:
+        config.write_text("prune: [\n")
+    captured: list[Notification] = []
+    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+
+    result = CliRunner().invoke(app, ["--config", str(config), "agent", "hook", "notify", "codex", "stop"], input="{}")
+
+    assert result.exit_code == 0
+    assert result.stdout == result.stderr == ""
+    assert len(captured) == 1
+
+
 def _fail(_state: State, _notification: Notification) -> None:
     raise DotError("notifier exited with status 7")
 

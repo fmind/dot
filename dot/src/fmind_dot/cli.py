@@ -75,8 +75,9 @@ def config_init(
     context: typer.Context,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite an existing configuration file")] = False,
 ) -> None:
-    path = state_from(context).config_path
-    if _managed_config(state_from(context)):
+    state = state_from(context)
+    path = state.config_path
+    if _managed_config(state):
         raise DotError("configuration is managed by chezmoi; use dot config edit")
     try:
         path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -96,9 +97,9 @@ def config_init(
 @config_app.command("edit", help="Open the configuration file in $EDITOR (scaffolds it first if missing)")
 def config_edit(context: typer.Context) -> None:
     state = state_from(context)
-    if _managed_config(state):
+    if managed := _managed_config(state):
         code = state.runner.interactive(
-            ["chezmoi", "edit", "--apply", "--force", str(state.config_path)],
+            ["chezmoi", "edit", "--apply", "--force", str(managed)],
             stdin=state.stdin,
             stdout=state.stdout,
             stderr=state.stderr,
@@ -122,15 +123,20 @@ def config_edit(context: typer.Context) -> None:
     typer.echo("✓ Configuration is valid.")
 
 
-def _managed_config(state: State) -> bool:
+def _managed_config(state: State) -> Path | None:
+    """Resolve aliases for protection, but give chezmoi its actual managed target."""
     if state.runner.which("chezmoi") is None:
-        return False
+        return None
     result = state.runner.run(
         ["chezmoi", "managed", "--path-style=absolute", "--nul-path-separator"],
         timeout=30,
     )
-    paths = result.stdout.split("\0")
-    return str(state.config_path.absolute()) in paths
+    paths = [Path(path) for path in result.stdout.split("\0") if path]
+    selected = state.config_path.absolute()
+    if selected in paths:
+        return selected
+    resolved = selected.resolve()
+    return next((path for path in paths if path.resolve() == resolved), None)
 
 
 @config_app.command("validate", help="Validate that the configuration file parses (strict, unknown keys rejected)")

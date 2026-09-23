@@ -35,12 +35,12 @@ ForceLogin = Annotated[
 
 
 def _ensure_hf_cache_dir() -> None:
-    raw = os.environ.get("HF_HUB_CACHE")
-    if raw:
-        cache_dir = Path(raw).expanduser()
-    else:
-        cache_dir = Path(os.environ.get("HF_HOME", "~/.cache/huggingface")).expanduser() / "hub"
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    # Match huggingface_hub's precedence and expansion before the native CLI runs.
+    cache_root = Path(os.environ.get("XDG_CACHE_HOME", "~/.cache")) / "huggingface"
+    hf_home = os.path.expandvars(str(Path(os.environ.get("HF_HOME", str(cache_root))).expanduser()))
+    legacy = os.environ.get("HUGGINGFACE_HUB_CACHE", str(Path(hf_home) / "hub"))
+    selected = Path(os.environ.get("HF_HUB_CACHE", legacy)).expanduser()
+    Path(os.path.expandvars(str(selected))).mkdir(parents=True, exist_ok=True)
 
 
 def execute(state: State, args: list[str], *, dry_run: bool = False) -> None:

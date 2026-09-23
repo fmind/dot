@@ -23,7 +23,6 @@ from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult
 from fmind_dot.state import State, require_tools, state_from
 
-_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 _AUTH_PROBES = {
     "gh": (["gh", "auth", "status"], False),
     "gcloud": (["gcloud", "auth", "print-access-token"], True),
@@ -44,32 +43,9 @@ _AUTH_FAILURE_MARKERS = (
     "login required",
 )
 _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
-    "age": ("--version",),
     "agy": ("--help",),
-    "chezmoi": ("--version",),
-    "claude": ("--version",),
-    "codex": ("--version",),
-    "copilot": ("--version",),
-    "docker": ("--version",),
-    "dprint": ("--version",),
-    "gcloud": ("--version",),
-    "gh": ("--version",),
-    "git": ("--version",),
-    "git-cliff": ("--version",),
     "gitleaks": ("version",),
-    "grok": ("--version",),
-    "gws": ("--version",),
     "lefthook": ("version",),
-    "mise": ("--version",),
-    "nvim": ("--version",),
-    "pgcli": ("--version",),
-    "python": ("--version",),
-    "ruff": ("--version",),
-    "sqlite3": ("--version",),
-    "tree-sitter": ("--version",),
-    "trivy": ("--version",),
-    "ty": ("--version",),
-    "uv": ("--version",),
 }
 
 
@@ -350,13 +326,33 @@ def _tool_results(state: State) -> list[CheckResult]:
     if not tools:
         return []
     workers = min(state.config.doctor.probe_concurrency, len(tools))
-    with ThreadPoolExecutor(max_workers=workers) as executor:
+    executor = ThreadPoolExecutor(max_workers=workers)
+    try:
         return list(executor.map(probe, tools))
+    except BaseException:
+        state.runner.cancel()
+        raise
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
 
 
 def _recognized_auth_failure(result: CommandResult) -> bool:
     diagnostic = f"{result.stdout}\n{result.stderr}".lower()
     return any(marker in diagnostic for marker in _AUTH_FAILURE_MARKERS)
+
+
+def _workspace_auth_result(output: str, path: Path) -> CheckResult:
+    # Native status exits zero even without credentials; only its JSON proves readiness.
+    try:
+        status = json.loads(output)
+    except ValueError:
+        status = None
+    if isinstance(status, dict):
+        if status.get("auth_method") == "none" or status.get("token_valid") is False:
+            return CheckResult("gws", "fail", "NOT authenticated", str(path), "unauthenticated")
+        if status.get("token_valid") is True:
+            return CheckResult("gws", "pass", "authenticated", str(path), "healthy")
+    return CheckResult("gws", "fail", "auth check returned invalid status; state unknown", str(path), "broken")
 
 
 def _auth_results(state: State) -> list[CheckResult]:
@@ -389,7 +385,11 @@ def _auth_results(state: State) -> list[CheckResult]:
                 CheckResult(label, "fail", "auth check output exceeded limit; state unknown", str(path), "broken")
             )
         elif result.returncode == 0 and (not requires_output or result.stdout.strip()):
-            results.append(CheckResult(label, "pass", "authenticated", str(path), "healthy"))
+            results.append(
+                _workspace_auth_result(result.stdout, path)
+                if label == "gws"
+                else CheckResult(label, "pass", "authenticated", str(path), "healthy")
+            )
         elif result.returncode == 0:
             results.append(
                 CheckResult(label, "fail", "auth check returned no usable output; state unknown", str(path), "broken")

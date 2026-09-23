@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # Docker and Container Runtime Management
@@ -67,7 +67,7 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
 
 - **Colima socket path**: on macOS, Colima binds the Docker socket under `~/.colima/default/docker.sock`. If tools fail to locate the socket, set `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"`.
 - **VM memory limits**: containers in Colima run inside the VM; if a container exceeds the VM memory allocation, the Linux kernel terminates it with OOM (exit code 137). Adjust VM sizing with `colima start --memory <gb>`.
-- **Volume mounts on macOS**: file system sharing between macOS and the Colima VM uses virtiofs; avoid heavy write-intensive build caches inside mounted macOS host directories.
+- **Volume mounts on macOS**: the driver depends on the VM profile: `vz` supports virtiofs, while QEMU profiles can use sshfs or 9p. Inspect the profile's `vmType` and `mountType` against [Colima's configuration](https://github.com/abiosoft/colima/blob/main/embedded/defaults/colima.yaml) before diagnosing performance; keep write-heavy build caches inside the VM when practical.
 
 ## Documentation
 

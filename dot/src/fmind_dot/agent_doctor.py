@@ -33,7 +33,7 @@ _DOCTOR_INTEGRATIONS = {
     "claude": DoctorIntegration("claude", "~/.claude/settings.json", "json", ("needs-input", "stop")),
     "codex": DoctorIntegration("codex", "~/.codex/config.toml", "toml", ("stop",)),
     "grok": DoctorIntegration("grok", "~/.grok/hooks/hooks.json", "json", ("needs-input", "stop")),
-    "copilot": DoctorIntegration("copilot", "~/.copilot/hooks/session-log.json", "json", ("stop",)),
+    "copilot": DoctorIntegration("copilot", "~/.copilot/hooks/notify.json", "json", ("stop",)),
 }
 
 
@@ -50,15 +50,26 @@ class AgentDoctorResult:
     next: str = ""
 
 
-def _structured_strings(value: object) -> Iterator[str]:
-    if isinstance(value, str):
-        yield value
-    elif isinstance(value, Mapping):
-        for item in value.values():
-            yield from _structured_strings(item)
-    elif isinstance(value, list):
-        for item in value:
-            yield from _structured_strings(item)
+def _command_hooks(config: Mapping[str, object], agent: str) -> Iterator[tuple[str, tuple[str, ...]]]:
+    """Read executable command fields from native event structures, never arbitrary metadata."""
+    events = config.get("notify" if agent == "agy" else "hooks")
+    if not isinstance(events, Mapping):
+        return
+    for event, groups in events.items():
+        if not isinstance(event, str) or not isinstance(groups, list):
+            continue
+        for group in groups:
+            if not isinstance(group, Mapping):
+                continue
+            handlers = [group] if agent in {"agy", "copilot"} else group.get("hooks")
+            if not isinstance(handlers, list):
+                continue
+            for handler in handlers:
+                if not isinstance(handler, Mapping) or handler.get("type") != "command":
+                    continue
+                command = handler.get("bash" if agent == "copilot" else "command")
+                if isinstance(command, str) and (arguments := _dot_arguments(command)):
+                    yield event, arguments
 
 
 def _dot_arguments(command: str) -> tuple[str, ...] | None:
@@ -86,13 +97,28 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         config = json.loads(content) if definition.config_format == "json" else tomllib.loads(content.decode())
     except UnicodeError, ValueError, tomllib.TOMLDecodeError:
         return "malformed"
-    configured = {arguments for value in _structured_strings(config) if (arguments := _dot_arguments(value))}
-    if any(arguments[: len(retired)] == retired for arguments in configured for retired in _RETIRED_HOOKS):
+    if not isinstance(config, dict):
+        return "malformed"
+    if definition.agent == "claude" and config.get("disableAllHooks") is True:
+        return "disabled"
+    if definition.agent == "codex":
+        features = config.get("features", {})
+        if not isinstance(features, dict):
+            return "malformed"
+        if features.get("hooks", features.get("codex_hooks")) is False:
+            return "disabled"
+    configured = set(_command_hooks(config, definition.agent))
+    if any(arguments[: len(retired)] == retired for _, arguments in configured for retired in _RETIRED_HOOKS):
         return "retired-capture-hook"
+    stop_event = "agentStop" if definition.agent == "copilot" else "Stop"
     missing = [
         event
         for event in definition.notify_events
-        if ("agent", "hook", "notify", definition.agent, event) not in configured
+        if (
+            "Notification" if event == "needs-input" else stop_event,
+            ("agent", "hook", "notify", definition.agent, event),
+        )
+        not in configured
     ]
     return f"missing:{','.join(missing)}" if missing else "configured"
 
@@ -142,7 +168,10 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         source, last_sync, failures = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
         synced = last_sync not in {"never", "unreadable"} or source == "missing"
-        if hooks != "configured":
+        if hooks == "disabled":
+            setting = "disableAllHooks" if name == "claude" else "features.hooks / features.codex_hooks"
+            hint = f"review {setting} in the chezmoi source for {definition.config_path}"
+        elif hooks != "configured":
             hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
         elif archive not in {"readable", "empty"}:
             hint = f"inspect the unreadable bundles under ~/.agents/sessions/v3/{name}"

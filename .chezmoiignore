@@ -36,8 +36,8 @@ ruff.toml
 skills
 trivy.yaml
 
-# Version-only tool locks do not deploy generated dependency graphs.
-.config/mise/locks
+# Personal dependency graphs are not part of the shared workstation baseline.
+.config/mise/locks/mise.local
 
 # zsh is the macOS default login shell; Linux logins use .profile and .bashrc.
 {{- if ne .chezmoi.os "darwin" }}
@@ -51,12 +51,6 @@ trivy.yaml
 
 {{- if ne .chezmoi.os "linux" }}
 .local/share/applications/com.mitchellh.ghostty.desktop
-.config/systemd/user/fkf-update.service
-.config/systemd/user/fkf-update.timer
-{{- end }}
-
-{{- if ne .chezmoi.os "darwin" }}
-Library/LaunchAgents/dev.fmind.fkf-update.plist
 {{- end }}
 
 {{- if or (ne .chezmoi.os "linux") (not (stat "/opt/google/cros-containers/bin/notificationd")) (not (stat "/dev/wl0")) }}

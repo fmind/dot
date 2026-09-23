@@ -1,0 +1,17 @@
+# Docs: https://trivy.dev/docs/latest/configuration/filtering/
+
+vulnerabilities:
+  # mise pipx locks resolve universally (requires-python >=3.8); botocore pins urllib3 1.26 only for
+  # Python <3.10, while tools install on the latest workstation Python and resolve urllib3 2.x.
+  - id: CVE-2025-66418
+    paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
+    statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
+  - id: CVE-2025-66471
+    paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
+    statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
+  - id: CVE-2026-21441
+    paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
+    statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
+  - id: CVE-2026-44431
+    paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
+    statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.

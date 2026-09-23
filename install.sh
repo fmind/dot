@@ -39,8 +39,12 @@ trap 'on_error $LINENO' ERR
 # Install mise
 command -v mise >/dev/null || {
   echo "=> Installing mise..."
-  # The installer honors MISE_VERSION and verifies the release checksum.
-  curl -fsSL https://mise.run | MISE_VERSION="v${MINIMUM_MISE_VERSION}" bash
+  # Execute only a complete transfer. The installer honors MISE_VERSION and
+  # verifies the release checksum, but cannot detect its own truncated download.
+  mise_installer="$(mktemp)"
+  trap 'rm -f "${mise_installer}"' EXIT
+  curl -fsSL --proto '=https' --tlsv1.2 -o "${mise_installer}" https://mise.run
+  MISE_VERSION="v${MINIMUM_MISE_VERSION}" bash "${mise_installer}"
 }
 
 mise_version="$(mise --version | awk '{print $1}')"

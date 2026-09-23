@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-09-19"
+  updated: "2026-09-23"
 ---
 
 # xh HTTP Inspection
@@ -29,7 +29,7 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
    ```
 
 1. **Protect credentials**: pass synthetic or environment-sourced authorization only to the intended origin. Use `--print=h` or `--body`; never `--verbose`, `--debug`, `--curl`, sessions, or request-header printing around secrets.
-1. **Interpret honestly**: `--timeout` bounds connection establishment, while the byte cap bounds displayed output. Use a process supervisor for a hard wall-clock deadline; a Range request is not a guaranteed transfer limit. In Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success. Record status, relevant response headers, truncation, and any untested redirect or authentication boundary.
+1. **Interpret honestly**: `--timeout` covers an individual request, including response-body reads in xh 0.26.2, despite its help calling it a connection timeout; the byte cap bounds displayed output. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing; a Range request is not a guaranteed transfer limit. In Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success. Record status, relevant response headers, truncation, and any untested redirect or authentication boundary.
 1. **Require authority for writes**: POST, PUT, PATCH, DELETE, uploads, and state-changing form or JSON bodies need explicit authorization for the exact target and effect.
 
 ## Gotchas
@@ -45,6 +45,6 @@ xh has no upstream skill bundle. Use the installed CLI and verify flags with `xh
 
 ## Documentation
 
-- [xh](https://github.com/ducaale/xh) · [command reference](https://github.com/ducaale/xh#usage)
+- [xh](https://github.com/ducaale/xh) · [command reference](https://github.com/ducaale/xh#usage) · [request timeout implementation](https://github.com/ducaale/xh/blob/v0.26.2/src/main.rs)
 - Releases: [xh](https://github.com/ducaale/xh/releases) · [changelog](https://github.com/ducaale/xh/blob/master/CHANGELOG.md)
 - Companion skills: [research-brief](../implementation-plan/references/research-brief.md), [systematic-debugging](../systematic-debugging/SKILL.md), [gws](../gws/SKILL.md) (authenticated Google Workspace operations).

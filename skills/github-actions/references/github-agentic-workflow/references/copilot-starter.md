@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   issues: read
   pull-requests: read
   copilot-requests: write
@@ -33,7 +34,7 @@ max-ai-credits: 100
 
 tools:
   github:
-    toolsets: [repos, issues, pull_requests]
+    toolsets: [repos, issues, pull_requests, actions]
     allowed-repos: "${{ github.repository }}"
     min-integrity: approved
 

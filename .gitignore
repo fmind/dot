@@ -28,6 +28,6 @@ htmlcov/
 dot_local/bin/*
 !dot_local/bin/symlink_dot.tmpl
 
-# Optional workstation locks and generated tool dependency files stay local.
+# Optional workstation locks stay local; shared dependency graphs are versioned.
 dot_config/mise/mise.local.lock
-dot_config/mise/locks/
+dot_config/mise/locks/mise.local/

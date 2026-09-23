@@ -38,13 +38,13 @@ class State:
         return self._config
 
 
-def state_from(context: typer.Context) -> State:
+def state_from(context: typer.Context, *, require_config: bool = True) -> State:
     state = context.find_root().obj
     if not isinstance(state, State):
         raise DotError("CLI state is unavailable")
     # Leaf commands resolve state after parsing, so help needs no valid config.
-    # Config repair commands deliberately keep their lazy access.
-    if context.find_root().invoked_subcommand != "config":
+    # Config repair commands and configuration-independent notifications keep lazy access.
+    if require_config and context.find_root().invoked_subcommand != "config":
         _ = state.config
     return state
 

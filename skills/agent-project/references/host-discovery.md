@@ -10,7 +10,7 @@ How each host finds the persona, global skills, and workspace skills, and the re
 | Copilot     | `~/.copilot/copilot-instructions.md`               | `~/.copilot/skills` or `~/.agents/skills`              | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`                                                       |
 | Cursor      | Project `AGENTS.md`, `CLAUDE.md`, and Cursor rules | `~/.agents/skills` or `~/.cursor/skills`               | `.agents/skills` or `.cursor/skills`                    | Skills in Customize; no standalone skill-list command in the inspected CLI |
 | Grok        | `~/.grok/AGENTS.md`                                | `~/.grok/skills` (link to `~/.agents/skills`)          | `.agents/skills`                                        | `grok inspect`                                                             |
-| OpenCode    | `~/.agents/AGENTS.md` via managed `instructions`   | `~/.agents/skills`                                     | `.agents/skills` or `.opencode/skills`                  | `opencode debug skill`                                                     |
+| OpenCode    | `~/.config/opencode/AGENTS.md` (managed symlink)   | `~/.agents/skills`                                     | `.agents/skills` or `.opencode/skills`                  | `opencode debug skill`                                                     |
 
 ## Reading the output
 

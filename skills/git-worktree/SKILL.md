@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-worktree
   created: "2026-09-09"
-  updated: "2026-09-16"
+  updated: "2026-09-23"
 ---
 
 # Git Worktree

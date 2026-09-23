@@ -376,11 +376,13 @@ class Runner:
             stderr=subprocess.PIPE,
             start_new_session=os.name == "posix",
         )
-        with self._process_lock:
-            self._processes.add(process)
-            if self._cancelled.is_set():
-                _terminate(process)
         try:
+            with self._process_lock:
+                self._processes.add(process)
+            # Cancellation can land between launch and registration. Use the same
+            # cleanup path as other failures, without trying to read closed pipes.
+            if self._cancelled.is_set():
+                raise DotError("operation cancelled")
             capture = _communicate_bounded(
                 process,
                 input_text.encode(encoding) if input_text is not None else None,

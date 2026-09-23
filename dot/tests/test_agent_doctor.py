@@ -43,19 +43,29 @@ def _configure_hooks(home: Path, binary: str = "dot") -> None:
     def commands(agent: str) -> list[str]:
         return [f"{binary} agent hook notify {agent} {event}" for event in NOTIFY[agent]]
 
-    _write(home / ".gemini/config/hooks.json", json.dumps({"notify": {"Stop": [{"command": commands("agy")[0]}]}}))
     _write(
-        home / ".claude/settings.json",
-        json.dumps({"hooks": {"Stop": [{"hooks": [{"command": command} for command in commands("claude")]}]}}),
+        home / ".gemini/config/hooks.json",
+        json.dumps({"notify": {"Stop": [{"type": "command", "command": commands("agy")[0]}]}}),
     )
-    _write(home / ".codex/config.toml", f'[[hooks.Stop]]\n[[hooks.Stop.hooks]]\ncommand = "{commands("codex")[0]}"\n')
+    for agent, name in (("claude", ".claude/settings.json"), ("grok", ".grok/hooks/hooks.json")):
+        _write(
+            home / name,
+            json.dumps(
+                {
+                    "hooks": {
+                        "Notification": [{"hooks": [{"type": "command", "command": commands(agent)[0]}]}],
+                        "Stop": [{"hooks": [{"type": "command", "command": commands(agent)[1]}]}],
+                    }
+                }
+            ),
+        )
     _write(
-        home / ".grok/hooks/hooks.json",
-        json.dumps({"hooks": {"Stop": [{"hooks": [{"command": command} for command in commands("grok")]}]}}),
+        home / ".codex/config.toml",
+        f'[[hooks.Stop]]\n[[hooks.Stop.hooks]]\ntype = "command"\ncommand = "{commands("codex")[0]}"\n',
     )
     _write(
-        home / ".copilot/hooks/session-log.json",
-        json.dumps({"version": 1, "hooks": {"agentStop": [{"bash": commands("copilot")[0]}]}}),
+        home / ".copilot/hooks/notify.json",
+        json.dumps({"version": 1, "hooks": {"agentStop": [{"type": "command", "bash": commands("copilot")[0]}]}}),
     )
 
 
@@ -119,17 +129,11 @@ def test_doctor_asks_for_sync_when_a_present_source_was_never_synced(
         (None, "absent"),
         ("{", "malformed"),
         (json.dumps({"hooks": {}}), "missing:needs-input,stop"),
-        (json.dumps({"hooks": ["dot agent hook notify claude stop"]}), "missing:needs-input"),
+        (json.dumps({"hooks": ["dot agent hook notify claude stop"]}), "missing:needs-input,stop"),
         (json.dumps({"hooks": ["/usr/bin/graphviz agent hook notify claude stop"]}), "missing:needs-input,stop"),
         (
             json.dumps(
-                {
-                    "hooks": [
-                        "dot agent hook notify claude stop",
-                        "dot agent hook notify claude needs-input",
-                        "dot agent hook session claude",
-                    ]
-                }
+                {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "dot agent hook session claude"}]}]}}
             ),
             "retired-capture-hook",
         ),
@@ -157,6 +161,53 @@ def test_doctor_accepts_an_absolute_dot_path(monkeypatch: pytest.MonkeyPatch, tm
     _configure_hooks(tmp_path, binary=str(tmp_path / ".local/bin/dot"))
 
     assert {result.hooks for result in gather_agent_doctor(state)} == {"configured"}
+
+
+@pytest.mark.parametrize("problem", ["disabled", "wrong-event", "metadata-only", "wrong-type"])
+def test_doctor_rejects_inactive_claude_hooks(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, problem: str) -> None:
+    _state(monkeypatch, tmp_path)
+    path = tmp_path / ".claude/settings.json"
+    config = json.loads(path.read_text())
+    if problem == "disabled":
+        config["disableAllHooks"] = True
+    elif problem == "wrong-event":
+        config["hooks"]["SessionStart"] = config["hooks"].pop("Notification")
+    elif problem == "metadata-only":
+        config["description"] = config.pop("hooks")
+    else:
+        config["hooks"]["Stop"][0]["hooks"][0]["type"] = "prompt"
+    path.write_text(json.dumps(config))
+
+    outcome = CliRunner().invoke(app, ["agent", "doctor", "--agent", "claude", "--json"])
+
+    assert outcome.exit_code == 1
+    document = json.loads(outcome.stdout)
+    assert document["passed"] is False
+    details = document["checks"][0]["details"]
+    assert details["healthy"] is False
+    assert details["hooks"] == (
+        "disabled"
+        if problem == "disabled"
+        else {
+            "wrong-event": "missing:needs-input",
+            "metadata-only": "missing:needs-input,stop",
+            "wrong-type": "missing:stop",
+        }[problem]
+    )
+    if problem == "disabled":
+        assert "disableAllHooks" in details["next"]
+
+
+@pytest.mark.parametrize("feature", ["hooks", "codex_hooks"])
+def test_doctor_reports_disabled_codex_hooks(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, feature: str) -> None:
+    state = _state(monkeypatch, tmp_path)
+    path = tmp_path / ".codex/config.toml"
+    path.write_text(f"[features]\n{feature} = false\n" + path.read_text())
+
+    [result] = gather_agent_doctor(state, agent="codex")
+
+    assert result.hooks == "disabled"
+    assert not result.healthy
 
 
 def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -205,5 +256,5 @@ def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.Monkey
     for removed in ("--fix", "--dry-run", "--deep", "--explain"):
         assert CliRunner().invoke(app, ["agent", "doctor", removed]).exit_code == 2
     unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "opencode"])
-    assert unknown.exit_code == 1
-    assert "unknown agent 'opencode'" in str(unknown.exception)
+    assert unknown.exit_code == 2
+    assert "unknown agent 'opencode'" in unknown.stderr

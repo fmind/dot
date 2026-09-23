@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from dot_tasks import skill_contracts as checker
+from dot_tasks.mise_locks import bundle
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -619,9 +620,11 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     assert active == []
     assert not (ROOT / "archives").exists()
     assert not (ROOT / "skills/hugo").exists()
-    # The workstation-task migration has been applied and its markers retired, so no
-    # removal marker is outstanding; a new one must be deleted once it has shipped.
-    assert {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()} == set()
+    # Removal markers stay only until every workstation has applied them; list each
+    # outstanding one here and delete it (and its entry) once it has shipped.
+    outstanding = {"dot_copilot/hooks/remove_session-log.json"}
+    markers = {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()}
+    assert markers == outstanding
 
 
 def test_deploy_uses_the_locked_python_runtime_graph() -> None:
@@ -673,32 +676,41 @@ def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
     assert findings == [], "\n".join(findings)
 
 
-@pytest.mark.parametrize(("relative", "version"), [("mise.lock", 2), ("dot_config/mise/mise.lock", 1)])
-def test_mise_lockfiles_remain_self_contained(relative: str, version: int) -> None:
-    document = tomllib.loads((ROOT / relative).read_text())
-    assert document["lockfile_version"] == version
-    for entries in document["tools"].values():
+@pytest.mark.parametrize("relative", ["mise.lock", "dot_config/mise/mise.lock"])
+def test_mise_locks_include_valid_dependency_files(relative: str) -> None:
+    lock = ROOT / relative
+    document = tomllib.loads(lock.read_text())
+    assert document["lockfile_version"] == 2
+    files = bundle(lock)
+    for name, entries in document["tools"].items():
         for entry in entries:
             assert entry["version"]
-            assert not {"uv", "aube"}.intersection(entry)
-    assert not (ROOT / "dot_config/mise/locks").exists()
+            if name.startswith(("npm:", "pipx:")):
+                assert {"uv", "aube"}.intersection(entry), name
+    assert all((lock.parent / path).is_file() for path in files)
 
 
 # age's ASCII-armored and binary headers; the repository commits armored files.
 _AGE_HEADERS = (b"-----BEGIN AGE ENCRYPTED FILE-----\n", b"age-encryption.org/v1\n")
 
 
-def test_tracked_age_files_are_encrypted() -> None:
-    # Reads only the header line and never decrypts: a plaintext secret committed under
-    # a .age name would otherwise deploy as though it were protected.
+def test_age_sources_are_encrypted() -> None:
+    # Check the working candidate, including new sources and excluding deleted ones.
+    # Read only the header; never decrypt or print credential contents.
     listed = subprocess.run(
-        ["git", "ls-files", "-z", "--", "*.age"], cwd=ROOT, capture_output=True, check=True, timeout=30
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "*.age"],
+        cwd=ROOT,
+        capture_output=True,
+        check=True,
+        timeout=30,
     ).stdout
     paths = [ROOT / name for name in listed.decode().split("\0") if name]
+    paths = [path for path in paths if path.exists() or path.is_symlink()]
     assert paths, "expected encrypted chezmoi sources"
     plaintext = []
     for path in paths:
+        assert not path.is_symlink(), "encrypted sources must be regular files"
         with path.open("rb") as stream:
             if not stream.read(64).startswith(_AGE_HEADERS):
                 plaintext.append(path.relative_to(ROOT).as_posix())
-    assert plaintext == [], "tracked .age files without an age header"
+    assert plaintext == [], "source .age files without an age header"

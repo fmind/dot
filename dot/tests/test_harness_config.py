@@ -15,6 +15,20 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _native_binary(name: str) -> str | None:
+    executable = shutil.which(name)
+    if executable and Path(executable).resolve().name == "mise":
+        # Resolve a shim before changing HOME so fixtures never install tools or consult native state.
+        executable = subprocess.run(
+            [str(Path(executable).resolve()), "which", name],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        ).stdout.strip()
+    return executable
+
+
 def _strings(value: object) -> list[str]:
     if isinstance(value, dict):
         return [item for child in value.values() for item in _strings(child)]
@@ -40,7 +54,7 @@ class HarnessConfigTests(unittest.TestCase):
         shutil.copytree(ROOT / ".chezmoitemplates", self.source / ".chezmoitemplates")
         self.config = self.home / "chezmoi.toml"
         self.config.write_text("")
-        chezmoi = shutil.which("chezmoi")
+        chezmoi = _native_binary("chezmoi")
         if chezmoi is None:
             raise RuntimeError("chezmoi is required for harness configuration tests")
         self.chezmoi = chezmoi
@@ -101,6 +115,24 @@ class HarnessConfigTests(unittest.TestCase):
                 assert data["mcp_servers"]["custom"]["command"] == "/synthetic/tool"
                 assert self.render(template, rendered) == rendered
 
+    def test_git_identity_preserves_quotes_backslashes_and_comment_characters(self):
+        name = 'Ada "Lovelace" # tools \\ engineering'
+        email = "ada@example.com"
+        self.config.write_text(
+            f'[data]\ngit_name = {json.dumps(name)}\ngit_email = {json.dumps(email)}\ngithub_user = "ada"\n'
+        )
+        rendered = self.home / "gitconfig"
+        rendered.write_text(self.render("dot_gitconfig.tmpl", ""))
+        for key, expected in (("user.name", name), ("user.email", email), ("github.user", "ada")):
+            result = subprocess.run(
+                ["git", "config", "--file", str(rendered), "--get", key],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True,
+            )
+            assert result.stdout.rstrip("\n") == expected
+
     def test_codex_merge_keeps_autonomy_memory_and_native_subagents(self):
         template = "dot_codex/modify_private_config.toml"
         original = """
@@ -132,7 +164,6 @@ description = "Host-owned reviewer"
             "prevent_idle_sleep": True,
         }
         assert data["agents"] == {
-            "job_max_runtime_seconds": 10800,
             "max_concurrent_threads_per_session": 4,
             "default_subagent_reasoning_effort": "xhigh",
             "reviewer": {"description": "Host-owned reviewer"},
@@ -162,6 +193,7 @@ sessions = false
             "feedback": False,
             "lsp_tools": True,
             "telemetry": False,
+            "web_fetch": True,
             "two_pass_compaction": True,
             "codebase_indexing": True,
         }
@@ -193,7 +225,9 @@ sessions = false
         assert {"advisorModel", "teammateDefaultModel", "autoDreamEnabled", "skillListingMaxDescChars"} <= data.keys()
         assert data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] == "1"
         assert data["env"]["CUSTOM_SETTING"] == "preserved"
-        assert data["permissions"]["deny"] == ["Read(./private)"]
+        assert data["permissions"]["deny"][:2] == ["Read(./private)", "Bash(rm -rf /)"]
+        assert "Bash(git push --force *main)" in data["permissions"]["deny"]
+        assert data["env"]["DISABLE_AUTOUPDATER"] == "1"
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
         assert data["model"] == "host-model[1m]"
@@ -203,11 +237,20 @@ sessions = false
         assert data["permissions"]["additionalDirectories"][:4] == ["/synthetic/host-root", *managed_roots]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
-        assert fresh["model"] == "claude-fable-5-1[1m]"
-        assert fresh["effortLevel"] == "high"
+        assert fresh["model"] == "fable"
+        # Opus 5.5 ignores the top-level effortLevel, so effort is seeded per model.
+        assert "effortLevel" not in fresh
+        assert fresh["modelSettings"]["claude-opus-5-5"] == {"effortLevel": "high"}
+        seeded = json.loads(self.render(template, '{"modelSettings": {"claude-opus-5-5": {"effortLevel": "medium"}}}'))
+        assert seeded["modelSettings"] == {
+            "claude-opus-5-5": {"effortLevel": "medium"},
+            "claude-fable-5-1": {"effortLevel": "high"},
+        }
         assert fresh["permissions"]["additionalDirectories"][:3] == managed_roots
         with pytest.raises(RuntimeError, match="additionalDirectories must be an array"):
             self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
+        with pytest.raises(RuntimeError, match="deny must be an array"):
+            self.render(template, '{"permissions": {"deny": "Bash(rm *)"}}')
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"
@@ -227,15 +270,18 @@ sessions = false
         assert "theme" not in data
         assert data["model"] == "openrouter/google/gemini-3.8-flash"
         assert data["small_model"] == data["model"]
-        assert data["default_agent"] == "build"
         assert data["share"] == "disabled"
-        assert data["snapshot"] is True
+        assert data["autoupdate"] is False
         assert data["provider"]["openrouter"]["options"] == {"timeout": 60000}
         assert data["permission"] == "allow"
         assert data["agent"] == original["agent"]
-        assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "auto": True, "prune": True}
+        assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "prune": True}
         assert data["formatter"] is True
-        assert data["lsp"] is True
+        assert data["lsp"] == {
+            "pyright": {"disabled": True},
+            "ty": {"command": ["ty", "server"], "extensions": [".py", ".pyi"]},
+        }
+        assert not {"instructions", "skills", "default_agent", "snapshot"} & data.keys()
         assert data["experimental"] == original["experimental"]
         assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
         assert self.render(template, rendered) == rendered
@@ -264,12 +310,27 @@ sessions = false
                 assert options["apiKey"] == value
             assert self.render(template, rendered) == rendered
 
+    def test_opencode_retires_duplicate_persona_skills_and_boolean_lsp(self):
+        template = "dot_config/opencode/modify_opencode.json"
+        managed_skills = str(self.home / ".agents/skills")
+        legacy = {"instructions": ["~/.agents/AGENTS.md"], "skills": {"paths": [managed_skills]}, "lsp": True}
+        data = json.loads(self.render(template, json.dumps(legacy)))
+        assert not {"instructions", "skills"} & data.keys()
+        assert data["lsp"]["ty"]["command"] == ["ty", "server"]
+        host = {"instructions": ["~/team/RULES.md"], "skills": {"paths": [managed_skills], "urls": ["https://x.test"]}}
+        rendered = self.render(template, json.dumps(host))
+        data = json.loads(rendered)
+        assert data["instructions"] == host["instructions"]
+        assert data["skills"] == {"urls": ["https://x.test"]}
+        assert self.render(template, rendered) == rendered
+
     def test_opencode_tui_merge_preserves_keyboard_preferences(self):
         template = "dot_config/opencode/modify_tui.json"
         original = {"keybinds": {"leader": "ctrl+a"}, "scroll_speed": 2}
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         assert data["theme"] == "fmind"
+        assert data["attention"] == {"enabled": True}
         assert data["keybinds"] == original["keybinds"]
         assert data["scroll_speed"] == 2
         assert self.render(template, rendered) == rendered
@@ -418,6 +479,96 @@ sessions = false
         migrated = json.loads(self.render("dot_config/opencode/modify_opencode.json", legacy))
         assert migrated["hostCounter"] == 9007199254740993
 
+    def test_native_jsonc_merges_preserve_comments_when_converged_and_keep_host_values(self):
+        templates = [
+            "dot_copilot/modify_settings.json",
+            "dot_config/opencode/modify_opencode.json",
+            "dot_config/opencode/modify_tui.json",
+        ]
+        original = '{/* host preference */ "hostCounter":9007199254740993,"hostUrl":"https://example.com/a//b",}'
+        for template in templates:
+            with self.subTest(template=template):
+                rendered = self.render(template, original)
+                data = json.loads(rendered)
+                assert data["hostCounter"] == 9007199254740993
+                assert data["hostUrl"] == "https://example.com/a//b"
+                commented = "// host notes\n" + rendered.rstrip()[:-1].rstrip() + ",\n}\n"
+                assert self.render(template, commented) == commented
+                with pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
+                    self.render(template, '{"incomplete": /* unfinished')
+        # JSONC support belongs to native formats that support it, not every JSON caller.
+        with pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
+            self.render("dot_copilot/modify_lsp-config.json", original)
+
+    def test_opencode_native_parser_accepts_jsonc_before_and_after_managed_merge(self):
+        opencode = _native_binary("opencode")
+        if opencode is None:
+            pytest.skip("OpenCode native validation requires the workstation tool")
+        target = self.home / ".config/opencode/opencode.json"
+        target.parent.mkdir(parents=True)
+        original = """{
+          // Host-owned provider timeout, in OpenCode's supported JSONC format.
+          "model": "openrouter/google/gemini-3.8-flash",
+          "provider": {"openrouter": {"options": {"timeout": 65432}}},
+        }"""
+        environment = {
+            "HOME": str(self.home),
+            "XDG_CONFIG_HOME": str(self.home / ".config"),
+            "XDG_DATA_HOME": str(self.home / ".local/share"),
+            "XDG_CACHE_HOME": str(self.home / ".cache"),
+            "XDG_STATE_HOME": str(self.home / ".local/state"),
+            "PATH": os.defpath,
+            "LANG": "C.UTF-8",
+        }
+        for content in (original, self.render("dot_config/opencode/modify_opencode.json", original)):
+            target.write_text(content)
+            result = subprocess.run(
+                [opencode, "debug", "config", "--pure"],
+                env=environment,
+                cwd=self.home,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=True,
+            )
+            config = json.loads(result.stdout)
+            assert config["provider"]["openrouter"]["options"]["timeout"] == 65432
+            assert config["model"] == "openrouter/google/gemini-3.8-flash"
+
+    def test_trust_hook_passes_source_path_literally_during_apply(self):
+        executable = self.home / ".local/bin/dot"
+        executable.parent.mkdir(parents=True)
+        executable.write_text('#!/bin/sh\nprintf \'%s\\n\' "$@" >>"$CALL_LOG"\n')
+        executable.chmod(0o755)
+        log = self.home / "calls"
+        for name in ("source with spaces", "source 'quoted' $(printf changed)", r"source `printf changed` $UNSET "):
+            with self.subTest(name=name):
+                source = self.home / name
+                source.mkdir()
+                shutil.copyfile(ROOT / "run_after_dot-trust.sh.tmpl", source / "run_after_dot-trust.sh.tmpl")
+                log.write_text("")
+                subprocess.run(
+                    [
+                        self.chezmoi,
+                        "--source",
+                        str(source),
+                        "--destination",
+                        str(self.home),
+                        "--config",
+                        str(self.config),
+                        "--persistent-state",
+                        str(self.home / "state.boltdb"),
+                        "apply",
+                        "--force",
+                    ],
+                    env={"HOME": str(self.home), "PATH": os.defpath, "CALL_LOG": str(log)},
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=True,
+                )
+                assert log.read_text().splitlines() == ["trust", "all", "trust", str(source)]
+
     def test_toml_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
         template = "dot_codex/modify_private_config.toml"
         host = "# host comment\nhost_counter = 9007199254740993\n" + self.render(template, "")
@@ -498,7 +649,7 @@ sessions = false
 
         agy = json.loads(self.render("dot_gemini/private_config/private_hooks.json.tmpl", ""))
         assert set(agy) == {"notify"}
-        copilot = json.loads(self.render("dot_copilot/hooks/session-log.json.tmpl", ""))
+        copilot = json.loads(self.render("dot_copilot/hooks/notify.json.tmpl", ""))
         assert set(copilot["hooks"]) == {"agentStop"}
         assert [hook["bash"] for hook in copilot["hooks"]["agentStop"]] == [f"{dot} agent hook notify copilot stop"]
 
@@ -520,7 +671,7 @@ sessions = false
             "dot_codex/modify_private_config.toml",
             "dot_grok/hooks/hooks.json.tmpl",
             "dot_gemini/private_config/private_hooks.json.tmpl",
-            "dot_copilot/hooks/session-log.json.tmpl",
+            "dot_copilot/hooks/notify.json.tmpl",
         ]:
             with self.subTest(template=template), pytest.raises(RuntimeError, match="not shell-safe"):
                 self.render(template, "")

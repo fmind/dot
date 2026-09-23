@@ -11,7 +11,7 @@ terraform {
   }
 
   # Remote state on GCS — ships commented so a fresh scaffold stays local-green.
-  # Create the bucket once, uncomment, then re-run `mise run install`:
+  # Create the bucket once; back up state before a reviewed tofu init -migrate-state:
   #   gcloud storage buckets create gs://<project>-tofu-state --location=<region> --uniform-bucket-level-access
   #   gcloud storage buckets update gs://<project>-tofu-state --versioning
   # backend "gcs" {
