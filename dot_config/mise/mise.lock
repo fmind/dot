@@ -1274,7 +1274,7 @@ backend = "pipx:fkf"
 specifiers = ["latest"]
 
 [[tools."pipx:fmind"]]
-version = "1.0.0"
+version = "2.0.1"
 backend = "pipx:fmind"
 specifiers = ["latest"]
 
