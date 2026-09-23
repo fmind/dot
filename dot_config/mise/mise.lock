@@ -1269,7 +1269,7 @@ backend = "pipx:copier"
 specifiers = ["latest"]
 
 [[tools."pipx:fkf"]]
-version = "8.0.0"
+version = "8.0.1"
 backend = "pipx:fkf"
 specifiers = ["latest"]
 
