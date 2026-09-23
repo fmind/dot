@@ -51,6 +51,12 @@ trivy.yaml
 
 {{- if ne .chezmoi.os "linux" }}
 .local/share/applications/com.mitchellh.ghostty.desktop
+.config/systemd/user/fkf-update.service
+.config/systemd/user/fkf-update.timer
+{{- end }}
+
+{{- if ne .chezmoi.os "darwin" }}
+Library/LaunchAgents/dev.fmind.fkf-update.plist
 {{- end }}
 
 {{- if or (ne .chezmoi.os "linux") (not (stat "/opt/google/cros-containers/bin/notificationd")) (not (stat "/dev/wl0")) }}

@@ -1,0 +1,7 @@
+# https://fmind.github.io/fkf/docs/base/#personal-and-team-bases
+# Bases that `fkf search` covers from any directory; `collect` lets this machine run their collectors.
+# Bases missing on a machine are skipped. Declare bases here: chezmoi apply replaces `fkf register` edits.
+bases:
+  brain:
+    path: ~/fmind/brain
+    collect: true

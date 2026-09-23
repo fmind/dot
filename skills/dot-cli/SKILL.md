@@ -27,6 +27,7 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 - [authentication](references/authentication.md): Inspect and apply configured provider login, OAuth scopes, and account policy.
 - [context](references/context.md): Measure discovery and instruction budgets in source or installed skill catalogs.
 - [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and session archive compatibility.
+- [disk-space](references/disk-space.md): Audit workstation disk headroom, cache growth and shared tool versions before large downloads or builds.
 - [operations](references/operations.md): Inspect repositories, diagnose workstation health, and manage session archives with dot.
 
 <!-- guides:end -->
