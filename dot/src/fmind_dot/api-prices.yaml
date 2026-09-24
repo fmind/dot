@@ -1,5 +1,5 @@
 # Docs: https://developers.openai.com/api/docs/pricing
-as_of: "2026-09-23"
+as_of: "2026-09-24"
 basis: Standard short-context USD per million tokens; 5-minute cache writes. Excludes long-context, priority/fast,
   regional and tool fees, discounts, taxes and subscriptions. Applies current rates to historical usage; not an
   invoice.
@@ -7,6 +7,8 @@ sources:
   - https://developers.openai.com/api/docs/pricing
   - https://platform.claude.com/docs/en/about-claude/pricing
   - https://platform.claude.com/docs/en/models/haiku-4-5/overview
+  - https://platform.claude.com/docs/en/models/opus-4-5/overview
+  - https://platform.claude.com/docs/en/models/sonnet-4-5/overview
 models:
   gpt-6-astra:
     input: 10
@@ -43,6 +45,11 @@ models:
     output: 30
     cache_read: 0.5
     cache_write: null
+  gpt-5.5-pro:
+    input: 30
+    output: 180
+    cache_read: null
+    cache_write: null
   gpt-5.4:
     input: 2.5
     output: 15
@@ -58,10 +65,25 @@ models:
     output: 1.25
     cache_read: 0.02
     cache_write: null
+  gpt-5.4-pro:
+    input: 30
+    output: 180
+    cache_read: null
+    cache_write: null
+  gpt-5.3-codex:
+    input: 1.75
+    output: 14
+    cache_read: 0.175
+    cache_write: null
   gpt-5.2:
     input: 1.75
     output: 14
     cache_read: 0.175
+    cache_write: null
+  gpt-5.2-pro:
+    input: 21
+    output: 168
+    cache_read: null
     cache_write: null
   gpt-5.1:
     input: 1.25
@@ -72,6 +94,21 @@ models:
     input: 1.25
     output: 10
     cache_read: 0.125
+    cache_write: null
+  gpt-5-mini:
+    input: 0.25
+    output: 2
+    cache_read: 0.025
+    cache_write: null
+  gpt-5-nano:
+    input: 0.05
+    output: 0.4
+    cache_read: 0.005
+    cache_write: null
+  gpt-5-pro:
+    input: 15
+    output: 120
+    cache_read: null
     cache_write: null
   claude-fable-5:
     input: 10
@@ -113,6 +150,11 @@ models:
     output: 25
     cache_read: 0.5
     cache_write: 6.25
+  claude-opus-4-5-20251101:
+    input: 5
+    output: 25
+    cache_read: 0.5
+    cache_write: 6.25
   claude-sonnet-5:
     input: 2
     output: 10
@@ -124,6 +166,11 @@ models:
     cache_read: 0.3
     cache_write: 3.75
   claude-sonnet-4-5:
+    input: 3
+    output: 15
+    cache_read: 0.3
+    cache_write: 3.75
+  claude-sonnet-4-5-20250929:
     input: 3
     output: 15
     cache_read: 0.3
