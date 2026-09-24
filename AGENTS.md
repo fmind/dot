@@ -31,7 +31,8 @@ Key routines:
 - **CLI (`dot`)**: Follow [dot-development](.agents/skills/dot-development/SKILL.md) for implementation, tests, and installation proof; [dot-cli](skills/dot-cli/SKILL.md) owns command operation.
 - **Manage skills**: [dot-skills](.agents/skills/dot-skills/SKILL.md) owns catalog changes and validation; [skillify](skills/skillify/SKILL.md) owns authoring and admission. dot-skills owns the 5,000-token scope budget and its checks; `mise run format:skills` regenerates parent indexes. Never nest `SKILL.md`.
 - **Completions**: Run `mise run check:completions` before release on the configured workstation; it validates active generators and Fish syntax in temporary directories. This host-dependent check is separate from `all`; inactive optional tools are skipped. `mise run completions` installs the scripts using the deployed CLI.
-- **Release**: Follow [dot-release](.agents/skills/dot-release/SKILL.md) for `mise run release`, recovery, and publication verification.
+- **Verify**: [dot-verify](.agents/skills/dot-verify/SKILL.md) qualifies the checkout (review, docs sync, all gates, CLI smoke tests) without committing.
+- **Release**: `/dot-release` runs dot-verify, commits, pushes, then follows [dot-release](.agents/skills/dot-release/SKILL.md) for `mise run release`, recovery, and publication verification.
 
 ## Agents
 

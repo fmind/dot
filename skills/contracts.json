@@ -127,6 +127,13 @@
       "rg",
       "uv"
     ],
+    "dot-verify": [
+      "chezmoi",
+      "dot",
+      "git",
+      "mise",
+      "uv"
+    ],
     "dprint": [
       "dprint"
     ],
