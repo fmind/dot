@@ -1283,10 +1283,10 @@ specifiers = ["latest"]
 uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:ca36a5842ae57eea381cdadf26809bdb3824e2775aac727f7d23ccbc5710a964" }
 
 [[tools."pipx:fkf"]]
-version = "8.2.1"
+version = "8.2.2"
 backend = "pipx:fkf"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fkf/8.2.1", digest = "sha256:d0a04d7b0f9d0d415e13838bc6cf6cbb596ead11b5ebd6f9f07e9f7107a8227c" }
+uv = { path = "locks/pipx-fkf/8.2.2", digest = "sha256:a2b2d2886096712f1f325818adb26d6203bde5a35c5f48cb81553bb4a9865c9b" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.1"
