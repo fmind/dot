@@ -135,6 +135,7 @@ dot --help                # Discover commands
 dot doctor                # Check workstation health
 dot config show           # Inspect effective settings
 dot agent stats           # Review agent usage and prompt statistics
+dot orphan                # List files chezmoi deployed but no longer manages
 ```
 
 Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply them. See the [Dot CLI guide](skills/dot-cli/SKILL.md) for command details.
