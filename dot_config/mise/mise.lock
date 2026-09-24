@@ -727,38 +727,12 @@ backend = "github:a2aproject/a2a-cli"
 specifiers = ["latest"]
 
 [tools."github:a2aproject/a2a-cli".options]
-asset_pattern = "*darwin_arm64*"
-
-[tools."github:a2aproject/a2a-cli"."platforms.macos-arm64"]
-checksum = "sha256:3c6707a95498678ac23f938f5f7495e23de6d381d098577860ffba2da64de357"
-url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666975"
-
-[[tools."github:a2aproject/a2a-cli"]]
-version = "0.2.0"
-backend = "github:a2aproject/a2a-cli"
-specifiers = ["latest"]
-
-[tools."github:a2aproject/a2a-cli".options]
 asset_pattern = "*linux_amd64*"
 
 [tools."github:a2aproject/a2a-cli"."platforms.linux-x64"]
 checksum = "sha256:78ab1a096ad76d631f41018eae7dec00a59fdbf121bb917c7b65623f09f83988"
 url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666973"
-
-[[tools."github:atuinsh/atuin"]]
-version = "18.23.0"
-backend = "github:atuinsh/atuin"
-specifiers = ["latest"]
-
-[tools."github:atuinsh/atuin".options]
-asset_pattern = "*aarch64-apple-darwin*"
-
-[tools."github:atuinsh/atuin"."platforms.macos-arm64"]
-checksum = "sha256:c988be1cde19cd7295ce64bc8b955d42fb1855e5227cb640c87fc09c8408c3fc"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.23.0/atuin-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/580134148"
 
 [[tools."github:atuinsh/atuin"]]
 version = "18.23.0"
@@ -794,19 +768,6 @@ backend = "github:googleworkspace/cli"
 specifiers = ["latest"]
 
 [tools."github:googleworkspace/cli".options]
-asset_pattern = "*aarch64-apple-darwin*"
-
-[tools."github:googleworkspace/cli"."platforms.macos-arm64"]
-checksum = "sha256:1d2a9ffd5bc9b2c2c4b48630daf082fad13d9e57d741988a2c248eed562f7dac"
-url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/googleworkspace/cli/releases/assets/385726972"
-
-[[tools."github:googleworkspace/cli"]]
-version = "0.22.5"
-backend = "github:googleworkspace/cli"
-specifiers = ["latest"]
-
-[tools."github:googleworkspace/cli".options]
 asset_pattern = "*x86_64-unknown-linux-musl*"
 
 [tools."github:googleworkspace/cli"."platforms.linux-x64"]
@@ -820,38 +781,12 @@ backend = "github:sxyazi/yazi"
 specifiers = ["latest"]
 
 [tools."github:sxyazi/yazi".options]
-asset_pattern = "*aarch64-apple-darwin.zip"
-
-[tools."github:sxyazi/yazi"."platforms.macos-arm64"]
-checksum = "sha256:3921182a21cceb0a505e5dac578e1487d48104caa5f114e9f8adf40b5a7289a9"
-url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261410"
-
-[[tools."github:sxyazi/yazi"]]
-version = "26.9.1"
-backend = "github:sxyazi/yazi"
-specifiers = ["latest"]
-
-[tools."github:sxyazi/yazi".options]
 asset_pattern = "*x86_64-unknown-linux-musl.zip"
 
 [tools."github:sxyazi/yazi"."platforms.linux-x64"]
 checksum = "sha256:9b9c39decccf8cb0ff53a7d637d38f8a79d93bbd0099f4ea9c619ef6bb392f5d"
 url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-x86_64-unknown-linux-musl.zip"
 url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261404"
-
-[[tools."github:tailwindlabs/tailwindcss"]]
-version = "4.3.3"
-backend = "github:tailwindlabs/tailwindcss"
-specifiers = ["latest"]
-
-[tools."github:tailwindlabs/tailwindcss".options]
-asset_pattern = "tailwindcss-macos-arm64"
-
-[tools."github:tailwindlabs/tailwindcss"."platforms.macos-arm64"]
-checksum = "sha256:cdf646702987a743464dff4d9c60fd4480d1c1e73dd819a9a67f1078815dce9d"
-url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-macos-arm64"
-url_api = "https://api.github.com/repos/tailwindlabs/tailwindcss/releases/assets/479118290"
 
 [[tools."github:tailwindlabs/tailwindcss"]]
 version = "4.3.3"
@@ -1292,10 +1227,10 @@ specifiers = ["latest"]
 uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:be907ee7cef1cbd703225653c9d762283cfe06588bc655c045269f36baf6f99a" }
 
 [[tools."pipx:brain-framework"]]
-version = "9.1.0"
+version = "9.2.0"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/9.1.0", digest = "sha256:235be34433d0bfadd8aab441bf4af19bc84fb10bfba7ae4d48da985db4620a14" }
+uv = { path = "locks/pipx-brain-framework/9.2.0", digest = "sha256:00c461c5dca14ab1039b476f28204fa04c9035e98105bf6adb89b94ef97e6a53" }
 
 [[tools."pipx:copier"]]
 version = "9.18.2"
