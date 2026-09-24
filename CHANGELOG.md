@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.6.0] - 2026-09-24
+
+### 🚀 Features
+
+- _(workstation)_ Support local configs, dynamic claude env, and bitwarden/vault tools (#93)
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade FKF to 8.2.2
+- _(workstation)_ Merge remote config support with FKF upgrade
+- _(workstation)_ Remove FKF integration
+
 ## [7.5.0] - 2026-09-24
 
 ### 🚀 Features
