@@ -65,4 +65,4 @@ pre-push:
 
 - [Lefthook](https://lefthook.dev) · [Configuration reference](https://github.com/evilmartians/lefthook/tree/master/docs/configuration)
 - Releases: [Lefthook](https://github.com/evilmartians/lefthook/releases) · [changelog](https://github.com/evilmartians/lefthook/blob/master/CHANGELOG.md)
-- Companion skills: [mise](../../mise/SKILL.md) (task owner), [github-actions](ci-cd/GUIDE.md) (CI runs the same tasks), [gitleaks](../../security-review/references/gitleaks.md) (`check:leaks --staged`).
+- Companion skills: [mise](../../mise/SKILL.md) (task owner), [github-actions](ci-cd/GUIDE.md) (CI runs the same tasks), [gitleaks](../../security-review/references/gitleaks.md) (`check:leaks:staged`).
