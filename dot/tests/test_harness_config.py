@@ -252,6 +252,31 @@ sessions = false
         with pytest.raises(RuntimeError, match="deny must be an array"):
             self.render(template, '{"permissions": {"deny": "Bash(rm *)"}}')
 
+    def test_claude_merge_retires_vertex_environment_variables(self):
+        template = "dot_claude/modify_settings.json"
+        original = {
+            "env": {
+                "CLAUDE_CODE_USE_VERTEX": "1",
+                "ANTHROPIC_VERTEX_PROJECT_ID": "synthetic-project",
+                "CLOUD_ML_REGION": "global",
+                "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5[1m]",
+                "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5@20251001",
+                "CUSTOM_SETTING": "preserved",
+            }
+        }
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        assert data["env"]["CUSTOM_SETTING"] == "preserved"
+        for key in (
+            "CLAUDE_CODE_USE_VERTEX",
+            "ANTHROPIC_VERTEX_PROJECT_ID",
+            "CLOUD_ML_REGION",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+        ):
+            assert key not in data["env"]
+        assert self.render(template, rendered) == rendered
+
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"
         original = {
