@@ -61,10 +61,9 @@ ASTRO_TELEMETRY_DISABLED = "1"
 "pipx:copier" = "latest" # Default project template generator and updater
 "pipx:fkf" = "latest" # Fmind Knowledge Framework CLI
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
-# Pinned dep: google-colab-cli requires jupyter-kernel-client unpinned, but 1.0.0 renamed
-# KernelClient -> JupyterKernelClient, which breaks every session (verified 2026-09-02).
-# Keep this requirement when reinstalling or upgrading the CLI.
-"pipx:google-colab-cli" = { version = "latest", with = ["jupyter-kernel-client==0.15.0"] } # CLI client for Google Colab
+# google-colab-cli >=0.7.2 pins jupyter-kernel-client==0.8 itself, so the former `with` pin
+# (against 1.0.0's KernelClient rename) is obsolete and would conflict (verified 2026-09-24).
+"pipx:google-colab-cli" = "latest" # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
 "pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client with bundled libpq; no host package needed
