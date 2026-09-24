@@ -130,3 +130,8 @@
     tag = "#934900"
     stash = "#595d62"
     HEAD = "#681da8"
+
+# Include machine-local configuration and conditional profiles if present.
+[include]
+    path = {{ joinPath .chezmoi.homeDir ".config/git/config.local" | quote }}
+
