@@ -31,3 +31,11 @@ dot_local/bin/*
 # Optional workstation locks stay local; shared dependency graphs are versioned.
 dot_config/mise/mise.local.lock
 dot_config/mise/locks/mise.local/
+
+# Machine-specific CLI configuration stays local.
+dot_config/dot.yaml
+dot_config/dot.*.yaml
+
+# Machine-specific Git configuration stays local.
+dot_config/git/config.local
+dot_config/git/config.*

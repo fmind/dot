@@ -179,7 +179,8 @@ def test_trust_rejects_malformed_host_files_without_writing(tmp_path: Path, cont
 
     with pytest.raises(DotError, match="not valid TOML") as caught:
         trust_folder(Path("/repo"), home=tmp_path)
-    assert "private" not in str(caught.value)
+    message = str(caught.value).replace(str(config), "")
+    assert "private" not in message
     assert config.read_text() == content
 
 

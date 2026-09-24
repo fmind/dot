@@ -218,6 +218,21 @@ checksum = "sha256:0f729b4b6f5f28d395c641eacc2e9ff68d0096b85aa0eec344aa62425144b
 url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323549116"
 
+[[tools.bitwarden]]
+version = "2026.9.0"
+backend = "aqua:bitwarden/clients"
+specifiers = ["latest"]
+
+[tools.bitwarden."platforms.linux-x64"]
+checksum = "sha256:580c1deec8345b19dbac7f8b02babb6cc4fe250c69c567e29061f727f1e40768"
+url = "https://github.com/bitwarden/clients/releases/download/cli-v2026.9.0/bw-linux-2026.9.0.zip"
+url_api = "https://api.github.com/repos/bitwarden/clients/releases/assets/570320307"
+
+[tools.bitwarden."platforms.macos-arm64"]
+checksum = "sha256:014bc4c093e586197013fac79b9d0f1df1da6004003293c8930406bf1ffde45b"
+url = "https://github.com/bitwarden/clients/releases/download/cli-v2026.9.0/bw-macos-arm64-2026.9.0.zip"
+url_api = "https://api.github.com/repos/bitwarden/clients/releases/assets/570320204"
+
 [[tools.bottom]]
 version = "0.14.9"
 backend = "aqua:ClementTsang/bottom"
@@ -712,19 +727,6 @@ backend = "github:a2aproject/a2a-cli"
 specifiers = ["latest"]
 
 [tools."github:a2aproject/a2a-cli".options]
-asset_pattern = "*linux_amd64*"
-
-[tools."github:a2aproject/a2a-cli"."platforms.linux-x64"]
-checksum = "sha256:78ab1a096ad76d631f41018eae7dec00a59fdbf121bb917c7b65623f09f83988"
-url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666973"
-
-[[tools."github:a2aproject/a2a-cli"]]
-version = "0.2.0"
-backend = "github:a2aproject/a2a-cli"
-specifiers = ["latest"]
-
-[tools."github:a2aproject/a2a-cli".options]
 asset_pattern = "*darwin_arm64*"
 
 [tools."github:a2aproject/a2a-cli"."platforms.macos-arm64"]
@@ -732,18 +734,18 @@ checksum = "sha256:3c6707a95498678ac23f938f5f7495e23de6d381d098577860ffba2da64de
 url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666975"
 
-[[tools."github:atuinsh/atuin"]]
-version = "18.23.0"
-backend = "github:atuinsh/atuin"
+[[tools."github:a2aproject/a2a-cli"]]
+version = "0.2.0"
+backend = "github:a2aproject/a2a-cli"
 specifiers = ["latest"]
 
-[tools."github:atuinsh/atuin".options]
-asset_pattern = "*x86_64-unknown-linux-musl*"
+[tools."github:a2aproject/a2a-cli".options]
+asset_pattern = "*linux_amd64*"
 
-[tools."github:atuinsh/atuin"."platforms.linux-x64"]
-checksum = "sha256:d1b40dd6e7cd3d823867ffe22b39a025bc420f7875926ae9ca974155378da14d"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.23.0/atuin-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/580134247"
+[tools."github:a2aproject/a2a-cli"."platforms.linux-x64"]
+checksum = "sha256:78ab1a096ad76d631f41018eae7dec00a59fdbf121bb917c7b65623f09f83988"
+url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.2.0/a2a_0.2.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/552666973"
 
 [[tools."github:atuinsh/atuin"]]
 version = "18.23.0"
@@ -757,6 +759,19 @@ asset_pattern = "*aarch64-apple-darwin*"
 checksum = "sha256:c988be1cde19cd7295ce64bc8b955d42fb1855e5227cb640c87fc09c8408c3fc"
 url = "https://github.com/atuinsh/atuin/releases/download/v18.23.0/atuin-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/580134148"
+
+[[tools."github:atuinsh/atuin"]]
+version = "18.23.0"
+backend = "github:atuinsh/atuin"
+specifiers = ["latest"]
+
+[tools."github:atuinsh/atuin".options]
+asset_pattern = "*x86_64-unknown-linux-musl*"
+
+[tools."github:atuinsh/atuin"."platforms.linux-x64"]
+checksum = "sha256:d1b40dd6e7cd3d823867ffe22b39a025bc420f7875926ae9ca974155378da14d"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.23.0/atuin-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/580134247"
 
 [[tools."github:databricks/cli"]]
 version = "1.17.0"
@@ -779,19 +794,6 @@ backend = "github:googleworkspace/cli"
 specifiers = ["latest"]
 
 [tools."github:googleworkspace/cli".options]
-asset_pattern = "*x86_64-unknown-linux-musl*"
-
-[tools."github:googleworkspace/cli"."platforms.linux-x64"]
-checksum = "sha256:4db473dde4b1ab872e4ff35d769b0d4af1f1a6441a605e79d5cf8ada9c87e920"
-url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/googleworkspace/cli/releases/assets/385726987"
-
-[[tools."github:googleworkspace/cli"]]
-version = "0.22.5"
-backend = "github:googleworkspace/cli"
-specifiers = ["latest"]
-
-[tools."github:googleworkspace/cli".options]
 asset_pattern = "*aarch64-apple-darwin*"
 
 [tools."github:googleworkspace/cli"."platforms.macos-arm64"]
@@ -799,18 +801,18 @@ checksum = "sha256:1d2a9ffd5bc9b2c2c4b48630daf082fad13d9e57d741988a2c248eed562f7
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/googleworkspace/cli/releases/assets/385726972"
 
-[[tools."github:sxyazi/yazi"]]
-version = "26.9.1"
-backend = "github:sxyazi/yazi"
+[[tools."github:googleworkspace/cli"]]
+version = "0.22.5"
+backend = "github:googleworkspace/cli"
 specifiers = ["latest"]
 
-[tools."github:sxyazi/yazi".options]
-asset_pattern = "*x86_64-unknown-linux-musl.zip"
+[tools."github:googleworkspace/cli".options]
+asset_pattern = "*x86_64-unknown-linux-musl*"
 
-[tools."github:sxyazi/yazi"."platforms.linux-x64"]
-checksum = "sha256:9b9c39decccf8cb0ff53a7d637d38f8a79d93bbd0099f4ea9c619ef6bb392f5d"
-url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-x86_64-unknown-linux-musl.zip"
-url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261404"
+[tools."github:googleworkspace/cli"."platforms.linux-x64"]
+checksum = "sha256:4db473dde4b1ab872e4ff35d769b0d4af1f1a6441a605e79d5cf8ada9c87e920"
+url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/googleworkspace/cli/releases/assets/385726987"
 
 [[tools."github:sxyazi/yazi"]]
 version = "26.9.1"
@@ -825,18 +827,18 @@ checksum = "sha256:3921182a21cceb0a505e5dac578e1487d48104caa5f114e9f8adf40b5a728
 url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-aarch64-apple-darwin.zip"
 url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261410"
 
-[[tools."github:tailwindlabs/tailwindcss"]]
-version = "4.3.3"
-backend = "github:tailwindlabs/tailwindcss"
+[[tools."github:sxyazi/yazi"]]
+version = "26.9.1"
+backend = "github:sxyazi/yazi"
 specifiers = ["latest"]
 
-[tools."github:tailwindlabs/tailwindcss".options]
-asset_pattern = "tailwindcss-linux-x64"
+[tools."github:sxyazi/yazi".options]
+asset_pattern = "*x86_64-unknown-linux-musl.zip"
 
-[tools."github:tailwindlabs/tailwindcss"."platforms.linux-x64"]
-checksum = "sha256:dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a"
-url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64"
-url_api = "https://api.github.com/repos/tailwindlabs/tailwindcss/releases/assets/479118279"
+[tools."github:sxyazi/yazi"."platforms.linux-x64"]
+checksum = "sha256:9b9c39decccf8cb0ff53a7d637d38f8a79d93bbd0099f4ea9c619ef6bb392f5d"
+url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-x86_64-unknown-linux-musl.zip"
+url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261404"
 
 [[tools."github:tailwindlabs/tailwindcss"]]
 version = "4.3.3"
@@ -850,6 +852,19 @@ asset_pattern = "tailwindcss-macos-arm64"
 checksum = "sha256:cdf646702987a743464dff4d9c60fd4480d1c1e73dd819a9a67f1078815dce9d"
 url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-macos-arm64"
 url_api = "https://api.github.com/repos/tailwindlabs/tailwindcss/releases/assets/479118290"
+
+[[tools."github:tailwindlabs/tailwindcss"]]
+version = "4.3.3"
+backend = "github:tailwindlabs/tailwindcss"
+specifiers = ["latest"]
+
+[tools."github:tailwindlabs/tailwindcss".options]
+asset_pattern = "tailwindcss-linux-x64"
+
+[tools."github:tailwindlabs/tailwindcss"."platforms.linux-x64"]
+checksum = "sha256:dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a"
+url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64"
+url_api = "https://api.github.com/repos/tailwindlabs/tailwindcss/releases/assets/479118279"
 
 [[tools.gitleaks]]
 version = "8.30.1"
@@ -1708,6 +1723,19 @@ url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/582430671"
 checksum = "sha256:cf40e0c6a202190ccd9e0406dcfdd5b2d6668a9a5c779b17948963df32aafe5b"
 url = "https://github.com/astral-sh/uv/releases/download/0.12.18/uv-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/582430554"
+
+[[tools.vault]]
+version = "2.0.4"
+backend = "aqua:hashicorp/vault"
+specifiers = ["latest"]
+
+[tools.vault."platforms.linux-x64"]
+checksum = "sha256:7429e7d85f8ef29df063701c49420f7984a0ae2c8511c026cc75edfbbb2df387"
+url = "https://releases.hashicorp.com/vault/2.0.4/vault_2.0.4_linux_amd64.zip"
+
+[tools.vault."platforms.macos-arm64"]
+checksum = "sha256:73b36e75eedcf949262707d9169a793a3901a0990306329163f3ac94df31d5fa"
+url = "https://releases.hashicorp.com/vault/2.0.4/vault_2.0.4_darwin_arm64.zip"
 
 [[tools.vhs]]
 version = "0.12.0"
