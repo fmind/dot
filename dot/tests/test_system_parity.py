@@ -1043,26 +1043,26 @@ def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions
 def test_completion_resolves_optional_mise_shims(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, active: bool) -> None:
     mise = tmp_path / "mise"
     mise.touch()
-    shim = tmp_path / "acli"
+    shim = tmp_path / "a2a"
     shim.symlink_to(mise)
 
     def scripts(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
-        if args == ["mise", "which", "acli"]:
+        if args == ["mise", "which", "a2a"]:
             return CommandResult(
-                "/selected/acli" if active else "", "" if active else "not currently active", 0 if active else 1
+                "/selected/a2a" if active else "", "" if active else "not currently active", 0 if active else 1
             )
-        return CommandResult("complete -c acli -l help\n", "", 0)
+        return CommandResult("complete -c a2a -l help\n", "", 0)
 
     runner = ScriptedRunner(run=scripts)
-    monkeypatch.setattr(runner, "which", lambda name: {"acli": shim, "mise": mise}.get(name))
+    monkeypatch.setattr(runner, "which", lambda name: {"a2a": shim, "mise": mise}.get(name))
     if active:
-        assert "complete -c acli" in system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
-        assert runner.calls[-1] == ["acli", "completion", "fish"]
+        assert "complete -c a2a" in system._generate_completion(state_with(runner), "a2a")  # noqa: SLF001
+        assert runner.calls[-1] == ["a2a", "completion", "fish"]
     else:
         with pytest.raises(FileNotFoundError):
-            system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
-        assert runner.calls == [["mise", "which", "acli"]]
+            system._generate_completion(state_with(runner), "a2a")  # noqa: SLF001
+        assert runner.calls == [["mise", "which", "a2a"]]
 
 
 def test_completion_check_leaves_installed_scripts_and_cache_unchanged(

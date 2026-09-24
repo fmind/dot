@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-09-23"
+  updated: "2026-09-24"
 ---
 
 # Google Colab CLI
@@ -38,7 +38,7 @@ Follow this workflow only when remote execution is in scope; establish the autho
 ## Gotchas
 
 - **30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
-- **Pinned dependency**: mise uses `with = ["jupyter-kernel-client==0.15.0"]` to retain the compatible client on every reinstall, because the format-1 mise lockfile pins only the tool version, not its dependencies; 1.0.0 renamed the client class and breaks every session.
+- **Kernel client**: google-colab-cli 0.7.2+ pins `jupyter-kernel-client==0.8`; jupyter-kernel-client 1.0.0 renamed `KernelClient` and breaks sessions, so never add a `with` override that upgrades it.
 - **Tiers**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
 - **Disposable VM**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
 
