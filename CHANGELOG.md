@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.4.0] - 2026-09-24
+
+### 🚀 Features
+
+- _(dot)_ Add dot orphan and report retained sessions in agent doctor
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade FKF to 8.2.1
+- _(deps)_ Upgrade workstation tools, drop the Colab kernel pin, and keep acli completions
+- _(pricing)_ Refresh API prices and add missing GPT-5 and dated Claude models
+
 ## [7.3.0] - 2026-09-23
 
 ### 🚀 Features
