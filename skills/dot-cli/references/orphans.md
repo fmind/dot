@@ -12,7 +12,7 @@ Deleting or renaming a chezmoi source never removes what an earlier apply deploy
 1. **List**: run `dot orphan` (or `dot orphan --json` for `path`, `type`, `status`) after removing or renaming sources, after a release that retired files, or when a machine behaves as if an old config is still active. It needs `chezmoi` and reads `chezmoi state dump` plus `chezmoi managed`; it prints paths only, never contents.
 1. **Read the status**:
    - `unchanged`: the file or symlink still holds chezmoi's last write, so nothing else has claimed it. Usually a safe leftover.
-   - `modified`: changed since chezmoi wrote it. Another owner may now manage the path (a tool's own state file, an FKF base's timer, a `dot trust` target); inspect before touching it.
+   - `modified`: changed since chezmoi wrote it. Another owner may now manage the path (a tool's own state file, a brain's timer, a `dot trust` target); inspect before touching it.
    - `replaced`: now a different type (for example, a file became a directory).
    - `empty` / `not-empty`: a formerly managed directory; a non-empty one may hold live data.
    - `unreadable`: permission denied; report it rather than escalating.
@@ -25,4 +25,4 @@ Deleting or renaming a chezmoi source never removes what an earlier apply deploy
 
 ## Boundaries
 
-Treat `dot orphan` as evidence, not authorization: never bulk-delete its output, and never delete credentials, FKF data, or a `modified` path without confirming its current owner. `chezmoi state delete` changes only chezmoi's bookkeeping; the file stays in place.
+Treat `dot orphan` as evidence, not authorization: never bulk-delete its output, and never delete credentials, brain data, or a `modified` path without confirming its current owner. `chezmoi state delete` changes only chezmoi's bookkeeping; the file stays in place.

@@ -15,7 +15,7 @@ set -gx PAGER "bat --plain"
 # Tools
 set -gx CARAPACE_BRIDGES 'zsh,fish,bash'
 # Native completion owns these names; Carapace's dot command means Graphviz.
-set -gx CARAPACE_EXCLUDES 'agy,dot,fkf'
+set -gx CARAPACE_EXCLUDES 'agy,dot'
 set -gx COPILOT_ALLOW_ALL true
 set -gx COREPACK_ENABLE_AUTO_PIN 0
 # Match the skin installed by chezmoi externals.

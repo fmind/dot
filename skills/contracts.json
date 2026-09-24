@@ -141,9 +141,6 @@
       "duckdb",
       "sqlite3"
     ],
-    "fkf-use": [
-      "fkf"
-    ],
     "fmind-visuals": [
       "ffmpeg",
       "ttyd",

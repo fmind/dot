@@ -2229,21 +2229,6 @@
       "top_k": 3
     },
     {
-      "id": "fkf-evidence-retrieval",
-      "categories": [
-        "knowledge"
-      ],
-      "prompt": "Find the accepted decision in my local FKF base and cite the exact evidence, without refreshing providers.",
-      "expected": [
-        "fkf-use"
-      ],
-      "primary": "fkf-use",
-      "top_k": 3,
-      "forbidden": [
-        "gws"
-      ]
-    },
-    {
       "id": "standalone-tailwind-assets",
       "categories": [
         "web"
@@ -2287,7 +2272,7 @@
       "categories": [
         "security"
       ],
-      "prompt": "Review this product’s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
+      "prompt": "Review this product\u2019s service terms, license, and data processing conditions for commercial API use with EU customer data; identify permitted use, obligations, and unresolved compliance gaps.",
       "expected": [
         "terms-review"
       ],
