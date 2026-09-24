@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.5.0] - 2026-09-24
+
+### 🚀 Features
+
+- _(skills)_ Add dot-verify and run it before every dot-release
+
 ## [7.4.0] - 2026-09-24
 
 ### 🚀 Features
