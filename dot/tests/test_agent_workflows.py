@@ -16,7 +16,13 @@ from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
 from fmind_dot.archive import sync as archive_sync_module
 from fmind_dot.archive.parsers import AgentAdapter, ParsedSession
-from fmind_dot.archive.store import SessionLog, read_session_bundle, read_session_manifest, session_bundle_path
+from fmind_dot.archive.store import (
+    SessionLog,
+    read_session_bundle,
+    read_session_manifest,
+    session_bundle_path,
+    session_store_root,
+)
 from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import UsageRecord, load_usage_records
 from fmind_dot.cli import app
@@ -154,6 +160,8 @@ def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
     assert (manifest.record_count, manifest.completeness, len(records)) == (2, "complete", 2)
     assert (first.ingested, first.retained) == (1, 1)
     assert (second.ingested, second.unchanged, second.retained) == (0, 1, 1)
+    # The complete pass records the retained count that `dot agent doctor` reports.
+    assert json.loads((session_store_root() / "claude/.sync.json").read_text())["retained"] == 1
     assert load_usage_records()[0].total_tokens == 42
     assert "claude: 0 ingested, 1 unchanged, 1 retained" in _stderr(state)
     assert "agent-session-sync: done (0 failed)" in _stderr(state)

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-09-23"
+  updated: "2026-09-24"
 ---
 
 # Dot CLI
@@ -29,6 +29,7 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 - [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and session archive compatibility.
 - [disk-space](references/disk-space.md): Audit workstation disk headroom, cache growth and shared tool versions before large downloads or builds.
 - [operations](references/operations.md): Inspect repositories, diagnose workstation health, and manage session archives with dot.
+- [orphans](references/orphans.md): Find files chezmoi deployed but no longer manages, then decide per path whether to keep, remove, or forget them.
 
 <!-- guides:end -->
 

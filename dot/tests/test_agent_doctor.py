@@ -258,3 +258,41 @@ def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.Monkey
     unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "opencode"])
     assert unknown.exit_code == 2
     assert "unknown agent 'opencode'" in unknown.stderr
+
+
+def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state = _state(monkeypatch, tmp_path)
+    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state.parent.mkdir(parents=True, exist_ok=True)
+    sync_state.write_text(
+        json.dumps(
+            {
+                "schema": "dot.agent.session.sync-state/v1",
+                "synced_at": "2026-09-01T10:00:00Z",
+                "failed": 0,
+                "retained": 3,
+            }
+        )
+    )
+
+    results = run_agent_doctor(state, agent="grok")
+
+    assert (results[0].sync_retained, results[0].sync_failures) == (3, 0)
+    assert "note: 3 session(s) kept their archived copy; dot agent session sync --agent grok lists them" in _text(
+        state.stdout
+    )
+
+
+@pytest.mark.parametrize("retained", [-1, True, "3"], ids=["negative", "boolean", "string"])
+def test_doctor_rejects_an_invalid_retained_count(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, retained: object
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state.parent.mkdir(parents=True, exist_ok=True)
+    document = {"schema": "dot.agent.session.sync-state/v1", "synced_at": "2026-09-01T10:00:00Z", "failed": 0}
+    sync_state.write_text(json.dumps({**document, "retained": retained}))
+
+    (result,) = gather_agent_doctor(state, agent="grok")
+
+    assert (result.last_sync, result.sync_retained) == ("unreadable", 0)

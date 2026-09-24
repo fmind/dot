@@ -44,6 +44,7 @@ class AgentDoctorResult:
     source: str
     last_sync: str
     sync_failures: int
+    sync_retained: int
     archive: str
     sessions: int
     healthy: bool
@@ -123,21 +124,27 @@ def _check_hooks(definition: DoctorIntegration) -> str:
     return f"missing:{','.join(missing)}" if missing else "configured"
 
 
-def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int]:
-    """Return source presence, last complete sync time, and its failure count."""
+def _count(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, int]:
+    """Return source presence, last complete sync time, and its failure and retained counts."""
     source = "present" if source_root(state, agent).exists() else "missing"
     try:
         document = json.loads((root / agent / SYNC_STATE_NAME).read_bytes())
     except FileNotFoundError:
-        return source, "never", 0
+        return source, "never", 0, 0
     except OSError, ValueError:
-        return source, "unreadable", 0
+        return source, "unreadable", 0, 0
     if not isinstance(document, dict) or document.get("schema") != SYNC_STATE_SCHEMA:
-        return source, "unreadable", 0
-    synced_at, failed = document.get("synced_at"), document.get("failed")
-    if not isinstance(synced_at, str) or isinstance(failed, bool) or not isinstance(failed, int):
-        return source, "unreadable", 0
-    return source, synced_at, failed
+        return source, "unreadable", 0, 0
+    synced_at, failed = document.get("synced_at"), _count(document.get("failed"))
+    # States written before the retained count existed report none.
+    retained = _count(document.get("retained", 0))
+    if not isinstance(synced_at, str) or failed is None or retained is None:
+        return source, "unreadable", 0, 0
+    return source, synced_at, failed, retained
 
 
 def _check_archive(root: Path, agent: str) -> tuple[str, int]:
@@ -165,7 +172,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
             continue
         definition = _DOCTOR_INTEGRATIONS[name]
         hooks = _check_hooks(definition)
-        source, last_sync, failures = _check_sync(state, root, name)
+        source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
         synced = last_sync not in {"never", "unreadable"} or source == "missing"
         if hooks == "disabled":
@@ -186,6 +193,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
                 source=source,
                 last_sync=last_sync,
                 sync_failures=failures,
+                sync_retained=retained,
                 archive=archive,
                 sessions=sessions,
                 healthy=not hint,
@@ -211,10 +219,17 @@ def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") ->
             state.stdout.write(
                 f"{mark} {result.agent}: hooks={result.hooks} source={result.source} "
                 f"last_sync={result.last_sync} sync_failures={result.sync_failures} "
-                f"archive={result.archive} sessions={result.sessions}\n"
+                f"sync_retained={result.sync_retained} archive={result.archive} sessions={result.sessions}\n"
             )
             if result.next:
                 state.stdout.write(f"  next: {result.next}\n")
+            if result.sync_retained:
+                # Informational: truncated sources are retained by design; a measurement that
+                # a new parse would lose points at a parser gap. Sync names each session.
+                state.stdout.write(
+                    f"  note: {result.sync_retained} session(s) kept their archived copy; "
+                    f"dot agent session sync --agent {result.agent} lists them\n"
+                )
     if not all(result.healthy for result in results):
         raise DotError("agent doctor found unhealthy integrations")
     return results

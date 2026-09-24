@@ -170,11 +170,13 @@ def _database_checkpoint(root: Path, agent: str) -> str:
     return signature if isinstance(signature, str) else ""
 
 
-def _write_sync_state(root: Path, agent: str, failed: int, database_signature: str = "") -> None:
+def _write_sync_state(root: Path, agent: str, failed: int, database_signature: str = "", *, retained: int = 0) -> None:
     document = {
         "schema": SYNC_STATE_SCHEMA,
         "synced_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "failed": failed,
+        # Sessions that kept their archived copy; a persistent count can signal a parser gap.
+        "retained": retained,
         "parser_version": SESSION_PARSER_VERSION,
         "database_signature": database_signature,
     }
@@ -297,7 +299,9 @@ def sync_sessions(
                         or database_signature != f"{source.resolve()}:{current}"
                     ):
                         database_signature = ""
-                _write_sync_state(root, adapter.name, outcome.failed - failed_before, database_signature)
+                _write_sync_state(
+                    root, adapter.name, outcome.failed - failed_before, database_signature, retained=counts.retained
+                )
             except OSError as error:
                 fail(adapter, "record sync state", error)
     if not quiet:
