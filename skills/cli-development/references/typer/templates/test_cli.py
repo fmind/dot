@@ -75,6 +75,8 @@ def test_completion_in_fresh_process(shell: str) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "<slug>" in result.stdout
+    if shell == "bash" and "Bash versions older than 4.4" in result.stderr:
+        return
     assert result.stderr == ""
 
 
