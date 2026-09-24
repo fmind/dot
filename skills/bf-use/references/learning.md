@@ -10,7 +10,7 @@ description: "Update project notes, concepts and action folders after meaningful
 Knowledge is Markdown in the brain; Git keeps its history. Keep each note short and current so the next session can act on it.
 
 1. Select the intended brain and audience. Find the owning note with `bf search "project or topic" --brain NAME`. Prefer updating it over creating a new one. Read it fully before editing; resolve the brain path before using filesystem tools.
-1. Choose the place: a project's state, decisions and next actions in `projects/<project>.md`; reusable knowledge in `concepts/<concept>.md`; a delegated or multi-session job in `actions/YYYY-MM-DD_slug/ACTION.md` with `inputs/` and `outputs/`; a repeated procedure in the brain's `skills/`.
+1. Choose the place: a project's state, decisions and next actions in `projects/<project>.md`; reusable knowledge in `concepts/<concept>.md`; a delegated or multi-session job in `actions/YYYY-MM-DD_slug/ACTION.md` with `inputs/` and `outputs/`; media shared by several notes in `assets/`; a repeated procedure in the brain's `skills/`.
 1. Edit in place. Replace outdated statements instead of appending history sections; add a dated one-line entry under `## Decisions` for each decision, with its reason and a ref to the evidence (`[meeting](source:id)`). Set `updated: YYYY-MM-DD`.
 1. Only write what you verified or the user stated. Mark proposals as proposals. Never invent provenance, verification or dates.
 1. When records disagree, compare upstream revision time, observation time and declared collection coverage; do not silently turn a partial or historical record into a current fact. Promote only reviewed, shareable summaries into a team brain, with evidence teammates can access.
