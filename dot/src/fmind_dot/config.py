@@ -40,6 +40,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "atuin": ToolConfig(args=["gen-completions", "--shell", "fish"]),
         "aws-sso-util": ToolConfig(binary="env", args=["_AWS_SSO_UTIL_COMPLETE=fish_source", "aws-sso-util"]),
         "bat": ToolConfig(args=["--completion", "fish"]),
+        "bf": ToolConfig(binary="env", args=["_BF_COMPLETE=source_fish", "bf"]),
         "btm": ToolConfig(package="bottom"),
         "carapace": ToolConfig(args=["carapace", "fish"]),
         "chezmoi": ToolConfig(),
@@ -191,6 +192,7 @@ class DoctorConfig(StrictModel):
         default_factory=lambda: [
             "age",
             "agy",
+            "bf",
             "chezmoi",
             "claude",
             "codex",

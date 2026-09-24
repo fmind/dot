@@ -23,6 +23,8 @@ if status is-interactive
     abbr -a h lazygit
     # i:fastfetch
     abbr -a i fastfetch
+    # j:bf
+    abbr -a j bf
     # k:kubectl
     abbr -a k kubectl
     # l:lsd

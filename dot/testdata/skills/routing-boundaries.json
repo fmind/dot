@@ -2229,6 +2229,15 @@
       "top_k": 3
     },
     {
+      "id": "bf-evidence-retrieval",
+      "categories": ["knowledge"],
+      "prompt": "Find the accepted decision in my local brain and cite the exact evidence, without refreshing providers.",
+      "expected": ["bf-use"],
+      "primary": "bf-use",
+      "top_k": 3,
+      "forbidden": ["gws"]
+    },
+    {
       "id": "standalone-tailwind-assets",
       "categories": [
         "web"
