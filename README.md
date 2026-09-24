@@ -142,6 +142,10 @@ dot orphan                # List files chezmoi deployed but no longer manages
 
 Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply them. See the [Dot CLI guide](skills/dot-cli/SKILL.md) for command details.
 
+### Brain Framework
+
+[Brain Framework](https://github.com/fmind/brain-framework) is installed as `brain-framework`, providing the `bf` command. Registration stays machine-local in `~/.config/bf/config.yaml`; use `bf register /path/to/brain --collect` on the machine that owns a brain. Brains own their optional collection schedules. The [bf-use](skills/bf-use/SKILL.md) skill teaches agents to search, read and update registered brains.
+
 ## Repository tasks
 
 Run these from `~/.local/share/chezmoi`. Use `mise tasks` for the full list and aliases; [`mise.toml`](mise.toml) owns the definitions.

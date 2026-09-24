@@ -29,7 +29,7 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
 
 def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
     config = Config()
-    expected = {*config.agent.sources, "opencode"}
+    expected = {*config.agent.sources, "opencode", "bf"}
     assert expected <= set(config.doctor.tools)
 
 

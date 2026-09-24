@@ -148,6 +148,16 @@ def test_dot_completion_uses_typer_fish_source_protocol() -> None:
     assert runner.calls == []
 
 
+def test_bf_completion_uses_typer_fish_source_protocol() -> None:
+    runner = ScriptedRunner(
+        {"env", "bf"},
+        run=lambda _args, _cwd, _input_text, _check: CommandResult("# bf fish completion\n", "", 0),
+    )
+
+    assert system._generate_completion(state_with(runner), "bf") == "# bf fish completion\n"  # noqa: SLF001
+    assert runner.calls == [["env", "_BF_COMPLETE=source_fish", "bf"]]
+
+
 def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
