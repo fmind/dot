@@ -142,10 +142,6 @@ dot orphan                # List files chezmoi deployed but no longer manages
 
 Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply them. See the [Dot CLI guide](skills/dot-cli/SKILL.md) for command details.
 
-### Knowledge base
-
-[FKF](https://github.com/fmind/fkf) is installed with the other tools. Base registration is machine-local in `~/.config/fkf/config.yaml`; use `fkf register /path/to/base --collect` on the machine that owns a base. Dotfiles do not manage this registry or collection schedules. The base owns any optional scheduled job and its installation. The [fkf-use](skills/fkf-use/SKILL.md) skill teaches agents to search, read and update registered bases.
-
 ## Repository tasks
 
 Run these from `~/.local/share/chezmoi`. Use `mise tasks` for the full list and aliases; [`mise.toml`](mise.toml) owns the definitions.

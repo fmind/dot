@@ -148,16 +148,6 @@ def test_dot_completion_uses_typer_fish_source_protocol() -> None:
     assert runner.calls == []
 
 
-def test_fkf_completion_uses_typer_fish_source_protocol() -> None:
-    runner = ScriptedRunner(
-        {"env", "fkf"},
-        run=lambda _args, _cwd, _input_text, _check: CommandResult("# fkf fish completion\n", "", 0),
-    )
-
-    assert system._generate_completion(state_with(runner), "fkf") == "# fkf fish completion\n"  # noqa: SLF001
-    assert runner.calls == [["env", "_FKF_COMPLETE=source_fish", "fkf"]]
-
-
 def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -1022,8 +1012,8 @@ def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions
     monkeypatch.setenv("CARAPACE_EXCLUDES", "custom")
     config = Config()
     config.completions.path = str(tmp_path / "completions")
-    config.completions.tools = ["fkf"]
-    runner = ScriptedRunner({"fish", "fkf", "env", "carapace"})
+    config.completions.tools = ["uv"]
+    runner = ScriptedRunner({"fish", "uv", "carapace"})
     environments: list[Mapping[str, str] | None] = []
     original = runner.run
 
@@ -1034,9 +1024,9 @@ def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions
 
     monkeypatch.setattr(runner, "run", capture)
     system.run_completion(state_with(runner, config))
-    assert (tmp_path / "completions/fkf.fish").is_file()
+    assert (tmp_path / "completions/uv.fish").is_file()
     assert not (tmp_path / "completions/dot.fish").exists()
-    assert environments == [{"CARAPACE_EXCLUDES": "custom,fkf"}]
+    assert environments == [{"CARAPACE_EXCLUDES": "custom,uv"}]
 
 
 @pytest.mark.parametrize("active", [True, False])
