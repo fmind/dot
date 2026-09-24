@@ -873,6 +873,18 @@
       ]
     },
     {
+      "id": "dot-verify-qualify",
+      "categories": [
+        "release"
+      ],
+      "prompt": "Before cutting the next fmind/dot version, check that the mise tasks, dot commands, and Markdown docs are all up to date and the gates pass.",
+      "expected": [
+        "dot-verify"
+      ],
+      "primary": "dot-verify",
+      "top_k": 3
+    },
+    {
       "id": "dprint-config",
       "categories": [
         "formatting"

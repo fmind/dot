@@ -161,7 +161,7 @@ Run these from `~/.local/share/chezmoi`. Use `mise tasks` for the full list and 
 | `mise run all`                                  | Format, check, test, and build                                       |
 | `mise run release -- --wait`                    | Commit, push, publish, and verify a release                          |
 
-`all` rewrites formatting; it does not apply dotfiles. Release prerequisites and recovery live in the [release guide](.agents/skills/dot-release/SKILL.md); contributor rules live in [AGENTS.md](AGENTS.md).
+`all` rewrites formatting; it does not apply dotfiles. Pre-release qualification lives in the [verify guide](.agents/skills/dot-verify/SKILL.md), release prerequisites and recovery in the [release guide](.agents/skills/dot-release/SKILL.md); contributor rules live in [AGENTS.md](AGENTS.md).
 
 ## Agent skills
 

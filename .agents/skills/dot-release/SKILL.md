@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-09-23"
+  updated: "2026-09-24"
 ---
 
 # Dot Release
@@ -16,7 +16,9 @@ Use the checkout's release task as the single owner of preparation and publicati
 
 ## Workflow
 
-1. **Resolve the mode**: preparation, authorized release, or read-only reconciliation. The release command commits, pushes, and refreshes the installed CLI; a review or skill invocation alone does not authorize those actions.
+1. **Resolve the mode**: preparation, authorized release, or read-only reconciliation. The release command commits, pushes, and refreshes the installed CLI. An explicit `/dot-release` invocation or release request authorizes the whole flow below, including verification fixes, commits, and the push to `main`; loading this skill for reference or a review does not.
+1. **Qualify first**: run [dot-verify](../dot-verify/SKILL.md) on the checkout and resolve its findings. Stop and report instead of releasing when a finding needs the user's decision or a gate stays red.
+1. **Commit the candidate**: group verified work into logical [Conventional Commits](../../../skills/git-delivery/references/conventional-commit.md) (the changelog is generated from them), then `git fetch` and push `main` so HEAD equals upstream; pre-push hooks rerun the network checks. If upstream moved, integrate it without rewriting history only when its commits do not overlap the candidate; otherwise stop.
 1. **Inspect preconditions**: a clean tree on the configured default branch, `gh` authenticated, and `git`, `git-cliff`, `mise`, and `uv` available. Defaults are `main` and `origin`; inspect the task's `--remote` and `--branch` arguments before assuming them. Preserve unrelated work when a precondition fails.
 1. **Run the owner**: use the commands below from the repository. The task uses `uv run --frozen --directory dot python -m dot_tasks.release`, avoiding an installed CLI that may lag source. Publication accepts absolute or repository-relative `--notes-file` paths regardless of uv's working directory.
 1. **Read the result**: a new release requires HEAD equal to the fetched upstream branch. Preparation updates `dot/pyproject.toml`, `CHANGELOG.md`, and `dot/uv.lock`, then runs format, check, test, the starter templates (`mise run test:starters`, which resolves unlocked upstream packages and must fail before a tag exists), build, and the host completion check (`mise run check:completions`). Completion generators must succeed for active tools; missing or inactive optional tools are skipped. Only those generated release files may change.
@@ -24,7 +26,7 @@ Use the checkout's release task as the single owner of preparation and publicati
 1. **Verify delivery**: the tag triggers [cd.yml](../../../.github/workflows/cd.yml): a read-only `build` job runs the gate, validates the tag plus distribution filenames and internal package/version metadata, and uploads the distributions; an `attest` job holding only the OIDC and attestation permissions signs them without running repository code; a `publish` job holding only `contents: write` revalidates, then publishes. `mise run release -- --wait` observes the exact head/tag CD and checks public wheel/source assets within `--timeout-seconds` (default 1800); without it, success reports dispatch only. Follow the global release skill's [verification](../../../skills/git-delivery/references/release/references/verify.md) and [asset checks](../../../skills/git-delivery/references/release/references/verify-assets.md) for deeper artifact and installed-version proof. Local command success does not prove CD completion.
 
 ```bash
-mise run release -- --wait     # interactive release with delivery verification
+mise run release -- --wait     # interactive release with delivery verification (after dot-verify)
 mise run release -- -y --wait  # non-interactive, within an authorized release
 ```
 
@@ -43,4 +45,4 @@ Inspect `git status --short`, the release commit, local tag, and remote state be
 
 - [Release workflow test](../../../dot/tests/test_release_workflow.py) checks the CD gate before attestation and publication.
 - Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
-- Companion skills: [dot-development](../dot-development/SKILL.md) (implementation and installation proof), [conventional-commit](../../../skills/git-delivery/references/conventional-commit.md) (commit grammar).
+- Companion skills: [dot-verify](../dot-verify/SKILL.md) (pre-release qualification), [dot-development](../dot-development/SKILL.md) (implementation and installation proof), [conventional-commit](../../../skills/git-delivery/references/conventional-commit.md) (commit grammar).
