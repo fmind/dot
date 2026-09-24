@@ -108,6 +108,8 @@ Fish becomes the interactive shell through the terminal, not `chsh`: Ghostty set
 
 The CLI optionally reads `~/.config/dot.yaml` and merges its values with the [built-in defaults](dot/src/fmind_dot/config.py). Select another file with `DOT_CONFIG_PATH` or `dot --config <path>`; the explicit flag takes precedence. A missing default file uses built-in defaults, while a missing explicitly selected file is an error.
 
+`~/.config/dot.yaml` and `~/.config/dot.*.yaml` stay machine-local: both Git and chezmoi ignore their source equivalents. Alternate profiles are loaded only when explicitly selected.
+
 Use `dot config show` to inspect effective settings, `dot config validate` to check them, and `dot config edit` to edit the file (through its source when chezmoi manages it). Command help and the [Dot CLI guide](skills/dot-cli/SKILL.md) describe available operations.
 
 ### Usage and subscription settings
@@ -245,6 +247,8 @@ Agent harnesses authenticate themselves:
 | **OpenAI Codex CLI**   | `codex login`                                | Interactive           |
 | **OpenCode CLI**       | `opencode` → `/connect`                      | OpenRouter API key    |
 
+Claude's managed settings remove `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, and `ANTHROPIC_DEFAULT_HAIKU_MODEL` from the settings `env` object on each apply. Keep these provider overrides in the environment of the process that launches Claude; unrelated host environment settings are preserved.
+
 No workspace MCP server is preconfigured; add one with [mcp-setup](skills/mcp-setup/SKILL.md) and pass its token to one command with `dot secret run`.
 
 ## Adapting this
@@ -252,6 +256,7 @@ No workspace MCP server is preconfigured; add one with [mcp-setup](skills/mcp-se
 Fork rather than install as-is. Owner-specific values to replace:
 
 1. **Identity prompts**: the defaults in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), and the clone URL in [`install.sh`](install.sh).
+1. **Local Git profiles**: `~/.gitconfig` includes `~/.config/git/config.local` last when present, so its scalar settings override the managed defaults. Put `includeIf` rules there to select repository-specific profiles. That file and sibling `config.*` files stay outside Git and chezmoi management.
 1. **Secrets**: the age `recipient` in `.chezmoi.toml.tmpl` and all encrypted credential sources; replace or remove them and configure your own native logins and scoped keys as described in [Secret Management](#secret-management).
 1. **Persona**: [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) deploys to `~/.agents/AGENTS.md`, names me, and encodes my working rules; every harness loads it.
 1. **Workspace directories**: `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` are Claude `additionalDirectories` in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and the `pull.directories` default of the `dot` CLI, which `dot trust all` uses for every harness (override in `~/.config/dot.yaml`). Mise trust is separate and machine-local: run `mise trust /path/to/mise.toml` for individual configs, or set `[settings].trusted_config_paths` in unmanaged `~/.config/mise/conf.d/trust.toml` to trust selected directory trees. Chezmoi does not overwrite that file.

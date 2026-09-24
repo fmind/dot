@@ -39,6 +39,14 @@ trivy.yaml
 # Personal dependency graphs are not part of the shared workstation baseline.
 .config/mise/locks/mise.local
 
+# Machine-specific CLI configuration stays local.
+.config/dot.yaml
+.config/dot.*.yaml
+
+# Machine-specific Git configuration stays local.
+.config/git/config.local
+.config/git/config.*
+
 # zsh is the macOS default login shell; Linux logins use .profile and .bashrc.
 {{- if ne .chezmoi.os "darwin" }}
 .zprofile

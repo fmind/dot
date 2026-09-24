@@ -13,7 +13,11 @@
        every repository-provided MCP server; enabledMcpjsonServers approves the owner's
        project servers by name instead; `dot trust` pre-accepts folder trust.
        PreCompact, SessionEnd, and SubagentStop stay managed as empty lists for the same
-       reason: they clear retired session-capture hooks; `dot agent session sync` captures now. */ -}}
+       reason: they clear retired session-capture hooks; `dot agent session sync` captures now.
+       Provider-specific environment variables (CLAUDE_CODE_USE_VERTEX,
+       ANTHROPIC_VERTEX_PROJECT_ID, CLOUD_ML_REGION, and model overrides) are
+       retired so Claude routes dynamically via the ambient shell without leaking
+       project IDs or forcing Vertex across systems. */ -}}
 {{- $dot := includeTemplate "dot-bin.tmpl" . -}}
 {{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) -}}
 {{- $managedConfig := fromJson (replace "@dot@" $dot `
@@ -97,4 +101,18 @@
 {{- /* Add the managed rules without replacing rules the host added. A trailing *main also
        matches --force-with-lease and any remote. */ -}}
 {{- $_ = set $managedConfig.permissions "deny" (concat $deny (list "Bash(rm -rf /)" "Bash(rm -rf ~)" "Bash(rm -rf ~/)" "Bash(rm -rf $HOME)" "Bash(git push --force *main)" "Bash(git push -f *main)") | uniq) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}
+{{- /* Retire provider environment variables so Claude Code switches between Vertex AI and subscription via ambient shell env without leaking project IDs into settings. */ -}}
+{{- $input := .chezmoi.stdin -}}
+{{- $env := dig "env" dict $current -}}
+{{- $retireEnv := list "CLAUDE_CODE_USE_VERTEX" "ANTHROPIC_VERTEX_PROJECT_ID" "CLOUD_ML_REGION" "ANTHROPIC_DEFAULT_SONNET_MODEL" "ANTHROPIC_DEFAULT_HAIKU_MODEL" -}}
+{{- $changed := false -}}
+{{- range $key := $retireEnv -}}
+{{-   if hasKey $env $key -}}
+{{-     $_ := unset $env $key -}}
+{{-     $changed = true -}}
+{{-   end -}}
+{{- end -}}
+{{- if $changed -}}
+{{-   $input = $current | toPrettyJson -}}
+{{- end -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" $input "defaults" $defaults "managed" $managedConfig) -}}
