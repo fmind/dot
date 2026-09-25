@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.7.1] - 2026-09-25
+
+### 🐛 Bug Fixes
+
+- Harden lockfile recovery and workstation upgrades
+
+### 📚 Documentation
+
+- _(skills)_ Mirror Brain Framework 11 guidance in bf-use
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade Brain Framework to 11.0.0
+
 ## [7.7.0] - 2026-09-25
 
 ### 🚀 Features
