@@ -144,7 +144,7 @@ Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply 
 
 ### Brain Framework
 
-[Brain Framework](https://github.com/fmind/brain-framework) is installed as `brain-framework`, providing the `bf` command. Registration stays machine-local in `~/.config/bf/config.yaml`; use `bf register /path/to/brain --collect` on the machine that owns a brain. Brains own their optional collection schedules. The [bf-use](skills/bf-use/SKILL.md) skill teaches agents to search, read and update registered brains.
+[Brain Framework](https://github.com/fmind/brain-framework) is installed as `brain-framework`, providing the `bf` command. Registration stays machine-local in `~/.config/bf/config.yaml`; use `bf register /path/to/brain --collect` on the machine that owns a brain. Brains own their optional collection schedules. The [bf-use](skills/bf-use/SKILL.md) skill teaches agents to search, read and update registered brains. The published 11.0.0 release may live in a local runtime at `~/.local/share/brain-framework/11.0.0/`, with its verified wheel, `pyproject.toml`, `uv.lock` and `.venv`; when present, the mise template selects that runtime through `path:`, and otherwise falls back to a local 10.0.0 runtime kept for rollback. Other machines retain the published-package baseline. This is a local-build exception, not a published release; remove the template exception when adopting the published version. Each brain can independently pin its own package and use `uv run --locked bf` for tasks and scheduled collection.
 
 ## Repository tasks
 

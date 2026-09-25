@@ -58,7 +58,15 @@ ASTRO_TELEMETRY_DISABLED = "1"
 "npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
 "npm:skills" = "latest" # Agent Skills CLI manager
 "pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
+{{ if stat (joinPath .chezmoi.homeDir ".local/share/brain-framework/11.0.0/.venv/bin/bf") -}}
+# Published 11.0.0 (format 5) in a local runtime with its own uv.lock and verified wheel.
+"pipx:brain-framework" = "path:{{ .chezmoi.homeDir }}/.local/share/brain-framework/11.0.0/.venv"
+{{ else if stat (joinPath .chezmoi.homeDir ".local/share/brain-framework/10.0.0/.venv/bin/bf") -}}
+# Published format-4 release kept for rollback; this runtime has its own uv.lock and wheel.
+"pipx:brain-framework" = "path:{{ .chezmoi.homeDir }}/.local/share/brain-framework/10.0.0/.venv"
+{{ else -}}
 "pipx:brain-framework" = "latest" # Brain Framework CLI (bf)
+{{ end -}}
 "pipx:copier" = "latest" # Default project template generator and updater
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
 # google-colab-cli >=0.7.2 pins jupyter-kernel-client==0.8 itself, so the former `with` pin
