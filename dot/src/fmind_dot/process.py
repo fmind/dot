@@ -187,7 +187,8 @@ def _set_foreground(terminal: int, group: int) -> None:
     # The wrapper is in the background while its child owns the terminal.
     previous = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTTOU})
     try:
-        os.tcsetpgrp(terminal, group)
+        with suppress(OSError):
+            os.tcsetpgrp(terminal, group)
     finally:
         signal.pthread_sigmask(signal.SIG_SETMASK, previous)
 
@@ -217,14 +218,18 @@ def _foreground_terminal(process: subprocess.Popen[str], stream: IO[str] | None)
 def _relay_terminal_stop(process: subprocess.Popen[str], terminal: int | None) -> None:
     if terminal is None or process.poll() is not None:
         return
-    stopped = os.waitid(os.P_PID, process.pid, os.WSTOPPED | os.WNOHANG)
+    try:
+        stopped = os.waitid(os.P_PID, process.pid, os.WSTOPPED | os.WNOHANG)
+    except ChildProcessError:
+        return
     if stopped is not None:
         _set_foreground(terminal, os.getpgrp())
         # Let the shell suspend/resume dot as a job, then return the terminal to
         # its child. SIGSTOP also works when a host inherited ignored SIGTSTP.
         os.kill(os.getpid(), signal.SIGSTOP)
         _set_foreground(terminal, process.pid)
-        os.killpg(process.pid, signal.SIGCONT)
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGCONT)
 
 
 def _wait_interactive(

@@ -102,7 +102,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "add",
             "litestar>=2.24.0",
             "granian[reload,uvloop]>=2.8.1",
-            "sqlalchemy>=2.0.52",
+            "sqlalchemy[asyncio]>=2.0.52",
             "asyncpg>=0.31.0",
             "pydantic>=2.13.4",
             "pydantic-settings>=2.15.0",
@@ -175,4 +175,6 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             )
             assert result.returncode == 0, result.stderr
             assert "starter-py" in result.stdout
+            if shell == "bash" and "Bash versions older than 4.4" in result.stderr:
+                continue
             assert result.stderr == ""
