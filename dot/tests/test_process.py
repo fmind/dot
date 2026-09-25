@@ -411,7 +411,10 @@ def test_timeout_is_bounded_for_silent_process() -> None:
     assert time.monotonic() - started < 1.5
 
 
-def test_termination_falls_back_when_process_group_is_gone(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("error_cls", [ProcessLookupError, PermissionError])
+def test_termination_falls_back_when_process_group_is_gone(
+    error_cls: type[BaseException], monkeypatch: pytest.MonkeyPatch
+) -> None:
     class StubbornProcess:
         def __init__(self) -> None:
             self.pid = 424_243
@@ -437,7 +440,7 @@ def test_termination_falls_back_when_process_group_is_gone(monkeypatch: pytest.M
     process = StubbornProcess()
 
     def missing_group(_pid: int, _signal: int) -> None:
-        raise ProcessLookupError
+        raise error_cls
 
     monkeypatch.setattr(process_module.os, "killpg", missing_group)
     process_module._terminate(  # noqa: SLF001 - exercise cleanup fallback contract.

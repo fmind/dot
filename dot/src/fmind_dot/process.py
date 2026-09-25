@@ -154,7 +154,7 @@ def _signal_group(process: subprocess.Popen[str] | subprocess.Popen[bytes], sign
     """Signal the child's process group and report whether that group still existed."""
     try:
         os.killpg(process.pid, signum)
-    except ProcessLookupError:
+    except ProcessLookupError, PermissionError:
         return False
     return True
 
@@ -207,7 +207,7 @@ def _foreground_terminal(process: subprocess.Popen[str], stream: IO[str] | None)
         if terminal is not None:
             _set_foreground(terminal, process.pid)
             # A fast child may already have stopped on SIGTTIN before the handoff.
-            with suppress(ProcessLookupError):
+            with suppress(ProcessLookupError, PermissionError):
                 os.killpg(process.pid, signal.SIGCONT)
         yield terminal
     finally:
@@ -228,7 +228,7 @@ def _relay_terminal_stop(process: subprocess.Popen[str], terminal: int | None) -
         # its child. SIGSTOP also works when a host inherited ignored SIGTSTP.
         os.kill(os.getpid(), signal.SIGSTOP)
         _set_foreground(terminal, process.pid)
-        with suppress(ProcessLookupError):
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signal.SIGCONT)
 
 

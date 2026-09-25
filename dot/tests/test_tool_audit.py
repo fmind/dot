@@ -97,3 +97,20 @@ def test_main_fails_when_no_tool_environment_was_audited(
 
     assert audit_tools.main() == 2
     assert "no npm or pipx tool environment was audited" in capsys.readouterr().err
+
+
+def test_installed_tools_filters_unconfigured_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    sample_inventory = {
+        "npm:managed": [
+            {"version": "1.0.0", "source": {"type": "mise.toml", "path": "/path/to/mise.toml"}},
+            {"version": "0.9.0"},
+        ],
+        "pipx:unmanaged": [
+            {"version": "2.0.0"},
+        ],
+    }
+    monkeypatch.setattr(audit_tools, "run", lambda _cmd: (0, json.dumps(sample_inventory), ""))
+    tools = audit_tools.installed_tools()
+    assert "pipx:unmanaged" not in tools
+    assert len(tools["npm:managed"]) == 1
+    assert tools["npm:managed"][0]["version"] == "1.0.0"

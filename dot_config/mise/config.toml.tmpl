@@ -55,7 +55,9 @@ ASTRO_TELEMETRY_DISABLED = "1"
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
 "conda:file" = "latest" # File type detection required by Yazi; includes its magic database
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
-"npm:@mermaid-js/mermaid-cli" = { version = "latest", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
+# Held-back pin: mermaid-cli 12.0.0 depends on chevrotain 11.1.2 which pins vulnerable
+# lodash-es 4.17.23 (CVE-2026-4800); hold at 11.17.0 until upstream updates (verified 2026-09-25).
+"npm:@mermaid-js/mermaid-cli" = { version = "11.17.0", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
 "npm:skills" = "latest" # Agent Skills CLI manager
 "pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
 "pipx:brain-framework" = "latest" # Brain Framework CLI (bf)

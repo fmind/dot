@@ -28,7 +28,7 @@ def installed_tools() -> dict[str, list[dict[str, Any]]]:
         raise RuntimeError(f"mise inventory failed: {stderr.strip()}")
     data = json.loads(stdout)
     return {
-        name: entries
+        name: [entry for entry in entries if isinstance(entry, dict) and entry.get("source")]
         for name, entries in data.items()
         if name.startswith(("npm:", "pipx:"))
         and isinstance(entries, list)
