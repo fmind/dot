@@ -117,13 +117,13 @@ class BootstrapTest(unittest.TestCase):
             result = fixture.run()
 
             assert result.returncode != 0
-            assert "mise 2026.9.10 or newer is required" in result.stderr
+            assert "mise 2026.9.13 or newer is required" in result.stderr
             assert fixture.calls() == [{"tool": "mise", "args": ["--version"]}]
             assert not fixture.source.exists()
 
     def test_first_install_and_rerun_use_the_bounded_task_sequence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), "2026.9.10")
+            fixture = BootstrapFixture(Path(directory), "2026.9.13")
             first = fixture.run()
             second = fixture.run()
 
@@ -365,3 +365,37 @@ def test_full_can_be_rerun_without_rebuilding_unchanged_theme(tmp_path: Path) ->
     assert events.count("dot completion") == 2
     codex = tomllib.loads((home / ".codex/config.toml").read_text())
     assert codex["projects"] == {str(home / "source"): {"trust_level": "trusted"}}
+
+
+def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Path) -> None:
+    mise = shutil.which("mise")
+    assert mise is not None
+    source = tmp_path / "repository"
+    source.mkdir()
+    global_config = tmp_path / "global"
+    global_config.mkdir()
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    (global_config / "config.toml").write_text(f'[tools]\n"pipx:fixture" = "path:{runtime}"\n')
+    task = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]["tools"]["run"][0]
+    # The real first bootstrap step must ignore a home tool that cannot satisfy
+    # --locked. No repository tools are needed for this isolated selection probe.
+    (source / "mise.toml").write_text(
+        "[settings.task]\nrun_auto_install = false\n[tasks.probe]\nrun = " + json.dumps(task) + "\n"
+    )
+    result = subprocess.run(
+        [mise, "-C", str(source), "run", "probe"],
+        env={
+            "HOME": str(tmp_path),
+            "PATH": str(Path(mise).parent) + os.pathsep + os.defpath,
+            "MISE_CONFIG_DIR": str(global_config),
+            "MISE_TRUSTED_CONFIG_PATHS": str(source),
+            "MISE_OFFLINE": "1",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=TIMEOUT_SECONDS,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (tmp_path / ".local/share/mise/installs").exists()

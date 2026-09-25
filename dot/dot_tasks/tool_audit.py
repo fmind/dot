@@ -99,9 +99,11 @@ def parse_trivy_report(tool: str, report: object) -> list[dict[str, Any]]:
 
 def pipx_findings(tool: str, install: pathlib.Path) -> tuple[list[dict[str, Any]], list[str]]:
     # mise's locked uv backend nests its environment beneath .mise-uv/.venv;
-    # legacy pipx installations keep the environment directly under the tool.
+    # Legacy pipx installations keep it under the tool; path: requests can
+    # select the virtualenv itself as the install directory.
     paths = sorted(
         {
+            *install.glob("lib/python*/site-packages"),
             *install.glob("*/lib/python*/site-packages"),
             *install.glob(".mise-uv/.venv/lib/python*/site-packages"),
         }
