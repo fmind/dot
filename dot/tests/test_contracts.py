@@ -676,6 +676,40 @@ def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
     assert findings == [], "\n".join(findings)
 
 
+def test_global_lock_covers_every_configured_native_platform() -> None:
+    rendered = subprocess.check_output(
+        [
+            "chezmoi",
+            "execute-template",
+            "--source",
+            str(ROOT),
+            "--file",
+            str(ROOT / "dot_config/mise/config.toml.tmpl"),
+        ],
+        text=True,
+        timeout=30,
+    )
+    config = tomllib.loads(rendered)
+    document = tomllib.loads((ROOT / "dot_config/mise/mise.lock").read_text(encoding="utf-8"))
+    platforms = config["settings"]["lockfile_platforms"]
+    assert platforms
+    findings: list[str] = []
+    for name, settings in config["tools"].items():
+        if name.startswith(("npm:", "pipx:")):
+            continue  # Native dependency graphs are validated by bundle() below.
+        entries = document["tools"].get(name, [])
+        allowed_os = settings.get("os") if isinstance(settings, dict) else None
+        for platform in platforms:
+            if allowed_os and platform.split("-")[0] not in allowed_os:
+                continue
+            # Platform-specific asset options produce separate lock entries, so
+            # each supported platform needs one complete artifact across them.
+            artifacts = [entry.get(f"platforms.{platform}", {}) for entry in entries]
+            if not any(artifact.get("url") for artifact in artifacts):
+                findings.append(f"{name} {platform}: no url")
+    assert findings == [], "\n".join(findings)
+
+
 @pytest.mark.parametrize("relative", ["mise.lock", "dot_config/mise/mise.lock"])
 def test_mise_locks_include_valid_dependency_files(relative: str) -> None:
     lock = ROOT / relative

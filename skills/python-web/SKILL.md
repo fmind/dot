@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-web
   created: "2026-09-16"
-  updated: "2026-09-23"
+  updated: "2026-09-25"
 ---
 
 # Python Web Applications

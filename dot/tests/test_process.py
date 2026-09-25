@@ -8,12 +8,57 @@ from io import StringIO
 from pathlib import Path
 from threading import Thread
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
 from fmind_dot import process as process_module
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
+
+
+def test_terminal_handoff_restores_signal_mask_after_child_exit(monkeypatch: pytest.MonkeyPatch) -> None:
+    previous = {process_module.signal.SIGUSR1}
+    mask = Mock(return_value=previous)
+    monkeypatch.setattr(process_module.signal, "pthread_sigmask", mask)
+    monkeypatch.setattr(process_module.os, "tcsetpgrp", Mock(side_effect=ProcessLookupError))
+
+    process_module._set_foreground(0, 424_242)  # noqa: SLF001 - reproduce child exit during terminal handoff.
+
+    assert mask.call_args_list == [
+        ((process_module.signal.SIG_BLOCK, {process_module.signal.SIGTTOU}),),
+        ((process_module.signal.SIG_SETMASK, previous),),
+    ]
+
+
+def test_terminal_stop_relay_tolerates_child_reaped_after_poll(monkeypatch: pytest.MonkeyPatch) -> None:
+    child = Mock(pid=424_242)
+    child.poll.return_value = None
+    monkeypatch.setattr(process_module.os, "waitid", Mock(side_effect=ChildProcessError))
+    suspend = Mock()
+    monkeypatch.setattr(process_module.os, "kill", suspend)
+
+    process_module._relay_terminal_stop(child, 0)  # noqa: SLF001 - reproduce exit between poll and waitid.
+
+    suspend.assert_not_called()
+
+
+def test_terminal_stop_relay_tolerates_child_exit_while_wrapper_suspended(monkeypatch: pytest.MonkeyPatch) -> None:
+    child = Mock(pid=424_242)
+    child.poll.return_value = None
+    monkeypatch.setattr(process_module.os, "waitid", Mock(return_value=object()))
+    foreground = Mock()
+    monkeypatch.setattr(process_module, "_set_foreground", foreground)
+    suspend = Mock()
+    monkeypatch.setattr(process_module.os, "kill", suspend)
+    resume = Mock(side_effect=ProcessLookupError)
+    monkeypatch.setattr(process_module.os, "killpg", resume)
+
+    process_module._relay_terminal_stop(child, 0)  # noqa: SLF001 - resume after the stopped child has exited.
+
+    suspend.assert_called_once_with(os.getpid(), process_module.signal.SIGSTOP)
+    resume.assert_called_once_with(child.pid, process_module.signal.SIGCONT)
+    assert foreground.call_count == 2
 
 
 @pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker", "status-worker", "doctor-worker"])
