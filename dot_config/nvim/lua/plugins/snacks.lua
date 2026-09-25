@@ -9,10 +9,16 @@ return {
       image = { enabled = true, force = vim.env.ZELLIJ ~= nil },
       picker = {
         sources = {
+          -- Match file search: include dotfiles while respecting ignore rules.
+          grep = { hidden = true, ignored = false, exclude = { ".git" } },
+          grep_word = { hidden = true, ignored = false, exclude = { ".git" } },
+          -- Git roots from recently opened files work across machine layouts.
+          projects = { recent = true },
           files = {
             hidden = true,
             ignored = false,
             exclude = {
+              ".git",
               "*.png",
               "*.webp",
               "*.jpg",

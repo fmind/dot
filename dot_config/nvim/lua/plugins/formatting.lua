@@ -8,7 +8,7 @@ local dprint_filetypes = {
   yaml = true,
 }
 
-local function dprint_claims(filename)
+local function resolve_dprint_claim(filename)
   local config = vim.fs.find({ "dprint.json", "dprint.jsonc", ".dprint.json", ".dprint.jsonc" }, {
     path = vim.fs.dirname(filename),
     upward = true,
@@ -34,6 +34,23 @@ local function dprint_claims(filename)
   return vim.iter(vim.split(result.stdout, "\n", { trimempty = true })):any(function(path)
     return vim.fs.normalize(path) == target
   end)
+end
+
+-- Conform asks several times in one synchronous formatting cycle. Share that
+-- result only until the next event-loop turn so external config/ignore changes,
+-- new files, and tool recovery are reconsidered without watchers or stale caches.
+local claims = {}
+local function dprint_claims(filename)
+  if claims[filename] == nil then
+    local claimed = resolve_dprint_claim(filename)
+    if next(claims) == nil then
+      vim.schedule(function()
+        claims = {}
+      end)
+    end
+    claims[filename] = claimed
+  end
+  return claims[filename]
 end
 
 return {
