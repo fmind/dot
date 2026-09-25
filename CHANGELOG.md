@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.7.0] - 2026-09-25
+
+### 🚀 Features
+
+- _(workstation)_ Integrate Brain Framework
+- _(nvim)_ Enhance buffer deletion, snacks pickers, and formatting
+
+### 🐛 Bug Fixes
+
+- Harden test runner, macos locks, starters, and tool audit (#94)
+- Qualify macOS runtime and audit configured tool versions
+
+### 📚 Documentation
+
+- _(skills)_ Mirror Brain Framework guidance in bf-use
+- _(skills)_ Mirror the Brain Framework assets folder guidance
+- _(skills)_ Fix lefthook staged leaks task reference
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade Brain Framework to 9.1.0
+- _(deps)_ Upgrade Brain Framework to 9.2.0
+
 ## [7.6.0] - 2026-09-24
 
 ### 🚀 Features
