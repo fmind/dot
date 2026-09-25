@@ -1,4 +1,4 @@
-"""Audit exact npm and pipx environments installed by mise without mutating them."""
+"""Audit configured npm and pipx environments installed by mise without mutating them."""
 
 from __future__ import annotations
 
@@ -27,13 +27,20 @@ def installed_tools() -> dict[str, list[dict[str, Any]]]:
     if code != 0:
         raise RuntimeError(f"mise inventory failed: {stderr.strip()}")
     data = json.loads(stdout)
-    return {
-        name: entries
-        for name, entries in data.items()
-        if name.startswith(("npm:", "pipx:"))
-        and isinstance(entries, list)
-        and any(isinstance(entry, dict) and entry.get("source") for entry in entries)
-    }
+    if not isinstance(data, dict):
+        raise TypeError("mise inventory must be an object")
+    inventory: dict[str, list[dict[str, Any]]] = {}
+    for name, entries in data.items():
+        if not name.startswith(("npm:", "pipx:")):
+            continue
+        if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+            raise TypeError(f"mise inventory for {name} must be an array of version objects")
+        # Source belongs to a selected version, not the whole tool. Old versions
+        # and installation aliases remain in `mise ls --installed` after upgrades.
+        configured = [entry for entry in entries if entry.get("source")]
+        if configured:
+            inventory[name] = configured
+    return inventory
 
 
 def npm_findings(tool: str, install: pathlib.Path) -> tuple[list[dict[str, Any]], list[str]]:

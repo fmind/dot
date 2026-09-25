@@ -7,11 +7,11 @@ My personal dotfiles for **AI-driven, CLI-first** development on Linux and macOS
 > [!IMPORTANT]
 > Personal, opinionated dotfiles. Review before running; provided **as-is** without warranty (see [LICENSE](LICENSE)).
 
-| Platform                           | Tool lockfiles | CI                                |
-| ---------------------------------- | -------------- | --------------------------------- |
-| Linux x86-64 (glibc 2.39 or newer) | Yes            | Repository gate on `ubuntu-24.04` |
-| macOS Apple Silicon                | Yes            | Template rendering only           |
-| Anything else                      | No             | Not tested                        |
+| Platform                           | Tool lockfiles | CI                                           |
+| ---------------------------------- | -------------- | -------------------------------------------- |
+| Linux x86-64 (glibc 2.39 or newer) | Yes            | Repository gate on `ubuntu-24.04`            |
+| macOS Apple Silicon                | Yes            | Template rendering, Python and starter tests |
+| Anything else                      | No             | Not tested                                   |
 
 The CI gate renders the chezmoi templates as a dry run and runs the static checks, tests, and build; it does not execute `install.sh` end to end.
 
@@ -277,7 +277,9 @@ chezmoi purge
 mise implode --config
 ```
 
-Left behind, to delete by hand: the deployed files listed by `chezmoi managed`, the `# chezmoi: mise-*` blocks in `~/.bashrc`, `~/.profile`, and `~/.zprofile`, the `dot` CLI under `~/.local/share/fmind-dot` with its `~/.local/bin/dot` link, the Grok installation (`~/.grok` with its `~/.local/bin/grok` and `~/.local/bin/agent` links) and Antigravity (`~/.local/bin/agy`) installations, installed fonts, `~/.agents`, your age key, and any data the tools wrote. To roll back an update, check out the previous release tag in `~/.local/share/chezmoi` and run `chezmoi apply --force`; files added since then stay in place.
+Left behind, to delete by hand: the deployed files listed by `chezmoi managed`, the `# chezmoi: mise-*` blocks in `~/.bashrc`, `~/.profile`, and `~/.zprofile`, the `dot` CLI under `~/.local/share/fmind-dot` with its `~/.local/bin/dot` link, the Grok installation (`~/.grok` with its `~/.local/bin/grok` and `~/.local/bin/agent` links) and Antigravity (`~/.local/bin/agy`) installations, installed fonts, `~/.agents`, your age key, and any data the tools wrote.
+
+To roll back an update, preserve local edits, check out the previous release tag in `~/.local/share/chezmoi`, and run `mise run full` to synchronize its files, locked tools, and `dot` CLI. `chezmoi apply --force` alone does not reinstall the previous CLI or tool versions. Files added since that release and application data stay in place; rollback does not undo data migrations or pin themes fetched from upstream `main`.
 
 ## Security
 

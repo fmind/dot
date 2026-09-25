@@ -63,6 +63,18 @@ def _needs(job: Job) -> list[str]:
     return job["needs"] if isinstance(job["needs"], list) else [job["needs"]]
 
 
+def test_macos_ci_exercises_runtime_and_starters_with_the_repository_toolchain() -> None:
+    jobs = _jobs(ROOT / ".github/workflows/ci.yml")
+    (macos,) = (job for job in jobs.values() if job["runs-on"].startswith("macos-"))
+    toolchain = _index(macos, lambda step: step.get("uses", "").startswith("jdx/mise-action@"))
+    assert "install_args" not in macos["steps"][toolchain]["with"]
+    render = _index(macos, lambda step: step.get("run") == "mise run check:chezmoi")
+    runtime = _index(macos, lambda step: step.get("run") == "mise run test")
+    starters = _index(macos, lambda step: step.get("run") == "mise run test:starters")
+    clean = _index(macos, lambda step: "git status --porcelain" in step.get("run", ""))
+    assert toolchain < render < runtime < starters < clean
+
+
 def test_release_credentials_never_share_a_job_with_the_build_toolchain() -> None:
     jobs = _jobs(ROOT / ".github/workflows/cd.yml")
     privileged = {name: job for name, job in jobs.items() if _writes(job)}

@@ -8,6 +8,30 @@ import pytest
 from dot_tasks import tool_audit as audit_tools
 
 
+def test_inventory_audits_only_configured_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    active = {"version": "2.0", "install_path": "/tools/current", "source": {"type": "toml"}}
+    inventory = {
+        "pipx:example": [{"version": "1.0"}, active, {"version": "2.0", "source": None}],
+        "npm:retired": [{"version": "1.0"}],
+        "python": [{"version": "3.14", "source": {"type": "toml"}}],
+    }
+    monkeypatch.setattr(audit_tools, "run", lambda _command: (0, json.dumps(inventory), ""))
+
+    assert audit_tools.installed_tools() == {"pipx:example": [active]}
+
+
+@pytest.mark.parametrize("inventory", [None, [], {"pipx:example": {}}, {"npm:example": [None]}])
+def test_malformed_inventory_reports_a_coverage_failure(
+    inventory: object, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(audit_tools, "run", lambda _command: (0, json.dumps(inventory), ""))
+
+    assert audit_tools.main() == 2
+    captured = capsys.readouterr()
+    assert "mise inventory" in captured.err
+    assert not captured.out
+
+
 @pytest.mark.parametrize("layout", ["tool", ".mise-uv/.venv"])
 def test_pip_audit_inspects_installed_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layout: str) -> None:
     packages = tmp_path / layout / "lib/python3.14/site-packages"
