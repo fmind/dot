@@ -5,7 +5,7 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/sha
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
 # The mise release that CI tests: installed when mise is absent, and the minimum
 # accepted from an existing installation. Keep equal to the workflow pins.
-MINIMUM_MISE_VERSION="2026.9.10"
+MINIMUM_MISE_VERSION="2026.9.13"
 
 version_at_least() {
   local actual=$1 minimum=$2 actual_part minimum_part

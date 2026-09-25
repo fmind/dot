@@ -43,7 +43,10 @@ def test_terminal_stop_relay_tolerates_child_reaped_after_poll(monkeypatch: pyte
     suspend.assert_not_called()
 
 
-def test_terminal_stop_relay_tolerates_child_exit_while_wrapper_suspended(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("error_cls", [ProcessLookupError, PermissionError])
+def test_terminal_stop_relay_tolerates_unavailable_group_while_wrapper_suspended(
+    monkeypatch: pytest.MonkeyPatch, error_cls: type[OSError]
+) -> None:
     child = Mock(pid=424_242)
     child.poll.return_value = None
     monkeypatch.setattr(process_module.os, "waitid", Mock(return_value=object()))
@@ -51,7 +54,7 @@ def test_terminal_stop_relay_tolerates_child_exit_while_wrapper_suspended(monkey
     monkeypatch.setattr(process_module, "_set_foreground", foreground)
     suspend = Mock()
     monkeypatch.setattr(process_module.os, "kill", suspend)
-    resume = Mock(side_effect=ProcessLookupError)
+    resume = Mock(side_effect=error_cls)
     monkeypatch.setattr(process_module.os, "killpg", resume)
 
     process_module._relay_terminal_stop(child, 0)  # noqa: SLF001 - resume after the stopped child has exited.
@@ -368,7 +371,12 @@ def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
-def test_cancel_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
+@pytest.mark.parametrize("group_error", [None, ProcessLookupError, PermissionError])
+def test_cancel_lets_child_handle_sigterm_before_kill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, group_error: type[OSError] | None
+) -> None:
+    if group_error is not None:
+        monkeypatch.setattr(process_module.os, "killpg", Mock(side_effect=group_error))
     ready, clean = tmp_path / "ready", tmp_path / "clean"
     runner = Runner()
     results: list[CommandResult] = []
@@ -391,9 +399,12 @@ def test_cancel_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
 @pytest.mark.parametrize("stop", ["timeout", "cancel"])
+@pytest.mark.parametrize("group_error", [None, ProcessLookupError, PermissionError])
 def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
-    stop: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    stop: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, group_error: type[OSError] | None
 ) -> None:
+    if group_error is not None:
+        monkeypatch.setattr(process_module.os, "killpg", Mock(side_effect=group_error))
     monkeypatch.setattr(process_module, "_TERMINATION_GRACE_SECONDS", 0.3)
     ready, clean = tmp_path / "ready", tmp_path / "clean"
     command = [sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "ignore"]
@@ -456,7 +467,10 @@ def test_timeout_is_bounded_for_silent_process() -> None:
     assert time.monotonic() - started < 1.5
 
 
-def test_termination_falls_back_when_process_group_is_gone(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("error_cls", [ProcessLookupError, PermissionError])
+def test_termination_falls_back_when_process_group_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch, error_cls: type[OSError]
+) -> None:
     class StubbornProcess:
         def __init__(self) -> None:
             self.pid = 424_243
@@ -482,7 +496,7 @@ def test_termination_falls_back_when_process_group_is_gone(monkeypatch: pytest.M
     process = StubbornProcess()
 
     def missing_group(_pid: int, _signal: int) -> None:
-        raise ProcessLookupError
+        raise error_cls
 
     monkeypatch.setattr(process_module.os, "killpg", missing_group)
     process_module._terminate(  # noqa: SLF001 - exercise cleanup fallback contract.

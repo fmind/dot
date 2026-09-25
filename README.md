@@ -28,7 +28,7 @@ The CI gate renders the chezmoi templates as a dry run and runs the static check
 
 ## Prerequisites
 
-The installer requires mise 2026.9.10 or newer; it installs exactly that tested version when mise is absent but stops if an existing version is too old.
+The installer requires mise 2026.9.13 or newer; it installs exactly that tested version when mise is absent but stops if an existing version is too old.
 
 ### Host Packages
 
@@ -73,6 +73,8 @@ Open a new shell and run `dot doctor` to check your installation. Use `dot compl
 
 Set `SKIP_GIT_PULL=true` if bootstrapping from an existing local checkout without fetching upstream.
 
+For upgrades, run `mise run upgrade` from this checkout: it resolves the managed configuration, saves the complete lock bundle, then installs it. Use `mise run lock` to refresh lock metadata without upgrading selected versions or installing tools. Keep `mise.lock` and its `locks/` dependency files together; do not hand-edit generated files. If installation fails after resolution, fix the reported download or compatibility error and rerun `mise run full`.
+
 To finish an interrupted setup, rerun the installer. From an initialized checkout, `mise run full` reapplies files and synchronizes the locked tools, current `dot`, trust, theme cache, and completions. It also repairs an older `dot` that lacks `trust`; no manual trust command or second apply is needed.
 
 ### What the installer does
@@ -83,7 +85,7 @@ Read [`install.sh`](install.sh) first. It executes third-party code with your us
 1. `chezmoi init` prompts for your identity (below). The locked repository tools install first, then `chezmoi apply --force --exclude scripts` writes files before the global tools install. Hooks wait until the locked global tools and current `dot` are installed; a complete `chezmoi apply --force` then sets folder trust and builds the bat theme cache.
 1. Apply downloads the [Grok](run_once_after_install-grok.sh.tmpl) and [Antigravity](run_once_after_install-antigravity-cli.sh.tmpl) vendor installers over HTTPS and runs them with `bash` when those CLIs are missing; both CLIs then update themselves.
 1. Apply fetches theme files from [fmind/theme](https://github.com/fmind/theme) `main` without a checksum ([`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl)); font archives are pinned by SHA-256.
-1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off on the workstation; the repository `mise.toml` keeps mise's defaults, so CI verifies the repository toolset. The workstation uses lockfile digests where the backend records them; `minimum_release_age = "0d"` makes new releases eligible immediately when resolving `latest`. Format 2 also locks supported npm and pipx dependency graphs in `dot_config/mise/locks/`; `mise run lock` captures those files with the global lockfile. First fetches are unverified; that file states the trade-off.
+1. mise installs every tool in [`dot_config/mise/config.toml.tmpl`](dot_config/mise/config.toml.tmpl) at the locked version. Signature and provenance verification (cosign, minisign, SLSA, GitHub attestations) is off on the workstation; the repository `mise.toml` keeps mise's defaults, so CI verifies the repository toolset. The workstation uses lockfile digests where the backend records them; `minimum_release_age = "0d"` makes new releases eligible immediately when resolving `latest`. Format 2 also locks supported npm and pipx dependency graphs in `dot_config/mise/locks/`; `mise run lock` refreshes the portable source baseline and publishes those files with the global lockfile only after successful resolution, independently of machine-local runtime overrides. First fetches are unverified; that file states the trade-off.
 
 Setup installs Google Sans for text, Google Sans Code for code, and [Google Sans Code Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GoogleSansCode) for terminals.
 
@@ -144,7 +146,7 @@ Edit managed files in `~/.local/share/chezmoi`, preview the changes, then apply 
 
 ### Brain Framework
 
-[Brain Framework](https://github.com/fmind/brain-framework) is installed as `brain-framework`, providing the `bf` command. Registration stays machine-local in `~/.config/bf/config.yaml`; use `bf register /path/to/brain --collect` on the machine that owns a brain. Brains own their optional collection schedules. The [bf-use](skills/bf-use/SKILL.md) skill teaches agents to search, read and update registered brains. The published 11.0.0 release may live in a local runtime at `~/.local/share/brain-framework/11.0.0/`, with its verified wheel, `pyproject.toml`, `uv.lock` and `.venv`; when present, the mise template selects that runtime through `path:`, and otherwise falls back to a local 10.0.0 runtime kept for rollback. Other machines retain the published-package baseline. This is a local-build exception, not a published release; remove the template exception when adopting the published version. Each brain can independently pin its own package and use `uv run --locked bf` for tasks and scheduled collection.
+[Brain Framework](https://github.com/fmind/brain-framework) is installed as `brain-framework`, providing the `bf` command. Registration stays machine-local in `~/.config/bf/config.yaml`; use `bf register /path/to/brain --collect` on the machine that owns a brain. Brains own their optional collection schedules. The [bf-use](skills/bf-use/SKILL.md) skill teaches agents to search, read and update registered brains. Mise selects the published package from the shared lock. Local runtimes kept for rollback remain on disk but do not override tool installation. Each brain can independently pin its own package and use `uv run --locked bf` for tasks and scheduled collection.
 
 ## Repository tasks
 

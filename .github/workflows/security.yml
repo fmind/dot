@@ -25,7 +25,7 @@ jobs:
         with:
           cache: true
           # Match the tested bootstrap baseline and format-2 lockfile reader.
-          version: 2026.9.10
+          version: 2026.9.13
       - name: Scan complete Git history
         run: gitleaks git --redact=100 --verbose
       - name: Scan full checkout

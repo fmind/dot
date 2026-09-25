@@ -32,7 +32,7 @@ def test_malformed_inventory_reports_a_coverage_failure(
     assert not captured.out
 
 
-@pytest.mark.parametrize("layout", ["tool", ".mise-uv/.venv"])
+@pytest.mark.parametrize("layout", ["tool", ".mise-uv/.venv", "."])
 def test_pip_audit_inspects_installed_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layout: str) -> None:
     packages = tmp_path / layout / "lib/python3.14/site-packages"
     packages.mkdir(parents=True)

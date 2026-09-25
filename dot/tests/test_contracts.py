@@ -695,6 +695,11 @@ def test_global_lock_covers_every_configured_native_platform() -> None:
     assert platforms
     findings: list[str] = []
     for name, settings in config["tools"].items():
+        version = settings.get("version", "") if isinstance(settings, dict) else settings
+        if isinstance(version, str) and version.startswith("path:"):
+            continue  # Machine-local runtime overrides do not belong in the shared lock.
+        if not document["tools"].get(name):
+            findings.append(f"{name}: not locked")
         if name.startswith(("npm:", "pipx:")):
             continue  # Native dependency graphs are validated by bundle() below.
         entries = document["tools"].get(name, [])

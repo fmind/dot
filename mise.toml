@@ -337,9 +337,8 @@ description = "Refresh Python, repo, home, and Neovim lockfiles"
 run = [
   "uv lock",
   "mise lock --yes",
-  "mise lock --global --yes",
-  # Capture only referenced native dependency files, preserving their digest bytes.
-  "uv run --frozen --directory dot python -m dot_tasks.mise_locks",
+  # Resolve the portable source baseline, without machine-local tool overrides.
+  "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
   # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
@@ -358,7 +357,11 @@ run = "uv run --frozen --no-dev --directory dot python -m dot_tasks.publish"
 alias = "mt"
 description = "Install the locked repository and global tools"
 run = [
-  "mise --locked install -y",
+  # Do not let a stale home config block the repository tools needed to repair it.
+  '''
+global_config="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
+MISE_IGNORED_CONFIG_PATHS="$global_config${MISE_GLOBAL_CONFIG_FILE:+:$MISE_GLOBAL_CONFIG_FILE}${MISE_IGNORED_CONFIG_PATHS:+:$MISE_IGNORED_CONFIG_PATHS}" mise --locked install -y
+''',
   # Seed tool configuration without invoking missing or outdated hook executables.
   "chezmoi apply --force --exclude scripts",
   "mise -C \"$HOME\" --locked install -y",
@@ -379,15 +382,14 @@ description = "Upgrade Python dependencies, mise tools, and Neovim plugins"
 run = [
   "uv lock --upgrade",
   # Refresh version pins before installing the selected releases.
-  "mise lock --global --bump --yes",
   "mise lock --bump --yes",
-  "mise --locked install -y",
-  "mise -C \"$HOME\" --locked install -y",
+  "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
+  # Publish the complete bundle before installation; rerun tools after a failed install.
+  "mise run tools",
   "dprint config update --yes",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",
-  "mise run lock",
-  "mise run tools",
+  'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 
 [tasks.verify]
