@@ -168,15 +168,15 @@ url = "https://github.com/astronomer/astro-cli/releases/download/v1.45.0/astro_1
 url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/513469105"
 
 [[tools.awscli]]
-version = "2.37.3"
+version = "2.37.4"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.awscli."platforms.linux-x64"]
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.37.3.zip"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.37.4.zip"
 
 [tools.awscli."platforms.macos-arm64"]
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.37.3.pkg"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.37.4.pkg"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -249,44 +249,19 @@ url = "https://github.com/ClementTsang/bottom/releases/download/0.14.9/bottom_aa
 url_api = "https://api.github.com/repos/ClementTsang/bottom/releases/assets/531978112"
 
 [[tools.carapace]]
-version = "1.7.3"
+version = "1.8.0"
 backend = "aqua:carapace-sh/carapace-bin"
 specifiers = ["latest"]
 
-[tools.carapace."platforms.linux-arm64"]
-checksum = "sha256:b2456cb09d77004db87de2567d6d7588a61ceb4724522c463e2b1c1f87b4d4b9"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542274"
-
-[tools.carapace."platforms.linux-arm64-musl"]
-checksum = "sha256:b2456cb09d77004db87de2567d6d7588a61ceb4724522c463e2b1c1f87b4d4b9"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542274"
-
 [tools.carapace."platforms.linux-x64"]
-checksum = "sha256:35ab52bfe7bdd8296d90c3687660bde80497599badde840ab615d2f421f5f053"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542251"
-
-[tools.carapace."platforms.linux-x64-musl"]
-checksum = "sha256:35ab52bfe7bdd8296d90c3687660bde80497599badde840ab615d2f421f5f053"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542251"
+checksum = "sha256:6883bb61fe88a8f56c7b74bc9ff68445791ee22697f705b59a063443d8ffc8ad"
+url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.8.0/carapace-bin_1.8.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/589311080"
 
 [tools.carapace."platforms.macos-arm64"]
-checksum = "sha256:a7e79d8787ffc63c26568e8d8256d12df91f5cda0d9dc83d50e90b8567028a9d"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542252"
-
-[tools.carapace."platforms.macos-x64"]
-checksum = "sha256:23649b6a52bd68d00e8b88e95afadac09e9450fa49b49a95fcabd81b387de4b6"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542248"
-
-[tools.carapace."platforms.windows-x64"]
-checksum = "sha256:c25e6f88bcb13ab44cb977db07f2b878bf140c397a3fd5582ce5bfb4d2143303"
-url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.7.3/carapace-bin_1.7.3_windows_amd64.zip"
-url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/462542249"
+checksum = "sha256:91b4dbce26c4a53dd9a4e5a78259d0c6cd25744d8efa84a2419724f64f33597a"
+url = "https://github.com/carapace-sh/carapace-bin/releases/download/v1.8.0/carapace-bin_1.8.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/carapace-sh/carapace-bin/releases/assets/589311082"
 
 [[tools.chezmoi]]
 version = "2.72.2"
@@ -304,34 +279,34 @@ url = "https://github.com/twpayne/chezmoi/releases/download/v2.72.2/chezmoi_2.72
 url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/561706522"
 
 [[tools.claude]]
-version = "2.1.282"
+version = "2.1.283"
 backend = "aqua:anthropics/claude-code"
 specifiers = ["latest"]
 
 [tools.claude."platforms.linux-x64"]
-checksum = "sha256:2972e823268974dd084734d5f69fedc227eb4cb3bc9c398ceb7776280e836991"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.282/claude-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/586282940"
+checksum = "sha256:db404a91bec8baffb53463166fdc8bf579208a527d60afc2d984d7507dc0c2f9"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.283/claude-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/588996841"
 
 [tools.claude."platforms.macos-arm64"]
-checksum = "sha256:09e4c31cbd44ddcf95d1157533f3f66fd630da11a8e115f3fc678110cb19ee24"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.282/claude-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/586282789"
+checksum = "sha256:033f733e135ecd00aeec18ea8990a87a0fd8be220b20548353fd025351a0a9b3"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.283/claude-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/588996726"
 
 [[tools.codex]]
-version = "0.157.0"
+version = "0.157.1"
 backend = "aqua:openai/codex"
 specifiers = ["latest"]
 
 [tools.codex."platforms.linux-x64"]
-checksum = "sha256:042f851ea3fc1083c45157520520944fc790632b53ebc580fc98eaca55862a25"
-url = "https://github.com/openai/codex/releases/download/rust-v0.157.0/codex-package-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/openai/codex/releases/assets/587334214"
+checksum = "sha256:0e211868c9fd73cb49ad35ac675b5eafdf6b9f453df8a493df980c59a590fe5f"
+url = "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-package-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/589593045"
 
 [tools.codex."platforms.macos-arm64"]
-checksum = "sha256:97809f91cb355e55480cd7a126f9ad24bb7b162222515e30286bcac6fba94acd"
-url = "https://github.com/openai/codex/releases/download/rust-v0.157.0/codex-package-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/openai/codex/releases/assets/587343110"
+checksum = "sha256:6cda538d19c2f4d9dce965369aa22011afa9dce8c7a73c234b66eb3611ea4aab"
+url = "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-package-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/589607687"
 
 [[tools."conda:file"]]
 version = "5.48"
@@ -1292,7 +1267,7 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/520762
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:2fd9e7eaa8083a16988ab929348cfd45e959d641f300ad31ea366f5882f561ea" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:cb68c006bce2d289ee104ecdef3b4407257f7d1f7df5a7e02672f5d2b2798e4f" }
 
 [[tools."pipx:brain-framework"]]
 version = "12.0.2"
@@ -1301,25 +1276,25 @@ specifiers = [
     "12.0.2",
     "latest",
 ]
-uv = { path = "locks/pipx-brain-framework/12.0.2", digest = "sha256:9e853a25848096d52ecef7576a8300ac62eacacbfe76236be06443b4c114e773" }
+uv = { path = "locks/pipx-brain-framework/12.0.2", digest = "sha256:71af4154b2180c9b425b2f762259843ac311e7fe8639f8e76d34ef1155cc7e23" }
 
 [[tools."pipx:copier"]]
 version = "9.18.2"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:5b544006cfc9165133b7b62491e26a6bb4e039561528fe77ca97cd05bf1a5575" }
+uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:4dfec1c0108ccaf243ed63056492dcc2a20fd933c1593802a50cdaf287f87977" }
 
 [[tools."pipx:fmind"]]
-version = "2.0.1"
+version = "2.0.2"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.1", digest = "sha256:81c09c9b95d0e4e7ca1c226678ddd946a822669801f8aff264c6466e58bcb739" }
+uv = { path = "locks/pipx-fmind/2.0.2", digest = "sha256:870ccc860f66c0a7e7d6fea87dd982984bf9247aedf74db71f38bdc54482f84d" }
 
 [[tools."pipx:google-colab-cli"]]
-version = "0.7.2"
+version = "0.7.4"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.2", digest = "sha256:07946ef8c393ee8ec84fb6a9f13cbabe65d814a0a75ced94c94b60da6a304610" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:f73b19308d710ab73868a06b465625a591155da8f4dfa731db078d4419c14ac2" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.0.0"
@@ -1331,7 +1306,7 @@ uv = { path = "locks/pipx-huggingface-hub/2.0.0", digest = "sha256:108e86ce837a3
 version = "2.2.4"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:37777f37ec3c71a92aa5668998ab4ba2bb23edae1e85808571e836a32e47589d" }
+uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:1d725616287d77320bd20e6fc6ef67865fd084994c87d60d6c0490968020db1a" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
@@ -1346,7 +1321,7 @@ with = '["psycopg[binary]"]'
 version = "2.10.1"
 backend = "pipx:pip-audit"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pip-audit/2.10.1", digest = "sha256:764360b8478c6103d874df2b6b46960c1f972018242b215d69563dd5a4b8aec1" }
+uv = { path = "locks/pipx-pip-audit/2.10.1", digest = "sha256:7ff9b6f3f1066534091c7a97bbaf4dd8f832386ccddd7c5abf1bdd481c221fde" }
 
 [[tools."pipx:ptpython"]]
 version = "3.0.32"

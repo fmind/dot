@@ -24,9 +24,9 @@ from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
-SESSION_PARSER_VERSION = "7"
+SESSION_PARSER_VERSION = "8"
 # Earlier captures remain readable and are flagged as legacy until their sources are recaptured.
-READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", SESSION_PARSER_VERSION)
+READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 LEGACY_STORE_VERSION = "v2"
 _LAST_MIGRATING_RELEASE = "7.0.4"

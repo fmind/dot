@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-scaffolding
   created: "2026-09-02"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # Project Scaffolding

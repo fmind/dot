@@ -3,7 +3,7 @@
 Read for the detailed campaign, protocol, or reporting requirements when the task needs them.
 
 1. **Resolve the target**: Read the request, issue, spec, and change description; record base, head, and whether the candidate is a dirty tree, local commit, or remote pull-request head. Preserve staged, unstaged, and untracked work.
-1. **Inventory the delta**: Inspect changed files, generated artifacts, dependency or schema changes, and the nearby code that holds the invariants; never review the diff in isolation.
+1. **Inventory the delta**: start with `git diff --stat` and `git diff --name-status` for the selected revisions or index, then read complete patches by path with `git diff ... -- <path>`. Use `rg -n` to locate callers and read the relevant source ranges. Track reviewed paths so smaller reads still cover the requested scope; inspect generator inputs and lockfile changes when relevant rather than dumping every generated line or silently excluding them.
 1. **Read tests first**: Determine what behavior the candidate claims, whether the tests can fail for that defect class, and which requirements stay unproved.
 1. **Trace intended versus implemented**: Map permissions, user journeys, data rules, failure semantics, and operational promises to concrete code paths and tests.
 1. **Review by risk**: Weigh correctness, data integrity, authorization, input boundaries, concurrency, resource lifecycle, error propagation, compatibility, migration, performance, observability, and rollback in proportion to the change.

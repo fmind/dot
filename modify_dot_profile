@@ -2,16 +2,22 @@
 {{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
 {{- /* Rewrite an activation block deployed before the Claude Code guard. */ -}}
 {{- $stdin := .chezmoi.stdin | replace "\nif command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" "\nif [ -z \"${CLAUDECODE:-}\" ] && command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" -}}
+{{- /* .profile can also be sourced by POSIX login shells and desktop sessions. */ -}}
+{{- $stdin = $stdin | replace "\nif [ -z \"${CLAUDECODE:-}\" ] && command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" "\nif [ -n \"${BASH_VERSION:-}\" ] && [ -z \"${CLAUDECODE:-}\" ] && command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" -}}
 {{- $sentinel := "# chezmoi: mise-bash-integration" -}}
 {{- $activationBlock := `# chezmoi: mise-bash-integration
 # Bootstrap mise for login shells; activation owns tool-version precedence.
-export PATH="${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
+export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
 # Claude Code snapshots this shell but not the hook state that mise() needs, which
 # makes every mise call exit 127 there; its shells rely on the shims instead.
-if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
+if [ -n "${BASH_VERSION:-}" ] && [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate bash)"
   eval "${mise_activation}"
 fi` -}}
+{{- /* Match the managed prefix: older installations lack the later Claude comments. */ -}}
+{{- $pathBlock := slice (splitList "\n" $activationBlock) 0 3 | join "\n" -}}
+{{- $previousPathBlock := replace "${HOME}/.local/share/mise/shims:" "" $pathBlock -}}
+{{- $stdin = replace $previousPathBlock $pathBlock $stdin -}}
 {{- if contains $sentinel $stdin -}}
 {{-   $stdin -}}
 {{- else -}}

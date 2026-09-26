@@ -121,3 +121,35 @@ def test_main_fails_when_no_tool_environment_was_audited(
 
     assert audit_tools.main() == 2
     assert "no npm or pipx tool environment was audited" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "dependency",
+    [
+        None,
+        {"vulns": []},
+        {"name": "example", "version": None, "vulns": []},
+        {"name": "example", "version": "1.0", "vulns": ""},
+        {"name": "example", "version": "1.0", "vulns": {}},
+        {"name": "example", "version": "1.0", "vulns": [None]},
+        {"name": "example", "version": "1.0", "vulns": [{"fix_versions": []}]},
+        {"name": "example", "version": "1.0", "vulns": [{"id": "PYSEC-test", "fix_versions": "1.1"}]},
+    ],
+)
+def test_invalid_pip_dependencies_never_count_as_audited(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], dependency: object
+) -> None:
+    (tmp_path / "lib/python3.14/site-packages").mkdir(parents=True)
+    monkeypatch.setattr(
+        audit_tools,
+        "installed_tools",
+        lambda: {"pipx:example": [{"version": "1.0", "install_path": str(tmp_path)}]},
+    )
+    monkeypatch.setattr(audit_tools, "run", lambda _command: (0, json.dumps({"dependencies": [dependency]}), ""))
+
+    assert audit_tools.main() == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["audited"] == []
+    assert report["findings"] == []
+    assert len(report["coverage_gaps"]) == 1
+    assert "invalid pip-audit report" in report["coverage_gaps"][0]

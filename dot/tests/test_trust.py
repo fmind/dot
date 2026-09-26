@@ -184,10 +184,12 @@ def test_trust_rejects_malformed_host_files_without_writing(tmp_path: Path, cont
     assert config.read_text() == content
 
 
+@pytest.mark.parametrize("relative", [False, True])
 def test_trust_all_covers_configured_workspaces_and_their_repositories(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: bool
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
     harness_home(tmp_path)
     workspace = tmp_path / "work"
     origins = {
@@ -203,7 +205,9 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
             subprocess.run(["git", "-C", str(workspace / name), "remote", "add", "origin", origin], check=True)
     (workspace / "notes").mkdir()
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace), str(tmp_path / "missing")]))
+    state.__dict__["_config"] = Config(
+        pull=PullConfig(directories=["work" if relative else str(workspace), str(tmp_path / "missing")])
+    )
 
     run_trust(state, "all", dry_run=True)
     assert isinstance(state.stdout, io.StringIO)

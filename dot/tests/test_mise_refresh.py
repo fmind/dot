@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 from pathlib import Path
 
@@ -50,10 +51,16 @@ def test_refresh_uses_portable_source_and_isolated_config(
     live_config = tmp_path / "live/config.toml"
     live_config.parent.mkdir()
     live_config.write_text('"pipx:example"="path:/private/runtime"\n')
+    system_config = tmp_path / "system/config.toml"
+    system_config.parent.mkdir()
+    system_config.write_text('[tools]\n"pipx:machine-only"="1.0"\n')
     monkeypatch.setenv("MISE_GLOBAL_CONFIG_FILE", str(live_config))
     monkeypatch.setenv("MISE_CONFIG_DIR", str(live_config.parent))
+    monkeypatch.setenv("MISE_SYSTEM_CONFIG_FILE", str(system_config))
+    monkeypatch.setenv("MISE_SYSTEM_CONFIG_DIR", str(system_config.parent))
     commands: list[list[str]] = []
     staging: list[Path] = []
+    real_run = subprocess.run
 
     def run(
         args: list[str],
@@ -81,6 +88,17 @@ def test_refresh_uses_portable_source_and_isolated_config(
         assert env["MISE_GLOBAL_CONFIG_FILE"] == str(configuration / "config.toml")
         assert (configuration / "config.toml").read_text() == CONFIG
         assert (configuration / "mise.lock").read_bytes() == (source / "mise.lock").read_bytes()
+        # Resolve real mise configuration without invoking the lock writer or installers.
+        discovered = real_run(
+            ["mise", "config", "ls", "--json"],
+            cwd=cwd,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert [entry["path"] for entry in json.loads(discovered.stdout)] == [str(configuration / "config.toml")]
         write_bundle(configuration, b"refreshed graph\n")
         return subprocess.CompletedProcess(args, 0)
 

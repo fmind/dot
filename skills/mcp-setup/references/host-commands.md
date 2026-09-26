@@ -12,7 +12,9 @@ copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <com
 grok mcp add --scope project -e KEY=value <name> -- uvx --from '<package>==<version>' <command>   # --scope user is the default
 ```
 
-Resolve `<version>` to a reviewed exact release; update it deliberately rather than letting each agent start execute newly published code.
+`KEY=value` represents non-sensitive configuration. Do not place credentials in CLI arguments or committed MCP files; use the host's supported environment references, OAuth, or a scoped secret launcher. Codex remote bearer authentication supports `--bearer-token-env-var NAME`.
+
+Resolve `<version>` to a reviewed exact release and update it deliberately. This pins the top-level package only; transitive dependencies can still change when an environment is rebuilt. Use a reviewed locked environment and its executable when reproducible server startup is required.
 
 OpenCode uses `opencode mcp add <name>` for its setup interface; inspect `--help` for non-interactive URL and environment options. For a local server, the project config uses `mcp.<name>` with `type: "local"`, a command array, and an `environment` mapping; for remote servers use `type: "remote"` and a URL. See [OpenCode MCP docs](https://opencode.ai/docs/mcp-servers/) before writing the matching configuration.
 

@@ -1,6 +1,6 @@
 # PyRIT Execution
 
-The verified baseline is [PyRIT 1.1.0](https://github.com/microsoft/PyRIT/tree/d0524f0714840519b826eb770687ca1d4f46a761), whose package supports Python 3.10 through 3.14. Read installed source or the matching release before using APIs from the evolving `latest` documentation. The global mise tool exposes the CLI; importable assessment code belongs in its own `uv` project and lockfile.
+The verified baseline is [PyRIT 1.1.0](https://github.com/microsoft/PyRIT/tree/d0524f0714840519b826eb770687ca1d4f46a761), whose package supports Python 3.10 through 3.14. Read installed source or the matching release before using APIs from the evolving `latest` documentation. Run the CLI and importable assessment code from the same project-local `uv` environment and lockfile; a globally installed CLI does not make the library importable in that project.
 
 ## Prepare a project
 

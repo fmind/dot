@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-09-16"
+  updated: "2026-09-26"
 ---
 
 # Chrome DevTools
@@ -29,7 +29,7 @@ For shell workflows, the same package exposes `chrome-devtools`; resolve it with
 ## Workflow
 
 1. **Identify the target**: list pages and select the intended page ID, URL, viewport, and browser mode. Take a fresh accessibility snapshot before using element UIDs; navigation and rerenders can invalidate them.
-1. **Reproduce the symptom**: capture console errors and relevant failed requests, then reduce to the smallest repeatable action. Redact credentials and private request data from artifacts.
+1. **Reproduce the symptom**: list bounded console errors and failed-request metadata, then inspect only the relevant request IDs and bodies. Reuse a still-current snapshot; refresh it after navigation or a relevant rerender. Save large traces as artifacts instead of returning their raw contents. Redact credentials and private request data.
 1. **Measure performance**: record a bounded trace of the same action before and after a change; preserve CPU/network throttling, cache conditions, viewport, and tool versions. Stop traces you started and save artifacts in the authorized workspace.
 1. **Check accessibility**: inspect roles, names, focus order, keyboard operation, and visible contrast. Combine automated checks with manual interaction; an accessibility tree or Lighthouse score alone does not establish WCAG conformance.
 1. **Investigate memory and cookies**: compare repeated lifecycle actions and heap snapshots when those tools are available; inspect `HttpOnly`, `Secure`, `SameSite`, and partitioning in the request's actual context. A single heap size or cookie attribute is not a diagnosis.

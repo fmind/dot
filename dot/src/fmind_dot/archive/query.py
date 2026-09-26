@@ -97,6 +97,15 @@ def discover_sessions(root: Path | None = None) -> list[SessionSummary]:
     return [SessionSummary.from_manifest(path, read_session_manifest(path)) for path in discover_session_bundles(root)]
 
 
+def _ingestion_timestamp(value: str) -> datetime | None:
+    if not _RFC3339.fullmatch(value):
+        return None
+    try:
+        return datetime.fromisoformat(value).astimezone(UTC)
+    except ValueError, OverflowError:
+        return None
+
+
 def _manifest_matches(summary: SessionSummary, query: SessionQuery) -> bool:
     if query.agent and summary.agent != query.agent:
         return False
@@ -104,11 +113,8 @@ def _manifest_matches(summary: SessionSummary, query: SessionQuery) -> bool:
         return False
     if query.since is None and query.until is None:
         return True
-    if not _RFC3339.fullmatch(summary.ingested_at):
-        return False
-    try:
-        ingested = datetime.fromisoformat(summary.ingested_at).astimezone(UTC)
-    except ValueError:
+    ingested = _ingestion_timestamp(summary.ingested_at)
+    if ingested is None:
         return False
     return not (query.since and ingested < query.since) and not (query.until and ingested > query.until)
 
@@ -152,7 +158,9 @@ def query_session_summaries(
             continue
         summaries.append(summary)
     summaries.sort(key=lambda item: (item.agent, item.session_id))
-    summaries.sort(key=lambda item: item.ingested_at, reverse=True)
+    summaries.sort(
+        key=lambda item: _ingestion_timestamp(item.ingested_at) or datetime.min.replace(tzinfo=UTC), reverse=True
+    )
     return summaries if limit is None else summaries[:limit]
 
 

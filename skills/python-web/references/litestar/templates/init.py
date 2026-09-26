@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
@@ -43,13 +44,15 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-async def check_readiness(db_session: AsyncSession) -> Response[dict[str, str]]:
+async def check_readiness(db_session: AsyncSession, *, timeout_seconds: float = 5.0) -> Response[dict[str, str]]:
     """Report whether the database dependency can serve traffic."""
     try:
-        await db_session.execute(text("SELECT 1"))
+        # Bound pool acquisition, connection establishment, and query execution together.
+        async with asyncio.timeout(timeout_seconds):
+            await db_session.execute(text("SELECT 1"))
         return Response({"status": "ready", "database": "connected"}, status_code=200)
     except (SQLAlchemyError, OSError) as error:
-        # asyncpg can propagate connection and DNS failures before SQLAlchemy wraps them.
+        # OSError includes TimeoutError; external cancellation must still propagate.
         logger.warning("Readiness check database error", error=type(error).__name__)
         return Response({"status": "not_ready", "database": "disconnected"}, status_code=503)
 

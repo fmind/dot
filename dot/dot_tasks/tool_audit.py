@@ -130,19 +130,35 @@ def parse_pip_report(tool: str, report: object) -> list[dict[str, Any]]:
     if not isinstance(report, dict) or not isinstance(report.get("dependencies"), list):
         raise TypeError("expected a dependencies array")
     for dependency in report["dependencies"]:
+        if not isinstance(dependency, dict):
+            raise TypeError("expected dependency objects")
         if "skip_reason" in dependency:
             raise ValueError(f"dependency {dependency.get('name', 'unknown')} was not audited")
-        findings.extend(
-            {
-                "tool": tool,
-                "package": dependency.get("name"),
-                "version": dependency.get("version"),
-                "advisory": vulnerability.get("id"),
-                "fix_available": vulnerability.get("fix_versions", []) or "none",
-                "dependency_chain": [tool, dependency.get("name")],
-            }
-            for vulnerability in dependency["vulns"]
-        )
+        package, version = dependency.get("name"), dependency.get("version")
+        if not all(isinstance(value, str) and value for value in (package, version)):
+            raise ValueError("dependency is missing package or version identity")
+        vulnerabilities = dependency.get("vulns")
+        if not isinstance(vulnerabilities, list):
+            raise TypeError("expected a vulns array")
+        for vulnerability in vulnerabilities:
+            if not isinstance(vulnerability, dict):
+                raise TypeError("expected vulnerability objects")
+            advisory = vulnerability.get("id")
+            if not isinstance(advisory, str) or not advisory:
+                raise ValueError("vulnerability is missing advisory identity")
+            fixes = vulnerability.get("fix_versions")
+            if not isinstance(fixes, list) or not all(isinstance(fix, str) and fix for fix in fixes):
+                raise TypeError("expected a fix_versions array of version strings")
+            findings.append(
+                {
+                    "tool": tool,
+                    "package": package,
+                    "version": version,
+                    "advisory": advisory,
+                    "fix_available": fixes or "none",
+                    "dependency_chain": [tool, package],
+                }
+            )
     return findings
 
 

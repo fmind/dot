@@ -41,6 +41,7 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 
 ## Gotchas
 
+- **Untrusted candidates**: a project-owned policy is not an independent audit policy. Run outside the candidate with reviewed configuration, `--ignorefile`, secret rules, and exclusions; inspect environment overrides too. Preserve the repository policy for its normal gate and distinguish those results from the independent scan.
 - **Always pass `--config trivy.yaml`**: precedence is `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, and the owner's shell exports a global `TRIVY_CONFIG`, so a bare `trivy fs .` silently uses the global policy.
 - **Commit a project `trivy.yaml`**: copy the global one so CI, hooks, and agents share one policy.
 - **Image coverage**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.

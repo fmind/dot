@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-09-19"
+  updated: "2026-09-26"
 ---
 
 # Amazon Web Services CLI
@@ -19,7 +19,7 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 1. **Resolve identity and profile context**: inspect the active AWS profile, SSO session, and caller identity; never assume role or run commands under ambiguous profiles.
 
    ```bash
-   aws sts get-caller-identity --profile <profile> --output json
+   aws sts get-caller-identity --profile <profile> --output json --no-cli-pager
    aws configure list-profiles
    ```
 
@@ -36,7 +36,7 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 
    ```bash
    aws s3 ls --profile <profile>
-   aws ecs list-clusters --profile <profile> --region <region> --max-items 20 --output json
+   aws ecs list-clusters --profile <profile> --region <region> --max-items 20 --output json --no-cli-pager
    ```
 
 1. **Plan mutations and confirm**: state the target ARN, expected before and after states, and rollback steps; resource creation, security group changes, policy updates, and deletions require user authorization; reuse existing authority rather than asking again.
@@ -45,7 +45,7 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 ## Gotchas
 
 - **Expired SSO tokens**: SSO tokens expire after their configured duration; refresh via `aws sso login` rather than falling back to static API keys.
-- **`--query` client-side evaluation**: JMESPath queries in `--query` run client-side after downloading the page; for large resources, pair with `--max-items`; `--page-size` only changes each request size to prevent timeout.
+- **`--query` client-side evaluation**: select needed fields and pair with supported server-side filters and `--max-items`; `--page-size` only changes request size, not total results. Preserve `NextToken` in projections, report capped results as partial, and resume deliberately when completeness is required. Use `--no-cli-pager` for agent calls; avoid debug output around credentials.
 - **Failures are findings**: report authorization (`AccessDeniedException`) or missing role errors directly; do not attempt permission escalation or modify IAM policies without authorization.
 
 ## Documentation

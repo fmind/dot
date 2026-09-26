@@ -9,6 +9,9 @@ lockfile_platforms = ["linux-x64", "macos-arm64"]
 
 [settings.task]
 run_auto_install = false
+# Hide command echoes; keep task output, failure diagnostics, and task-name prefixes.
+# MISE_TASK_QUIET=false restores mise's execution messages for debugging.
+quiet = true
 
 [task_config]
 # Keep repository tasks rooted here when invoked from a child directory.
@@ -134,16 +137,16 @@ depends = ["check:leaks:tree", "check:leaks:history"]
 
 [tasks."check:leaks:tree"]
 description = "Scan working-tree files, including untracked files"
-run = "gitleaks dir . --redact=100 --verbose"
+run = "gitleaks dir . --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:history"]
 description = "Scan the latest 100 commits reachable from HEAD"
 # An unborn HEAD has no history; check:leaks:tree still scans its files.
-run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose'
+run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose --no-banner'
 
 [tasks."check:leaks:staged"]
 description = "Scan only staged changes before committing"
-run = "gitleaks git --redact=100 --staged --verbose"
+run = "gitleaks git --redact=100 --staged --verbose --no-banner"
 
 [tasks."check:lua"]
 alias = "cu"
@@ -210,6 +213,10 @@ run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit"
 description = "Report skill discovery budgets and informational routing diagnostics"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --report"
 
+[tasks."report:coverage"]
+description = "Show per-file coverage from the last test run without rerunning tests"
+run = "uv run --frozen coverage report --rcfile=dot/pyproject.toml"
+
 [tasks.format]
 alias = "f"
 description = "Format all active sources and documents"
@@ -272,7 +279,8 @@ run = [
 alias = "t"
 description = "Run the Python CLI and repository contract tests"
 # The archive tests are fsync-latency-bound, not CPU-bound; workers overlap the syncs.
-run = "uv run --frozen pytest -q -n auto dot/tests --cov --cov-config=dot/pyproject.toml"
+# Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
+run = "uv run --frozen pytest -q -n auto dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
 description = "Materialize and execute the Python library, CLI, and web starter contracts"

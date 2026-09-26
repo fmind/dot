@@ -440,7 +440,7 @@ def test_grok_unstamped_turn_leaves_session_cost_unknown(tmp_path) -> None:
         updates,
         [
             _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "totalTokens": 11, "costUsdTicks": 5_000_000}),
-            _grok_turn(2, {"inputTokens": 20, "outputTokens": 2, "totalTokens": 22, "usageIsIncomplete": True}),
+            _grok_turn(2, {"inputTokens": 20, "outputTokens": 2, "totalTokens": 22}),
         ],
     )
     usage = _grok_usage(tmp_path, "grok-id")
@@ -449,6 +449,59 @@ def test_grok_unstamped_turn_leaves_session_cost_unknown(tmp_path) -> None:
     # A partial bill is never presented as a complete one.
     assert usage.cost_known is False
     assert usage.cost_usd == 0.0
+
+
+def test_grok_incomplete_ledger_does_not_claim_complete_token_totals(tmp_path: Path) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    _jsonl(transcript, [_grok_turn(1, {"inputTokens": 10, "usageIsIncomplete": True})])
+
+    parsed = parse_grok_session(transcript, "grok-id")
+
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)
+    assert str(parsed.usage_error) == "incomplete Grok usage measurement"
+
+
+@pytest.mark.parametrize("incomplete", ["true", 1, None])
+def test_grok_rejects_invalid_completeness_flag(tmp_path: Path, incomplete: object) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    _jsonl(transcript, [_grok_turn(1, {"inputTokens": 10, "usageIsIncomplete": incomplete})])
+
+    parsed = parse_grok_session(transcript, "grok-id")
+
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)
+    assert str(parsed.usage_error) == "usage record field 'usageIsIncomplete' must be a boolean"
+
+
+@pytest.mark.parametrize("measured", [False, True], ids=["cost-only", "tokens-and-cost"])
+def test_grok_aggregate_cost_survives_missing_model_costs(tmp_path: Path, measured: bool) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    counters = {"inputTokens": 10, "outputTokens": 1} if measured else {}
+    _jsonl(transcript, [_grok_turn(1, {"costUsdTicks": 5_000_000, "modelUsage": {"grok-test": counters}})])
+
+    usage = _usage(parse_grok_session(transcript, "grok-id"))
+
+    assert usage.cost_known
+    assert usage.cost_usd == pytest.approx(0.0005)
+    assert usage.measurement_kind == ("provider-reported" if measured else "")
+    assert usage.total_tokens == (11 if measured else 0)
+
+
+@pytest.mark.parametrize("cost", ["private-invalid-cost", True, -1])
+def test_grok_rejects_invalid_aggregate_cost_with_model_breakdown(tmp_path: Path, cost: object) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    _jsonl(
+        transcript,
+        [_grok_turn(1, {"costUsdTicks": cost, "modelUsage": {"grok-test": {"inputTokens": 10, "costUsdTicks": 0}}})],
+    )
+
+    parsed = parse_grok_session(transcript, "grok-id")
+
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)
+    assert "cost_usd" in str(parsed.usage_error)
+    assert "private-invalid-cost" not in str(parsed.usage_error)
 
 
 @pytest.mark.parametrize("stop_reason", ["error", "cancelled"])

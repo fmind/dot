@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # Infrastructure as Code
@@ -25,7 +25,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 1. **Information**: define the project `Slug`, GCP `Project ID`, and default `Region`.
 1. **Config files**:
-   - [mise.toml](templates/mise.toml) and [lefthook.yml](templates/lefthook.yml).
+   - [mise.toml](templates/mise.toml) and [lefthook.yml](templates/lefthook.yml); replace the template's `latest` placeholders with exact versions from the workstation baseline and commit the generated `mise.lock` per [mise](../mise/SKILL.md).
    - `.tflint.hcl` from [tflint.hcl](templates/tflint.hcl) — pins the terraform preset and the GCP ruleset release.
    - `.terraform-docs.yml` from [terraform-docs.yml](templates/terraform-docs.yml), plus the `TF_DOCS` markers in `README.md`.
    - `dprint.json` per [dprint](../dprint/SKILL.md), a reviewed project `trivy.yaml` per [trivy](../security-review/references/trivy/GUIDE.md); `.gitignore` from [gitignore](templates/gitignore), `LICENSE` per [project-license](../project-scaffolding/references/project-license/GUIDE.md).

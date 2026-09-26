@@ -36,7 +36,7 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
    ```bash
    agents-cli install --locked
    agents-cli lint
-   uv run pytest tests/unit
+   uv run pytest -q tests/unit
    # Explicitly authorized provider smoke test:
    agents-cli run "hello"
    ```

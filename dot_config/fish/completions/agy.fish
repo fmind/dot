@@ -8,7 +8,7 @@ complete -c agy -n __fish_use_subcommand -l continue -d 'Continue the most recen
 complete -c agy -n __fish_use_subcommand -l conversation -r -d 'Resume a previous conversation by ID'
 complete -c agy -n __fish_use_subcommand -l dangerously-skip-permissions -d 'Auto-approve all tool permission requests without prompting'
 complete -c agy -n __fish_use_subcommand -l disable-slash-commands -d 'Disable slash command and skill expansion in print mode'
-complete -c agy -n __fish_use_subcommand -l effort -r -d 'Reasoning effort for the current CLI session (low|medium|high)'
+complete -c agy -n __fish_use_subcommand -l effort -x -a 'low medium high max' -d 'Reasoning effort for the current CLI session'
 complete -c agy -n __fish_use_subcommand -s i -r -d 'Short alias for --prompt-interactive'
 complete -c agy -n __fish_use_subcommand -l input-format -r -d 'Input format for print mode (text, stream-json). stream-json reads one NDJSON message per line from stdin and runs a turn for each; it requires --output-format stream-json (default text)'
 complete -c agy -n __fish_use_subcommand -l json-schema -r -d 'Optional JSON schema string or path to a schema file to enforce structured output (for stream-json, only applicable to the final result)'

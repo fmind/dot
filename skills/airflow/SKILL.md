@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-26"
 ---
 
 # Apache Airflow with Astronomer CLI
@@ -43,7 +43,7 @@ Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; w
    astro dev run tasks test <dag_id> <task_id>
    ```
 
-1. **Inspect service and task logs**: follow logs to diagnose scheduling delays or task failures.
+1. **Inspect service and task logs**: select the relevant component and keep `--follow` opt-in. Save large output to a private local artifact, check the command's exit status, then search for the DAG/run ID and error context instead of loading every line.
 
    ```bash
    astro dev logs --scheduler

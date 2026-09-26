@@ -8,7 +8,7 @@ Use command help for exact options. Examples below are local reads or previews u
 dot status . --needs-attention
 dot status . --stats --json
 dot pull . --dry-run --json
-dot pull .
+dot pull .                              # authorized local update: fetches and fast-forwards
 ```
 
 Explicit repository paths bypass configured workspace discovery. Status includes dirty state, upstream, ahead/behind counts, and merge/rebase/cherry-pick/revert markers. Counts use cached remote-tracking refs: status never fetches. Repository inspection failures produce `complete: false` JSON and a nonzero exit. Docker health belongs to `dot doctor`. Statistics count repositories, not commits.
@@ -19,8 +19,8 @@ Pull fetches once and fast-forwards the fetched upstream without a second fetch;
 
 ```bash
 dot trust --dry-run
-dot trust
-dot trust all
+dot trust                               # authorized trust change for this repository
+dot trust all                           # authorized trust change across configured workspaces
 ```
 
 `dot trust [PATH]` pre-accepts folder trust for the repository containing `PATH` (default `.`) in every installed harness: Claude (`~/.claude.json`), Codex, Grok, agy, and Copilot. `all` covers each `pull.directories` workspace and the repositories directly inside it whose `origin` is a github.com repository of a `trust.github_owners` owner (default `fmind`, `fmind-ai`, `mlops-courses`; compared case-insensitively); other repositories are listed as skipped, and an explicit `dot trust PATH` still trusts any repository. `chezmoi apply` runs it. Entries are added or updated to trusted, never removed; unrelated host settings are preserved, and harnesses without a state directory are skipped. Claude, Codex, Grok, and agy key trust on the repository root, so a new clone needs `dot trust` (or the next apply). Copilot trusts every descendant of a trusted workspace: the owner allowlist filters individual repository entries, not that inherited trust. Mise trust is separate and machine-local: use `mise trust /path/to/mise.toml`, or set `[settings].trusted_config_paths` in unmanaged `~/.config/mise/conf.d/trust.toml` for selected directory trees. `dot trust` does not configure mise.
@@ -55,8 +55,8 @@ Use the Dot CLI for cache inspection and cleanup:
 dot cache
 dot cache docker
 dot prune all --dry-run
-dot prune all --yes
-dot prune docker --yes
+dot prune all --yes                     # authorized cache cleanup across configured providers
+dot prune docker --yes                  # authorized Docker builder-cache cleanup
 ```
 
 `dot cache` inspects the configured `cache.providers` (Docker, Hugging Face, uv by default). `dot prune` displays help; `dot prune all` cleans `prune.providers` (dprint, Hugging Face, mise, npm, Trivy, uv by default); Docker builder cleanup requires explicit selection or inclusion in that configuration. The command confirms the selected providers once before any cleanup and needs `--yes` without a terminal. `--dry-run` displays commands, not reclaimable bytes, and executes no providers. Both aggregates preflight required tools and stop on command failure; earlier successful operations are not rolled back. Each provider can be selected independently. Native tools retain caller directory, profile, environment, and output.

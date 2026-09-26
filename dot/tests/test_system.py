@@ -171,3 +171,19 @@ def test_doctor_detects_pgcli_import_failure() -> None:
     assert result["passed"] is False
     assert result["tools"][0]["status"] == "fail"
     assert result["tools"][0]["condition"] == "broken"
+
+
+@pytest.mark.parametrize("fix", [False, True])
+@pytest.mark.parametrize("mode", [0o600, 0o700])
+def test_doctor_rejects_secret_directories_without_changing_permissions(tmp_path: Path, fix: bool, mode: int) -> None:
+    secret = tmp_path / "key"
+    secret.mkdir(mode=mode)
+    config = Config()
+    config.doctor.tools = []
+    config.doctor.secrets[0].path = str(secret)
+
+    result = run_doctor(state_with(FakeRunner(), config), fix=fix)
+
+    assert result["secrets"][0]["status"] == "fail"
+    assert result["secrets"][0]["details"] == "not a regular file"
+    assert secret.stat().st_mode & 0o777 == mode

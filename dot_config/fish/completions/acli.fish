@@ -13,19 +13,30 @@ end
 function __acli_perform_completion
     __acli_debug "Starting __acli_perform_completion"
 
-    # Extract all args except the last one
-    set -l args (commandline -opc)
-    # Extract the last arg and escape it in case it is a space
-    set -l lastArg (string escape -- (commandline -ct))
+    # Fish prints one argument per line, so it cannot preserve multiline tokens.
+    # Leave multiline input alone instead of sending altered query arguments.
+    set -l process (commandline --current-process | string collect)
+    if string match --quiet --regex '\n' -- "$process"
+        return 1
+    end
+
+    # Expand arguments without executing command substitutions. Keep the argument
+    # boundaries: eval would execute quoted input and split values containing spaces.
+    set -l args (commandline --current-process --tokens-expanded --cut-at-cursor)
+    # A variable can also contain newlines. Conservatively skip expansions that
+    # change the token count, including arrays/globs, since their boundaries are lost.
+    set -l raw_args (commandline --current-process --tokens-raw --cut-at-cursor)
+    if test (count $args) -ne (count $raw_args)
+        return 1
+    end
+    set -l lastArg (commandline -ct)
 
     __acli_debug "args: $args"
     __acli_debug "last arg: $lastArg"
 
     # Disable ActiveHelp which is not supported for fish shell
-    set -l requestComp "ACLI_ACTIVE_HELP=0 $args[1] __complete $args[2..-1] $lastArg"
-
-    __acli_debug "Calling $requestComp"
-    set -l results (eval $requestComp 2> /dev/null)
+    __acli_debug "Calling $args[1] __complete"
+    set -l results (ACLI_ACTIVE_HELP=0 command $args[1] __complete $args[2..-1] "$lastArg" 2> /dev/null)
 
     # Some programs may output extra empty lines after the directive.
     # Let's ignore them or else it will break completion.

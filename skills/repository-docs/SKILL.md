@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-docs
   created: "2026-09-07"
-  updated: "2026-09-19"
+  updated: "2026-09-26"
 ---
 
 # Repository Documentation
@@ -18,7 +18,7 @@ Keep human and agent documentation aligned with the implementation, with one can
 
 1. **Inventory**: locate `README.md`, root and nested `AGENTS.md`, `docs/`, generated help, and `.agents/skills/*/SKILL.md`; include any additional catalog declared by the repository.
 1. **Trace behavior**: compare documentation with entry points, source, tests, manifests, mise tasks, hooks, CI, and current `--help`; verify paths, options, versions, examples, and supported behavior.
-1. **Choose the audience**: use [README guidance](references/readme.md) for purpose, setup, authentication, and usage; use [AGENTS guidance](references/agents.md) for commands, constraints, invariants, and layout.
+1. **Choose the audience**: use [README guidance](references/readme.md) for project identity, useful badges, proof of value, and the first successful use; adapt its starter for new projects. Use [AGENTS guidance](references/agents.md) for commands, constraints, invariants, and layout.
 1. **Update canonical owners**: keep setup and usage in human docs, agent commands and invariants in `AGENTS.md`, and reusable procedures in skills; link instead of copying.
 1. **Verify**: run the repository's documentation gate, `lychee <files>` for links, `dprint check` for markup, and the site build where applicable; inspect rendered pages after layout changes.
 1. **Report**: name what changed, the source evidence and checks, and any external workflow or claim that remains unverified.

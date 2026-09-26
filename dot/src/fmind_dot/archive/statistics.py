@@ -69,7 +69,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
                 if timestamp.tzinfo is None:
                     raise ValueError("timestamp requires a timezone")
                 timestamp = timestamp.astimezone(UTC)
-            except ValueError:
+            except ValueError, OverflowError:
                 invalid_timestamps += 1
                 if query.since or query.until:
                     continue

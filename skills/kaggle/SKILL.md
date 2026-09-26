@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-09-20"
+  updated: "2026-09-26"
 ---
 
 # Kaggle CLI
@@ -17,7 +17,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
 ## Workflow
 
 1. **Resolve the account**: `kaggle auth login` (OAuth) or `KAGGLE_API_TOKEN` in the environment; the legacy `~/.kaggle/kaggle.json` still works. Never run `kaggle auth print-access-token` during ordinary work.
-1. **Read before writing**: `kaggle competitions list`, `kaggle competitions files <slug>`, `kaggle datasets files <owner>/<name>`, and `kaggle competitions submission-limits <slug> --json` cost nothing and reveal the rules in force.
+1. **Read before writing**: use bounded list/file commands and `kaggle competitions submission-limits <slug> --json` to inspect available data and submission limits. Read the competition's current rules separately; these API calls do not return the full rules or authorize accepting them.
 1. **Download into an ignored directory**: accept the competition rules on the website first (the CLI returns 403 otherwise).
 
    ```bash
@@ -25,7 +25,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
    kaggle datasets download <owner>/<name> -p data/ --unzip
    ```
 
-1. **Kernels as code**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`; `kaggle kernels push -p <dir>` publishes it; `kaggle kernels status <owner>/<slug>` and `kaggle kernels output <owner>/<slug> -p out/` retrieve the run.
+1. **Kernels as code**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout: pushing uploads code and starts remote execution. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
 1. **Submit with authority**: a submission counts against the daily limit and shows on the leaderboard, so confirm the competition, file, and message first, then verify.
 
    ```bash

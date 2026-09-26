@@ -5,6 +5,7 @@ import shlex
 import tomllib
 from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 
 from fmind_dot.archive.parsers import AGENT_ADAPTERS
@@ -144,6 +145,12 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
     retained = _count(document.get("retained", 0))
     if not isinstance(synced_at, str) or failed is None or retained is None:
         return source, "unreadable", 0, 0
+    try:
+        timestamp = datetime.fromisoformat(synced_at)
+    except ValueError:
+        return source, "unreadable", 0, 0
+    if timestamp.tzinfo is None:
+        return source, "unreadable", 0, 0
     return source, synced_at, failed, retained
 
 
@@ -174,7 +181,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         hooks = _check_hooks(definition)
         source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
-        synced = last_sync not in {"never", "unreadable"} or source == "missing"
+        synced = last_sync != "unreadable" and (last_sync != "never" or source == "missing")
         if hooks == "disabled":
             setting = "disableAllHooks" if name == "claude" else "features.hooks / features.codex_hooks"
             hint = f"review {setting} in the chezmoi source for {definition.config_path}"

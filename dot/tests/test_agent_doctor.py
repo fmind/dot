@@ -296,3 +296,27 @@ def test_doctor_rejects_an_invalid_retained_count(
     (result,) = gather_agent_doctor(state, agent="grok")
 
     assert (result.last_sync, result.sync_retained) == ("unreadable", 0)
+    assert not result.healthy
+    assert result.next == "dot agent session sync --agent grok"
+
+
+@pytest.mark.parametrize("timestamp", ["", "invalid", "2026-09-01", "2026-09-01T10:00:00"])
+@pytest.mark.parametrize("source_present", [False, True])
+def test_doctor_rejects_invalid_sync_timestamps_even_without_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, timestamp: str, source_present: bool
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    if source_present:
+        Path(state.config.agent.sources["grok"]).mkdir(parents=True)
+    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state.parent.mkdir(parents=True)
+    sync_state.write_text(
+        json.dumps({"schema": "dot.agent.session.sync-state/v1", "synced_at": timestamp, "failed": 0})
+    )
+
+    with pytest.raises(DotError, match="unhealthy"):
+        run_agent_doctor(state, agent="grok", as_json=True)
+
+    report = json.loads(_text(state.stdout))
+    assert report["passed"] is False
+    assert report["checks"][0]["details"]["last_sync"] == "unreadable"

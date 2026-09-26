@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # ast-grep
@@ -17,10 +17,10 @@ Structural code search and rewrite: a pattern is real code with meta-variables, 
 ## Commands
 
 ```bash
-ast-grep run -p 'print($$$ARGS)' -l python                                      # search; run is the default subcommand
-ast-grep run -p 'print($$$ARGS)' -r 'logger.info($$$ARGS)' -l python             # dry run: prints the diff, changes nothing
-ast-grep run -p 'print($$$ARGS)' -r 'logger.info($$$ARGS)' -l python --update-all # apply after reviewing the dry run (-i to confirm per hunk)
-ast-grep run -p 'os.getenv($KEY)' -l python --json=compact                       # structured output; --json=stream gives one object per line
+ast-grep run -p 'print($$$ARGS)' -l python src/                                      # scope search to the relevant source
+ast-grep run -p 'print($$$ARGS)' -r 'logger.info($$$ARGS)' -l python src/             # dry run: prints the diff, changes nothing
+ast-grep run -p 'print($$$ARGS)' -r 'logger.info($$$ARGS)' -l python --update-all src/ # apply after reviewing the dry run (-i to confirm per hunk)
+ast-grep run -p 'os.getenv($KEY)' -l python --json=compact src/                       # structured output after narrowing paths
 ast-grep scan                                                                    # every rule in sgconfig.yml
 ast-grep scan -r rules/no-print.yml --format github                              # one rule file; GitHub annotations in CI
 ```
@@ -28,7 +28,7 @@ ast-grep scan -r rules/no-print.yml --format github                             
 ## Workflow
 
 1. **Write the pattern as code**: `$NAME` matches one node, `$$$NAME` a sequence (arguments, statements), `$_` a node without binding; always pass `-l <lang>` so the pattern parses in the right grammar, and use `--debug-query=ast` when a pattern that should match does not.
-1. **Search first**: run without `-r`, read the matches with `-C 2` for context, and tune `--globs` or `--no-ignore` when files are skipped.
+1. **Search first**: pass the relevant path or `--globs`; use `--files-with-matches` when only filenames are needed, then read selected matches with `-C 2`. Use JSON only for structured processing. Widen scope deliberately, and use `--no-ignore` only when skipped files are relevant.
 1. **Rewrite in two steps**: add `-r` to see the diff, then `--update-all` (or `-i` for an interactive session); captured meta-variables are reused in the replacement.
 1. **Promote to a rule**: for a lint or a repeated refactor, `ast-grep new project` scaffolds `sgconfig.yml` and `rules/`; a rule file has `id`, `language`, `rule` (`pattern`, `kind`, `inside`, `has`, `not`), optional `fix`, `severity`, and `message`; `ast-grep test` runs its `valid` and `invalid` cases.
 1. **Wire into the gate**: run `ast-grep scan` inside `check:lint` (see [mise](../mise/SKILL.md)) so hooks and CI apply the same rules.

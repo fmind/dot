@@ -42,7 +42,7 @@ Each record contains:
 }
 ```
 
-`measurement_kind` is `provider-reported` for Claude, Codex, and Copilot, `estimated` for Antigravity's byte-based token approximation, and `context-only` for Grok's final context-window observation. `source_bytes` records the bytes inspected by the usage extractor and is not a token count.
+`measurement_kind` is `provider-reported` for Claude, Codex, Copilot, and Grok sessions with complete turn usage; `estimated` for Antigravity's byte-based token approximation; and `context-only` for Grok's final context-window fallback. Inspect the field on each record, not just its harness. `source_bytes` records the bytes inspected by the usage extractor and is not a token count.
 
 ## Commands
 
@@ -56,14 +56,14 @@ dot agent usage list -n 20                                         # list recent
 dot agent usage show claude <session_id>                           # inspect a specific session record
 dot agent session sync                                            # capture/backfill transcript and usage together
 (umask 077; dot agent usage list --limit 0 --json > usage.json)
-duckdb -c "SELECT record.harness, record.measurement_kind, count(*), sum(record.total_tokens) FROM (SELECT unnest(records) AS record FROM read_json_auto('usage.json')) GROUP BY record.harness, record.measurement_kind"
+duckdb -init /dev/null -batch -bail -json -c "SELECT record.harness, record.measurement_kind, count(*), sum(record.total_tokens) FROM (SELECT unnest(records) AS record FROM read_json_auto('usage.json')) GROUP BY record.harness, record.measurement_kind"
 ```
 
 Missing costs serialize as `null`. A partial group reports its known subtotal and completeness counts; it does not estimate missing usage. `--since` and inclusive `--until` filter request timestamps when reliable samples exist, otherwise whole-session timestamps. A date-only `--since` begins at midnight UTC; a date-only `--until` includes the whole UTC day. Explicit timestamps remain exact. Provider session cost is reported only when the complete session belongs to one selected group; it cannot be apportioned across dates or models.
 
-Since parser 4, Claude blocks sharing request/message identity are deduplicated, retaining peak counters within a response. Codex derives increments from cumulative counters, skips repeated snapshots, and treats cached reads as a subset of input and reasoning as a subset of output. A decreasing cumulative counter keeps the provider's final session total but disables request allocation. Copilot uses its session timestamp. Antigravity is an estimate; Grok is final context size. Undated usage uses the latest valid transcript timestamp, then the newest source-file modification time; capture time is never used. OpenCode usage capture is unsupported. Never combine estimated or context-only tokens with provider-reported totals.
+Since parser 4, Claude blocks sharing request/message identity are deduplicated, retaining peak counters within a response. Codex derives increments from cumulative counters, skips repeated snapshots, and treats cached reads as a subset of input and reasoning as a subset of output. A decreasing cumulative counter keeps the provider's final session total but disables request allocation. Copilot uses its session timestamp. Antigravity is an estimate. Grok turn ledgers retain per-request/model consumption and recorded cost when available; signals-only captures retain final context size. Explicitly incomplete ledgers fail extraction and preserve the prior archive rather than being reclassified as complete usage. Undated usage uses the latest valid transcript timestamp, then the newest source-file modification time; capture time is never used. OpenCode usage capture is unsupported. Never combine estimated or context-only tokens with provider-reported totals.
 
-Bundles migrated from older admitted parsers remain readable and are flagged through `legacy_accounting_sessions`; parser 3 Claude totals can contain duplicate response blocks. Sync recaptures available sources with the current parser; [contracts](../../dot-cli/references/contracts.md) owns the current and readable parser versions. Request samples reconcile to session totals and carry no prompt text. Token queries read only manifest lines, never transcript content.
+Bundles from older admitted parsers remain readable; accounting versions requiring recapture are flagged through `legacy_accounting_sessions`; parser 3 Claude totals can contain duplicate response blocks. Sync recaptures available sources with the current parser; [contracts](../../dot-cli/references/contracts.md) owns the current and readable parser versions. Request samples reconcile to session totals and carry no prompt text. Token queries read only manifest lines, never transcript content.
 
 ## Monthly and subscription reports
 

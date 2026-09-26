@@ -1,5 +1,9 @@
 # Docs: https://mise.jdx.dev/configuration.html
 # Merge into the repository's existing task graph; do not replace application gates.
+[settings.task]
+# Keep build warnings and errors; MISE_TASK_QUIET=false restores command echoes.
+quiet = true
+
 [tasks.install]
 run = "uv sync --locked"
 

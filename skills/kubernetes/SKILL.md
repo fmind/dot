@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -33,10 +33,10 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
    kustomize build <kustomization-dir>
    ```
 
-1. **Spin up local clusters on demand**: create isolated local clusters with `k3d` when testing locally, and stop them promptly when finished to conserve memory.
+1. **Spin up local clusters only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name before creation. Prefer manifest checks when they can answer the question; stop task clusters promptly after runtime tests.
 
    ```bash
-   k3d cluster create local --agents 1 --kubeconfig-switch-context=false
+   k3d cluster create <task-cluster> --agents 1 --kubeconfig-switch-context=false
    ```
 
 1. **Deploy declaratively**: apply configurations using Helm or Kustomize; preview changes before mutating cluster state.
@@ -48,20 +48,19 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
 
    A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope. Diffs may contain Secret values; exclude secrets from captured output.
 
-1. **Inspect workloads and tail logs**: monitor cluster state interactively with `k9s` or follow multi-pod logs with `stern`.
+1. **Inspect workloads and bounded logs**: narrow to the relevant workload and time window. Use finite log reads for agents; reserve `k9s` and streaming `stern` for an explicitly interactive investigation. The line limit applies per pod/container, so keep the pod query narrow.
 
    ```bash
-   k9s --context <context> --namespace <namespace>
-   stern <pod-query> --context <context> -n <namespace> --tail 50
+   stern <pod-query> --context <context> -n <namespace> --since 15m --tail 50 --no-follow
    kubectl --context <context> get pods,events -n <namespace>
    ```
 
-1. **Teardown local clusters**: stop or delete ephemeral clusters after testing.
+1. **Teardown task clusters**: stop or delete only the disposable cluster whose successful creation was recorded for this task. A failed create does not authorize deleting a pre-existing cluster with that name.
 
    ```bash
-   k3d cluster stop local
+   k3d cluster stop <task-cluster>
    # Or delete:
-   k3d cluster delete local
+   k3d cluster delete <task-cluster>
    ```
 
 ## Gotchas

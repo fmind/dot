@@ -134,9 +134,9 @@ def find_git_repositories(state: State, paths: Sequence[Path] = ()) -> list[Path
         return sorted({git_root(state, expand_path(path)).resolve() for path in paths})
     repositories: list[Path] = []
     for configured in state.config.pull.directories:
-        root = expand_path(configured)
+        root = expand_path(configured).resolve()
         if (root / ".git").exists():
-            repositories.append(root.resolve())
+            repositories.append(root)
             continue
         try:
             entries = sorted(root.iterdir(), key=lambda path: path.name)

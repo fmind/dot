@@ -4,7 +4,7 @@ Use this guide when installed links need attention. Normal catalog edits follow 
 
 ## Retired links
 
-After removing or renaming a declaration, chezmoi leaves its previously installed link in place. Inspect the exact link with `readlink` and compare its literal target with the retired checkout path. Within explicit cleanup authority, move only that confirmed link to a fresh backup path outside the shared catalog; refuse to replace an existing backup. Re-run apply to create any new declaration. Preserve replacement packages, links owned elsewhere, and the shared directory. `dot` no longer discovers or deletes former chezmoi targets automatically.
+After removing or renaming a declaration, chezmoi leaves its previously installed link in place. Inspect the exact link with `readlink` and compare its literal target with the retired checkout path. Within explicit cleanup authority, move only that confirmed link to a fresh backup path outside the shared catalog; refuse to replace an existing backup. Re-run apply to create any new declaration. Preserve replacement packages, links owned elsewhere, and the shared directory. `dot orphan` reports former chezmoi targets recorded in its persistent state, including retired links; it never deletes them. Use the [orphan guide](../../../../skills/dot-cli/references/orphans.md) to interpret the recorded status before deciding how to handle a link.
 
 ## Name collisions
 

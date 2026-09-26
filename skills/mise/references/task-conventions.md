@@ -18,7 +18,7 @@ Split a task into `<task>:<x>` when one piece must run alone; each family keys `
 | `check:scan`    | IaC and config misconfigurations   | [trivy](../../security-review/references/trivy/GUIDE.md)           |
 | `check:actions` | workflow lint and audit            | `actionlint` + [zizmor](../../github-actions/references/zizmor.md) |
 
-Those names are reserved: never respell one (`check:audit`, `check:dprint`) when the table already covers the concern. A stack adds a name only for a concern the table has none for, and the shipped set is closed: `check:deps` (unused files and dependencies), `check:doc` (document compiles), `check:pkg` (publishable surface), `check:site` (site builds clean), `check:validate` (configuration syntax). A repository with multiple source families may split a repeated concern (`check:python`, `check:shell`), while a shared concern keeps its common name (`check:format` for the one dprint check). Aliases are best-effort: a repository that already spends `f`, `t`, or `i` keeps them; the task names are the contract.
+Reuse these names for their stated concerns instead of inventing synonyms such as `check:audit` or `check:dprint`. Add a repository-specific name when no existing concern fits, such as `check:docs`, `check:skills`, `check:pkg`, `check:site`, or `check:validate`; preserve established names unless a migration has a concrete benefit. A repository with multiple source families may split a repeated concern (`check:python`, `check:shell`), while a shared concern keeps its common name (`check:format` for the one dprint check). Aliases are best-effort: a repository that already spends `f`, `t`, or `i` keeps them; the task names are the contract.
 
 ## Conventions
 
@@ -28,6 +28,14 @@ Those names are reserved: never respell one (`check:audit`, `check:dprint`) when
 - **Staged vs whole-tree**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
 - **Argument passthrough**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
 - **Complexity ceiling**: short command arrays and small setup/cleanup sequences are acceptable. Prefer native flags to conditions and explicit tasks to mode detection. Do not wrap commands in `bash -c` or `sh -c`, compress a program onto one line, or relocate a large shell block into TOML. Keep unavoidable branching, retries, and response parsing in maintained source.
+
+## Concise Output
+
+Prefer native output controls for frequently run tasks. Under `[settings.task]`, `quiet = true` suppresses mise's command echoes while preserving child stdout/stderr and task prefixes; `MISE_TASK_QUIET=false mise run <task>` restores execution messages. Leave the output style unchanged so parallel diagnostics retain task attribution. Avoid `silent`, discarded stderr, and truncation pipelines that hide failures or change exit status.
+
+Keep test counts, coverage totals and thresholds, warnings, and actionable findings visible. For pytest-cov with a positive `fail_under`, `--cov-report=` hides the per-file table while retaining the total and enforcing the threshold. Expose `report:coverage` to read the saved coverage data without rerunning tests; run tests again if those data are stale. For Gitleaks, `--no-banner` removes decoration; retain `--verbose --redact=100` for finding locations and redacted evidence.
+
+Validate success and intentional failure cases before adopting quieter defaults, including coverage below its threshold and scanner findings. Compare output with the same tokenizer and record exit codes and diagnostic completeness; output-token reductions alone do not prove billing savings. Extend to other repositories after measuring the first adoption.
 
 ## Tool Management
 

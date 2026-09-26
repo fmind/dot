@@ -11,8 +11,8 @@ Use Google LangExtract for source-grounded text extraction; [pydantic](pydantic.
 
 1. Inspect the installed API and select `langextract-usage` from upstream. Add `langextract` with `uv add langextract`, plus provider extras only when needed.
 1. Define extraction classes and attributes, then construct `lx.data.ExampleData` with literal source spans in `Extraction.extraction_text`. Test examples with strict prompt alignment validation.
-1. Configure the provider and model explicitly for the approved data destination and budget. Pass local text with URL fetching disabled (`fetch_urls=False`) unless remote retrieval is required and authorized.
-1. Call `lx.extract` with a bounded chunk size, worker count, and initial single extraction pass. Use the pinned version's strict prompt validation options; fix mismatched examples rather than suppressing warnings.
+1. Configure the provider and model explicitly for the approved data destination and budget. Pass local text with URL fetching disabled (`fetch_urls=False`). When remote input is required and authorized, fetch it through the project's bounded, destination-validated HTTP client before extraction; LangExtract's built-in fetching does not establish an SSRF boundary.
+1. Call `lx.extract` with a bounded chunk size, worker count, and initial single extraction pass. Use the pinned version's strict prompt validation options; fix mismatched examples rather than suppressing warnings. Check support for `resolver_params={"suppress_parse_errors": False}` and use it when incomplete extraction is a failure: the default can warn and omit malformed chunks. If partial extraction is intentional, track and report omitted chunks explicitly.
 1. Check every extraction's `char_interval` against the original text. Report unaligned results separately instead of silently counting them as grounded success; deduplicate repeated spans deliberately.
 1. Save annotated documents with `lx.io.save_annotated_documents` and inspect `lx.visualize` output locally. Test empty text, repeated entities, overlapping spans, and provider failures; compare held-out precision/recall before increasing passes.
 

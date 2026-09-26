@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -94,11 +95,21 @@ def refresh(roots: list[Path], registry: Path, apply: bool) -> tuple[int, int]:
         try:
             registry.mkdir(parents=True, exist_ok=True, mode=0o700)
             for destination, project in entries:
-                # Exclusive creation prevents overwriting a project created concurrently.
-                descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-                with os.fdopen(descriptor, "w") as stream:
-                    json.dump(project, stream, indent=2)
-                    stream.write("\n")
+                temporary = None
+                try:
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", encoding="utf-8", dir=registry, prefix=".project-", suffix=".tmp", delete=False
+                    ) as stream:
+                        temporary = Path(stream.name)
+                        json.dump(project, stream, indent=2)
+                        stream.write("\n")
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    # Publish complete JSON without replacing a concurrent registration.
+                    os.link(temporary, destination)
+                finally:
+                    if temporary is not None:
+                        temporary.unlink(missing_ok=True)
         except OSError as error:
             raise IndexingError(
                 "Cannot write the project registry; check permissions, free space and concurrent registration."

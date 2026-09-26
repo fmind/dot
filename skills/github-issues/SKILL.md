@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # GitHub Issues
@@ -22,10 +22,11 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 1. **Refresh current state** before proposing a change:
 
    ```bash
-   gh issue view <number> -R <owner>/<repo> --json number,title,body,state,stateReason,labels,assignees,milestone,comments,url
-   gh issue list -R <owner>/<repo> --state all --search '<distinct terms>' --json number,title,state,url
+   gh issue view <number> -R <owner>/<repo> --json number,title,body,state,stateReason,labels,assignees,milestone,url
+   gh issue list -R <owner>/<repo> --state all --search '<distinct terms>' --limit 20 --json number,title,state,url
    ```
 
+1. **Load discussion when relevant**: fetch comments separately when decisions, acceptance criteria, or requested replies depend on them; preserve that context before editing. Narrow or paginate a search that reaches its limit before claiming no duplicate exists.
 1. **Deduplicate**: update the existing issue that represents the same outcome; keep reproduction, acceptance criteria, dependencies, decisions, and proof; drop stale logs and duplicate checklists.
 1. **Draft before creating**: for multiple findings or dependency-aware work, apply the [backlog workflow](references/backlog.md) and [draft contract](references/draft-contract.md), present the reviewable set, and stop unless issue creation is already authorized.
 1. **Apply one bounded mutation** the user authorized. Write substantial bodies to a temporary file and pass `--body-file`; avoid shell interpolation and interactive prompts:

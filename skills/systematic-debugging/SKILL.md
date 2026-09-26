@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-09-19"
+  updated: "2026-09-26"
 ---
 
 # Systematic Debugging
@@ -16,7 +16,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 ## Workflow
 
-1. **Preserve evidence**: Capture the exact error, stack trace, command, inputs, versions, environment differences, timing, and recent changes before touching anything.
+1. **Preserve evidence**: capture the exact error, relevant stack trace, command, inputs, versions, environment differences, timing, and recent changes before touching anything. Keep large sanitized logs in local artifacts; read by incident time, request ID, or error context, retaining the first causal failure and any truncation limits.
 1. **Reproduce**: Find the shortest reliable command or sequence; for intermittent failures record the frequency and vary one dimension at a time.
 1. **Reduce**: Minimize input, fixture, process count, and component path while keeping the same failure, preferably as a focused test or disposable harness.
 1. **Localize**: Trace bad state backward across calls, processes, network boundaries, configuration, and generated artifacts; at each boundary compare what entered with what left.
@@ -24,13 +24,13 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 1. **Form one hypothesis**: State `X causes the failure because Y evidence predicts Z observation` and define a minimal probe that could falsify it.
 1. **Run the probe**: Change one variable in a reversible fixture or add narrow instrumentation; record whether the prediction held and discard failed hypotheses instead of layering fixes.
 1. **Name the root cause**: Explain the triggering condition, the faulty assumption or invariant, the propagation path, and why existing controls missed it; never blame timing, the environment, or a third party until that path and the missing resilience are understood.
-1. **Fix only when authorized**: Write a failing regression test, implement the smallest root-cause fix, and verify the symptom plus the wider gate.
+1. **Fix within the requested scope**: when the task includes a fix, reuse that authorization, write a regression test for the broken behavior, implement the smallest root-cause correction, and verify the symptom plus affected checks. Broaden to the full gate when repository policy or the change's risk requires it.
 1. **Report**: Return symptom and impact, minimal reproduction, evidence and ruled-out hypotheses, root cause and propagation path, the authorized fix or recommended correction, regression proof, and residual uncertainty with the next probe.
 
 ## Gotchas
 
 - **Authority**: A request to diagnose authorizes investigation, not implementation; observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
-- **Thrashing**: After three failed fix attempts or hypotheses that expose different shared-state failures, stop and question the architecture, reproduction, or problem statement with the user.
+- **Thrashing**: after three failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
 - **Multi-component pipelines**: Instrument every boundary once with presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
 - **Resolver failures**: Record the exact resolver, runtime or toolchain, platform, package index, manifest, lockfile, and installed source before changing any constraint.
 - **Resolver reproduction**: Reproduce with the same resolver and distinguish direct constraints, transitive conflicts, platform markers, yanked releases, build-backend or wheel failures, authentication, network reachability, and stale locks.

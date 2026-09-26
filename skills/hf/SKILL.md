@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-16"
-  updated: "2026-09-16"
+  updated: "2026-09-26"
 ---
 
 # Hugging Face CLI
@@ -25,14 +25,14 @@ Use `hf` for Hub operations from the shell. The CLI generates its own command sk
    hf download <owner>/<dataset> --repo-type dataset --local-dir data/<name>
    ```
 
-1. **Keep the cache under control**: `hf cache ls`, `hf cache prune`, `hf cache rm <repo-id>`; `HF_HOME` relocates it.
+1. **Inspect cache use before cleanup**: `hf cache ls` and `hf cache prune --dry-run` show retained data and proposed deletions. Remove only recorded task-owned disposable entries with `hf cache rm <repo-id-or-revision>` after checking consumers; broad pruning of shared revisions or incomplete downloads requires explicit cleanup scope. `HF_HOME` relocates the cache for future operations.
 1. **Upload with authority**: `hf repos create <repo-id> --private` then `hf upload <repo-id> <local-path>`; confirm repository, visibility, and license before the first push, then verify with `hf models info` or `hf repos ls`.
 1. **Remote compute with authority**: `hf jobs run` and `hf jobs uv run` bill by hardware flavor; confirm the flavor and timeout, then watch `hf jobs logs` and `hf jobs ps`.
 
 ## Gotchas
 
 - **Name**: `hf` replaced `huggingface-cli`; the mise tool is `pipx:huggingface_hub`.
-- **Large transfers**: `hf download` and `hf upload` resume; `hf cache verify` checks checksums after an interrupted run.
+- **Large transfers**: inspect file selection and disk headroom before a download; use `--include`/`--exclude` when only part of a repository is needed. Verify a downloaded revision with `hf cache verify <repo-id> --revision <sha>` (and `--local-dir` when used); add `--fail-on-missing-files` only when the complete revision was intended. This verifies downloaded bytes, not remote upload completion.
 - **Pin a revision**: pass `--revision <sha>` for reproducible downloads; anything loaded with `trust_remote_code` is third-party code to review first.
 
 ## Official Skills

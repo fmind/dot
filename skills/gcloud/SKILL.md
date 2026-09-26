@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-09-19"
+  updated: "2026-09-26"
 ---
 
 # Google Cloud CLI
@@ -23,15 +23,15 @@ Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless
 1. **Resolve identity and scope**: inspect the named configuration, account, project, and billing project; never activate another configuration just to make a command work.
 
    ```bash
-   gcloud config configurations list --format=json
+   gcloud config configurations list --format='table(name,is_active)'
    gcloud config configurations describe <configuration> --format=json
    gcloud config get auth/impersonate_service_account --configuration <configuration>
    gcloud config get auth/access_token_file --configuration <configuration>
-   gcloud projects describe <project-id> --format=json
+   gcloud projects describe <project-id> --format='json(projectId,projectNumber,lifecycleState)'
    ```
 
 1. **Pin every consequential call**: pass `--configuration`, `--account`, `--project`, and `--billing-project` (plus `--impersonate-service-account` for an approved chain) so terminal defaults cannot redirect the operation.
-1. **Start read-only**: describe the resource, IAM policy, enabled services, billing linkage, quotas, and logs, bounded by project, resource, and time window.
+1. **Start read-only**: inspect the resources needed for the question, bounded by project, resource, and time window. Use supported `--filter` and `--limit` on listings and selected fields in `--format`; for logs, constrain time and resource before projecting message fields. Keep full IAM policies or configuration when required for the review; a limited listing is not an exhaustive audit. `--quiet` controls prompts, not output volume.
 1. **Plan the mutation**: state the resource, before and after state, permissions, cost or quota impact, rollback, and verification command; API enablement, IAM, billing, deletion, and production changes need explicit authority.
 1. **Apply minimally and verify**: change only the named resource, then re-read it and its operation or audit status; separate local configuration, accepted request, completed operation, and user-visible outcome.
 

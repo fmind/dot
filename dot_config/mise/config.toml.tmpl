@@ -63,8 +63,8 @@ ASTRO_TELEMETRY_DISABLED = "1"
 "pipx:brain-framework" = "latest" # Brain Framework CLI (bf)
 "pipx:copier" = "latest" # Default project template generator and updater
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
-# google-colab-cli >=0.7.2 pins jupyter-kernel-client==0.8 itself, so the former `with` pin
-# (against 1.0.0's KernelClient rename) is obsolete and would conflict (verified 2026-09-24).
+# Let google-colab-cli select its compatible jupyter-kernel-client version;
+# an additional `with` pin can conflict with its exact upstream requirement.
 "pipx:google-colab-cli" = "latest" # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI

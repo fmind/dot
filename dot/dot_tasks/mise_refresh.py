@@ -57,11 +57,13 @@ def refresh(root: Path, *, bump: bool = False) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(content)
         (configuration / "config.toml").write_text(rendered.stdout, encoding="utf-8")
-        # Preserve HOME for credentials and installed tools, but exclude the live
-        # config and its conf.d overrides from the portable baseline resolver.
+        # Preserve HOME for credentials and installed tools, but exclude live
+        # user and system config: --global also targets system lockfiles.
         environment.update(
             MISE_CONFIG_DIR=str(configuration),
             MISE_GLOBAL_CONFIG_FILE=str(configuration / "config.toml"),
+            MISE_SYSTEM_CONFIG_DIR=str(workspace / "system-mise"),
+            MISE_SYSTEM_CONFIG_FILE=str(workspace / "system-mise/config.toml"),
             MISE_TRUSTED_CONFIG_PATHS=str(workspace),
         )
         command = ["mise", "lock", "--global", "--yes"]

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-09-19"
+  updated: "2026-09-26"
 ---
 
 # Skillify
@@ -22,7 +22,7 @@ Capture what this session learned as a skill the next session can run without th
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository; a new root registers its CLI names in `skills/contracts.json`, a primary routing probe in `dot/testdata/skills/routing-boundaries.json`, and its link declaration `dot_agents/skills/symlink_<name>.tmpl` (that repository's `dot-skills` skill owns the procedure), then run `mise run check:skills` and relevant formatting checks. Installation or tooling changes also need their affected tests.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md).
-1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the authoring limits in [package rules](references/package-rules.md); long configs and examples go to `references/`.
+1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the size and output-efficiency rules in [package rules](references/package-rules.md); long configs and examples go to `references/`.
 1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is reachable from its owner, every required tool is documented, and `mise run check:skills` passes for a global skill.
 1. **Test behavior**: follow the [adoption check](references/adoption-check.md) for substantial additions or routing changes: a natural trigger, a neighboring task, and an observable outcome in an isolated fixture. Keep paid or external effects within scope and report unavailable host validation separately.
 1. **Report**: the path, the description, the scope, and the routing probe added or changed in `dot/testdata/skills/`.

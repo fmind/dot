@@ -5,6 +5,8 @@ lockfile = true
 
 [settings.task]
 run_auto_install = false
+# Preserve child output; MISE_TASK_QUIET=false restores execution messages.
+quiet = true
 
 [tools]
 # Scaffold selectors: replace with exact baseline pins and add Python before installation.
@@ -49,16 +51,16 @@ depends = ["check:leaks:tree", "check:leaks:history"]
 
 [tasks."check:leaks:tree"]
 description = "Scan working-tree files, including untracked files"
-run = "gitleaks dir . --redact=100 --verbose"
+run = "gitleaks dir . --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:history"]
 description = "Scan the latest 100 commits reachable from HEAD"
 # An unborn HEAD has no history; check:leaks:tree still scans its files.
-run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose'
+run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose --no-banner'
 
 [tasks."check:leaks:staged"]
 description = "Scan only staged changes before committing"
-run = "gitleaks git --redact=100 --staged --verbose"
+run = "gitleaks git --redact=100 --staged --verbose --no-banner"
 
 [tasks."check:lint"]
 alias = "cl"
@@ -85,6 +87,10 @@ alias = "v"
 description = "Write an HTML coverage report"
 depends = ["test"]
 run = "uv run coverage html"
+
+[tasks."report:coverage"]
+description = "Show per-file coverage from the last test run without rerunning tests"
+run = "uv run --locked coverage report"
 
 [tasks.docs]
 alias = "d"
@@ -125,17 +131,18 @@ run = "uv publish"
 [tasks.test]
 alias = "t"
 description = "Run offline tests with the coverage gate"
-run = 'uv run --locked pytest -m "not integration" --cov'
+# The positive fail_under in pyproject.toml preserves the total and coverage gate.
+run = 'uv run --locked pytest -q -m "not integration" --cov --cov-report='
 
 [tasks."test:integration"]
 alias = "ti"
 description = "Run opt-in Docker-backed integration tests"
-run = "uv run --locked pytest -m integration"
+run = "uv run --locked pytest -q -m integration"
 
 [tasks."test:watch"]
 alias = "tw"
 description = "Run offline tests in watch mode"
-run = 'uv run pytest-watcher . -m "not integration"'
+run = 'uv run pytest-watcher . -q -m "not integration"'
 
 [tasks.upgrade]
 alias = "u"
