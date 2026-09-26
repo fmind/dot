@@ -98,7 +98,10 @@ def test_refresh_uses_portable_source_and_isolated_config(
             text=True,
             timeout=30,
         )
-        assert [entry["path"] for entry in json.loads(discovered.stdout)] == [str(configuration / "config.toml")]
+        # mise resolves symlinks, including /var -> /private/var on macOS.
+        assert [Path(entry["path"]).resolve() for entry in json.loads(discovered.stdout)] == [
+            (configuration / "config.toml").resolve()
+        ]
         write_bundle(configuration, b"refreshed graph\n")
         return subprocess.CompletedProcess(args, 0)
 
