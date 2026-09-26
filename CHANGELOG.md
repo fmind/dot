@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.8.0] - 2026-09-26
+
+### 🚀 Features
+
+- _(secrets)_ Add OpenRouter management key for usage reporting
+
+### 🐛 Bug Fixes
+
+- Harden CLI accounting, tooling, and operational guidance
+
+### 🧪 Testing
+
+- Resolve mise configuration paths on macOS
+
+### 🧹 Miscellaneous
+
+- _(agents)_ Update Brain Framework to 12.0.0 and its bf-use guidance
+- _(deps)_ Update Brain Framework to 12.0.2
+
 ## [7.7.1] - 2026-09-25
 
 ### 🐛 Bug Fixes
