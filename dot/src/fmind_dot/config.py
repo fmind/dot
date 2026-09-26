@@ -182,7 +182,7 @@ class EnvVarsConfig(StrictModel):
 
 class SecretConfig(StrictModel):
     path: str
-    required_perms: int = 0o600
+    required_perms: int = Field(default=0o600, ge=0, le=0o777)
 
 
 class DoctorConfig(StrictModel):

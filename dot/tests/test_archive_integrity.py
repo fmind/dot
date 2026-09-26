@@ -361,3 +361,49 @@ def test_optional_cache_zero_does_not_demonstrate_a_zero_token_request(tmp_path:
     _write(source, [row])
 
     assert parsers.parse_claude_session(source, "session").usage is None
+
+
+@pytest.mark.parametrize("incomplete", [False, True], ids=["repair-known-cost", "retain-incomplete-evidence"])
+def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, incomplete: bool
+) -> None:
+    state = _state(tmp_path, "grok", monkeypatch)
+    source = tmp_path / "source/project/session/updates.jsonl"
+    metric: dict[str, object] = {"costUsdTicks": 5_000_000, "modelUsage": {"grok-test": {"inputTokens": 10}}}
+    if incomplete:
+        metric["usageIsIncomplete"] = True
+    _write(source, [{"timestamp": 1, "params": {"update": {"sessionUpdate": "turn_completed", "usage": metric}}}])
+    parsed = parsers.parse_grok_session(source, "session")
+    old_usage = UsageRecord(
+        harness="grok",
+        session_id="session",
+        measurement_kind="provider-reported",
+        model="grok-test",
+        input_tokens=10,
+        cost_known=not incomplete,
+    ).finalize(fallback_timestamp="1970-01-01T00:00:01Z")
+    with monkeypatch.context() as legacy:
+        legacy.setattr(store, "SESSION_PARSER_VERSION", "7")
+        store.ingest_session(
+            "grok",
+            "session",
+            parsed.logs,
+            store.SessionSource(type=parsed.source_type, fingerprint=parsed.fingerprint),
+            usage=old_usage.to_dict(),
+        )
+    bundle = session_bundle_path("grok", "session")
+    before = bundle.read_bytes()
+
+    if incomplete:
+        for _ in range(2):
+            with pytest.raises(DotError, match="1 failure"):
+                sync_sessions(state, agent="grok")
+            assert bundle.read_bytes() == before
+            assert load_usage_records()[0].legacy_accounting
+    else:
+        assert sync_sessions(state, agent="grok").ingested == 1
+        record = load_usage_records()[0]
+        assert record.cost_known
+        assert record.cost_usd == pytest.approx(0.0005)
+        assert record.input_tokens == 10
+        assert not record.legacy_accounting

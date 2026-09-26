@@ -5,6 +5,7 @@ import runpy
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import TextIO
 
 import pytest
 
@@ -61,6 +62,29 @@ def test_invalid_registry_fails_before_writing(tmp_path: Path) -> None:
         refresh([tmp_path / "repo"], registry, True)
     assert isinstance(failure.value.__cause__, json.JSONDecodeError)
     assert len(list(registry.iterdir())) == 1
+
+
+def test_partial_write_never_publishes_invalid_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = tmp_path / "repo"
+    repository(repo, "https://github.com/example/synthetic.git")
+    registry = tmp_path / "projects"
+
+    def fail_write(_project: object, stream: TextIO, **_kwargs: object) -> None:
+        stream.write("{")
+        raise OSError("synthetic disk failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(json, "dump", fail_write)
+        with pytest.raises(indexer["IndexingError"], match="Cannot write the project registry"):
+            refresh([repo], registry, True)
+
+    assert list(registry.iterdir()) == []
+    assert refresh([repo], registry, False) == (1, 1)
+    assert refresh([repo], registry, True) == (1, 1)
+    assert refresh([repo], registry, True) == (1, 0)
+    assert json.loads(next(registry.glob("*.json")).read_text())["projectResources"]["resources"] == [
+        {"folderUri": repo.as_uri()}
+    ]
 
 
 @pytest.mark.parametrize(

@@ -117,13 +117,13 @@ class BootstrapTest(unittest.TestCase):
             result = fixture.run()
 
             assert result.returncode != 0
-            assert "mise 2026.9.13 or newer is required" in result.stderr
+            assert "mise 2026.9.14 or newer is required" in result.stderr
             assert fixture.calls() == [{"tool": "mise", "args": ["--version"]}]
             assert not fixture.source.exists()
 
     def test_first_install_and_rerun_use_the_bounded_task_sequence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), "2026.9.13")
+            fixture = BootstrapFixture(Path(directory), "2026.9.14")
             first = fixture.run()
             second = fixture.run()
 

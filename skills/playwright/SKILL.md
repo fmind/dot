@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-09-16"
+  updated: "2026-09-26"
 ---
 
 # Playwright
@@ -19,12 +19,12 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 1. **Pin the Python integration**: `uv add --dev playwright pytest-playwright`, then `uv run playwright install chromium`; keep both packages in `uv.lock`. If Linux system libraries are missing, report the administrator-owned prerequisite instead of invoking the privileged `install-deps` command.
 1. **Explore and record**: `uv run playwright codegen --target python <url>` records Python actions; `uv run playwright screenshot <url> <file>` and `uv run playwright pdf <url> <file>` produce review evidence.
 1. **Write resilient tests**: use the pytest `page` fixture, role or label locators, and web-first `expect` assertions; keep test state isolated and deterministic.
-1. **Run tests**: `uv run pytest tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`; open a saved trace with `uv run playwright show-trace <trace.zip>`.
+1. **Run tests**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`; open a saved trace with `uv run playwright show-trace <trace.zip>`.
 1. **Verify**: a green pytest run plus the artifact (screenshot, trace, or report) the task asked for.
 
 ## Gotchas
 
-- **Authority**: a test request does not authorize reusing a logged-in browser, synchronizing cookies, entering passwords or MFA, creating accounts, bypassing CAPTCHA, accepting legal terms, making purchases, or paying for cloud browsers or tunnels; stop and ask.
+- **Authority**: use the profiles, accounts, data, and actions authorized for the task; reuse existing authorization. A test request alone does not authorize private browser-session reuse, cookie transfers, account creation, legal acceptance, purchases, or paid browser services. When a required action falls outside that scope, prepare the local test and explain the specific missing authorization before proceeding. Treat login, MFA, and CAPTCHA as explicit authentication boundaries, never bypasses.
 - **Browser cache**: install only required browsers and reuse the default shared cache (`~/.cache/ms-playwright` on Linux). Do not run `playwright uninstall` as task teardown: other projects can need those binaries. Remove task-created temporary profiles and passing-run artifacts, preserve requested evidence and failure traces, and review native browser cleanup separately when disk pressure requires it.
 - **Version skew**: browsers match the Playwright version that installed them; rerun `uv run playwright install chromium` after an upgrade.
 - **Headless by default**: pass `--headed` to watch a run; keep CI headless.
@@ -36,6 +36,6 @@ Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli
 ## Documentation
 
 - [Playwright for Python](https://playwright.dev/python/docs/intro) · [pytest plugin](https://playwright.dev/python/docs/test-runners) · [Trace Viewer](https://playwright.dev/python/docs/trace-viewer)
-- Accessibility and performance evidence: [chrome-devtools](../chrome-devtools/SKILL.md) owns the MCP integration and reviewed package version; `lighthouse <url> --output json` stays the one-shot audit.
+- Accessibility and performance evidence: [chrome-devtools](../chrome-devtools/SKILL.md) owns the MCP integration and reviewed package version; `lighthouse <url> --output json --output-path <report.json>` stays the one-shot audit.
 - Releases: [Playwright release notes](https://playwright.dev/python/docs/release-notes) · [playwright-python](https://github.com/microsoft/playwright-python/releases)
 - Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md), [benchmark](../benchmark/references/command-http.md) (load, not browser, testing).

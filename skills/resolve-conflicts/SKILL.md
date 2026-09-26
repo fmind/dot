@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-19"
+  updated: "2026-09-26"
 ---
 
 # Resolve Conflicts
 
-Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. Do not abort merely to hide a conflict; abort and report when the operation itself targets the wrong base or cannot safely continue. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [Git branch preparation](../git-worktree/SKILL.md); committing and pushing in [git-add-commit-push](../git-delivery/references/git-add-commit-push.md).
+Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. If the operation targets the wrong base or cannot safely continue, preserve existing resolutions and report the problem before an authorized abort; aborting can discard conflict-resolution work. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [Git branch preparation](../git-worktree/SKILL.md); committing and pushing in [git-add-commit-push](../git-delivery/references/git-add-commit-push.md).
 
 ## Workflow
 
@@ -23,7 +23,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
    git rev-parse -q --verify MERGE_HEAD  # merge only
    git rev-parse -q --verify REBASE_HEAD # rebase only
    ```
-1. **Read both intents**: inspect the three index stages and operation-specific history before touching a hunk. During a rebase, `ours` is the branch being rebased onto and `theirs` is the commit being replayed.
+1. **Read both intents**: inspect the available index stages and operation-specific history before touching a hunk. Add/delete conflicts legitimately lack one or more stages; a missing stage is evidence, not a reason to restore a deleted file. During a rebase, `ours` is the branch being rebased onto and `theirs` is the commit being replayed.
    ```bash
    git show :1:<file>                    # common ancestor
    git show :2:<file>                    # ours; rebase target during a rebase
@@ -46,7 +46,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 - **Lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
 - **Deleted on one side**: `DU` or `UD` means one side removed the file; find out why before restoring it.
 - **Rebase repeats**: the same hunk can conflict on several commits; `git config rerere.enabled true` replays a recorded resolution.
-- **Stop when unsure**: if intent cannot be recovered from history, ask the author instead of guessing.
+- **Stop when unsure**: if intent cannot be recovered from history, ask the user for the decision; contacting the author requires authorization.
 
 ## Documentation
 

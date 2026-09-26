@@ -6,7 +6,7 @@ Only the [latest release](https://github.com/fmind/dot/releases/latest) is suppo
 
 ## Reporting a vulnerability
 
-Report privately through GitHub Security Advisories: open the repository's [Security tab](https://github.com/fmind/dot/security) and select **Report a vulnerability**. Do not open a public issue for an undisclosed vulnerability, and never include secrets or tokens in a report.
+Report privately to [contact@fmind.dev](mailto:contact@fmind.dev), the contact address published on [fmind.dev](https://www.fmind.dev/). Include the affected version, impact, and a minimal reproduction with sensitive data removed. Do not open a public issue for an undisclosed vulnerability, and never include secrets or tokens in a report.
 
 This is a personal project maintained on a best-effort basis; there is no response-time commitment.
 

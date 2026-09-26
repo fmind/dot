@@ -7,8 +7,12 @@ on:
     tags: ["v*"]
 permissions:
   contents: read
+concurrency:
+  group: cloud-run-${{ vars.GCP_REGION }}-${{ vars.CLOUDRUN_SERVICE }}
+  cancel-in-progress: false
 jobs:
   validate:
+    name: Validate tagged revision
     if: ${{ vars.ENABLE_DEPLOY_CLOUDRUN == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -28,6 +32,7 @@ jobs:
           printf '%s\n' "$status"
           test -z "$status"
   deploy-cloud-run:
+    name: Deploy private Cloud Run service
     if: ${{ vars.ENABLE_DEPLOY_CLOUDRUN == 'true' }}
     needs: validate
     runs-on: ubuntu-24.04
@@ -37,7 +42,7 @@ jobs:
       ISSUER: https://token.actions.githubusercontent.com
     permissions:
       contents: read
-      id-token: write
+      id-token: write # Authenticate to Google Cloud and sign the image through OIDC.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

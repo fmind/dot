@@ -12,22 +12,25 @@
 1. **Seed line provenance**: Treat movement and copy detection as clues, not guarantees; review a repository-owned `.git-blame-ignore-revs` before honoring it and disclose ignored revisions.
 
    ```bash
-   git blame --line-porcelain -w -M -C -C -C -L <start>,<end> -- <path>
+   git blame -w -M -C -C -C -L <start>,<end> -- <path>
    ```
 
 1. **Trace the timeline**: Use the smallest relevant view and name the exact revision range instead of treating every ref as one lineage.
 
    ```bash
-   git log --follow --format=fuller -- <path>   # one file across renames
-   git log -L <start>,<end>:<path>              # commits that shaped a line range
-   git log -S '<literal>' -p -- <path>          # occurrence count of a string changed
-   git log -G '<regex>' -p -- <path>            # a diff added or removed matching lines
+   git log --follow -n 20 --format='%h %ad %s' --date=short -- <path> # candidate commits across renames
+   git log -n 10 -L <start>,<end>:<path>                             # patches for the selected line range
+   git log -n 20 --oneline -S '<literal>' -- <path>                   # occurrence count changed
+   git log -n 20 --oneline -G '<regex>' -- <path>                     # matching changed lines
    ```
+
+   These limits are discovery windows, not complete history. Continue through the needed revision range when the origin or a superseding change remains unresolved; use porcelain blame only for machine parsing.
 
 1. **Inspect candidate commits**: Read subject, body, changed tests, schemas, migrations, configuration, and docs together; preserve reverts and behavior changes, and group mechanical edits only after verifying they are mechanical.
 
    ```bash
    git show --format=fuller --find-renames --find-copies --stat <sha>
+   git show --format=fuller <sha> -- <relevant-path>
    ```
 
 1. **Resolve ancestry anomalies**: Check renames, splits, copies, bulk formatting, generated files, squashes, rebases, cherry-picks, backports, merge parents, and revert pairs; when line history stops at a rewrite, compare file history, pickaxe searches, and neighboring tests, and report the break rather than forcing one origin.

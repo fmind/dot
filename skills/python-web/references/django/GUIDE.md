@@ -21,7 +21,7 @@ Use Django when its integrated ORM, migrations, forms, templates, authentication
 ```bash
 uv run python manage.py check --fail-level WARNING
 uv run python manage.py makemigrations --check --dry-run
-uv run pytest
+uv run pytest -q <focused-test-path>
 mise run check
 mise run test
 ```

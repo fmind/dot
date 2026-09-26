@@ -264,13 +264,17 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
     for secret in state.config.doctor.secrets:
         path = expand_path(secret.path)
         try:
-            current = stat.S_IMODE(path.stat().st_mode)
+            info = path.stat()
         except FileNotFoundError:
             results.append(CheckResult(secret.path, "warn", "MISSING"))
             continue
         except OSError:
             results.append(CheckResult(secret.path, "fail", "unable to inspect file"))
             continue
+        if not stat.S_ISREG(info.st_mode):
+            results.append(CheckResult(secret.path, "fail", "not a regular file"))
+            continue
+        current = stat.S_IMODE(info.st_mode)
         allowed = secret.required_perms
         if allowed == 0 or current & ~allowed == 0:
             results.append(CheckResult(secret.path, "pass", f"secure (permissions: {current:04o})"))

@@ -372,7 +372,7 @@ wheels = [
 
 [[package]]
 name = "google-colab-cli"
-version = "0.7.2"
+version = "0.7.4"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "click" },
@@ -392,9 +392,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/09/ea/8b2ca4c9a1b8f2041143df2f7b4b8bed385caa9df5534e7cac8708bb330a/google_colab_cli-0.7.2.tar.gz", hash = "sha256:916a960b37d260e91b351d097d92313ab39aec19df23b7a7fa5c413459327139", size = 1205726, upload-time = "2026-09-22T22:53:11.799Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/5f/821b28ef717eaa9d857863a8bfc1103e9a8fb9be54e1061a7e8d1d13ec5a/google_colab_cli-0.7.4.tar.gz", hash = "sha256:484c759f1e690a5f455dcaf031ef2170fd4177378889e12164f6e8098f0af586", size = 1193182, upload-time = "2026-09-26T00:20:40.44Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5a/3c/bedab205613829d4b1221fa85c878dc16a9d2feaf23a7e9e3e52ddba1ff9/google_colab_cli-0.7.2-py3-none-any.whl", hash = "sha256:1e8e1d466c63ad4195e8d93e758b98f863d1788ad73b0ef823eb13916960f38e", size = 86707, upload-time = "2026-09-22T22:53:10.315Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/b8/2621fba8c60c1c1c4cb8a13ad172e254d22bf3e8ceb80396668438e1d5ec/google_colab_cli-0.7.4-py3-none-any.whl", hash = "sha256:1435f3533a7064f27b8b81252da85370427d6cf93b94e6c34737bd1cc68ec292", size = 82610, upload-time = "2026-09-26T00:20:39.051Z" },
 ]
 
 [[package]]
@@ -474,7 +474,7 @@ wheels = [
 
 [[package]]
 name = "jupyter-kernel-client"
-version = "0.8.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "jupyter-client" },
@@ -486,7 +486,7 @@ dependencies = [
     { name = "websocket-client" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/d6/7b084e598cc2ea7300d47f911b66d32264f25115af333383e5ecc05b3b81/jupyter_kernel_client-0.8.0-py3-none-any.whl", hash = "sha256:1cae48cc51056ccd464d97e312bdefaaf470e8bb6bf1ccb81d8482942383f625", size = 36069, upload-time = "2025-08-10T18:20:37.657Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/68/287315ba355aa93bda2e344de5febc45e6de1b47d8f4a5b69400b24cfdfd/jupyter_kernel_client-0.9.0-py3-none-any.whl", hash = "sha256:77acb8f2f738d97625d6bd01ee8cf21c4d59790b7ba464108712db3870416f20", size = 40097, upload-time = "2026-02-11T06:42:05.133Z" },
 ]
 
 [[package]]
@@ -531,7 +531,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "google-colab-cli", specifier = "==0.7.2" }]
+requires-dist = [{ name = "google-colab-cli", specifier = "==0.7.4" }]
 
 [[package]]
 name = "nbformat"
@@ -568,11 +568,11 @@ wheels = [
 
 [[package]]
 name = "platformdirs"
-version = "4.11.13"
+version = "4.11.15"
 source = { registry = "https://pypi.org/simple/" }
-sdist = { url = "https://files.pythonhosted.org/packages/53/0e/7be2983c52622d6c0899300f760e31ba143355cedf1afcb3e65689d5ca85/platformdirs-4.11.13.tar.gz", hash = "sha256:6985eefdc2298693e4ce1fe124645524cb967428eb6384e0ce5b49767e7ea8ba", size = 40415, upload-time = "2026-09-25T04:44:25.484Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/e0/7c20b5d0e0f147c40a934e8f9e9f717bd6e3e372c4d58ca5c2fcce2b1652/platformdirs-4.11.15.tar.gz", hash = "sha256:d7419e973b2b740d428200130f80c0e79304d1c71081001db911e15b26a3a6d4", size = 46059, upload-time = "2026-09-26T02:04:58.142Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/a6/76a492f6a937e196641b3abd1588c504c71438e243daf1bebde4d3bb8ee9/platformdirs-4.11.13-py3-none-any.whl", hash = "sha256:228b2283af5c1f32673cdf55271216a52bbd8258cb31374e302ad7bd26cd7513", size = 25054, upload-time = "2026-09-25T04:44:23.975Z" },
+    { url = "https://files.pythonhosted.org/packages/84/83/246d3052d043683cc5f400ab5748bd07a99fbdf311dc771cfad7e3f9e7e0/platformdirs-4.11.15-py3-none-any.whl", hash = "sha256:84508421c77d3c6462e71dd8c0d2776c2ace0e94eb006dc4fd383bc1dcf5a176", size = 26689, upload-time = "2026-09-26T02:04:56.71Z" },
 ]
 
 [[package]]

@@ -11,10 +11,10 @@ Own the shared Python foundation and select the specialist for the task. Preserv
 
 - **Toolchain**: mise owns the interpreter under the [shared tool baseline](../../../mise/references/tool-versions.md); uv owns package environments and `uv.lock`. Python follows the same `latest` baseline and exact project pins as other tools. Align `.python-version` with the selected pin within `requires-python`; check a library's minimum interpreter with `uv run --isolated --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
 - **Foundation**: a `src/<package>/` layout and no runtime dependencies until the application uses them. Distribution slugs may contain hyphens; import names use underscores.
-- **Quality**: Ruff for Python formatting/lint, ty for types, pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests and an initial 85% branch-coverage target adapted to the project.
+- **Quality**: Ruff for Python formatting/lint, ty for types, pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests and an initial 85% branch-coverage target adapted to the project. The task template keeps test counts and coverage totals visible; `mise run report:coverage` reads per-file detail from the last run without rerunning tests. Rerun tests when saved coverage is stale.
 - **Boundaries**: use Pydantic/settings when external input or application configuration needs typed validation, and structlog when structured logging is required. Respect ecosystem-native formats; otherwise use YAML for human-maintained configuration and JSON for program-owned data, with explicit defaults and override precedence.
 
-For application templates, set output-appropriate escaping explicitly and prefer `StrictUndefined` in new Jinja templates when missing data is an error; review compatibility before changing existing undefined behavior. Template generation and tracked updates use [cookiecutter](../../../project-scaffolding/references/cookiecutter/GUIDE.md).
+For application templates, set output-appropriate escaping explicitly and prefer `StrictUndefined` in new Jinja templates when missing data is an error; review compatibility before changing existing undefined behavior. [Project-scaffolding](../../../project-scaffolding/SKILL.md) owns project templates and tracked updates: Copier for new templates, with existing Cookiecutter/Cruft workflows preserved.
 
 ## Workflow
 

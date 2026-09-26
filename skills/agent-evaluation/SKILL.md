@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-09-16"
+  updated: "2026-09-26"
 ---
 
 # Agent Evaluation
@@ -21,7 +21,7 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 1. **Choose representative cases**: include ordinary successes, known failures, hard negatives, tool errors, and relevant trust boundaries. Keep development cases separate from held-out decision cases; do not tune on the latter and still call them unseen.
 1. **Grade outcomes first**: use executable tests, schema checks, state inspection, and attempted tool actions where possible. For semantic grading, calibrate against labeled examples, blind candidate identity and vary presentation order; use independent human judgment for consequential disagreements.
 1. **Run paired repeated trials**: use the same cases and budgets, fresh isolated state, and recorded ordering. Seeds help reproducibility but do not guarantee deterministic providers. Retain failures, timeouts, refusals, and missing traces; do not cherry-pick retries.
-1. **Analyze uncertainty**: report per-case and per-segment outcomes, reliability, latency, tokens, and cost separately. Choose repetition and uncertainty analysis before examining the decision set; distinguish repeated trials of one case from independent coverage of many tasks.
+1. **Analyze uncertainty**: aggregate locally and report per-case and per-segment outcomes, reliability, latency, tokens, and cost separately; keep complete traces as artifacts and inspect failures by case ID. Choose repetition and uncertainty analysis before examining the decision set; distinguish repeated trials of one case from independent coverage of many tasks.
 1. **Decide and preserve evidence**: return adopt, iterate, reject, or inconclusive against the declared criteria. Record deviations, exposed holdouts, unresolved regressions, and the cheapest next evidence; adoption does not itself authorize production changes.
 
 ## Gotchas

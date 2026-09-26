@@ -238,3 +238,11 @@ def test_completion_sources_reject_ambiguous_configuration(tmp_path: Path, sourc
     path.write_text(f"completions:\n  custom_commands:\n    custom:\n      package: owner/tool\n      {source}\n")
     with pytest.raises(ValidationError, match="choose either a bundled package or a completion command"):
         load_config(path)
+
+
+@pytest.mark.parametrize("permissions", [-1, 0o1000, 0o4600])
+def test_secret_permissions_reject_masks_outside_posix_access_bits(tmp_path: Path, permissions: int) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text(f"doctor:\n  secrets:\n    - path: ~/.config/key\n      required_perms: {permissions}\n")
+    with pytest.raises(ValidationError, match="required_perms"):
+        load_config(path)

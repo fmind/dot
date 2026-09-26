@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # Observability
@@ -25,10 +25,12 @@ Use one Python telemetry stack for services and agents: `structlog` JSON on stdo
 1. **Evaluate separately**: operational telemetry detects failures and drift but does not prove response quality. Link a trace ID to Langfuse or MLflow scores when used, and use [agent-evaluation](../agent-evaluation/SKILL.md) for repeated comparisons through the project's existing runner.
 1. **Verify all three signals**: send one request, locate its trace, read the correlated log events, confirm the expected metric, then exercise shutdown to prove buffered telemetry flushes within the platform grace period.
    ```bash
-   gcloud logging read 'trace="projects/<project>/traces/<trace_id>"' --limit=20
+   gcloud logging read 'trace="projects/<project>/traces/<trace_id>"' --project=<project> --freshness=1h --limit=20 --format='json(timestamp,severity,textPayload,jsonPayload.message,trace,spanId)'
    ```
 
 ## Gotchas
+
+- **Bound investigation output**: select incident time and correlation IDs before loading logs; include custom event fields when needed for diagnosis. A limit is a partial view, not proof of absence. Keep complete authorized captures as local artifacts and expand the query when the cause falls outside the initial window.
 
 - **Cloud Logging keys are exact**: plain `level` and `msg` are not promoted to severity and message fields.
 - **Sampling follows the parent**: use `parentbased_traceidratio` with a measured production ratio; keep 100% sampling for bounded development only.

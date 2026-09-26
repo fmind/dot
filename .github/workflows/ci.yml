@@ -30,7 +30,7 @@ jobs:
         with:
           cache: true
           # Match the tested bootstrap baseline and format-2 lockfile reader.
-          version: 2026.9.13
+          version: 2026.9.14
       - name: Run canonical gate
         run: mise run all
       - name: Verify clean tree
@@ -53,7 +53,7 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
-          version: 2026.9.13
+          version: 2026.9.14
       - name: Render chezmoi source
         run: mise run check:chezmoi
       - name: Run repository tests

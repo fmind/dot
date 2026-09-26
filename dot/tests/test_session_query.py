@@ -26,6 +26,7 @@ from fmind_dot.archive.store import (
     session_bundle_path,
 )
 from fmind_dot.cli import app
+from fmind_dot.errors import DotError
 
 
 def _ingest(
@@ -286,3 +287,39 @@ def test_time_filter_excludes_non_rfc3339_manifest_timestamp(monkeypatch: pytest
     # A value can match the RFC3339 shape while still naming an impossible day.
     _rewrite_manifest(path, ingested_at="2026-02-30T12:00:00Z")
     assert query_session_summaries(SessionQuery(since=datetime(2026, 2, 1, tzinfo=UTC))) == []
+
+
+@pytest.mark.parametrize(
+    ("older", "newer"),
+    [
+        ("2026-09-20T12:00:00Z", "2026-09-20T12:00:00.500Z"),
+        ("2026-09-20T12:00:00+02:00", "2026-09-20T11:00:00Z"),
+    ],
+)
+def test_session_limit_selects_latest_instant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, older: str, newer: str
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _rewrite_manifest(_ingest("codex", "old"), ingested_at=older)
+    _rewrite_manifest(_ingest("codex", "new"), ingested_at=newer)
+
+    assert query_session_summaries(limit=1)[0].session_id == "new"
+
+
+@pytest.mark.parametrize("timestamp", ["0001-01-01T00:00:00+23:59", "9999-12-31T23:59:59-23:59"])
+def test_out_of_range_utc_timestamps_do_not_crash_queries_or_prompt_statistics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, timestamp: str
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("codex", "bad-time", [SessionLog(timestamp, "codex", "bad-time", "user", "synthetic")])
+    _rewrite_manifest(session_bundle_path("codex", "bad-time"), ingested_at=timestamp)
+
+    assert query_session_summaries(SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC))) == []
+    result = CliRunner().invoke(app, ["agent", "stats", "--no-sync", "--since", "2026-09-01", "--json"])
+
+    assert result.exit_code == 1
+    assert isinstance(result.exception, DotError)
+    report = json.loads(result.stdout)["prompts"]
+    assert report["invalid_timestamps"] == 1
+    assert report["prompts"] == 0
+    assert report["complete"] is False

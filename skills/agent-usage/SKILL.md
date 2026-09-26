@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # Agent Usage
@@ -28,10 +28,10 @@ API equivalents use the offline rate card in `agent.pricing`, independently of r
 ## Gotchas
 
 - **Unknown is not free**: Claude can report cost through `cost-state`; absent prices are `null`/`unknown`, not zero. Read `cost_known_sessions` and `cost_complete` before comparing cost. A known zero is distinct from missing cost.
-- **Model attribution and dates**: Claude/Codex request samples retain per-request models and timestamps, including model switches and month boundaries. Sources without reliable samples use whole-session timestamps; check `session_timestamp_sessions`. A Codex cumulative-counter correction disables request allocation for that session rather than inventing deltas.
-- **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's final context size. Statistics group these separately and do not combine unlike measurements into one total.
+- **Model attribution and dates**: Claude/Codex/Grok request samples retain per-request models and timestamps, including model switches and month boundaries. Sources without reliable samples use whole-session timestamps; check `session_timestamp_sessions`. A Codex cumulative-counter correction disables request allocation for that session rather than inventing deltas.
+- **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's context-only fallback when turn usage is unavailable. Grok turn ledgers can instead provide real consumption measurements; inspect the record rather than assuming a measurement kind from the harness name. Statistics group these separately and do not combine unlike measurements into one total.
 - **One copy per session**: transcript and usage are replaced together, never by a shorter transcript or a failed extraction, so each session counts once.
-- **Capture uses one write path**: `session sync` reads each harness's own store; hooks only notify. Bundles migrated from older parsers are flagged as legacy accounting (parser 3 may overcount Claude streaming blocks) until sync recaptures their sources ([contracts](../dot-cli/references/contracts.md)).
+- **Capture uses one write path**: `session sync` reads each harness's own store; hooks only notify. Bundles from older accounting versions needing recapture are flagged as legacy accounting (parser 3 may overcount Claude streaming blocks) until sync recaptures their sources ([contracts](../dot-cli/references/contracts.md)).
 - **Both harness and agent fields exist**: queries can group by either `harness` or `agent` interchangeably.
 - **`sync` fails loud, reports warn**: `dot agent session sync` records each failed session, continues, and exits 1 at the end; the sync before `stats` and `usage` only warns on stderr. A failed usage extraction keeps the archived measurement.
 

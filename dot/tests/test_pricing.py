@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 from fmind_dot.archive import store
 from fmind_dot.archive.pricing import api_equivalent
 from fmind_dot.archive.store import SessionLog, ingest_session, session_bundle_path
-from fmind_dot.archive.usage import UsageRecord, aggregate_usage
+from fmind_dot.archive.usage import UsageRecord, aggregate_usage, load_usage_records
 from fmind_dot.cli import app
 from fmind_dot.config import default_pricing
 
@@ -138,6 +138,24 @@ def test_public_stats_leave_unproven_legacy_zero_unpriced_without_changing_archi
     assert row["pricing_complete"] is False
     assert row["unpriced_reasons"] == {"legacy zero lacks measurement evidence": 1}
     assert bundle.read_bytes() == before
+
+
+@pytest.mark.parametrize("harness", ["claude", "codex", "copilot"])
+def test_parser_seven_explicit_zero_remains_known_without_recapture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, harness: str
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    usage = UsageRecord(harness=harness, session_id="known-zero", measurement_kind="provider-reported").finalize(
+        fallback_timestamp="2026-09-01T00:00:00Z"
+    )
+    with monkeypatch.context() as previous:
+        previous.setattr(store, "SESSION_PARSER_VERSION", "7")
+        ingest_session(harness, usage.session_id, [], usage=usage.to_dict())
+
+    [restored] = load_usage_records()
+
+    assert not restored.legacy_accounting
+    assert api_equivalent(restored, default_pricing()) == (0, "")
 
 
 @pytest.mark.parametrize(

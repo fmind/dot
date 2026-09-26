@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-23"
+  updated: "2026-09-26"
 ---
 
 # Secrets with sops and age
@@ -16,7 +16,7 @@ Encrypted secrets live in git next to their configuration. Use environment varia
 
 ## Model
 
-- **age** provides the key pair: one private key per machine or human, public recipients everywhere; prefer it over PGP and cloud KMS for solo use, adding a `gcp_kms` recipient only for team revocation.
+- **age** provides the key pair: one private key per machine or human, public recipients everywhere; prefer it for solo use. Choose cloud KMS when centrally managed access is required; adding a KMS recipient alongside age does not revoke the independent age decryption path.
 - **sops** encrypts the values of YAML, JSON, and ENV files; keys stay readable, so diffs review cleanly and `git log` tells which secret changed, never what it is.
 - **Naming**: encrypted files are committed as `*.enc.yaml`, `*.enc.json`, or `*.enc.env`; [sops.yaml](references/sops.yaml) keys its rules off that suffix and plaintext siblings stay gitignored.
 - **Policy as file**: `.sops.yaml` at the repo root ([sops.yaml](references/sops.yaml)) declares which paths get encrypted and for which recipients, so no ad-hoc flags are needed.
@@ -27,7 +27,7 @@ Encrypted secrets live in git next to their configuration. Use environment varia
 1. **Generate** only when the key file is absent: create its parent directory with mode `0700`, then run `age-keygen -o "<key-file>"`. It creates a private file and refuses to overwrite an existing one. Print only the public half with `age-keygen -y "<key-file>"`.
 1. **Distribute** only the public key, as the `age:` recipient in each repo's `.sops.yaml`.
 1. **Back up** the private key in a password manager; never commit it to any dotfiles repo.
-1. **Rotate**: add the new recipient to `.sops.yaml`, review the recipient diff, then run `sops updatekeys --yes <file>` on every encrypted file, then remove the old recipient and repeat; `sops rotate -i <file>` re-keys the data key after an exposure.
+1. **Rotate**: add the new recipient to `.sops.yaml`, review the recipient diff, and run `sops updatekeys --yes <file>` on every encrypted file. Verify decryption through the replacement key before retiring the old one. After removing the old recipient, run `sops updatekeys --yes <file>` followed by `sops rotate -i <file>` so its previously recoverable data key cannot decrypt future values. Complete this sequence before storing replacement application credentials; urgent provider-side revocation follows the authorized incident response and need not wait for file re-encryption.
 
 ## Commands
 
@@ -46,7 +46,7 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 ## Gotchas
 
 - **Editor plaintext**: `sops edit` writes a temporary plaintext file for the editor. When disk plaintext is forbidden, use an explicitly configured memory-backed temporary directory and compatible editor settings, or avoid the editor workflow.
-- **Existing plaintext**: encryption does not erase the input, editor backups, shell history, or past commits; keep it ignored and handle cleanup or rotation within the authorized scope.
+- **Existing plaintext and old recipients**: encryption does not erase the input, editor backups, shell history, or past commits. Removing a recipient and rotating the SOPS data key protects the new file, but cannot revoke copies or older Git revisions that recipient could decrypt. Rotate exposed application credentials at their provider within the authorized scope.
 
 - **Key names still leak**: sops encrypts values, not keys, so `stripe_production_key:` in a public repo is information; name keys neutrally when the repo is public.
 - **Never edit ciphertext by hand**: sops stores a MAC over the file and out-of-band edits fail decryption; go through `sops edit` or `sops set`.
@@ -56,6 +56,6 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 
 ## Documentation
 
-- [sops](https://getsops.io/docs/) · [age](https://age-encryption.org)
+- [sops](https://getsops.io/docs/) · [key management](https://getsops.io/docs/usage/key-management/) · [age](https://age-encryption.org)
 - Releases: [sops](https://github.com/getsops/sops/releases) · [age](https://github.com/FiloSottile/age/releases)
 - Companion skills: [gitleaks](../security-review/references/gitleaks.md), [lefthook](../github-actions/references/lefthook.md), [cloud-run](../cloud-run/SKILL.md) (runtime secrets), [infra-as-code](../infra-as-code/SKILL.md), [security-review](../security-review/references/code-review/GUIDE.md).

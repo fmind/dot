@@ -5,13 +5,17 @@
 {{- $sentinel := "# chezmoi: mise-zsh-integration" -}}
 {{- $activationBlock := `# chezmoi: mise-zsh-integration
 # Bootstrap mise for macOS login shells; activation owns tool-version precedence.
-export PATH="${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
+export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
 # Claude Code snapshots this shell but not the hook state that mise() needs, which
 # makes every mise call exit 127 there; its shells rely on the shims instead.
 if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate zsh)"
   eval "${mise_activation}"
 fi` -}}
+{{- /* Match the managed prefix: older installations lack the later Claude comments. */ -}}
+{{- $pathBlock := slice (splitList "\n" $activationBlock) 0 3 | join "\n" -}}
+{{- $previousPathBlock := replace "${HOME}/.local/share/mise/shims:" "" $pathBlock -}}
+{{- $stdin = replace $previousPathBlock $pathBlock $stdin -}}
 {{- if contains $sentinel $stdin -}}
 {{-   $stdin -}}
 {{- else -}}

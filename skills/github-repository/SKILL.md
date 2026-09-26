@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-09-20"
+  updated: "2026-09-26"
 ---
 
 # GitHub Repository
 
-Derive a repository's description, homepage, and topics from its codebase and apply them with `gh repo edit` together with solo-developer settings: squash-only merges, secure defaults, a decluttered sidebar.
+Derive a repository's description, homepage, and topics from its codebase and apply the requested fields with `gh repo edit`. For a new solo-maintained repository or an explicitly requested settings pass, use the baseline below; a metadata-only request does not include merge policy, sidebar features, or security settings.
 
 ## Workflow
 
@@ -21,7 +21,7 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 1. **Extract metadata** from the codebase:
    - Project metadata: Python `pyproject.toml` (`[project]` name, description, and URLs).
    - `README.md`: the first paragraphs give a one-line description under ~140 characters.
-   - Homepage: derive from hosting, e.g. `https://<owner>.github.io/<repo>` for GitHub Pages.
+   - Homepage: use the configured, verified canonical site; do not infer a live Pages site merely from the repository name.
    - Topics: 3 to 6 lowercase tags for language, frameworks, tools, or domain (`agent`, `python`, `cli`); letters, numbers, and hyphens only, 50 characters max, 20 per repository.
 1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated. Resolve repository identity through `gh`; never print raw remote URLs, which can contain credentials:
 
@@ -30,7 +30,7 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
    gh repo view --json nameWithOwner,visibility,isInOrganization,description,homepageUrl,repositoryTopics,deleteBranchOnMerge,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed,hasIssuesEnabled,hasProjectsEnabled,hasWikiEnabled,hasDiscussionsEnabled
    ```
 
-1. **Build one consolidated edit**: add the desired topics, remove every current topic not in that desired set, and append `--enable-issues=false` only when the project tracks issues elsewhere. Query the repository REST payload and add the two secret-scanning flags only for a public repository or when `security_and_analysis.secret_scanning` is present; otherwise report that the capability is unavailable and continue with the remaining settings:
+1. **Build one scoped edit**: for metadata-only work, include only the requested metadata flags and topic changes. Use the complete baseline below only when repository settings are in scope, preserving an existing team's policy and active wiki/projects/discussions unless their removal was requested. Add the desired topics, remove obsolete topics only when replacing the set, and append `--enable-issues=false` only when the project tracks issues elsewhere. Query the repository REST payload and add the two secret-scanning flags only for a public repository or when `security_and_analysis.secret_scanning` is present; otherwise report that the capability is unavailable and continue with the remaining settings:
 
    ```bash
    repository="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"

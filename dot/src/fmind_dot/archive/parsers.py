@@ -632,7 +632,7 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
                 usage_complete = usage_complete and (unbilled or measured)
                 samples.extend(turn)
                 cost_ticks += ticks
-                cost_complete = cost_complete and complete
+                cost_complete = cost_complete and (unbilled or complete)
         role = roles.get(update.get("sessionUpdate"))
         text = _mapping(update.get("content")).get("text")
         if role is None or not isinstance(text, str) or not text:
@@ -662,7 +662,12 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
             )
             # Both provider files are inspected to produce one measurement.
             if not usage_complete:
-                usage = None
+                if usage is not None and usage.cost_known:
+                    # A complete bill is independent from absent token counters.
+                    usage.set_samples([])
+                    usage.measurement_kind = ""
+                else:
+                    usage = None
             if usage is not None:
                 usage.source_bytes = len(transcript) + len(signals or b"")
         except (OSError, ValueError) as error:
@@ -675,12 +680,18 @@ def _grok_turn_usage(
 ) -> tuple[list[UsageRecord], int, bool]:
     """Return request measurements, reported cost ticks, and completeness for one turn."""
     usage = _usage_mapping(update.get("usage"), "usage")
+    incomplete = usage.get("usageIsIncomplete", False)
+    if not isinstance(incomplete, bool):
+        raise ValueError("usage record field 'usageIsIncomplete' must be a boolean")
+    if incomplete:
+        raise ValueError("incomplete Grok usage measurement")
     if not usage:
-        return [], 0, True
+        return [], 0, False
     # Per-model counters partition the turn exactly, including finished subagents.
     models = _usage_mapping(usage.get("modelUsage"), "modelUsage") or {"": usage}
     samples: list[UsageRecord] = []
-    ticks = 0
+    # The turn total remains authoritative when a per-model cost breakdown is absent.
+    ticks = _usage_token_count(usage.get("costUsdTicks"), "cost_usd")
     for index, model in enumerate(sorted(models)):
         counters = _usage_mapping(models[model], "modelUsage entry", optional=False)
         sample = UsageRecord(
@@ -698,13 +709,9 @@ def _grok_turn_usage(
                 setattr(sample, target, count)
                 if target in {"input_tokens", "output_tokens", "total_tokens"}:
                     sample.measurement_kind = "provider-reported"
-        value = _usage_token_count(counters.get("costUsdTicks"), "cost_usd")
-        if value is not None:
-            ticks += value
         samples.append(sample.finalize(fallback_timestamp=fallback_timestamp))
-    # xAI drops every cost float when any model call went unstamped; never sum a partial bill.
-    complete = usage.get("usageIsIncomplete") is not True and usage.get("costUsdTicks") is not None
-    return samples, ticks, complete
+    # An unstamped turn cannot establish a complete bill, including known zero.
+    return samples, ticks or 0, ticks is not None
 
 
 def _parse_grok_usage(

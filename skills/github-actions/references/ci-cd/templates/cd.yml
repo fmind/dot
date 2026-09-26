@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   validate:
+    name: Validate tagged revision
     if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' || vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -43,13 +44,14 @@ jobs:
           retention-days: 1
 
   publish-python-package:
+    name: Publish Python distributions
     if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: pypi
     permissions:
-      id-token: write
+      id-token: write # Authenticate to PyPI Trusted Publishing and create attestations.
     steps:
       - name: Download distributions
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -62,6 +64,7 @@ jobs:
           packages-dir: dist/
 
   deploy-python-container:
+    name: Publish verified container image
     if: ${{ vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
     needs: validate
     runs-on: ubuntu-24.04
@@ -72,8 +75,8 @@ jobs:
       PLATFORMS: linux/amd64,linux/arm64
     permissions:
       contents: read
-      packages: write
-      id-token: write
+      packages: write # Push the image, signatures, and SBOM attestations to GHCR.
+      id-token: write # Obtain the Sigstore signing identity through OIDC.
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

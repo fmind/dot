@@ -31,7 +31,7 @@ python ~/.agents/skills/agy/scripts/index-repositories.py
 python ~/.agents/skills/agy/scripts/index-repositories.py --apply
 ```
 
-Preview first; `--apply` adds missing local GitHub checkouts without network access. It skips hidden/dependency directories (including `modules/`) and symlinks, includes the chezmoi source, and accepts explicit roots. Existing metadata is preserved; moved/deleted checkouts need reviewed cleanup. This registers projects, not semantic code indexes.
+Preview first; `--apply` adds missing local GitHub checkouts without network access. It skips hidden/dependency directories (including `modules/`) and symlinks, includes the chezmoi source, and accepts explicit roots. New registry files are published atomically without replacing concurrent entries; failed writes leave no partial JSON. Existing metadata is preserved; moved/deleted checkouts need reviewed cleanup. This registers projects, not semantic code indexes.
 
 ## Shell completions
 

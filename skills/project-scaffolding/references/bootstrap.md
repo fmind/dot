@@ -24,6 +24,7 @@ Bootstrap a repository by composing the selected foundation and application owne
    - `trivy.yaml` plus the `check:*` scan tasks: [security-review](../../security-review/references/code-review/GUIDE.md)
    - `.github/workflows/ci.yml` and `security.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md)
    - `AGENTS.md`, `.agents/skills/`, and the `CLAUDE.md` bridge: [agent-project](../../agent-project/SKILL.md); `README.md` and documentation: [repository-docs](../../repository-docs/SKILL.md)
+1. **Make the project approachable**: apply the [README standard](../../repository-docs/references/readme.md) and its starter: a project-owned SVG logo, clear audience and outcome, useful badges backed by existing resources, and a verified first result. Keep private or unpublished resources private; omit unavailable badges and links until publication is authorized. Link detailed reference material instead of expanding the landing page.
 1. **Pin the toolchain** through [mise](../../mise/SKILL.md): replace scaffold selectors with exact versions from the workstation baseline for required tools, resolve project-only tools explicitly, and retain project-owned lockfiles. The new repository must install without the personal dotfiles checkout.
 1. **Validate locally**: `mise run install` and `mise run all`; for Python packages also qualify the installed wheel and any command/module entry points through the selected stack. Before the first commit, `check:leaks` scans the working tree.
 1. **Publish only within existing authorization**: when the user requested the initial commit and GitHub creation/push, create the remote after that commit (`chore: initial commit`, see [conventional-commit](../../git-delivery/references/conventional-commit.md)), then apply [github-repository](../../github-repository/SKILL.md):
@@ -35,7 +36,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 1. **Ship when authorized**: a first `v0.1.0` through [release](../../git-delivery/references/release/GUIDE.md) once CI is green; a deploy target through [cloud-run](../../cloud-run/SKILL.md) when the project serves traffic.
 1. **Done when**:
    - `mise run all` is green locally; check CI for the resulting commit when a first push was authorized.
-   - `README.md` says what the project is and how to run it; `AGENTS.md` says how agents work in it.
+   - `README.md` passes the README standard's acceptance review: recognizable identity, clear purpose, visible result, reproducible quickstart, honest limits, and working navigation; `AGENTS.md` says how agents work in it.
    - No scaffold placeholder (`<slug>`, `TODO`) remains in the delivered files; report pending publication separately.
 
 ## Gotchas

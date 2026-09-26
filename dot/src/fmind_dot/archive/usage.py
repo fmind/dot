@@ -287,7 +287,7 @@ class UsageStats:
 
 def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
     """Yield the usage measured for each archived session."""
-    from fmind_dot.archive.store import SESSION_PARSER_VERSION, discover_session_bundles, read_session_manifest
+    from fmind_dot.archive.store import discover_session_bundles, read_session_manifest
 
     for path in discover_session_bundles(root):
         manifest = read_session_manifest(path)
@@ -296,7 +296,11 @@ def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
         record = UsageRecord.from_dict(manifest.usage)
         if record.harness != manifest.agent or record.session_id != manifest.session_id:
             raise ValueError(f"session usage does not match its session: {path}")
-        record.legacy_accounting = manifest.parser_version != SESSION_PARSER_VERSION
+        # Accounting changes need recapture; a newer parser alone does not invalidate
+        # earlier explicit-zero evidence from otherwise unchanged provider parsers.
+        record.legacy_accounting = manifest.parser_version in {"3", "4", "5", "6"} or (
+            record.harness == "grok" and manifest.parser_version == "7"
+        )
         yield record
 
 
