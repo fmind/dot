@@ -20,6 +20,9 @@ dir = "{{config_root}}"
 [env]
 COVERAGE_FILE = "{{config_root}}/dot/.coverage"
 DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
+# Chezmoi traverses the source tree during parallel checks. Python's temporary
+# bytecode files can disappear between its directory listing and lstat calls.
+PYTHONDONTWRITEBYTECODE = "1"
 # uv resolves the dot project from here; tasks that need dot/ as the working
 # directory (pytest rootdir, ty first-party root) pass --directory dot instead.
 UV_PROJECT = "{{config_root}}/dot"
