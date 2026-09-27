@@ -156,7 +156,7 @@ dev = [
     { name = "pytest-watcher", specifier = ">=0.6.3" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = ">=0.16.6" },
-    { name = "supagents", specifier = "==1.3.0" },
+    { name = "supagents", specifier = "==1.4.0" },
     { name = "ty", specifier = ">=0.0.78,<0.1" },
     { name = "validate-pyproject", specifier = ">=0.26" },
 ]
@@ -413,7 +413,7 @@ wheels = [
 
 [[package]]
 name = "supagents"
-version = "1.3.0"
+version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -422,9 +422,9 @@ dependencies = [
     { name = "tomli-w" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1d/77/5c7af0de3a37565f8c4583700355585ba8d4dac3bf2e42a6e48e3d0d486f/supagents-1.3.0.tar.gz", hash = "sha256:dbef47ccb8418abc35c8dcf3617225d8f99ff6c89ce28d96267c049dbbd35320", size = 500429, upload-time = "2026-09-27T19:31:52.523Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/57/729e3d51c83cb95b50d2aa9320548d7fc73141966c4dbfeef4494d3f8608/supagents-1.4.0.tar.gz", hash = "sha256:5820c3e518bbaa5035c5b5141b49e8e040cf40f9256e8260712262240719e70f", size = 507710, upload-time = "2026-09-27T20:42:35.383Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/45/535d1486ece5fdbd2639ef8b52ca041531a9e7c27f4d2c57000e3301298e/supagents-1.3.0-py3-none-any.whl", hash = "sha256:54a154e9d45e5e933e926a3263adedf4d7063e3a8ebc1085b833e56fc1c76b29", size = 16094, upload-time = "2026-09-27T19:31:50.976Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/93/7411680036851b5e3bfd8fce3249e3a17f9c9c139c6355d8cbfafce445f4/supagents-1.4.0-py3-none-any.whl", hash = "sha256:21eae2a23177c191f122a5928d9b866aaf6f0b4111d60111171e1a9e457d173e", size = 17941, upload-time = "2026-09-27T20:42:34.046Z" },
 ]
 
 [[package]]

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 from supagents.config import Config
-from supagents.core import build, find_orphans, split_frontmatter
+from supagents.core import build, split_frontmatter
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -20,15 +20,10 @@ def test_cross_harness_roles_are_current_and_portable(tmp_path: Path) -> None:
     )
     assert not result.fatal_errors
     assert not result.error_count
+    assert not result.warning_count
     assert len(result.written) == 12
     assert {plan.target_name for plan in result.plans} == {"AGY", "CLAUDE", "CODEX", "COPILOT", "GROK", "OPENCODE"}
     assert {plan.source.name for plan in result.plans} == {"reviewer", "verifier"}
-    assert not find_orphans(
-        scope="project",
-        config=Config.load(ROOT / "supagents.yaml"),
-        source_dir=ROOT / "dot_agents" / "supagents",
-        cwd=ROOT,
-    ), "obsolete generated profiles must be removed from the chezmoi source tree"
     for plan in result.plans:
         relative = plan.output_path.relative_to(tmp_path)
         assert (ROOT / relative).read_bytes() == plan.output_path.read_bytes(), f"stale profile: {relative}"
