@@ -46,6 +46,6 @@ These profiles do not establish equivalent sandboxes across harnesses. A verifie
 
 ## Compiler maintenance
 
-The dot development dependency pins a locally built, unpublished Supagents 1.3.0 wheel under `dot/vendor/`. CI and fresh checkouts use that artifact; they do not need the sibling checkout. The wheel contains the upstream MIT license, and `dot/vendor/supagents.json` records its digest and source fingerprint.
+The dot development dependency pins [Supagents 1.3.0 from PyPI](https://pypi.org/project/supagents/1.3.0/). `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout.
 
-To update it, qualify the corresponding source in `~/fmind/agent-supagents` with `mise run all`, build the wheel, replace the vendor artifact and provenance, then update the dependency/source path in `dot/pyproject.toml` and run `uv lock` from the dotfiles root. Run `mise run agents` and the full repository gate on an isolated candidate when unrelated changes are present. Publishing Supagents and switching to a registry release are separate delivery steps.
+To update it, verify the upstream release and PyPI provenance, change the version pin in `dot/pyproject.toml`, then run `uv lock --refresh-package supagents` from the dotfiles root. Run `mise run agents` and the full repository gate on an isolated candidate when unrelated changes are present. Publishing Supagents and adopting its release remain separate delivery steps.

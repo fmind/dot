@@ -1,7 +1,5 @@
 """Verify the pinned compiler and native profiles deployed by chezmoi."""
 
-import hashlib
-import json
 import tomllib
 from pathlib import Path
 
@@ -10,14 +8,6 @@ from supagents.config import Config
 from supagents.core import build, find_orphans, split_frontmatter
 
 ROOT = Path(__file__).resolve().parents[2]
-
-
-def test_supagents_vendor_integrity() -> None:
-    """The artifact consumed by uv matches the recorded local candidate."""
-    vendor = ROOT / "dot" / "vendor"
-    provenance = json.loads((vendor / "supagents.json").read_text())
-    wheel = vendor / provenance["wheel"]
-    assert hashlib.sha256(wheel.read_bytes()).hexdigest() == provenance["wheel_sha256"]
 
 
 def test_cross_harness_roles_are_current_and_portable(tmp_path: Path) -> None:
