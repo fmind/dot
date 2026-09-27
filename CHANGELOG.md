@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.9.0] - 2026-09-27
+
+### 🚀 Features
+
+- Integrate shared agents and preserve complete archive usage
+- Adopt strict Supagents 1.4 verification
+
+### 🐛 Bug Fixes
+
+- Prevent bytecode races during chezmoi checks
+
+### ⚙️ Build & CI
+
+- Adopt supagents 1.3.0 from PyPI
+
 ## [7.8.0] - 2026-09-26
 
 ### 🚀 Features
