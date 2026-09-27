@@ -20,6 +20,14 @@ Edit fmind/dot's chezmoi sources, then preview and apply only affected targets w
 
 The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants include `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. Keep native rendering defaults unless a concrete terminal problem calls for an override. Keep hooks small: synchronous hooks add latency to the agent loop.
 
+## Managed custom agents
+
+`reviewer` inspects supplied diffs and source files with file-reading/search tools; `verifier` also runs repository checks with sandboxed command execution. Both inherit the session model, support main-agent and subagent use, exclude default tools, and disable MCP inheritance. Shell access still allows writes within the verifier's sandbox; its no-fixes instruction is not a read-only filesystem guarantee.
+
+Select with `agy --agent reviewer`, `agy --agent verifier`, or `/agents`. For delegation, give the parent the role, scope, acceptance criteria, and relevant diff or evidence paths; the reviewer has no shell to obtain Git diffs itself. Use `agy agents` to verify discovery after applying `~/.gemini/config/agents/`; reopen the panel or start a fresh session to pick up changes.
+
+Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/agents/`; chezmoi deploys them. Run `mise run agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
+
 ## Headless Remote Control
 
 Use the CLI daemon without installing the desktop app. Read [Remote Control](https://antigravity.google/docs/remote-control/) before changing its persistent OS service. `agy remote-control status` is read-only; `start` registers/restarts and `stop` unregisters it. Restart only when no remote task is running; verify the browser project picker separately.

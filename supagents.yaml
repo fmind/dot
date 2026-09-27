@@ -1,0 +1,15 @@
+# https://github.com/fmind/agent-supagents/blob/main/docs/usage.md
+# Compile into chezmoi sources; never generate directly into the deployed home.
+targets:
+  AGY:
+    project_path: dot_gemini/private_config/agents
+  CLAUDE:
+    project_path: dot_claude/agents
+  CODEX:
+    project_path: dot_codex/agents
+  COPILOT:
+    project_path: dot_copilot/agents
+  GROK:
+    project_path: dot_grok/agents
+  OPENCODE:
+    project_path: dot_config/opencode/agents

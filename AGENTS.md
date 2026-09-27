@@ -36,6 +36,7 @@ Key routines:
 
 ## Agents
 
+- **Subagents**: `dot_agents/supagents/` owns shared roles; `mise run agents` compiles native files using `supagents.yaml`. Never edit generated profiles directly. `check:agents` rejects drift; see [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 - **Persona**: `dot_agents/AGENTS.md` deploys to `~/.agents/AGENTS.md`, consumed by all agent harnesses.
 - **Skills**: Global packages live in `skills/`; `dot_agents/skills/symlink_<name>.tmpl` links each into the real `~/.agents/skills/` directory. Other packages use the same directory and remain independently managed. Never use `exact_` for the shared catalog.
 

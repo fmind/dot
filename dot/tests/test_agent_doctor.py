@@ -95,7 +95,8 @@ def test_doctor_reports_three_checks_per_agent_without_content(monkeypatch: pyte
 
     results = {result.agent: result for result in run_agent_doctor(state)}
 
-    assert list(results) == ["agy", "claude", "codex", "grok", "copilot"]
+    assert list(results) == ["agy", "claude", "codex", "grok", "copilot", "opencode"]
+    assert results["opencode"].hooks == "not-required"
     claude = results["claude"]
     assert (claude.hooks, claude.source, claude.archive, claude.sessions, claude.sync_failures) == (
         "configured",
@@ -160,7 +161,7 @@ def test_doctor_accepts_an_absolute_dot_path(monkeypatch: pytest.MonkeyPatch, tm
     state = _state(monkeypatch, tmp_path)
     _configure_hooks(tmp_path, binary=str(tmp_path / ".local/bin/dot"))
 
-    assert {result.hooks for result in gather_agent_doctor(state)} == {"configured"}
+    assert {result.hooks for result in gather_agent_doctor(state)} == {"configured", "not-required"}
 
 
 @pytest.mark.parametrize("problem", ["disabled", "wrong-event", "metadata-only", "wrong-type"])
@@ -255,9 +256,9 @@ def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.Monkey
     assert options == {"--agent", "--harness", "-a", "--json", "-j"}
     for removed in ("--fix", "--dry-run", "--deep", "--explain"):
         assert CliRunner().invoke(app, ["agent", "doctor", removed]).exit_code == 2
-    unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "opencode"])
+    unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "unsupported"])
     assert unknown.exit_code == 2
-    assert "unknown agent 'opencode'" in unknown.stderr
+    assert "unknown agent 'unsupported'" in unknown.stderr
 
 
 def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

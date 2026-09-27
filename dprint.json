@@ -18,7 +18,13 @@
     "**/modify_*.json",
     "**/modify_*.toml",
     "**/modify_*.yaml",
-    "**/node_modules"
+    "**/node_modules",
+    "dot_claude/agents/**",
+    "dot_codex/agents/**",
+    "dot_copilot/agents/**",
+    "dot_gemini/private_config/agents/**",
+    "dot_grok/agents/**",
+    "dot_config/opencode/agents/**"
   ],
   "markdown": {
     "textWrap": "never"

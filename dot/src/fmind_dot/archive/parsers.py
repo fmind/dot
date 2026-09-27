@@ -627,7 +627,7 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
                 timed = timed and (bool(turn_timestamp) or not turn)
                 # A failed or cancelled turn without usage (e.g. an HTTP 402) billed nothing
                 # measurable; only a turn that should have reported usage leaves a gap.
-                unbilled = not turn and update.get("stop_reason") in {"error", "cancelled"}
+                unbilled = not update.get("usage") and update.get("stop_reason") in {"error", "cancelled"}
                 measured = bool(turn) and all(sample.measurement_kind for sample in turn)
                 usage_complete = usage_complete and (unbilled or measured)
                 samples.extend(turn)
@@ -684,7 +684,9 @@ def _grok_turn_usage(
     if not isinstance(incomplete, bool):
         raise ValueError("usage record field 'usageIsIncomplete' must be a boolean")
     if incomplete:
-        raise ValueError("incomplete Grok usage measurement")
+        # The provider explicitly has no complete measurement. Keep the transcript,
+        # but never present partial counters or cost as the session's total.
+        return [], 0, False
     if not usage:
         return [], 0, False
     # Per-model counters partition the turn exactly, including finished subagents.
@@ -869,12 +871,80 @@ def _extract_copilot_usage(
     return record.finalize(fallback_timestamp=fallback_timestamp)
 
 
+def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
+    """Read text turns from OpenCode's SQLite store; tools, synthetic parts and summaries are excluded.
+
+    This adapter projects transcripts only. Usage remains unavailable rather than inventing zeros.
+    The observed message/part schema stores provider JSON in `data` and millisecond times in columns.
+    """
+    if not is_valid_session_id(session_id):
+        raise ValueError("invalid OpenCode session id")
+    with closing(_connect_read_only(path)) as connection:
+        connection.execute("BEGIN")
+        session = connection.execute("SELECT directory FROM session WHERE id = ?", (session_id,)).fetchone()
+        if session is None:
+            raise ValueError("OpenCode session disappeared")
+        cwd = resolve_cwd(session[0] or cwd)
+        # Check sizes inside the same read transaction before materializing provider JSON.
+        sizes = connection.execute(
+            "SELECT COUNT(*), COALESCE(SUM(LENGTH(CAST(data AS BLOB))), 0) FROM message WHERE session_id = ? "
+            "UNION ALL SELECT COUNT(*), COALESCE(SUM(LENGTH(CAST(data AS BLOB))), 0) FROM part WHERE session_id = ?",
+            (session_id, session_id),
+        ).fetchall()
+        if sizes[0][0] > 20000 or sizes[1][0] > 100000 or sum(row[1] for row in sizes) > 16 << 20:
+            raise ValueError("OpenCode session exceeds transcript bounds")
+        messages = connection.execute(
+            "SELECT id, time_created, data FROM message WHERE session_id = ? ORDER BY time_created, id LIMIT 20001",
+            (session_id,),
+        ).fetchall()
+        parts = connection.execute(
+            "SELECT id, message_id, data FROM part WHERE session_id = ? ORDER BY time_created, id LIMIT 100001",
+            (session_id,),
+        ).fetchall()
+    if len(messages) > 20000 or len(parts) > 100000 or sum(len(row[2]) for row in [*messages, *parts]) > 16 << 20:
+        raise ValueError("OpenCode session exceeds transcript bounds")
+    content: dict[str, list[str]] = {}
+    message_ids = {row[0] for row in messages}
+    for _, message_id, raw in parts:
+        if message_id not in message_ids:
+            raise ValueError("OpenCode part references a missing message")
+        part = json.loads(raw)
+        if not isinstance(part, dict):
+            raise ValueError("invalid OpenCode part")
+        if part.get("type") == "text" and not part.get("synthetic") and not part.get("ignored"):
+            if not isinstance(part.get("text"), str):
+                raise ValueError("invalid OpenCode text")
+            content.setdefault(message_id, []).append(part["text"])
+    logs = []
+    for message_id, created, raw in messages:
+        message = json.loads(raw)
+        if not isinstance(message, dict):
+            raise ValueError("invalid OpenCode message")
+        role = message.get("role")
+        if role not in {"user", "assistant"} or message.get("summary") is True:
+            continue
+        if type(created) is not int or not 0 <= created <= 253402300799000:
+            raise ValueError("invalid OpenCode message time")
+        timestamp = datetime.fromtimestamp(created / 1000, UTC).isoformat()
+        body = "\n".join(content.get(message_id, []))
+        if body.strip():
+            logs.append(SessionLog(timestamp, "opencode", session_id, role, body, cwd))
+    return ParsedSession(
+        logs,
+        fingerprint_json(
+            {"cwd": cwd, "messages": [tuple(row) for row in messages], "parts": [tuple(row) for row in parts]}
+        ),
+        "opencode-db",
+    )
+
+
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "agy": AgentAdapter("agy", "agy", False, parse_agy_session),
     "claude": AgentAdapter("claude", "Claude", False, parse_claude_session),
     "codex": AgentAdapter("codex", "Codex", False, parse_codex_session),
     "grok": AgentAdapter("grok", "Grok", False, parse_grok_session),
     "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session),
+    "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session),
 }
 
 
@@ -938,6 +1008,15 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
                 for row in connection.execute("SELECT id, cwd FROM sessions")  # nosemgrep: formatted-sql-query
                 if is_valid_session_id(row[0])
             )
+    elif agent == "opencode":
+        with closing(_connect_read_only(root)) as connection:
+            rows = connection.execute("SELECT id, directory FROM session ORDER BY id LIMIT 20001").fetchall()
+            if len(rows) > 20000:
+                raise ValueError("OpenCode exceeds 20000 sessions")
+            for identifier, directory in rows:
+                if not isinstance(identifier, str) or not is_valid_session_id(identifier):
+                    raise ValueError("invalid OpenCode session identity")
+                candidates.append((identifier, directory or "", root))
     else:
         raise ValueError(f"agent {agent!r} has no verified session parser")
     return candidates

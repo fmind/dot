@@ -74,6 +74,7 @@ depends = ["check:local", "check:network"]
 description = "Run the static checks that need no remote database (pre-commit)"
 depends = [
   "check:actions",
+  "check:agents",
   "check:chezmoi",
   "check:docs",
   "check:fish",
@@ -409,3 +410,14 @@ run = '"$DOT_BIN" doctor'
 alias = "mv"
 description = "Synchronize Neovim plugins headlessly"
 run = "nvim --headless '+Lazy! restore' '+Lazy! clean' '+lua require(\"config.sync-parsers\")' +qa"
+
+[tasks.agents]
+description = "Compile shared reviewer and verifier roles into native chezmoi sources"
+run = "uv run --frozen supagents build --project --source-dir dot_agents/supagents --config supagents.yaml"
+
+[tasks."check:agents"]
+description = "Reject drift in generated native subagent profiles"
+run = [
+  "uv run --frozen supagents build --project --source-dir dot_agents/supagents --config supagents.yaml --check",
+  "uv run --frozen pytest -q dot/tests/test_supagents.py",
+]

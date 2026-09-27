@@ -24,8 +24,10 @@ from fmind_dot.archive.store import (
     SessionSource,
     ensure_session_store,
     ingest_session,
+    read_session_bundle,
     read_session_manifest,
     report_ingestion,
+    session_bundle_path,
     session_store_root,
 )
 from fmind_dot.config import expand_path
@@ -49,6 +51,7 @@ class SyncOutcome:
     ingested: int = 0
     unchanged: int = 0
     retained: int = 0
+    retained_current_transcripts: int = 0
     skipped: int = 0
     failed: int = 0
 
@@ -270,6 +273,16 @@ def sync_sessions(
                 result, failure = _capture(
                     adapter, session_id, parsed, parsed.fingerprint if adapter.database else signature, previous
                 )
+                if result is not None and result.status == "retained" and failure is None and not parsed.malformed:
+                    # Usage retention does not make identical transcript text stale.
+                    # Prove equality against the retained generation and still-current source.
+                    manifest, logs = read_session_bundle(session_bundle_path(adapter.name, session_id))
+                    if (
+                        manifest == result.manifest
+                        and logs == parsed.logs
+                        and _source_signature(_source_files(adapter, path))[0] == observed
+                    ):
+                        counts.retained_current_transcripts += 1
             except _SESSION_ERRORS as error:
                 # One malformed session must not block the sessions and adapters after it.
                 fail(adapter, "capture session", error, session_id)
@@ -281,7 +294,7 @@ def sync_sessions(
                     state.stderr.write(report_ingestion(result) + "\n")
             if failure is not None:
                 fail(adapter, "capture session", failure, session_id)
-        for name in ("selected", "ingested", "unchanged", "retained", "skipped"):
+        for name in ("selected", "ingested", "unchanged", "retained", "retained_current_transcripts", "skipped"):
             setattr(outcome, name, getattr(outcome, name) + getattr(counts, name))
         if not quiet and scanned:
             verb = "selected" if dry_run else "ingested"

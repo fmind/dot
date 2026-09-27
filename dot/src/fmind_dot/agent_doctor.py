@@ -35,6 +35,8 @@ _DOCTOR_INTEGRATIONS = {
     "codex": DoctorIntegration("codex", "~/.codex/config.toml", "toml", ("stop",)),
     "grok": DoctorIntegration("grok", "~/.grok/hooks/hooks.json", "json", ("needs-input", "stop")),
     "copilot": DoctorIntegration("copilot", "~/.copilot/hooks/notify.json", "json", ("stop",)),
+    # OpenCode collection is database-based; this integration does not install notification hooks.
+    "opencode": DoctorIntegration("opencode", "", "", ()),
 }
 
 
@@ -178,14 +180,14 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         if agent and name != agent:
             continue
         definition = _DOCTOR_INTEGRATIONS[name]
-        hooks = _check_hooks(definition)
+        hooks = _check_hooks(definition) if definition.notify_events else "not-required"
         source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
         synced = last_sync != "unreadable" and (last_sync != "never" or source == "missing")
         if hooks == "disabled":
             setting = "disableAllHooks" if name == "claude" else "features.hooks / features.codex_hooks"
             hint = f"review {setting} in the chezmoi source for {definition.config_path}"
-        elif hooks != "configured":
+        elif hooks not in {"configured", "not-required"}:
             hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
         elif archive not in {"readable", "empty"}:
             hint = f"inspect the unreadable bundles under ~/.agents/sessions/v3/{name}"
