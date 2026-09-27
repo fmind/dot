@@ -413,11 +413,12 @@ run = "nvim --headless '+Lazy! restore' '+Lazy! clean' '+lua require(\"config.sy
 
 [tasks.agents]
 description = "Compile shared reviewer and verifier roles into native chezmoi sources"
-run = "uv run --frozen supagents build --project --source-dir dot_agents/supagents --config supagents.yaml"
+run = "uv run --frozen supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
+
+[tasks."agents:diff"]
+description = "Preview native profile content changes without writing"
+run = "uv run --frozen supagents check --strict --diff --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tasks."check:agents"]
-description = "Reject drift in generated native subagent profiles"
-run = [
-  "uv run --frozen supagents build --project --source-dir dot_agents/supagents --config supagents.yaml --check",
-  "uv run --frozen pytest -q dot/tests/test_supagents.py",
-]
+description = "Reject warnings and missing, changed, or obsolete native subagent profiles"
+run = "uv run --frozen supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"

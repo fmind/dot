@@ -13,12 +13,13 @@ Work from the chezmoi source repository:
 
 ```bash
 # Edit dot_agents/supagents/reviewer.md or verifier.md.
+mise run agents:diff
 mise run agents
 mise run check:agents
 chezmoi diff --force ~/.claude/agents ~/.codex/agents ~/.copilot/agents ~/.gemini/config/agents ~/.grok/agents ~/.config/opencode/agents
 ```
 
-`supagents.yaml` maps outputs into chezmoi source paths and stays repository-only. Generated files are tracked and excluded from dprint; edit the canonical source instead. `check:agents` is part of the local/CI gate and rejects changed, missing, or obsolete generated profiles without rewriting files. Preview, then apply only affected targets with `chezmoi apply --force --exclude scripts` so unrelated hooks do not run.
+`supagents.yaml` maps outputs into chezmoi source paths and stays repository-only. Generated files are tracked and excluded from dprint; edit the canonical source instead. `agents:diff` shows source-to-output mappings and content diffs without writing; it exits 1 when drift exists. `check:agents` uses Supagents' native strict check to reject warnings and changed, missing, or obsolete generated profiles. `agents` rejects warnings before writing. Preview, then apply only affected targets with `chezmoi apply --force --exclude scripts` so unrelated hooks do not run.
 
 ## Roles and invocation
 
@@ -46,6 +47,6 @@ These profiles do not establish equivalent sandboxes across harnesses. A verifie
 
 ## Compiler maintenance
 
-The dot development dependency pins [Supagents 1.3.0 from PyPI](https://pypi.org/project/supagents/1.3.0/). `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout.
+The dot development dependency pins [Supagents 1.4.0 from PyPI](https://pypi.org/project/supagents/1.4.0/). `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout. Upstream [compatibility evidence](https://github.com/fmind/agent-supagents/blob/main/docs/compatibility.md) distinguishes generated syntax, native discovery, and runtime permissions.
 
 To update it, verify the upstream release and PyPI provenance, change the version pin in `dot/pyproject.toml`, then run `uv lock --refresh-package supagents` from the dotfiles root. Run `mise run agents` and the full repository gate on an isolated candidate when unrelated changes are present. Publishing Supagents and adopting its release remain separate delivery steps.

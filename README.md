@@ -101,7 +101,7 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 
 ## Agent roles
 
-`reviewer` and `verifier` are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), run `mise run agents`, preview the affected chezmoi diff, then apply. `mise run check:agents` rejects generated drift. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
+`reviewer` and `verifier` are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), preview with `mise run agents:diff`, run `mise run agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
 
 ## Agent skills
 
