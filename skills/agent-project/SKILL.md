@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-09-26"
+  updated: "2026-09-27"
 ---
 
 # Set Up Agents on a Project
@@ -22,6 +22,14 @@ Author the shared project instruction and skill layer once, then add only requir
 1. **Verify discovery**: read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs; distinguish presence from demonstrated instruction following.
 1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary.
 1. **Keep current**: route repository changes through [repository-docs](../repository-docs/SKILL.md), including project-local skill references.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [cross-harness-agents](references/cross-harness-agents.md): Generate reviewer and verifier profiles with Supagents and verify native harness discovery.
+
+<!-- guides:end -->
 
 ## Gotchas
 

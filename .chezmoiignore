@@ -34,6 +34,7 @@ lefthook.yml
 mise.lock
 mise.toml
 ruff.toml
+supagents.yaml
 skills
 trivy.yaml
 

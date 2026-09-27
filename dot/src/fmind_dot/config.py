@@ -163,6 +163,7 @@ class AgentConfig(StrictModel):
             "codex": "~/.codex/sessions",
             "copilot": "~/.copilot/session-store.db",
             "grok": "~/.grok/sessions",
+            "opencode": "~/.local/share/opencode/opencode.db",
         }
     )
     pricing: PricingConfig = Field(default_factory=default_pricing)

@@ -10,7 +10,7 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 - **Terminal:** Fish, Starship, Atuin, zoxide, fzf, Ghostty, and Zellij.
 - **Editor:** Neovim with LazyVim, styled with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share a persona and [skills](skills/).
+- **Agents:** Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share a persona and [skills](skills/). `dot agent session sync` normalizes their local sessions into the shared archive; OpenCode reads `~/.local/share/opencode/opencode.db` (override with `agent.sources.opencode`). Its transcript adapter excludes tool parts and synthetic text; OpenCode usage accounting remains unavailable.
 - **Development:** Python with uv, Ruff, ty, and pytest, plus cloud and infrastructure tools.
 - **Automation:** the `dot` CLI checks workstation health, manages workspaces, and reports agent usage.
 
@@ -98,6 +98,10 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 | `mise run all`     | Format, check, test, and build the repository                 |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
+
+## Agent roles
+
+`reviewer` and `verifier` are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), run `mise run agents`, preview the affected chezmoi diff, then apply. `mise run check:agents` rejects generated drift. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
 
 ## Agent skills
 

@@ -458,8 +458,26 @@ def test_grok_incomplete_ledger_does_not_claim_complete_token_totals(tmp_path: P
     parsed = parse_grok_session(transcript, "grok-id")
 
     assert parsed.usage is None
-    assert isinstance(parsed.usage_error, ValueError)
-    assert str(parsed.usage_error) == "incomplete Grok usage measurement"
+    assert parsed.usage_error is None
+
+
+@pytest.mark.parametrize("stop_reason", ["error", "cancelled", "end_turn"])
+def test_grok_incomplete_turn_never_counts_as_unbilled(tmp_path: Path, stop_reason: str) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    incomplete = _grok_turn(2, {"inputTokens": 999, "costUsdTicks": 10_000_000, "usageIsIncomplete": True})
+    incomplete["params"]["update"]["stop_reason"] = stop_reason
+    _jsonl(
+        transcript,
+        [
+            _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "costUsdTicks": 5_000_000}),
+            incomplete,
+        ],
+    )
+
+    parsed = parse_grok_session(transcript, "grok-id")
+
+    assert parsed.usage is None
+    assert parsed.usage_error is None
 
 
 @pytest.mark.parametrize("incomplete", ["true", 1, None])
@@ -647,6 +665,7 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
         "codex",
         "grok",
         "copilot",
+        "opencode",
     ]
     assert enumerate_sessions(agy_root, "agy") == [("agy-id", "", preferred_agy)]
     assert {candidate[0] for candidate in enumerate_sessions(claude_root, "claude")} == {

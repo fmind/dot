@@ -24,9 +24,9 @@ from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
-SESSION_PARSER_VERSION = "8"
+SESSION_PARSER_VERSION = "9"
 # Earlier captures remain readable and are flagged as legacy until their sources are recaptured.
-READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", SESSION_PARSER_VERSION)
+READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 LEGACY_STORE_VERSION = "v2"
 _LAST_MIGRATING_RELEASE = "7.0.4"
@@ -324,7 +324,7 @@ def ingest_session(
         skipped_records=source.skipped,
         usage=usage,
     )
-    if not logs and usage is None:
+    if not logs and usage is None and not path.exists():
         return SessionIngestionResult("skipped", manifest)
     root = ensure_session_store()
     # Atomic replacement protects readers; the lock also protects the read/compare/write
@@ -334,6 +334,8 @@ def ingest_session(
     with os.fdopen(descriptor, "rb") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
         stored = read_session_manifest(path) if path.exists() else None
+        if stored is None and not logs and usage is None:
+            return SessionIngestionResult("skipped", manifest)
         generation = (stored.parser_version, stored.source_fingerprint) if stored else ("", "")
         if expected_generation is not None and generation != expected_generation:
             # The source was parsed before taking this lock. A competing publication

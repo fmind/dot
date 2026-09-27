@@ -48,13 +48,13 @@
 
 ## Custom agents
 
-Custom-agent definitions are not portable; keep them in each host's native location instead of a shared `.agents/agents`, give parallel agents bounded tasks with non-overlapping file ownership, and let the parent integrate and validate.
+Native agent definitions differ by host. Share role instructions with [Supagents](cross-harness-agents.md), compile explicit native settings, and verify each host. Give delegated agents bounded tasks and let the parent integrate and validate.
 
-| Host        | Project location                                        |
-| ----------- | ------------------------------------------------------- |
-| Antigravity | `.agents/agents/<name>/agent.md`                        |
-| Claude Code | `.claude/agents/<name>.md`                              |
-| Codex       | `.codex/agents/<name>.toml`                             |
-| Copilot     | `.github/agents/<name>.agent.md`                        |
-| OpenCode    | `.opencode/agents/<name>.md`                            |
-| Grok        | `grok --agent <definition-file>` (no project directory) |
+| Host        | Project location                 |
+| ----------- | -------------------------------- |
+| Antigravity | `.agents/agents/<name>/agent.md` |
+| Claude Code | `.claude/agents/<name>.md`       |
+| Codex       | `.codex/agents/<name>.toml`      |
+| Copilot     | `.github/agents/<name>.agent.md` |
+| OpenCode    | `.opencode/agents/<name>.md`     |
+| Grok        | `.grok/agents/<name>.md`         |

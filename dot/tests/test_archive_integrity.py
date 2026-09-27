@@ -396,8 +396,9 @@ def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
 
     if incomplete:
         for _ in range(2):
-            with pytest.raises(DotError, match="1 failure"):
-                sync_sessions(state, agent="grok")
+            outcome = sync_sessions(state, agent="grok")
+            assert outcome.retained == 1
+            assert outcome.retained_current_transcripts == 1
             assert bundle.read_bytes() == before
             assert load_usage_records()[0].legacy_accounting
     else:

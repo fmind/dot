@@ -6,7 +6,7 @@ import os
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 import pytest
 
@@ -444,3 +444,66 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
         pending.result(timeout=5)
         latest.result(timeout=5)
     assert read_session_manifest(session_bundle_path("claude", "fixture-id")).record_count == 4
+
+
+@pytest.mark.parametrize("stop_reason", ["end_turn", "error", "cancelled"])
+def test_grok_incomplete_usage_keeps_transcript_and_preserves_measured_archive(tmp_path, monkeypatch, stop_reason):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state = State(stdout=io.StringIO(), stderr=io.StringIO())
+    root = tmp_path / "grok"
+    folder = root / "%2Fwork" / "grok-incomplete"
+    folder.mkdir(parents=True)
+    state.config.agent.sources["grok"] = str(root)
+    path = folder / GROK_TRANSCRIPT_NAME
+    rows: list[dict[str, Any]] = [
+        {
+            "timestamp": "2026-09-18T10:00:00Z",
+            "params": {
+                "update": {"sessionUpdate": "user_message_chunk", "content": {"text": "Keep this owner request"}}
+            },
+        },
+        {
+            "timestamp": "2026-09-18T10:00:30Z",
+            "params": {
+                "update": {
+                    "sessionUpdate": "turn_completed",
+                    "usage": {"inputTokens": 10, "outputTokens": 1, "costUsdTicks": 5_000_000},
+                }
+            },
+        },
+        {
+            "timestamp": "2026-09-18T10:01:00Z",
+            "params": {
+                "update": {
+                    "sessionUpdate": "turn_completed",
+                    "stop_reason": stop_reason,
+                    "usage": {"inputTokens": 100, "usageIsIncomplete": True},
+                }
+            },
+        },
+    ]
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    sync_sessions(state, agent="grok")
+    bundle = session_bundle_path("grok", "grok-incomplete")
+    manifest, records = read_session_bundle(bundle)
+    assert manifest.usage is None
+    assert manifest.completeness == "complete"
+    assert records[0].content == "Keep this owner request"
+    # A complete measurement can later replace the unavailable one.
+    rows[-1]["params"]["update"]["usage"] = {"inputTokens": 100, "outputTokens": 2, "costUsdTicks": 10_000_000}
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    sync_sessions(state, agent="grok")
+    measured = bundle.read_bytes()
+    assert read_session_manifest(bundle).usage is not None
+    rows[-1]["params"]["update"]["usage"]["usageIsIncomplete"] = True
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    outcome = sync_sessions(state, agent="grok")
+    assert bundle.read_bytes() == measured
+    assert outcome.retained_current_transcripts == outcome.retained == 1
+    assert outcome.ingested == 0
+    rows[0]["params"]["update"]["content"]["text"] += " with a new instruction"
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    outcome = sync_sessions(state, agent="grok")
+    assert bundle.read_bytes() == measured
+    assert outcome.retained == 1
+    assert outcome.retained_current_transcripts == 0
