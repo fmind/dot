@@ -268,7 +268,7 @@ def hook_notify(
     state = state_from(context, require_config=False)
     try:
         # Consume the hook payload so re-entrant and mid-turn events remain quiet.
-        workspace = notification_workspace(state.stdin, agent)
+        workspace = notification_workspace(state.stdin, agent, event)
         if workspace is None:
             return
         cwd = Path(workspace) if workspace else None

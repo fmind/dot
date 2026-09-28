@@ -10,19 +10,19 @@
             "type": "command"
           }
         ],
-        "matcher": "permission_prompt"
-      }
-    ],
-    "Stop": [
+        "matcher": "^permission_prompt$"
+      },
       {
         "hooks": [
           {
-            "command": "{{ $dot }} agent hook notify grok stop",
+            "command": "{{ $dot }} agent hook notify grok ready",
             "timeout": 30,
             "type": "command"
           }
-        ]
+        ],
+        "matcher": "^idle_prompt$"
       }
-    ]
+    ],
+    "Stop": []
   }
 }
