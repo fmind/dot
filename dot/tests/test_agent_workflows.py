@@ -521,7 +521,7 @@ def test_notification_workspace_accepts_host_aliases_and_honors_guards() -> None
     aliased = io.StringIO(json.dumps({"workspacePaths": [None, "/work/project"], "fullyIdle": True}))
     assert notification_workspace(aliased, "agy") == "/work/project"
     assert notification_workspace(io.StringIO(json.dumps({"cwd": "/work/direct"})), "claude") == "/work/direct"
-    assert notification_workspace(io.StringIO(""), "codex") == ""
+    assert notification_workspace(io.StringIO(""), "codex") is None
     assert notification_workspace(io.StringIO('{"stop_hook_active":true}'), "claude") is None
     assert notification_workspace(io.StringIO('{"cwd":"/work"}'), "agy") is None
 

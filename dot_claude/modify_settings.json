@@ -54,22 +54,22 @@
             "type": "command"
           }
         ],
-        "matcher": ""
+        "matcher": "^(permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input)$"
+      },
+      {
+        "hooks": [
+          {
+            "command": "@dot@ agent hook notify claude ready",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "^idle_prompt$"
       }
     ],
     "PreCompact": [],
     "SessionEnd": [],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "@dot@ agent hook notify claude stop",
-            "timeout": 30,
-            "type": "command"
-          }
-        ]
-      }
-    ],
+    "Stop": [],
     "SubagentStop": []
   },
   "inputNeededNotifEnabled": true,

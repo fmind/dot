@@ -27,9 +27,9 @@ def _text(stream: IO[str]) -> str:
 
 NOTIFY = {
     "agy": ["stop"],
-    "claude": ["needs-input", "stop"],
+    "claude": ["needs-input", "ready"],
     "codex": ["stop"],
-    "grok": ["needs-input", "stop"],
+    "grok": ["needs-input", "ready"],
     "copilot": ["stop"],
 }
 
@@ -53,20 +53,15 @@ def _configure_hooks(home: Path, binary: str = "dot") -> None:
             json.dumps(
                 {
                     "hooks": {
-                        "Notification": [{"hooks": [{"type": "command", "command": commands(agent)[0]}]}],
-                        "Stop": [{"hooks": [{"type": "command", "command": commands(agent)[1]}]}],
+                        "Notification": [
+                            {"hooks": [{"type": "command", "command": command} for command in commands(agent)]}
+                        ],
                     }
                 }
             ),
         )
-    _write(
-        home / ".codex/config.toml",
-        f'[[hooks.Stop]]\n[[hooks.Stop.hooks]]\ntype = "command"\ncommand = "{commands("codex")[0]}"\n',
-    )
-    _write(
-        home / ".copilot/hooks/notify.json",
-        json.dumps({"version": 1, "hooks": {"agentStop": [{"type": "command", "bash": commands("copilot")[0]}]}}),
-    )
+    _write(home / ".codex/config.toml", "[tui]\nnotifications = true\n")
+    _write(home / ".copilot/settings.json", json.dumps({"notifications": True}))
 
 
 def _state(monkeypatch: pytest.MonkeyPatch, home: Path) -> State:
@@ -129,9 +124,9 @@ def test_doctor_asks_for_sync_when_a_present_source_was_never_synced(
     [
         (None, "absent"),
         ("{", "malformed"),
-        (json.dumps({"hooks": {}}), "missing:needs-input,stop"),
-        (json.dumps({"hooks": ["dot agent hook notify claude stop"]}), "missing:needs-input,stop"),
-        (json.dumps({"hooks": ["/usr/bin/graphviz agent hook notify claude stop"]}), "missing:needs-input,stop"),
+        (json.dumps({"hooks": {}}), "missing:needs-input,ready"),
+        (json.dumps({"hooks": ["dot agent hook notify claude stop"]}), "missing:needs-input,ready"),
+        (json.dumps({"hooks": ["/usr/bin/graphviz agent hook notify claude stop"]}), "missing:needs-input,ready"),
         (
             json.dumps(
                 {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "dot agent hook session claude"}]}]}}
@@ -176,7 +171,7 @@ def test_doctor_rejects_inactive_claude_hooks(monkeypatch: pytest.MonkeyPatch, t
     elif problem == "metadata-only":
         config["description"] = config.pop("hooks")
     else:
-        config["hooks"]["Stop"][0]["hooks"][0]["type"] = "prompt"
+        config["hooks"]["Notification"][0]["hooks"][1]["type"] = "prompt"
     path.write_text(json.dumps(config))
 
     outcome = CliRunner().invoke(app, ["agent", "doctor", "--agent", "claude", "--json"])
@@ -190,9 +185,9 @@ def test_doctor_rejects_inactive_claude_hooks(monkeypatch: pytest.MonkeyPatch, t
         "disabled"
         if problem == "disabled"
         else {
-            "wrong-event": "missing:needs-input",
-            "metadata-only": "missing:needs-input,stop",
-            "wrong-type": "missing:stop",
+            "wrong-event": "missing:needs-input,ready",
+            "metadata-only": "missing:needs-input,ready",
+            "wrong-type": "missing:ready",
         }[problem]
     )
     if problem == "disabled":
@@ -200,15 +195,32 @@ def test_doctor_rejects_inactive_claude_hooks(monkeypatch: pytest.MonkeyPatch, t
 
 
 @pytest.mark.parametrize("feature", ["hooks", "codex_hooks"])
-def test_doctor_reports_disabled_codex_hooks(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, feature: str) -> None:
+def test_doctor_native_codex_notifications_do_not_require_hooks(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, feature: str
+) -> None:
     state = _state(monkeypatch, tmp_path)
     path = tmp_path / ".codex/config.toml"
     path.write_text(f"[features]\n{feature} = false\n" + path.read_text())
 
     [result] = gather_agent_doctor(state, agent="codex")
 
+    assert result.hooks == "configured"
+    assert result.healthy
+
+
+@pytest.mark.parametrize("agent", ["codex", "copilot"])
+def test_doctor_requires_native_attention_notifications(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    if agent == "codex":
+        (tmp_path / ".codex/config.toml").write_text("[tui]\nnotifications = false\n")
+    else:
+        (tmp_path / ".copilot/settings.json").write_text('{"notifications": false}')
+    [result] = gather_agent_doctor(state, agent=agent)
     assert result.hooks == "disabled"
     assert not result.healthy
+    assert "notifications" in result.next
 
 
 def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

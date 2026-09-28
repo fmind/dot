@@ -1,6 +1,7 @@
 # chezmoi:modify-template
 {{- /* Docs: https://opencode.ai/docs/config/#tui
        attention raises desktop notifications for questions, permissions, completion, and
-       errors; OpenCode has no hook for `dot agent hook notify`. */ -}}
-{{- $managedConfig := dict "$schema" "https://opencode.ai/tui.json" "theme" "fmind" "attention" (dict "enabled" true) -}}
+       errors for parent sessions. Disable sounds because native child-session
+       completion also plays them; keep desktop attention notifications. */ -}}
+{{- $managedConfig := dict "$schema" "https://opencode.ai/tui.json" "theme" "fmind" "attention" (dict "enabled" true "notifications" true "sound" false) -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "jsonc" true) -}}

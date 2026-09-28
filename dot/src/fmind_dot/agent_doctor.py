@@ -31,10 +31,10 @@ class DoctorIntegration:
 
 _DOCTOR_INTEGRATIONS = {
     "agy": DoctorIntegration("agy", "~/.gemini/config/hooks.json", "json", ("stop",)),
-    "claude": DoctorIntegration("claude", "~/.claude/settings.json", "json", ("needs-input", "stop")),
-    "codex": DoctorIntegration("codex", "~/.codex/config.toml", "toml", ("stop",)),
-    "grok": DoctorIntegration("grok", "~/.grok/hooks/hooks.json", "json", ("needs-input", "stop")),
-    "copilot": DoctorIntegration("copilot", "~/.copilot/hooks/notify.json", "json", ("stop",)),
+    "claude": DoctorIntegration("claude", "~/.claude/settings.json", "json", ("needs-input", "ready")),
+    "codex": DoctorIntegration("codex", "~/.codex/config.toml", "toml", ("native",)),
+    "grok": DoctorIntegration("grok", "~/.grok/hooks/hooks.json", "json", ("needs-input", "ready")),
+    "copilot": DoctorIntegration("copilot", "~/.copilot/settings.json", "json", ("native",)),
     # OpenCode collection is database-based; this integration does not install notification hooks.
     "opencode": DoctorIntegration("opencode", "", "", ()),
 }
@@ -105,12 +105,11 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         return "malformed"
     if definition.agent == "claude" and config.get("disableAllHooks") is True:
         return "disabled"
-    if definition.agent == "codex":
-        features = config.get("features", {})
-        if not isinstance(features, dict):
+    if definition.notify_events == ("native",):
+        settings = config.get("tui", {}) if definition.agent == "codex" else config
+        if not isinstance(settings, dict):
             return "malformed"
-        if features.get("hooks", features.get("codex_hooks")) is False:
-            return "disabled"
+        return "configured" if settings.get("notifications") is True else "disabled"
     configured = set(_command_hooks(config, definition.agent))
     if any(arguments[: len(retired)] == retired for _, arguments in configured for retired in _RETIRED_HOOKS):
         return "retired-capture-hook"
@@ -119,7 +118,7 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         event
         for event in definition.notify_events
         if (
-            "Notification" if event == "needs-input" else stop_event,
+            "Notification" if event in {"needs-input", "ready"} else stop_event,
             ("agent", "hook", "notify", definition.agent, event),
         )
         not in configured
@@ -185,7 +184,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         archive, sessions = _check_archive(root, name)
         synced = last_sync != "unreadable" and (last_sync != "never" or source == "missing")
         if hooks == "disabled":
-            setting = "disableAllHooks" if name == "claude" else "features.hooks / features.codex_hooks"
+            setting = {"claude": "disableAllHooks", "codex": "tui.notifications"}.get(name, "notifications")
             hint = f"review {setting} in the chezmoi source for {definition.config_path}"
         elif hooks not in {"configured", "not-required"}:
             hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
