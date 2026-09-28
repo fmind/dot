@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.9.1] - 2026-09-28
+
+### 🐛 Bug Fixes
+
+- Keep the Brain Framework config directory private
+
+### 📚 Documentation
+
+- _(skills)_ Align bf-use with Brain Framework 14
+- _(skills)_ Correct bf-use execution, schedule and attention rules
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Update Brain Framework to 14.0.0
+
 ## [7.9.0] - 2026-09-27
 
 ### 🚀 Features
