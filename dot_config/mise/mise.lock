@@ -1270,13 +1270,10 @@ specifiers = ["latest"]
 uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:cb68c006bce2d289ee104ecdef3b4407257f7d1f7df5a7e02672f5d2b2798e4f" }
 
 [[tools."pipx:brain-framework"]]
-version = "12.0.2"
+version = "14.0.0"
 backend = "pipx:brain-framework"
-specifiers = [
-    "12.0.2",
-    "latest",
-]
-uv = { path = "locks/pipx-brain-framework/12.0.2", digest = "sha256:71af4154b2180c9b425b2f762259843ac311e7fe8639f8e76d34ef1155cc7e23" }
+specifiers = ["latest"]
+uv = { path = "locks/pipx-brain-framework/14.0.0", digest = "sha256:d97170c5790eb8f22c626f2e30eab8b4dbf3ae356eb429baba9c291f3a5fa1bd" }
 
 [[tools."pipx:copier"]]
 version = "9.18.2"
