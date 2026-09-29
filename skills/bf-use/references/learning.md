@@ -5,7 +5,7 @@ description: "Update project notes and concepts after meaningful work: OKF statu
 
 # Keep knowledge current
 
-<!-- Mirrors github.com/fmind/brain-framework skills/bf-learn (v14.0.0); update it there first. -->
+<!-- Mirrors github.com/fmind/brain-framework skills/bf-learn (v15.0.0); update it there first. -->
 
 Knowledge is Markdown in the brain; Git keeps its history. Keep each owning note short and current so a future session can act on it. For a review-only request, report proposed edits instead.
 
@@ -19,7 +19,7 @@ After substantial work, recommend one concrete update when it would save a futur
 
 ## Note format
 
-Projects, concepts and `ACTION.md` notes are OKF: a nonempty `type`, `status: draft|stable|deprecated`, `sources` mappings with a `resource`, and `verified` only for real checks with `by` and `at`. Status is note maturity, not work progress: keep progress in the body and task list. Only `deprecated` closes a note; set it only when the owner confirms the work is over.
+Projects, concepts and `ACTION.md` notes are OKF: a nonempty `type`, `status: draft|stable|deprecated`, `sources` mappings with a `resource` (indexed as `cites` claims), and `verified` only for real checks with `by` and `at`. Status is note maturity, not work progress: keep progress in the body and task list. Only `deprecated` closes a note; set it only when the owner confirms the work is over.
 
 ```markdown
 ---
@@ -47,13 +47,13 @@ The current decision, because reason ([evidence](source:id)).
 - [ ] The single most important next step.
 ```
 
-Follow the brain's `AGENTS.md` when it prescribes other headings, such as dated `## Decisions` entries. Write next steps as checkboxes in their owning note only: `bf read tasks` counts them, and copied checkboxes become duplicate tasks. Keep `concepts/index.md` a short list of entry points; concepts start from the [concept template](https://github.com/fmind/brain-framework/blob/v14.0.0/skills/bf-learn/templates/concept.md).
+Follow the brain's `AGENTS.md` when it prescribes other headings, such as dated `## Decisions` entries. Write next steps as checkboxes in their owning note only: `bf read tasks` counts them, and copied checkboxes become duplicate tasks. Keep `concepts/index.md` a short list of entry points; concepts start from the [concept template](https://github.com/fmind/brain-framework/blob/v15.0.0/skills/bf-learn/templates/concept.md).
 
 ## Identities and links
 
 - `aliases` hold verified namespaced identities (`scheme:value`), never display names; write GitHub repository identities in lowercase, as sensors emit them. A record ref such as `jira:PROJ-1` is already an identity: link to it instead of repeating it as an alias. Entities and aliases stay in this brain's namespace, and page paths (home, folder roots, `tasks`, periods, `tags/*`, `memories/*`) cannot be claimed.
 - Only projects, concepts and `ACTION.md` notes declare `entity`, `aliases` and `tags`. Other Markdown, such as action inputs and outputs, is ordinary: only valid `title`, `type`, `status`, `updated`, `summary` and `description` apply, its typed links use the file as subject, and `entity`, `aliases`, `tags`, `sources` and review dates are ignored.
-- Use stable `bf://<bf.yaml name>/...` addresses across brains; an OKF note may declare `entity: bf://NAME/people/ID`. Declare each role under `schema:` in `bf.yaml` (`type: identity`, `relation: true`) before writing `[label](bf://NAME/path?rel=ROLE#section)`; `bf init` declares `author`, `owner`, `depends-on` and `related-to`, and `tagged-with` is reserved. The subject is the note entity, otherwise its file: to state another entity's relationship, write the link in that entity's note. `rel` is the only BF link query and precedes the fragment; percent-encode spaces and `%`. Keep authorship and ownership in named relationships, not URI userinfo.
+- Use stable `bf://<bf.yaml name>/...` addresses across brains; an OKF note may declare `entity: bf://NAME/people/ID`. Declare each role under `schema:` in `bf.yaml` (`type: identity`, `relation: true`) before writing `[label](bf://NAME/path?rel=ROLE#section)`; `bf init` declares `author`, `owner`, `depends-on` and `related-to`; `tagged-with`, `links` and `cites` are reserved. A role may declare one `broader` parent and allowed `targets` prefixes. The subject is the note entity, otherwise its file: to state another entity's relationship, write the link in that entity's note. `rel` is the only BF link query and precedes the fragment; percent-encode spaces and `%`. Keep authorship and ownership in named relationships, not URI userinfo.
 - Relative links start from their file; in `projects/` and `concepts/`, a leading `/` starts from that folder. Use explicit heading anchors (`## Title {#stable-id}`) for durable section refs. `bf validate` reports foreign links under `unresolved` without opening them.
 - Reuse topic labels from `bf read tags` (`tags: [agents, retrieval]`): exact, case-sensitive and brain-local. Never infer identity, relationships or tags from name similarity or provider labels.
 - Related brains belong in `bf.yaml` as `brains: {team: {path: ../team}}`, with matching names and paths relative to the declaring root; references and registration never grant execution. Promote only reviewed, shareable summaries into a team brain, with evidence teammates can access.
