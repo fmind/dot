@@ -1,0 +1,6 @@
+# Docs: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#ignore-files
+
+# Low-value search targets for Neovim search (ripgrep/fd)
+tests/**/__snapshots__/
+tests/**/fixtures/
+*.min.*
