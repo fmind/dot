@@ -5,7 +5,7 @@ description: "Start, resume or close one action (one tracked work session) only 
 
 # Start or resume an action
 
-<!-- Mirrors github.com/fmind/brain-framework skills/bf-action (v14.0.0); update it there first. -->
+<!-- Mirrors github.com/fmind/brain-framework skills/bf-action (v15.0.0); update it there first. -->
 
 An action holds one requested work session at `actions/YYYY-MM-DD_topic-SUFFIX/ACTION.md`, with optional `inputs/` and `outputs/`; `SUFFIX` is a fresh UUID hex. The user starts or resumes it explicitly; ordinary retrieval and note updates need none. Separately authorized routines also write actions for review. When the brain ships `skills/bf-action`, follow it and its helpers.
 
@@ -19,7 +19,7 @@ An action holds one requested work session at `actions/YYYY-MM-DD_topic-SUFFIX/A
 
 1. Find and read the owning project with `bf search "topic" --scope projects`; ask only when ownership is unresolved.
 1. Create the folder exclusively with a fresh suffix: prefer the brain's helper (`python3 PATH/skills/bf-action/scripts/new-action.py TOPIC --brain PATH`, which takes a directory, not a name); otherwise use `python3 -c 'import uuid; print(uuid.uuid4().hex)'` and retry on collision. Never reuse or rename an existing action.
-1. Fill it from the [template](https://github.com/fmind/brain-framework/blob/v14.0.0/skills/bf-action/templates/action.md): `type: action`, `status: draft`, `updated`, `description`, a relative link to the owning project, `## Context {#context}` (outcome, constraints, current decision, unknowns; at most 300 words, 4 KiB and six evidence refs), `## TODO`, `## Decision {#decision}`, `## Resume {#resume}` (at most 100 words) and `## Outcome`. Omit unused sections; create `inputs/` and `outputs/` only for approved files.
+1. Fill it from the [template](https://github.com/fmind/brain-framework/blob/v15.0.0/skills/bf-action/templates/action.md): `type: action`, `status: draft`, `updated`, `description`, a relative link to the owning project, `## Context {#context}` (outcome, constraints, current decision, unknowns; at most 300 words, 4 KiB and six evidence refs), `## TODO`, `## Decision {#decision}`, `## Resume {#resume}` (at most 100 words) and `## Outcome`. Omit unused sections; create `inputs/` and `outputs/` only for approved files.
 1. Link it from the project's next actions only when durable next steps change.
 
 ## Finish or hand off
