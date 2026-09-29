@@ -29,7 +29,7 @@ A brain keeps OKF project, concept and action notes plus collected source record
 1. Before interpreting, inspect `problems`, `stale` and source coverage (`sources`, `sources_omitted`): an incomplete empty result does not prove absence. Follow `next_offset` with the same request when completeness matters.
 1. Read the refs you rely on; excerpts are previews. A note above 32 KiB opens with its `outline`, graph context and first 4 KiB: read the section you need by its ref. Notes state a `date` as written; records state a `time` with its local offset. Follow the [retrieval guide](references/retrieval.md).
 1. Answer with the conclusion, supporting refs and material uncertainty.
-1. Start or resume an action only when the user asks ([actions guide](references/actions.md)). After meaningful work, update the owning note and run `bf validate` ([learning guide](references/learning.md)). When the brain's `skills/` holds the packaged `bf-use` or `bf-maintain` skills (installed with `bf skills`), follow them and their helpers: they match its pinned release.
+1. Start or resume an action only when the user asks ([actions guide](references/actions.md)). When the user asks to save an outcome, or the task authorizes it, update the owning note and run `bf validate` ([learning guide](references/learning.md)); never edit `memories/`. When the brain's `skills/` holds the packaged `bf-use` or `bf-maintain` skills (installed with `bf skills`), follow them and their helpers: they match its pinned release.
 
 ## Task guides
 

@@ -5,7 +5,7 @@ description: "Read pages, search within a scope, follow paginated replies and te
 
 # Complete reads and graph context
 
-<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/retrieval.md (v16.0.1); update it there first. -->
+<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/retrieval.md (v16.1.0); update it there first. -->
 
 Helpers named `skills/bf-use/scripts/…` belong to the packaged skill: run them from a brain that installed it with `bf skills skills`, or from the host folder where `bf skills DIR` put it.
 
@@ -15,7 +15,7 @@ Use when a reply is paged, a graph claim matters, a review needs source coverage
 
 Keep the query or page ref, scope, limit and brain selection unchanged and set `--offset` to the reply's `next_offset`; stop when it is absent. A page or preview is not the complete result. Restart when evidence changes during the walk.
 
-An exact read above 32 KiB returns its text in pages. A note's first page carries its backlinks, claims, an `outline` of `#section` refs with their `characters`, and only the first 4 KiB of text: read the section the task needs by its ref. To assemble the whole text instead, repeat the same read with each `next_offset` and join the `text` (or `record.text`) slices; every page names the file's `sha256`, so restart if it changes. Offsets count Unicode characters. `skills/bf-use/scripts/evidence.py read REF --brain PATH` does this and checks the digest.
+An exact read above 32 KiB returns its text in pages. A note's first page carries its backlinks, claims, an `outline` of `#section` refs with their `characters`, and only the first 4 KiB of text: read the section the task needs by its ref. To assemble the whole text instead, repeat the same read with each `next_offset` and join the `text` (or `record.text`) slices; every page names the file's `sha256`, so restart if it changes. Offsets count Unicode characters. `python3 skills/bf-use/scripts/evidence.py read REF --brain PATH` does this and checks the digest.
 
 Quote refs in shell commands. A `#` inside a record ID is part of its identity; a note section ref uses the heading slug or explicit `{#id}` after `.md`. With several selected brains, entries name their `brain` and `uri`, and a plain ref present in two brains fails: read the `uri` instead. MCP `read` takes `ref`, `rel` and `offset`; choose a brain with a `bf://NAME/` address.
 
@@ -49,6 +49,6 @@ For analysis outside BF, `bf export` streams one JSON line per edge of the selec
 
 ## Interpret attention signals
 
-The home page's `attention` lists scheduled sensors and routines that failed or are overdue. Project entries add `modified` (the file's last change), `review_due` (the local day a review falls due), `review_source` and `review_reasons`. A project falls due 14 days after its last edit unless its frontmatter sets `stale_after`; another note gets a reminder only from `stale_after`. Copies and checkouts can reset file times, so state portable deadlines with `stale_after`. A reminder, an edit or a new backlink is a reason to inspect, never evidence of verification.
+The home page's `attention` lists scheduled sensors and routines that failed or are overdue. Project entries add `modified` (the file's last change), `review_due` (the local day a review falls due), `review_source` and `review_reasons`; the [review guide](https://github.com/fmind/brain-framework/blob/v16.1.0/src/bf/skills/bf-use/references/review.md) says when a note falls due. A reminder, an edit or a new backlink is a reason to inspect, never evidence of verification.
 
 `bf read tasks` lists open checkboxes in projects, concepts and `ACTION.md` notes; only `deprecated` closes a note's tasks, and `index.md`, `log.md` and action attachments are excluded. Period pages separate items dated in the period (`items`, `total`) from items modified in it (`changed`). A `priority: low` source appears on period and home pages only as a count with its `page`; read that page to list its records.
