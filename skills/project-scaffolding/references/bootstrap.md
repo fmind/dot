@@ -11,7 +11,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 
 1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to private visibility; public resources require explicit user instruction. Default to `~/fmind` for personal `fmind` repositories, `~/fmind-ai` for `fmind-ai`, and `~/mlops-courses` for `mlops-courses`; ask only for consequential details not established by the task.
 1. **Choose template ownership**: [Copier](copier.md) is the default when creating or maintaining a reusable project template. Keep existing Cookiecutter/Cruft projects on [their workflow](cookiecutter/GUIDE.md) unless migration is requested; a one-off repository does not require a new template.
-1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, and project `AGENTS.md` where supplied:
+1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and project `AGENTS.md` where supplied:
    - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md) owns the minimal package and quality defaults.
    - Python CLI: the Python foundation, then [typer](../../cli-development/references/typer/GUIDE.md) for application scaffolding and [cli-contracts](../../cli-development/references/cli-contracts.md) for command behavior.
    - Litestar web app: the Python foundation, then [litestar](../../python-web/references/litestar/GUIDE.md) for the application, optional database integration, settings, and request tests.
@@ -20,6 +20,7 @@ Bootstrap a repository by composing the selected foundation and application owne
    - Documentation or course site: [documentation-site](../../documentation-site/SKILL.md), with [course-development](../../course-development/SKILL.md) for lessons; infrastructure: [infra-as-code](../../infra-as-code/SKILL.md)
 1. **Add the shared layer**, skipping what the foundation or application owner already produced:
    - `LICENSE` and manifest field: [project-license](project-license/GUIDE.md)
+   - `.ignore`: configure `.ignore` for Neovim search (ripgrep/fd) to exclude items with no search value (fixtures, snapshots, generated data, minified assets) without altering Git tracking.
    - `dprint.json`: [dprint](../../dprint/SKILL.md); hooks installed: [lefthook](../../github-actions/references/lefthook.md)
    - `trivy.yaml` plus the `check:*` scan tasks: [security-review](../../security-review/references/code-review/GUIDE.md)
    - `.github/workflows/ci.yml` and `security.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md)
