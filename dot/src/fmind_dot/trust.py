@@ -193,7 +193,11 @@ def run_trust(state: State, target: str = ".", *, dry_run: bool = False) -> None
         detail = f"{verb} in {', '.join(changed)}" if changed else "already trusted"
         state.stdout.write(f"{'✓' if not changed else '+'} {folder}: {detail}\n")
     for folder in skipped:
-        state.stdout.write(f"- {folder}: skipped (origin is not a github.com repository of trust.github_owners)\n")
+        # Skipped repositories sit inside a trusted workspace, which Copilot applies to descendants.
+        state.stdout.write(
+            f"- {folder}: skipped (origin is not a github.com repository of trust.github_owners; "
+            "Copilot still inherits workspace trust)\n"
+        )
 
 
 def register(app: typer.Typer) -> None:
