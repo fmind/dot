@@ -46,11 +46,11 @@ if status is-interactive
     if command -q zoxide
         zoxide init fish | source
     end
-    # Auto-start Zellij cleanly after entire shell initialization is complete
+    # Start once after shell initialization; keep Fish available if Zellij exits.
     function auto_zellij --on-event fish_prompt
         functions -e auto_zellij
         if command -q zellij; and not set -q ZELLIJ; and not set -q TMUX; and test "$TERM_PROGRAM" != vscode; and not set -q NVIM; and not set -q SSH_CONNECTION; and not set -q SSH_CLIENT; and not set -q SSH_TTY
-            exec zellij attach --create main
+            command zellij attach --create main
         end
     end
 end
