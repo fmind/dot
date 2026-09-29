@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.11.0] - 2026-09-29
+
+### 🚀 Features
+
+- _(workspace)_ Add reactions, media, activity, support, and profile scopes
+
+### 📚 Documentation
+
+- _(skills)_ Align bf-use with Brain Framework 16.1
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 16.1.0
+
 ## [7.10.0] - 2026-09-29
 
 ### 🚀 Features
