@@ -53,7 +53,7 @@ To resume interrupted setup, rerun the installer. Set `SKIP_GIT_PULL=true` to us
 
 ### Shell
 
-Ghostty and Zellij launch Fish; your login shell stays unchanged. In another terminal, run `fish` or set its shell command to `~/.local/share/mise/shims/fish`.
+Ghostty and Zellij launch Fish; your login shell stays unchanged. Fish attaches to Zellij once at startup and returns to a shell when Zellij exits or detaches. In another terminal, run `fish` or set its shell command to `~/.local/share/mise/shims/fish`.
 
 ## Everyday use
 
