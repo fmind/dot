@@ -140,7 +140,7 @@ Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode us
 Supply a personal key to one command with `dot secret run`; use `dot secret publish` for PyPI. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
 
 ```bash
-dot secret run STITCH_ACCESS_TOKEN -- mise run design
+dot secret run STITCH_ACCESS_TOKEN -- <command>
 dot secret publish --dry-run
 ```
 

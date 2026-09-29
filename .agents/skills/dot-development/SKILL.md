@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-09-26"
+  updated: "2026-09-29"
 ---
 
 # Develop Dot
@@ -31,6 +31,7 @@ Change the Python CLI while retaining its observable command, archive, and insta
 - `auth.py` and `workstation.py`: login, setup, cache inspection, and confirmed cleanup; `test_workstation.py` uses synthetic provider probes. Never run real login/setup/prune as a validation gate.
 - `repository.py`, `process.py`, and `system.py`: repository concurrency, subprocess cancellation, completions, and workstation checks; use their matching tests and temporary homes.
 - `archive/parsers.py`, `sync.py`, `store.py`, `usage.py`, `pricing.py`, and `statistics.py`: discovery, incremental capture, the session store, request accounting, subscription periods, and prompt statistics. `test_archive_transaction.py` covers replacement, usage retention, and the retired v2 store refusal; `test_usage_periods.py` covers deduplication, model changes, date boundaries, and legacy recapture; `test_pricing.py` covers cache accounting and unknown rates.
+- `trust.py`, `orphan.py`, `context_budget.py`, and `deploy.py`: harness folder trust, retired-target reports, agent context budgets, and locked installation; `test_trust.py`, `test_orphan.py`, `test_context_budget.py`, and `test_deploy.py` exercise them.
 - `agent_doctor.py` and `hooks.py`: per-agent notify hooks, sync, and archive checks, plus notification payloads; `test_agent_doctor.py` and `test_agent_hooks.py` exercise them.
 
 ## Documentation

@@ -49,7 +49,7 @@ Public JSON reports use a top-level `schema` field. Update selectors as follows;
 | `dot agent usage show`           | `dot.agent.usage.show/v1`     | `.record` instead of the root object.                                        |
 | `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` and `.usage[]` (unchanged).                                       |
 
-Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Diagnostics retain the `dot.diagnostics/v1` envelope; agent doctor details now carry `hooks`, `source`, `last_sync`, `sync_failures`, `archive`, `sessions`, and `next`. The `agent.doctor` and `agent.hook_failures` configuration keys are removed; delete them from custom configuration files, and delete `~/.agents/hook-failures` once no longer needed. Native cache/provider output and internal host hook protocols retain their native formats.
+Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Diagnostics retain the `dot.diagnostics/v1` envelope; agent doctor details now carry `agent`, `hooks`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, and `next`. The `agent.doctor` and `agent.hook_failures` configuration keys are removed; delete them from custom configuration files, and delete `~/.agents/hook-failures` once no longer needed. Native cache/provider output and internal host hook protocols retain their native formats.
 
 ## Credentials
 
