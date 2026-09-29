@@ -153,30 +153,30 @@ url = "https://github.com/ast-grep/ast-grep/releases/download/0.45.3/app-aarch64
 url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/537332514"
 
 [[tools.astro]]
-version = "1.45.0"
+version = "1.46.0"
 backend = "github:astronomer/astro-cli"
 specifiers = ["latest"]
 
 [tools.astro."platforms.linux-x64"]
-checksum = "sha256:8455342dc97f061492a39306b8de5ccfe090080acff70db52d5244e0c1b52bec"
-url = "https://github.com/astronomer/astro-cli/releases/download/v1.45.0/astro_1.45.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/513469015"
+checksum = "sha256:bf63dfbfc8373317d0aa0abdd6307f75c3890c0691483470c682054516f79dcf"
+url = "https://github.com/astronomer/astro-cli/releases/download/v1.46.0/astro_1.46.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/598747590"
 
 [tools.astro."platforms.macos-arm64"]
-checksum = "sha256:d566f8a5194ee631b212018baf8ac00ab8a4fe628c23ccd614878b8208221380"
-url = "https://github.com/astronomer/astro-cli/releases/download/v1.45.0/astro_1.45.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/513469105"
+checksum = "sha256:c3e34d3bfa5b7449aa2c37416b8aa6d90e9cf98da1a8bb51ccb438379056c62e"
+url = "https://github.com/astronomer/astro-cli/releases/download/v1.46.0/astro_1.46.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/598747758"
 
 [[tools.awscli]]
-version = "2.37.5"
+version = "2.37.6"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.awscli."platforms.linux-x64"]
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.37.5.zip"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.37.6.zip"
 
 [tools.awscli."platforms.macos-arm64"]
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.37.5.pkg"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.37.6.pkg"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -294,19 +294,19 @@ url = "https://github.com/anthropics/claude-code/releases/download/v2.1.284/clau
 url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/595943851"
 
 [[tools.codex]]
-version = "0.158.0"
+version = "0.159.0"
 backend = "aqua:openai/codex"
 specifiers = ["latest"]
 
 [tools.codex."platforms.linux-x64"]
-checksum = "sha256:b33cd426c9acab9b34c5a93200ba4fe83c8e614c18ce5ef52b2bf36408b8e18c"
-url = "https://github.com/openai/codex/releases/download/rust-v0.158.0/codex-package-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/openai/codex/releases/assets/594540051"
+checksum = "sha256:35da65d7e8644e28ea0a4d4e3d8c15b40c6b492356d4cf21986c7e341f83a24e"
+url = "https://github.com/openai/codex/releases/download/rust-v0.159.0/codex-package-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/597628463"
 
 [tools.codex."platforms.macos-arm64"]
-checksum = "sha256:09f2a9fde318fbcd384f15b4850c1b90930678f4805647b6bded196ccf32f590"
-url = "https://github.com/openai/codex/releases/download/rust-v0.158.0/codex-package-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/openai/codex/releases/assets/594553803"
+checksum = "sha256:7748d07d7921a67b91d015e9d0f43177c675977e67f955b2f8fb96dc880dd5d7"
+url = "https://github.com/openai/codex/releases/download/rust-v0.159.0/codex-package-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/597646117"
 
 [[tools."conda:file"]]
 version = "5.48"
@@ -436,19 +436,19 @@ url = "https://github.com/mr-karan/doggo/releases/download/v1.4.0/doggo-darwin-a
 url_api = "https://api.github.com/repos/mr-karan/doggo/releases/assets/539320057"
 
 [[tools.dprint]]
-version = "0.57.4"
+version = "0.58.0"
 backend = "aqua:dprint/dprint"
 specifiers = ["latest"]
 
 [tools.dprint."platforms.linux-x64"]
-checksum = "sha256:1d26357d8bc66898d4ecc7dafca3d2971cfe222ba487228bd2ce5c3b3a309c33"
-url = "https://github.com/dprint/dprint/releases/download/0.57.4/dprint-x86_64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/546351175"
+checksum = "sha256:3047dcabe684fe32868d1959f7fad4ccbc2996a393d639bbb6634668fa08dc49"
+url = "https://github.com/dprint/dprint/releases/download/0.58.0/dprint-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/598660522"
 
 [tools.dprint."platforms.macos-arm64"]
-checksum = "sha256:f9e752812791f258e89ff88a7affd05c793b0db3d929718651eae7df5f19eb2e"
-url = "https://github.com/dprint/dprint/releases/download/0.57.4/dprint-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/546351171"
+checksum = "sha256:06a7ea017e4d7da296f8a44fabb2f3d6ffafa91bbd5fddd4830bdc418bacb46d"
+url = "https://github.com/dprint/dprint/releases/download/0.58.0/dprint-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/598660526"
 
 [[tools.duckdb]]
 version = "1.5.6"
@@ -616,15 +616,15 @@ url = "https://github.com/junegunn/fzf/releases/download/v0.74.4/fzf-0.74.4-darw
 url_api = "https://api.github.com/repos/junegunn/fzf/releases/assets/558287774"
 
 [[tools.gcloud]]
-version = "586.0.0"
+version = "587.0.0"
 backend = "vfox:mise-plugins/vfox-gcloud"
 specifiers = ["latest"]
 
 [tools.gcloud."platforms.linux-x64"]
-url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-586.0.0-linux-x86_64.tar.gz"
+url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-587.0.0-linux-x86_64.tar.gz"
 
 [tools.gcloud."platforms.macos-arm64"]
-url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-586.0.0-darwin-arm.tar.gz"
+url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-587.0.0-darwin-arm.tar.gz"
 
 [[tools.gh]]
 version = "2.101.0"
@@ -1078,19 +1078,19 @@ url = "https://github.com/jesseduffield/lazygit/releases/download/v0.65.1/lazygi
 url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/560658243"
 
 [[tools.lefthook]]
-version = "2.1.14"
+version = "2.1.15"
 backend = "aqua:evilmartians/lefthook"
 specifiers = ["latest"]
 
 [tools.lefthook."platforms.linux-x64"]
-checksum = "sha256:2be3187101b3a2edd5edf8b546aa2e3820531c517b4cd0216601a9c06f07c42d"
-url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.14/lefthook_2.1.14_Linux_x86_64.gz"
-url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/563149839"
+checksum = "sha256:b3ed1e83389d0a98b5f243a8a1afcb0fdfad527834f87170f2a2ff9ddfe0f836"
+url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.15/lefthook_2.1.15_Linux_x86_64.gz"
+url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/598600261"
 
 [tools.lefthook."platforms.macos-arm64"]
-checksum = "sha256:398e6a23dfe2de3fc113e091dd4b592795cc8f1665acf5501856858b8056d686"
-url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.14/lefthook_2.1.14_MacOS_arm64.gz"
-url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/563149840"
+checksum = "sha256:8b40280a2bae6a21a546e42c1f02cb190cfe9888ff541eb500a0b05bd38db17f"
+url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.15/lefthook_2.1.15_MacOS_arm64.gz"
+url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/598600263"
 
 [[tools.lsd]]
 version = "1.2.0"
@@ -1242,7 +1242,7 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/520762
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:0f25afbc404e57597b5b499101b526e40658bc4bed3a2b0a3cf4466e20255c94" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:a752c50fd03c797af5e2bd90260f5ee87bacf74eae09ffdd83675b8f0018bb55" }
 
 [[tools."pipx:brain-framework"]]
 version = "16.1.0"
@@ -1254,7 +1254,7 @@ uv = { path = "locks/pipx-brain-framework/16.1.0", digest = "sha256:92c8777b2045
 version = "9.18.2"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:06a754c0946263b87c24c02c36f98792d5d60143caf6bb29cf9595cab28c2a3d" }
+uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:28164c8302807bae37fb6199af5091f2b2bcd15d0e829a40ff7481f0364b180d" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.2"
@@ -1266,7 +1266,7 @@ uv = { path = "locks/pipx-fmind/2.0.2", digest = "sha256:870ccc860f66c0a7e7d6fea
 version = "0.7.4"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:7da3ddda45ad0bd10132dd0aea04d5031708915492335f7976c006e6141cf04c" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:710aa9e8ee8c4e8ee8472a3c7f6f387b88ba7569656128dd1185580882914383" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.0.0"
@@ -1278,7 +1278,7 @@ uv = { path = "locks/pipx-huggingface-hub/2.0.0", digest = "sha256:04479bc8acf54
 version = "2.2.4"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:de5a76fe3446c21b79671ea06e81014dd4a26482c0883134520e419468b121c7" }
+uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:901605fdc8e9b48b586e8644db4695753fa51e9b299e388ae829c9d321412d4f" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
@@ -1293,7 +1293,7 @@ with = '["psycopg[binary]"]'
 version = "2.10.1"
 backend = "pipx:pip-audit"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pip-audit/2.10.1", digest = "sha256:4c88a3b5ffe74b4402b2b086a95e515a6b2ffd10c495581e20d10f6a36b9668f" }
+uv = { path = "locks/pipx-pip-audit/2.10.1", digest = "sha256:53022741d9312e0daa80d8c9d9ac7342167b05831244b983435a3fc69a4cdba6" }
 
 [[tools."pipx:ptpython"]]
 version = "3.0.32"
