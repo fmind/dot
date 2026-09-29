@@ -3,39 +3,52 @@ name: retrieval
 description: "Read pages, search within a scope, follow paginated replies and text pages, and check graph claims and coverage."
 ---
 
-# Read pages, search and read
+# Complete reads and graph context
 
-<!-- Mirrors github.com/fmind/brain-framework skills/bf-use (v15.0.0); update it there first. -->
+<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/retrieval.md (v16.0.1); update it there first. -->
 
-```bash
-bf read                                        # home: projects due for review, recent actions and changes, activity, coming week, attention
-bf read projects                               # project notes, deprecated last, with open task counts and the next task
-bf read tasks                                  # open checkboxes in projects, concepts and actions
-bf read today                                  # a day's items (also yesterday, 2026-09-25, 2026-09, 7d)
-bf read memories/google-gmail-emails/7d        # one source's records in a period
-bf read 'repo:github.com/owner/name'           # an identity: its owning note, 5 backlinks per relationship, claims
-bf read projects/brain.md --rel part-of        # every item linking with one relationship (links: untyped, cites: sources)
-bf search "retention decision"                 # words; fuller matches first
-bf search "invoice" --scope memories/google-gmail-emails   # a folder, period, identity or bf://NAME/tags/LABEL
-bf read 'projects/brain.md#next-actions'       # one section of a note
-```
+Helpers named `skills/bf-use/scripts/…` belong to the packaged skill: run them from a brain that installed it with `bf skills skills`, or from the host folder where `bf skills DIR` put it.
 
-## Search and read
+Use when a reply is paged, a graph claim matters, a review needs source coverage or an answer must be complete. The [retrieval reference](https://fmind.github.io/brain-framework/docs/retrieval/) owns the exact contract.
 
-1. Start from a page for a situation ("what should I look at", "what happened", active work) and search for a subject with short subject words or an explicit identity. Reformulate a miss with other words; a longer sentence broadens word matches. A query without any word or identity (`!!!`) exits 2, and an unknown `memories/SOURCE` scope fails.
-1. Inspect `problems` (objects with `error` and optional `brain` and `file`), `stale` and source coverage: `sources` lists returned records' sources and those that failed or are `stale` or `never` collected, and `sources_omitted` counts the rest; replies without items and `memories` scopes list every searched source, including those with zero matches. An incomplete empty answer does not prove absence, and a fresh cache does not prove fresh provider evidence.
-1. Continue with the same query or ref, scope, limit and brain selection, setting `--offset` to `next_offset` until it is absent. Restart if evidence changes. A page or preview is not the complete result.
-1. Read and cite the refs you rely on. Preserve refs literally and quote them in shell commands: a `#` inside a record ID is part of its identity, while note section refs put the heading anchor after `.md`. With several selected brains, results alternate by each brain's rank, and a plain ref present in two brains fails with exit 1: read the returned `uri` instead. Results show one record per URL across sources, listing the others under `also`; titles are 200-character previews. MCP `read` takes `ref`, `rel` and `offset`; select a brain with a `bf://NAME/` address.
-1. Exact reads carry the file's `sha256` and `modified`. Above 32 KiB, the note's `text` or a record's `record.text` arrives in pages: the first page adds the context and an `outline` of section refs, later pages only text. Prefer reading the section you need; otherwise repeat the read with each `next_offset`, concatenate the text and restart if `sha256` changes. Offsets count Unicode characters, not bytes. See the [retrieval contract](https://fmind.github.io/brain-framework/docs/retrieval/#continuations).
+## Continue a result
 
-## Graph context
+Keep the query or page ref, scope, limit and brain selection unchanged and set `--offset` to the reply's `next_offset`; stop when it is absent. A page or preview is not the complete result. Restart when evidence changes during the walk.
 
-A whole note or record read includes `backlinks` grouped by `relation` (`links` for untyped links, `cites` for OKF `sources`), each previewing its 5 newest items with its `total`, and `claims` whose explicit subject is the read item, with the asserting item's `time`. Check `claims_truncated`. List a whole group with `bf read REF --rel ROLE` (50 per page; a declared `broader` parent also lists its narrower roles, each item naming its own `relation`), and explain a link with `bf search 'IDENTITY'`, whose items carry `relations` with their `origin`. Section reads omit graph context: read the parent for dependency review.
+An exact read above 32 KiB returns its text in pages. A note's first page carries its backlinks, claims, an `outline` of `#section` refs with their `characters`, and only the first 4 KiB of text: read the section the task needs by its ref. To assemble the whole text instead, repeat the same read with each `next_offset` and join the `text` (or `record.text`) slices; every page names the file's `sha256`, so restart if it changes. Offsets count Unicode characters. `skills/bf-use/scripts/evidence.py read REF --brain PATH` does this and checks the digest.
 
-`bf read IDENTITY` returns its owning note, or the items linking to it when none owns it, and `--scope IDENTITY` searches that owning note plus those items. `bf read 'bf://NAME/'` is that brain's home page; `bf://NAME/tasks`, `bf://NAME/7d` and `bf://NAME/tags/LABEL` open pages. Links never add another brain or contact a network. Ambiguous aliases fail visibly; never infer a relationship from similar names or prose.
+Quote refs in shell commands. A `#` inside a record ID is part of its identity; a note section ref uses the heading slug or explicit `{#id}` after `.md`. With several selected brains, entries name their `brain` and `uri`, and a plain ref present in two brains fails: read the `uri` instead. MCP `read` takes `ref`, `rel` and `offset`; choose a brain with a `bf://NAME/` address.
 
-## Attention and freshness
+## Search precisely
 
-Project entries carry `modified`, `review_due`, `review` and `review_reasons`: 14 days after local file modification by default, or `review_after` days or an explicit `review_due` date; newer linked items appear under `new_links`. A reminder is a reason to inspect, not verification, and copies or checkouts reset file times. Only `deprecated` closes a note: it ranks last and leaves home, tasks and reminders, while `draft` and `stable` notes stay open. Period pages separate items dated in the period (`items`, `total`) from items modified in it (`changed`); future periods and home `upcoming` come from agenda sources. Records of `priority: low` sources appear there only as counts under `sources` or `activity`; read `memories/SOURCE/PERIOD` to list them.
+Search matches words case-, accent- and compatibility-insensitively. It ignores English and French function words when other words remain, and every distinct word after the first 32. Any word matches; a passage matching more of the query ranks higher, a section also ranks by its note's title, its heading and the note's tags, and equal scores list the newest first. A nested section's title reads `Note — Parent — Child`.
 
-Records are snapshots from their collection time: verify volatile facts (dates, owners, status) against the live source when the task authorizes it, and say when data may be stale. Search and read never collect; report the gap when newer evidence is needed. They refresh `.bf/`, so a read-only brain fails with a write-access error, or appears in `problems` with its `brain` when several are selected.
+- `"quoted phrase"` matches the words in order; `word*` matches every word starting with `word`.
+- `unmatched` lists query words, phrases or prefixes found nowhere in the selected brains, whatever the scope: respell them or search a variant.
+- A result's `sections` names up to 3 other matching sections of the same note; `also` names other sources' records sharing its URL.
+- An identity-shaped query, such as `repo:github.com/owner/name`, lists the owning note and the items linking to it; `"identity":"unknown"` means nothing in the cache names it.
+- Records of a `priority: low` source rank at half weight. Unspaced Chinese, Japanese or Thai text matches only as a whole run. A query without any word, such as `!!!`, exits 2.
+
+A `--scope` takes one folder (`projects`, `memories/gmail`), period (`today`, `7d`, `2026-09`, `2026-09-21..2026-09-25`), identity or tag page (`bf://NAME/tags/LABEL`); a `memories/SOURCE` that no selected brain knows fails.
+
+## Check coverage
+
+Inspect `problems`, `stale` and `sources` before interpreting a result. Each problem has an `error` and, when known, its `brain` and `file`. `stale` names brains whose reply came from the cache while a writer was updating it: retry shortly. Search lists the sources of returned records and those that failed or are `overdue` or `never` collected; `sources_omitted` counts the others, and an empty reply or a `memories` scope lists every searched source. Each source states its `state` (`active`, `disabled` or `historical`: records kept for a sensor no longer configured), `freshness` (`fresh`, `overdue`, `never`, `manual` or `unknown`), `last_collected`, `window` and `failed`. A fresh cache does not establish fresh provider evidence; an incomplete empty result does not prove absence.
+
+Search and read refresh the brain's `.bf/` cache, so a read-only brain fails with a write-access error: grant access or use a copy.
+
+## Follow the graph
+
+A whole note, record or identity read includes `backlinks` grouped by `relation` (`links` for untyped links, `cites` for OKF sources). Each group previews its 5 newest items with their `title`, `date` or `time`, a 160-character `excerpt` and declared single-value `fields`; when `total` exceeds the preview, `bf read 'REF' --rel RELATION` lists every item, following `next_offset`. That relation page takes a whole note, record or identity, never a section; `--rel PARENT` also lists the items of relations declaring it as `broader`.
+
+`claims` lists what the read item states, each with its `relation`, `target`, `origin` (the section or record making it) and the origin's `date` or `time`; outgoing claims keep up to 20 per relation and 50 in all, marked by `claims_truncated`. `bf search 'IDENTITY'` gives each linking item's `relations` (check `relations_truncated`). Section reads omit graph context: read the parent note for dependency review.
+
+`bf read 'bf://NAME/'` opens another selected brain's home page; `bf://NAME/tasks`, `bf://NAME/7d` and `bf://NAME/tags/LABEL` open its pages. Pages own that namespace: no entity or alias can claim it.
+
+For analysis outside BF, `bf export` streams one JSON line per edge of the selected brains (`subject`, `relation`, `target`, `origin`, and `date` or `time`), and `bf export --kind identities` lists each note or record with every name it answers to. Both read the cache offline and exit 1 when evidence was skipped.
+
+## Interpret attention signals
+
+The home page's `attention` lists scheduled sensors and routines that failed or are overdue. Project entries add `modified` (the file's last change), `review_due` (the local day a review falls due), `review_source` and `review_reasons`. A project falls due 14 days after its last edit unless its frontmatter sets `stale_after`; another note gets a reminder only from `stale_after`. Copies and checkouts can reset file times, so state portable deadlines with `stale_after`. A reminder, an edit or a new backlink is a reason to inspect, never evidence of verification.
+
+`bf read tasks` lists open checkboxes in projects, concepts and `ACTION.md` notes; only `deprecated` closes a note's tasks, and `index.md`, `log.md` and action attachments are excluded. Period pages separate items dated in the period (`items`, `total`) from items modified in it (`changed`). A `priority: low` source appears on period and home pages only as a count with its `page`; read that page to list its records.
