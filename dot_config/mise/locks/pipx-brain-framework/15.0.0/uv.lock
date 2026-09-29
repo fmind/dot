@@ -44,7 +44,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "14.0.0"
+version = "15.0.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -54,9 +54,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/be/bf9acf27412554c780521d0ea8f362207bbedee6cf8d39118e80b0430d03/brain_framework-14.0.0.tar.gz", hash = "sha256:ea6399792ae4d7c46f5521faff032a326c39f1dd83e576f043a9c7d924197b9f", size = 123707, upload-time = "2026-09-28T02:05:07.39Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/bd/91ca7456c477cff655bf6d202b1b4325cc0efdc8783ec42e25ba18499425/brain_framework-15.0.0.tar.gz", hash = "sha256:628233ab8337d32d2d87ae2cf77a339dd66ee3f75a2613d5fdbac9bbccac2de4", size = 140225, upload-time = "2026-09-29T04:48:13.892Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/21/c8e6657c3f9d9778930f44455fcb5387343441f581a39b314cf4ca5671ca/brain_framework-14.0.0-py3-none-any.whl", hash = "sha256:74751816c7f118637e1a2632f9dfe449792d01234e4b02ecce50d24a00f67519", size = 139324, upload-time = "2026-09-28T02:05:05.965Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/d1/5dd65c17984d95028963501136578749b8fbd376f8ea299c274a65dadd00/brain_framework-15.0.0-py3-none-any.whl", hash = "sha256:6e65a9ba4f79b3eb9af14d988dd8eca3eeaa7967c979ccbfacf80372e3174386", size = 156254, upload-time = "2026-09-29T04:48:12.624Z" },
 ]
 
 [[package]]
@@ -337,7 +337,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==14.0.0" }]
+requires-dist = [{ name = "brain-framework", specifier = "==15.0.0" }]
 
 [[package]]
 name = "opentelemetry-api"
@@ -427,11 +427,11 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.15.0"
+version = "2.15.1"
 source = { registry = "https://pypi.org/simple/" }
-sdist = { url = "https://files.pythonhosted.org/packages/02/a5/5197bfd06417837ac079921c66fa6393f1dea3557272a263cebfef69e432/pyjwt-2.15.0.tar.gz", hash = "sha256:b11c5f9791d7bf51c2b39a81ed669f6b2dbbd669df2942f6c60167e9e3d1abe4", size = 120513, upload-time = "2026-09-23T16:56:00.689Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/ea/5194e52748b0da83d71e082d75496eaec6e58f419f5e184786ded517e6a9/pyjwt-2.15.1.tar.gz", hash = "sha256:4f259e80cdfb6b3fc18a7de51fd1ef9ec79652f25019bae68975ca2468a34df8", size = 121252, upload-time = "2026-09-28T18:40:42.598Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/55/40e45bf052ee8ee12a4dfd785519660f8effa7b065442b91646ec6828619/pyjwt-2.15.0-py3-none-any.whl", hash = "sha256:7a3742debf6b879e912dbb9819ceec1594be812452b78c5f2e2dfc56564954f8", size = 33680, upload-time = "2026-09-23T16:55:59.241Z" },
+    { url = "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl", hash = "sha256:42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193", size = 33860, upload-time = "2026-09-28T18:40:41.429Z" },
 ]
 
 [package.optional-dependencies]
@@ -590,15 +590,15 @@ wheels = [
 
 [[package]]
 name = "sse-starlette"
-version = "3.4.11"
+version = "3.5.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "anyio" },
     { name = "starlette" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2b/54/6767bb789b2f2fed6e0f953df949cd39dc263a384c1b65a95232598621d6/sse_starlette-3.4.11.tar.gz", hash = "sha256:1bae716c02f3e6f294be41ff333220692dae7c3cbab077c900f159676719dade", size = 34972, upload-time = "2026-09-05T12:11:04.607Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/be/0123026f719d1a7936f214a88b553bb5701e04ff2511147c1dab0c5035eb/sse_starlette-3.5.0.tar.gz", hash = "sha256:75de713aa8a9441513cc283220826da079d982770965b951e9437720e8bafdb2", size = 36794, upload-time = "2026-09-28T17:48:14.7Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/6a/2ba3ed4a69babf3afdddf7d8314a48d87562c0a442206bbc2a1b50d5efc0/sse_starlette-3.4.11-py3-none-any.whl", hash = "sha256:c7b2244bdff016fe7f64e10075e89a3e6bbf899649cc89b0fe884b5545042453", size = 17122, upload-time = "2026-09-05T12:11:03.195Z" },
+    { url = "https://files.pythonhosted.org/packages/be/e4/cdda14023c316d71493bc54fdffc3dd006631b88866145c9d3cc33e0f1df/sse_starlette-3.5.0-py3-none-any.whl", hash = "sha256:3e6e1070df3f0f5d9cea81496de92dbb72f6721871d99748ece67441dd8b7997", size = 17407, upload-time = "2026-09-28T17:48:13.228Z" },
 ]
 
 [[package]]
