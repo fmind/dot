@@ -1187,6 +1187,12 @@ specifiers = [
 [tools."npm:@mermaid-js/mermaid-cli".options]
 allow_builds = '["puppeteer"]'
 
+[[tools."npm:cf"]]
+version = "1.0.0-beta.7"
+aube = { path = "locks/npm-cf/1.0.0-beta.7", digest = "sha256:90596552212bb125a45e24e568e28321b1d3d5dc0d2767c9bc656d9c481c4258" }
+backend = "npm:cf"
+specifiers = ["latest"]
+
 [[tools."npm:skills"]]
 version = "1.7.0"
 aube = { path = "locks/npm-skills/1.7.0", digest = "sha256:5e1165c56e5de749970266d1a30e7fc0c22a36480eab6c505c7d6748076654bc" }
