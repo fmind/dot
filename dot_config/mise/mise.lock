@@ -1394,6 +1394,17 @@ checksum = "sha256:b7c872db63553ccffc7253aba3ed7d4885a27d83f1ba567b1138c6315a584
 url = "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_darwin_arm64"
 url_api = "https://api.github.com/repos/mvdan/sh/releases/assets/547320930"
 
+[[tools.sonarqube-cli]]
+version = "1.8.0.5274"
+backend = "aqua:SonarSource/sonarqube-cli"
+specifiers = ["latest"]
+
+[tools.sonarqube-cli."platforms.linux-x64"]
+url = "https://binaries.sonarsource.com/Distribution/sonarqube-cli/1.8.0.5274/linux/sonarqube-cli-1.8.0.5274-linux-x86-64.bin"
+
+[tools.sonarqube-cli."platforms.macos-arm64"]
+url = "https://binaries.sonarsource.com/Distribution/sonarqube-cli/1.8.0.5274/macos/sonarqube-cli-1.8.0.5274-macos-arm64.bin"
+
 [[tools.sops]]
 version = "3.13.3"
 backend = "aqua:getsops/sops"
