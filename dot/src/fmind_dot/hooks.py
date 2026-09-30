@@ -16,7 +16,8 @@ from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, Runner
 from fmind_dot.state import State
 
 _NOTIFY_EVENTS = {
-    "stop": ("✅", "Turn finished"),
+    "stop": ("✅", "Your turn"),
+    "ready": ("✅", "Your turn"),
     "session-end": ("🏁", "Session ended"),
     "needs-input": ("⏳", "Needs your input"),
 }
@@ -210,17 +211,40 @@ def send_notification(state: State, notification: Notification) -> None:
         raise DotError(f"failed to send desktop notification with {command[0]}")
 
 
-def notification_workspace(stream: IO[str] | None, agent: str) -> str | None:
+def notification_workspace(stream: IO[str] | None, agent: str, event: str = "stop") -> str | None:
     """Return the payload workspace, or None when the event must stay quiet.
 
-    A re-entrant stop hook, or an Antigravity turn that is not fully idle, is not a finished turn.
+    Native idle notifications mean attention is due; Stop alone is only a proposal
+    to finish. Keep legacy Stop invocations quiet when work can still continue.
     """
     payload = read_hook_payload(stream)
     if payload is None:
-        return ""
-    if payload.get("stop_hook_active") is True or payload.get("stopHookActive") is True:
         return None
-    if agent == "agy" and payload.get("fullyIdle") is not True:
+    if event in {"stop", "ready"}:
+        if payload.get("stop_hook_active") is True or payload.get("stopHookActive") is True:
+            return None
+        if any(payload.get(key) for key in ("agent_id", "agentId", "subagentId", "subagentType")):
+            return None
+        # Both hosts report only in-flight work. Malformed/unknown values must
+        # not be interpreted as an empty list and announce a false handoff.
+        for field in ("background_tasks", "backgroundTasks", "session_crons", "sessionCrons"):
+            if field in payload and payload[field] != []:
+                return None
+        if agent in {"agy", "antigravity"} and payload.get("fullyIdle") is not True:
+            return None
+    if agent in {"claude", "grok"}:
+        kind = payload.get("notification_type", payload.get("notificationType"))
+        if event == "ready" and kind != "idle_prompt":
+            return None
+        if event == "needs-input" and kind not in {
+            "permission_prompt",
+            "elicitation_dialog",
+            "elicitation_url_dialog",
+            "agent_needs_input",
+        }:
+            return None
+    native_event = payload.get("hook_event_name", payload.get("hookEventName", ""))
+    if native_event in {"SubagentStop", "subagentStop", "subagent_stop", "SubagentEnd"}:
         return None
     cwd = payload.get("cwd")
     if not isinstance(cwd, str) or not cwd:

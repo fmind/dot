@@ -1165,7 +1165,7 @@ def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: p
     hooks.send_notification(state_with(runner), notification)
     assert len(runner.calls) == 1
     assert runner.calls[0][:2] == ["osascript", "-e"]
-    assert 'subtitle "Turn finished"' in runner.calls[0][2]
+    assert 'subtitle "Your turn"' in runner.calls[0][2]
     assert r"Fix \"quoted\" paths" in runner.calls[0][2]
     assert "Zellij" not in runner.calls[0][2]
     assert "pane" not in runner.calls[0][2]
@@ -1175,7 +1175,7 @@ def test_linux_notification_renders_title_as_text_without_actions() -> None:
     notification = hooks.build_notification("codex", "stop", Path("/work/project"), title="Fix <hooks> & tests")
     for installed in ({"notify-send", "gdbus"}, {"gdbus"}):
         command = hooks.notification_command(ScriptedRunner(installed), notification, system="linux")
-        assert "Turn finished\nFix &lt;hooks&gt; &amp; tests" in command
+        assert "Your turn\nFix &lt;hooks&gt; &amp; tests" in command
         if command[0] == "gdbus":
             assert "@as []" in command
         else:

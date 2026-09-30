@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-09-29"
 ---
 
 # Kaggle CLI
@@ -25,6 +25,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
    kaggle datasets download <owner>/<name> -p data/ --unzip
    ```
 
+1. **Enter competitions and schedule reminders**: after accepting rules, inspect the timeline with `kaggle competitions pages list list <slug> --content` (the repeated `list` is required by the CLI parser). Schedule milestone reminders in Google Calendar using `gws` (one week before the entry and team merger deadline, and on the final submission day) so entry cutoffs, team merger deadlines, and final submission locks are never missed.
 1. **Kernels as code**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout: pushing uploads code and starts remote execution. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
 1. **Submit with authority**: a submission counts against the daily limit and shows on the leaderboard, so confirm the competition, file, and message first, then verify.
 
@@ -49,4 +50,4 @@ Upstream: `Kaggle/kaggle-cli` for command guidance and `Kaggle/kaggle-skills` fo
 
 - [Kaggle CLI](https://github.com/Kaggle/kaggle-cli) · [Kaggle API](https://www.kaggle.com/docs/api)
 - Releases: [Kaggle CLI](https://github.com/Kaggle/kaggle-cli/releases)
-- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md) (project layout), [duckdb](../duckdb/SKILL.md) (inspect downloads), [hf](../hf/SKILL.md) (Hub models and datasets), [colab](../colab/SKILL.md) (rented accelerators).
+- Companion skills: [gws](../gws/SKILL.md) (schedule competition timeline and deadline reminders in Google Calendar), [python-stack](../python-stack/references/foundation/GUIDE.md) (project layout), [duckdb](../duckdb/SKILL.md) (inspect downloads), [hf](../hf/SKILL.md) (Hub models and datasets), [colab](../colab/SKILL.md) (rented accelerators).

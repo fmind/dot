@@ -9,6 +9,15 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Drop the repository Git exports to hooks: a pre-push run from a linked worktree gets an absolute GIT_DIR,
+    and every fixture `git -C TMP` command would otherwise commit to, and reconfigure, this repository."""
+    for key in tuple(os.environ):
+        if key.startswith("GIT_"):
+            monkeypatch.delenv(key)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def native_chezmoi() -> Iterator[None]:
     """Resolve a mise shim before synthetic homes change its tool/trust lookup."""

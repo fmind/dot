@@ -10,7 +10,7 @@ Each session keeps one bundle with its latest measurement:
   line 2+: normalized transcript records
 ```
 
-Directories are private (`0o700`), and files are private (`0o600`). `dot agent session sync` captures all five verified adapters; reports sync first. Only the current store is queried; earlier stores and standalone usage files are outside its scope.
+Directories are private (`0o700`), and files are private (`0o600`). `dot agent session sync` captures all six adapters; reports sync first. Only the current store is queried; earlier stores and standalone usage files are outside its scope.
 
 Prefer the CLI projection to reading bundles directly: it validates each record. `dot agent usage list --limit 0 --json` exports selected session usage records for local analysis. Prefer statistics JSON for monthly/model aggregation: optional `samples` contain per-request measurements and must never be summed together with their parent session totals.
 

@@ -212,6 +212,7 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
     run_trust(state, "all", dry_run=True)
     assert isinstance(state.stdout, io.StringIO)
     assert state.stdout.getvalue().count("skipped (origin is not a github.com repository") == 3
+    assert state.stdout.getvalue().count("Copilot still inherits workspace trust") == 3
     assert not (tmp_path / ".gemini/antigravity-cli/settings.json").read_text().count("trustedWorkspaces")
 
     state.stdout = io.StringIO()

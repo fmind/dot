@@ -2,6 +2,42 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.11.0] - 2026-09-29
+
+### 🚀 Features
+
+- _(workspace)_ Add reactions, media, activity, support, and profile scopes
+
+### 📚 Documentation
+
+- _(skills)_ Align bf-use with Brain Framework 16.1
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 16.1.0
+
+## [7.10.0] - 2026-09-29
+
+### 🚀 Features
+
+- _(agent)_ Notify on idle turns and use native harness attention
+- Add .ignore template and project search guidelines
+
+### 📚 Documentation
+
+- _(skills)_ Align bf-use with Brain Framework 15
+- _(skills)_ Align bf-use with Brain Framework 16
+
+### 🧪 Testing
+
+- Isolate tests from the repository Git exports to hooks
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 15.0.0
+- _(deps)_ Upgrade workstation tools, dependencies, and plugins
+- _(deps)_ Lock Brain Framework 16.0.1
+
 ## [7.9.1] - 2026-09-28
 
 ### 🐛 Bug Fixes

@@ -53,7 +53,7 @@ To resume interrupted setup, rerun the installer. Set `SKIP_GIT_PULL=true` to us
 
 ### Shell
 
-Ghostty and Zellij launch Fish; your login shell stays unchanged. In another terminal, run `fish` or set its shell command to `~/.local/share/mise/shims/fish`.
+Ghostty and Zellij launch Fish; your login shell stays unchanged. Fish attaches to Zellij once at startup and returns to a shell when Zellij exits or detaches. In another terminal, run `fish` or set its shell command to `~/.local/share/mise/shims/fish`.
 
 ## Everyday use
 
@@ -140,7 +140,7 @@ Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode us
 Supply a personal key to one command with `dot secret run`; use `dot secret publish` for PyPI. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
 
 ```bash
-dot secret run STITCH_ACCESS_TOKEN -- mise run design
+dot secret run STITCH_ACCESS_TOKEN -- <command>
 dot secret publish --dry-run
 ```
 

@@ -225,7 +225,7 @@ def test_scope_lists_replace_defaults_and_default_instances_are_independent(tmp_
     path.write_text("auth:\n  workspace:\n    scopes: [openid]\ncache:\n  providers: [uv]\n")
     config = load_config(path)
     assert config.auth.workspace.scopes == ["openid"]
-    assert len(config.auth.workspace.apis) == 12
+    assert len(config.auth.workspace.apis) == 14
     assert config.cache.providers == ["uv"]
     first = Config()
     first.auth.github.scopes.append("custom")
