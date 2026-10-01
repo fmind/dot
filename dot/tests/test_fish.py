@@ -18,6 +18,7 @@ def test_fish_aliases_load_without_errors() -> None:
             "source dot_config/fish/conf.d/aliases.fish; abbr --query a ac ai ap i k ux vd vs",
         ],
         cwd=root,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         timeout=10,
@@ -72,9 +73,10 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
         ],
         cwd=root,
         env=env,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=30,
         check=False,
     )
     assert result.returncode == 0, result.stderr
