@@ -43,6 +43,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "bf": ToolConfig(binary="env", args=["_BF_COMPLETE=source_fish", "bf"]),
         "btm": ToolConfig(package="bottom"),
         "carapace": ToolConfig(args=["carapace", "fish"]),
+        "cf": ToolConfig(args=["complete", "fish"]),
         "chezmoi": ToolConfig(),
         "codex": ToolConfig(args=["completion", "fish"]),
         "colab": ToolConfig(binary="env", args=["_COLAB_COMPLETE=source_fish", "colab"]),

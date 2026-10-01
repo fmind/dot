@@ -15,3 +15,9 @@ vulnerabilities:
   - id: CVE-2026-44431
     paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
     statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
+  - id: CVE-2026-97687
+    paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
+    statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
+  - id: CVE-2026-97689
+    paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
+    statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
