@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Google Cloud CLI
@@ -43,10 +43,10 @@ Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); its CLI guardrail skill applies to every `gcloud` call.
+Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); its CLI guardrail skill applies to every `gcloud` call. That skill is also named `gcloud`; compare it with this connector before installing.
 
 ## Documentation
 
-- [gcloud reference](https://cloud.google.com/sdk/gcloud/reference) · [Authorize the gcloud CLI](https://cloud.google.com/sdk/docs/authorizing)
-- Releases: [gcloud release notes](https://cloud.google.com/sdk/docs/release-notes)
+- [gcloud reference](https://docs.cloud.google.com/sdk/gcloud/reference) · [Authenticate for the gcloud CLI](https://docs.cloud.google.com/sdk/docs/authenticate)
+- Releases: [gcloud release notes](https://docs.cloud.google.com/sdk/docs/release-notes)
 - Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [infra-as-code](../infra-as-code/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).

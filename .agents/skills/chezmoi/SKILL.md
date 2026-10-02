@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-09-20"
+  updated: "2026-10-02"
 ---
 
 # Chezmoi Source Standard
@@ -21,7 +21,7 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 ## Workflow
 
 1. **Edit the source**, never the deployed copy; `chezmoi cd` opens a shell in the source root.
-1. **Manage an existing file**: `chezmoi add <target>` infers the attributes; `--template` templatizes; set a secret to `0600` before `--encrypt` imports it as `encrypted_private_dot_<name>.age`:
+1. **Manage an existing file**: `chezmoi add <target>` infers the attributes; `--template` templatizes; set a secret to `0600` before `--encrypt` imports it as `encrypted_private_<name>.age` (with `dot_` before a leading-dot name):
 
    ```bash
    chmod 600 ~/.config/<tool>/secret
@@ -44,10 +44,10 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 - **Templates fail closed**: one template error aborts the whole apply; debug with `chezmoi execute-template < file` or `chezmoi apply --dry-run` before committing.
 - **Credential lifecycle**: use `create_encrypted_private_*` for native login seeds so account switches survive apply; scoped keys remain managed under `~/.config/dot/secrets/`. Never restore global shell exports. Follow [secret setup](../../../README.md#secret-management) and [credential precedence](../../../skills/dot-cli/references/authentication.md); preview secret targets with status/metadata, never a plaintext diff.
 - **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [security-review](../../../skills/security-review/references/code-review/GUIDE.md)).
-- **`.chezmoiignore`** (templated, gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`, CI) out of apply and skips key-dependent files without the age key.
-- **Ignore patterns** match target paths; later patterns win and a leading `!` re-includes.
+- **`.chezmoiignore`** (templated doublestar patterns, not gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`, CI) out of apply and skips key-dependent files without the age key.
+- **Ignore patterns** match target paths; a leading `!` excludes a match from ignoring and takes priority over every other pattern, whatever the order.
 - **`.chezmoi.toml.tmpl`** seeds `~/.config/chezmoi/chezmoi.toml` on `chezmoi init`, prompting per-host data with `promptStringOnce . "key" "question" "default"`.
-- **Config keys**: `encryption = "age"`, the `[age]` identity and recipient, and `[edit] apply = true` so `chezmoi edit` applies on save.
+- **Config keys**: `encryption = "age"`, the `[age]` identity and recipient, `[add] secrets = "error"` so `chezmoi add` refuses unencrypted files that contain secrets, and `[edit] apply = true` so `chezmoi edit` applies after the editor exits (`--watch` applies on save).
 
 ## Documentation
 

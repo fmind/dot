@@ -36,17 +36,18 @@ spec:
             - name: LOG_LEVEL
               value: info
             # Required by the Python database-backed starter; adapt to the app.
+            # Pin each secret version (key); rotation adds a version and redeploys.
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: database-url
-                  key: latest
+                  key: "<version>"
             # Runtime secrets come from Secret Manager, never from the image.
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
                   name: api-key
-                  key: latest
+                  key: "<version>"
           resources:
             limits:
               cpu: "1"

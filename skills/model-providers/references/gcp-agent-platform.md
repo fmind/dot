@@ -29,5 +29,5 @@ Alert budgets do not stop usage. Cloud Billing's spend-cap preview supports GCP 
 
 - [Agent Platform quickstart](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/start) and [product name changes](https://docs.cloud.google.com/gemini-enterprise-agent-platform/vertex-ai-name-changes).
 - [Google Gen AI SDK](https://googleapis.github.io/python-genai/) and [SDK releases](https://github.com/googleapis/python-genai/releases).
-- [Locations and global endpoint](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/locations).
+- [Locations and global endpoint](https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations).
 - [Gemini 3.8 Flash](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash), [budget alerts](https://docs.cloud.google.com/billing/docs/how-to/budgets), and [spend caps](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps).

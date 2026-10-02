@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # GitHub Repository
@@ -56,6 +56,17 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
    gh repo edit "$repository" "${args[@]}"
    ```
 
+1. **Protect a public repository** in the same settings pass: enable private vulnerability reporting and add a default-branch ruleset that blocks deletion and force pushes without requiring pull requests or signatures, so direct pushes keep working. Skip the ruleset when `gh api "repos/$repository/rules/branches/<default-branch>" --jq 'map(.type)'` already lists both rules:
+
+   ```bash
+   gh api -X PUT "repos/$repository/private-vulnerability-reporting"
+   gh api -X POST "repos/$repository/rulesets" --input - <<'EOF'
+   {"name": "Protect default branch", "target": "branch", "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+    "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}], "bypass_actors": []}
+   EOF
+   ```
+
 1. **Verify** with the same `gh repo view --json ...` call and report the fields that changed.
 
 ## Gotchas
@@ -63,6 +74,7 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 - **Truncation**: keep the description single-line and under ~140 characters or the GitHub UI truncates it.
 - **Secret scanning eligibility**: public repositories are covered; private and internal repositories require an eligible GitHub Secret Protection or Advanced Security entitlement. Capability-detect instead of inferring availability from personal versus organization ownership.
 - **Visibility**: never pass `--visibility` or `--accept-visibility-change-consequences` unless the user explicitly asks.
+- **Plan limits**: rulesets and branch protection on a private repository need GitHub Pro or Team; on Free the API answers 403 `Upgrade to GitHub Pro`. Report the gap instead of changing visibility. Private vulnerability reporting applies to public repositories only.
 
 ## Documentation
 

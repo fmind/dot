@@ -5,7 +5,7 @@
    ```toml
    [tools]
    cosign = "3.1.3"
-   trivy = "0.74.0"
+   trivy = "0.75.0"
    ```
 
    ```bash
@@ -50,19 +50,19 @@
    cosign verify-attestation --type cyclonedx --certificate-identity '<identity>' --certificate-oidc-issuer '<issuer>' "$IMAGE"
    ```
 
-1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history. The Python web starter requires `HOST=0.0.0.0`, `ENVIRONMENT=production`, and a `DATABASE_URL` secret accessible to its runtime identity. Adapt these names to the application; Cloud Run supplies `PORT`.
+1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history. The Python web starter requires `HOST=0.0.0.0`, `ENVIRONMENT=production`, and a `DATABASE_URL` secret accessible to its runtime identity. Adapt these names to the application; Cloud Run supplies `PORT`. Environment secrets resolve at instance startup, so pin explicit [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) instead of `latest` and record them with the image digest; rotation adds a version and redeploys. Mount a secret as a volume only when it must rotate without a redeploy.
 
    ```bash
    gcloud run deploy <slug> --image="$IMAGE" --region=<region> \
      --service-account="<slug>-runtime@<project>.iam.gserviceaccount.com" \
      --set-env-vars=HOST=0.0.0.0,ENVIRONMENT=production,LOG_LEVEL=info \
-     --set-secrets=DATABASE_URL=database-url:latest,API_KEY=api-key:latest \
+     --set-secrets=DATABASE_URL=database-url:<version>,API_KEY=api-key:<version> \
      --invoker-iam-check --no-allow-unauthenticated
    ```
 
    Treat private invocation as a postcondition, not a successful deploy exit code. Run the `Verify private invocation` checks in [deploy.yml](../templates/deploy.yml) after imperative or declarative deployment, using [verify-private.py](../templates/verify-private.py) at `.github/scripts/verify-private.py`: the Invoker IAM check must be enabled, and service/project IAM policies must contain neither `allUsers` nor `allAuthenticatedUsers`. Reject those principals even in conditional bindings or custom roles. A failed policy read, unknown setting, or remaining grant fails verification; gcloud can otherwise turn a failed IAM removal into a warning. Resolve inherited organization/folder access during bootstrap; these service/project checks are not a general IAM policy evaluator. Verify an unauthenticated request is denied before exposing sensitive traffic.
 
-1. **Seed a runtime secret when authorized**: decrypt only into the pipe; do not write plaintext to disk.
+1. **Seed a runtime secret when authorized**: decrypt only into the pipe; do not write plaintext to disk. Pin the version it creates in the next deployment.
 
    ```bash
    sops -d secrets.enc.yaml | yq -r .api_key | gcloud secrets versions add api-key --data-file=-
@@ -83,4 +83,4 @@
    '''
    ```
 
-1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` and [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`; commit both. The helper uses only Python's standard library. Set `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, and `CLOUDRUN_SERVICE`, then set `ENABLE_DEPLOY_CLOUDRUN=true`. Preserve its read-only `mise run all` gate and clean-tree check on the tagged revision; the cloud job must depend on their success.
+1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` and [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`; commit both. The helper uses only Python's standard library. Replace the template's `<version>` secret pin, set `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, and `CLOUDRUN_SERVICE`, then set `ENABLE_DEPLOY_CLOUDRUN=true`. Preserve its read-only `mise run all` gate and clean-tree check on the tagged revision; the cloud job must depend on their success.

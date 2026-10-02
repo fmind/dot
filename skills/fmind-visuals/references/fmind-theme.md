@@ -87,7 +87,7 @@ For a renderer without Mermaid frontmatter support, move the same configuration 
 
 ## D2
 
-An Fmind article diagram imports [diagram.d2](diagram.d2) and uses its classes on a light surface. The diagram surface remains light because the site supports reader-selected light and dark themes, where a light figure still reads as a bounded panel.
+An Fmind article diagram imports [diagram.d2](../templates/diagram.d2) and uses its classes on a light surface. The diagram surface stays light, matching the light-only canonical site and the global theme.
 
 | Class       | Means                                           |
 | ----------- | ----------------------------------------------- |

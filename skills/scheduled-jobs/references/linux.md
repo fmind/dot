@@ -33,6 +33,8 @@ WantedBy=timers.target
 
 For `Type=oneshot`, `TimeoutStartSec` bounds the command; do not substitute `RuntimeMaxSec`, which does not bound oneshot activation. `Persistent=true` catches up a missed calendar trigger when the timer becomes active, rather than replaying each missed occurrence. Omit catch-up when inappropriate. Use the same basename, such as `report.service` and `report.timer`.
 
+Change an existing unit with a drop-in, `~/.config/systemd/user/<unit>.d/<name>.conf`, never a copied unit. Reset a list setting with an empty assignment before redefining it (`ExecStart=` then the new `ExecStart=`; likewise `OnCalendar=`). After `systemctl --user daemon-reload`, prove the merge with `systemctl --user show <unit> -p DropInPaths -p <Setting>`. Keep the default `OOMPolicy=stop` for jobs so an OOM-killed child fails the run visibly; `continue` suits long-lived session hosts.
+
 ```bash
 systemd-analyze --user verify report.service report.timer
 systemd-analyze calendar '*-*-* 09:00:00 Europe/Paris'

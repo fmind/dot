@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -25,12 +25,12 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
    kubectl --context <context> cluster-info
    ```
 
-1. **Lint and validate manifests**: validate schemas and verify security practices prior to applying manifests.
+1. **Lint and validate manifests**: validate schemas against the target cluster's version (kubeconform defaults to `master` schemas) and verify security practices prior to applying manifests.
 
    ```bash
-   kubeconform -strict <file-or-directory>
+   kubeconform -strict -summary -kubernetes-version <cluster-version> <file-or-directory>
    kube-linter lint <file-or-directory>
-   kustomize build <kustomization-dir>
+   kustomize build <kustomization-dir> | kubeconform -strict -summary -kubernetes-version <cluster-version> -
    ```
 
 1. **Spin up local clusters only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name before creation. Prefer manifest checks when they can answer the question; stop task clusters promptly after runtime tests.
@@ -46,7 +46,7 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
    kubectl --context <context> --namespace <namespace> diff -k <kustomization-dir>
    ```
 
-   A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope. Diffs may contain Secret values; exclude secrets from captured output.
+   A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope. `kubectl diff` masks Secret data unless `--show-secrets` is passed, but ConfigMaps and rendered chart values are not masked; exclude sensitive values from captured output.
 
 1. **Inspect workloads and bounded logs**: narrow to the relevant workload and time window. Use finite log reads for agents; reserve `k9s` and streaming `stern` for an explicitly interactive investigation. The line limit applies per pod/container, so keep the pod query narrow.
 

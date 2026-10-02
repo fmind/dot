@@ -29,6 +29,7 @@ build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["*.md"]  # dprint owns Markdown, including its Python blocks
 
 [tool.ruff.format]
 docstring-code-format = true

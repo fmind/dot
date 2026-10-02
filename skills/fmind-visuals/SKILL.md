@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-09-23"
+  updated: "2026-10-02"
 ---
 
 # Fmind Visual Communication
@@ -18,16 +18,16 @@ Apply the Fmind identity from [fmind-theme.md](references/fmind-theme.md): reada
 
 1. **Select the format** from the table while respecting an explicitly requested format or an existing project.
 1. **Apply the brand**: use Google Sans for headings and body text, Google Sans Code for code, and the palette from [fmind/theme](https://github.com/fmind/theme). Bundle the fonts with their OFL notices and use the existing reviewed logo. Keep colors, text roles, and contrast aligned with the source theme; [fmind-theme.md](references/fmind-theme.md) lists the full palette. Preserve published assets when branding changes.
-1. **Create**: follow [production.md](references/production.md); start decks from [deck.typ](references/deck.typ), ordinary diagrams with [Mermaid](../diagrams-as-code/references/mermaid.md), and article diagrams from the light-surface [D2 template](references/diagram.d2).
+1. **Create**: follow [production.md](references/production.md); start decks from [deck.typ](templates/deck.typ), ordinary diagrams with [Mermaid](../diagrams-as-code/references/mermaid.md), and article diagrams from the light-surface [D2 template](templates/diagram.d2).
 1. **Verify**: run `typstyle`, compile with `typst`, and inspect every rendered page or diagram for legibility, clipping, font loading, and accessibility. Keep editable sources beside their exports.
 
 ## Canonical Tool Choice
 
 | Need                                                        | Tool                                                 | Boundary                                                                                                                   |
 | ----------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Fmind talk or slide deck                                    | Typst                                                | Start from [deck.typ](references/deck.typ); retain source and export PDF                                                   |
+| Fmind talk or slide deck                                    | Typst                                                | Start from [deck.typ](templates/deck.typ); retain source and export PDF                                                    |
 | Flow, sequence, state, class, ER, compact technical diagram | [Mermaid](../diagrams-as-code/references/mermaid.md) | Default for every new diagram                                                                                              |
-| Fmind article diagram                                       | [D2](../diagrams-as-code/references/d2.md)           | Import [diagram.d2](references/diagram.d2), light surface                                                                  |
+| Fmind article diagram                                       | [D2](../diagrams-as-code/references/d2.md)           | Import [diagram.d2](templates/diagram.d2), light surface                                                                   |
 | Existing D2 source or bespoke standalone composition        | [D2](../diagrams-as-code/references/d2.md)           | Specialist fallback                                                                                                        |
 | Reproducible terminal demonstration                         | VHS                                                  | Follow [recording](references/recording.md) and adapt [demo.tape](templates/demo.tape); keep the tape and synthetic inputs |
 

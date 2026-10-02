@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Infrastructure as Code
@@ -35,13 +35,13 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
    - [terraform.example.tfvars](templates/terraform.example.tfvars) — non-secret example and static-scan values; replace the project ID before planning.
    - `tests/main.tftest.hcl` from [main.tftest.hcl](templates/main.tftest.hcl) — plan-only native tests.
 1. **Validate**: `git init --initial-branch=main`, then `mise run install` and `mise run all` — no cloud API access for this starter because the backend is commented and the test uses `mock_provider`; downloading tools/providers still needs network access.
-1. **Lock providers**: commit `.terraform.lock.hcl`; on multi-platform teams run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64`.
+1. **Lock providers**: commit `.terraform.lock.hcl`. Since OpenTofu 1.12, `tofu init` records every platform's checksums from the OpenTofu Registry; run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64` only for mirror-only installs or providers from other registries.
 1. **Promote the backend**: once backend creation and state migration are authorized, create the versioned GCS bucket (commands in [versions.tf](templates/versions.tf)), back up the current state, verify the source workspace and destination prefix, and uncomment `backend "gcs"`. Run `tofu init -migrate-state` for the reviewed move; authorized non-interactive migration uses `tofu init -migrate-state -force-copy -input=false`. Verify the destination state before removing the local backup.
 
 ## 3. State & Secrets
 
-- **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block (GCP KMS, sketched in [versions.tf](templates/versions.tf)).
-- **Variable files**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets at plan time per [sops-secrets](../sops-secrets/SKILL.md): `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'` with `TF_VAR_<name>` entries.
+- **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block (GCP KMS, sketched in [versions.tf](templates/versions.tf)). To encrypt existing state, back up the state and keys, apply once with the `unencrypted` migration fallback and without `enforced`, then remove the fallback and enforce. Never rename key-provider or method labels once data is encrypted.
+- **Variable files**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets per [sops-secrets](../sops-secrets/SKILL.md) as `TF_VAR_<name>` entries: `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'`. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at apply: `sops exec-env secrets.enc.env 'tofu apply tmp/plan.tfplan'`.
 - **Credentials**: Application Default Credentials locally; Workload Identity Federation in CI per [github-actions](../github-actions/references/ci-cd/GUIDE.md) — no service-account keys.
 
 ## 4. Testing Standard
@@ -64,6 +64,6 @@ Upstream: `hashicorp/agent-skills`; follow the shared [vendor-skill policy](../a
 
 ## Documentation
 
-- [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/latest/docs/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
+- [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
 - Releases: [OpenTofu](https://github.com/opentofu/opentofu/releases) · [what's new](https://opentofu.org/docs/intro/whats-new/)
 - Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI), [security-review](../security-review/references/code-review/GUIDE.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).

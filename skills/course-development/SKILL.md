@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-09-19"
+  updated: "2026-10-02"
 ---
 
 # Develop a Technical Course
@@ -27,7 +27,7 @@ Build a course learners can understand, execute, and finish. Use [documentation-
 
 ## Optional Reference Profile
 
-Read [reference-course.md](references/reference-course.md) and its [page template](references/page.md) only for a course that adopts those Markdown conventions, seven exercise fields, capture manifest, and task names. Otherwise use the course's own authoring contract.
+Read [reference-course.md](references/reference-course.md) only for a course that adopts those Markdown conventions, exercise fields, and task names. Otherwise use the course's own authoring contract.
 
 ## Gotchas
 

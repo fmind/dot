@@ -65,7 +65,9 @@ async def test_readiness_check_success() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("error", [SQLAlchemyError("database unavailable"), ConnectionRefusedError("connection refused")])
+@pytest.mark.parametrize(
+    "error", [SQLAlchemyError("database unavailable"), ConnectionRefusedError("connection refused")]
+)
 async def test_readiness_check_failure(error: Exception) -> None:
     response = await check_readiness(cast(AsyncSession, UnhealthySession(error)))
 

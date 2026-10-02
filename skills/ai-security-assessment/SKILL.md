@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ai-security-assessment
   created: "2026-09-11"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # AI Security Assessment
@@ -36,5 +36,5 @@ Turn a concrete AI attack path into a reproducible assessment and remediation te
 ## Documentation
 
 - [PyRIT](https://microsoft.github.io/PyRIT/latest/) · [OWASP Agentic Top 10](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) · [MITRE ATLAS](https://atlas.mitre.org/)
-- Releases: [PyRIT](https://github.com/Azure/PyRIT/releases)
+- Releases: [PyRIT](https://github.com/microsoft/PyRIT/releases)
 - Companion skills: [prompt-design](../prompt-design/SKILL.md) (prompt and tool contracts), [incident-response](../incident-response/SKILL.md) (active compromise), [quality-assurance](../quality-assurance/SKILL.md) (broader user journeys).

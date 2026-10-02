@@ -15,6 +15,7 @@ Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by 
 1. **Handle errors at the boundary**: catch failures around application work, give specific sanitized recovery advice for expected errors, and preserve the cause with `raise typer.Exit(code=1) from exc`. Keep CLI exits outside the protected operation. Never print raw exception messages or tracebacks by default: `show_locals=False` does not redact exception text, causes, or source lines. `--verbose` adds progress only; add opt-in diagnostic tracebacks only with a tested redaction policy.
 1. **Run**: `chmod +x script.py && ./script.py input.txt`, or `uv run script.py input.txt`; uv resolves and caches the dependencies on first run.
 1. **Lock a durable script**: `uv lock --script script.py`, then `uv run --locked --script script.py`; lower bounds alone are not reproducible.
+1. **Lint and type-check**: `ruff check script.py`, `uv sync --script script.py`, then `ty check --python "$(uv python find --script script.py)" script.py`; without `--python`, ty cannot resolve the script's dependencies.
 1. **Verify the interface**: run help and version without inputs; check usage errors, stdout/stderr separation, bracket-containing paths, and sanitized failures with verbosity both enabled and disabled. Add JSON and non-interactive cases only when those features exist.
 
 For recurring execution of the finished command, use [scheduled-jobs](../../../scheduled-jobs/SKILL.md); keep scheduling outside the script.

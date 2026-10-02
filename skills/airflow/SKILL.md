@@ -7,14 +7,14 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Apache Airflow with Astronomer CLI
 
 Use `astro` for local Apache Airflow development, DAG authoring, task testing, and debugging. [python-stack](../python-stack/SKILL.md) owns Python package conventions and [docker](../docker/SKILL.md) manages container runtimes.
 
-Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing service flags (`--api-server` for Airflow 3; `--webserver` for Airflow 2).
+Docker mode (the default) needs an existing Docker-compatible engine and 20 GiB disk headroom; `--standalone` runs Airflow on the host without Docker. Workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing service flags (`--api-server` and `--dag-processor` for Airflow 3; `--webserver` for Airflow 2).
 
 ## Workflow
 
@@ -24,10 +24,10 @@ Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; w
    ls -la dags/
    ```
 
-1. **Start local environment**: spin up local scheduler, webserver, triggerer, and PostgreSQL database.
+1. **Start local environment**: Airflow 3 starts the API server, DAG processor, scheduler, triggerer, and Postgres; Airflow 2 runs a webserver instead of the API server and DAG processor. `--no-browser` keeps the UI from opening.
 
    ```bash
-   astro dev start
+   astro dev start --no-browser
    ```
 
 1. **Validate DAG syntax and integrity**: parse DAG files to catch import and configuration errors without waiting for the scheduler.
@@ -61,7 +61,7 @@ Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; w
 ## Gotchas
 
 - **Top-level execution**: the scheduler evaluates top-level DAG code every few seconds; avoid database queries, API calls, or heavy computation outside operators.
-- **Port clashes**: default API server/webserver port `8080` may collide with local services; consult `astro dev start --help` for the installed version's port options.
+- **Ports**: by default a shared reverse proxy serves each project at `http://<project>.localhost:6563` on random backend ports; `astro dev proxy status` lists each project's URL and Postgres port. `--no-proxy` restores fixed ports (`8080` for the API server or webserver, `5432` for Postgres), which can collide with local services.
 - **Stateless task testing**: `astro dev run tasks test` runs a single task without recording state in the Airflow database; upstream task dependencies must be handled or mocked.
 
 ## Official Skills
@@ -70,6 +70,6 @@ Local runs need an existing Docker-compatible engine and 20 GiB disk headroom; w
 
 ## Documentation
 
-- [Astronomer CLI Documentation](https://www.astronomer.io/docs/astro/cli/overview) · [Apache Airflow Documentation](https://airflow.apache.org/docs/)
+- [Astronomer CLI Documentation](https://www.astronomer.io/docs/cli) · [Apache Airflow Documentation](https://airflow.apache.org/docs/)
 - Releases: [Astronomer CLI Releases](https://github.com/astronomer/astro-cli/releases)
 - Companion skills: [python-stack](../python-stack/SKILL.md) (Python coding), [docker](../docker/SKILL.md) (containers), [duckdb](../duckdb/SKILL.md) (data pipelines).

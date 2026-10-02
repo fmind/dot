@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # GitHub Issues
@@ -46,13 +46,7 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 
 ## Official Skills
 
-Upstream: `cli/cli`. This package uses the preview `gh skill` path described in the shared [vendor-skill policy](../agent-project/references/vendor-skills.md):
-
-```bash
-gh skill search github --owner cli --json repo,skillName,description
-gh skill preview cli/cli <name>
-gh skill install cli/cli <name>
-```
+Upstream: `cli/cli`; the [gh connector](../gh/SKILL.md#official-skills) owns pinned review and installation of its skills.
 
 ## Documentation
 
