@@ -1,6 +1,10 @@
 # :schema https://mise.jdx.dev/schema/mise.json
 # Docs: https://mise.jdx.dev/configuration.html
 
+# Fail before running tasks on a mise that predates the GITHUB_TOKEN trust fixes and
+# lockfile revision 3; keep equal to install.sh and the workflow pins.
+min_version = "2026.10.0"
+
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
 # home config) verifies every repository tool; the workstation config opts out globally.
@@ -92,16 +96,16 @@ depends = [
 
 [tasks."check:network"]
 description = "Run the checks that download vulnerability data (pre-push)"
-depends = ["check:scan", "check:vuln"]
+depends = ["check:scan", "check:vuln", "check:vuln:locks"]
 
 [tasks."check:actions"]
 alias = "ca"
 description = "Validate GitHub Actions workflows and Dependabot config"
-run = ["actionlint", "zizmor --offline .github/"]
+run = ["actionlint", "zizmor --offline --strict-collection .github/"]
 
 [tasks."check:actions:online"]
 description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
-run = "zizmor .github/"
+run = "zizmor --strict-collection .github/"
 
 [tasks."check:chezmoi"]
 alias = "cc"
@@ -147,6 +151,10 @@ run = "gitleaks dir . --redact=100 --verbose --no-banner"
 description = "Scan the latest 100 commits reachable from HEAD"
 # An unborn HEAD has no history; check:leaks:tree still scans its files.
 run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose --no-banner'
+
+[tasks."check:leaks:full"]
+description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
+run = "gitleaks git --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:staged"]
 description = "Scan only staged changes before committing"
@@ -208,6 +216,10 @@ run = "mise tasks validate"
 alias = "cv"
 description = "Audit the locked Python dependency graph"
 run = "uv audit --preview-features audit-command --locked"
+
+[tasks."check:vuln:locks"]
+description = "Audit committed npm tool locks, which check:scan skips as unrecognized aube locks"
+run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit --locks {{config_root}}/dot_config/mise/locks"
 
 [tasks."check:vuln:tools"]
 description = "Audit installed npm and pipx tool environments"

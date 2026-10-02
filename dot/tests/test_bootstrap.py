@@ -117,13 +117,13 @@ class BootstrapTest(unittest.TestCase):
             result = fixture.run()
 
             assert result.returncode != 0
-            assert "mise 2026.9.14 or newer is required" in result.stderr
+            assert f"mise {pinned_mise_version()} or newer is required" in result.stderr
             assert fixture.calls() == [{"tool": "mise", "args": ["--version"]}]
             assert not fixture.source.exists()
 
     def test_first_install_and_rerun_use_the_bounded_task_sequence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), "2026.9.14")
+            fixture = BootstrapFixture(Path(directory), pinned_mise_version())
             first = fixture.run()
             second = fixture.run()
 
@@ -181,8 +181,9 @@ class BootstrapTest(unittest.TestCase):
         readme = re.search(r"requires mise ([0-9.]+[0-9])", (ROOT / "README.md").read_text(encoding="utf-8"))
         assert readme is not None
         copies["README.md"] = readme.group(1)
+        copies["mise.toml"] = str(tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8")).get("min_version"))
 
-        assert len(copies) >= 5
+        assert len(copies) >= 6
         assert set(copies.values()) == {pinned_mise_version()}, copies
 
 

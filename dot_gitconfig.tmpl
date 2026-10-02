@@ -79,6 +79,8 @@
     autoSetupRemote = true
     default = current
     followTags = true
+    # Refuse --force-with-lease when the remote tip was never integrated locally.
+    useForceIfIncludes = true
 
 [rebase]
     autoSquash = true
@@ -95,6 +97,8 @@
     sort = version:refname
 
 [transfer]
+    # Never store credentials embedded in a remote URL.
+    credentialsInUrl = die
     fsckobjects = true
 
 [url "git@github.com:"]

@@ -153,3 +153,29 @@ def test_invalid_pip_dependencies_never_count_as_audited(
     assert report["findings"] == []
     assert len(report["coverage_gaps"]) == 1
     assert "invalid pip-audit report" in report["coverage_gaps"][0]
+
+
+def test_committed_locks_are_audited_with_the_repository_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lock = tmp_path / "npm-example/1.0.0/aube-lock.yaml"
+    lock.parent.mkdir(parents=True)
+    lock.write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    commands: list[list[str]] = []
+
+    def run(command: list[str]) -> tuple[int, str, str]:
+        commands.append(command)
+        assert (Path(command[-1]) / "pnpm-lock.yaml").is_file()
+        return 0, json.dumps({"Results": [{"Type": "pnpm", "Vulnerabilities": []}]}), ""
+
+    monkeypatch.setattr(audit_tools, "run", run)
+
+    assert audit_tools.main(["--locks", str(tmp_path)]) == 0
+    assert commands[0][commands[0].index("--severity") + 1] == "HIGH,CRITICAL"
+    assert "--ignore-unfixed" in commands[0]
+    assert json.loads(capsys.readouterr().out)["audited"] == [{"tool": "npm-example", "version": "1.0.0"}]
+
+
+def test_missing_committed_locks_fail_closed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert audit_tools.main(["--locks", str(tmp_path)]) == 2
+    assert "no committed npm lock" in capsys.readouterr().err

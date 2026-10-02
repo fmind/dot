@@ -1,13 +1,19 @@
-"""Audit configured npm and pipx environments installed by mise without mutating them."""
+"""Audit configured npm and pipx environments installed by mise without mutating them.
+
+With --locks DIR, audit the committed npm sidecar locks under DIR instead: Trivy does not
+recognize aube-lock.yaml, so check:scan would otherwise pass them over silently.
+"""
 
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Sequence
 from typing import Any
 
 
@@ -43,16 +49,19 @@ def installed_tools() -> dict[str, list[dict[str, Any]]]:
     return inventory
 
 
-def npm_findings(tool: str, install: pathlib.Path) -> tuple[list[dict[str, Any]], list[str]]:
+def npm_findings(tool: str, install: pathlib.Path, *, gate: bool = False) -> tuple[list[dict[str, Any]], list[str]]:
     source_lock = install / "aube-lock.yaml"
     if not source_lock.is_file():
         return [], [f"{tool}: installed dependency lock is unavailable"]
+    command = ["trivy", "fs", "--scanners", "vuln", "--format", "json", "--quiet", "--exit-code", "0"]
+    if gate:
+        # Match check:scan's repository policy: fixable HIGH and CRITICAL advisories fail.
+        command += ["--severity", "HIGH,CRITICAL", "--ignore-unfixed"]
     with tempfile.TemporaryDirectory(prefix="dot-tool-audit-") as directory:
         audit_root = pathlib.Path(directory)
+        # Trivy reads aube's pnpm-compatible format only under the pnpm lockfile name.
         shutil.copyfile(source_lock, audit_root / "pnpm-lock.yaml")
-        code, stdout, stderr = run(
-            ["trivy", "fs", "--scanners", "vuln", "--format", "json", "--quiet", "--exit-code", "0", str(audit_root)]
-        )
+        code, stdout, stderr = run([*command, str(audit_root)])
     if code != 0:
         return [], [f"{tool}: Trivy audit failed: {stderr.strip() or 'unknown operational error'}"]
     try:
@@ -162,7 +171,37 @@ def parse_pip_report(tool: str, report: object) -> list[dict[str, Any]]:
     return findings
 
 
-def main() -> int:
+def report(audited: list[dict[str, str]], findings: list[dict[str, Any]], gaps: list[str]) -> int:
+    sys.stdout.write(
+        json.dumps({"audited": audited, "findings": findings, "coverage_gaps": gaps}, indent=2, sort_keys=True) + "\n"
+    )
+    return 1 if findings or gaps else 0
+
+
+def audit_committed_locks(root: pathlib.Path) -> int:
+    locks = sorted(root.glob("npm-*/*/aube-lock.yaml"))
+    if not locks:
+        sys.stderr.write(f"no committed npm lock was found under {root}\n")
+        return 2
+    audited: list[dict[str, str]] = []
+    findings: list[dict[str, Any]] = []
+    gaps: list[str] = []
+    for lock in locks:
+        tool, version = lock.parent.parent.name, lock.parent.name
+        lock_findings, lock_gaps = npm_findings(f"{tool}@{version}", lock.parent, gate=True)
+        findings.extend(lock_findings)
+        gaps.extend(lock_gaps)
+        if not lock_gaps:
+            audited.append({"tool": tool, "version": version})
+    return report(audited, findings, gaps)
+
+
+def main(argv: Sequence[str] = ()) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--locks", type=pathlib.Path, help="audit committed npm sidecar locks under this directory")
+    arguments = parser.parse_args(argv)
+    if arguments.locks is not None:
+        return audit_committed_locks(arguments.locks)
     findings: list[dict[str, Any]] = []
     gaps: list[str] = []
     try:
@@ -192,11 +231,8 @@ def main() -> int:
                     audited.append({"tool": tool, "version": version})
             except (OSError, KeyError, TypeError) as error:
                 gaps.append(f"{tool}: could not inspect installation: {type(error).__name__}")
-    sys.stdout.write(
-        json.dumps({"audited": audited, "findings": findings, "coverage_gaps": gaps}, indent=2, sort_keys=True) + "\n"
-    )
-    return 1 if findings or gaps else 0
+    return report(audited, findings, gaps)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))
