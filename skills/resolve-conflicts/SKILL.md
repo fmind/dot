@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Resolve Conflicts
@@ -28,7 +28,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
    git show :1:<file>                    # common ancestor
    git show :2:<file>                    # ours; rebase target during a rebase
    git show :3:<file>                    # theirs; replayed commit during a rebase
-   git log --merge --oneline -- <file>   # merge: commits from both heads touching the file
+   git log --merge --oneline -- <file>   # both sides' commits touching the file; Git 2.45+ also covers rebase, cherry-pick, revert
    git show REBASE_HEAD -- <file>        # rebase: the commit currently being replayed
    ```
 1. **Resolve semantically**: write the code that satisfies both intents (renamed function plus new caller, both new tests, merged config keys). When intents are incompatible, keep the one matching the merge's goal and record the trade-off in the commit body. Do not invent new behavior, and remove every `<<<<<<<`, `=======`, `>>>>>>>` marker.

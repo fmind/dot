@@ -10,11 +10,10 @@ Static security audit for `.github/workflows/*.yml` and composite actions; `acti
 ## Commands
 
 ```bash
-zizmor --offline .github/workflows/                       # default gate: no network, no token needed
+zizmor --offline --strict-collection .github/             # default gate: workflows and dependabot.yml; invalid input fails
 zizmor --offline --min-severity medium .github/           # bound noise in large repositories
 zizmor --offline --persona pedantic .github/              # stricter pass before a release
 zizmor --offline --format sarif .github/ > zizmor.sarif
-zizmor --offline --collect dependabot --strict-collection . # audit .github/dependabot.yml too: schema plus rules such as dependabot-cooldown
 GH_TOKEN="$(gh auth token)" zizmor .github/               # online audits (impostor commits, ref confusion)
 zizmor --fix .github/workflows/                           # experimental; the default mode applies only safe fixes, review the diff
 ```

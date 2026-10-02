@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 # Docs: https://docs.docker.com/reference/dockerfile/
-FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS build
+FROM python:3.14.8-slim@sha256:89fb7d3da20043c370643435258bdd7ab755d326d359001d02988ed15ae5219e AS build
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 # Use the base image Python in both stages; a managed download breaks the copied .venv.
 ENV UV_PYTHON_DOWNLOADS=0
 WORKDIR /app
-COPY --from=ghcr.io/astral-sh/uv:0.12.11@sha256:79c6f4776b851471cc73b7d21d0cc834bb94383c292e83640d27eff512864df7 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.22@sha256:f513a91fc62fe7c17567eee97230dd198e43edb8a9fbecca843714a4358fe1bc /uv /uvx /bin/
 RUN --mount=type=cache,target=/root/.cache/uv \
   --mount=type=bind,source=uv.lock,target=uv.lock \
   --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -15,7 +15,7 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
   uv sync --locked --no-dev --no-editable
 
-FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+FROM python:3.14.8-slim@sha256:89fb7d3da20043c370643435258bdd7ab755d326d359001d02988ed15ae5219e
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app

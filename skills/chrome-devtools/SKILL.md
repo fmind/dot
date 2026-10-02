@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Chrome DevTools
@@ -19,12 +19,12 @@ Use Chrome DevTools MCP or its experimental CLI for live browser diagnostics. [p
 Require Node.js LTS, `npm`/`npx`, and supported Chrome. Reuse an available DevTools connection; otherwise follow [mcp-setup](../mcp-setup/SKILL.md) for the active harness. The launch command below uses a reviewed package pin; recheck installed help before updating it.
 
 ```bash
-npx --yes chrome-devtools-mcp@1.9.0 --isolated --headless --no-usage-statistics --no-performance-crux
+npx --yes chrome-devtools-mcp@1.10.1 --isolated --headless --no-usage-statistics --no-performance-crux
 ```
 
 The MCP client starts that process over stdio. Use a dedicated browser profile. Keep remote debugging on loopback; browser content, network bodies, cookies, screenshots, and traces may expose private data. The two opt-out flags disable MCP usage statistics and CrUX URL lookups respectively.
 
-For shell workflows, the same package exposes `chrome-devtools`; resolve it with `npm exec --yes --package=chrome-devtools-mcp@1.9.0 -- chrome-devtools <command>`. Inspect `status` before starting a daemon, then explicitly start the task's session with `start --workspace="$PWD" --no-usage-statistics --no-performance-crux`. The CLI otherwise starts a persistent daemon automatically and enables unrestricted file access by default. Read `start --help` for the installed flags; do not stop or repurpose another task's daemon.
+For shell workflows, the same package exposes `chrome-devtools`; resolve it with `npm exec --yes --package=chrome-devtools-mcp@1.10.1 -- chrome-devtools <command>`. Inspect `status` before starting a daemon, then explicitly start the task's session with `start --workspace="$PWD" --no-usage-statistics --no-performance-crux`. The CLI otherwise starts a persistent daemon automatically and enables unrestricted file access by default. Read `start --help` for the installed flags; do not stop or repurpose another task's daemon.
 
 ## Workflow
 

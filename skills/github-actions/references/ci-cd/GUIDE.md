@@ -18,7 +18,7 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
    ```toml
    [tasks."check:actions"]
    description = "Validate GitHub Actions workflows and Dependabot config"
-   run = ["actionlint", "zizmor --offline .github/"]
+   run = ["actionlint", "zizmor --offline --strict-collection .github/"]
    ```
 
 1. **Verify locally**: run `mise run all`; when the tree carries unrelated changes, apply the [dirty-tree rule](../../../mise/SKILL.md#gotchas).

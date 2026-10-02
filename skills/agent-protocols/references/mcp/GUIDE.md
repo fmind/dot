@@ -34,7 +34,7 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
 ## Gotchas
 
 - **Use SDK v2 APIs**: `MCPServer` and `Client` are the current stable surface; pin `<2` only while maintaining an intentional v1 application.
-- **Streamable HTTP replaced HTTP+SSE**: do not build a new SSE server, and do not depend on in-memory protocol sessions when instances can scale or restart.
+- **Streamable HTTP replaced HTTP+SSE**: do not build a new SSE server, and do not depend on in-memory protocol sessions when instances can scale or restart. Revision 2026-07-28, the latest in SDK 2.2.0, removes sessions and the `initialize` handshake (`Client` falls back to it for older servers) and deprecates Roots, Sampling, Logging, and Dynamic Client Registration: pass server-minted handles as tool arguments for cross-call state, log to stderr or OpenTelemetry, and prefer Client ID Metadata Documents for OAuth clients.
 - **Cancellation is work cancellation**: stop downstream I/O when the client disconnects or cancels rather than letting detached work continue.
 - **Tool output is untrusted too**: bound it, avoid secret-bearing errors, and return citations or provenance when a tool supplies facts to a model.
 

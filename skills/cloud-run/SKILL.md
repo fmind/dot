@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Cloud Run Deployment
@@ -24,12 +24,12 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 1. **Deploy privately**: pass the digest reference and dedicated `--service-account`; keep `--invoker-iam-check --no-allow-unauthenticated` and verify both access controls after deployment. Use [service.yaml](templates/service.yaml) when settings warrant a declarative service specification; a successful update does not prove private IAM.
 1. **Use infrastructure as code when needed**: manage repeatable services, IAM, registries, and fleet-level infrastructure per [infra-as-code](../infra-as-code/SKILL.md); review the plan before apply.
 1. **Wire CD when requested**: copy [deploy.yml](templates/deploy.yml) to `.github/workflows/cd.yml` and [verify-private.py](templates/verify-private.py) to `.github/scripts/verify-private.py`. Commit both, set the workflow's `GCP_*` variables and full `GCP_ARTIFACT_IMAGE`, then opt in with `ENABLE_DEPLOY_CLOUDRUN=true`. Its read-only job validates the tagged revision before the deployment job obtains cloud credentials. Keep build outputs in action outputs and scans/signing as direct named steps per [github-actions](../github-actions/references/ci-cd/GUIDE.md); short input-validation sequences are sufficient.
-1. **Verify the live result**: record the ready revision, deployed digest, runtime account, IAM policy, health result, and traffic split. Keep a known-good revision for rollback.
+1. **Verify the live result**: record the ready revision, deployed digest, pinned secret versions, runtime account, IAM policy, health result, and traffic split. Keep a known-good revision for rollback.
 
 ## Gotchas
 
 - **One digest**: build, scan, signature, attestation, deployment, verification, and rollback must refer to the same `@sha256:` image.
-- **Private by default**: grant `roles/run.invoker` only to intended callers or use an authenticating load balancer.
+- **Private by default**: grant `roles/run.invoker` only to intended callers or use an authenticating load balancer. For signed-in users without a load balancer, `gcloud run deploy --iap` enables [IAP on the service](https://docs.cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run).
 - **Listen on `0.0.0.0:$PORT`**: Cloud Run injects the port, normally 8080; a loopback-only listener cannot receive requests. For the Python web starter, set `HOST=0.0.0.0` and `ENVIRONMENT=production`, and supply its required `DATABASE_URL` through a runtime secret. Verify this configuration in the local container before deploying.
 - **Request-scoped CPU**: background work can pause between requests. Use explicit always-on CPU only when its cost is justified, or use a Cloud Run job for batch work.
 - **Scale deliberately**: keep minimum instances at zero unless measured first-request latency justifies idle cost.
@@ -38,10 +38,10 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); select the Cloud Run and CLI guardrail skills needed for the task.
+Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); select the Cloud Run and CLI guardrail skills needed for the task. The guardrail skill is named `gcloud`, like the local [gcloud](../gcloud/SKILL.md) connector; compare them before installing.
 
 ## Documentation
 
-- [Cloud Run](https://cloud.google.com/run/docs) · [Artifact Registry](https://cloud.google.com/artifact-registry/docs) · [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation)
-- Releases: [Cloud Run](https://cloud.google.com/run/docs/release-notes) · [Artifact Registry](https://cloud.google.com/artifact-registry/docs/release-notes)
+- [Cloud Run](https://docs.cloud.google.com/run/docs) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs) · [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation)
+- Releases: [Cloud Run](https://docs.cloud.google.com/run/docs/release-notes) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs/release-notes)
 - Companion skills: [containerize](../containerize/references/image-build/GUIDE.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [sops-secrets](../sops-secrets/SKILL.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), and [security-review](../security-review/references/code-review/GUIDE.md).

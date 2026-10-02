@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-frameworks
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Agent Frameworks

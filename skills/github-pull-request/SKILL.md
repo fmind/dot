@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # GitHub Pull Request
@@ -35,11 +35,7 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 
 ## Official Skills
 
-Upstream: `cli/cli`, skill `gh`, provides GitHub CLI invocation guidance. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md). Its preview `gh skill` path supports inspection before installation:
-
-```bash
-gh skill preview cli/cli gh
-```
+Upstream: `cli/cli`, skill `gh`, provides GitHub CLI invocation guidance; it shares the local connector's name, and the [gh connector](../gh/SKILL.md#official-skills) owns its pinned review and installation.
 
 ## Documentation
 

@@ -32,7 +32,7 @@ For agents-cli projects, use the ADK implementation selection from `google/agent
 
 ## Documentation
 
-- [Session state](https://google.github.io/adk-docs/sessions/state/) · [Runtime](https://google.github.io/adk-docs/runtime/)
-- [ADK docs](https://google.github.io/adk-docs/) · [Python SDK](https://github.com/google/adk-python) · [Google CLI and skills](https://github.com/google/agents-cli)
+- [Session state](https://adk.dev/sessions/state/) · [Runtime](https://adk.dev/runtime/)
+- [ADK docs](https://adk.dev/) · [Python SDK](https://github.com/google/adk-python) · [Google CLI and skills](https://github.com/google/agents-cli)
 - Releases: [adk-python](https://github.com/google/adk-python/releases) · [changelog](https://github.com/google/adk-python/blob/main/CHANGELOG.md)
 - Companion skills: [agents-cli](agents-cli/GUIDE.md), [prompt-design](../../prompt-design/SKILL.md), [quality-assurance](../../quality-assurance/SKILL.md), [python-stack](../../python-stack/references/foundation/GUIDE.md).

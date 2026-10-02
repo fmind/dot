@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Docker and Container Runtime Management
@@ -18,9 +18,10 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
 
 ## Runtime Selection
 
-- **macOS**: use [Colima](https://github.com/abiosoft/colima) as the default container runtime instead of Docker Desktop. Colima runs a lightweight Linux VM using Lima and provides a compatible Docker socket.
+- **macOS**: use [Colima](https://github.com/abiosoft/colima) as the default container runtime instead of Docker Desktop. Colima runs a lightweight Linux VM using Lima and provides a compatible Docker socket. `--activate=false` keeps the current Docker context; address the VM explicitly.
   ```bash
-  colima start --cpu 4 --memory 8
+  colima start --cpus 4 --memory 8 --activate=false
+  docker --context colima info --format '{{.ServerVersion}}'
   colima status
   colima stop
   ```

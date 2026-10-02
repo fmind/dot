@@ -18,7 +18,7 @@ Copier is the default for new project templates we maintain. Keep existing Cooki
    ```
 
 1. Check rendered paths, contents, executable modes, and recorded provenance. Exercise default and non-default answers, invalid input, and the generated project's native gate before delivering the template.
-1. For updates, inspect the clean project's Git state, `.copier-answers.yml`, old and target template revisions, and ownership rules such as `_skip_if_exists`. Work in an isolated candidate; from its root run:
+1. For updates, run `copier check-update` to see whether a newer template release exists, then inspect the clean project's Git state, `.copier-answers.yml`, old and target template revisions, and ownership rules such as `_skip_if_exists`. Work in an isolated candidate; from its root run:
 
    ```bash
    copier update --defaults --vcs-ref <reviewed-commit>

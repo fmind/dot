@@ -26,5 +26,5 @@ Upstream: [pydantic/skills](https://github.com/pydantic/skills), selection `pyda
 
 ## Documentation
 
-- [Pydantic documentation](https://docs.pydantic.dev/latest/) · [Skills CLI](https://skills.sh/docs/cli)
+- [Pydantic documentation](https://pydantic.dev/docs/validation/latest/) · [Skills CLI](https://skills.sh/docs/cli)
 - Releases: [Pydantic](https://github.com/pydantic/pydantic/releases) · [history](https://github.com/pydantic/pydantic/blob/main/HISTORY.md)

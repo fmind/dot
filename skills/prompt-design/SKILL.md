@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/prompt-design
   created: "2026-08-08"
-  updated: "2026-09-19"
+  updated: "2026-10-02"
 ---
 
 # Prompt Design
@@ -37,5 +37,5 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 
 ## Documentation
 
-- [ADK LLM agent instructions](https://google.github.io/adk-docs/agents/llm-agents/)
+- [ADK LLM agent instructions](https://adk.dev/agents/llm-agents/)
 - Companion skills: [google-adk](../agent-frameworks/references/google-adk.md) (Python agents and runtime enforcement), [quality-assurance](../quality-assurance/SKILL.md) (software proof), [threat-model](../threat-model/SKILL.md) (trust boundaries), [research-brief](../implementation-plan/references/research-brief.md) (current provider semantics).

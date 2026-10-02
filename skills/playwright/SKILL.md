@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Playwright
@@ -19,7 +19,7 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 1. **Pin the Python integration**: `uv add --dev playwright pytest-playwright`, then `uv run playwright install chromium`; keep both packages in `uv.lock`. If Linux system libraries are missing, report the administrator-owned prerequisite instead of invoking the privileged `install-deps` command.
 1. **Explore and record**: `uv run playwright codegen --target python <url>` records Python actions; `uv run playwright screenshot <url> <file>` and `uv run playwright pdf <url> <file>` produce review evidence.
 1. **Write resilient tests**: use the pytest `page` fixture, role or label locators, and web-first `expect` assertions; keep test state isolated and deterministic.
-1. **Run tests**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`; open a saved trace with `uv run playwright show-trace <trace.zip>`.
+1. **Run tests**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`. Inspect a saved trace with `uv run playwright trace open <trace.zip>`, then `uv run playwright trace errors` and `uv run playwright trace actions` (Playwright 1.59+); `trace close` removes the data extracted under `.playwright-cli/`. `show-trace` opens the GUI viewer for humans.
 1. **Verify**: a green pytest run plus the artifact (screenshot, trace, or report) the task asked for.
 
 ## Gotchas
@@ -31,7 +31,7 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 
 ## Official Skills
 
-Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) provides the official browser CLI skill. Select it through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) only for CLI-driven exploration; its commands are not the Python API. Python tests continue to use the documentation below and the project's uv lockfile.
+Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) provides the official browser CLI skill. Select it through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) only for CLI-driven exploration; its commands are not the Python API. Python tests continue to use the documentation below and the project's uv lockfile. A version-matched copy of that skill also ships inside the uv-locked package (`uv run playwright cli --help` prints its path); review it under the same policy before exposing it, because its `allowed-tools` pre-approves `npx` and `npm`.
 
 ## Documentation
 

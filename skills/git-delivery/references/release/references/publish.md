@@ -46,4 +46,11 @@ Use the repository's release task when it owns versioning, tags, or publication.
    gh release create "$tag" --verify-tag --title "$tag" --notes-file "$release_tmp/release-notes.md"
    ```
 
+   If the repository uses immutable releases (`gh release view <earlier-tag> --json isImmutable` returns `true`), assets cannot change after publication: add `--draft` to the create command above, upload the assets, then publish.
+
+   ```bash
+   gh release upload "$tag" <asset>...
+   gh release edit "$tag" --draft=false
+   ```
+
 1. **Verify and report** using [verification](verify.md), then remove only the temporary notes directory created above after preserving any needed failure evidence.

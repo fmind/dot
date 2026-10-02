@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Secrets with sops and age
@@ -40,7 +40,7 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 ```
 
 - **Prefer `exec-env` and `exec-file`** for runtime delivery; keep values out of logs and inspect how child processes handle them. `--no-fifo` writes a regular temporary file.
-- **CI**: store the private key as the single `SOPS_AGE_KEY` GitHub Actions secret; every other secret rides encrypted in the repo and jobs wrap commands in `sops exec-env`.
+- **CI**: jobs wrap commands in `sops exec-env`, and every other secret rides encrypted in the repo. The simplest decryption path stores an age private key as the single `SOPS_AGE_KEY` GitHub Actions secret, but that long-lived key decrypts every file it is a recipient of. For GCP projects, prefer a `gcp_kms` recipient that CI decrypts through Workload Identity Federation (Application Default Credentials from `google-github-actions/auth`, with `roles/cloudkms.cryptoKeyDecrypter` on that key only), and keep age recipients for humans; retire a former CI age recipient through **Rotate**.
 - **Integrations**: Flux, OpenTofu, and runtime-manager wiring lives in [integrations.md](references/integrations.md).
 
 ## Gotchas

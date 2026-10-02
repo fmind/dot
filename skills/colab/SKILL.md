@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Google Colab CLI
@@ -48,6 +48,6 @@ Upstream: `googlecolab/google-colab-cli`, the same source `colab skill` prints. 
 ## Documentation
 
 - [Colab CLI](https://github.com/googlecolab/google-colab-cli)
-- Releases: [google-colab-cli](https://github.com/googlecolab/google-colab-cli/releases)
+- Releases: [google-colab-cli changelog](https://github.com/googlecolab/google-colab-cli/blob/main/CHANGELOG.md)
 - ML workflows: [python-mlops](../python-mlops/SKILL.md) owns data validation, training, experiments, and model delivery.
 - Companion skills: [kaggle](../kaggle/SKILL.md), [hf](../hf/SKILL.md), [python-script](../python-stack/references/python-script/GUIDE.md), [gcloud](../gcloud/SKILL.md).

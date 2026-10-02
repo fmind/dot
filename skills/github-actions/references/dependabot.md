@@ -19,7 +19,7 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
    | `*.tf` (Terraform)           | `terraform`         |
    | `*.tf` (OpenTofu)            | `opentofu`          |
 
-1. **Write the config**: weekly schedule, `chore(deps)` commit prefix, and one group per ecosystem for `minor` and `patch` updates so majors arrive alone:
+1. **Write the config**: weekly schedule, a 7-day cooldown, `chore(deps)` commit prefix, and one group per ecosystem for `minor` and `patch` updates so majors arrive alone:
 
    ```yaml
    version: 2
@@ -29,6 +29,8 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
        schedule:
          interval: weekly
          day: monday
+       cooldown:
+         default-days: 7
        commit-message:
          prefix: "chore(deps)"
        groups:
@@ -40,6 +42,8 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
        schedule:
          interval: weekly
          day: monday
+       cooldown:
+         default-days: 7
        commit-message:
          prefix: "chore(deps)"
        groups:

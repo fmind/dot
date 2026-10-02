@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-09-28"
+  updated: "2026-10-02"
 ---
 
 # Agent Harnesses

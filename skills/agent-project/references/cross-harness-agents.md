@@ -37,7 +37,7 @@ Both roles explicitly read the shared persona and applicable repository instruct
 | Grok        | `~/.grok/agents/<role>.md`            | `grok inspect --json`; `/agents`; `grok --agent reviewer`          |
 | OpenCode    | `~/.config/opencode/agents/<role>.md` | `opencode debug agent reviewer`; invoke `@reviewer` or `@verifier` |
 
-Claude's `claude agents` lists background sessions, and version 2.1.283 has removed the `/agents` wizard. Codex's `debug prompt-input` omits custom-role tool schemas, so absence from that dump is not a discovery failure. Parent prompts can request delegation where the host supports custom-agent routing; native invocation syntax and support vary by version.
+Claude's `claude agents` lists background sessions; Claude Code 2.1.198 removed the `/agents` wizard. Codex's `debug prompt-input` omits custom-role tool schemas, so absence from that dump is not a discovery failure. Parent prompts can request delegation where the host supports custom-agent routing; native invocation syntax and support vary by version.
 
 ## Permission limits
 
