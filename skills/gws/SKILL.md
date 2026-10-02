@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-09-26"
+  updated: "2026-10-02"
 ---
 
 # Google Workspace CLI

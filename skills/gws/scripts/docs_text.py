@@ -7,6 +7,11 @@ import sys
 from pathlib import Path
 
 
+def chip(kind: str, label: str | None) -> str:
+    """Label a smart chip like the inline-object placeholder, keeping its displayed text."""
+    return f"[{kind}: {label}]" if label else f"[{kind}]"
+
+
 def structural_text(elements: list) -> str:
     """Walk document structure without collecting suggested/repeated metadata text."""
     result = []
@@ -17,6 +22,16 @@ def structural_text(elements: list) -> str:
                     result.append(run["textRun"]["content"])
                 elif "inlineObjectElement" in run:
                     result.append("[inline object]")
+                elif "person" in run:
+                    # The chip shows the name when present, otherwise the email.
+                    person = run["person"].get("personProperties", {})
+                    result.append(chip("person", person.get("name") or person.get("email")))
+                elif "richLink" in run:
+                    link = run["richLink"].get("richLinkProperties", {})
+                    result.append(chip("link", link.get("title") or link.get("uri")))
+                elif "dateElement" in run:
+                    date = run["dateElement"].get("dateElementProperties", {})
+                    result.append(chip("date", date.get("displayText")))
         elif "table" in element:
             for row in element["table"].get("tableRows", []):
                 cells = [structural_text(cell.get("content", [])).rstrip("\n") for cell in row.get("tableCells", [])]
