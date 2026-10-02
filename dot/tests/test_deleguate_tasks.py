@@ -134,7 +134,30 @@ def test_native_agy_defaults_and_compact_output(tmp_path: Path, monkeypatch: pyt
     assert row["diagnostics_present"] is False
 
 
-@pytest.mark.parametrize("mutation", ["cycle", "unknown", "duplicate", "type", "extra"])
+def test_native_agy_accepts_max_effort(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = tmp_path / "agy"
+    executable.write_text(
+        f"#!{sys.executable}\nimport json,sys,pathlib\n"
+        "pathlib.Path('args.json').write_text(json.dumps(sys.argv[1:]))\n"
+        "print(json.dumps(dict(status='SUCCESS', response='done')))\n"
+    )
+    executable.chmod(0o700)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    spec = {
+        "id": "native",
+        "workspace": str(tmp_path),
+        "prompt": "do the task",
+        "effort": "max",
+        "checks": [[sys.executable, "-c", "pass"]],
+    }
+    result, output = invoke(tmp_path, [spec])
+    args = json.loads((tmp_path / "args.json").read_text())
+    assert result.returncode == 0
+    assert args[args.index("--effort") + 1] == "max"
+    assert output["tasks"][0]["effort"] == "max"
+
+
+@pytest.mark.parametrize("mutation", ["cycle", "unknown", "duplicate", "type", "extra", "effort"])
 def test_invalid_batch_does_not_launch(tmp_path: Path, mutation: str) -> None:
     first = task(tmp_path, "first")
     tasks = [first]
@@ -144,6 +167,9 @@ def test_invalid_batch_does_not_launch(tmp_path: Path, mutation: str) -> None:
         tasks.append(first)
     elif mutation == "type":
         first["checks"] = "not a command list"
+    elif mutation == "effort":
+        del first["command"]
+        first["effort"] = "extreme"
     else:
         first["unexpected"] = True
     result, _ = invoke(tmp_path, tasks)
