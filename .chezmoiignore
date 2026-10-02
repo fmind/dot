@@ -67,9 +67,14 @@ trivy.yaml
 .local/share/dbus-1/services/org.freedesktop.Notifications.service
 {{- end }}
 
+{{- if not (stat "/opt/google/cros-containers") }}
+.config/systemd/user/cros-garcon.service.d
+{{- end }}
+
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
 .cache/huggingface/token
 .kaggle/access_token
 .local/share/opencode/auth.json
+.config/bf/credentials
 .config/dot/secrets
 {{- end }}
