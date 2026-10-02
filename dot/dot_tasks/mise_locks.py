@@ -9,13 +9,15 @@ import tomllib
 from pathlib import Path
 
 _GRAPH_FILES = {"uv": ("pyproject.toml", "uv.lock"), "aube": ("package.json", "aube-lock.yaml")}
+# Revision 3 (mise 2026.9.16) also pins forge repository IDs; older revisions stay readable.
+LOCK_REVISION = 3
 
 
 def bundle(lock: Path, *, verify: bool = True) -> dict[Path, bytes]:
     """Read a lock bundle; allow damaged old graphs only when repairing a destination."""
     content = lock.read_bytes()
     document = tomllib.loads(content.decode())
-    if document.get("lockfile_version") not in (1, 2):
+    if document.get("lockfile_version") not in (1, 2, LOCK_REVISION):
         raise ValueError("Unsupported mise lock format; regenerate with mise lock --global")
     files = {Path(lock.name): content}
     tools = document.get("tools")
@@ -54,8 +56,8 @@ def bundle(lock: Path, *, verify: bool = True) -> dict[Path, bytes]:
 def capture(source: Path, destination: Path) -> None:
     """Copy referenced files, publish the lock last, then retire old references."""
     incoming = bundle(source)
-    if tomllib.loads(incoming[Path(source.name)].decode())["lockfile_version"] != 2:
-        raise ValueError("Upgrade the global lock first: mise lock --global --upgrade")
+    if tomllib.loads(incoming[Path(source.name)].decode())["lockfile_version"] != LOCK_REVISION:
+        raise ValueError(f"Upgrade the lock to revision {LOCK_REVISION} first: mise run lock migrates it")
     previous = bundle(destination, verify=False) if destination.exists() else {}
     # Validate every write/delete location before changing anything. Personal locks
     # and files not referenced by the previously managed lock are left alone.

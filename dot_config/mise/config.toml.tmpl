@@ -5,11 +5,12 @@
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
 # is deliberately off across every backend: upstream attestation coverage is too
 # patchy to gate routine upgrades on, and this is a single-user workstation. The
-# lockfile records digests for aqua/github/http downloads and conda dependencies.
-# Newly published releases are eligible immediately. Format 2 records supported
+# lockfile records digests for aqua/github/http downloads and conda dependencies,
+# except where the registry publishes none (acli, awscli, gcloud, sonarqube-cli,
+# ttyd): those lock only a URL and version, and test_contracts names them.
+# Newly published releases are eligible immediately. Lock revision 3 records supported
 # npm and pipx dependency graphs in locks/; keep these native files with mise.lock
-# and install with --locked. Registry tools such as gcloud may still pin only a version.
-# First fetches are unverified.
+# and install with --locked. First fetches are unverified.
 aqua.cosign = false
 aqua.github_attestations = false
 aqua.minisign = false
@@ -43,11 +44,11 @@ fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
 neovim = "aqua:neovim/neovim"
 
-[settings.hook_env]
-chpwd_only = true
-
 [env]
 ASTRO_TELEMETRY_DISABLED = "1"
+# The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
+# vendor skills go through the vendor-skill policy instead.
+AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 
 [tools]
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
@@ -55,9 +56,11 @@ ASTRO_TELEMETRY_DISABLED = "1"
 # "aqua:slackapi/slack-cli" = "latest" # Slack app builder; needs a workspace where you can install apps
 "conda:file" = "latest" # File type detection required by Yazi; includes its magic database
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
-# Hold the audited 11.x line while 12.0.0 pulls vulnerable lodash-es via chevrotain.
-# Recheck CVE-2026-4800 before lifting this pin (reviewed 2026-09-25).
+# Hold the audited 11.x line (lodash-es 4.18.1): 12.0.0 still resolves mermaid 12.0.0, whose
+# chevrotain 11.1.2 pins lodash-es 4.17.23 (CVE-2026-4800). mermaid 12.1.0 drops lodash-es but
+# is newer than the npm release-age gate; recheck after 2026-10-09 (reviewed 2026-10-02).
 "npm:@mermaid-js/mermaid-cli" = { version = "11.17.0", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
+# Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 "npm:skills" = "latest" # Agent Skills CLI manager
 "pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
@@ -141,6 +144,8 @@ tree-sitter = "latest" # Parser generator CLI backing nvim-treesitter; Linux bin
 trivy = "latest" # Security vulnerability and secret scanner
 ttyd = { version = "latest", os = ["linux"] } # VHS terminal backend; upstream binaries are Linux-only
 ty = "latest" # Astral's high-performance Python type checker
+typst = "latest" # Typesetting system for Fmind decks (fmind-visuals)
+typstyle = "latest" # Formatter for Typst sources
 uv = "latest" # Astral's high-performance Python package installer
 usage = "latest" # Specification and completion tool for CLIs (powers mise completions)
 vault = "latest" # HashiCorp Vault command-line interface for secrets management
