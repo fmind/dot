@@ -30,3 +30,15 @@ local function bdelete_next()
   end
 end
 map("n", "<leader>bd", bdelete_next, { desc = "Delete Buffer (next)" })
+
+-- Display full path in a floating notification and copy to clipboards.
+map("n", "<leader>fh", function()
+  local path = vim.fn.expand("%:p")
+  if path == "" then
+    Snacks.notify.warn("Buffer has no file path", { title = "File Path" })
+    return
+  end
+  vim.fn.setreg("+", path)
+  vim.fn.setreg('"', path)
+  Snacks.notify.info(path, { title = "Full Path (Copied)" })
+end, { desc = "Show and Copy Full Path" })
