@@ -140,7 +140,9 @@ def test_cli_errors_are_actionable_and_private(
 def submodule(superproject: Path, name: str, remote: str, sources: Path) -> Path:
     source = sources / name
     repository(source, remote)
-    subprocess.run(["git", "-C", str(source), "commit", "-q", "--allow-empty", "-m", "init"], check=True)
+    # CI runners have no Git identity; never sign fixture commits.
+    identity = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "-c", "commit.gpgsign=false"]
+    subprocess.run(["git", "-C", str(source), *identity, "commit", "-q", "--allow-empty", "-m", "init"], check=True)
     subprocess.run(
         [
             "git",

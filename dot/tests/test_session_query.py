@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from typer import _click
 from typer.testing import CliRunner
 
 from fmind_dot.archive import query as session_query
@@ -341,5 +342,6 @@ def test_unexpandable_project_is_a_usage_error(
     result = CliRunner().invoke(app, ["agent", *command])
 
     assert result.exit_code == 2
-    assert "--project" in result.stderr
+    # GitHub Actions forces Typer to colorize usage errors.
+    assert "--project" in _click.utils.strip_ansi(result.stderr)
     assert not isinstance(result.exception, RuntimeError)
