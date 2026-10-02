@@ -5,7 +5,7 @@ description: "Read pages, search within a scope, follow paginated replies and te
 
 # Complete reads and graph context
 
-<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/retrieval.md (v16.1.0); update it there first. -->
+<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/retrieval.md (v17.0.0); update it there first. -->
 
 Helpers named `skills/bf-use/scripts/…` belong to the packaged skill: run them from a brain that installed it with `bf skills skills`, or from the host folder where `bf skills DIR` put it.
 
@@ -21,7 +21,7 @@ Quote refs in shell commands. A `#` inside a record ID is part of its identity; 
 
 ## Search precisely
 
-Search matches words case-, accent- and compatibility-insensitively. It ignores English and French function words when other words remain, and every distinct word after the first 32. Any word matches; a passage matching more of the query ranks higher, a section also ranks by its note's title, its heading and the note's tags, and equal scores list the newest first. A nested section's title reads `Note — Parent — Child`.
+Search matches words case-, accent- and compatibility-insensitively. It ignores English and French function words when other words remain, unless written in capitals as an acronym such as `AI` or `EU` (`AND` and `OR` still drop), and every distinct word after the first 32. Any word matches; a passage matching more of the query ranks higher, a section also ranks by its note's title, its heading and the note's tags, and equal scores list the newest first. A nested section's title reads `Note — Parent — Child`.
 
 - `"quoted phrase"` matches the words in order; `word*` matches every word starting with `word`.
 - `unmatched` lists query words, phrases or prefixes found nowhere in the selected brains, whatever the scope: respell them or search a variant.
@@ -49,6 +49,6 @@ For analysis outside BF, `bf export` streams one JSON line per edge of the selec
 
 ## Interpret attention signals
 
-The home page's `attention` lists scheduled sensors and routines that failed or are overdue. Project entries add `modified` (the file's last change), `review_due` (the local day a review falls due), `review_source` and `review_reasons`; the [review guide](https://github.com/fmind/brain-framework/blob/v16.1.0/src/bf/skills/bf-use/references/review.md) says when a note falls due. A reminder, an edit or a new backlink is a reason to inspect, never evidence of verification.
+The home page's `attention` lists scheduled sensors and routines that failed or are overdue. Project entries add `modified` (the file's last change), `review_due` (the local day a review falls due), `review_source` and `review_reasons`; the [review guide](https://github.com/fmind/brain-framework/blob/v17.0.0/src/bf/skills/bf-use/references/review.md) says when a note falls due. A reminder, an edit or a new backlink is a reason to inspect, never evidence of verification.
 
 `bf read tasks` lists open checkboxes in projects, concepts and `ACTION.md` notes; only `deprecated` closes a note's tasks, and `index.md`, `log.md` and action attachments are excluded. Period pages separate items dated in the period (`items`, `total`) from items modified in it (`changed`). A `priority: low` source appears on period and home pages only as a count with its `page`; read that page to list its records.
