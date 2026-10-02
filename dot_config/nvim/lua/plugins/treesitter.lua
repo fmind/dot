@@ -12,16 +12,7 @@ return {
       if type(opts.ensure_installed) == "table" then
         -- Web parsers stay retired: snacks.image only misses inline images in TSX
         -- documents, like its other optional languages; Markdown images still render.
-        local retired = {
-          angular = true,
-          go = true,
-          gomod = true,
-          gosum = true,
-          gowork = true,
-          templ = true,
-          tsx = true,
-          typescript = true,
-        }
+        local retired = { tsx = true, typescript = true }
         opts.ensure_installed = vim.tbl_filter(function(language)
           return not retired[language]
         end, opts.ensure_installed)

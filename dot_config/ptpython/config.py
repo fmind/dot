@@ -53,5 +53,8 @@ def configure(repl) -> None:
         repl.use_ui_colorscheme(theme.NAME)
     # --- Completion & Suggestion ---
     repl.enable_auto_suggest = True
+    # History search and completion-while-typing are mutually exclusive; ptpython's own
+    # toggle disables one when enabling the other, so state the choice explicitly.
     repl.enable_history_search = True
+    repl.complete_while_typing = False
     repl.enable_fuzzy_completion = True

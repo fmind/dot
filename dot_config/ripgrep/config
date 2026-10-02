@@ -5,6 +5,7 @@
 --glob=!.pytest_cache/
 --glob=!.ruff_cache/
 --glob=!.terraform/
+--glob=!.ty_cache/
 --glob=!.venv/
 --glob=!__pycache__/
 --glob=!node_modules/

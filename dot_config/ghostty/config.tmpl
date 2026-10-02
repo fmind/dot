@@ -17,6 +17,8 @@ font-synthetic-style = no-italic,no-bold-italic
 
 {{- if eq .chezmoi.os "darwin" }}
 macos-option-as-alt = left
+# Restoring window state is macOS-only; it has no effect on Linux.
+window-save-state = always
 {{- end }}
 
 # Quality of Life
@@ -27,7 +29,6 @@ mouse-scroll-multiplier = precision:0.0625,discrete:0.25
 {{ else }}
 mouse-scroll-multiplier = precision:0.25,discrete:1
 {{ end }}
-window-save-state = always
 
 # Performance Improvements
 cursor-style-blink = false
@@ -39,9 +40,6 @@ custom-shader-animation = false
 gtk-single-instance = true
 linux-cgroup = never
 {{- end }}
-
-# Zellij & Shell Integration
-shell-integration-features = true
 
 # Launch fish through the mise shim
 command = {{ .chezmoi.homeDir }}/.local/share/mise/shims/fish

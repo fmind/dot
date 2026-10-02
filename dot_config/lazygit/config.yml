@@ -9,6 +9,9 @@ git:
       colorArg: always
 gui:
   expandFocusedSidePanel: true
+  # Filter lists fuzzily and show ahead/behind counts against the base branch.
+  filterMode: fuzzy
+  showDivergenceFromBaseBranch: arrowAndNumber
   scrollHeight: 5
   scrollPastBottom: false
   showCommandLog: false

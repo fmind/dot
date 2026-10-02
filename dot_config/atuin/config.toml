@@ -17,5 +17,16 @@ filter_mode = "directory"
 # Up-arrow scoped to the session
 filter_mode_shell_up_key_binding = "session"
 
+# Offer the whole Git repository's history as a filter mode
+workspaces = true
+
+# Match Fish's vi cursor shapes and Ghostty's steady cursor
+keymap_cursor = { emacs = "steady-bar", vim_insert = "steady-bar", vim_normal = "steady-block" }
+
+[search]
+# Fish assigns a UUIDv4 session ID (plugins.fish), so session-preload, which reads the
+# UUIDv7 start time, would behave like session; leave it out of the filter cycle.
+filters = ["directory", "workspace", "session", "host", "global"]
+
 [theme]
 name = "fmind"
