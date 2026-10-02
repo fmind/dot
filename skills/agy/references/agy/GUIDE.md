@@ -18,7 +18,7 @@ Operate the CLI and Remote Control; use [antigravity-sdk](../antigravity-sdk/GUI
 
 Edit fmind/dot's chezmoi sources, then preview and apply only affected targets with `chezmoi apply --force`. CLI preferences live in `~/.gemini/antigravity-cli/settings.json`; Remote Control uses `~/.gemini/config/config.json` under `userSettings` with a different protobuf JSON schema. Preserve account fields, trust choices, explicit ask/deny grants, and native model state; never patch `antigravity_state.pbtxt`.
 
-The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants include `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. Keep native rendering defaults unless a concrete terminal problem calls for an override. Keep hooks small: synchronous hooks add latency to the agent loop.
+The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants allow every action without prompts: `read_file(*)`, `write_file(*)`, `command(*)`, `unsandboxed(*)`, `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. Keep native rendering defaults unless a concrete terminal problem calls for an override. Keep hooks small: synchronous hooks add latency to the agent loop.
 
 ## Managed custom agents
 
@@ -36,10 +36,10 @@ Keep the repository registry local in `~/.gemini/config/projects/`. The [reposit
 
 ```bash
 python ~/.agents/skills/agy/scripts/index-repositories.py
-python ~/.agents/skills/agy/scripts/index-repositories.py --apply
+python ~/.agents/skills/agy/scripts/index-repositories.py --prune --apply
 ```
 
-Preview first; `--apply` adds missing local GitHub checkouts without network access. It skips hidden/dependency directories (including `modules/`) and symlinks, includes the chezmoi source, and accepts explicit roots. New registry files are published atomically without replacing concurrent entries; failed writes leave no partial JSON. Existing metadata is preserved; moved/deleted checkouts need reviewed cleanup. This registers projects, not semantic code indexes.
+Preview first; `--apply` adds missing local GitHub checkouts without network access, and `--prune` also removes entries whose folders are gone or are submodules. It skips hidden/dependency directories (including `modules/`), Git submodules and symlinks, includes the chezmoi source, and accepts explicit roots. New registry files are published atomically without replacing concurrent entries; failed writes leave no partial JSON. Existing metadata is preserved; preview `--prune` before applying it. This registers projects, not semantic code indexes.
 
 ## Shell completions
 

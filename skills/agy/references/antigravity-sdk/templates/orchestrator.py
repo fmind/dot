@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
-# dependencies = ["google-antigravity==0.1.16"]
+# dependencies = ["google-antigravity==0.1.20"]
 # ///
 """Fan work out to static subagents under explicit budgets and an explicit policy.
 

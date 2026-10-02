@@ -135,3 +135,53 @@ def test_cli_errors_are_actionable_and_private(
     assert "private" not in output.err
     assert str(tmp_path) not in output.err
     assert "Traceback" not in output.err
+
+
+def submodule(superproject: Path, name: str, remote: str, sources: Path) -> Path:
+    source = sources / name
+    repository(source, remote)
+    subprocess.run(["git", "-C", str(source), "commit", "-q", "--allow-empty", "-m", "init"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(superproject),
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            "-q",
+            str(source),
+            name,
+        ],
+        check=True,
+    )
+    path = superproject / name
+    subprocess.run(["git", "-C", str(path), "remote", "set-url", "origin", remote], check=True)
+    return path
+
+
+def entry(registry: Path, name: str, *uris: str) -> Path:
+    path = registry / f"{name}.json"
+    path.write_text(json.dumps({"id": name, "projectResources": {"resources": [{"folderUri": u} for u in uris]}}))
+    return path
+
+
+def test_submodules_are_neither_indexed_nor_kept(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    repository(home / "owner/super", "https://github.com/owner/super.git")
+    nested = submodule(home / "owner/super", "lib", "https://github.com/owner/lib.git", tmp_path / "sources")
+    registry = tmp_path / "projects"
+    registry.mkdir()
+    kept = entry(registry, "kept", (home / "owner/super").as_uri())
+    remote = entry(registry, "remote", "https://example.com/not-a-folder")
+    stale = entry(registry, "stale", (home / "gone").as_uri())
+    child = entry(registry, "child", nested.as_uri())
+    assert refresh([home], registry, False) == (1, 0)
+    prune = indexer["prune"]
+    assert prune(registry, False) == 2
+    assert stale.exists()
+    assert child.exists()
+    assert prune(registry, True) == 2
+    assert sorted(registry.iterdir()) == sorted([kept, remote])
+    assert prune(registry, True) == 0
