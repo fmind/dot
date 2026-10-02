@@ -18,7 +18,7 @@ def _lock(root: Path, version: str = "1.0", backend: str = "uv") -> Path:
     digest = hashlib.sha256(content).hexdigest()
     lock = root / "mise.lock"
     lock.write_text(
-        f'lockfile_version = 2\n[[tools.example]]\nversion = "{version}"\n'
+        f'lockfile_version = 3\n[[tools.example]]\nversion = "{version}"\n'
         f'{backend} = {{ path = "locks/example/{version}", digest = "sha256:{digest}" }}\n'
     )
     return lock
@@ -99,9 +99,10 @@ def test_capture_migrates_legacy_destination_but_rejects_downgrade(tmp_path: Pat
     destination.write_bytes(legacy)
     capture(source, destination)
     before = bundle(destination)
-    source.write_bytes(legacy)
-    with pytest.raises(ValueError, match="Upgrade"):
-        capture(source, destination)
+    for revision in (1, 2):
+        source.write_bytes(f"lockfile_version = {revision}\n[tools]\n".encode())
+        with pytest.raises(ValueError, match="Upgrade"):
+            capture(source, destination)
     assert bundle(destination) == before
 
 

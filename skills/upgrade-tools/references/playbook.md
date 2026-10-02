@@ -58,6 +58,8 @@ Update the tag or digest of every `FROM` line to the latest stable from the imag
 
 Resolve every action release to its full commit SHA and keep the human-readable version in a trailing comment (`owner/action@<sha> # vN.N.N`). Let [dependabot](../../github-actions/references/dependabot.md) propose SHA updates, verify the referenced tag before accepting them, and validate with `actionlint` plus `zizmor --offline`. See [github-actions](../../github-actions/references/ci-cd/GUIDE.md).
 
+Dependabot cannot raise a `jdx/mise-action` `version:` input, and `mise run upgrade` never updates mise itself. In `fmind/dot`, update mise deliberately: `mise self-update <version>` on the workstation, then raise the workflow `version:` pins, `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml`, and the README minimum together; a bootstrap test enforces that they agree. Read the release notes between versions for security fixes and lockfile changes first.
+
 ## dprint (`dprint.json`)
 
 ```sh

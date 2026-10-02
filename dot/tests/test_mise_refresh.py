@@ -19,13 +19,13 @@ linux_only = {version = "latest", os = ["linux"]}
 """
 
 
-def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
+def write_bundle(directory: Path, content: bytes = b"old graph\n", revision: int = 3) -> None:
     graph = directory / "locks/example/1.0"
     graph.mkdir(parents=True, exist_ok=True)
     (graph / "uv.lock").write_bytes(content)
     (graph / "pyproject.toml").write_text("[project]\nname='example'\n")
     (directory / "mise.lock").write_text(
-        'lockfile_version = 2\n[[tools."pipx:example"]]\nversion = "1.0"\n'
+        f'lockfile_version = {revision}\n[[tools."pipx:example"]]\nversion = "1.0"\n'
         f'uv = {{path = "locks/example/1.0", digest = "sha256:{hashlib.sha256(content).hexdigest()}"}}\n'
         '[[tools.native]]\nversion = "2.0"\n'
         '[tools.native."platforms.linux-x64"]\nurl = "https://example.org/linux"\n'
@@ -37,12 +37,13 @@ def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
 
 @pytest.mark.parametrize("bump", [False, True])
 @pytest.mark.parametrize("old_damage", ["none", "missing", "digest"])
+@pytest.mark.parametrize("revision", [2, 3])
 def test_refresh_uses_portable_source_and_isolated_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, bump: bool, old_damage: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, bump: bool, old_damage: str, revision: int
 ) -> None:
     root = tmp_path / "repository"
     source = root / "dot_config/mise"
-    write_bundle(source)
+    write_bundle(source, revision=revision)
     graph = source / "locks/example/1.0/uv.lock"
     if old_damage == "missing":
         graph.unlink()
@@ -108,7 +109,8 @@ def test_refresh_uses_portable_source_and_isolated_config(
     monkeypatch.setattr(subprocess, "run", run)
     mise_refresh.refresh(root, bump=bump)
 
-    assert commands[-1] == ["mise", "lock", "--global", "--yes", *(["--bump"] if bump else [])]
+    upgrade = ["--upgrade"] if revision != 3 else []
+    assert commands[-1] == ["mise", "lock", "--global", "--yes", *(["--bump"] if bump else []), *upgrade]
     assert graph.read_bytes() == b"refreshed graph\n"
     assert live_config.read_text() == '"pipx:example"="path:/private/runtime"\n'
     assert all(not path.exists() for path in staging)
