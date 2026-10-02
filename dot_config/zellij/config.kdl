@@ -4,6 +4,8 @@ default_shell "fish"
 // Pane frames separate the content from tabs and the status bar.
 pane_frames true
 theme "fmind"
+// mise upgrades Zellij often; skip the release-notes screen after each upgrade.
+show_release_notes false
 // Prevent mouse scrolling from implicitly entering and exiting Scroll mode.
 scroll_mode_sync false
 

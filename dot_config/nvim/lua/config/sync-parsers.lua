@@ -22,6 +22,6 @@ local ok, err = pcall(function()
 end)
 
 if not ok then
-  vim.api.nvim_err_writeln(tostring(err))
+  vim.api.nvim_echo({ { tostring(err) } }, true, { err = true })
   vim.cmd.cquit()
 end

@@ -22,9 +22,6 @@ opt.gdefault = true
 -- Keymap timeouts
 opt.timeoutlen = 400
 
--- System clipboard synchronization
-opt.clipboard:append("unnamedplus")
-
 -- Prefer xclip on Linux/ChromeOS to avoid wl-clipboard hanging in Wayland containers
 if vim.fn.executable("xclip") == 1 then
   -- xclip exits non-zero with "Error: target STRING not available" whenever a selection

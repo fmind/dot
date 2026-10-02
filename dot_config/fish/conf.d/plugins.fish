@@ -37,7 +37,7 @@ if status is-interactive
         if test -r "$atuin_init"
             source "$atuin_init"
         else
-            atuin init fish | source
+            atuin init fish --disable-ai | source
         end
     end
     if command -q starship
