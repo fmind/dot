@@ -2,10 +2,10 @@
 
 ## 1. Install and Authenticate
 
-The standalone example selects Python 3.13 through PEP 723 metadata and was checked with warnings treated as errors. `google-antigravity==0.1.16` with `google-genai==2.22.0` fails that import check on Python 3.14; do not suppress the upstream deprecation warning or assume the broader SDK Python constraint proves compatibility.
+The standalone example selects Python 3.13 through PEP 723 metadata and was checked with warnings treated as errors. `google-antigravity==0.1.20` with `google-genai==2.27.0` fails that import check on Python 3.14; do not suppress the upstream deprecation warning or assume the broader SDK Python constraint proves compatibility.
 
 ```bash
-uv add google-antigravity==0.1.16  # version exercised by the example; includes a harness binary
+uv add google-antigravity==0.1.20  # version exercised by the example; includes a harness binary
 # Select the authorized ADC project; optionally override ANTIGRAVITY_MODEL/location.
 export GOOGLE_CLOUD_PROJECT=<project-id>
 uv run orchestrator.py <workspace>
@@ -30,7 +30,7 @@ For an explicitly requested Developer API integration, supply an application-sco
 
 Two independent limits, and confusing them is how an unattended run burns a quota:
 
-- **Policies decide _which_ tools run**: `policy.allow`, `deny`, `ask_user`, `workspace_only`, `allow_all`, `deny_all`. In 0.1.16 the default `confirm_run_command()` policy denies shell commands but allows other built-ins, including writes. Set explicit capabilities and policies; custom Python tools enforce their own constraints.
+- **Policies decide _which_ tools run**: `policy.allow`, `deny`, `ask_user`, `workspace_only`, `allow_all`, `deny_all`. In 0.1.20 the default `confirm_run_command()` policy denies shell commands but allows other built-ins, including writes. Set explicit capabilities and policies; custom Python tools enforce their own constraints.
 - **Budgets decide _how much_ runs**: `types.BudgetConfig(max_model_calls, max_tool_calls, max_input_tokens, max_output_tokens, max_total_tokens)`. Set a budget and a caller deadline; a token limit does not bound wall time, and token usage is not a currency spending cap.
 - **Observe the cost**: `response.usage_metadata.total_token_count` per turn, and lifecycle hooks for auditing per [observability](../../../../observability/SKILL.md). Never use `on_tool_error` to turn a failed audit tool into apparent success; fail the run or model failures in the typed result.
 
