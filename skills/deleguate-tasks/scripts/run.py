@@ -87,7 +87,7 @@ def validate(spec: Any) -> dict[str, Any]:
             task.setdefault("effort", "high")
             if not isinstance(task["model"], str) or not re.fullmatch(r"[a-zA-Z0-9._-]+", task["model"]):
                 raise ValueError(f"Task {identifier}: invalid model slug.")
-            if task["effort"] not in ("low", "medium", "high"):
+            if task["effort"] not in ("low", "medium", "high", "max"):
                 raise ValueError(f"Task {identifier}: invalid effort.")
             if "conversation_id" in task and (
                 not isinstance(task["conversation_id"], str)
