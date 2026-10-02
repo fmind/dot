@@ -2,6 +2,46 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.12.0] - 2026-10-02
+
+### 🚀 Features
+
+- _(mise)_ Add sonarqube-cli to workstation tools (#97)
+- _(mise)_ Add cloudflare cf cli (#98)
+- _(nvim)_ Add <leader>fh keymap to show and copy full file path (#99)
+- _(mise)_ Adopt lockfile revision 3 and refresh the tool baseline
+- _(agents)_ Disable claude.ai skill sync and tighten harness settings
+- _(agy)_ Prune stale Remote Control registry entries
+
+### 🐛 Bug Fixes
+
+- _(fish)_ Return to the shell when Zellij exits
+- _(trust)_ Note inherited Copilot trust for skipped repositories
+- _(dot)_ Correct usage accounting and harden session archiving
+- _(chezmoi)_ Skip keyless bf credentials and survive Crostini OOM kills
+- _(security)_ Require mise 2026.10.0 and tighten scans, CI, and defaults
+- _(config)_ Correct Atuin, Ghostty, Neovim, and app defaults
+- _(gws)_ Keep smart-chip text in document exports
+- _(skills)_ Accept max effort in deleguate-tasks
+
+### 📚 Documentation
+
+- _(kaggle)_ Schedule competition deadline reminders
+- Synchronize skills and README with dot behavior
+- _(skills)_ Align bf-use with Brain Framework 17
+- _(skills)_ Align skills with current tools and repository practice
+
+### 🧪 Testing
+
+- Keep usage-error and submodule tests independent of CI color and Git identity
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade tools and Neovim plugins
+- _(deps)_ Lock Brain Framework 16.1.1 and Claude Code 2.1.285
+- _(deps)_ Bump the actions group across 2 directories with 3 updates (#96)
+- _(deps)_ Lock Brain Framework 17.0.0
+
 ## [7.11.0] - 2026-09-29
 
 ### 🚀 Features
