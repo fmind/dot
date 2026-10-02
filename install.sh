@@ -5,7 +5,7 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/sha
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
 # The mise release that CI tests: installed when mise is absent, and the minimum
 # accepted from an existing installation. Keep equal to the workflow pins.
-MINIMUM_MISE_VERSION="2026.9.14"
+MINIMUM_MISE_VERSION="2026.10.0"
 
 version_at_least() {
   local actual=$1 minimum=$2 actual_part minimum_part
@@ -49,7 +49,7 @@ command -v mise >/dev/null || {
 
 mise_version="$(mise --version | awk '{print $1}')"
 if [[ ! ${mise_version} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! version_at_least "${mise_version}" "${MINIMUM_MISE_VERSION}"; then
-  echo "mise ${MINIMUM_MISE_VERSION} or newer is required; found ${mise_version:-unknown}. Upgrade mise before bootstrapping." >&2
+  echo "mise ${MINIMUM_MISE_VERSION} or newer is required; found ${mise_version:-unknown}. Run: mise self-update ${MINIMUM_MISE_VERSION}" >&2
   exit 1
 fi
 

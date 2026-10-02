@@ -28,7 +28,6 @@ select = [
   "E", # pycodestyle errors (standard Python style errors)
   "ERA", # eradicate (clean commented-out code)
   "F", # Pyflakes (syntax errors, undefined variables, and unused imports)
-  "FA", # flake8-future-annotations (enforce from __future__ import annotations)
   "FURB", # refurb (modernize constructs and idioms)
   "I", # isort (import sorting and grouping)
   "ISC", # flake8-implicit-str-concat (catch implicit multiline string concatenation)

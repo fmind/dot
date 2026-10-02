@@ -10,7 +10,7 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 - **Terminal:** Fish, Starship, Atuin, zoxide, fzf, Ghostty, and Zellij.
 - **Editor:** Neovim with LazyVim, styled with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share a persona and [skills](skills/). `dot agent session sync` normalizes their local sessions into the shared archive; OpenCode reads `~/.local/share/opencode/opencode.db` (override with `agent.sources.opencode`). Its transcript adapter excludes tool parts and synthetic text; OpenCode usage accounting remains unavailable.
+- **Agents:** Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share a persona and [skills](skills/); `dot agent session sync` archives their local sessions for [usage reports](skills/agent-usage/SKILL.md).
 - **Development:** Python with uv, Ruff, ty, and pytest, plus cloud and infrastructure tools.
 - **Automation:** the `dot` CLI checks workstation health, manages workspaces, and reports agent usage.
 
@@ -33,7 +33,7 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring
 xcode-select --install
 ```
 
-The installer requires mise 2026.9.14 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
+The installer requires mise 2026.10.0 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
 
 ## Installation
 

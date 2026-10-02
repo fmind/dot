@@ -221,13 +221,19 @@ def test_repository_lua_hook_preserves_unselected_files(tmp_path: Path) -> None:
 
 def test_hooks_split_offline_and_network_checks_without_weakening_the_gate() -> None:
     tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
-    network = {"check:scan", "check:vuln"}
+    network = {"check:scan", "check:vuln", "check:vuln:locks"}
     pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
     pre_push = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-push")))
     gate = task_closure(tasks, "all")
     checks = {name for name in tasks if name.startswith("check:")}
-    # Host-dependent or credentialed audits are documented as separate from the gate.
-    outside_gate = {"check:actions:online", "check:completions", "check:leaks:staged", "check:vuln:tools"}
+    # Host-dependent, credentialed, or full-history audits are documented as separate from the gate.
+    outside_gate = {
+        "check:actions:online",
+        "check:completions",
+        "check:leaks:full",
+        "check:leaks:staged",
+        "check:vuln:tools",
+    }
 
     assert not network & pre_commit
     assert network <= pre_push

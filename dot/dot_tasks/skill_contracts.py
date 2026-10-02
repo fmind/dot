@@ -333,7 +333,13 @@ def _unsafe_text_finding(relative: str, text: str) -> str | None:
     for character in text:
         if character not in "\n\r\t" and (ord(character) < 32 or ord(character) == 127):
             return f"{relative}: unsafe control character U+{ord(character):04X}"
-        if unicodedata.category(character) == "Cf":
+        # Variation selectors are combining marks (Mn), not format characters (Cf), but
+        # runs of them can smuggle hidden instructions just as Unicode tag characters can.
+        if (
+            unicodedata.category(character) == "Cf"
+            or 0xFE00 <= ord(character) <= 0xFE0F
+            or 0xE0100 <= ord(character) <= 0xE01EF
+        ):
             return f"{relative}: bidirectional or invisible Unicode U+{ord(character):04X}"
     return None
 
@@ -852,7 +858,12 @@ def documentation_findings(root: Path) -> list[str]:
     findings: list[str] = []
     documents = tuple(
         path
-        for path in (root / "README.md", root / "AGENTS.md", root / "dot_agents/AGENTS.md", root / "dot/README.md")
+        for path in (
+            root / "README.md",
+            root / "AGENTS.md",
+            root / "dot_agents/AGENTS.md",
+            root / ".github/SECURITY.md",
+        )
         if path.is_file()
     )
     findings.extend(_link_findings(root, root, documents=documents))

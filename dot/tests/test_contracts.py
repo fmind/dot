@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
+import shutil
 import subprocess
 import tomllib
 from collections.abc import Callable
@@ -10,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from dot_tasks import skill_contracts as checker
-from dot_tasks.mise_locks import bundle
+from dot_tasks.mise_locks import LOCK_REVISION, bundle
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -155,6 +157,8 @@ def test_skills_contract_rejects_broken_package(tmp_path: Path, mutation: Callab
         ("references/.pytest_cache/README.md", b"generated", "generated cache or metadata"),
         ("references/control.md", b"safe\x1b[2Jspoofed\n", "unsafe control character"),
         ("references/bidi.md", "safe\u202ehidden\n".encode(), "invisible Unicode"),
+        ("references/tags.md", "safe\U000e0069\U000e0067hidden\n".encode(), "invisible Unicode"),
+        ("references/selectors.md", "safe\ufe00\U000e0100hidden\n".encode(), "invisible Unicode"),
         ("references/binary.md", b"text\x00payload\n", "unsafe control character"),
         ("references/non-utf8.md", b"text\xffpayload\n", "is not UTF-8"),
         ("references/oversized.md", b"x" * ((1 << 20) + 1), "parsed-file limit"),
@@ -397,15 +401,16 @@ def test_skills_documentation_rejects_active_polyglot_claims_but_allows_explicit
     assert "active Go or TypeScript implementation claim" in findings[0]
 
 
-def test_documentation_checks_root_and_cli_readme_links(tmp_path: Path) -> None:
+def test_documentation_checks_root_and_security_policy_links(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     (root / "README.md").write_text("[Configuration](dot_config/dot.yaml)\n")
-    (root / "dot/README.md").write_text("[Missing reference](missing.md)\n")
+    (root / ".github").mkdir(exist_ok=True)
+    (root / ".github/SECURITY.md").write_text("[Retired section](../README.md#missing)\n")
 
     findings = checker.documentation_findings(root)
 
     assert any("README.md: missing local link 'dot_config/dot.yaml'" in finding for finding in findings)
-    assert any("dot/README.md: missing local link 'missing.md'" in finding for finding in findings)
+    assert any(".github/SECURITY.md: missing local anchor '../README.md#missing'" in finding for finding in findings)
 
 
 def test_documentation_validates_markdown_fragments(tmp_path: Path) -> None:
@@ -676,6 +681,10 @@ def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
     assert findings == [], "\n".join(findings)
 
 
+# Their registry entries publish no checksum; keep in step with config.toml.tmpl's comment.
+UNCHECKSUMMED_GLOBAL_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
+
+
 def test_global_lock_covers_every_configured_native_platform() -> None:
     rendered = subprocess.check_output(
         [
@@ -712,6 +721,14 @@ def test_global_lock_covers_every_configured_native_platform() -> None:
             artifacts = [entry.get(f"platforms.{platform}", {}) for entry in entries]
             if not any(artifact.get("url") for artifact in artifacts):
                 findings.append(f"{name} {platform}: no url")
+            checksummed = any(
+                str(artifact.get("checksum", "")).startswith(("sha256:", "sha512:", "blake3:"))
+                for artifact in artifacts
+            )
+            if checksummed == (name in UNCHECKSUMMED_GLOBAL_TOOLS):
+                findings.append(
+                    f"{name} {platform}: checksum {'now available; drop the exemption' if checksummed else 'missing'}"
+                )
     assert findings == [], "\n".join(findings)
 
 
@@ -719,7 +736,7 @@ def test_global_lock_covers_every_configured_native_platform() -> None:
 def test_mise_locks_include_valid_dependency_files(relative: str) -> None:
     lock = ROOT / relative
     document = tomllib.loads(lock.read_text())
-    assert document["lockfile_version"] == 2
+    assert document["lockfile_version"] == LOCK_REVISION
     files = bundle(lock)
     for name, entries in document["tools"].items():
         for entry in entries:
@@ -727,6 +744,44 @@ def test_mise_locks_include_valid_dependency_files(relative: str) -> None:
             if name.startswith(("npm:", "pipx:")):
                 assert {"uv", "aube"}.intersection(entry), name
     assert all((lock.parent / path).is_file() for path in files)
+
+
+def test_encrypted_targets_are_ignored_without_the_age_key(tmp_path: Path) -> None:
+    # A host without the owner's age key must skip every encrypted source, not fail apply.
+    # Render from a minimal copy: scanning the live checkout races with parallel test files.
+    source, home = tmp_path / "source", tmp_path / "home"
+    home.mkdir()
+    shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates")
+    shutil.copy2(ROOT / ".chezmoiignore", source / ".chezmoiignore")
+    listed = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "-z", "--", "*.age"], check=True, capture_output=True, timeout=30
+    )
+    encrypted = [Path(name.decode()) for name in listed.stdout.split(b"\0") if name]
+    assert encrypted
+    for relative in encrypted:
+        (source / relative).parent.mkdir(parents=True, exist_ok=True)
+        (source / relative).touch()
+    config = tmp_path / "chezmoi.toml"
+    config.write_text("")
+    common = ["--source", str(source), "--config", str(config), "--destination", str(home)]
+    environment = {**os.environ, "HOME": str(home)}
+
+    def chezmoi(*arguments: str) -> list[str]:
+        command = ["chezmoi", *arguments[:1], *common, *arguments[1:]]
+        result = subprocess.run(command, env=environment, check=True, capture_output=True, text=True, timeout=30)
+        return result.stdout.splitlines()
+
+    patterns = [line.strip() for line in chezmoi("execute-template", "--file", str(source / ".chezmoiignore"))]
+    patterns = [pattern for pattern in patterns if pattern and not pattern.startswith(("#", "!"))]
+    unignored = []
+    for target in chezmoi("target-path", *(str(source / relative) for relative in encrypted)):
+        relative = Path(target).relative_to(home).as_posix().removesuffix(".age")
+        if not any(
+            relative == pattern or relative.startswith(f"{pattern}/") or fnmatch.fnmatchcase(relative, pattern)
+            for pattern in patterns
+        ):
+            unignored.append(relative)
+    assert unignored == [], "add these encrypted targets to the no-key block in .chezmoiignore"
 
 
 # age's ASCII-armored and binary headers; the repository commits armored files.

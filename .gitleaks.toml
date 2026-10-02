@@ -4,6 +4,6 @@ title = "fmind/dot"
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "Encrypted secrets stay in-tree."
 paths = ['''\.age$''']

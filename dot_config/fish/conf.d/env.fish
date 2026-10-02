@@ -1,4 +1,9 @@
 # Docs: https://fishshell.com/docs/current/index.html
+# Go xdg libraries (lazygit, lazydocker, k9s) and ptpython default to
+# ~/Library/Application Support on macOS; keep their managed ~/.config files active.
+set -q XDG_CONFIG_HOME; or set -gx XDG_CONFIG_HOME $HOME/.config
+set -gx PTPYTHON_CONFIG_HOME $XDG_CONFIG_HOME/ptpython
+
 # Editors
 set -gx EDITOR nvim
 set -gx VISUAL $EDITOR
@@ -16,7 +21,9 @@ set -gx PAGER "bat --plain"
 set -gx CARAPACE_BRIDGES 'zsh,fish,bash'
 # Native completion owns these names; Carapace's dot command means Graphviz.
 set -gx CARAPACE_EXCLUDES 'agy,dot,bf'
-set -gx COPILOT_ALLOW_ALL true
+# 1 auto-approves tools only; the exact value "true" would also trust every working
+# directory and load its hooks, bypassing the folders curated by `dot trust`.
+set -gx COPILOT_ALLOW_ALL 1
 set -gx COREPACK_ENABLE_AUTO_PIN 0
 # Match the skin installed by chezmoi externals.
 set -gx K9S_SKIN theme
