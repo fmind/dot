@@ -9,7 +9,12 @@ from datetime import datetime
 from pathlib import Path
 
 from fmind_dot.archive.parsers import AGENT_ADAPTERS
-from fmind_dot.archive.store import BUNDLE_SUFFIX, ensure_session_store, read_session_manifest
+from fmind_dot.archive.store import (
+    BUNDLE_SUFFIX,
+    SESSION_PARSER_VERSION,
+    ensure_session_store,
+    read_session_manifest,
+)
 from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, source_root
 from fmind_dot.config import expand_path
 from fmind_dot.diagnostics import diagnostic_report
@@ -99,7 +104,7 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         return "unreadable"
     try:
         config = json.loads(content) if definition.config_format == "json" else tomllib.loads(content.decode())
-    except UnicodeError, ValueError, tomllib.TOMLDecodeError:
+    except UnicodeError, ValueError, RecursionError, tomllib.TOMLDecodeError:
         return "malformed"
     if not isinstance(config, dict):
         return "malformed"
@@ -109,7 +114,15 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         settings = config.get("tui", {}) if definition.agent == "codex" else config
         if not isinstance(settings, dict):
             return "malformed"
-        return "configured" if settings.get("notifications") is True else "disabled"
+        notifications = settings.get("notifications")
+        # Codex also accepts the list of notification types to deliver.
+        enabled = notifications is True or (
+            definition.agent == "codex"
+            and isinstance(notifications, list)
+            and bool(notifications)
+            and all(isinstance(item, str) for item in notifications)
+        )
+        return "configured" if enabled else "disabled"
     configured = set(_command_hooks(config, definition.agent))
     if any(arguments[: len(retired)] == retired for _, arguments in configured for retired in _RETIRED_HOOKS):
         return "retired-capture-hook"
@@ -131,13 +144,13 @@ def _count(value: object) -> int | None:
 
 
 def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, int]:
-    """Return source presence, last complete sync time, and its failure and retained counts."""
+    """Return source presence, last complete sync time (or never/stale/unreadable), failures, and retained."""
     source = "present" if source_root(state, agent).exists() else "missing"
     try:
         document = json.loads((root / agent / SYNC_STATE_NAME).read_bytes())
     except FileNotFoundError:
         return source, "never", 0, 0
-    except OSError, ValueError:
+    except OSError, ValueError, RecursionError:
         return source, "unreadable", 0, 0
     if not isinstance(document, dict) or document.get("schema") != SYNC_STATE_SCHEMA:
         return source, "unreadable", 0, 0
@@ -152,6 +165,9 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
         return source, "unreadable", 0, 0
     if timestamp.tzinfo is None:
         return source, "unreadable", 0, 0
+    if document.get("parser_version") != SESSION_PARSER_VERSION:
+        # Another parser captured this state: the archive needs a recapture by the current one.
+        return source, "stale", failed, retained
     return source, synced_at, failed, retained
 
 
@@ -182,7 +198,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         hooks = _check_hooks(definition) if definition.notify_events else "not-required"
         source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
-        synced = last_sync != "unreadable" and (last_sync != "never" or source == "missing")
+        synced = last_sync != "unreadable" and (last_sync not in {"never", "stale"} or source == "missing")
         if hooks == "disabled":
             setting = {"claude": "disableAllHooks", "codex": "tui.notifications"}.get(name, "notifications")
             hint = f"review {setting} in the chezmoi source for {definition.config_path}"

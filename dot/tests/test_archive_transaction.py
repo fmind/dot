@@ -447,7 +447,7 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
 
 
 @pytest.mark.parametrize("stop_reason", ["end_turn", "error", "cancelled"])
-def test_grok_incomplete_usage_keeps_transcript_and_preserves_measured_archive(tmp_path, monkeypatch, stop_reason):
+def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(tmp_path, monkeypatch, stop_reason):
     monkeypatch.setenv("HOME", str(tmp_path))
     state = State(stdout=io.StringIO(), stderr=io.StringIO())
     root = tmp_path / "grok"
@@ -504,6 +504,21 @@ def test_grok_incomplete_usage_keeps_transcript_and_preserves_measured_archive(t
     rows[0]["params"]["update"]["content"]["text"] += " with a new instruction"
     path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
     outcome = sync_sessions(state, agent="grok")
-    assert bundle.read_bytes() == measured
-    assert outcome.retained == 1
-    assert outcome.retained_current_transcripts == 0
+    # New turns publish; the measurement the source can no longer provide stays, marked as retained.
+    manifest, records = read_session_bundle(bundle)
+    assert records[0].content == "Keep this owner request with a new instruction"
+    assert manifest.usage == json.loads(measured.split(b"\n", 1)[0])["usage"]
+    assert (manifest.usage_parser_version, manifest.source_signature) == (manifest.parser_version, "")
+    assert (outcome.retained, outcome.retained_current_transcripts, outcome.ingested) == (1, 1, 0)
+    # Sync retries the source without rewriting a current transcript.
+    published = bundle.read_bytes()
+    assert sync_sessions(state, agent="grok").retained == 1
+    assert bundle.read_bytes() == published
+    # A complete ledger measures the session again.
+    del rows[-1]["params"]["update"]["usage"]["usageIsIncomplete"]
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    assert sync_sessions(state, agent="grok").ingested == 1
+    manifest = read_session_manifest(bundle)
+    assert manifest.usage_parser_version == ""
+    assert manifest.source_signature
+    assert [record.input_tokens for record in load_usage_records()] == [110]

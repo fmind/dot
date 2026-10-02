@@ -250,3 +250,88 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
 )
 def test_github_owner_accepts_only_github_origins(origin: str, owner: str | None) -> None:
     assert github_owner(origin) == owner
+
+
+def test_trust_all_writes_each_harness_file_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fmind_dot import trust
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    harness_home(tmp_path)
+    workspace = tmp_path / "work"
+    for name in ("one", "two"):
+        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True)
+        subprocess.run(
+            ["git", "-C", str(workspace / name), "remote", "add", "origin", f"https://github.com/fmind/{name}"],
+            check=True,
+        )
+    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    written: list[Path] = []
+    write = trust.write_atomic_file
+
+    def counting(path: Path, content: bytes, *, mode: int) -> None:
+        written.append(path)
+        write(path, content, mode=mode)
+
+    monkeypatch.setattr(trust, "write_atomic_file", counting)
+
+    run_trust(state, "all")
+
+    # Three folders, one read-modify-write per harness file.
+    assert sorted(path.name for path in written) == [
+        ".claude.json",
+        "config.json",
+        "config.toml",
+        "settings.json",
+        "trusted_folders.toml",
+    ]
+    projects = json.loads((tmp_path / ".claude.json").read_text())["projects"]
+    assert {str(workspace), str(workspace / "one"), str(workspace / "two")} <= projects.keys()
+
+
+def test_trust_rereads_a_file_the_host_changed_before_replacing_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fmind_dot import trust
+
+    harness_home(tmp_path)
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    load = trust._load_json  # noqa: SLF001 - inject a host write between read and replacement
+    raced: list[Path] = []
+
+    def concurrent_host(path: Path, text: str) -> dict:
+        value = load(path, text)
+        if path.name == ".claude.json" and not raced:
+            # Claude Code writes its own state between this read and the replacement.
+            raced.append(path)
+            path.write_text(json.dumps(json.loads(path.read_text()) | {"numStartups": 7}))
+        return value
+
+    monkeypatch.setattr(trust, "_load_json", concurrent_host)
+
+    assert "claude" in trust_folder(repository, home=tmp_path)
+
+    claude = json.loads((tmp_path / ".claude.json").read_text())
+    assert claude["numStartups"] == 7
+    assert claude["projects"][str(repository)] == {"hasTrustDialogAccepted": True}
+
+
+def test_trust_stops_when_a_host_keeps_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fmind_dot import trust
+
+    harness_home(tmp_path)
+    load = trust._load_json  # noqa: SLF001 - inject a host write between read and replacement
+    writes = iter(range(100))
+
+    def busy_host(path: Path, text: str) -> dict:
+        value = load(path, text)
+        if path.name == ".claude.json":
+            path.write_text(json.dumps({"projects": {}, "host": "x" * next(writes)}))
+        return value
+
+    monkeypatch.setattr(trust, "_load_json", busy_host)
+
+    with pytest.raises(DotError, match="kept changing"):
+        trust_folder(tmp_path / "repo", home=tmp_path)
+    assert "/repo" not in (tmp_path / ".claude.json").read_text()

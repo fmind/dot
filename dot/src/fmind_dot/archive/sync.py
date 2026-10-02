@@ -137,6 +137,8 @@ def _capture(
         signature=signature,
         malformed=parsed.malformed,
         skipped=parsed.skipped,
+        sidechain=parsed.sidechain,
+        parent_session_id=parsed.parent_session_id,
     )
     generation = (previous.parser_version, previous.source_fingerprint) if previous else ("", "")
     if parsed.usage_error is None and not parsed.malformed:
@@ -160,7 +162,7 @@ def _database_checkpoint(root: Path, agent: str) -> str:
     """Only a successful, complete scan by the current parser can skip database reads."""
     try:
         document = json.loads((root / agent / SYNC_STATE_NAME).read_bytes())
-    except OSError, ValueError:
+    except OSError, ValueError, RecursionError:
         return ""
     if (
         not isinstance(document, dict)

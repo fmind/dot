@@ -690,3 +690,31 @@ def test_status_names_an_explicit_path_outside_a_work_tree(tmp_path: Path, monke
 
     with pytest.raises(DotError, match=rf"^{outside} is not inside a git work tree$"):
         run_status(state_with(Runner()), paths=[outside])
+
+
+def test_pull_never_waits_on_credential_prompts(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    (workspace / "sample" / ".git").mkdir(parents=True)
+    environments: dict[tuple[str, ...], object] = {}
+
+    class EnvironmentRunner(RecordingRunner):
+        def run(self, args: Sequence[str], *, env: object = None, **options: object) -> CommandResult:
+            environments[tuple(args)] = env
+            return super().run(args, **options)  # ty: ignore[invalid-argument-type]
+
+    runner = EnvironmentRunner(
+        {
+            ("git", "branch", "--show-current"): [result("main\n")],
+            ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
+            ("git", "fetch", "--prune"): [result(returncode=128)],
+            ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
+        },
+        {"git"},
+    )
+    config = Config(pull=PullConfig(directories=[str(workspace)], concurrency=1, timeout_seconds=1))
+
+    with pytest.raises(DotError, match="failed to pull 1 repositories"):
+        run_pull(state_with(runner, config))
+
+    # Concurrent fetches fail instead of opening a terminal or askpass prompt.
+    assert environments[("git", "fetch", "--prune")] == {"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"}

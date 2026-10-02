@@ -333,3 +333,55 @@ def test_doctor_rejects_invalid_sync_timestamps_even_without_source(
     report = json.loads(_text(state.stdout))
     assert report["passed"] is False
     assert report["checks"][0]["details"]["last_sync"] == "unreadable"
+
+
+@pytest.mark.parametrize("parser_version", [None, "9"], ids=["unversioned", "previous-parser"])
+@pytest.mark.parametrize("source_present", [False, True])
+def test_doctor_reports_a_sync_by_another_parser_as_stale(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, parser_version: str | None, source_present: bool
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    if source_present:
+        Path(state.config.agent.sources["grok"]).mkdir(parents=True)
+    document = {"schema": "dot.agent.session.sync-state/v1", "synced_at": "2026-09-01T10:00:00Z", "failed": 0}
+    if parser_version:
+        document["parser_version"] = parser_version
+    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state.parent.mkdir(parents=True)
+    sync_state.write_text(json.dumps(document))
+
+    (result,) = gather_agent_doctor(state, agent="grok")
+
+    assert result.last_sync == "stale"
+    # A missing source has nothing to recapture.
+    assert result.healthy is not source_present
+    assert result.next == ("dot agent session sync --agent grok" if source_present else "")
+
+
+@pytest.mark.parametrize(
+    ("notifications", "status"),
+    [
+        ('["agent-turn-complete", "approval-requested"]', "configured"),
+        ("[]", "disabled"),
+        ("[1]", "disabled"),
+        ('"agent-turn-complete"', "disabled"),
+    ],
+)
+def test_doctor_accepts_codex_notification_type_lists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, notifications: str, status: str
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    (tmp_path / ".codex/config.toml").write_text(f"[tui]\nnotifications = {notifications}\n")
+
+    (result,) = gather_agent_doctor(state, agent="codex")
+
+    assert result.hooks == status
+
+
+def test_doctor_reports_deeply_nested_settings_as_malformed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state = _state(monkeypatch, tmp_path)
+    (tmp_path / ".copilot/settings.json").write_text("[" * 1_000_000 + "]" * 1_000_000)
+
+    (result,) = gather_agent_doctor(state, agent="copilot")
+
+    assert result.hooks == "malformed"

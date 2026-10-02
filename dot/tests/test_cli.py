@@ -592,3 +592,14 @@ def test_every_command_and_group_has_a_description() -> None:
                 inspect(child, f"{path} {name}")
 
     inspect(get_command(app), "dot")
+
+
+def test_agent_stats_documents_every_option() -> None:
+    root = get_command(app)
+    assert isinstance(root, TyperGroup)
+    agent = root.commands["agent"]
+    assert isinstance(agent, TyperGroup)
+    undocumented = [
+        parameter.opts[0] for parameter in agent.commands["stats"].params if not getattr(parameter, "help", "")
+    ]
+    assert undocumented == []

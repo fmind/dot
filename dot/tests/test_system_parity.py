@@ -1087,7 +1087,7 @@ def test_completion_check_leaves_installed_scripts_and_cache_unchanged(
     assert "Completion check passed" in state.stdout.getvalue()
     # The temporary check directory is not an installation target worth reporting.
     assert "Completions updated" not in state.stdout.getvalue()
-    assert ["atuin", "init", "fish"] in runner.calls
+    assert ["atuin", "init", "fish", "--disable-ai"] in runner.calls
     assert ["carapace", "_carapace", "fish"] in runner.calls
 
     installing = state_with(ScriptedRunner({"fish"}), config)

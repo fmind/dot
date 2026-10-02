@@ -323,3 +323,23 @@ def test_out_of_range_utc_timestamps_do_not_crash_queries_or_prompt_statistics(
     assert report["invalid_timestamps"] == 1
     assert report["prompts"] == 0
     assert report["complete"] is False
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["session", "list", "--project", "~dot-test-no-such-user/project"],
+        ["session", "sync", "--dry-run", "--project", "~dot-test-no-such-user/project"],
+        ["stats", "--no-sync", "--project", "~dot-test-no-such-user/project"],
+    ],
+)
+def test_unexpandable_project_is_a_usage_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, command: list[str]
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    result = CliRunner().invoke(app, ["agent", *command])
+
+    assert result.exit_code == 2
+    assert "--project" in result.stderr
+    assert not isinstance(result.exception, RuntimeError)

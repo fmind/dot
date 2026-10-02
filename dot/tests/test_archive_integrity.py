@@ -253,9 +253,16 @@ def test_parser_upgrade_removes_only_unmeasured_legacy_zero(
     outcome = sync_sessions(state, agent="claude")
 
     if measured:
+        # The current parser republishes the transcript but keeps the parser-6 measurement and its accounting.
         assert outcome.retained == 1
-        assert bundle.read_bytes() == before
-        assert load_usage_records()[0].input_tokens == 100
+        manifest = store.read_session_manifest(bundle)
+        assert (manifest.parser_version, manifest.usage_parser_version) == (store.SESSION_PARSER_VERSION, "6")
+        assert manifest.usage == json.loads(before.split(b"\n", 1)[0])["usage"]
+        [record] = load_usage_records()
+        assert (record.input_tokens, record.legacy_accounting) == (100, True)
+        republished = bundle.read_bytes()
+        assert sync_sessions(state, agent="claude").retained == 1
+        assert bundle.read_bytes() == republished
     else:
         assert outcome.ingested == 1
         manifest, _ = read_session_bundle(bundle)
@@ -395,12 +402,16 @@ def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
     before = bundle.read_bytes()
 
     if incomplete:
-        for _ in range(2):
-            outcome = sync_sessions(state, agent="grok")
-            assert outcome.retained == 1
-            assert outcome.retained_current_transcripts == 1
-            assert bundle.read_bytes() == before
-            assert load_usage_records()[0].legacy_accounting
+        outcome = sync_sessions(state, agent="grok")
+        # The current parser republishes the transcript; the retained usage keeps parser 7 accounting.
+        assert (outcome.retained, outcome.retained_current_transcripts) == (1, 1)
+        assert store.read_session_manifest(bundle).usage_parser_version == "7"
+        assert load_usage_records()[0].legacy_accounting
+        republished = bundle.read_bytes()
+        assert republished != before
+        outcome = sync_sessions(state, agent="grok")
+        assert (outcome.retained, outcome.retained_current_transcripts) == (1, 1)
+        assert bundle.read_bytes() == republished
     else:
         assert sync_sessions(state, agent="grok").ingested == 1
         record = load_usage_records()[0]

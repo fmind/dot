@@ -242,3 +242,106 @@ def test_recapture_replaces_legacy_parser_accounting(tmp_path: Path, monkeypatch
     assert records[0].total_tokens == 100
     assert not records[0].legacy_accounting
     assert [path.name for path in store.discover_session_bundles()] == ["one.jsonl"]
+
+
+_CODEX_FIELDS = (
+    "input_tokens",
+    "cached_input_tokens",
+    "cache_write_input_tokens",
+    "output_tokens",
+    "reasoning_output_tokens",
+    "total_tokens",
+)
+
+
+def _codex_usage(input_tokens: int, *, cached: int = 0, output: int = 0) -> dict[str, int]:
+    return dict(zip(_CODEX_FIELDS, (input_tokens, cached, 0, output, 0, input_tokens + output), strict=True))
+
+
+def _codex_sum(*usages: dict[str, int]) -> dict[str, int]:
+    return {field: sum(usage[field] for usage in usages) for field in _CODEX_FIELDS}
+
+
+def _codex_record(timestamp: str, response: str, usage: dict[str, int], thread: dict[str, int]) -> dict:
+    payload = {"response_id": response, "usage": usage, "turn_token_usage": usage, "thread_token_usage": thread}
+    return {"timestamp": timestamp, "type": "token_usage_record", "payload": payload}
+
+
+def test_codex_response_records_include_compaction_requests(tmp_path: Path) -> None:
+    first = _codex_usage(100, cached=40, output=10)
+    compaction = _codex_usage(300, output=50)
+    second = _codex_usage(200, cached=150, output=20)
+    rows = [
+        {"type": "turn_context", "payload": {"model": "gpt-6.1-sol"}},
+        _codex_record("2026-09-30T23:00:00Z", "resp-1", first, first),
+        {
+            "timestamp": "2026-09-30T23:00:01Z",
+            "type": "event_msg",
+            "payload": {"type": "token_count", "info": {"total_token_usage": first}},
+        },
+        # Cumulative snapshots omit the compaction request recorded here.
+        {"timestamp": "2026-09-30T23:30:00Z", "type": "compacted", "payload": {}},
+        _codex_record("2026-09-30T23:30:00Z", "resp-compact", compaction, _codex_sum(first, compaction)),
+        {"type": "turn_context", "payload": {"model": "gpt-6-astra"}},
+        _codex_record("2026-10-01T00:30:00Z", "resp-2", second, _codex_sum(first, compaction, second)),
+        # A response recorded twice counts once.
+        _codex_record("2026-10-01T00:30:01Z", "resp-2", second, _codex_sum(first, compaction, second)),
+        {
+            "timestamp": "2026-10-01T00:31:00Z",
+            "type": "event_msg",
+            "payload": {"type": "token_count", "info": {"total_token_usage": _codex_sum(first, second)}},
+        },
+    ]
+    path = tmp_path / "session.jsonl"
+    path.write_text("\n".join(json.dumps(row) for row in rows))
+
+    usage = parse_codex_session(path, "one").usage
+
+    assert usage is not None
+    assert (usage.input_tokens, usage.cached_tokens, usage.output_tokens, usage.total_tokens) == (600, 190, 80, 680)
+    assert usage.turn_count == 3
+    assert [(sample["timestamp"], sample["model"], sample["total_tokens"]) for sample in usage.samples] == [
+        ("2026-09-30T23:00:00Z", "gpt-6.1-sol", 110),
+        ("2026-09-30T23:30:00Z", "gpt-6.1-sol", 350),
+        ("2026-10-01T00:30:00Z", "gpt-6-astra", 220),
+    ]
+    assert [row.total_tokens for row in aggregate_usage([usage], monthly=True)] == [460, 220]
+
+
+def test_codex_records_disagreeing_with_the_thread_total_keep_the_provider_total(tmp_path: Path) -> None:
+    recorded = _codex_usage(100, output=10)
+    # The thread counter also includes usage from before this rollout recorded responses.
+    thread = _codex_sum(_codex_usage(400, cached=100, output=40), recorded)
+    rows = [
+        {"type": "turn_context", "payload": {"model": "gpt-6.1-sol"}},
+        _codex_record("2026-09-30T23:00:00Z", "resp-1", recorded, thread),
+    ]
+    path = tmp_path / "session.jsonl"
+    path.write_text("\n".join(json.dumps(row) for row in rows))
+
+    usage = parse_codex_session(path, "one").usage
+
+    assert usage is not None
+    assert (usage.input_tokens, usage.cached_tokens, usage.output_tokens, usage.total_tokens) == (500, 100, 50, 550)
+    assert usage.samples == []
+    assert usage.measurement_kind == "provider-reported"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"usage": {"input_tokens": 1}, "thread_token_usage": {"input_tokens": 1}},
+        {"response_id": "resp-1", "usage": {}, "thread_token_usage": {"input_tokens": 1}},
+        {"response_id": "resp-1", "usage": {"input_tokens": 1}, "thread_token_usage": "private-invalid"},
+    ],
+    ids=["missing-response", "no-counters", "invalid-thread-total"],
+)
+def test_codex_rejects_malformed_response_records(tmp_path: Path, payload: dict) -> None:
+    path = tmp_path / "session.jsonl"
+    path.write_text(json.dumps({"timestamp": "2026-09-30T23:00:00Z", "type": "token_usage_record", "payload": payload}))
+
+    parsed = parse_codex_session(path, "one")
+
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)
+    assert "private-invalid" not in str(parsed.usage_error)

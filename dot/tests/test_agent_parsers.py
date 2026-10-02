@@ -876,3 +876,146 @@ def test_undated_usage_without_transcript_timestamps_takes_the_source_mtime(tmp_
 def test_undated_usage_without_any_remaining_source_stays_undated(tmp_path) -> None:
     # A source removed mid-sync must not crash parsing or invent a capture-time stamp.
     assert parser_module._undated_usage_timestamp([], tmp_path / "gone.jsonl", tmp_path / "signals.json") == ""  # noqa: SLF001
+
+
+def _claude_answer(usage: dict, *, request: str = "r", text: str = "a") -> dict:
+    return {
+        "type": "assistant",
+        "timestamp": "2026-09-01T10:00:00Z",
+        "requestId": request,
+        "message": {"id": "m", "model": "claude-opus-5-5", "content": [{"type": "text", "text": text}], "usage": usage},
+    }
+
+
+def test_claude_one_hour_cache_writes_are_a_subset_of_cache_writes(tmp_path: Path) -> None:
+    transcript = tmp_path / "claude.jsonl"
+    usage = {
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "cache_creation_input_tokens": 1000,
+        "cache_creation": {"ephemeral_5m_input_tokens": 600, "ephemeral_1h_input_tokens": 400},
+    }
+    # Streaming blocks repeat one request's usage; it counts once.
+    _jsonl(transcript, [_claude_answer(usage), _claude_answer(usage, text="b")])
+
+    record = _usage(parse_claude_session(transcript, "claude-id"))
+
+    assert (record.cache_write_tokens, record.cache_write_1h_tokens, record.total_tokens) == (1000, 400, 1015)
+    assert [(sample["cache_write_tokens"], sample["cache_write_1h_tokens"]) for sample in record.samples] == [
+        (1000, 400)
+    ]
+    assert record.to_dict()["cache_write_1h_tokens"] == 400
+
+
+def test_claude_one_hour_writes_beyond_cache_writes_fail_extraction(tmp_path: Path) -> None:
+    transcript = tmp_path / "claude.jsonl"
+    usage = {"input_tokens": 1, "cache_creation_input_tokens": 10, "cache_creation": {"ephemeral_1h_input_tokens": 11}}
+    _jsonl(transcript, [_claude_answer(usage)])
+
+    parsed = parse_claude_session(transcript, "claude-id")
+
+    assert parsed.usage is None
+    assert "cache_write_1h_tokens" in str(parsed.usage_error)
+
+
+@pytest.mark.parametrize("unknown", [True, False])
+def test_claude_cost_with_an_unknown_model_price_is_unknown(tmp_path: Path, unknown: bool) -> None:
+    transcript = tmp_path / "claude.jsonl"
+    cost = {"type": "cost-state", "totalCostUSD": 1.5, "hasUnknownModelCost": unknown}
+    _jsonl(transcript, [_claude_answer({"input_tokens": 1, "output_tokens": 1}), cost])
+
+    record = _usage(parse_claude_session(transcript, "claude-id")).to_dict()
+
+    # A partial bill is never reported as the session cost.
+    assert (record["cost_known"], record["cost_usd"]) == ((False, None) if unknown else (True, 1.5))
+
+
+def test_claude_rejects_a_non_boolean_unknown_cost_flag(tmp_path: Path) -> None:
+    transcript = tmp_path / "claude.jsonl"
+    cost = {"type": "cost-state", "totalCostUSD": 1.5, "hasUnknownModelCost": "private-flag"}
+    _jsonl(transcript, [_claude_answer({"input_tokens": 1}), cost])
+
+    parsed = parse_claude_session(transcript, "claude-id")
+
+    assert parsed.usage is None
+    assert str(parsed.usage_error) == "usage record field 'hasUnknownModelCost' must be a boolean"
+
+
+def test_claude_subagents_are_sidechains_and_workflow_journals_are_not_sessions(tmp_path: Path) -> None:
+    project = tmp_path / "claude/-work-project"
+    parent = project / "parent-id.jsonl"
+    subagent = project / "parent-id/subagents/agent-a1.jsonl"
+    workflow = project / "parent-id/subagents/workflows/wf_1"
+    for path in (subagent, workflow / "agent-b2.jsonl"):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _jsonl(path, [{"type": "user", "isSidechain": True, "sessionId": "parent-id", "message": {"content": "task"}}])
+    # Older transcripts embed sidechain records under their own session: still a top-level session.
+    _jsonl(parent, [{"type": "user", "isSidechain": True, "sessionId": "parent-id", "message": {"content": "own"}}])
+    _jsonl(workflow / "journal.jsonl", [{"type": "launched"}, {"type": "started", "agentId": "b2", "key": "k"}])
+
+    sessions = sorted(candidate[0] for candidate in enumerate_sessions(tmp_path / "claude", "claude"))
+    top = parse_claude_session(parent, "parent-id")
+    child = parse_claude_session(subagent, "agent-a1")
+
+    assert sessions == ["agent-a1", "agent-b2", "parent-id"]
+    assert (top.sidechain, top.parent_session_id) == (False, "")
+    assert (child.sidechain, child.parent_session_id) == (True, "parent-id")
+
+
+@pytest.mark.parametrize(("declared", "parent"), [("parent-thread", "parent-thread"), ("../escape", "")])
+def test_codex_subagent_rollout_declares_its_parent_thread(tmp_path: Path, declared: str, parent: str) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    spawn = {"parent_thread_id": declared, "depth": 1}
+    _jsonl(
+        rollout,
+        [
+            {
+                "type": "session_meta",
+                "payload": {"thread_source": "subagent", "source": {"subagent": {"thread_spawn": spawn}}},
+            },
+            # Forked history repeats the parent's metadata; only the first line describes this thread.
+            {"type": "session_meta", "payload": {"thread_source": "user", "source": "cli"}},
+            {"type": "response_item", "payload": {"role": "user", "content": "forked prompt"}},
+        ],
+    )
+    owner = tmp_path / "owner.jsonl"
+    _jsonl(owner, [{"type": "session_meta", "payload": {"thread_source": "user", "source": "cli"}}])
+
+    child = parse_codex_session(rollout, "child")
+
+    assert (child.sidechain, child.parent_session_id) == (True, parent)
+    assert parse_codex_session(owner, "owner").sidechain is False
+
+
+# Python 3.14 measures JSON recursion against the C stack: about a million levels exceed it.
+_DEEP_ARRAY = "[" * 1_000_000 + "]" * 1_000_000
+
+
+@pytest.mark.parametrize("parser", [parse_agy_session, parse_claude_session, parse_codex_session, parse_grok_session])
+def test_deeply_nested_json_lines_are_malformed_records(tmp_path: Path, parser) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    transcript.write_text(_DEEP_ARRAY + "\n" + json.dumps({"type": "unrelated"}) + "\n", encoding="utf-8")
+
+    parsed = parser(transcript, "session-id")
+
+    assert parsed.malformed == 1
+
+
+def test_deeply_nested_grok_signals_fail_usage_extraction_only(tmp_path: Path) -> None:
+    transcript = tmp_path / "updates.jsonl"
+    _jsonl(
+        transcript,
+        [{"timestamp": 1, "params": {"update": {"sessionUpdate": "user_message_chunk", "content": {"text": "kept"}}}}],
+    )
+    (tmp_path / "signals.json").write_text(_DEEP_ARRAY, encoding="utf-8")
+
+    parsed = parse_grok_session(transcript, "grok-id")
+
+    assert [log.content for log in parsed.logs] == ["kept"]
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)
+
+
+def test_unexpandable_home_paths_are_malformed_input() -> None:
+    with pytest.raises(ValueError, match="cannot expand a home directory"):
+        parser_module.resolve_cwd("~dot-test-no-such-user/project")
