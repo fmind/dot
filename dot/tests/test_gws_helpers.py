@@ -147,6 +147,24 @@ def test_docs_legacy_labels_first_tab_coverage(tmp_path: Path) -> None:
     assert "first tab" in json.loads(result.stdout)["coverage"]
 
 
+def test_docs_smart_chips_become_labeled_placeholders(tmp_path: Path) -> None:
+    elements = [
+        {"textRun": {"content": "Owner "}},
+        {"person": {"personProperties": {"name": "Ada Lovelace", "email": "ada@example.com"}}},
+        {"person": {"personProperties": {"email": "grace@example.com"}}},
+        {"richLink": {"richLinkProperties": {"title": "Q3 plan", "uri": "https://example.com/q3"}}},
+        {"dateElement": {"dateElementProperties": {"displayText": "Oct 2, 2026"}}},
+        {"dateElement": {}},
+        {"textRun": {"content": "\n"}},
+    ]
+    document = {"body": {"content": [{"paragraph": {"elements": elements}}]}}
+    result = run_helper(tmp_path, "docs_text", json.dumps(document))
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["sections"][0]["text"] == (
+        "Owner [person: Ada Lovelace][person: grace@example.com][link: Q3 plan][date: Oct 2, 2026][date]\n"
+    )
+
+
 @pytest.mark.parametrize(
     "text",
     ["{}", "[]", "null", '{"title":"Metadata only"}', '{"tabs":[{}]}', '{"error":{"message":"PRIVATE"}}', "PRIVATE"],
