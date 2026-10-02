@@ -153,6 +153,9 @@ description = "Host-owned reviewer"
         data = tomllib.loads(rendered)
         assert data["approval_policy"] == "never"
         assert data["sandbox_mode"] == "danger-full-access"
+        assert data["check_for_update_on_startup"] is False
+        assert data["analytics"] == {"enabled": False}
+        assert data["feedback"] == {"enabled": False}
         assert data["features"] == {
             "browser_use": True,
             "code_mode": {"enabled": True},
@@ -227,9 +230,15 @@ sessions = false
         assert data["env"]["CUSTOM_SETTING"] == "preserved"
         assert data["permissions"]["deny"][:2] == ["Read(./private)", "Bash(rm -rf /)"]
         assert "Bash(git push --force *main)" in data["permissions"]["deny"]
-        assert data["env"]["DISABLE_AUTOUPDATER"] == "1"
+        assert data["env"]["DISABLE_UPDATES"] == "1"
+        assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
+        assert (
+            "DISABLE_AUTOUPDATER"
+            not in json.loads(self.render(template, json.dumps({"env": {"DISABLE_AUTOUPDATER": "1"}})))["env"]
+        )
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
+        assert data["syncClaudeAiSkills"] is False
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
         assert data["enableAllProjectMcpServers"] is False
@@ -446,7 +455,16 @@ sessions = false
         assert settings["cliRemoteControlHostname"] == "fixture-host"
         assert settings["themeMode"] == "THEME_MODE_DARK"
         grants = settings["globalPermissionGrants"]
-        assert grants["allow"] == ["read_file(/fixture)", "read_url(*)", "execute_url(*)", "mcp(*)"]
+        managed = [
+            "read_file(*)",
+            "write_file(*)",
+            "command(*)",
+            "unsandboxed(*)",
+            "read_url(*)",
+            "execute_url(*)",
+            "mcp(*)",
+        ]
+        assert grants["allow"] == ["read_file(/fixture)", *managed]
         for action in ("ask", "deny"):
             assert grants[action] == original["userSettings"]["globalPermissionGrants"][action]
         assert data["customState"] == original["customState"]
@@ -457,7 +475,7 @@ sessions = false
         fresh = json.loads(self.render(template, ""))["userSettings"]
         assert "cliRemoteControlHostname" not in fresh
         assert "themeMode" not in fresh
-        assert fresh["globalPermissionGrants"] == {"allow": ["read_url(*)", "execute_url(*)", "mcp(*)"]}
+        assert fresh["globalPermissionGrants"] == {"allow": managed}
 
     def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
         template = "dot_gemini/antigravity-cli/modify_private_settings.json"
@@ -677,6 +695,7 @@ sessions = false
         grok = json.loads(self.render("dot_grok/hooks/hooks.json.tmpl", ""))["hooks"]
         assert set(grok) == {"Notification", "Stop"}
         assert grok["Stop"] == []
+        assert grok["Notification"][0]["matcher"] == "^(permission_prompt|elicitation_dialog)$"
         assert grok["Notification"][1]["matcher"] == "^idle_prompt$"
 
         agy = json.loads(self.render("dot_gemini/private_config/private_hooks.json.tmpl", ""))

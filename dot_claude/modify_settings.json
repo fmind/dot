@@ -3,15 +3,20 @@
        file, then stay whatever /model and /effort last persisted. Effort is seeded per
        model because Opus 5.5 ignores the top-level effortLevel and starts at medium;
        levels stop at xhigh: max is session-only (/effort max).
-       DISABLE_AUTOUPDATER leaves the version to mise, which installs latest.
+       DISABLE_UPDATES blocks the auto-updater and `claude update`/`claude install`, leaving
+       the version to mise, which installs latest; DISABLE_ERROR_REPORTING keeps error reports
+       local.
        permissions.deny blocks the usual spelling of a few irreversible commands, even in
        bypass mode; it is a guardrail, not a boundary: other spellings still run.
        theme: light-ansi paints the TUI from the terminal's own sixteen slots,
        which is how fmind/theme reaches a tool that takes no theme file.
        enableAllProjectMcpServers is managed as false, not removed: the merge never
        deletes keys, so an already deployed true would otherwise keep auto-approving
-       every repository-provided MCP server; enabledMcpjsonServers approves the owner's
-       project servers by name instead; `dot trust` pre-accepts folder trust.
+       every repository-provided MCP server; enabledMcpjsonServers stays managed as [] to clear
+       the retired brain approval; `dot trust` pre-accepts folder trust.
+       syncClaudeAiSkills is false: ~/.claude/skills links to the shared ~/.agents/skills, so
+       claude.ai skills synced into its synced/ folder would reach every other harness and
+       exceed their discovery budget with Claude-only instructions.
        PreCompact, SessionEnd, and SubagentStop stay managed as empty lists for the same
        reason: they clear retired session-capture hooks; `dot agent session sync` captures now.
        Provider-specific environment variables (CLAUDE_CODE_USE_VERTEX,
@@ -38,7 +43,8 @@
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
     "BASH_MAX_TIMEOUT_MS": "1800000",
     "CLAUDE_AUTO_BACKGROUND_TASKS": "1",
-    "DISABLE_AUTOUPDATER": "1"
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_UPDATES": "1"
   },
   "fallbackModel": [
     "sonnet"
@@ -80,6 +86,7 @@
   "respectGitignore": false,
   "skillListingBudgetFraction": 0.02,
   "skipDangerousModePermissionPrompt": true,
+  "syncClaudeAiSkills": false,
   "theme": "light-ansi",
   "tui": "fullscreen",
   "workflowSizeGuideline": "large",
@@ -102,7 +109,7 @@
 {{- /* Retire provider environment variables so Claude Code switches between Vertex AI and subscription via ambient shell env without leaking project IDs into settings. */ -}}
 {{- $input := .chezmoi.stdin -}}
 {{- $env := dig "env" dict $current -}}
-{{- $retireEnv := list "CLAUDE_CODE_USE_VERTEX" "ANTHROPIC_VERTEX_PROJECT_ID" "CLOUD_ML_REGION" "ANTHROPIC_DEFAULT_SONNET_MODEL" "ANTHROPIC_DEFAULT_HAIKU_MODEL" -}}
+{{- $retireEnv := list "CLAUDE_CODE_USE_VERTEX" "ANTHROPIC_VERTEX_PROJECT_ID" "CLOUD_ML_REGION" "ANTHROPIC_DEFAULT_SONNET_MODEL" "ANTHROPIC_DEFAULT_HAIKU_MODEL" "DISABLE_AUTOUPDATER" -}}
 {{- $changed := false -}}
 {{- range $key := $retireEnv -}}
 {{-   if hasKey $env $key -}}

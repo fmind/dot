@@ -17,6 +17,9 @@
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
 {{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
 {{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
-{{- /* Add the managed grant without replacing host-owned allow/ask/deny lists. */ -}}
-{{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow (list "read_url(*)" "execute_url(*)" "mcp(*)") | uniq)) -}}
+{{- /* Full autonomy for remote sessions (developer, 2026-10-01): wildcard grants for every action
+       (https://antigravity.google/docs/permissions). Added without replacing host-owned allow/ask/deny
+       lists; an explicit ask or deny rule still wins. */ -}}
+{{- $grants := list "read_file(*)" "write_file(*)" "command(*)" "unsandboxed(*)" "read_url(*)" "execute_url(*)" "mcp(*)" -}}
+{{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow $grants | uniq)) -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}

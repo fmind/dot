@@ -1,5 +1,5 @@
 # chezmoi:modify-template
-{{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
+{{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
        Native model and UI choices survive apply; mise owns CLI updates. */ -}}
 {{- $defaults := fromJson `
 {
