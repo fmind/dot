@@ -27,6 +27,7 @@ _USAGE_INTEGER_FIELDS = (
     "output_tokens",
     "cached_tokens",
     "cache_write_tokens",
+    "cache_write_1h_tokens",
     "reasoning_tokens",
     "total_tokens",
     "turn_count",
@@ -59,6 +60,7 @@ class UsageSample(TypedDict, total=False):
     output_tokens: NonNegativeInt
     cached_tokens: NonNegativeInt
     cache_write_tokens: NonNegativeInt
+    cache_write_1h_tokens: NonNegativeInt
     reasoning_tokens: NonNegativeInt
     total_tokens: NonNegativeInt
     turn_count: NonNegativeInt
@@ -77,6 +79,8 @@ class UsageRecord:
     output_tokens: NonNegativeInt = 0
     cached_tokens: NonNegativeInt = 0
     cache_write_tokens: NonNegativeInt = 0
+    # Claude 1-hour cache writes, a subset of cache_write_tokens priced at their own rate.
+    cache_write_1h_tokens: NonNegativeInt = 0
     reasoning_tokens: NonNegativeInt = 0
     total_tokens: NonNegativeInt = 0
     cost_usd: Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] = 0.0
@@ -87,6 +91,10 @@ class UsageRecord:
     measurement_kind: Literal["", "provider-reported", "estimated", "context-only"] = ""
     source_bytes: NonNegativeInt = 0
     legacy_accounting: StrictBool = False
+    # Session context read from the manifest, never stored in usage: a subagent transcript
+    # (sidechain) is measured on its own but belongs to its parent's session.
+    sidechain: StrictBool = False
+    parent_session_id: StrictStr = ""
     # Compact request measurements: timestamp, model, and token counters only.
     samples: Annotated[list[UsageSample], Field(strict=True)] = field(default_factory=list)
 
@@ -136,10 +144,13 @@ class UsageRecord:
             "cwd",
             "cached_tokens",
             "cache_write_tokens",
+            "cache_write_1h_tokens",
             "reasoning_tokens",
             "turn_count",
             "measurement_kind",
             "source_bytes",
+            "sidechain",
+            "parent_session_id",
         }
         result = _USAGE_ADAPTER.dump_python(
             self, exclude={name for name in optional if not getattr(self, name)} | {"legacy_accounting", "samples"}
@@ -192,6 +203,10 @@ class UsageRecord:
             sum(sample.get(name, 0) for sample in self.samples) != getattr(self, name) for name in _USAGE_INTEGER_FIELDS
         ):
             raise ValueError("usage samples do not reconcile with session totals")
+        if self.cache_write_1h_tokens > self.cache_write_tokens or any(
+            sample.get("cache_write_1h_tokens", 0) > sample.get("cache_write_tokens", 0) for sample in self.samples
+        ):
+            raise ValueError("usage record field 'cache_write_1h_tokens' must not exceed 'cache_write_tokens'")
 
 
 _USAGE_ADAPTER = TypeAdapter(UsageRecord)
@@ -210,6 +225,15 @@ def _sample_record(record: UsageRecord, sample: UsageSample) -> UsageRecord:
 
 
 @dataclass
+class _SessionEvidence:
+    """Session-level evidence within one report row, shared by a parent and its sidechains."""
+
+    priced: bool = True
+    session_timestamp: bool = False
+    legacy: bool = False
+
+
+@dataclass
 class UsageStats:
     harness: str
     model: str = ""
@@ -217,6 +241,7 @@ class UsageStats:
     output_tokens: int = 0
     cached_tokens: int = 0
     cache_write_tokens: int = 0
+    cache_write_1h_tokens: int = 0
     reasoning_tokens: int = 0
     total_tokens: int = 0
     cost_usd: float = 0.0
@@ -251,6 +276,7 @@ class UsageStats:
                 "output_tokens": self.output_tokens,
                 "cached_tokens": self.cached_tokens,
                 "cache_write_tokens": self.cache_write_tokens,
+                "cache_write_1h_tokens": self.cache_write_1h_tokens,
                 "reasoning_tokens": self.reasoning_tokens,
                 "total_tokens": self.total_tokens,
                 "cost_usd": self.cost_usd if self.cost_known_sessions else None,
@@ -298,9 +324,12 @@ def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
             raise ValueError(f"session usage does not match its session: {path}")
         # Accounting changes need recapture; a newer parser alone does not invalidate
         # earlier explicit-zero evidence from otherwise unchanged provider parsers.
-        record.legacy_accounting = manifest.parser_version in {"3", "4", "5", "6"} or (
-            record.harness == "grok" and manifest.parser_version == "7"
+        # Retained usage keeps the accounting of the parser that measured it.
+        measured_by = manifest.usage_parser_version or manifest.parser_version
+        record.legacy_accounting = measured_by in {"3", "4", "5", "6"} or (
+            record.harness == "grok" and measured_by == "7"
         )
+        record.sidechain, record.parent_session_id = manifest.sidechain, manifest.parent_session_id
         yield record
 
 
@@ -369,11 +398,14 @@ def aggregate_usage(
 ) -> list[UsageStats]:
     if monthly and billing:
         raise ValueError("choose --monthly or --billing, not both")
-    pricing = pricing if pricing is not None else default_pricing()
+    rates = pricing if pricing is not None else default_pricing()
     grouped: dict[tuple[str, str, str, str, str], UsageStats] = {}
-    for record in records:
-        if (harness and harness not in {record.harness, record.agent}) or (cwd and record.cwd != cwd):
-            continue
+    sessions: dict[tuple[str, str, str, str, str], dict[object, _SessionEvidence]] = {}
+
+    def include(record: UsageRecord, session: object, project: str) -> None:
+        """Add one measurement to the rows of its session; `project` is that session's CWD."""
+        if (harness and harness not in {record.harness, record.agent}) or (cwd and project != cwd):
+            return
         subscription = (subscriptions or {}).get(record.harness)
         zone = ZoneInfo(subscription.timezone) if billing and subscription else ZoneInfo("UTC")
         day = subscription.renewal_day if billing and subscription else 1
@@ -390,21 +422,21 @@ def aggregate_usage(
             period_start, period_end = _period(timestamp, day, zone) if monthly or billing else ("", "")
             model = (sample.model or "unknown") if by_model else ""
             kind = record.measurement_kind or "unknown"
-            project = record.cwd if by_project else ""
-            key = (period_start, record.harness, model, kind, project)
+            group = project if by_project else ""
+            key = (period_start, record.harness, model, kind, group)
             row = grouped.setdefault(
-                key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=project)
+                key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=group)
             )
             row.period_start, row.period_end = period_start, period_end
             row.subscription_usd = (
                 subscription.monthly_usd if billing and subscription and not by_model and not by_project else None
             )
-            row.pricing_as_of, row.pricing_basis, row.pricing_sources = pricing.as_of, pricing.basis, pricing.sources
+            row.pricing_as_of, row.pricing_basis, row.pricing_sources = rates.as_of, rates.basis, rates.sources
             stamp = timestamp.isoformat()
             row.first_timestamp = min(row.first_timestamp, stamp) if row.first_timestamp else stamp
             row.last_timestamp = max(row.last_timestamp, stamp)
             selected.setdefault(key, []).append(sample)
-            equivalent, reason = api_equivalent(sample, pricing)
+            equivalent, reason = api_equivalent(sample, rates)
             row.measurements += 1
             if equivalent is None:
                 row.unpriced_reasons[reason] = row.unpriced_reasons.get(reason, 0) + 1
@@ -417,14 +449,39 @@ def aggregate_usage(
             row.turns += sample.turn_count
         for key, included in selected.items():
             row = grouped[key]
-            row.sessions += 1
-            row.session_timestamp_sessions += not bool(record.samples)
-            row.legacy_accounting_sessions += record.legacy_accounting
-            row.priced_sessions += all(api_equivalent(sample, pricing)[0] is not None for sample in included)
-            # A provider's session cost cannot be apportioned between dates/models.
-            if len(selected) == 1 and len(included) == len(samples):
+            evidence = sessions.setdefault(key, {}).setdefault(session, _SessionEvidence())
+            evidence.priced = evidence.priced and all(
+                api_equivalent(sample, rates)[0] is not None for sample in included
+            )
+            evidence.session_timestamp = evidence.session_timestamp or not record.samples
+            evidence.legacy = evidence.legacy or record.legacy_accounting
+            # A provider's session cost cannot be apportioned between dates/models. Claude's
+            # session cost already includes its subagents, so a sidechain never adds cost.
+            if not record.sidechain and len(selected) == 1 and len(included) == len(samples):
                 row.cost_usd += record.cost_usd
                 row.cost_known_sessions += record.cost_known or record.cost_usd > 0
+
+    # Each top-level record is its own session; a sidechain joins its parent's session and project.
+    parents: dict[tuple[str, str], tuple[object, str]] = {}
+    orphans: list[UsageRecord] = []
+    for index, record in enumerate(records):
+        if not record.sidechain:
+            parents[(record.harness, record.session_id)] = (index, record.cwd)
+            include(record, index, record.cwd)
+        elif parent := parents.get((record.harness, record.parent_session_id)):
+            include(record, *parent)
+        else:
+            # Archive order is by name: the parent can still follow. Only these wait in memory.
+            orphans.append(record)
+    for record in orphans:
+        session = (record.harness, record.parent_session_id or record.session_id)
+        include(record, *parents.get((record.harness, record.parent_session_id), (session, record.cwd)))
+    for key, evidence in sessions.items():
+        row = grouped[key]
+        row.sessions = len(evidence)
+        row.priced_sessions = sum(item.priced for item in evidence.values())
+        row.session_timestamp_sessions = sum(item.session_timestamp for item in evidence.values())
+        row.legacy_accounting_sessions = sum(item.legacy for item in evidence.values())
     return [grouped[key] for key in sorted(grouped)]
 
 

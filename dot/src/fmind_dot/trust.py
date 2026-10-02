@@ -30,60 +30,91 @@ _GITHUB_ORIGIN = re.compile(
 _ORIGIN_TIMEOUT_SECONDS = 10
 
 
+# A harness edit applies every folder to the file text: it returns the new text and the folders it changed.
+_Edit = Callable[[Path, str, list[str]], tuple[str, list[str]]]
+_WRITE_ATTEMPTS = 3
+
+
 def _write(path: Path, text: str) -> None:
     """Replace the file atomically, keeping its permissions (new files are owner-only)."""
     mode = path.stat().st_mode & 0o777 if path.exists() else 0o600
     write_atomic_file(path, text.encode("utf-8"), mode=mode)
 
 
+def _file_state(path: Path) -> tuple[int, int] | None:
+    try:
+        info = path.stat()
+    except FileNotFoundError:
+        return None
+    return info.st_size, info.st_mtime_ns
+
+
+def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool) -> list[str]:
+    """Apply all folders in one read-modify-write; return the folders that changed.
+
+    Each host also writes its own file. Replace it only if it still matches what was read,
+    and re-apply to the host's newer content otherwise, a bounded number of times.
+    """
+    for _ in range(_WRITE_ATTEMPTS):
+        observed = _file_state(path)
+        try:
+            text = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            text = ""
+        updated, changed = edit(path, text, folders)
+        if dry_run or not changed:
+            return changed
+        if _file_state(path) == observed:
+            _write(path, updated)
+            return changed
+    raise DotError(f"{path} kept changing while trusting folders; retry once its harness is idle")
+
+
 def _load_json(path: Path, text: str) -> dict[str, Any]:
     try:
         value = json.loads(text) if text.strip() else {}
-    except ValueError as error:
+    except (ValueError, RecursionError) as error:
         raise DotError(f"{path} is not valid JSON; repair it before trusting folders") from error
     if not isinstance(value, dict):
         raise DotError(f"{path} must contain a JSON object")
     return value
 
 
-def _json_list(path: Path, key: str, folder: str, *, dry_run: bool) -> bool:
-    """Append a folder to a top-level JSON array (agy trustedWorkspaces, Copilot trustedFolders)."""
-    raw = path.read_text(encoding="utf-8") if path.exists() else ""
+def _json_list(path: Path, raw: str, folders: list[str], key: str) -> tuple[str, list[str]]:
+    """Append folders to a top-level JSON array (agy trustedWorkspaces, Copilot trustedFolders)."""
     # Copilot prefixes // comment lines that strict JSON rejects; keep them in place.
     lines = raw.splitlines(keepends=True)
     header = "".join(line for line in lines if _COPILOT_COMMENT.match(line))
     data = _load_json(path, "".join(line for line in lines if not _COPILOT_COMMENT.match(line)))
-    folders = data.setdefault(key, [])
-    if not isinstance(folders, list):
+    trusted = data.setdefault(key, [])
+    if not isinstance(trusted, list):
         raise DotError(f"{path}: {key} must be a JSON array")
-    if folder in folders:
-        return False
-    if not dry_run:
-        folders.append(folder)
-        _write(path, header + json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    return True
+    changed = [folder for folder in folders if folder not in trusted]
+    trusted.extend(changed)
+    return header + json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
 
 
-def _claude(path: Path, folder: str, *, dry_run: bool) -> bool:
-    data = _load_json(path, path.read_text(encoding="utf-8") if path.exists() else "")
+def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
+    data = _load_json(path, text)
     projects = data.setdefault("projects", {})
     if not isinstance(projects, dict):
         raise DotError(f"{path}: projects must be a JSON object")
-    project = projects.setdefault(folder, {})
-    if not isinstance(project, dict):
-        raise DotError(f"{path}: project {folder} must be a JSON object")
-    if project.get("hasTrustDialogAccepted") is True:
-        return False
-    if not dry_run:
-        # Claude re-reads and merges this file under its own lock before it writes.
-        project["hasTrustDialogAccepted"] = True
-        _write(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    return True
+    changed = []
+    for folder in folders:
+        project = projects.setdefault(folder, {})
+        if not isinstance(project, dict):
+            raise DotError(f"{path}: project {folder} must be a JSON object")
+        if project.get("hasTrustDialogAccepted") is not True:
+            # Claude re-reads and merges this file under its own lock before it writes.
+            project["hasTrustDialogAccepted"] = True
+            changed.append(folder)
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
 
 
-def _toml_table(path: Path, table: str, folder: str, key: str, value: str | bool, *, dry_run: bool) -> bool:
-    """Update a trust entry while preserving the host's TOML syntax and comments."""
-    text = path.read_text(encoding="utf-8") if path.exists() else ""
+def _toml_table(
+    path: Path, text: str, folders: list[str], table: str, key: str, value: str | bool
+) -> tuple[str, list[str]]:
+    """Update trust entries while preserving the host's TOML syntax and comments."""
     try:
         document = tomlkit.parse(text)
     except TOMLKitError as error:
@@ -91,56 +122,63 @@ def _toml_table(path: Path, table: str, folder: str, key: str, value: str | bool
     tables = document.setdefault(table, tomlkit.table())
     if not isinstance(tables, MutableMapping):
         raise DotError(f"{path}: {table} must be a TOML table")
-    # Let the parent choose an inline or regular table for a new entry.
-    entry = tables.setdefault(folder, {})
-    if not isinstance(entry, MutableMapping):
-        raise DotError(f"{path}: {table} entry must be a TOML table")
-    current = entry.get(key)
-    if current == value and (not isinstance(value, bool) or isinstance(current, bool)):
-        return False
-    if dry_run:
-        return True
-    entry[key] = value
-    _write(path, tomlkit.dumps(document))
-    return True
+    changed = []
+    for folder in folders:
+        # Let the parent choose an inline or regular table for a new entry.
+        entry = tables.setdefault(folder, {})
+        if not isinstance(entry, MutableMapping):
+            raise DotError(f"{path}: {table} entry must be a TOML table")
+        current = entry.get(key)
+        if current == value and (not isinstance(value, bool) or isinstance(current, bool)):
+            continue
+        entry[key] = value
+        changed.append(folder)
+    return tomlkit.dumps(document), changed
 
 
-def _harnesses(home: Path) -> dict[str, tuple[Path, Callable[[Path, str, bool], bool]]]:
+def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
     # Claude keeps trust in ~/.claude.json but its state directory is ~/.claude.
     return {
-        "claude": (home / ".claude.json", lambda path, folder, dry: _claude(path, folder, dry_run=dry)),
+        "claude": (home / ".claude.json", lambda path, text, folders: _claude(path, text, folders)),
         "codex": (
             home / ".codex" / "config.toml",
-            lambda path, folder, dry: _toml_table(path, "projects", folder, "trust_level", "trusted", dry_run=dry),
+            lambda path, text, folders: _toml_table(path, text, folders, "projects", "trust_level", "trusted"),
         ),
         "grok": (
             home / ".grok" / "trusted_folders.toml",
             # Grok refuses to trust the home directory itself.
-            lambda path, folder, dry: (
-                folder != str(home) and _toml_table(path, "folders", folder, "trusted", True, dry_run=dry)
+            lambda path, text, folders: _toml_table(
+                path, text, [folder for folder in folders if folder != str(home)], "folders", "trusted", True
             ),
         ),
         "agy": (
             home / ".gemini" / "antigravity-cli" / "settings.json",
-            lambda path, folder, dry: _json_list(path, "trustedWorkspaces", folder, dry_run=dry),
+            lambda path, text, folders: _json_list(path, text, folders, "trustedWorkspaces"),
         ),
         "copilot": (
             home / ".copilot" / "config.json",
-            lambda path, folder, dry: _json_list(path, "trustedFolders", folder, dry_run=dry),
+            lambda path, text, folders: _json_list(path, text, folders, "trustedFolders"),
         ),
     }
 
 
-def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = None) -> list[str]:
-    """Trust one folder in every installed harness; return the harnesses that changed."""
+def trust_folders(folders: list[Path], *, dry_run: bool = False, home: Path | None = None) -> dict[Path, list[str]]:
+    """Trust folders in every installed harness, writing each file once; return each folder's changed harnesses."""
     home = home or Path.home()
-    changed = []
-    for name, (path, update) in _harnesses(home).items():
+    selected = {str(folder): folder for folder in folders}
+    changed: dict[Path, list[str]] = {folder: [] for folder in selected.values()}
+    for name, (path, edit) in _harnesses(home).items():
         # A harness that was never started has no state directory to extend.
         state_directory = home / ".claude" if name == "claude" else path.parent
-        if state_directory.is_dir() and update(path, str(folder), dry_run):
-            changed.append(name)
+        if state_directory.is_dir():
+            for folder in _update(path, edit, list(selected), dry_run=dry_run):
+                changed[selected[folder]].append(name)
     return changed
+
+
+def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = None) -> list[str]:
+    """Trust one folder in every installed harness; return the harnesses that changed."""
+    return trust_folders([folder], dry_run=dry_run, home=home)[folder]
 
 
 def github_owner(origin: str) -> str | None:
@@ -187,8 +225,9 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
 
 def run_trust(state: State, target: str = ".", *, dry_run: bool = False) -> None:
     folders, skipped = _target_folders(state, target)
+    changes = trust_folders(folders, dry_run=dry_run)
     for folder in folders:
-        changed = trust_folder(folder, dry_run=dry_run)
+        changed = changes[folder]
         verb = "would trust" if dry_run else "trusted"
         detail = f"{verb} in {', '.join(changed)}" if changed else "already trusted"
         state.stdout.write(f"{'✓' if not changed else '+'} {folder}: {detail}\n")

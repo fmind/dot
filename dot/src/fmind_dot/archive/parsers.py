@@ -48,6 +48,9 @@ class ParsedSession:
     skipped: int = 0
     usage: UsageRecord | None = None
     usage_error: Exception | None = None
+    # A subagent transcript belongs to its parent's session; the parent can be unknown.
+    sidechain: bool = False
+    parent_session_id: str = ""
 
 
 SessionParser = Callable[[Path, str, str], ParsedSession]
@@ -64,7 +67,20 @@ class AgentAdapter:
 def resolve_cwd(value: str) -> str:
     if not value:
         return ""
-    return str(Path(value).expanduser().resolve(strict=False))
+    try:
+        path = Path(value).expanduser()
+    except RuntimeError:
+        # `~user` names an account without a home directory: malformed input, not a crash.
+        raise ValueError("cannot expand a home directory in the project path") from None
+    return str(path.resolve(strict=False))
+
+
+def _json_document(content: str | bytes, label: str) -> object:
+    """Decode one JSON document; nesting deeper than the interpreter stack is malformed input."""
+    try:
+        return json.loads(content)
+    except RecursionError:
+        raise ValueError(f"{label} is nested too deeply") from None
 
 
 def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]]:
@@ -77,7 +93,7 @@ def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]
             if not line.strip():
                 continue
             value = json.loads(line)
-        except UnicodeDecodeError, json.JSONDecodeError:
+        except UnicodeDecodeError, json.JSONDecodeError, RecursionError:
             # An undecodable record is malformed; it must not cost the rest of the session.
             yield None, True
             continue
@@ -224,7 +240,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
 
 
 def claude_session_id(path: Path) -> str:
-    return "" if path.name == "memory.jsonl" else path.stem
+    # Memory files and subagent workflow journals (`journal.jsonl`) are not conversations.
+    return "" if path.name in {"memory.jsonl", "journal.jsonl"} else path.stem
 
 
 def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
@@ -237,7 +254,13 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     kind = raw.get("type")
     if kind == "cost-state":
         cost = _usage_cost(raw.get("totalCostUSD"))
-        if cost is not None:
+        unknown = raw.get("hasUnknownModelCost", False)
+        if not isinstance(unknown, bool):
+            raise ValueError("usage record field 'hasUnknownModelCost' must be a boolean")
+        if unknown:
+            # A model without a known price makes the total a partial bill: the cost is unknown.
+            record.cost_usd, record.cost_known = 0.0, False
+        elif cost is not None:
             record.cost_usd = cost
             record.cost_known = True
     if kind != "assistant":
@@ -262,6 +285,11 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
             setattr(record, target, getattr(record, target) + count)
             if target in {"input_tokens", "output_tokens"}:
                 record.measurement_kind = "provider-reported"
+    # 1-hour cache writes are a subset of cache_creation_input_tokens with their own price.
+    creation = _usage_mapping(usage.get("cache_creation"), "cache_creation")
+    count = _usage_token_count(creation.get("ephemeral_1h_input_tokens"), "cache_write_1h_tokens")
+    if count is not None:
+        record.cache_write_1h_tokens += count
 
 
 def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -276,6 +304,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     )
     messages: dict[tuple[str, str], UsageRecord] = {}
     timed = True
+    parent = ""
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
     # Only validates an undated sample: untimed sessions drop their samples below.
     sample_fallback = _undated_usage_timestamp([], path)
@@ -286,6 +315,16 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         if raw is None:
             continue
         decoded += 1
+        declared = raw.get("sessionId")
+        if (
+            not parent
+            and raw.get("isSidechain") is True
+            and isinstance(declared, str)
+            and declared != session_id
+            and is_valid_session_id(declared)
+        ):
+            # A subagent transcript is a sidechain of the session that launched it.
+            parent = declared
         try:
             if raw.get("type") == "assistant":
                 message = _mapping(raw.get("message"))
@@ -304,7 +343,13 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
                 if previous:
                     sample.measurement_kind = sample.measurement_kind or previous.measurement_kind
                     # Partial blocks can report increasing output; preserve the high water.
-                    for name in ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens"):
+                    for name in (
+                        "input_tokens",
+                        "output_tokens",
+                        "cached_tokens",
+                        "cache_write_tokens",
+                        "cache_write_1h_tokens",
+                    ):
                         setattr(sample, name, max(getattr(previous, name), getattr(sample, name)))
                     sample.total_tokens = (
                         sample.input_tokens + sample.output_tokens + sample.cached_tokens + sample.cache_write_tokens
@@ -360,7 +405,17 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         parsed_usage = None
     else:
         parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
-    return ParsedSession(logs, fingerprint, "claude-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
+    return ParsedSession(
+        logs,
+        fingerprint,
+        "claude-jsonl",
+        malformed,
+        decoded - len(logs),
+        parsed_usage,
+        usage_error,
+        sidechain=bool(parent),
+        parent_session_id=parent,
+    )
 
 
 def codex_session_id(path: Path) -> str:
@@ -425,6 +480,28 @@ def _codex_field(raw: dict[str, Any], key: str) -> str:
     return value if isinstance(value, str) else ""
 
 
+_CODEX_TOKEN_FIELDS = (
+    ("input_tokens", "input_tokens"),
+    ("output_tokens", "output_tokens"),
+    ("cached_input_tokens", "cached_tokens"),
+    ("cache_write_input_tokens", "cache_write_tokens"),
+    ("reasoning_output_tokens", "reasoning_tokens"),
+    ("total_tokens", "total_tokens"),
+)
+
+
+def _codex_counts(value: object, field: str) -> dict[str, int]:
+    """Read one complete Codex token usage object; absent counters inside it are zero."""
+    usage = _usage_mapping(value, field, optional=False)
+    counts = {target: _usage_token_count(usage.get(source), target) for source, target in _CODEX_TOKEN_FIELDS}
+    if all(counts[name] is None for name in ("input_tokens", "output_tokens", "total_tokens")):
+        raise ValueError(f"usage record field {field!r} has no token counters")
+    result = {name: count or 0 for name, count in counts.items()}
+    if not result["total_tokens"]:
+        result["total_tokens"] = result["input_tokens"] + result["output_tokens"]
+    return result
+
+
 def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     timestamp = raw.get("timestamp")
     if isinstance(timestamp, str) and timestamp:
@@ -443,14 +520,7 @@ def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     elif kind == "event_msg" and payload.get("type") == "token_count":
         info = _usage_mapping(payload.get("info"), "info")
         total = _usage_mapping(info.get("total_token_usage"), "total_token_usage")
-        for source, target in (
-            ("input_tokens", "input_tokens"),
-            ("output_tokens", "output_tokens"),
-            ("cached_input_tokens", "cached_tokens"),
-            ("cache_write_input_tokens", "cache_write_tokens"),
-            ("reasoning_output_tokens", "reasoning_tokens"),
-            ("total_tokens", "total_tokens"),
-        ):
+        for source, target in _CODEX_TOKEN_FIELDS:
             count = _usage_token_count(total.get(source), target)
             if count is not None:
                 setattr(record, target, count)
@@ -475,6 +545,11 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens", "reasoning_tokens", "total_tokens"), 0
     )
     timed = True
+    # Codex 0.153+ records every response, including compactions that cumulative snapshots omit.
+    responses: dict[str, UsageRecord] = {}
+    thread_total: dict[str, int] = {}
+    recorded = True
+    meta: dict[str, Any] | None = None
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
     for raw, bad in records:
         if bad:
@@ -483,10 +558,31 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         if raw is None:
             continue
         decoded += 1
+        if meta is None and raw.get("type") == "session_meta":
+            # The first metadata line is this thread's; a subagent's forked history repeats its parent's.
+            meta = _mapping(raw.get("payload"))
         try:
             _observe_codex_usage(usage, raw)
             payload = _mapping(raw.get("payload"))
-            if (
+            if raw.get("type") == "token_usage_record":
+                response = payload.get("response_id")
+                if not isinstance(response, str) or not response:
+                    raise ValueError("usage record field 'response_id' must be a non-empty string")
+                counts = _codex_counts(payload.get("usage"), "usage")
+                thread_total = _codex_counts(payload.get("thread_token_usage"), "thread_token_usage")
+                if response not in responses:
+                    recorded = recorded and bool(raw.get("timestamp"))
+                    responses[response] = replace(
+                        usage,
+                        model=active_model,
+                        samples=[],
+                        cost_usd=0,
+                        cost_known=False,
+                        turn_count=1,
+                        measurement_kind="provider-reported",
+                        **counts,
+                    )
+            elif (
                 raw.get("type") == "event_msg"
                 and payload.get("type") == "token_count"
                 and _mapping(payload.get("info")).get("total_token_usage")
@@ -529,13 +625,37 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
             )
         )
     propagate_models(logs)
-    if samples and timed:
+    if responses:
+        requests = list(responses.values())
+        usage.measurement_kind = "provider-reported"
+        if all(sum(getattr(request, name) for request in requests) == count for name, count in thread_total.items()):
+            usage.set_samples(requests, timed=recorded)
+        else:
+            # The provider's thread counter disagrees with its response records, for example when
+            # usage predates them: keep the provider's total, without inventing request allocation.
+            for name, count in thread_total.items():
+                setattr(usage, name, count)
+            usage.samples = []
+    elif samples and timed:
         usage.set_samples(samples)
     usage.source_bytes = source_bytes
     parsed_usage = None
     if usage.measurement_kind:
         parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
-    return ParsedSession(logs, fingerprint, "codex-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
+    meta = meta or {}
+    spawn = _mapping(_mapping(_mapping(meta.get("source")).get("subagent")).get("thread_spawn"))
+    parent = spawn.get("parent_thread_id")
+    return ParsedSession(
+        logs,
+        fingerprint,
+        "codex-jsonl",
+        malformed,
+        decoded - len(logs),
+        parsed_usage,
+        usage_error,
+        sidechain=meta.get("thread_source") == "subagent",
+        parent_session_id=parent if isinstance(parent, str) and is_valid_session_id(parent) else "",
+    )
 
 
 def grok_cwd_from_path(root: Path, path: Path) -> str:
@@ -733,7 +853,7 @@ def _parse_grok_usage(
     context_known = False
     if content is not None:
         record.source_bytes = len(content)
-        value = json.loads(content)
+        value = _json_document(content, "Grok signals")
         if not isinstance(value, dict):
             raise ValueError("Grok signals must contain a JSON object")
         model = value.get("primaryModelId")
@@ -908,7 +1028,7 @@ def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> Parsed
     for _, message_id, raw in parts:
         if message_id not in message_ids:
             raise ValueError("OpenCode part references a missing message")
-        part = json.loads(raw)
+        part = _json_document(raw, "OpenCode part")
         if not isinstance(part, dict):
             raise ValueError("invalid OpenCode part")
         if part.get("type") == "text" and not part.get("synthetic") and not part.get("ignored"):
@@ -917,7 +1037,7 @@ def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> Parsed
             content.setdefault(message_id, []).append(part["text"])
     logs = []
     for message_id, created, raw in messages:
-        message = json.loads(raw)
+        message = _json_document(raw, "OpenCode message")
         if not isinstance(message, dict):
             raise ValueError("invalid OpenCode message")
         role = message.get("role")

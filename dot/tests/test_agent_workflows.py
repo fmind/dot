@@ -687,3 +687,52 @@ def test_reports_with_no_sync_read_the_archive_as_stored(monkeypatch: pytest.Mon
     assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == [session_id]
     assert shown.exit_code == 0
     assert json.loads(shown.stdout)["record"]["input_tokens"] == 4
+
+
+def test_subagent_transcripts_count_once_with_their_parent_session(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from fmind_dot.archive.query import SessionQuery
+    from fmind_dot.archive.statistics import prompt_statistics, session_statistics
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    project = tmp_path / "claude/-work-project"
+    state = _state()
+    state.config.agent.sources["claude"] = str(tmp_path / "claude")
+
+    def answer(tokens: int, model: str) -> dict:
+        content = [{"type": "text", "text": "done"}]
+        usage = {"input_tokens": tokens, "output_tokens": 0}
+        return {"type": "assistant", "timestamp": "2026-09-06T10:01:00Z", "cwd": "/work/project"} | {
+            "message": {"id": f"m-{tokens}", "model": model, "content": content, "usage": usage}
+        }
+
+    _write_jsonl(
+        project / "parent-id.jsonl",
+        {"type": "user", "timestamp": "2026-09-06T10:00:00Z", "cwd": "/work/project", "message": {"content": "owner"}},
+        answer(1000, "claude-opus-5-5"),
+        {"type": "cost-state", "totalCostUSD": 0.5, "hasUnknownModelCost": False},
+    )
+    delegated = {"isSidechain": True, "sessionId": "parent-id", "agentId": "a1"}
+    _write_jsonl(
+        project / "parent-id/subagents/agent-a1.jsonl",
+        delegated | {"type": "user", "timestamp": "2026-09-06T10:00:30Z", "message": {"content": "delegated task"}},
+        delegated | answer(100, "claude-haiku-4-5"),
+    )
+    _write_jsonl(project / "parent-id/subagents/workflows/wf_1/journal.jsonl", {"type": "launched"})
+
+    sync_sessions(state, agent="claude")
+    result = CliRunner().invoke(app, ["agent", "stats", "--tokens-only", "--no-sync", "--json"])
+    listed = CliRunner().invoke(app, ["agent", "session", "list", "--json"])
+
+    assert result.exit_code == 0, result.output
+    [row] = json.loads(result.stdout)["usage"]
+    assert (row["sessions"], row["input_tokens"], row["cost_usd"], row["cost_complete"]) == (1, 1100, 0.5, True)
+    statistics = session_statistics(SessionQuery())
+    assert (statistics["sessions"], statistics["sidechain_sessions"], statistics["agents"]) == (1, 1, {"claude": 1})
+    prompts = prompt_statistics(SessionQuery())
+    assert (prompts["prompts"], prompts["sidechain_sessions"], prompts["complete"]) == (1, 1, True)
+    sessions = {item["session_id"]: item for item in json.loads(listed.stdout)["sessions"]}
+    assert sorted(sessions) == ["agent-a1", "parent-id"]
+    assert (sessions["agent-a1"]["sidechain"], sessions["agent-a1"]["parent_session_id"]) == (True, "parent-id")
+    assert "sidechain" not in sessions["parent-id"]

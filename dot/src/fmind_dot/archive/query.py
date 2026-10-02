@@ -48,6 +48,8 @@ class SessionSummary:
     skipped_records: int
     high_water_mark: str = ""
     cwd: str = ""
+    sidechain: bool = False
+    parent_session_id: str = ""
     records: list[SessionLog] = field(default_factory=list)
     status: list[str] = field(default_factory=list)
     path: Path = field(default_factory=Path, repr=False)
@@ -66,6 +68,8 @@ class SessionSummary:
             skipped_records=manifest.skipped_records,
             high_water_mark=manifest.high_water_mark,
             cwd=manifest.cwd,
+            sidechain=manifest.sidechain,
+            parent_session_id=manifest.parent_session_id,
             path=path,
         )
 
@@ -73,6 +77,10 @@ class SessionSummary:
         result: dict[str, Any] = {"agent": self.agent, "session_id": self.session_id}
         if self.cwd:
             result["cwd"] = self.cwd
+        if self.sidechain:
+            result["sidechain"] = True
+            if self.parent_session_id:
+                result["parent_session_id"] = self.parent_session_id
         result["parser_version"] = self.parser_version
         result["source_type"] = self.source_type
         result["ingested_at"] = self.ingested_at

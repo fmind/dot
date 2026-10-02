@@ -50,10 +50,18 @@ def _parse_time(value: str, option: str) -> datetime | None:
         raise typer.BadParameter("expected a duration (7d, 24h), UTC date, or timestamp", param_hint=option) from error
 
 
+def _project(cwd: str) -> str:
+    """Resolve a project filter; a path that cannot be expanded is a usage error, not a crash."""
+    try:
+        return resolve_cwd(cwd)
+    except ValueError as error:
+        raise typer.BadParameter(str(error), param_hint="--project") from None
+
+
 def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> SessionQuery:
     query = SessionQuery(
         agent=_known_agent(agent),
-        cwd=resolve_cwd(cwd),
+        cwd=_project(cwd),
         identity=identity,
         since=_parse_time(since, "--since"),
         until=_parse_time(until, "--until"),
@@ -66,6 +74,9 @@ def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> Sessi
 NoSyncOption = Annotated[
     bool, typer.Option("--no-sync", help="Report the archive as stored, without capturing changed sessions first")
 ]
+# Shared filters keep one documented contract across session and report commands.
+AgentOption = Annotated[str, typer.Option("--agent", "--harness", "-a", help="Filter by agent")]
+ProjectOption = Annotated[str, typer.Option("--project", "--cwd", help="Filter by exact project/CWD")]
 
 
 def _known_agent(agent: str, param_hint: str = "--agent") -> str:
@@ -86,8 +97,8 @@ def _refresh(state: State, agent: str, *, sync: bool) -> None:
 @session_app.command("list", help="List archived sessions")
 def session_list(
     context: typer.Context,
-    agent: Annotated[str, typer.Option("--agent", "--harness", "-a", help="Filter by agent")] = "",
-    cwd: Annotated[str, typer.Option("--cwd", "--project", help="Filter by exact project/CWD")] = "",
+    agent: AgentOption = "",
+    cwd: ProjectOption = "",
     identity: Annotated[str, typer.Option("--session", help="Filter by session identity")] = "",
     since: Annotated[str, typer.Option("--since", help="Duration (7d, 24h), UTC date, or timestamp")] = "",
     until: Annotated[str, typer.Option("--until", help="Duration (7d, 24h), UTC date, or timestamp")] = "",
@@ -133,8 +144,8 @@ def session_list(
 def session_show(
     context: typer.Context,
     identity: Annotated[str, typer.Argument(help="Session identity")] = "",
-    agent: Annotated[str, typer.Option("--agent", "--harness", "-a")] = "",
-    cwd: Annotated[str, typer.Option("--cwd", "--project")] = "",
+    agent: AgentOption = "",
+    cwd: ProjectOption = "",
     session: Annotated[str, typer.Option("--session")] = "",
     since: Annotated[str, typer.Option("--since")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
@@ -160,8 +171,8 @@ def session_show(
 @session_app.command("export", help="Export archived sessions")
 def session_export(
     context: typer.Context,
-    agent: Annotated[str, typer.Option("--agent", "--harness", "-a")] = "",
-    cwd: Annotated[str, typer.Option("--cwd", "--project")] = "",
+    agent: AgentOption = "",
+    cwd: ProjectOption = "",
     session: Annotated[str, typer.Option("--session")] = "",
     since: Annotated[str, typer.Option("--since")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
@@ -201,7 +212,7 @@ def session_sync(
         state_from(context),
         agent=_known_agent(agent),
         session=session,
-        cwd=resolve_cwd(cwd),
+        cwd=_project(cwd),
         since=_parse_time(since, "--since"),
         dry_run=dry_run,
         as_json=as_json,
@@ -247,8 +258,8 @@ def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
 @session_app.command("stats", help="Count archived sessions, records, archive bytes, and status")
 def session_stats(
     context: typer.Context,
-    agent: Annotated[str, typer.Option("--agent", "--harness", "-a")] = "",
-    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
+    agent: AgentOption = "",
+    cwd: ProjectOption = "",
     since: Annotated[str, typer.Option("--since", help="Filter latest ingestion timestamps")] = "",
     until: Annotated[str, typer.Option("--until")] = "",
     as_json: JsonOption = False,
@@ -329,12 +340,12 @@ def usage_show(
 )
 def agent_stats(
     context: typer.Context,
-    agent: Annotated[str, typer.Option("--agent", "--harness", "-a")] = "",
+    agent: AgentOption = "",
     since: Annotated[str, typer.Option("--since", help="Duration (7d, 24h), UTC date or timestamp")] = "",
     until: Annotated[str, typer.Option("--until", help="Inclusive UTC date (whole day) or exact timestamp")] = "",
-    cwd: Annotated[str, typer.Option("--project", "--cwd")] = "",
-    by_model: Annotated[bool, typer.Option("--by-model", "-m")] = False,
-    by_project: Annotated[bool, typer.Option("--by-project")] = False,
+    cwd: ProjectOption = "",
+    by_model: Annotated[bool, typer.Option("--by-model", "-m", help="Group usage by model")] = False,
+    by_project: Annotated[bool, typer.Option("--by-project", help="Group prompts and usage by project")] = False,
     as_json: JsonOption = False,
     monthly: Annotated[bool, typer.Option("--monthly", help="Group usage by calendar month in UTC")] = False,
     billing: Annotated[bool, typer.Option("--billing", help="Group usage by configured subscription cycles")] = False,

@@ -59,6 +59,8 @@ class RepositoryStatus:
 # collide with an editor, hook, or agent writing the same repository.
 _STATUS = ("--no-optional-locks", "status", "--porcelain")
 _GIT_ROOT_TIMEOUT_SECONDS = 30
+# Concurrent workers fail fast instead of waiting on a terminal or askpass credential prompt.
+_GIT_ENVIRONMENT = {"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"}
 # Ordered classification of git stderr into stable causes that never echo remote output.
 _GIT_FAILURE_CAUSES = (
     (
@@ -104,7 +106,9 @@ def git_failure(arguments: Sequence[str], result: CommandResult) -> str:
 
 
 def _git(state: State, path: Path, arguments: Sequence[str], deadline: float, *, check: bool = True) -> str:
-    result = state.runner.run(["git", *arguments], cwd=path, timeout=_remaining_timeout(deadline), check=False)
+    result = state.runner.run(
+        ["git", *arguments], cwd=path, env=_GIT_ENVIRONMENT, timeout=_remaining_timeout(deadline), check=False
+    )
     if check and result.returncode:
         raise DotError(git_failure(arguments, result))
     return result.stdout

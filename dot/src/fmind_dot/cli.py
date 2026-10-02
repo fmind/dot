@@ -17,6 +17,7 @@ from fmind_dot import __version__
 from fmind_dot.command_group import AlphabeticalGroup, help_group
 from fmind_dot.config import Config, dump_config, load_config
 from fmind_dot.errors import DotError
+from fmind_dot.private_files import write_atomic_file
 from fmind_dot.state import State, state_from
 
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -83,12 +84,13 @@ def config_init(
         path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
     except OSError as error:
         raise DotError(f"failed to create config directory: {error}") from error
-    mode = "w" if force else "x"
+    if not force and (path.is_symlink() or path.exists()):
+        raise DotError(f"config file already exists at {path} (use --force to overwrite)")
     try:
-        with path.open(mode, encoding="utf-8") as stream:
-            stream.write(dump_config(Config()))
-    except FileExistsError as error:
-        raise DotError(f"config file already exists at {path} (use --force to overwrite)") from error
+        # Write through a symlinked path; atomic replacement never leaves a truncated file.
+        target = path.resolve()
+        mode = target.stat().st_mode & 0o777 if target.exists() else 0o600
+        write_atomic_file(target, dump_config(Config()).encode("utf-8"), mode=mode)
     except OSError as error:
         raise DotError(f"failed to write config file: {error}") from error
     typer.echo(f"✓ Wrote default configuration to {path}")

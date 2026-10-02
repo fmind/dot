@@ -183,7 +183,8 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         cache_ready = True
     if cache_ready:
         for tool, filename, args in (
-            ("atuin", "atuin-init.fish", ["init", "fish"]),
+            # This setup does not use Atuin AI; omit its "?" key binding.
+            ("atuin", "atuin-init.fish", ["init", "fish", "--disable-ai"]),
             ("carapace", "carapace-init.fish", ["_carapace", "fish"]),
         ):
             try:

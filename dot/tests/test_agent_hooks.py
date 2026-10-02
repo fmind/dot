@@ -182,3 +182,17 @@ def test_retired_capture_hooks_are_usage_errors(
     result = CliRunner().invoke(app, ["agent", "hook", *command], input="{}")
     assert result.exit_code == 2
     assert not (tmp_path / ".agents").exists()
+
+
+def test_deeply_nested_hook_payload_exits_zero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(agent_module, "send_notification", _fail)
+
+    # About a million levels exceed the interpreter stack while decoding.
+    result = CliRunner().invoke(
+        app, ["agent", "hook", "notify", "claude", "stop"], input="[" * 1_000_000 + "]" * 1_000_000
+    )
+
+    assert result.exit_code == 0
+    assert result.exception is None
+    assert result.stderr.startswith("agent hook notify failed:")

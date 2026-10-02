@@ -240,3 +240,65 @@ def test_missing_rates_and_non_finite_estimates_remain_unpriced() -> None:
     usage = record()
     usage.harness = "future"
     assert api_equivalent(usage, pricing)[0] is None
+
+
+def test_claude_one_hour_cache_writes_use_their_own_rate() -> None:
+    usage = UsageRecord(
+        harness="claude",
+        session_id="one",
+        model="claude-opus-5-5",
+        measurement_kind="provider-reported",
+        cache_write_tokens=1_000_000,
+        cache_write_1h_tokens=400_000,
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+    pricing = default_pricing()
+
+    # 600k 5-minute writes at $5 plus 400k 1-hour writes at $8 (2x the $4 base input).
+    assert api_equivalent(usage, pricing) == (pytest.approx(3.0 + 3.2), "")
+    pricing.models["claude-opus-5-5"].cache_write_1h = None
+    assert api_equivalent(usage, pricing) == (None, "missing token rate")
+    usage.cache_write_1h_tokens = 1_000_001
+    assert api_equivalent(usage, default_pricing()) == (None, "unsupported cache accounting")
+
+
+def test_one_hour_cache_writes_never_exceed_cache_writes() -> None:
+    usage = UsageRecord(harness="claude", session_id="one", cache_write_tokens=1, cache_write_1h_tokens=2)
+    with pytest.raises(ValueError, match="cache_write_1h_tokens"):
+        usage.finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+
+
+def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
+    usage = UsageRecord(
+        harness="codex",
+        session_id="one",
+        model="gpt-6.1-sol",
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+        cached_tokens=200_000,
+        cache_write_tokens=100_000,
+        output_tokens=100_000,
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+
+    # 700k uncached at $2, 200k reads at $0.10, 100k writes at $2.50, 100k output at $10.
+    assert api_equivalent(usage, default_pricing()) == (pytest.approx(1.4 + 0.02 + 0.25 + 1.0), "")
+    usage.cache_write_tokens = 900_000
+    assert api_equivalent(usage, default_pricing()) == (None, "unsupported Codex cache accounting")
+
+
+@pytest.mark.parametrize(
+    ("harness", "model"), [("codex", "gpt-6.1-sol"), ("claude", "claude-sonnet-5-5"), ("grok", "grok-4.6")]
+)
+def test_rate_card_prices_current_models(harness: str, model: str) -> None:
+    usage = UsageRecord(
+        harness=harness,
+        session_id="one",
+        model=model,
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+
+    cost, reason = api_equivalent(usage, default_pricing())
+
+    assert reason == ""
+    assert cost == pytest.approx({"gpt-6.1-sol": 12, "claude-sonnet-5-5": 12, "grok-4.6": 8}[model])

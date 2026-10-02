@@ -54,7 +54,7 @@ def notification_title(runner: Runner, getenv: Callable[[str], str | None] = os.
         if result.returncode or result.stdout_truncated:
             return ""
         panes = json.loads(result.stdout)
-    except DotError, OSError, ValueError:
+    except DotError, OSError, ValueError, RecursionError:
         return ""
     if not isinstance(panes, list):
         return ""
@@ -183,6 +183,9 @@ def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
         decoded = json.loads(payload)
     except json.JSONDecodeError as error:
         raise DotError(f"failed to parse agent hook input: {error}") from error
+    except RecursionError:
+        # Hooks must exit 0: deep nesting is malformed input, never an uncaught crash.
+        raise DotError("failed to parse agent hook input: JSON is nested too deeply") from None
     if not isinstance(decoded, dict):
         raise DotError("failed to parse agent hook input: expected a JSON object")
     for field in ("stop_hook_active", "stopHookActive", "fullyIdle"):

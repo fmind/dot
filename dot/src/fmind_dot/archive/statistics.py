@@ -14,15 +14,18 @@ from fmind_dot.archive.store import read_session_bundle
 def session_statistics(query: SessionQuery) -> dict[str, Any]:
     """Count archived sessions from manifests without decoding transcripts."""
     summaries = query_session_summaries(query)
+    # Subagent transcripts (sidechains) are archived on their own but belong to a parent session.
+    sessions = [item for item in summaries if not item.sidechain]
     return {
         "schema": "dot.agent.sessions.stats/v2",
         "time_basis": "latest ingestion timestamp",
-        "sessions": len(summaries),
+        "sessions": len(sessions),
+        "sidechain_sessions": len(summaries) - len(sessions),
         "archive_bytes": sum(item.path.stat().st_size for item in summaries),
         "conversation_records": sum(item.record_count for item in summaries),
         "malformed_records": sum(item.malformed_records for item in summaries),
         "ignored_records": sum(item.skipped_records for item in summaries),
-        "agents": dict(sorted(Counter(item.agent for item in summaries).items())),
+        "agents": dict(sorted(Counter(item.agent for item in sessions).items())),
         "statuses": dict(sorted(Counter(status for item in summaries for status in item.status).items())),
         "content_validated": False,
     }
@@ -34,9 +37,13 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
     # therefore apply to record timestamps, never to archive ingestion time.
     summaries = query_session_summaries(SessionQuery(agent=query.agent, cwd=query.cwd, identity=query.identity))
     groups: dict[tuple[str, str], dict[str, Any]] = {}
-    excluded = 0
+    excluded = sidechains = 0
     invalid_timestamps = 0
     for summary in summaries:
+        if summary.sidechain:
+            # A subagent's user messages are its parent's delegation and tool results, not owner prompts.
+            sidechains += 1
+            continue
         if "invalid" in summary.status:
             excluded += 1
             continue
@@ -108,6 +115,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         and not (invalid_timestamps and (query.since or query.until))
         and not any(row["partial_sessions"] for row in rows),
         "excluded_sessions": excluded,
+        "sidechain_sessions": sidechains,
         "invalid_timestamps": invalid_timestamps,
         "prompts": sum(row["prompts"] for row in rows),
         "rows": rows,

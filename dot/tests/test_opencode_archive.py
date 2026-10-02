@@ -111,3 +111,13 @@ def test_opencode_sync_catches_wal_updates_and_keeps_user_summary_metadata(tmp_p
         assert sync_sessions(state, agent="opencode").ingested == 1
     _, logs = read_session_bundle(session_bundle_path("opencode", "ses_test"))
     assert [log.content for log in logs if log.role == "user"] == ["owner request", "next request"]
+
+
+def test_opencode_deeply_nested_part_is_rejected_without_a_crash(tmp_path) -> None:
+    path = tmp_path / "opencode.db"
+    database(path)
+    with closing(sqlite3.connect(path)) as db, db:
+        # About a million levels exceed the interpreter stack while decoding.
+        db.execute("UPDATE part SET data = ? WHERE id = '0'", ("[" * 1_000_000 + "]" * 1_000_000,))
+    with pytest.raises(ValueError, match="OpenCode part"):
+        parse_opencode_session(path, "ses_test")

@@ -273,6 +273,7 @@ def test_aggregate_usage_filters_and_sums_every_metric() -> None:
             "output_tokens": 2,
             "cached_tokens": 3,
             "cache_write_tokens": 4,
+            "cache_write_1h_tokens": 0,
             "reasoning_tokens": 5,
             "total_tokens": 15,
             "cost_usd": 0.25,
@@ -551,3 +552,38 @@ def test_usage_ignores_unknown_session_fields_but_preserves_unknown_cost() -> No
     assert loaded.to_dict() == value
     assert loaded.to_dict()["cost_usd"] is None
     assert loaded.to_dict()["cost_known"] is False
+
+
+def _claude_measurement(session_id: str, cwd: str, model: str, tokens: int, **context: object) -> UsageRecord:
+    return UsageRecord(
+        timestamp="2026-09-06T10:00:00Z",
+        harness="claude",
+        session_id=session_id,
+        cwd=cwd,
+        model=model,
+        measurement_kind="provider-reported",
+        input_tokens=tokens,
+        **context,  # ty: ignore[invalid-argument-type]
+    ).finalize()
+
+
+def test_sidechains_join_their_parent_session_and_project() -> None:
+    # The subagent ran in an isolated worktree and sorts before its parent in the archive.
+    child = _claude_measurement(
+        "agent-1", "/work/worktree", "claude-haiku-4-5", 100, sidechain=True, parent_session_id="parent"
+    )
+    parent = _claude_measurement("parent", "/work/project", "claude-opus-5-5", 1000, cost_usd=0.5, cost_known=True)
+
+    [row] = aggregate_usage([child, parent], cwd="/work/project")
+    by_model = aggregate_usage([child, parent], by_model=True, by_project=True)
+    [orphans] = aggregate_usage([child, replace(child, session_id="agent-2", parent_session_id="")])
+
+    # The subagent's tokens count; its parent's recorded cost already covers it.
+    assert (row.sessions, row.input_tokens, row.measurements, row.cost_usd) == (1, 1100, 2, 0.5)
+    assert row.to_dict()["cost_complete"] is True
+    assert [(item.model, item.cwd, item.sessions, item.input_tokens) for item in by_model] == [
+        ("claude-haiku-4-5", "/work/project", 1, 100),
+        ("claude-opus-5-5", "/work/project", 1, 1000),
+    ]
+    # Without an archived parent, each parent (or unknown-parent sidechain) still counts once.
+    assert (orphans.sessions, orphans.input_tokens, orphans.to_dict()["cost_complete"]) == (2, 200, False)
