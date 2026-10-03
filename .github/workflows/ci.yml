@@ -33,6 +33,9 @@ jobs:
           version: 2026.10.0
       - name: Run canonical gate
         run: mise run all
+      - name: Run starter contracts
+        # `all` skips the network-resolving starters; Linux is the primary platform.
+        run: mise run test:starters
       - name: Verify clean tree
         run: |
           status="$(git status --porcelain)"
