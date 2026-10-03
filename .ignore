@@ -1,0 +1,8 @@
+# Docs: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering
+# Search-only exclusions for ripgrep/fd; Git tracking is unaffected.
+# Generated lockfiles and per-tool dependency graphs.
+*.lock
+aube-lock.yaml
+lazy-lock.json
+dot_config/mise/locks/
+CHANGELOG.md
