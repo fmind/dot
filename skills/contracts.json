@@ -77,7 +77,8 @@
       "trivy"
     ],
     "colab": [
-      "colab"
+      "colab",
+      "dot"
     ],
     "containerize": [
       "cosign",
@@ -118,7 +119,11 @@
     ],
     "dot-release": [
       "dot",
-      "gh"
+      "gh",
+      "git",
+      "git-cliff",
+      "mise",
+      "uv"
     ],
     "dot-skills": [
       "gh",
