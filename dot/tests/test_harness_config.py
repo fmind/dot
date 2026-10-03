@@ -217,7 +217,11 @@ sessions = false
             "teammateDefaultModel": "sonnet",
             "autoDreamEnabled": True,
             "skillListingMaxDescChars": 3000,
-            "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1", "CUSTOM_SETTING": "preserved"},
+            "env": {
+                "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+                "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE": "0",
+                "CUSTOM_SETTING": "preserved",
+            },
             "permissions": {"deny": ["Read(./private)"], "additionalDirectories": ["/synthetic/host-root"]},
             "model": "host-model[1m]",
             "effortLevel": "xhigh",
@@ -228,6 +232,7 @@ sessions = false
         assert {"advisorModel", "teammateDefaultModel", "autoDreamEnabled", "skillListingMaxDescChars"} <= data.keys()
         assert data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] == "1"
         assert data["env"]["CUSTOM_SETTING"] == "preserved"
+        assert data["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
         assert data["permissions"]["deny"][:2] == ["Read(./private)", "Bash(rm -rf /)"]
         assert "Bash(git push --force *main)" in data["permissions"]["deny"]
         assert data["env"]["DISABLE_UPDATES"] == "1"
@@ -246,6 +251,7 @@ sessions = false
         assert data["permissions"]["additionalDirectories"][:4] == ["/synthetic/host-root", *managed_roots]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
+        assert fresh["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
         assert fresh["model"] == "fable"
         # Opus 5.5 ignores the top-level effortLevel, so effort is seeded per model.
         assert "effortLevel" not in fresh
@@ -441,7 +447,7 @@ sessions = false
                 "cliRemoteControlHostname": "fixture-host",
                 "themeMode": "THEME_MODE_DARK",
                 "globalPermissionGrants": {
-                    "allow": ["read_file(/fixture)"],
+                    "allow": ["read_file(/fixture)", "unsandboxed(*)", "unsandboxed(*)"],
                     "ask": ["execute_url(example.com)"],
                     "deny": ["command(rm *)"],
                 },
@@ -459,7 +465,6 @@ sessions = false
             "read_file(*)",
             "write_file(*)",
             "command(*)",
-            "unsandboxed(*)",
             "read_url(*)",
             "execute_url(*)",
             "mcp(*)",

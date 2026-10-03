@@ -12,6 +12,10 @@ extend-exclude = [
 ]
 force-exclude = true
 
+[per-file-target-version]
+# agy runs this renderer with the first python3 on PATH, possibly an older system one.
+"skills/agy/scripts/display.py" = "py39"
+
 [format]
 docstring-code-format = true
 line-ending = "lf"

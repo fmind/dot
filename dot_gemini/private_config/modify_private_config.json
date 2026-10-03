@@ -1,9 +1,12 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/remote-control/
-       Remote Control reads protobuf JSON, not the CLI settings schema. */ -}}
+       Remote Control reads protobuf JSON, not the CLI settings schema; the daemon reads it
+       only at start. autoContinueOnMaxGeneratorInvocations is undocumented (UserSettings
+       field 59 in agy 1.2.16): it skips the "continue?" prompt after the step budget. */ -}}
 {{- $managed := fromJson `
 {
   "userSettings": {
+    "autoContinueOnMaxGeneratorInvocations": "AUTO_CONTINUE_ON_MAX_GENERATOR_INVOCATIONS_ENABLED",
     "autoExecutionPolicy": "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER",
     "artifactReviewMode": "ARTIFACT_REVIEW_MODE_TURBO",
     "permissionPreset": "AGENT_PERMISSION_PRESET_TURBO",
@@ -17,9 +20,12 @@
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
 {{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
 {{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
+{{- /* Remove the obsolete managed wildcard from existing targets too; command(*) already
+       covers execution both inside and outside the sandbox. */ -}}
+{{- $allow = without $allow "unsandboxed(*)" -}}
 {{- /* Full autonomy for remote sessions (developer, 2026-10-01): wildcard grants for every action
        (https://antigravity.google/docs/permissions). Added without replacing host-owned allow/ask/deny
        lists; an explicit ask or deny rule still wins. */ -}}
-{{- $grants := list "read_file(*)" "write_file(*)" "command(*)" "unsandboxed(*)" "read_url(*)" "execute_url(*)" "mcp(*)" -}}
+{{- $grants := list "read_file(*)" "write_file(*)" "command(*)" "read_url(*)" "execute_url(*)" "mcp(*)" -}}
 {{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow $grants | uniq)) -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}

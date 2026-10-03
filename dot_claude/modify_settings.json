@@ -6,6 +6,8 @@
        DISABLE_UPDATES blocks the auto-updater and `claude update`/`claude install`, leaving
        the version to mise, which installs latest; DISABLE_ERROR_REPORTING keeps error reports
        local.
+       CLAUDE_CODE_FORCE_SESSION_PERSISTENCE keeps transcripts and resume entries when
+       a terminal or launcher inherits CLAUDE_CODE_CHILD_SESSION from an earlier session.
        permissions.deny blocks the usual spelling of a few irreversible commands, even in
        bypass mode; it is a guardrail, not a boundary: other spellings still run.
        theme: light-ansi paints the TUI from the terminal's own sixteen slots,
@@ -43,6 +45,7 @@
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
     "BASH_MAX_TIMEOUT_MS": "1800000",
     "CLAUDE_AUTO_BACKGROUND_TASKS": "1",
+    "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE": "1",
     "DISABLE_ERROR_REPORTING": "1",
     "DISABLE_UPDATES": "1"
   },
