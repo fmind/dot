@@ -12,6 +12,10 @@
   "vimInsertFirst": true
 }
 ` -}}
+{{- /* State-only renderers: no transcripts, Git subprocesses, or network calls. */ -}}
+{{- $display := printf "python3 %s/.agents/skills/agy/scripts/display.py" (quote .chezmoi.homeDir) -}}
+{{- $_ := set $managedConfig "statusLine" (dict "type" "command" "command" (printf "%s statusline" $display) "enabled" true) -}}
+{{- $_ := set $managedConfig "title" (dict "type" "command" "command" (printf "%s title" $display) "enabled" true) -}}
 {{- $gcp_project := env "ANTIGRAVITY_CLOUD_PROJECT" -}}
 {{- if $gcp_project -}}
 {{- $_ := set $managedConfig "gcp" (dict "project" $gcp_project "location" (env "ANTIGRAVITY_CLOUD_LOCATION" | default "global")) -}}

@@ -18,28 +18,63 @@ Operate the CLI and Remote Control; use [antigravity-sdk](../antigravity-sdk/GUI
 
 Edit fmind/dot's chezmoi sources, then preview and apply only affected targets with `chezmoi apply --force`. CLI preferences live in `~/.gemini/antigravity-cli/settings.json`; Remote Control uses `~/.gemini/config/config.json` under `userSettings` with a different protobuf JSON schema. Preserve account fields, trust choices, explicit ask/deny grants, and native model state; never patch `antigravity_state.pbtxt`.
 
-The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants allow every action without prompts: `read_file(*)`, `write_file(*)`, `command(*)`, `unsandboxed(*)`, `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. Keep native rendering defaults unless a concrete terminal problem calls for an override. Keep hooks small: synchronous hooks add latency to the agent loop.
+The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants allow every action without prompts: `read_file(*)`, `write_file(*)`, `command(*)`, `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. `autoContinueOnMaxGeneratorInvocations` (undocumented, verified in agy 1.2.16) skips the continue prompt after the step budget. The installed CLI rejects `unsandboxed(*)`, despite older examples on the permissions page; the template removes that obsolete managed wildcard from existing allow lists because `command(*)` already covers command execution. Keep hooks small: synchronous hooks add latency to the agent loop.
 
 ## Managed custom agents
 
-`reviewer` inspects supplied diffs and source files with file-reading/search tools; `security-reviewer` also runs read-only security scanners with sandboxed command execution. Both inherit the session model, support main-agent and subagent use, exclude default tools, and disable MCP inheritance. Shell access still allows writes within the security reviewer's sandbox; its no-fixes instruction is not a read-only filesystem guarantee.
+Shared roles, such as `code-reviewer`, `security-reviewer`, and `solution-architect`, inherit the session model, support main-agent and subagent use, and list file, search, shell, edit, web, and `finish` tools explicitly: an omitted `tools` field grants no shell or edit tools, and without `finish` a `--json-schema` run never returns `structured_output`. An unknown tool name fails the session at startup. Their instructions, not the allowlist, bound actions.
 
-Select with `agy --agent reviewer`, `agy --agent security-reviewer`, or `/agents`. For delegation, give the parent the role, scope, acceptance criteria, and relevant diff or evidence paths; the reviewer has no shell to obtain Git diffs itself. Use `agy agents` to verify discovery after applying `~/.gemini/config/agents/`; reopen the panel or start a fresh session to pick up changes.
+Select with `agy --agent <role>` or `/agents`. For delegation, give the parent the role, scope, acceptance criteria, and relevant diff or evidence paths. Use `agy agents` to verify discovery after applying `~/.gemini/config/agents/`; reopen the panel or start a fresh session to pick up changes.
+
+```bash
+agy --agent code-reviewer -i 'Review the working-tree diff. Report verified findings without editing.'
+```
+
+That selects the main agent. To spawn subagents, ask the default parent explicitly: “Delegate correctness review to code-reviewer and credential/permission review to security-reviewer. Give each the relevant paths and constraints, have both report without editing, then reconcile findings.” Subagents start with fresh context; include requirements and evidence in the assignment. Use `/agents` to inspect them; `Enter` opens details and `K` terminates a selected subagent. To message an existing subagent, type `@` followed by a space and select it from autocomplete; this differs from `@path` file mentions. [Agents panel](https://antigravity.google/docs/cli/commands/agents/) and the [changelog](https://antigravity.google/docs/changelog) own current controls.
 
 Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/agents/`; chezmoi deploys them. Run `mise run agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
+
+## Search, review, and conversation branches
+
+`/codesearch f:hooks.py fullyIdle` searches workspace files directly; it needs no separately configured semantic index. Queries support regex and smart case; `-F` searches literally, `f:<glob>` includes files, and `-f:<glob>` excludes them. Select a match with arrows, press `Enter` to view it or `Ctrl+G` for the external editor, then `C` to comment on a line. Exit with `Esc` and confirm sending to give the agent line-anchored feedback. See [code search](https://antigravity.google/docs/cli/commands/codesearch/).
+
+`/diff` reviews workspace, turn, or commit changes; `Tab` cycles these modes. Open a file with `Enter`, use `N`/`Shift+N` for hunks, and `C` for comments. `/tasks` shows background command logs; `/btw <question>` asks a side question without interrupting the main work. See [diff](https://antigravity.google/docs/cli/commands/diff/) and [CLI reference](https://antigravity.google/docs/cli/reference/).
+
+`/fork` (alias `/branch`) copies the conversation into a new session and switches to it. It does **not** create a Git branch or worktree, and `/resume` returns to another conversation without restoring files. Use it for alternative reasoning; use [git-worktree](../../../git-worktree/SKILL.md) for competing edits, including a snapshot of uncommitted work when needed. Switching the main role in `/agents` also forks an active conversation. `/rewind` has separate recovery controls; inspect the offered operation before restoring anything in a dirty checkout. See [conversations](https://antigravity.google/docs/cli/conversations/).
+
+## Status line and title
+
+The managed CLI settings call [display.py](../../scripts/display.py) with `statusline` or `title`. It runs on Python 3.9 or newer from `PATH`, reads only agy's stdin state JSON, strips incoming terminal controls, and makes no network calls or filesystem reads. The status line uses the terminal's ANSI palette: bold blue project, muted branch (`*` means dirty), activity, full model label (including `Gemini` and `(High)`), execution mode, `context` percentage, task/queued-message/artifact counts, lowest reported remaining quota (`quota min N% left`), and full Vim mode. Context and quota warnings use amber/red plus numeric labels. Optional details drop away on narrow terminals before project/activity text is shortened; missing metrics and zero counts are omitted. `NO_COLOR` or `TERM=dumb` selects plain text. An idle agent with active tasks displays `background`; a pending tool approval displays `needs input`.
+
+The plain title uses `project* — activity · N tasks`, omitting the task count when zero. Neither renderer prints account details, conversation IDs, full paths, or transcript content. `/statusline off` and `/title off` temporarily disable them; applying managed settings enables them again. Follow-up messages queue until the current turn ends by default; agy stores only a non-default `queuedMessages` choice, so it stays host-owned. Native refresh timing and terminal/multiplexer title handling still belong to agy. See [status line](https://antigravity.google/docs/cli/statusline/), [title](https://antigravity.google/docs/cli/title/), and the [queue-setting changelog](https://antigravity.google/docs/changelog).
+
+## Structured headless reviews
+
+Run this from the repository to review, using its existing account and selected model. The [object schema](references/review.schema.json) constrains the report, not tool permissions; the no-edits prompt is an instruction, not filesystem isolation. Use a disposable snapshot for stronger separation from ongoing edits.
+
+```bash
+agy --agent code-reviewer --print-timeout 20m --output-format json \
+  --json-schema ~/.agents/skills/agy/references/agy/references/review.schema.json \
+  -p 'Review the working-tree diff for verified defects. Do not edit files. Return findings, checks actually run, and unresolved gaps.' \
+  > /var/tmp/agy-review.json
+```
+
+Require a zero process exit code **and** an object `structured_output` before consuming it: on a print timeout agy still reports `status: SUCCESS` and exit 0 with partial output, but omits `structured_output`. A full review of a large working tree took about 15 minutes in testing. Keep results local, choose a distinct output file for concurrent runs, and preserve stderr diagnostics. Record `usage` separately from estimated interactive-session statistics; reported tokens do not establish a monetary charge. See [headless mode](https://antigravity.google/docs/cli/headless/).
+
+This checkout provides `mise run review:agy` (`ar` in interactive Fish). It reviews this repository's working-tree diff, prints the complete JSON envelope including usage, and fails on native CLI errors, malformed JSON, unsuccessful status, or absent structured output. It uses the existing account and selected model; run it manually when a review is useful. It is independent of `all`, commit hooks, and mandatory checks. The no-edits instruction remains a behavioral constraint, not filesystem isolation. `dot` needs no new command for this workflow.
 
 ## Headless Remote Control
 
 Use the CLI daemon without installing the desktop app. Read [Remote Control](https://antigravity.google/docs/remote-control/) before changing its persistent OS service. `agy remote-control status` is read-only; `start` registers/restarts and `stop` unregisters it. Restart only when no remote task is running; verify the browser project picker separately.
 
-Keep the repository registry local in `~/.gemini/config/projects/`. The [repository index script](../../scripts/index-repositories.py) requires Python 3.12+ and Git:
+The daemon reads `~/.gemini/config/config.json` only at start: run `agy remote-control start` after applying changes. Keep the registry local in `~/.gemini/config/projects/`; the [project sync script](../../scripts/sync-projects.py) makes it match the Git checkouts in `~/*/*/.git`:
 
 ```bash
-python ~/.agents/skills/agy/scripts/index-repositories.py
-python ~/.agents/skills/agy/scripts/index-repositories.py --prune --apply
+python3 ~/.agents/skills/agy/scripts/sync-projects.py          # preview
+python3 ~/.agents/skills/agy/scripts/sync-projects.py --apply
 ```
 
-Preview first; `--apply` adds missing local GitHub checkouts without network access, and `--prune` also removes entries whose folders are gone or are submodules. It skips hidden/dependency directories (including `modules/`), Git submodules and symlinks, includes the chezmoi source, and accepts explicit roots. New registry files are published atomically without replacing concurrent entries; failed writes leave no partial JSON. Existing metadata is preserved; preview `--prune` before applying it. This registers projects, not semantic code indexes.
+It adds missing checkouts and removes folder entries outside the glob or duplicated (symlinked checkouts resolve to one entry); entries without folders, such as the native default project, stay. Existing names and metadata are preserved, and new entries are written atomically. This registers projects, not semantic code indexes.
 
 ## Shell completions
 
