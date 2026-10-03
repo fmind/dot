@@ -70,6 +70,14 @@
       "skills",
       "uv"
     ],
+    "clipboard": [
+      "python",
+      "pbcopy",
+      "pbpaste",
+      "xclip",
+      "wl-copy",
+      "wl-paste"
+    ],
     "cloud-run": [
       "cosign",
       "docker",
