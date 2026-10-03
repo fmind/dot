@@ -306,7 +306,7 @@ run = "uv run --frozen pytest -q dot/tests/test_python_starter.py"
 [tasks.watch]
 alias = "w"
 description = "Re-run the Python test suite on every change"
-run = "uv run --frozen --directory dot ptw . -q -n auto"
+run = "uv run --frozen --directory dot ptw --now . -q -n auto"
 
 # Project management tasks. Every alias begins with m.
 
