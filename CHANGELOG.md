@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.1.0] - 2026-10-03
+
+### 🚀 Features
+
+- _(theme)_ Pin fmind/theme externals to a checksummed commit
+
+### 🐛 Bug Fixes
+
+- _(skills)_ Pin mise in shipped workflow and mise templates
+
+### ⚙️ Build & CI
+
+- Run starter contracts on Linux
+
 ## [8.0.0] - 2026-10-03
 
 ### 🚀 Features
