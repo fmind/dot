@@ -219,6 +219,9 @@ run = "uv audit --preview-features audit-command --locked"
 
 [tasks."check:vuln:locks"]
 description = "Audit committed npm tool locks, which check:scan skips as unrecognized aube locks"
+# Concurrent Trivy runs share one vulnerability DB; a cold download remaps it under the
+# other reader (SIGBUS in CI). Order after check:scan whenever both are scheduled.
+wait_for = ["check:scan"]
 run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit --locks {{config_root}}/dot_config/mise/locks"
 
 [tasks."check:vuln:tools"]

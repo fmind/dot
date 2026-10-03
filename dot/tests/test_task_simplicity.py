@@ -242,6 +242,13 @@ def test_hooks_split_offline_and_network_checks_without_weakening_the_gate() -> 
     assert checks - outside_gate - network <= pre_commit | {"check:network"}
 
 
+def test_trivy_tasks_never_share_the_vulnerability_db_concurrently() -> None:
+    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
+    # A cold DB download remaps the shared cache under a concurrent reader (SIGBUS).
+    assert "check:scan" in tasks["check:vuln:locks"]["wait_for"]
+    assert "check:scan" not in tasks["check:vuln:locks"].get("depends", [])
+
+
 def test_pre_commit_rejects_a_stale_skill_index_instead_of_regenerating_it() -> None:
     tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
     pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
