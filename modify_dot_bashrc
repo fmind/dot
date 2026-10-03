@@ -22,5 +22,5 @@ fi` -}}
 
 {{ .chezmoi.stdin -}}
 {{ end }}
-{{ $activationBlock -}}
+{{ $activationBlock }}{{ "\n" }}
 {{- end -}}

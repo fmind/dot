@@ -43,6 +43,8 @@ def test_modifier_preserves_target_and_is_repeatable(tmp_path: Path, modifier: s
     assert first.count(sentinel) == 1
     assert first.count(activation) == 1
     assert "Docs:" not in first
+    # Shell installers append with `>>`; a missing newline would merge their line into `fi`.
+    assert first.endswith("fi\n")
     assert render(tmp_path, modifier, first) == first
 
 
