@@ -115,6 +115,7 @@ Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alo
 dot login github          # GitHub
 dot login workspace       # Google Workspace
 dot login gcp             # Google Cloud and ADC
+dot login colab           # ADC with Colab scopes, then verify session access
 dot login google          # Workspace, then GCP + ADC
 ```
 

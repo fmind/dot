@@ -142,6 +142,7 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
         ["login"],
         ["setup"],
         ["login", "google", "--dry-run"],
+        ["login", "colab", "--dry-run"],
         ["login", "github", "--dry-run"],
         ["setup", "github", "--dry-run"],
         ["setup", "workspace", "fixture-project", "--dry-run"],
@@ -331,6 +332,91 @@ def test_gcp_network_failure_does_not_trigger_login(provider: RecordingRunner) -
     result = CliRunner().invoke(app, ["login", "gcp"])
     assert result.exit_code != 0
     assert not provider.actions
+    assert "private" not in str(result.exception)
+
+
+COLAB_LISTING = CommandResult("[colab] No active sessions found on server.\n", "", 0)
+COLAB_LOGIN = [
+    "gcloud",
+    "auth",
+    "application-default",
+    "login",
+    "--scopes=openid,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/colaboratory",
+]
+
+
+@pytest.mark.parametrize(
+    "listing",
+    [COLAB_LISTING, CommandResult("[private] private | Hardware: T4 | Shape: Standard | Variant: GPU\n", "", 0)],
+)
+def test_colab_always_requests_full_grant_and_keeps_session_details_private(
+    provider: RecordingRunner, listing: CommandResult
+) -> None:
+    provider.responses = [listing]
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code == 0, result.exception
+    assert provider.calls == [COLAB_LOGIN, ["colab", "--auth=adc", "sessions"]]
+    assert "private" not in result.output
+
+
+def test_colab_preview_includes_scopes_and_session_check(provider: RecordingRunner) -> None:
+    result = CliRunner().invoke(app, ["login", "colab", "--dry-run"])
+    assert result.exit_code == 0, result.exception
+    assert " ".join(COLAB_LOGIN) in result.stdout
+    assert "colab --auth=adc sessions" in result.stdout
+    assert not provider.calls
+
+
+@pytest.mark.parametrize("missing", ["colab", "gcloud"])
+def test_colab_missing_tool_fails_before_authentication(provider: RecordingRunner, missing: str) -> None:
+    provider.missing.add(missing)
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code != 0
+    assert not provider.calls
+
+
+def test_colab_external_adc_is_not_overwritten(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/private/customer.json")
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code != 0
+    assert not provider.actions
+    assert "GOOGLE_APPLICATION_CREDENTIALS" in str(result.exception)
+    assert "/private" not in str(result.exception)
+
+
+@pytest.mark.parametrize("initial", [CommandResult("", "network private", 1), CommandResult("", "", 0)])
+def test_colab_unknown_postcheck_is_not_success(provider: RecordingRunner, initial: CommandResult) -> None:
+    provider.responses = [initial]
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code != 0
+    assert provider.actions == [COLAB_LOGIN]
+    assert "inspect colab --auth=adc sessions" in str(result.exception)
+    assert "private" not in str(result.exception)
+
+
+def test_colab_failed_login_stops_before_postcheck(provider: RecordingRunner) -> None:
+    provider.action_code = 17
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code != 0
+    assert provider.calls == [COLAB_LOGIN]
+
+
+@pytest.mark.parametrize(
+    "listing",
+    [
+        CommandResult(COLAB_LISTING.stdout, "No valid default credentials found. private", 0),
+        CommandResult("", "google.auth.exceptions.DefaultCredentialsError: private", 1),
+        CommandResult("", "Request had insufficient authentication scopes. private", 1),
+        CommandResult("ACCESS_TOKEN_SCOPE_INSUFFICIENT private", "", 1),
+        CommandResult("", "invalid_grant: private", 1),
+    ],
+)
+def test_colab_failed_postcheck_is_not_success(provider: RecordingRunner, listing: CommandResult) -> None:
+    provider.responses = [listing]
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code != 0
+    assert provider.calls == [COLAB_LOGIN, ["colab", "--auth=adc", "sessions"]]
+    assert "required scopes" in str(result.exception)
     assert "private" not in str(result.exception)
 
 

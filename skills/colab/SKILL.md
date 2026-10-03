@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-03"
 ---
 
 # Google Colab CLI
@@ -15,6 +15,14 @@ metadata:
 Use `colab` to inspect existing sessions or run work on an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns authentication, session hygiene, and the spend boundary.
 
 ## Inspect without allocating
+
+For user ADC, run `dot login colab`: it requests the required scopes and verifies session access afterwards. Authorization runs every time because listing sessions does not prove the full scope grant. Use `--dry-run` to preview. The equivalent native commands are:
+
+```bash
+gcloud auth application-default login \
+  --scopes=openid,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/colaboratory
+colab --auth=adc sessions
+```
 
 For session or account inspection, check `colab version` and installed help, then use `colab sessions` and `colab status` with the existing authentication provider. These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
 
