@@ -14,8 +14,14 @@ from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult
 from fmind_dot.state import State, require_tools, state_from
 from fmind_dot.workstation import DryRun, ForceLogin, execute
 
-login_app = help_group("Authenticate GitHub, Workspace, or Google Cloud")
+login_app = help_group("Authenticate GitHub, Workspace, Google Cloud, or Colab")
 setup_app = help_group("Reconcile provider setup and configured policy")
+_COLAB_ADC_SCOPES = (
+    "openid",
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/colaboratory",
+)
 HostOption = Annotated[
     str | None, typer.Option("--host", envvar="GH_HOST", help="GitHub host; overrides auth.github.host")
 ]
@@ -250,6 +256,50 @@ def login_gcp(state: State, *, force: bool = False, dry_run: bool = False) -> No
         )
 
 
+def colab_ready(state: State) -> bool:
+    result = probe(state, ["colab", "--auth=adc", "sessions"])
+    diagnostic = f"{result.stdout}\n{result.stderr}".lower()
+    # Colab 0.7.4 catches an ADC SystemExit and can report an empty listing
+    # with exit 0. Authentication diagnostics take precedence over that listing.
+    if any(
+        marker in diagnostic
+        for marker in (
+            "no valid default credentials found",
+            "defaultcredentialserror",
+            "invalid_grant",
+            "access_token_scope_insufficient",
+            "insufficient authentication scopes",
+        )
+    ):
+        return False
+    if result.returncode == 0 and result.stdout.strip():
+        return True
+    raise DotError(
+        "Colab session access could not be verified; inspect colab --auth=adc sessions and retry dot login colab"
+    )
+
+
+def login_colab(state: State, *, dry_run: bool = False) -> None:
+    args = ["gcloud", "auth", "application-default", "login", f"--scopes={','.join(_COLAB_ADC_SCOPES)}"]
+    if dry_run:
+        execute(state, args, dry_run=True)
+        execute(state, ["colab", "--auth=adc", "sessions"], dry_run=True)
+        return
+    require_tools(state, [args, ["colab"]])
+    # The session backend can accept a token without the RuntimeService scope.
+    # Always request the full grant instead of using session access to skip login.
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        raise DotError(
+            "external credentials override Colab ADC; repair or unset GOOGLE_APPLICATION_CREDENTIALS before OAuth login"
+        )
+    execute(state, args)
+    if not colab_ready(state):
+        raise DotError(
+            "Colab login did not provide usable ADC with the required scopes; inspect colab --auth=adc sessions and retry"
+        )
+    print("Colab accepts ADC credentials.", file=state.stderr)
+
+
 def workspace_apis(state: State, project: str) -> set[str]:
     enabled = probe_json(
         state, ["gcloud", "services", "list", "--enabled", "--project", project, "--format=json(config.name)"]
@@ -319,6 +369,11 @@ def github(context: typer.Context, host: HostOption = None, force: ForceLogin = 
 @login_app.command("gcp", help="Ensure Google Cloud and ADC both have usable credentials")
 def gcp(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
     login_gcp(state_from(context), force=force, dry_run=dry_run)
+
+
+@login_app.command("colab", help="Authenticate Colab with scoped ADC and verify session access")
+def colab(context: typer.Context, dry_run: DryRun = False) -> None:
+    login_colab(state_from(context), dry_run=dry_run)
 
 
 @login_app.command("google", help="Authenticate Workspace, then Google Cloud and ADC; stop on failure")
