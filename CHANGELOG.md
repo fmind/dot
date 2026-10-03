@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.0.0] - 2026-10-03
+
+### 🚀 Features
+
+- _(cli)_ [**breaking**] Unify JSON envelopes, GitHub host, and short flags
+
+### 🐛 Bug Fixes
+
+- _(chezmoi)_ Refuse to replace host skill directories and end shell blocks with a newline
+
+### 📚 Documentation
+
+- _(skills)_ Give Colab auth and skill registration single owners
+
+### 🧹 Miscellaneous
+
+- Exclude generated locks from ripgrep and fd searches
+- _(mise)_ Run the watched test suite once at startup
+- _(deps)_ Upgrade tools, tool environments, and Neovim plugins
+
 ## [7.13.0] - 2026-10-03
 
 ### 🚀 Features
