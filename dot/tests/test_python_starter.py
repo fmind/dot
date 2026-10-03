@@ -40,7 +40,7 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
         "UV_PYTHON": sys.executable or "python",
         "UV_PYTHON_DOWNLOADS": "never",
     }
-    # The dot repository exports UV_PROJECT; a generated project must resolve itself.
+    # An inherited UV_PROJECT would redirect uv; a generated project must resolve itself.
     environment.pop("UV_PROJECT", None)
     environment.pop("VIRTUAL_ENV", None)
     environment.pop("COVERAGE_FILE", None)

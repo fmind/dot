@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-10-02"
+  updated: "2026-10-03"
 ---
 
 # Develop Dot
@@ -19,9 +19,9 @@ Change the Python CLI while retaining its observable command, archive, and insta
 1. **Find the owner**: inspect `git status --short`, `git diff`, and `git diff --cached`, then follow the source/test map below. Read the current implementation before selecting a change boundary.
 1. **Define the observable change**: preserve command names, aliases, help, JSON output, exit codes, stdout/stderr, and Fish completions unless the task explicitly changes them. Exercise configuration errors through the public CLI; repair commands must remain usable when ordinary config loading fails.
 1. **Implement through existing boundaries**: reuse `State` and `Runner` for configuration, streams, and external commands. Use temporary homes and fake runners in tests so a CLI regression cannot authenticate, publish, prune real data, or modify the workstation.
-1. **Select proof**: run relevant existing tests with `uv run --frozen pytest -q dot/tests/<test_file>.py`; add behavioral cases for changed outcomes and realistic failures. Read [session compatibility](references/session-compatibility.md) before changing parser output, replacement rules, or stored formats.
+1. **Select proof**: run relevant existing tests with `uv run --frozen --project dot pytest -q dot/tests/<test_file>.py`; add behavioral cases for changed outcomes and realistic failures. Read [session compatibility](references/session-compatibility.md) before changing parser output, replacement rules, or stored formats.
 1. **Qualify the candidate**: run affected static checks and reuse the focused test results above. Follow project `AGENTS.md` for the full-gate boundary: shared behavior, dependencies, packaging, or explicit full qualification. Isolate write-formatting checks when unrelated work is present and compare the tested candidate with the intended source before transferring proof or edits.
-1. **Verify the right executable**: use `uv run --frozen dot <command>` for checkout behavior. When installation is in scope, `mise run deploy` builds and selects the installed runtime; verify `dot --version` and the changed installed command separately. `mise run verify` is workstation health, not repository qualification.
+1. **Verify the right executable**: use `uv run --frozen --project dot dot <command>` for checkout behavior. When installation is in scope, `mise run deploy` builds and selects the installed runtime; verify `dot --version` and the changed installed command separately. `mise run verify` is workstation health, not repository qualification.
 
 ## Source and test map
 

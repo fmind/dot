@@ -22,18 +22,17 @@ quiet = true
 dir = "{{config_root}}"
 
 [env]
-COVERAGE_FILE = "{{config_root}}/dot/.coverage"
+# Tasks pass `--project dot` and set COVERAGE_FILE themselves instead of exporting
+# UV_PROJECT here: agent shells snapshot this environment and keep it after leaving
+# the checkout, so uv in another repository would silently resolve the dot project.
 DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
 # Chezmoi traverses the source tree during parallel checks. Python's temporary
 # bytecode files can disappear between its directory listing and lstat calls.
 PYTHONDONTWRITEBYTECODE = "1"
-# uv resolves the dot project from here; tasks that need dot/ as the working
-# directory (pytest rootdir, ty first-party root) pass --directory dot instead.
-UV_PROJECT = "{{config_root}}/dot"
 
 [vars]
 # First-party Python outside skill templates; shared by check:python and format:python.
-python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts"
+python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts skills/clipboard/scripts"
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
@@ -68,7 +67,7 @@ run = ["mise run format", "mise run check", "mise run test", "mise run build"]
 [tasks.build]
 alias = "b"
 description = "Build the dot Python source distribution and wheel"
-run = "uv build --out-dir dot/dist --clear"
+run = "uv build dot --out-dir dot/dist --clear"
 sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/LICENSE", "dot/src/**/*.py", "dot/src/**/*.yaml"]
 outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 
@@ -122,7 +121,7 @@ chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destinati
 [tasks."check:docs"]
 alias = "co"
 description = "Validate documentation against the Python CLI and repository paths"
-run = "uv run --frozen pytest -q dot/tests/test_contracts.py -k documentation"
+run = "uv run --frozen --project dot pytest -q dot/tests/test_contracts.py -k documentation"
 
 [tasks."check:format"]
 alias = "cf"
@@ -135,7 +134,7 @@ run = """
 for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish; do
   fish --no-config --no-execute "$file"
 done
-uv run --frozen pytest -q dot/tests/test_fish.py
+uv run --frozen --project dot pytest -q dot/tests/test_fish.py
 """
 
 [tasks."check:leaks"]
@@ -170,11 +169,11 @@ run = "stylua --check dot_config/nvim"
 alias = "cp"
 description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
-  "uv run --frozen ruff check {{vars.python_sources}}",
-  "uv run --frozen ruff format --check {{vars.python_sources}}",
-  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/deleguate-tasks/scripts",
-  "uv run --frozen validate-pyproject dot/pyproject.toml",
-  "uv lock --check",
+  "uv run --frozen --project dot ruff check {{vars.python_sources}}",
+  "uv run --frozen --project dot ruff format --check {{vars.python_sources}}",
+  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/deleguate-tasks/scripts ../skills/clipboard/scripts",
+  "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
+  "uv lock --check --project dot",
 ]
 
 [tasks."check:scan"]
@@ -204,7 +203,7 @@ alias = "ck"
 description = "Validate first-party Agent Skill packages"
 run = [
   "gh skill publish --dry-run skills",
-  "uv run --frozen pytest -q dot/tests/test_contracts.py -k skills",
+  "uv run --frozen --project dot pytest -q dot/tests/test_contracts.py -k skills",
 ]
 
 [tasks."check:tools"]
@@ -215,7 +214,7 @@ run = "mise tasks validate"
 [tasks."check:vuln"]
 alias = "cv"
 description = "Audit the locked Python dependency graph"
-run = "uv audit --preview-features audit-command --locked"
+run = "uv audit --project dot --preview-features audit-command --locked"
 
 [tasks."check:vuln:locks"]
 description = "Audit committed npm tool locks, which check:scan skips as unrecognized aube locks"
@@ -234,7 +233,8 @@ run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --rep
 
 [tasks."report:coverage"]
 description = "Show per-file coverage from the last test run without rerunning tests"
-run = "uv run --frozen coverage report --rcfile=dot/pyproject.toml"
+env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
+run = "uv run --frozen --project dot coverage report --rcfile=dot/pyproject.toml"
 
 [tasks.format]
 alias = "f"
@@ -273,11 +273,11 @@ run = [
 
 [tasks."format:python:fix"]
 description = "Apply safe lint fixes to the given Python files (pre-commit passes staged files)"
-run = "uv run --frozen ruff check --fix-only --force-exclude"
+run = "uv run --frozen --project dot ruff check --fix-only --force-exclude"
 
 [tasks."format:python:style"]
 description = "Format the given Python files (pre-commit passes staged files)"
-run = "uv run --frozen ruff format --force-exclude"
+run = "uv run --frozen --project dot ruff format --force-exclude"
 
 [tasks."format:shell"]
 alias = "fs"
@@ -299,12 +299,13 @@ alias = "t"
 description = "Run the Python CLI and repository contract tests"
 # The archive tests are fsync-latency-bound, not CPU-bound; workers overlap the syncs.
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
-run = "uv run --frozen pytest -q -n auto dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
+env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
+run = "uv run --frozen --project dot pytest -q -n auto dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
 description = "Materialize and execute the Python library, CLI, and web starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
-run = "uv run --frozen pytest -q dot/tests/test_python_starter.py"
+run = "uv run --frozen --project dot pytest -q dot/tests/test_python_starter.py"
 
 [tasks.watch]
 alias = "w"
@@ -330,7 +331,7 @@ run = '"$DOT_BIN" completion'
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"
-run = "uv run --frozen dot completion --check"
+run = "uv run --frozen --project dot dot completion --check"
 
 [tasks.deploy]
 alias = "me"
@@ -362,7 +363,7 @@ run = "mise run tools"
 alias = "mk"
 description = "Refresh Python, repo, home, and Neovim lockfiles"
 run = [
-  "uv lock",
+  "uv lock --project dot",
   "mise lock --yes",
   # Resolve the portable source baseline, without machine-local tool overrides.
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
@@ -407,7 +408,7 @@ run = "mise trust -y mise.toml"
 alias = "mu"
 description = "Upgrade Python dependencies, mise tools, the theme pin, and Neovim plugins"
 run = [
-  "uv lock --upgrade",
+  "uv lock --upgrade --project dot",
   # Refresh version pins before installing the selected releases.
   "mise lock --bump --yes",
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
@@ -432,13 +433,24 @@ description = "Synchronize Neovim plugins headlessly"
 run = "nvim --headless '+Lazy! restore' '+Lazy! clean' '+lua require(\"config.sync-parsers\")' +qa"
 
 [tasks.agents]
-description = "Compile shared reviewer and security-reviewer roles into native chezmoi sources"
-run = "uv run --frozen supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
+description = "Compile shared Supagents roles into native chezmoi sources"
+run = "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tasks."agents:diff"]
 description = "Preview native profile content changes without writing"
-run = "uv run --frozen supagents check --strict --diff --project --source-dir dot_agents/supagents --config supagents.yaml"
+run = "uv run --frozen --project dot supagents check --strict --diff --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tasks."check:agents"]
 description = "Reject warnings and missing, changed, or obsolete native subagent profiles"
-run = "uv run --frozen supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
+run = "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
+
+[tasks."review:agy"]
+description = "Review this checkout with agy; return structured findings and usage (manual)"
+# Keep the native process status as well as checking its result envelope.
+run = """
+set -o pipefail
+agy --agent code-reviewer --print-timeout 20m --output-format json \\
+  --json-schema '{{config_root}}/skills/agy/references/agy/references/review.schema.json' \\
+  -p 'Review the working-tree diff for verified defects. Do not edit files. Return findings, checks actually run, and unresolved gaps.' |
+  jq -e 'if .status == "SUCCESS" and (.structured_output | type) == "object" then . else error("agy review did not complete successfully") end'
+"""

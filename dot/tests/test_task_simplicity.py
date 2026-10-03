@@ -249,6 +249,16 @@ def test_trivy_tasks_never_share_the_vulnerability_db_concurrently() -> None:
     assert "check:scan" not in tasks["check:vuln:locks"].get("depends", [])
 
 
+def test_root_uv_commands_name_the_dot_project() -> None:
+    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
+    # The root config exports no UV_PROJECT, so a bare uv project command finds no pyproject.toml.
+    for name, task in tasks.items():
+        run = task.get("run", [])
+        for command in [run] if isinstance(run, str) else run:
+            for match in re.finditer(r"\buv (?:run|lock|audit|build|sync)\b[^\n]*", command):
+                assert re.search(r"--project dot\b|--directory dot\b|uv build dot\b", match[0]), (name, match[0])
+
+
 def test_pre_commit_rejects_a_stale_skill_index_instead_of_regenerating_it() -> None:
     tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
     pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
