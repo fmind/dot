@@ -402,12 +402,14 @@ run = "mise trust -y mise.toml"
 
 [tasks.upgrade]
 alias = "mu"
-description = "Upgrade Python dependencies, mise tools, and Neovim plugins"
+description = "Upgrade Python dependencies, mise tools, the theme pin, and Neovim plugins"
 run = [
   "uv lock --upgrade",
   # Refresh version pins before installing the selected releases.
   "mise lock --bump --yes",
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
+  # Advance the checksummed fmind/theme pin; several theme files execute.
+  "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
   # Publish the complete bundle before installation; rerun tools after a failed install.
   "mise run tools",
   "dprint config update --yes",
