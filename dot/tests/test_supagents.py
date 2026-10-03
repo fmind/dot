@@ -23,7 +23,7 @@ def test_cross_harness_roles_are_current_and_portable(tmp_path: Path) -> None:
     assert not result.warning_count
     assert len(result.written) == 12
     assert {plan.target_name for plan in result.plans} == {"AGY", "CLAUDE", "CODEX", "COPILOT", "GROK", "OPENCODE"}
-    assert {plan.source.name for plan in result.plans} == {"reviewer", "verifier"}
+    assert {plan.source.name for plan in result.plans} == {"reviewer", "security-reviewer"}
     for plan in result.plans:
         relative = plan.output_path.relative_to(tmp_path)
         assert (ROOT / relative).read_bytes() == plan.output_path.read_bytes(), f"stale profile: {relative}"
