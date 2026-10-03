@@ -23,6 +23,8 @@ jobs:
           persist-credentials: false
       - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
         with:
+          # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
+          version: 2026.10.0
           cache: false
       - name: Validate the tagged revision
         run: mise run all
@@ -50,6 +52,8 @@ jobs:
       - name: Install the project toolchain and pinned image tools
         uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
         with:
+          # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
+          version: 2026.10.0
           cache: false
           tool_versions: |
             cosign 3.1.3

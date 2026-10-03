@@ -1,5 +1,8 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
+# Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
+min_version = "2026.10.0"
+
 [settings.task]
 run_auto_install = false
 # Preserve plan and diagnostic output; MISE_TASK_QUIET=false restores command echoes.
