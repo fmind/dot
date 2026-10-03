@@ -1,6 +1,7 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
-# Follow upstream main; the apply:externals task bypasses the cache with --refresh-externals.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/main/themes" }}
+# Theme files are pinned to one fmind/theme commit with checksums because several execute
+# (Fish, Neovim Lua, ptpython, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/727497c9344a958a91774d256943805fd8e396c0/themes" }}
 
 {{ if or (eq .chezmoi.os "darwin") (eq .chezmoi.os "linux") -}}
 {{ $fonts := ".local/share/fonts" -}}
@@ -27,72 +28,72 @@
 [".config/ghostty/themes/fmind"]
     type = "file"
     url = "{{ $base }}/ghostty/fmind"
-    refreshPeriod = "24h"
+    checksum.sha256 = "23dcf16ddcde1b6023a026518d6963b09861fe2de3e6aed6c35ba4ba2ed93aab"
 
 [".config/zellij/themes/fmind.kdl"]
     type = "file"
     url = "{{ $base }}/zellij/fmind.kdl"
-    refreshPeriod = "24h"
+    checksum.sha256 = "e10fbf1f527ceec42536a912c8aeefc6d2b95e0a5e5b20e6561319a16256ea61"
 
 [".config/fish/conf.d/theme.fish"]
     type = "file"
     url = "{{ $base }}/fish/fmind.fish"
-    refreshPeriod = "24h"
+    checksum.sha256 = "2c9138a0de6e48937e5ba11366617cfbfacd2dde10b4221d78f58f37007c8190"
 
 [".config/k9s/skins/theme.yaml"]
     type = "file"
     url = "{{ $base }}/k9s/fmind.yaml"
-    refreshPeriod = "24h"
+    checksum.sha256 = "0b1a0b316828ec6509ddef75a5e0c56a02265292b04c668befafa838d57c3074"
 
 [".config/nvim/colors/fmind.lua"]
     type = "file"
     url = "{{ $base }}/nvim/colors/fmind.lua"
-    refreshPeriod = "24h"
+    checksum.sha256 = "5be183ec0aac7f934325a255d69e6d9fc86383164e708e201386d2c1a2a1e291"
 
 [".config/nvim/lua/lualine/themes/fmind.lua"]
     type = "file"
     url = "{{ $base }}/lualine/fmind.lua"
-    refreshPeriod = "24h"
+    checksum.sha256 = "e97cad4c1024e89a3e736000d7b9c41977f067a1f660ee67006776371fa1c1c4"
 
 [".config/git/theme.gitconfig"]
     type = "file"
     url = "{{ $base }}/delta/fmind.gitconfig"
-    refreshPeriod = "24h"
+    checksum.sha256 = "6f64d5a9c5ccd59c67ada20229186cc20fc2a60012ee26976dccf57cca298f14"
 
 [".config/fzf/theme.conf"]
     type = "file"
     url = "{{ $base }}/fzf/fmind.conf"
-    refreshPeriod = "24h"
+    checksum.sha256 = "d4557f0c27d97262f67c4467313764afe3d68d5cd260ca0702aa40a33eca2b11"
 
 [".config/opencode/themes/fmind.json"]
     type = "file"
     url = "{{ $base }}/opencode/fmind.json"
-    refreshPeriod = "24h"
+    checksum.sha256 = "ed0a2c7453a401d10e94f78f7cf3c182cf0a2f25ff12af2fe56dffc27faf7906"
 
 [".config/ptpython/theme.py"]
     type = "file"
     url = "{{ $base }}/ptpython/fmind.py"
-    refreshPeriod = "24h"
+    checksum.sha256 = "9969689460b6f3b4235d07060fee046f44aecc4da1438968f2223e0493e31b75"
 
 [".config/atuin/themes/fmind.toml"]
     type = "file"
     url = "{{ $base }}/atuin/fmind.toml"
-    refreshPeriod = "24h"
+    checksum.sha256 = "b457777b196bf3e906d8819ce3043dc60db34e11509b872fc8e6d9378e6b0c50"
 
 [".config/bat/themes/fmind.tmTheme"]
     type = "file"
     url = "{{ $base }}/bat/fmind.tmTheme"
-    refreshPeriod = "24h"
+    checksum.sha256 = "55d5b5806641f0feead7bc1255eaf48d2a4844397deb5863c90d3f684399f0e8"
 
 [".config/lsd/colors.yaml"]
     type = "file"
     url = "{{ $base }}/lsd/fmind.yaml"
-    refreshPeriod = "24h"
+    checksum.sha256 = "67851dd92ea9baec543f9d8a17b1e9981f33cfab61a247912d757249b05bd79d"
 
 [".config/yazi/theme.toml"]
     type = "file"
     url = "{{ $base }}/yazi/fmind.toml"
-    refreshPeriod = "24h"
+    checksum.sha256 = "f6b891ea2327b82a32ab8296fd057ff17f660cd58054d850fd7c103341d420ae"
 
 # Install only the Mono family, keeping terminal icons within character cells.
 {{ if eq .chezmoi.os "darwin" -}}

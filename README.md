@@ -16,10 +16,10 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 ## Prerequisites
 
-| Platform            | Requirements                            | CI coverage                         |
-| ------------------- | --------------------------------------- | ----------------------------------- |
-| Linux x86-64        | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Full repository gate                |
-| macOS Apple Silicon | Xcode Command Line Tools                | Templates, Python and starter tests |
+| Platform            | Requirements                            | CI coverage                            |
+| ------------------- | --------------------------------------- | -------------------------------------- |
+| Linux x86-64        | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Full repository gate and starter tests |
+| macOS Apple Silicon | Xcode Command Line Tools                | Templates, Python and starter tests    |
 
 Other platforms are untested. CI checks templates, code, and builds; it does not run the installer end to end.
 
@@ -89,13 +89,13 @@ Usage reports distinguish token counts and estimated API value from actual costs
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command            | Purpose                                                       |
-| ------------------ | ------------------------------------------------------------- |
-| `mise run diff`    | Preview dotfile changes                                       |
-| `mise run apply`   | Apply files and eligible hooks                                |
-| `mise run full`    | Synchronize files, locked tools, CLI, and completions         |
-| `mise run upgrade` | Upgrade dependencies, tools, and plugins; apply and reinstall |
-| `mise run all`     | Format, check, test, and build the repository                 |
+| Command            | Purpose                                                              |
+| ------------------ | -------------------------------------------------------------------- |
+| `mise run diff`    | Preview dotfile changes                                              |
+| `mise run apply`   | Apply files and eligible hooks                                       |
+| `mise run full`    | Synchronize files, locked tools, CLI, and completions                |
+| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply and reinstall |
+| `mise run all`     | Format, check, test, and build the repository                        |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
@@ -159,13 +159,13 @@ Fork and replace these personal defaults:
 1. **Secrets:** replace the age recipient and remove or re-encrypt credential sources before applying; see [Secret Management](#secret-management).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md), which every harness loads.
 1. **Workspaces:** change `pull.directories` and `trust.github_owners` in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json). Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.
-1. **Theme:** change [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl); theme files currently follow [fmind/theme](https://github.com/fmind/theme) `main`.
+1. **Theme:** change [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl); theme files are pinned to an [fmind/theme](https://github.com/fmind/theme) commit that `mise run upgrade` advances.
 
 ## Uninstall / rollback
 
 There is no complete uninstaller. Record `chezmoi managed` before removing state: `chezmoi purge` removes chezmoi's source, configuration, and state but leaves deployed files. `mise implode --config` removes mise and its tools. Restore your backups and remove remaining deployed files, shell integration blocks, separately installed CLIs, fonts, and agent data as needed.
 
-To roll back, preserve local edits, check out the previous release tag, and run `mise run full`, then `mise run vim` to restore locked Neovim plugins. Applying files alone does not reinstall previous tool or CLI versions. Newer files, application data, migrations, and themes tracking upstream `main` are not rolled back.
+To roll back, preserve local edits, check out the previous release tag, and run `mise run full`, then `mise run vim` to restore locked Neovim plugins. Applying files alone does not reinstall previous tool or CLI versions. Newer files, application data, and migrations are not rolled back.
 
 ## Security
 
