@@ -1,3 +1,7 @@
+---
+description: Build the course strictly and fix a broken internal link.
+---
+
 # Validate a Documentation Build
 
 By the end of this lesson, you can build the course and identify a broken internal link.
@@ -12,10 +16,10 @@ Predict what happens if a page links to a file that does not exist. Then build t
 
 ```bash
 uv sync --locked
-uv run zensical build --clean --strict
+uv run --locked zensical build --clean --strict
 ```
 
-The build should finish without warnings and create `site/index.html`.
+The build should print `No issues found`, exit with status 0, and create `site/index.html`.
 
 ## Practice
 

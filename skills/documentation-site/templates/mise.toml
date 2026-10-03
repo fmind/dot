@@ -10,16 +10,16 @@ run = "uv sync --locked"
 [tasks.format]
 run = "dprint fmt"
 
-[tasks."check:docs"]
-run = "uv run zensical build --clean --strict"
-
-[tasks.check]
-depends = ["check:docs"]
+[tasks."check:format"]
 run = "dprint check"
 
-# Course test tasks must execute the actual labs; a docs build is not a lab test.
-[tasks.build]
-run = "uv run zensical build --clean --strict"
+# Strict builds fail on broken links, anchors, snippets, and plugin warnings; exit status 1 on any issue.
+[tasks."build:docs"]
+run = "uv run --locked zensical build --clean --strict"
 
-[tasks.watch]
-run = "uv run zensical serve"
+[tasks."serve:docs"]
+run = "uv run --locked zensical serve"
+
+[tasks.check]
+# Course repositories also add their lab tests here; a docs build is not a lab test.
+depends = ["check:format", "build:docs"]
