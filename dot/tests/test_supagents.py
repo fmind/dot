@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_cross_harness_roles_are_current_and_portable(tmp_path: Path) -> None:
     """Compile outside HOME and compare every native body and managed output."""
+    roles = {path.stem for path in (ROOT / "dot_agents" / "supagents").glob("*.md")}
     result = build(
         scope="project",
         config=Config.load(ROOT / "supagents.yaml"),
@@ -21,9 +22,9 @@ def test_cross_harness_roles_are_current_and_portable(tmp_path: Path) -> None:
     assert not result.fatal_errors
     assert not result.error_count
     assert not result.warning_count
-    assert len(result.written) == 12
+    assert len(result.written) == 6 * len(roles)
     assert {plan.target_name for plan in result.plans} == {"AGY", "CLAUDE", "CODEX", "COPILOT", "GROK", "OPENCODE"}
-    assert {plan.source.name for plan in result.plans} == {"reviewer", "security-reviewer"}
+    assert {plan.source.name for plan in result.plans} == roles
     for plan in result.plans:
         relative = plan.output_path.relative_to(tmp_path)
         assert (ROOT / relative).read_bytes() == plan.output_path.read_bytes(), f"stale profile: {relative}"
@@ -36,4 +37,8 @@ def test_cross_harness_roles_are_current_and_portable(tmp_path: Path) -> None:
         assert metadata["name"] == plan.source.name
         assert body.strip() == plan.source.body.strip()
         assert "~/.agents/AGENTS.md" in body
-        assert "Do not implement fixes or delegate further work." in body
+        assert "Do not delegate further work." in body
+        if plan.target_name == "AGY":
+            # Antigravity grants no shell or edit tools when `tools` is omitted, and
+            # `--json-schema` runs loop until timeout without `finish`.
+            assert {"run_command", "replace_file_content", "finish"} <= set(metadata["tools"])
