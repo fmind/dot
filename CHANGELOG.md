@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [7.13.0] - 2026-10-03
+
+### 🚀 Features
+
+- _(auth)_ Add `dot login colab` with required ADC scopes and verified session access
+
+### 📚 Documentation
+
+- _(skills)_ Align bf-use with Brain Framework 18
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 18.0.0
+
 ## [7.12.0] - 2026-10-02
 
 ### 🚀 Features
