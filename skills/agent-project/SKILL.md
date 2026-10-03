@@ -27,7 +27,7 @@ Author the shared project instruction and skill layer once, then add only requir
 
 <!-- guides:start -->
 
-- [cross-harness-agents](references/cross-harness-agents.md): Generate reviewer and verifier profiles with Supagents and verify native harness discovery.
+- [cross-harness-agents](references/cross-harness-agents.md): Generate reviewer and security-reviewer profiles with Supagents and verify native harness discovery.
 
 <!-- guides:end -->
 

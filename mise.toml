@@ -432,7 +432,7 @@ description = "Synchronize Neovim plugins headlessly"
 run = "nvim --headless '+Lazy! restore' '+Lazy! clean' '+lua require(\"config.sync-parsers\")' +qa"
 
 [tasks.agents]
-description = "Compile shared reviewer and verifier roles into native chezmoi sources"
+description = "Compile shared reviewer and security-reviewer roles into native chezmoi sources"
 run = "uv run --frozen supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tasks."agents:diff"]
