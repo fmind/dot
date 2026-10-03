@@ -65,7 +65,6 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "hf": ToolConfig(binary="env", args=["_HF_COMPLETE=fish_source", "hf"]),
         "hyperfine": ToolConfig(package="hyperfine"),
         "k3d": ToolConfig(),
-        "kube-linter": ToolConfig(),
         "lazygit": ToolConfig(args=["completion", "fish"]),
         "lefthook": ToolConfig(),
         "lsd": ToolConfig(package="lsd"),
