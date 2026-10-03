@@ -1,18 +1,18 @@
 ---
 name: cross-harness-agents
-description: Generate reviewer and security-reviewer profiles with Supagents and verify native harness discovery.
+description: Generate shared role profiles with Supagents and verify native harness discovery.
 ---
 
 # Cross-harness agents
 
-`fmind/dot` uses [Supagents](https://github.com/fmind/agent-supagents) to compile two shared roles for Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Each source combines a shared body with explicit native settings. The `AGY` target is separate from Gemini CLI's `GEMINI` target.
+`fmind/dot` uses [Supagents](https://github.com/fmind/agent-supagents) to compile shared roles for Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Each source combines a shared body with explicit native settings. The `AGY` target is separate from Gemini CLI's `GEMINI` target.
 
 ## Edit and generate
 
 Work from the chezmoi source repository:
 
 ```bash
-# Edit dot_agents/supagents/reviewer.md or security-reviewer.md.
+# Edit dot_agents/supagents/<role>.md.
 mise run agents:diff
 mise run agents
 mise run check:agents
@@ -23,32 +23,42 @@ chezmoi diff --force ~/.claude/agents ~/.codex/agents ~/.copilot/agents ~/.gemin
 
 ## Roles and invocation
 
-- **reviewer**: inspect supplied changes and surrounding source, rank demonstrated defects, and report evidence and gaps. Supply the diff or its path, relevant files, requirements, and baseline. Some hosts give it no shell, so it cannot obtain Git diffs itself.
-- **security-reviewer**: trace attacker-controlled inputs, run the repository's read-only security scanners, and report verified vulnerabilities with proof boundaries and coverage gaps. It routes through `security-review`, `threat-model`, `ai-security-assessment`, and `skill-security-review`; Claude preloads the first two.
+Each role equips a persona with a skill bundle, keeps lengthy work out of the coordinator's context, or provides an independent second opinion. Implementation that depends on the conversation stays in the coordinator, which loads skills on demand. Every role uses two-part names.
 
-Roles exist to equip a persona with skills and least-privilege tools; repository checks run in the coordinator. Claude's `skills` field preloads skill content at startup; other hosts follow the body's skill paths.
+| Role                 | Purpose                                                              | Claude preloads                          |
+| -------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
+| `code-reviewer`      | Correctness, regressions, and data loss in changes                   | repository-review                        |
+| `security-reviewer`  | Vulnerabilities, secrets, supply chain, agent integrations           | security-review, threat-model            |
+| `solution-architect` | Options, trade-offs, failure modes, and diagrams                     | implementation-plan, threat-model        |
+| `product-designer`   | Journeys, copy, hierarchy, accessibility, responsive states          | product-design-review, product-loop      |
+| `ops-reviewer`       | Rollout, recovery, observability, infrastructure, containers         | production-readiness, observability      |
+| `ai-evaluator`       | Repeated-trial evaluation of prompt, model, and agent changes        | agent-evaluation, prompt-design          |
+| `content-editor`     | Accuracy, clarity, and structure while preserving the author's voice | technical-publishing, repository-docs    |
+| `deep-researcher`    | Dated, cited briefs from primary sources                             | google-developer                         |
+| `code-debugger`      | Reproduction, root cause, fix, and regression test                   | systematic-debugging, repository-history |
+| `content-presenter`  | Fmind-branded slides, diagrams, and terminal demos                   | fmind-visuals, diagrams-as-code          |
+| `course-designer`    | Lessons and executable labs with acceptance criteria                 | course-development, documentation-site   |
+| `project-maintainer` | Upkeep, upgrades, dead code, and documentation consistency           | repository-maintenance, upgrade-tools    |
 
-Both roles explicitly read the shared persona and applicable repository instructions, avoid implementation and further delegation, and inherit model selection where the host supports it. Omitted model fields use the host's default/inheritance behavior. Always pass task context explicitly; discovery does not imply transcript inheritance or automatic delegation.
+Claude's `skills` field injects those skills when a parent delegates to the role, not when `claude --agent <role>` runs it as the main session; every body also names its full bundle by path for the other hosts. Reviewers report first and fix only when the task asks; other roles act on the task directly. All roles read the shared persona and applicable repository instructions, avoid further delegation, and inherit model selection where the host supports it. Always pass task context explicitly; discovery does not imply transcript inheritance or automatic delegation.
 
-| Host        | Personal profile                      | Invoke or inspect                                                           |
-| ----------- | ------------------------------------- | --------------------------------------------------------------------------- |
-| Antigravity | `~/.gemini/config/agents/<role>.md`   | `agy agents`; `agy --agent reviewer`; `/agents`                             |
-| Claude Code | `~/.claude/agents/<role>.md`          | `claude --agent reviewer` or `claude --agent security-reviewer`             |
-| Codex       | `~/.codex/agents/<role>.toml`         | Ask the parent to use `reviewer` or `security-reviewer`                     |
-| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `/agent`; `copilot --agent reviewer`                                        |
-| Grok        | `~/.grok/agents/<role>.md`            | `grok inspect --json`; `/agents`; `grok --agent reviewer`                   |
-| OpenCode    | `~/.config/opencode/agents/<role>.md` | `opencode debug agent reviewer`; invoke `@reviewer` or `@security-reviewer` |
+| Host        | Personal profile                      | Invoke or inspect                                       |
+| ----------- | ------------------------------------- | ------------------------------------------------------- |
+| Antigravity | `~/.gemini/config/agents/<role>.md`   | `agy agents`; `agy --agent <role>`; `/agents`           |
+| Claude Code | `~/.claude/agents/<role>.md`          | `claude --agent <role>`; delegation by name             |
+| Codex       | `~/.codex/agents/<role>.toml`         | Ask the parent to use `<role>`                          |
+| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `/agent`; `copilot --agent <role>`                      |
+| Grok        | `~/.grok/agents/<role>.md`            | `grok inspect --json`; `/agents`; `grok --agent <role>` |
+| OpenCode    | `~/.config/opencode/agents/<role>.md` | `opencode debug agent <role>`; invoke `@<role>`         |
 
 Claude's `claude agents` lists background sessions; Claude Code 2.1.198 removed the `/agents` wizard. Codex's `debug prompt-input` omits custom-role tool schemas, so absence from that dump is not a discovery failure. Parent prompts can request delegation where the host supports custom-agent routing; native invocation syntax and support vary by version.
 
 ## Permission limits
 
-Antigravity, Claude, Copilot, Grok, and OpenCode use native tool allowlists or permissions. The reviewer gets file reading/search capabilities; the security reviewer also gets command execution for scanners. Antigravity disables default components and MCP inheritance, and Grok disables MCP inheritance. Codex uses TOML with a `read-only` reviewer sandbox and a `workspace-write` security-reviewer sandbox, which blocks network by default, so advisory-database scans report coverage gaps there; parent runtime policy can override these defaults.
-
-These profiles do not establish equivalent sandboxes across harnesses. The security reviewer's shell can write even without an edit tool. Shared instructions and no-fixes requests describe behavior; they are not operating-system access control. Validate generation, native discovery, and a bounded runtime task separately, including provider availability and effective permissions.
+Roles act. Antigravity is the exception to host defaults: omitting `tools` leaves only a few read and messaging tools, so each `AGY` block lists file, search, shell, edit, and web tools explicitly, plus `finish`, without which `--json-schema` print runs never return structured output and loop until the timeout. Use only names verified at runtime; Antigravity 1.2 rejects an unknown name such as `command_status` before the session starts, and its `skills` field neither preloads nor filters skills. Other hosts receive no tool allowlist, sandbox, or MCP restriction, so their defaults and the parent session's runtime policy apply (Codex inherits the parent sandbox). Shared instructions bound behavior: work within the assigned scope, preserve unrelated work, and require explicit task authority for destructive actions, commits, pushes, publication, production changes, spending, and contacting others. Instructions are not operating-system access control; for an enforced read-only review, run the host in a read-only mode or add a native restriction to that role's target block. Validate generation, native discovery, and a bounded runtime task separately.
 
 ## Compiler maintenance
 
-The dot development dependency pins [Supagents 1.4.0 from PyPI](https://pypi.org/project/supagents/1.4.0/). `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout. Upstream [compatibility evidence](https://github.com/fmind/agent-supagents/blob/main/docs/compatibility.md) distinguishes generated syntax, native discovery, and runtime permissions.
+The dot development dependency pins [Supagents 1.4.0 from PyPI](https://pypi.org/project/supagents/1.4.0/). `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen --project dot supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout. Upstream [compatibility evidence](https://github.com/fmind/agent-supagents/blob/main/docs/compatibility.md) distinguishes generated syntax, native discovery, and runtime permissions.
 
-To update it, verify the upstream release and PyPI provenance, change the version pin in `dot/pyproject.toml`, then run `uv lock --refresh-package supagents` from the dotfiles root. Run `mise run agents` and the full repository gate on an isolated candidate when unrelated changes are present. Publishing Supagents and adopting its release remain separate delivery steps.
+To update it, verify the upstream release and PyPI provenance, change the version pin in `dot/pyproject.toml`, then run `uv lock --project dot --refresh-package supagents` from the dotfiles root. Run `mise run agents` and the full repository gate on an isolated candidate when unrelated changes are present. Publishing Supagents and adopting its release remain separate delivery steps.
