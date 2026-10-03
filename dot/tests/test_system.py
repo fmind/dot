@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import IO
 
 import pytest
+from typer.testing import CliRunner
 
 from fmind_dot import system
+from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.hooks import Notification, build_notification, notification_command
 from fmind_dot.process import CommandResult, Runner
@@ -187,3 +189,46 @@ def test_doctor_rejects_secret_directories_without_changing_permissions(tmp_path
     assert result["secrets"][0]["status"] == "fail"
     assert result["secrets"][0]["details"] == "not a regular file"
     assert secret.stat().st_mode & 0o777 == mode
+
+
+def _disk(free_gib: float) -> Callable[[object], object]:
+    usage = type("Usage", (), {"free": int(free_gib * 1024**3)})
+    return lambda _path: usage
+
+
+@pytest.mark.parametrize(
+    ("free_gib", "memory_gib", "verdict", "exit_code"),
+    [(30, 4, "PASS", 0), (15, 4, "WARN", 0), (5, 4, "FAIL", 1), (30, 0.5, "FAIL", 1)],
+)
+def test_headroom_prints_one_line_and_fails_below_limits(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, free_gib: float, memory_gib: float, verdict: str, exit_code: int
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.setattr(system.shutil, "disk_usage", _disk(free_gib))
+    monkeypatch.setattr(system, "available_memory_bytes", lambda: int(memory_gib * 1024**3))
+    result = CliRunner().invoke(app, ["doctor", "--headroom"])
+    assert result.exit_code == exit_code, result.output
+    assert len(result.stdout.splitlines()) == 1
+    assert result.stdout.startswith(f"{verdict} · headroom: ")
+    assert ("limits:" in result.stdout) == (verdict != "PASS")
+
+
+def test_headroom_rejects_mutating_or_probing_flags() -> None:
+    result = CliRunner().invoke(app, ["doctor", "--headroom", "--deep"])
+    assert result.exit_code == 2
+
+
+def test_headroom_groups_paths_by_filesystem_and_parses_available_memory(tmp_path: Path) -> None:
+    first, second = tmp_path / "a", tmp_path / "b"
+    first.mkdir()
+    second.mkdir()
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text("MemTotal: 8000000 kB\nMemAvailable: 2097152 kB\n")
+    assert system.available_memory_bytes(meminfo) == 2 * 1024**3
+    assert system.available_memory_bytes(tmp_path / "missing") is None
+    results = system.headroom_results([first, second, first, tmp_path / "absent"], memory=None)
+    disks = [result for result in results if result.name == "disk"]
+    assert len(disks) == 1
+    assert disks[0].path == f"{first}, {second}"

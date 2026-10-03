@@ -60,6 +60,7 @@ Ghostty and Zellij launch Fish; your login shell stays unchanged. Fish attaches 
 ```bash
 dot --help                # Discover commands
 dot doctor                # Check workstation health
+dot doctor --headroom     # One-line disk and memory check before large work
 dot config show           # Inspect effective settings
 dot agent stats           # Review agent usage and prompt statistics
 dot orphan                # List files no longer managed by chezmoi
@@ -89,23 +90,26 @@ Usage reports distinguish token counts and estimated API value from actual costs
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command            | Purpose                                                              |
-| ------------------ | -------------------------------------------------------------------- |
-| `mise run diff`    | Preview dotfile changes                                              |
-| `mise run apply`   | Apply files and eligible hooks                                       |
-| `mise run full`    | Synchronize files, locked tools, CLI, and completions                |
-| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply and reinstall |
-| `mise run all`     | Format, check, test, and build the repository                        |
+| Command               | Purpose                                                                 |
+| --------------------- | ----------------------------------------------------------------------- |
+| `mise run diff`       | Preview dotfile changes                                                 |
+| `mise run apply`      | Apply files and eligible hooks                                          |
+| `mise run full`       | Synchronize files, locked tools, CLI, and completions                   |
+| `mise run upgrade`    | Upgrade dependencies, tools, theme, and plugins; apply and reinstall    |
+| `mise run all`        | Format, check, test, and build the repository                           |
+| `mise run review:agy` | Ask agy for a structured review of the working-tree diff (`ar` in Fish) |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
 ## Agent roles
 
-`reviewer` (general code review) and `security-reviewer` (security review with scanners) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), preview with `mise run agents:diff`, run `mise run agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
+Shared roles (code, security, and ops reviewers; solution architect; product and course designers; AI evaluator; content editor and presenter; deep researcher; code debugger; project maintainer) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), preview with `mise run agents:diff`, run `mise run agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
 
 ## Agent skills
 
 Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alongside independently installed packages. Restart agent sessions after catalog changes. See [skill authoring](skills/skillify/SKILL.md) and [catalog maintenance](.agents/skills/dot-skills/SKILL.md); upgrades from v6.x need the [retired-link cleanup](.agents/skills/dot-skills/references/installed-links.md#retired-links).
+
+Use `/clipboard` to copy the requested deliverable from the preceding exchange, or `/clipboard <selection>` to choose a result. The [clipboard skill](skills/clipboard/SKILL.md) verifies the copied text using native macOS or ChromeOS/Linux tools.
 
 ## Credentials
 

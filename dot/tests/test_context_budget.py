@@ -127,6 +127,11 @@ def test_check_includes_instructions_and_enforces_each_strict_limit(
     plain = runner.invoke(app, arguments)
     assert plain.exit_code == 0
     assert ("OVER BUDGET" not in plain.stdout) == passed
+    text = runner.invoke(app, [*arguments, "--check"])
+    assert text.exit_code == (0 if passed else 1)
+    # A pass is one line for agents; a failure keeps the full table for diagnosis.
+    assert (len(text.stdout.splitlines()) == 1) == passed
+    assert ("OVER BUDGET" in text.stdout) != passed
     checked = runner.invoke(app, [*arguments, "--check", "--json"])
     assert checked.exit_code == (0 if passed else 1)
     report = json.loads(checked.stdout)

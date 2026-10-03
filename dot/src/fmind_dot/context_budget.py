@@ -277,6 +277,11 @@ def _print_report(report: dict[str, Any], *, details: bool) -> None:
         typer.echo("Use --details for source paths, on-demand costs, and coverage.")
 
 
+def _check_summary(report: dict[str, Any]) -> str:
+    scopes = ", ".join(f"{scope} {budget['estimated_tokens']:,}" for scope, budget in report["budgets"].items())
+    return f"PASS · agent context below {CONTEXT_TOKEN_LIMIT:,} estimated tokens ({scopes})"
+
+
 def register(agent_app: typer.Typer) -> None:
     """Expose the report under the existing agent command group."""
 
@@ -310,6 +315,9 @@ def register(agent_app: typer.Typer) -> None:
         report = context_report(project, global_root=global_root, source=source)
         if as_json:
             typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+        elif check and report["passed"] and not details:
+            # Agents run the gate often; a pass needs one line, a failure keeps the full table.
+            typer.echo(_check_summary(report))
         else:
             _print_report(report, details=details)
         if check and not report["passed"]:
