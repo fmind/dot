@@ -850,7 +850,7 @@
       "categories": [
         "repository"
       ],
-      "prompt": "Use fmind/dot to sync agent transcripts and query their SQLite store.",
+      "prompt": "Use fmind/dot to sync agent transcripts and query their archived usage.",
       "expected": [
         "dot-cli"
       ],

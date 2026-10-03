@@ -9,9 +9,9 @@ Thin git hooks that delegate every command to a `mise run` task so hooks and CI 
 
 ## Workflow
 
-1. **Install**: pin `lefthook` via mise alongside the [Python stack](../../python-stack/references/foundation/GUIDE.md).
+1. **Install**: Python projects take `lefthook` from the dev dependency group per the [Python stack](../../python-stack/references/foundation/GUIDE.md); other stacks pin it in mise. Use one channel per repository.
 1. **Configure**: create `lefthook.yml` at the repository root from the template below; the complete Python reference lives in [python-stack](../../python-stack/references/foundation/templates/lefthook.yml).
-1. **Activate**: `lefthook install`, wired into `mise run install`.
+1. **Activate**: `lefthook install` (`uv run lefthook install` for Python), wired into `mise run install`.
 
 ## Template
 

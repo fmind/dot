@@ -12,19 +12,13 @@ metadata:
 
 # Google Colab CLI
 
-Use `colab` to inspect existing sessions or run work on an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns authentication, session hygiene, and the spend boundary.
+Use `colab` to inspect existing sessions or run work on an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns provider selection, session hygiene, and the spend boundary.
 
 ## Inspect without allocating
 
-For user ADC, run `dot login colab`: it requests the required scopes and verifies session access afterwards. Authorization runs every time because listing sessions does not prove the full scope grant. Use `--dry-run` to preview. The equivalent native commands are:
+For user ADC, run `dot login colab`: it requests the fixed Colab scope grant and verifies session access; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics. `--dry-run` previews the native commands.
 
-```bash
-gcloud auth application-default login \
-  --scopes=openid,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/colaboratory
-colab --auth=adc sessions
-```
-
-For session or account inspection, check `colab version` and installed help, then use `colab sessions` and `colab status` with the existing authentication provider. These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
+For session or account inspection, check `colab version` and installed help, then use `colab --auth adc sessions` and `colab --auth adc status` (substitute `oauth2` for an existing OAuth profile; CLI 0.7.4 defaults to OAuth). These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
 
 Use `colab --auth adc usage` for compute-unit rate and balance when ADC is the selected provider; substitute `oauth2` for an existing OAuth profile. This command is available in CLI 0.7.4; check installed help on older versions and report a missing capability instead of allocating a VM. `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
 

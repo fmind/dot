@@ -49,7 +49,7 @@ bash ~/.local/share/chezmoi/install.sh
 
 Enter **your own** Git name, email, and GitHub username when prompted; the defaults are mine. Open a new shell and run `dot doctor` to check the installation.
 
-To resume interrupted setup, rerun the installer. Set `SKIP_GIT_PULL=true` to use an existing checkout without fetching upstream. From an initialized checkout, `mise run full` reapplies files and synchronizes locked tools, `dot`, hooks, and completions.
+To resume interrupted setup, rerun the installer. Set `SKIP_GIT_PULL=true` to use an existing checkout without fetching upstream. From an initialized checkout, `mise run full` reapplies files and synchronizes locked tools, `dot`, and completions.
 
 ### Shell
 
@@ -165,7 +165,7 @@ Fork and replace these personal defaults:
 
 There is no complete uninstaller. Record `chezmoi managed` before removing state: `chezmoi purge` removes chezmoi's source, configuration, and state but leaves deployed files. `mise implode --config` removes mise and its tools. Restore your backups and remove remaining deployed files, shell integration blocks, separately installed CLIs, fonts, and agent data as needed.
 
-To roll back, preserve local edits, check out the previous release tag, and run `mise run full`. Applying files alone does not reinstall previous tool or CLI versions. Newer files, application data, migrations, and themes tracking upstream `main` are not rolled back.
+To roll back, preserve local edits, check out the previous release tag, and run `mise run full`, then `mise run vim` to restore locked Neovim plugins. Applying files alone does not reinstall previous tool or CLI versions. Newer files, application data, migrations, and themes tracking upstream `main` are not rolled back.
 
 ## Security
 
