@@ -156,3 +156,12 @@ def test_dependabot_covers_every_directory_with_pinned_actions() -> None:
 
     assert pinned
     assert pinned == covered
+
+
+def test_linux_ci_runs_starters_after_the_gate() -> None:
+    jobs = _jobs(ROOT / ".github/workflows/ci.yml")
+    (linux,) = (job for job in jobs.values() if job["runs-on"].startswith("ubuntu-"))
+    gate = _index(linux, lambda step: step.get("run") == "mise run all")
+    starters = _index(linux, lambda step: step.get("run") == "mise run test:starters")
+    clean = _index(linux, lambda step: "git status --porcelain" in step.get("run", ""))
+    assert gate < starters < clean
