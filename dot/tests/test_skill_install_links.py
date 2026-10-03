@@ -238,3 +238,19 @@ def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path,
     assert "must be a real directory" in result.stderr
     assert catalog.is_symlink()
     assert (source / "skills/python-stack/SKILL.md").read_text() == "# Fixture\n"
+
+
+@pytest.mark.parametrize("link", [".claude/skills", ".gemini/config/skills", ".grok/skills"])
+def test_existing_host_skill_directory_blocks_forced_apply(
+    installation: tuple[Path, Path, list[str]], link: str
+) -> None:
+    _, home, command = installation
+    owned = home / link / "personal"
+    owned.mkdir(parents=True)
+    (owned / "SKILL.md").write_text("# Personal\n")
+
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+
+    assert result.returncode != 0
+    assert f"~/{link} already exists" in result.stderr
+    assert (owned / "SKILL.md").read_text() == "# Personal\n"

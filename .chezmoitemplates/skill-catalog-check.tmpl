@@ -26,3 +26,10 @@
   {{- end -}}
 {{- end -}}
 {{- end -}}
+{{- /* Host links replace their target under --force; refuse to discard an existing host skill directory. */ -}}
+{{- range $link := list ".claude/skills" ".gemini/config/skills" ".grok/skills" -}}
+{{- $linkInfo := lstat (joinPath $.chezmoi.destDir $link) -}}
+{{- if and $linkInfo (ne $linkInfo.type "symlink") -}}
+  {{- fail (printf "~/%s already exists; move its skills into ~/.agents/skills before applying" $link) -}}
+{{- end -}}
+{{- end -}}
