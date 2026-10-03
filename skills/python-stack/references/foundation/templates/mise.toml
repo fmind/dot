@@ -1,5 +1,8 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
+# Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
+min_version = "2026.10.0"
+
 [settings]
 lockfile = true
 

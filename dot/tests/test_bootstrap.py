@@ -171,19 +171,29 @@ class BootstrapTest(unittest.TestCase):
 
     def test_every_copy_of_the_mise_version_agrees(self) -> None:
         copies = {"install.sh": pinned_mise_version()}
-        for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        # Shipped workflow templates scaffold other repositories with the same tested mise.
+        workflows = [
+            *sorted((ROOT / ".github/workflows").glob("*.yml")),
+            *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
+            ROOT / "skills/cloud-run/templates/deploy.yml",
+        ]
+        for path in workflows:
             workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
             for name, job in workflow["jobs"].items():
-                for step in job["steps"]:
+                for index, step in enumerate(job["steps"]):
                     if step.get("uses", "").startswith("jdx/mise-action@"):
                         # An unpinned action would install the latest mise, not the tested one.
-                        copies[f"{path.name}:{name}"] = str(step.get("with", {}).get("version"))
+                        relative = path.relative_to(ROOT)
+                        copies[f"{relative}:{name}:{index}"] = str(step.get("with", {}).get("version"))
+        for template in ("skills/python-stack/references/foundation/templates", "skills/infra-as-code/templates"):
+            config = tomllib.loads((ROOT / template / "mise.toml").read_text(encoding="utf-8"))
+            copies[f"{template}/mise.toml"] = str(config.get("min_version"))
         readme = re.search(r"requires mise ([0-9.]+[0-9])", (ROOT / "README.md").read_text(encoding="utf-8"))
         assert readme is not None
         copies["README.md"] = readme.group(1)
         copies["mise.toml"] = str(tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8")).get("min_version"))
 
-        assert len(copies) >= 6
+        assert len(copies) >= 14
         assert set(copies.values()) == {pinned_mise_version()}, copies
 
 
