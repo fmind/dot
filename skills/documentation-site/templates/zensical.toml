@@ -1,0 +1,153 @@
+# Docs: https://zensical.org/docs/setup/basics/
+# Starter for new Zensical sites; replace every <placeholder> and delete unused sections.
+# Every key below was validated with `zensical build --clean --strict` on Zensical 0.0.67.
+
+[project]
+site_name = "<Project>"
+# Canonical URL with the hosting prefix and a trailing slash. It is required for
+# instant navigation and previews, the sitemap, social cards, and llms.txt links.
+site_url = "https://<owner>.github.io/<repository>/"
+site_description = "<One sentence for search engines and social cards.>"
+site_author = "<Author>"
+copyright = "Copyright &copy; <year> <Author>"
+repo_url = "https://github.com/<owner>/<repository>"
+repo_name = "<owner>/<repository>"
+# Edit/view buttons; adjust the branch and docs_dir when they differ.
+edit_uri = "edit/main/docs/"
+# Explicit navigation keeps reading order reviewable; a section's index.md is its overview page.
+nav = [
+  { "Home" = "index.md" },
+  # { "Guides" = ["guides/index.md", "guides/install.md"] },
+  # { "Reference" = ["reference/index.md"] },
+]
+extra_css = ["stylesheets/extra.css"]
+# Rebuild the preview when shared content outside docs/ changes.
+watch = ["includes"]
+
+[project.theme]
+# "modern" for new sites; "classic" preserves Material for MkDocs styling and custom CSS.
+variant = "modern"
+language = "en"
+features = [
+  "announce.dismiss",
+  "content.action.copy", # Copy as Markdown; requires the llmstxt plugin below
+  "content.action.edit",
+  "content.action.view",
+  "content.code.annotate",
+  "content.code.copy",
+  "content.code.select",
+  "content.footnote.tooltips",
+  "content.tabs.link",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes", # incompatible with toc.integrate
+  "navigation.instant",
+  "navigation.instant.prefetch",
+  "navigation.instant.progress",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs", # remove for sites with fewer than three top-level sections
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "toc.follow",
+]
+# logo = "assets/logo.svg"
+# favicon = "assets/favicon.png"
+
+[project.theme.font]
+text = "Google Sans"
+code = "Google Sans Code"
+
+[project.theme.icon]
+logo = "lucide/book-open"
+repo = "fontawesome/brands/github"
+
+# Follow the operating system first, then let readers toggle light and dark.
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+# fmind/theme is light-only: extra.css styles the light scheme; dark mode keeps stock slate colors.
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "blue"
+accent = "blue"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/<owner>/<repository>"
+name = "Source repository"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.arithmatex.generic = true
+pymdownx.betterem = {}
+pymdownx.blocks.caption = {}
+pymdownx.caret = {}
+pymdownx.details = {}
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.magiclink = {}
+pymdownx.mark = {}
+pymdownx.smartsymbols = {}
+# Include tested files with --8<--; fail on missing paths; append the glossary to every page.
+pymdownx.snippets.base_path = [".", "includes"]
+pymdownx.snippets.check_paths = true
+pymdownx.snippets.auto_append = ["includes/abbreviations.md"]
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tabbed.combine_header_slug = true
+pymdownx.tasklist.custom_checkbox = true
+pymdownx.tilde = {}
+
+# Native plugins: no extra packages. Search is built in and needs no entry.
+
+# llms.txt index plus Markdown copies for agents; only listed pages get the Copy as Markdown button.
+# "**/*.md" skips root pages, so keep both patterns or curate explicit sections.
+[project.plugins.llmstxt]
+markdown_description = "<What an agent should know before reading these pages.>"
+full_output = "llms-full.txt"
+sections = { "Documentation" = ["*.md", "**/*.md"] }
+
+# Open Graph and Twitter cards generated from page titles and descriptions.
+[project.plugins.social]
+
+[project.plugins.minify]
+minify_html = true
+
+# Keep published URLs working after a page or heading moves.
+# [project.plugins.redirects.redirect_maps]
+# "old.md" = "new.md"
+# "guide.md#old-heading" = "guide.md#new-heading"
+
+# [project.plugins.tags]
+# [project.plugins.blog]
+# [project.plugins.rss]
+# match_path = "blog/posts/.*"

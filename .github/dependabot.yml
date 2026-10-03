@@ -7,6 +7,7 @@ updates:
     directories:
       - /
       - /skills/cloud-run/templates
+      - /skills/documentation-site/templates
       - /skills/github-actions/references/ci-cd/templates
     schedule:
       interval: weekly

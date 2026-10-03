@@ -1,0 +1,16 @@
+/* Docs: https://zensical.org/docs/setup/colors/#custom-colors */
+/* Light-scheme tokens adapted from https://github.com/fmind/theme/blob/727497c9344a958a91774d256943805fd8e396c0/themes/mkdocs/fmind.css */
+/* Requires primary = "custom" and accent = "custom" on the light palette; replace for another brand. */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #174ea6;
+  --md-primary-fg-color--light: #4285f4;
+  --md-primary-fg-color--dark: #174ea6;
+  --md-primary-bg-color: #ffffff;
+  --md-accent-fg-color: #4285f4;
+  --md-accent-fg-color--transparent: rgb(66 133 244 / 10%);
+  --md-default-fg-color: #202124;
+  --md-default-bg-color: #ffffff;
+  --md-code-fg-color: #202124;
+  --md-code-bg-color: #f1f3f4;
+  --md-code-hl-color: #d2e3fc;
+}
