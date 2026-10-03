@@ -442,6 +442,19 @@
       "top_k": 3
     },
     {
+      "id": "docs-site-default",
+      "categories": [
+        "engineering",
+        "documentation"
+      ],
+      "prompt": "Set up a documentation website with an API reference for this Python library and publish it on GitHub Pages.",
+      "expected": [
+        "documentation-site"
+      ],
+      "primary": "documentation-site",
+      "top_k": 3
+    },
+    {
       "id": "tool-agents-cli",
       "categories": [
         "engineering",
@@ -2758,6 +2771,18 @@
       "primary": "model-providers",
       "top_k": 3,
       "guide": "references/openrouter.md"
+    },
+    {
+      "id": "copy-previous-deliverable",
+      "categories": [
+        "clipboard"
+      ],
+      "prompt": "Copy the interesting output I requested in the preceding exchange to my system clipboard on my MacBook or ChromeOS.",
+      "expected": [
+        "clipboard"
+      ],
+      "primary": "clipboard",
+      "top_k": 3
     }
   ],
   "proof_boundary": "The gate validates fixture structure and catalog references only. Host discovery and behavioral routing require separate evaluation."
