@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import stat
 import tempfile
 import tomllib
@@ -42,6 +43,11 @@ _AUTH_FAILURE_MARKERS = (
     "credentials not found",
     "login required",
 )
+# Operating thresholds shared with the persona and the dot-cli disk-space guide.
+_GIB = 1024**3
+_DISK_FAIL_GIB = 10
+_DISK_WARN_GIB = 20
+_MEMORY_FAIL_GIB = 1
 _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "agy": ("--help",),
     "gitleaks": ("version",),
@@ -481,6 +487,58 @@ def _install_results(state: State) -> list[CheckResult]:
     return [CheckResult(name, "pass", "installed Python package matches source", installed_path, "healthy")]
 
 
+def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
+    """MemAvailable counts reclaimable cache; sysconf's free pages would under-report."""
+    try:
+        for line in meminfo.read_text().splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) * 1024
+    except OSError, ValueError, IndexError:
+        return None
+    return None
+
+
+def headroom_results(paths: list[Path] | None = None, *, memory: int | None = None) -> list[CheckResult]:
+    """Check each distinct filesystem behind the workspace, home, and large scratch directories.
+
+    /var/tmp is the documented scratch for large work; /tmp is often a small tmpfs, so it
+    counts only when TMPDIR selects it.
+    """
+    tmpdir = os.environ.get("TMPDIR")
+    candidates = paths or [Path.cwd(), Path.home(), Path("/var/tmp"), *([Path(tmpdir)] if tmpdir else [])]  # noqa: S108
+    devices: dict[int, list[str]] = {}
+    for path in dict.fromkeys(candidate.resolve() for candidate in candidates):
+        if path.is_dir():
+            devices.setdefault(path.stat().st_dev, []).append(str(path))
+    results = []
+    for members in devices.values():
+        free = shutil.disk_usage(members[0]).free / _GIB
+        status = "fail" if free < _DISK_FAIL_GIB else "warn" if free < _DISK_WARN_GIB else "pass"
+        results.append(CheckResult("disk", status, f"{free:.1f} GiB free", ", ".join(members)))
+    available = memory if memory is not None else available_memory_bytes()
+    if available is None:
+        results.append(CheckResult("memory", "warn", "available memory unknown on this platform"))
+    else:
+        status = "fail" if available / _GIB < _MEMORY_FAIL_GIB else "pass"
+        results.append(CheckResult("memory", status, f"{available / _GIB:.1f} GiB available"))
+    return results
+
+
+def _headroom_line(results: list[CheckResult]) -> str:
+    statuses = {result.status for result in results}
+    verdict = "FAIL" if "fail" in statuses else "WARN" if "warn" in statuses else "PASS"
+    parts = [
+        f"{result.name} {result.details}"
+        + (f" ({result.path})" if result.path else "")
+        + ("" if result.status == "pass" else f" [{result.status}]")
+        for result in results
+    ]
+    line = f"{verdict} · headroom: " + "; ".join(parts)
+    if verdict != "PASS":
+        line += f" · limits: disk {_DISK_FAIL_GIB} GiB (warn below {_DISK_WARN_GIB}), memory {_MEMORY_FAIL_GIB} GiB"
+    return line
+
+
 def run_doctor(state: State, *, fix: bool, deep: bool = False) -> dict[str, Any]:
     sections = {
         "env_vars": _environment_results(state),
@@ -534,8 +592,27 @@ def register(app: typer.Typer) -> None:
         json_output: JsonOption = False,
         fix: Annotated[bool, typer.Option("--fix", help="Repair local secret-file permissions")] = False,
         deep: Annotated[bool, typer.Option("--deep", help="Also probe provider authentication")] = False,
+        headroom: Annotated[
+            bool,
+            typer.Option(
+                "--headroom",
+                help="Only check disk and memory headroom before large operations; prints one line",
+            ),
+        ] = False,
     ) -> None:
         state = state_from(context)
+        if headroom:
+            if fix or deep:
+                raise typer.BadParameter("--headroom cannot be combined with --fix or --deep")
+            checks = headroom_results()
+            if json_output:
+                payload = [dict(_check_result_payload(item), group="resources") for item in checks]
+                typer.echo(json.dumps(diagnostic_report("headroom", payload), indent=2), file=state.stdout)
+            else:
+                typer.echo(_headroom_line(checks), file=state.stdout)
+            if any(item.status == "fail" for item in checks):
+                raise typer.Exit(1)
+            return
         results = run_doctor(state, fix=fix, deep=deep)
         if json_output:
             checks = [

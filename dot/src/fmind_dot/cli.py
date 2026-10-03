@@ -14,13 +14,14 @@ from typer import _click
 from typer.completion import completion_init
 
 from fmind_dot import __version__
-from fmind_dot.command_group import AlphabeticalGroup, help_group
+from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, help_group
 from fmind_dot.config import dump_config, load_config, starter_config
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.state import State, state_from
 
-_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+# Plain help (non-TTY) wraps at 80 columns and truncates command summaries; Rich ignores these.
+_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "terminal_width": 160, "max_content_width": 160}
 
 
 # Preserve the shell protocol used by `dot completion` without Typer's duplicate flags.
@@ -33,6 +34,7 @@ app = typer.Typer(
     no_args_is_help=False,
     add_completion=False,
     pretty_exceptions_enable=False,
+    rich_markup_mode=HELP_MARKUP,
     context_settings=_CONTEXT_SETTINGS,
 )
 config_app = help_group("Inspect, scaffold, edit, and validate the dot configuration file")
