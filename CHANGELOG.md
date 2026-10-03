@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.2.0] - 2026-10-03
+
+### 🚀 Features
+
+- _(agents)_ Replace verifier with security-reviewer
+- _(agents)_ Expand shared roles and rename reviewer to code-reviewer
+- _(skills)_ Add clipboard skill
+- _(agy)_ Add structured review, project sync, and status display
+- _(dot)_ Add doctor --headroom and concise agent context checks
+
+### 🐛 Bug Fixes
+
+- _(tasks)_ Target the dot project explicitly in uv tasks
+
+### 📚 Documentation
+
+- _(skills)_ Ship Zensical starter templates for documentation sites
+
+### 🧪 Testing
+
+- _(agy)_ Cover review task, project sync, and status display
+
+### ⚙️ Build & CI
+
+- _(tools)_ Add ffmpeg, harper-ls, and typos; drop kube-linter
+
 ## [8.1.3] - 2026-10-03
 
 ### 📚 Documentation
