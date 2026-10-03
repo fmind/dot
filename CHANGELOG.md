@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.1.1] - 2026-10-03
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Serialize Trivy tasks that share the vulnerability database
+
 ## [8.1.0] - 2026-10-03
 
 ### 🚀 Features
