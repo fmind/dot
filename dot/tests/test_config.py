@@ -44,7 +44,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
 
 def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
     config = Config()
-    expected = {"astro", "aws-sso-util", "cf", "databricks", "k3d", "kube-linter", "stern"}
+    expected = {"astro", "aws-sso-util", "cf", "databricks", "k3d", "stern"}
     assert expected <= set(config.completions.tools)
     assert expected <= set(config.completions.custom_commands)
     assert config.completions.custom_commands["aws-sso-util"].binary == "env"

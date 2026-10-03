@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-03"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -29,7 +29,7 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
 
    ```bash
    kubeconform -strict -summary -kubernetes-version <cluster-version> <file-or-directory>
-   kube-linter lint <file-or-directory>
+   trivy config <file-or-directory>
    kustomize build <kustomization-dir> | kubeconform -strict -summary -kubernetes-version <cluster-version> -
    ```
 
