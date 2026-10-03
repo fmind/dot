@@ -15,7 +15,7 @@ from typer.completion import completion_init
 
 from fmind_dot import __version__
 from fmind_dot.command_group import AlphabeticalGroup, help_group
-from fmind_dot.config import Config, dump_config, load_config
+from fmind_dot.config import dump_config, load_config, starter_config
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.state import State, state_from
@@ -71,7 +71,7 @@ def config_path(context: typer.Context) -> None:
     typer.echo(state_from(context).config_path)
 
 
-@config_app.command("init", help="Write a starter configuration file populated with the built-in defaults")
+@config_app.command("init", help="Write a starter configuration file listing the built-in defaults as comments")
 def config_init(
     context: typer.Context,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite an existing configuration file")] = False,
@@ -90,10 +90,10 @@ def config_init(
         # Write through a symlinked path; atomic replacement never leaves a truncated file.
         target = path.resolve()
         mode = target.stat().st_mode & 0o777 if target.exists() else 0o600
-        write_atomic_file(target, dump_config(Config()).encode("utf-8"), mode=mode)
+        write_atomic_file(target, starter_config().encode("utf-8"), mode=mode)
     except OSError as error:
         raise DotError(f"failed to write config file: {error}") from error
-    typer.echo(f"✓ Wrote default configuration to {path}")
+    typer.echo(f"✓ Wrote starter configuration to {path}")
 
 
 @config_app.command("edit", help="Open the configuration file in $EDITOR (scaffolds it first if missing)")

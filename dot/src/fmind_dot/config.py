@@ -190,7 +190,6 @@ class SecretConfig(StrictModel):
 
 
 class DoctorConfig(StrictModel):
-    github_host: str = "github.com"
     env_vars: EnvVarsConfig = Field(default_factory=EnvVarsConfig)
     tools: list[str] = Field(
         default_factory=lambda: [
@@ -416,3 +415,21 @@ def load_config(path: str | Path | None = None) -> Config:
 
 def dump_config(config: Config) -> str:
     return yaml.safe_dump(config.model_dump(mode="python"), allow_unicode=True, sort_keys=False)
+
+
+def starter_config() -> str:
+    """Return a starter file whose defaults stay commented out.
+
+    Active copies would pin every default list and the pricing card, because configured
+    lists replace defaults; later releases could then never update them.
+    """
+    defaults = Config().model_dump(mode="python")
+    version = defaults.pop("schema_version")
+    reference = yaml.safe_dump(defaults, allow_unicode=True, sort_keys=False)
+    commented = "".join(f"# {line}" if line.strip() else "#\n" for line in reference.splitlines(keepends=True))
+    return (
+        f"schema_version: {version}\n"
+        "# Uncomment only the settings to override: mappings merge with the built-in defaults,\n"
+        "# while a configured list replaces its default list. `dot config show` prints the result.\n"
+        f"{commented}"
+    )

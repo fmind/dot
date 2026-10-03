@@ -77,6 +77,12 @@ NoSyncOption = Annotated[
 # Shared filters keep one documented contract across session and report commands.
 AgentOption = Annotated[str, typer.Option("--agent", "--harness", "-a", help="Filter by agent")]
 ProjectOption = Annotated[str, typer.Option("--project", "--cwd", help="Filter by exact project/CWD")]
+SessionOption = Annotated[str, typer.Option("--session", help="Filter by session identity")]
+SinceOption = Annotated[str, typer.Option("--since", help="Duration (7d, 24h), UTC date, or timestamp")]
+UntilOption = Annotated[str, typer.Option("--until", help="Duration (7d, 24h), UTC date, or timestamp")]
+ExportFormatOption = Annotated[
+    Literal["json", "ndjson"], typer.Option("--format", help="One JSON document or one session per line")
+]
 
 
 def _known_agent(agent: str, param_hint: str = "--agent") -> str:
@@ -99,9 +105,9 @@ def session_list(
     context: typer.Context,
     agent: AgentOption = "",
     cwd: ProjectOption = "",
-    identity: Annotated[str, typer.Option("--session", help="Filter by session identity")] = "",
-    since: Annotated[str, typer.Option("--since", help="Duration (7d, 24h), UTC date, or timestamp")] = "",
-    until: Annotated[str, typer.Option("--until", help="Duration (7d, 24h), UTC date, or timestamp")] = "",
+    identity: SessionOption = "",
+    since: SinceOption = "",
+    until: UntilOption = "",
     limit: Annotated[int, typer.Option("--limit", "-n", min=0, help="Maximum rows to return; 0 returns all")] = 50,
     as_json: JsonOption = False,
     status: Annotated[list[str] | None, typer.Option("--status", help="Filter by session status")] = None,
@@ -146,9 +152,9 @@ def session_show(
     identity: Annotated[str, typer.Argument(help="Session identity")] = "",
     agent: AgentOption = "",
     cwd: ProjectOption = "",
-    session: Annotated[str, typer.Option("--session")] = "",
-    since: Annotated[str, typer.Option("--since")] = "",
-    until: Annotated[str, typer.Option("--until")] = "",
+    session: SessionOption = "",
+    since: SinceOption = "",
+    until: UntilOption = "",
     content: Annotated[bool, typer.Option("--content", help="Include prompt and response content")] = False,
 ) -> None:
     state = state_from(context)
@@ -173,12 +179,14 @@ def session_export(
     context: typer.Context,
     agent: AgentOption = "",
     cwd: ProjectOption = "",
-    session: Annotated[str, typer.Option("--session")] = "",
-    since: Annotated[str, typer.Option("--since")] = "",
-    until: Annotated[str, typer.Option("--until")] = "",
-    format: Annotated[Literal["json", "ndjson"], typer.Option("--format")] = "json",  # noqa: A002 - CLI flag name
-    content: Annotated[bool, typer.Option("--content")] = False,
-    redact_content: Annotated[bool, typer.Option("--redact-content")] = False,
+    session: SessionOption = "",
+    since: SinceOption = "",
+    until: UntilOption = "",
+    format: ExportFormatOption = "json",  # noqa: A002 - CLI flag name
+    content: Annotated[bool, typer.Option("--content", help="Include prompt and response content")] = False,
+    redact_content: Annotated[
+        bool, typer.Option("--redact-content", help="Keep records but replace their content")
+    ] = False,
 ) -> None:
     if content and redact_content:
         raise _click.exceptions.UsageError("choose --content or --redact-content")
@@ -261,7 +269,7 @@ def session_stats(
     agent: AgentOption = "",
     cwd: ProjectOption = "",
     since: Annotated[str, typer.Option("--since", help="Filter latest ingestion timestamps")] = "",
-    until: Annotated[str, typer.Option("--until")] = "",
+    until: UntilOption = "",
     as_json: JsonOption = False,
 ) -> None:
     state = state_from(context)
@@ -273,8 +281,8 @@ def session_stats(
 @hook_app.command("notify", help="Send a desktop notification for a native agent event")
 def hook_notify(
     context: typer.Context,
-    agent: Annotated[str, typer.Argument()],
-    event: Annotated[str, typer.Argument()],
+    agent: Annotated[str, typer.Argument(help="Agent adapter name")],
+    event: Annotated[str, typer.Argument(help="Native hook event name")],
 ) -> None:
     state = state_from(context, require_config=False)
     try:
@@ -324,7 +332,7 @@ def usage_list(
 def usage_show(
     context: typer.Context,
     agent: Annotated[str, typer.Argument(help="Agent adapter name")],
-    session_id: Annotated[str, typer.Argument()],
+    session_id: Annotated[str, typer.Argument(help="Native session identifier")],
     no_sync: NoSyncOption = False,
 ) -> None:
     state = state_from(context)

@@ -11,7 +11,7 @@ description: "Inspect repositories, diagnose workstation health, and manage sess
 | ---------------- | --------------------------------------------------------------------------------------------------------------- |
 | `dot agent`      | Sync, query, and export session archives; check notify hooks and sync health; report activity.                  |
 | `dot cache`      | Inspect configured native caches, or select Docker, Hugging Face, or uv.                                        |
-| `dot login`      | Show providers; authenticate Workspace, GCP, GitHub, or the Workspace-then-GCP `google` sequence.               |
+| `dot login`      | Show providers; authenticate Workspace, GCP, GitHub, Colab ADC, or the Workspace-then-GCP `google` sequence.    |
 | `dot prune`      | Show providers; `dot prune all` cleans configured caches after confirmation (`--dry-run` previews).             |
 | `dot orphan`     | List files chezmoi deployed but no longer manages, with whether each still holds its last write; never deletes. |
 | `dot setup`      | Reconcile GitHub scopes or an explicit Workspace project and OAuth client.                                      |

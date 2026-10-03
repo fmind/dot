@@ -103,7 +103,8 @@ def _display(path: str) -> str:
 def run_orphan(state: State, *, as_json: bool = False) -> list[Orphan]:
     orphans = find_orphans(state)
     if as_json:
-        state.stdout.write(json.dumps([asdict(orphan) for orphan in orphans], indent=2) + "\n")
+        document = {"schema": "dot.orphan/v1", "targets": [asdict(orphan) for orphan in orphans]}
+        state.stdout.write(json.dumps(document, indent=2) + "\n")
         return orphans
     if not orphans:
         state.stdout.write("✓ No orphaned chezmoi targets.\n")

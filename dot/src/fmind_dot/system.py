@@ -364,7 +364,8 @@ def _auth_results(state: State) -> list[CheckResult]:
     results: list[CheckResult] = []
     timeout = state.config.doctor.probe_timeout_seconds
     probes = dict(_AUTH_PROBES)
-    probes["gh"] = (["gh", "auth", "status", "--hostname", state.config.doctor.github_host], False)
+    github_host = os.environ.get("GH_HOST") or state.config.auth.github.host
+    probes["gh"] = (["gh", "auth", "status", "--hostname", github_host], False)
     for label, (command, requires_output) in probes.items():
         path = state.runner.which(command[0])
         if path is None:
@@ -409,7 +410,8 @@ def _auth_results(state: State) -> list[CheckResult]:
 def _docker_results(state: State) -> list[CheckResult]:
     path = state.runner.which("docker")
     if path is None:
-        return [CheckResult("docker", "fail", "not installed")]
+        # A container engine is optional; doctor.tools decides whether its absence fails.
+        return [CheckResult("docker", "skip", "not installed (optional)", condition="skipped")]
     try:
         result = state.runner.run_bounded(
             ["docker", "info"],
@@ -530,7 +532,7 @@ def register(app: typer.Typer) -> None:
     def doctor(
         context: typer.Context,
         json_output: JsonOption = False,
-        fix: Annotated[bool, typer.Option("--fix", "-f", help="Repair local secret-file permissions")] = False,
+        fix: Annotated[bool, typer.Option("--fix", help="Repair local secret-file permissions")] = False,
         deep: Annotated[bool, typer.Option("--deep", help="Also probe provider authentication")] = False,
     ) -> None:
         state = state_from(context)

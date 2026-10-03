@@ -437,13 +437,23 @@ def test_doctor_workspace_auth_inspects_native_status(payload: object, status: s
     assert "private-" not in json.dumps(report)
 
 
-def test_verify_github_auth_uses_configured_host_without_changing_scopes() -> None:
+def test_verify_github_auth_uses_configured_host_without_changing_scopes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GH_HOST", raising=False)
     config = _minimal_verify_config()
-    config.doctor.github_host = "github.example.test"
+    config.auth.github.host = "github.example.test"
     runner = ScriptedRunner({"gh"})
     results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert ["gh", "auth", "status", "--hostname", "github.example.test"] in runner.calls
     assert results["auth"][0]["status"] == "pass"
+
+
+def test_verify_github_auth_prefers_gh_host_like_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GH_HOST", "github.env.test")
+    config = _minimal_verify_config()
+    config.auth.github.host = "github.example.test"
+    runner = ScriptedRunner({"gh"})
+    system.run_doctor(state_with(runner, config), fix=False, deep=True)
+    assert ["gh", "auth", "status", "--hostname", "github.env.test"] in runner.calls
 
 
 @pytest.mark.parametrize(
@@ -994,7 +1004,8 @@ def test_system_command_surface_and_verify_flags() -> None:
         if isinstance(parameter, TyperOption)
         for name in parameter.opts
     }
-    assert {"--json", "-j", "--fix", "-f", "--deep"} <= option_names
+    assert {"--json", "-j", "--fix", "--deep"} <= option_names
+    assert "-f" not in option_names
 
 
 def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path) -> None:
@@ -1180,3 +1191,16 @@ def test_linux_notification_renders_title_as_text_without_actions() -> None:
             assert "@as []" in command
         else:
             assert not any("action" in argument for argument in command)
+
+
+def test_verify_skips_docker_service_when_engine_is_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("JULES_API_KEY", raising=False)
+    config = _minimal_verify_config()
+    config.doctor.tools = []
+
+    results = system.run_doctor(state_with(ScriptedRunner(set()), config), fix=False, deep=False)
+
+    assert results["docker"] == [
+        {"name": "docker", "status": "skip", "condition": "skipped", "details": "not installed (optional)"}
+    ]
+    assert results["passed"] is True

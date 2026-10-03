@@ -15,7 +15,6 @@ from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State, state_from
-from fmind_dot.workstation import DryRun
 
 # Each harness stores trust in a file it also writes itself; preserve unrelated state.
 # Claude, Codex, Grok, and agy key trust on the repository root, so a trusted parent
@@ -252,6 +251,8 @@ def register(app: typer.Typer) -> None:
         target: Annotated[
             str, typer.Argument(help="Folder or repository to trust, or 'all' for the configured workspaces")
         ] = ".",
-        dry_run: DryRun = False,
+        dry_run: Annotated[
+            bool, typer.Option("--dry-run", help="Report trust changes without writing harness files")
+        ] = False,
     ) -> None:
         run_trust(state_from(context), target, dry_run=dry_run)

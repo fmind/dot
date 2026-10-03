@@ -77,7 +77,9 @@ def test_orphans_compare_existing_targets_with_the_last_write(tmp_path: Path) ->
         ("kept.toml", "file", "unchanged"),
         ("skill", "symlink", "unchanged"),
     ]
-    assert json.loads(output.getvalue())[0] == {"path": str(edited), "type": "file", "status": "modified"}
+    document = json.loads(output.getvalue())
+    assert document["schema"] == "dot.orphan/v1"
+    assert document["targets"][0] == {"path": str(edited), "type": "file", "status": "modified"}
     # Informational only: nothing is deleted.
     assert all(path.exists() for path in (kept, edited, full))
 
