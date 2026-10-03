@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.1.3] - 2026-10-03
+
+### 📚 Documentation
+
+- _(skills)_ Align bf-use with Brain Framework 18.1.1
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 18.1.1
+
 ## [8.1.2] - 2026-10-03
 
 ### 📚 Documentation
