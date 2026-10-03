@@ -18,6 +18,7 @@ from typer.testing import CliRunner
 
 import fmind_dot.cli as cli
 from fmind_dot.cli import app
+from fmind_dot.config import Config, load_config
 from fmind_dot.errors import DotError
 from fmind_dot.process import Runner
 
@@ -312,8 +313,15 @@ def test_config_init_round_trips_refuses_clobber_and_supports_force(tmp_path: Pa
 
     initialized = runner.invoke(app, ["--config", str(path), "config", "init"])
     assert initialized.exit_code == 0
-    assert initialized.stdout == f"✓ Wrote default configuration to {path}\n"
-    assert yaml.safe_load(path.read_text(encoding="utf-8"))["pull"]["concurrency"] == 8
+    assert initialized.stdout == f"✓ Wrote starter configuration to {path}\n"
+    starter = path.read_text(encoding="utf-8")
+    # Defaults stay commented so later releases can still change them.
+    assert yaml.safe_load(starter) == {"schema_version": 3}
+    assert "#   concurrency: 8\n" in starter
+    reference = starter.split("\n", 3)[3]
+    uncommented = "\n".join(line.removeprefix("#").removeprefix(" ") for line in reference.splitlines())
+    assert yaml.safe_load(uncommented) | {"schema_version": 3} == Config().model_dump(mode="python")
+    assert load_config(path) == Config()
 
     path.write_text("pull:\n  concurrency: 2\n", encoding="utf-8")
     refused = runner.invoke(app, ["--config", str(path), "config", "init"])
@@ -324,7 +332,7 @@ def test_config_init_round_trips_refuses_clobber_and_supports_force(tmp_path: Pa
 
     forced = runner.invoke(app, ["--config", str(path), "config", "init", "--force"])
     assert forced.exit_code == 0
-    assert yaml.safe_load(path.read_text(encoding="utf-8"))["pull"]["concurrency"] == 8
+    assert path.read_text(encoding="utf-8") == starter
 
 
 def test_config_init_rejects_a_dangling_symlink(tmp_path: Path) -> None:

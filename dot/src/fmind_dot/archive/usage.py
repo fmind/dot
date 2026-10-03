@@ -417,7 +417,7 @@ def aggregate_usage(
                 continue
             if billing and subscription is None:
                 raise ValueError(
-                    f"configure agent.subscriptions.{record.harness} before using --billing, or filter --harness"
+                    f"configure agent.subscriptions.{record.harness} before using --billing, or filter --agent"
                 )
             period_start, period_end = _period(timestamp, day, zone) if monthly or billing else ("", "")
             model = (sample.model or "unknown") if by_model else ""
@@ -493,7 +493,7 @@ def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: 
 
 def show_usage_record(harness: str, session_id: str, *, root: Path | None = None) -> UsageRecord:
     if not harness or not session_id:
-        raise ValueError("usage: dot agent usage show <harness> <session-id>")
+        raise ValueError("usage: dot agent usage show <agent> <session-id>")
     for record in iter_usage_records(root=root):
         if record.harness == harness and record.session_id == session_id:
             return record

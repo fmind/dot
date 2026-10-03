@@ -30,7 +30,7 @@ DryRun = Annotated[
     bool, typer.Option("--dry-run", help="Show possible commands without running probes or making changes")
 ]
 ForceLogin = Annotated[
-    bool, typer.Option("--force", help="Run authentication even when already ready or status is unknown")
+    bool, typer.Option("--force", "-f", help="Run authentication even when already ready or status is unknown")
 ]
 
 
@@ -88,7 +88,9 @@ def register(app: typer.Typer) -> None:
     @app.command("cache", help="Inspect native cache usage; defaults to the configured providers")
     def cache(
         context: typer.Context,
-        provider: Annotated[Literal["all", "docker", "hf", "uv"], typer.Argument()] = "all",
+        provider: Annotated[
+            Literal["all", "docker", "hf", "uv"], typer.Argument(help="Provider to inspect; all uses cache.providers")
+        ] = "all",
         dry_run: DryRun = False,
     ) -> None:
         state = state_from(context)
