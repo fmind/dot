@@ -1,0 +1,5 @@
+# Docs: https://git-scm.com/docs/git-config#_conditional_includes
+# Included by ~/.gitconfig for personal checkouts and the chezmoi source, so public
+# repositories never record a work address configured as the machine default.
+[user]
+    email = {{ get . "git_personal_email" | default "github@fmind.dev" | quote }}
