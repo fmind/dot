@@ -576,8 +576,7 @@ def test_verify_opencode_missing_tool_skips_configuration_probe() -> None:
     assert runner.calls == []
 
 
-def test_verify_probes_path_visible_tools_and_redacts_output(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("JULES_API_KEY", raising=False)
+def test_verify_probes_path_visible_tools_and_redacts_output() -> None:
     config = _minimal_verify_config()
     config.doctor.tools = ["healthy", "broken"]
 
@@ -599,8 +598,7 @@ def test_verify_probes_path_visible_tools_and_redacts_output(monkeypatch: pytest
     assert "stderr-secret" not in encoded
 
 
-def test_verify_requires_nonempty_access_tokens_without_rendering_them(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("JULES_API_KEY", raising=False)
+def test_verify_requires_nonempty_access_tokens_without_rendering_them() -> None:
     config = _minimal_verify_config()
 
     def auth(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
@@ -620,8 +618,7 @@ def test_verify_requires_nonempty_access_tokens_without_rendering_them(monkeypat
     assert "synthetic-secret-token" not in json.dumps(results)
 
 
-def test_verify_fails_closed_when_probe_output_is_truncated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("JULES_API_KEY", raising=False)
+def test_verify_fails_closed_when_probe_output_is_truncated() -> None:
     config = _minimal_verify_config()
     config.doctor.tools = ["noisy"]
 
@@ -648,7 +645,6 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("JULES_API_KEY", "configured")
     monkeypatch.setattr(system.Path, "home", classmethod(lambda _cls: tmp_path))
     config = _minimal_verify_config()
     config.doctor.tools = ["timeout-tool", "error-tool"]
@@ -724,7 +720,6 @@ def test_verify_reports_environment_and_secret_edge_cases(monkeypatch: pytest.Mo
 
 
 def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("JULES_API_KEY", raising=False)
     secret = tmp_path / "key"
     secret.write_text("encrypted", encoding="utf-8")
     secret.chmod(0o644)
@@ -1261,8 +1256,7 @@ def test_linux_notification_renders_title_as_text_without_actions() -> None:
             assert not any("action" in argument for argument in command)
 
 
-def test_verify_skips_docker_service_when_engine_is_absent(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("JULES_API_KEY", raising=False)
+def test_verify_skips_docker_service_when_engine_is_absent() -> None:
     config = _minimal_verify_config()
     config.doctor.tools = []
 

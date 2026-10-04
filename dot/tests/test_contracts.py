@@ -506,25 +506,12 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     assert active == []
     # Removal markers stay only until every workstation has applied them; list each
     # outstanding one here and delete it (and its entry) once it has shipped.
-    retired_agents = {
-        f"{directory}/remove_{role}{suffix}"
-        for role in ("reviewer", "verifier")
-        for directory, suffix in (
-            ("dot_claude/agents", ".md"),
-            ("dot_codex/agents", ".toml"),
-            ("dot_config/opencode/agents", ".md"),
-            ("dot_copilot/agents", ".agent.md"),
-            ("dot_gemini/private_config/agents", ".md"),
-            ("dot_grok/agents", ".md"),
-        )
-    }
     outstanding = {
+        "dot_config/dot/private_secrets/remove_JULES_API_KEY",
         "dot_config/dot/private_secrets/remove_UV_PUBLISH_TOKEN",
         "dot_config/fish/conf.d/remove_secrets.fish",
         "dot_config/nvim/lua/plugins/remove_prose.lua",
         "dot_copilot/hooks/remove_notify.json",
-        "dot_copilot/hooks/remove_session-log.json",
-        *retired_agents,
     }
     markers = {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()}
     assert markers == outstanding
