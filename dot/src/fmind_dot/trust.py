@@ -161,17 +161,26 @@ def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
     }
 
 
+def installed_harnesses(home: Path | None = None) -> list[str]:
+    """Name the harnesses that have state to extend; one that was never started has no state directory."""
+    home = home or Path.home()
+    return [
+        name
+        for name, (path, _) in _harnesses(home).items()
+        if (home / ".claude" if name == "claude" else path.parent).is_dir()
+    ]
+
+
 def trust_folders(folders: list[Path], *, dry_run: bool = False, home: Path | None = None) -> dict[Path, list[str]]:
     """Trust folders in every installed harness, writing each file once; return each folder's changed harnesses."""
     home = home or Path.home()
     selected = {str(folder): folder for folder in folders}
     changed: dict[Path, list[str]] = {folder: [] for folder in selected.values()}
-    for name, (path, edit) in _harnesses(home).items():
-        # A harness that was never started has no state directory to extend.
-        state_directory = home / ".claude" if name == "claude" else path.parent
-        if state_directory.is_dir():
-            for folder in _update(path, edit, list(selected), dry_run=dry_run):
-                changed[selected[folder]].append(name)
+    harnesses = _harnesses(home)
+    for name in installed_harnesses(home):
+        path, edit = harnesses[name]
+        for folder in _update(path, edit, list(selected), dry_run=dry_run):
+            changed[selected[folder]].append(name)
     return changed
 
 
@@ -219,6 +228,10 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
 
 def run_trust(state: State, target: str = ".", *, dry_run: bool = False) -> None:
     folders, skipped = _target_folders(state, target)
+    if not installed_harnesses():
+        # Apply runs this hook before any harness has started; that is not a failure.
+        state.stdout.write("○ No agent harness state found; nothing to trust yet.\n")
+        return
     changes = trust_folders(folders, dry_run=dry_run)
     for folder in folders:
         changed = changes[folder]
