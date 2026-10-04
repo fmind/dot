@@ -3,7 +3,7 @@
 
 # Fail before running tasks on a mise that predates the GITHUB_TOKEN trust fixes and
 # lockfile revision 3; keep equal to install.sh and the workflow pins.
-min_version = "2026.10.0"
+min_version = "2026.10.2"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no

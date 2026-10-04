@@ -25,7 +25,7 @@ jobs:
         with:
           cache: true
           # Match the tested bootstrap baseline and revision-3 lockfile reader.
-          version: 2026.10.0
+          version: 2026.10.2
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Scan full checkout
