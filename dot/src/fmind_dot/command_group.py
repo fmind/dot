@@ -22,6 +22,14 @@ class AlphabeticalGroup(TyperGroup):
     def list_commands(self, ctx: _click.Context) -> list[str]:
         return sorted(super().list_commands(ctx))
 
+    def invoke(self, ctx: _click.Context) -> object:
+        # Typer's main turns a command's KeyboardInterrupt (Ctrl+C, or SIGTERM via cli.main)
+        # into a silent Exit(130); Abort reaches cli.main, which reports the cancellation.
+        try:
+            return super().invoke(ctx)
+        except KeyboardInterrupt as error:
+            raise typer.Abort from error
+
     def shell_complete(self, ctx: _click.Context, incomplete: str) -> list[CompletionItem]:
         # Click cuts command summaries at 45 columns, hiding most of their meaning;
         # the shell fits the complete first line to the terminal instead.

@@ -556,6 +556,25 @@ def test_main_maps_keyboard_interrupt_to_shell_exit_130(
     assert captured.err == "Cancelled.\n"
 
 
+def test_main_reports_keyboard_interrupt_raised_inside_a_command(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    def interrupt(*_args: object, **_kwargs: object) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(cli, "state_from", interrupt)
+    monkeypatch.setattr(sys, "argv", ["dot", "config", "validate"])
+
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 130
+    assert captured.out == ""
+    assert captured.err == "Cancelled.\n"
+
+
 def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail() -> None:
         raise RuntimeError("programmer error")
