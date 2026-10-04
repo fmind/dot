@@ -77,8 +77,11 @@ NoSyncOption = Annotated[
 AgentOption = Annotated[str, typer.Option("--agent", "--harness", "-a", help="Filter by agent")]
 ProjectOption = Annotated[str, typer.Option("--project", "--cwd", help="Filter by exact project/CWD")]
 SessionOption = Annotated[str, typer.Option("--session", help="Filter by session identity")]
-SinceOption = Annotated[str, typer.Option("--since", help="Duration (7d, 24h), UTC date, or timestamp")]
-UntilOption = Annotated[str, typer.Option("--until", help="Duration (7d, 24h), UTC date, or timestamp")]
+# Each date filter names its time basis: ingestion for archive queries, activity for reports.
+_SINCE_VALUES = "duration (7d, 24h), UTC date, or timestamp"
+_UNTIL_VALUES = "duration, UTC date (whole day), or timestamp"
+SinceOption = Annotated[str, typer.Option("--since", help=f"Ingested since {_SINCE_VALUES}")]
+UntilOption = Annotated[str, typer.Option("--until", help=f"Ingested until {_UNTIL_VALUES}")]
 ExportFormatOption = Annotated[
     Literal["json", "ndjson"], typer.Option("--format", help="One JSON document or one session per line")
 ]
@@ -194,9 +197,7 @@ def session_sync(
     agent: Annotated[str, typer.Option("--agent", "--harness", "-a", help="Synchronize one adapter")] = "",
     session: Annotated[str, typer.Option("--session", help="Synchronize one session identity")] = "",
     cwd: Annotated[str, typer.Option("--project", "--cwd", help="Filter by resolved project path")] = "",
-    since: Annotated[
-        str, typer.Option("--since", help="Only sources modified since duration, UTC date, or timestamp")
-    ] = "",
+    since: Annotated[str, typer.Option("--since", help=f"Only sources modified since {_SINCE_VALUES}")] = "",
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Inspect candidates without writing archives or usage")
     ] = False,
@@ -254,7 +255,7 @@ def session_stats(
     context: typer.Context,
     agent: AgentOption = "",
     cwd: ProjectOption = "",
-    since: Annotated[str, typer.Option("--since", help="Filter latest ingestion timestamps")] = "",
+    since: SinceOption = "",
     until: UntilOption = "",
     as_json: JsonOption = False,
 ) -> None:
@@ -333,8 +334,8 @@ def usage_show(
 def agent_stats(
     context: typer.Context,
     agent: AgentOption = "",
-    since: Annotated[str, typer.Option("--since", help="Duration (7d, 24h), UTC date or timestamp")] = "",
-    until: Annotated[str, typer.Option("--until", help="Inclusive UTC date (whole day) or exact timestamp")] = "",
+    since: Annotated[str, typer.Option("--since", help=f"Active since {_SINCE_VALUES}")] = "",
+    until: Annotated[str, typer.Option("--until", help=f"Active until {_UNTIL_VALUES}")] = "",
     cwd: ProjectOption = "",
     by_model: Annotated[bool, typer.Option("--by-model", "-m", help="Group usage by model")] = False,
     by_project: Annotated[bool, typer.Option("--by-project", help="Group prompts and usage by project")] = False,

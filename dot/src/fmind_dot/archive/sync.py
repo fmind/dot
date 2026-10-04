@@ -30,6 +30,7 @@ from fmind_dot.archive.store import (
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file
+from fmind_dot.reporting import write_json
 from fmind_dot.state import State
 
 SYNC_SCHEMA = "dot.agent.session.sync/v2"
@@ -309,7 +310,7 @@ def sync_sessions(
         state.stderr.write(f"agent-session-sync: done ({outcome.failed} failed)\n")
     if as_json:
         document = {"schema": SYNC_SCHEMA, "parser_version": SESSION_PARSER_VERSION, "dry_run": dry_run}
-        state.stdout.write(json.dumps(document | asdict(outcome)) + "\n")
+        write_json(state.stdout, document | asdict(outcome))
     if outcome.failed and not quiet:
         raise DotError(f"session sync recorded {outcome.failed} failure(s); see errors above")
     return outcome

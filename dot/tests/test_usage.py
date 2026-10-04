@@ -459,7 +459,7 @@ def test_parse_flexible_time_supports_durations_days_and_iso_values() -> None:
     assert parse_flexible_time("2026-09-06T14:00:00+02:00", now=now) == now
 
 
-@pytest.mark.parametrize("value", ["", "0d", "1h-no"])
+@pytest.mark.parametrize("value", ["", "0d", "0h", "0m0s", "1h-no"])
 def test_parse_flexible_time_rejects_invalid_values(value: str) -> None:
     with pytest.raises(ValueError, match="use a duration"):
         parse_flexible_time(value, now=datetime(2026, 9, 6, tzinfo=UTC))

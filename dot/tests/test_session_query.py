@@ -84,12 +84,12 @@ def test_query_filters_metadata_and_reports_status(monkeypatch: pytest.MonkeyPat
     assert query_session_summaries(SessionQuery(agent="codex", cwd="/work/other")) == []
 
 
-def test_empty_store_and_inverted_window(tmp_path: Path) -> None:
-    missing = tmp_path / "missing"
-    assert discover_sessions(missing) == []
+def test_empty_store_and_inverted_window(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "missing"))
+    assert discover_sessions() == []
     # The CLI rejects an inverted window once; the library simply selects nothing.
     inverted = SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC))
-    assert query_session_summaries(inverted, root=missing) == []
+    assert query_session_summaries(inverted) == []
 
 
 def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(

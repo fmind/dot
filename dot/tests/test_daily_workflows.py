@@ -320,6 +320,14 @@ def test_release_wait_retries_transient_github_failures(monkeypatch: pytest.Monk
     assert "HTTP 502" not in state.stderr.getvalue()
 
 
+def test_prompt_stats_treat_offsetless_timestamps_as_utc(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("codex", "naive-time", [SessionLog("2026-09-02T10:00:00", "codex", "naive-time", "user", "text")])
+    report = prompt_statistics(SessionQuery(since=datetime(2026, 9, 2, 9, tzinfo=UTC)))
+    assert report["invalid_timestamps"] == 0
+    assert report["prompts"] == 1
+
+
 def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     ingest_session("codex", "missing-time", [SessionLog("", "codex", "missing-time", "user", "text")])
