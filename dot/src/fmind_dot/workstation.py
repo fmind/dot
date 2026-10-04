@@ -89,16 +89,21 @@ def register(app: typer.Typer) -> None:
     def cache(
         context: typer.Context,
         provider: Annotated[
-            Literal["all", "docker", "hf", "uv"], typer.Argument(help="Provider to inspect; all uses cache.providers")
+            Literal["all", "docker", "hf", "uv"],
+            # Plain help would render the choices as "[provider]:<all|...>"; list them in the help.
+            typer.Argument(help="all, docker, hf, or uv; all uses cache.providers", metavar="provider"),
         ] = "all",
         dry_run: DryRun = False,
     ) -> None:
         state = state_from(context)
-        names = state.config.cache.providers if provider == "all" else [provider]
-        commands = [CACHE_COMMANDS[name] for name in dict.fromkeys(names)]
+        names = list(dict.fromkeys(state.config.cache.providers if provider == "all" else [provider]))
+        commands = [CACHE_COMMANDS[name] for name in names]
         if not dry_run:
             require_tools(state, commands)
-        for args in commands:
+        for name, args in zip(names, commands, strict=True):
+            # Native reports such as "No results found." or a bare size do not name their provider.
+            if len(commands) > 1 and not dry_run:
+                print(f"[{name}]", file=state.stdout, flush=True)
             execute(state, args, dry_run=dry_run)
 
     prune_app = help_group("Clean tool caches after confirmation; all excludes Docker by default")

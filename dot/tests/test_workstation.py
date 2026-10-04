@@ -495,6 +495,7 @@ def test_cache_default_inspects_all_and_preserves_native_output(provider: Record
         ["hf", "cache", "ls"],
         ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
     ]
+    assert [line for line in result.output.splitlines() if line.startswith("[")] == ["[docker]", "[hf]", "[uv]"]
 
 
 def test_prune_requires_confirmation_and_default_excludes_docker(provider: RecordingRunner) -> None:
@@ -577,6 +578,7 @@ def test_custom_cache_and_prune_selections_replace_defaults(provider: RecordingR
     runner = CliRunner()
     result = runner.invoke(app, ["--config", str(path), "cache"])
     assert result.exit_code == 0, result.exception
+    assert "[uv]" not in result.output
     result = runner.invoke(app, ["--config", str(path), "prune", "all", "--yes"])
     assert result.exit_code == 0, result.exception
     assert provider.actions == [
