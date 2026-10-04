@@ -1,10 +1,12 @@
 # Docs: https://specifications.freedesktop.org/desktop-entry-spec/latest/
+{{- /* Crostini needs software rendering; native Linux desktops keep Ghostty's GPU path. */}}
+{{- $exec := "ghostty" }}
+{{- if stat "/opt/google/cros-containers" }}{{ $exec = print "env GDK_BACKEND=x11 GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 " $exec }}{{ end }}
 [Desktop Entry]
 Name=Ghostty
 Type=Application
 Comment=A terminal emulator
-# Crostini needs software rendering; native Linux desktops keep Ghostty's GPU path.
-Exec={{ if eq .chezmoi.hostname "penguin" }}env GDK_BACKEND=x11 GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 {{ end }}ghostty
+Exec={{ $exec }}
 Icon=com.mitchellh.ghostty
 Categories=System;TerminalEmulator;
 Keywords=terminal;tty;pty;
@@ -21,4 +23,4 @@ X-TerminalArgHold=--wait-after-command
 
 [Desktop Action new-window]
 Name=New Window
-Exec={{ if eq .chezmoi.hostname "penguin" }}env GDK_BACKEND=x11 GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 {{ end }}ghostty
+Exec={{ $exec }}

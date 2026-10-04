@@ -90,14 +90,14 @@ Usage reports distinguish token counts and estimated API value from actual costs
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command               | Purpose                                                                 |
-| --------------------- | ----------------------------------------------------------------------- |
-| `mise run diff`       | Preview dotfile changes                                                 |
-| `mise run apply`      | Apply files and eligible hooks                                          |
-| `mise run full`       | Synchronize files, locked tools, CLI, and completions                   |
-| `mise run upgrade`    | Upgrade dependencies, tools, theme, and plugins; apply and reinstall    |
-| `mise run all`        | Format, check, test, and build the repository                           |
-| `mise run review:agy` | Ask agy for a structured review of the working-tree diff (`ar` in Fish) |
+| Command               | Purpose                                                              |
+| --------------------- | -------------------------------------------------------------------- |
+| `mise run diff`       | Preview dotfile changes                                              |
+| `mise run apply`      | Apply files and eligible hooks                                       |
+| `mise run full`       | Synchronize files, locked tools, CLI, and completions                |
+| `mise run upgrade`    | Upgrade dependencies, tools, theme, and plugins; apply and reinstall |
+| `mise run all`        | Format, check, test, and build the repository                        |
+| `mise run review:agy` | Ask agy for a structured review of the working-tree diff             |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 

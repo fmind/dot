@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-10-03"
+  updated: "2026-10-04"
 ---
 
 # Set Up Agents on a Project
@@ -33,7 +33,7 @@ Author the shared project instruction and skill layer once, then add only requir
 
 ## Gotchas
 
-- **One rule body**: shared rules live in `AGENTS.md`; `CLAUDE.md` is only the bridge, never a second copy.
+- **One rule body**: shared rules live in `AGENTS.md`; never add a project `CLAUDE.md`, which Claude Code would load instead of `AGENTS.md`.
 - **Smallest override**: project configuration overrides the user's global defaults; add only what the repository needs.
 - **Strict formats**: keep JSON free of comments unless the host documents JSONC, and validate TOML before launching an agent.
 - **Untrusted configuration**: review a repository's hooks, MCP servers, skills, plugins, and custom-agent definitions before enabling them.

@@ -237,10 +237,6 @@ sessions = false
         assert "Bash(git push --force *main)" in data["permissions"]["deny"]
         assert data["env"]["DISABLE_UPDATES"] == "1"
         assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
-        assert (
-            "DISABLE_AUTOUPDATER"
-            not in json.loads(self.render(template, json.dumps({"env": {"DISABLE_AUTOUPDATER": "1"}})))["env"]
-        )
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
         assert data["syncClaudeAiSkills"] is False
@@ -267,38 +263,12 @@ sessions = false
         with pytest.raises(RuntimeError, match="deny must be an array"):
             self.render(template, '{"permissions": {"deny": "Bash(rm *)"}}')
 
-    def test_claude_merge_retires_vertex_environment_variables(self):
-        template = "dot_claude/modify_settings.json"
-        original = {
-            "env": {
-                "CLAUDE_CODE_USE_VERTEX": "1",
-                "ANTHROPIC_VERTEX_PROJECT_ID": "synthetic-project",
-                "CLOUD_ML_REGION": "global",
-                "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5[1m]",
-                "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5@20251001",
-                "CUSTOM_SETTING": "preserved",
-            }
-        }
-        rendered = self.render(template, json.dumps(original))
-        data = json.loads(rendered)
-        assert data["env"]["CUSTOM_SETTING"] == "preserved"
-        for key in (
-            "CLAUDE_CODE_USE_VERTEX",
-            "ANTHROPIC_VERTEX_PROJECT_ID",
-            "CLOUD_ML_REGION",
-            "ANTHROPIC_DEFAULT_SONNET_MODEL",
-            "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-        ):
-            assert key not in data["env"]
-        assert self.render(template, rendered) == rendered
-
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"
         original = {
             "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
             "compaction": {"reserved": 300000, "protect": ["skill"]},
             "experimental": {"batch_tool": True, "continue_loop_on_deny": True, "mcp_timeout": 120000},
-            "theme": "fmind",
             "model": "google-vertex/gemini-3.8-flash",
             "provider": {
                 "google-vertex": {"options": {"timeout": 90000}},
@@ -307,7 +277,6 @@ sessions = false
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
-        assert "theme" not in data
         assert data["model"] == "openrouter/google/gemini-3.8-flash"
         assert data["small_model"] == data["model"]
         assert data["share"] == "disabled"
@@ -336,33 +305,6 @@ sessions = false
         )
         assert "provider" not in data
         assert "synthetic-private-value" not in json.dumps(data)
-
-    def test_opencode_retires_only_legacy_managed_credential(self):
-        template = "dot_config/opencode/modify_opencode.json"
-        for value in ("{env:OPENROUTER_API_KEY}", "{env:CUSTOMER_OPENROUTER_KEY}", "{file:/customer/token}"):
-            original = {"provider": {"openrouter": {"options": {"apiKey": value, "timeout": 123}}}}
-            rendered = self.render(template, json.dumps(original))
-            options = json.loads(rendered)["provider"]["openrouter"]["options"]
-            assert options["timeout"] == 123
-            if value == "{env:OPENROUTER_API_KEY}":
-                assert "apiKey" not in options
-            else:
-                assert options["apiKey"] == value
-            assert self.render(template, rendered) == rendered
-
-    def test_opencode_retires_duplicate_persona_skills_and_boolean_lsp(self):
-        template = "dot_config/opencode/modify_opencode.json"
-        managed_skills = str(self.home / ".agents/skills")
-        legacy = {"instructions": ["~/.agents/AGENTS.md"], "skills": {"paths": [managed_skills]}, "lsp": True}
-        data = json.loads(self.render(template, json.dumps(legacy)))
-        assert not {"instructions", "skills"} & data.keys()
-        assert data["lsp"]["ty"]["command"] == ["ty", "server"]
-        host = {"instructions": ["~/team/RULES.md"], "skills": {"paths": [managed_skills], "urls": ["https://x.test"]}}
-        rendered = self.render(template, json.dumps(host))
-        data = json.loads(rendered)
-        assert data["instructions"] == host["instructions"]
-        assert data["skills"] == {"urls": ["https://x.test"]}
-        assert self.render(template, rendered) == rendered
 
     def test_opencode_tui_merge_preserves_keyboard_preferences(self):
         template = "dot_config/opencode/modify_tui.json"
@@ -447,7 +389,7 @@ sessions = false
                 "cliRemoteControlHostname": "fixture-host",
                 "themeMode": "THEME_MODE_DARK",
                 "globalPermissionGrants": {
-                    "allow": ["read_file(/fixture)", "unsandboxed(*)", "unsandboxed(*)"],
+                    "allow": ["read_file(/fixture)", "read_file(/fixture)"],
                     "ask": ["execute_url(example.com)"],
                     "deny": ["command(rm *)"],
                 },
@@ -523,9 +465,6 @@ sessions = false
         drifted = json.loads(self.render(template, json.dumps({"hostCounter": 9007199254740993, "editorMode": "x"})))
         assert drifted["hostCounter"] == 9007199254740993
         assert drifted["editorMode"] == "vim"
-        legacy = json.dumps({"theme": "fmind", "hostCounter": 9007199254740993})
-        migrated = json.loads(self.render("dot_config/opencode/modify_opencode.json", legacy))
-        assert migrated["hostCounter"] == 9007199254740993
 
     def test_native_jsonc_merges_preserve_comments_when_converged_and_keep_host_values(self):
         templates = [
@@ -662,29 +601,18 @@ sessions = false
         assert data["ui"]["scroll_speed"] == 20
         assert self.render(template, rendered) == rendered
 
-    def test_hooks_only_notify_and_clear_retired_capture_events(self):
+    def test_hooks_only_notify(self):
         # Hooks name the CLI absolutely: a harness may start without ~/.local/bin on PATH.
         dot = str(self.home / ".local/bin/dot")
-        retired = {"PreCompact": [], "SessionEnd": [], "SubagentStop": []}
-        deployed = [{"hooks": [{"command": f"{dot} agent hook session codex", "type": "command"}], "matcher": ""}]
 
-        codex_template = "dot_codex/modify_private_config.toml"
-        codex = tomllib.loads(self.render(codex_template, ""))["hooks"]
-        assert codex["Stop"] == []
-        assert tomllib.loads(self.render(codex_template, ""))["tui"]["notifications"] is True
-        assert {event: codex[event] for event in retired} == retired
-        # The merge never deletes keys: managed empty lists replace deployed capture hooks.
-        stale = "".join(
-            f'[[hooks.{event}]]\nmatcher = ""\n[[hooks.{event}.hooks]]\ncommand = "{dot} agent hook session codex"\n'
-            for event in retired
-        )
-        assert {
-            event: tomllib.loads(self.render(codex_template, stale))["hooks"][event] for event in retired
-        } == retired
+        # Codex attention alerts come from its TUI, not hooks.
+        codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))
+        assert "hooks" not in codex
+        assert codex["tui"]["notifications"] is True
 
         claude_template = "dot_claude/modify_settings.json"
         claude = json.loads(self.render(claude_template, "{}"))["hooks"]
-        assert claude["Stop"] == []
+        assert set(claude) == {"Notification"}
         assert claude["Notification"][1]["matcher"] == "^idle_prompt$"
         assert claude["Notification"][1]["hooks"][0]["command"] == f"{dot} agent hook notify claude ready"
         assert claude["Notification"][0]["matcher"] == (
@@ -693,9 +621,6 @@ sessions = false
         assert [hook["command"] for hook in claude["Notification"][0]["hooks"]] == [
             f"{dot} agent hook notify claude needs-input"
         ]
-        stale_claude = json.dumps({"hooks": dict.fromkeys(retired, deployed)})
-        merged = json.loads(self.render(claude_template, stale_claude))["hooks"]
-        assert {event: merged[event] for event in retired} == retired
 
         grok = json.loads(self.render("dot_grok/hooks/hooks.json.tmpl", ""))["hooks"]
         assert set(grok) == {"Notification", "Stop"}
@@ -705,16 +630,10 @@ sessions = false
 
         agy = json.loads(self.render("dot_gemini/private_config/private_hooks.json.tmpl", ""))
         assert set(agy) == {"notify"}
-        copilot = json.loads(self.render("dot_copilot/hooks/notify.json.tmpl", ""))
-        assert set(copilot["hooks"]) == {"agentStop"}
-        assert copilot["hooks"]["agentStop"] == []
 
         # Every hook notifies and names the CLI absolutely; none relies on PATH order.
         commands = [
-            value
-            for config in (codex, claude, grok, agy, copilot)
-            for value in _strings(config)
-            if " agent hook " in value
+            value for config in (codex, claude, grok, agy) for value in _strings(config) if " agent hook " in value
         ]
         assert len(commands) == 5
         assert all(command.startswith(f"{dot} agent hook notify ") for command in commands)

@@ -1,12 +1,9 @@
 # Docs: https://fishshell.com/docs/current/index.html
 # PLUGINS
-if command -q mise
-    if status is-interactive
+if status is-interactive
+    if command -q mise
         mise activate fish | source
     end
-end
-
-if status is-interactive
     set -l fish_cache_dir "$HOME/.cache/fish"
     if set -q XDG_CACHE_HOME
         set fish_cache_dir "$XDG_CACHE_HOME/fish"

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Agent Harnesses
@@ -27,8 +27,8 @@ Every host follows these steps; read only the matching guide for its specifics a
 
 On the `fmind/dot` workstation, notifications mean it is your turn: the main session is idle or needs an answer. `dot agent session sync` captures sessions from each harness's own store. Restart open harnesses after changing notification configuration.
 
-- **Claude and Grok**: `Notification` hooks select `idle_prompt` for “Your turn” and actionable permission/question events for “Needs your input”. Claude's idle alert waits about 60 seconds without typing. `Stop` hooks are cleared because they run before continuation decisions. Informational notifications and background-agent completion do not trigger the managed notifier.
-- **Codex and Copilot**: native attention notifications are enabled; the former `Stop` / `agentStop` desktop hooks are cleared to avoid premature and duplicate alerts. Native alerts depend on the host's focus detection and terminal/OS support.
+- **Claude and Grok**: `Notification` hooks select `idle_prompt` for “Your turn” and actionable permission/question events for “Needs your input”. Claude's idle alert waits about 60 seconds without typing. No `Stop` notifier is managed (Grok's list stays empty) because those hooks run before continuation decisions. Informational notifications and background-agent completion do not trigger the managed notifier.
+- **Codex and Copilot**: native attention notifications are enabled; no `Stop` / `agentStop` desktop hooks are managed, avoiding premature and duplicate alerts. Native alerts depend on the host's focus detection and terminal/OS support.
 - **Antigravity**: the managed `Stop` notifier requires `fullyIdle: true`, including through the `antigravity` alias; native input notifications remain enabled.
 - **OpenCode**: native desktop attention alerts exclude child sessions. Sounds are disabled because child completion also plays them.
 

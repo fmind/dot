@@ -24,11 +24,11 @@ window-save-state = always
 # Quality of Life
 copy-on-select = clipboard
 # Compensate for fast Zellij scrolling on Linux; retain the macOS tuning.
-{{ if eq .chezmoi.os "linux" }}
+{{- if eq .chezmoi.os "linux" }}
 mouse-scroll-multiplier = precision:0.0625,discrete:0.25
-{{ else }}
+{{- else }}
 mouse-scroll-multiplier = precision:0.25,discrete:1
-{{ end }}
+{{- end }}
 
 # Performance Improvements
 cursor-style-blink = false

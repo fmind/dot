@@ -10,6 +10,6 @@ Project instructions shared by the configured coding agent hosts. Global rules a
 
 ## Layout
 
-- `AGENTS.md` — this file, shared by every host; `CLAUDE.md` links to it.
+- `AGENTS.md` — this file, shared by every host.
 - `.agents/skills/` — project skills; `.claude/skills` links here.
 - `<path>` — <one-sentence purpose>.

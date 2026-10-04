@@ -6,3 +6,12 @@ aube-lock.yaml
 lazy-lock.json
 dot_config/mise/locks/
 CHANGELOG.md
+# Generated per-host subagent profiles; dot_agents/supagents/ is the source.
+dot_claude/agents/
+dot_codex/agents/
+dot_config/opencode/agents/
+dot_copilot/agents/
+dot_gemini/private_config/agents/
+dot_grok/agents/
+# Skill symlink templates; skills/ holds the packages.
+dot_agents/skills/

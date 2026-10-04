@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-{{- /* Run only on supported platforms; the upstream installer covers Linux and macOS. */}}
-{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") }}
 # Grok stays outside mise so its native auto_update can track releases; the
 # installer is downloaded completely before it runs, so a truncated transfer
 # cannot execute half a script.
@@ -22,6 +20,3 @@ for command in grok agent; do
   fi
   ln -sf "${target}" "${link}"
 done
-{{- else }}
-exit 0
-{{- end }}

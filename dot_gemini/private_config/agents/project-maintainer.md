@@ -5,7 +5,7 @@ description: "Run repository upkeep and upgrades: tools, checks, dead code, stal
 mainAgent: true
 subagent: true
 model: inherit
-tools: [view_file, list_dir, find_by_name, grep_search, run_command, write_to_file, replace_file_content, read_url_content, search_web, finish]
+tools: [view_file, run_command, write_to_file, replace_file_content, read_url_content, search_web, finish]
 ---
 
 # Project Maintainer

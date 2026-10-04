@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-{{- /* Run only on supported platforms; the upstream installer covers Linux and macOS. */}}
-{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") }}
 # agy updates itself; the installer is downloaded completely before it runs, so a
 # truncated transfer cannot execute half a script.
 set -euo pipefail
@@ -9,6 +7,3 @@ installer="$(mktemp)"
 trap 'rm -f "${installer}"' EXIT
 curl -fsSL --proto '=https' --tlsv1.2 -o "${installer}" https://antigravity.google/cli/install.sh
 bash "${installer}"
-{{- else }}
-exit 0
-{{- end }}
