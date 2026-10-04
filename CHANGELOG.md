@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [9.0.2] - 2026-10-04
+
+### 🐛 Bug Fixes
+
+- _(skills)_ Publish the Python starter through Trusted Publishing only
+
+### 🧹 Miscellaneous
+
+- _(config)_ Retire removal markers that every workstation applied
+- _(secrets)_ Retire the unused JULES_API_KEY seed
+
 ## [9.0.1] - 2026-10-04
 
 ### 🐛 Bug Fixes
