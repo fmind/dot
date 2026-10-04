@@ -128,8 +128,8 @@ run = ["uv sync", "uv run lefthook install"]
 
 [tasks.publish]
 alias = "p"
-description = "Publish distribution artifacts to PyPI"
-run = "uv publish"
+description = "Publish distribution artifacts to PyPI via Trusted Publishing (CI only)"
+run = "uv publish --trusted-publishing always"
 
 [tasks.test]
 alias = "t"
