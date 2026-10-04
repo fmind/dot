@@ -1127,19 +1127,19 @@ url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.0/chezmoi_2.73
 url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/596270971"
 
 [[tools.claude]]
-version = "2.1.288"
+version = "2.1.289"
 backend = "aqua:anthropics/claude-code"
 specifiers = ["latest"]
 
 [tools.claude."platforms.linux-x64"]
-checksum = "sha256:5f3e0d5bfc21123a880ba6ffbd10f1b819c5e56204473591be1c1f65847c9368"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.288/claude-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/606216002"
+checksum = "sha256:aa184fe26777b16e18230da937ffe369e40f261bc65405520cafd7bd95783bef"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.289/claude-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/608449312"
 
 [tools.claude."platforms.macos-arm64"]
-checksum = "sha256:86616c1bdb2d3581343b41bf1674b936991d74d14b6d5cf205194cd7d2e104fe"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.288/claude-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/606215765"
+checksum = "sha256:20acfc89a32ed7260b63fd2f3fd71a33de7b2d74b82c724d25941ad73d2e0e96"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.289/claude-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/608449164"
 
 [[tools.codex]]
 version = "0.160.0"
@@ -1284,19 +1284,19 @@ url = "https://github.com/mr-karan/doggo/releases/download/v1.4.0/doggo-darwin-a
 url_api = "https://api.github.com/repos/mr-karan/doggo/releases/assets/539320057"
 
 [[tools.dprint]]
-version = "0.59.0"
+version = "0.60.1"
 backend = "aqua:dprint/dprint"
 specifiers = ["latest"]
 
 [tools.dprint."platforms.linux-x64"]
-checksum = "sha256:1705b1be1773955e882a69c29aebd3862d5b466c951f47495ad6cb423c224f86"
-url = "https://github.com/dprint/dprint/releases/download/0.59.0/dprint-x86_64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/606399168"
+checksum = "sha256:5612c587a34dfbbda37162d46755f9e8c6a4efba7950920b2a308ea84ce0886a"
+url = "https://github.com/dprint/dprint/releases/download/0.60.1/dprint-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/608721664"
 
 [tools.dprint."platforms.macos-arm64"]
-checksum = "sha256:1888b152b3541c3690ec5291dd58bde7116e6c8beb4aa1f242187f22071df22f"
-url = "https://github.com/dprint/dprint/releases/download/0.59.0/dprint-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/606399171"
+checksum = "sha256:b495103be1c01ba097449d73af3d76bbcef3deb291b87e9b7db6e8d12d497ef6"
+url = "https://github.com/dprint/dprint/releases/download/0.60.1/dprint-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/608721659"
 
 [[tools.duckdb]]
 version = "1.5.6"
@@ -2345,7 +2345,7 @@ uv = { path = "locks/pipx-brain-framework/18.1.1", digest = "sha256:205c0f2c5457
 version = "9.18.2"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:c0716e47d6e67b4db302b9854dffce0d0380192000d7dd6f6bbe6c2906b39399" }
+uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:faa5277cc5a9741f304f04f873059d207ffd9d49c3a651eba0e1bd014dba73fc" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.2"
@@ -2357,19 +2357,19 @@ uv = { path = "locks/pipx-fmind/2.0.2", digest = "sha256:5c0723c1a6db182d85221f0
 version = "0.7.4"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:d7e3e32d897357c14936d946b0e3e16460b16af2e3caa1b3657da10c55f4c8fc" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:4f9fc8d02055863f0f6ae20cb59346b4b0fd76394a71bea9cd0b51346600fadf" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.1.1"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.1.1", digest = "sha256:296110dadd34f4ca666429022f6f85b01e2031b02adf7765edbfcac6a4ace36c" }
+uv = { path = "locks/pipx-huggingface-hub/2.1.1", digest = "sha256:f2dd1dfa6fac0597f81b46538192d426cc9dbac85cd6509bdd1a9f699d6d1780" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.4"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:dcd4c742cbf9cb39fbd5d6a3c6f2ed8b2e8babb7b2e2ac5eed945ed25d262e83" }
+uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:c289618da6dcdc86155c444a6217db0cf00dcd6e72c44b0be589815966f428d1" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
@@ -2384,7 +2384,7 @@ with = '["psycopg[binary]"]'
 version = "2.10.1"
 backend = "pipx:pip-audit"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pip-audit/2.10.1", digest = "sha256:133df4e5499b7971dd11cfd8f1514f7859831482e94f00b56b998e6d7709fc27" }
+uv = { path = "locks/pipx-pip-audit/2.10.1", digest = "sha256:760bf90dc070641be4889601abe16453def1d089bf9ac9cdb9e1f01419e4ffa7" }
 
 [[tools."pipx:ptpython"]]
 version = "3.0.32"
@@ -2398,12 +2398,12 @@ backend = "core:python"
 specifiers = ["latest"]
 
 [tools.python."platforms.linux-x64"]
-checksum = "sha256:b373a4a4e4e70fc05f368c9b53d7738bf37637682b650d96c742805d2da26c32"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261001/cpython-3.14.8+20261001-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:d9ec7a6935ade8b671a57ebaf111083d7314eab8dae5071d167054dadd2b97d6"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261003/cpython-3.14.8+20261003-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 
 [tools.python."platforms.macos-arm64"]
-checksum = "sha256:69e48cd7f54261df5b6abbd374f69fe6e496fa781d271592aeef49cd5ffbea6c"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261001/cpython-3.14.8+20261001-aarch64-apple-darwin-install_only_stripped.tar.gz"
+checksum = "sha256:ed14e9042f36c0aa18383f5d9729bcbf17847e842666a793b5a5a5d8505c0ca1"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261003/cpython-3.14.8+20261003-aarch64-apple-darwin-install_only_stripped.tar.gz"
 
 [[tools.ripgrep]]
 version = "15.2.0"
@@ -2792,19 +2792,19 @@ signer = "sigstore-oidc:https://github.com/jdx/usage/.github/workflows/publish-c
 repository_ids = { repository = "677629099", owner = "216188" }
 
 [[tools.uv]]
-version = "0.12.22"
+version = "0.12.23"
 backend = "aqua:astral-sh/uv"
 specifiers = ["latest"]
 
 [tools.uv."platforms.linux-x64"]
-checksum = "sha256:b9980552309f09c15172b8be828555e375097f16deb459795ce7bfd200380f0b"
-url = "https://github.com/astral-sh/uv/releases/download/0.12.22/uv-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/604418465"
+checksum = "sha256:9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6"
+url = "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/608232628"
 
 [tools.uv."platforms.macos-arm64"]
-checksum = "sha256:5d714de09501a59393ceca78f4bc232a50478729640d251907160299b2a93ddd"
-url = "https://github.com/astral-sh/uv/releases/download/0.12.22/uv-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/604418308"
+checksum = "sha256:50487ae565ccd96e499056b4674d438f4c53170202617b4c759defe0c6a1b544"
+url = "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/608232483"
 
 [[tools.vault]]
 version = "2.1.1"
