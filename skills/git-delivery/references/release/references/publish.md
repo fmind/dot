@@ -5,7 +5,7 @@ Use the repository's release task when it owns versioning, tags, or publication.
 ## Workflow
 
 1. **Check the preconditions**:
-   - Clean working tree on `main`, synced with `origin`.
+   - `main` synced with `origin`; unrelated edits stay unstaged and out of the release commit (gate them per the dirty-tree rule).
    - The proposed tag is absent locally and remotely; stop if either copy exists and never move a published tag.
    - Identify whether publication is triggered by a tag, a branch push, or workflow dispatch. Follow that contract; a workflow-owned release skips the manual `gh release create` step.
 1. **Gate**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas).

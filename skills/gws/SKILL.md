@@ -27,7 +27,7 @@ Use `gws` for Google Workspace automation from the shell: authentication, API di
 1. **Start with a bounded read**: pass identifiers, filters, and only the needed fields and date range through `--params`; use `--page-all --page-limit <n>` only when every page is needed. It emits NDJSON with one object per page, not one JSON array; keep `nextPageToken` (and Drive `incompleteSearch`) in `fields`, because reaching `--page-limit` with a remaining token means the result is incomplete.
 
    ```bash
-   gws drive files list --params '{"pageSize":10,"q":"trashed = false","fields":"nextPageToken,files(id,name,mimeType)"}' --format json
+   gws drive files list --params '{"pageSize":10,"q":"trashed = false","fields":"nextPageToken,incompleteSearch,files(id,name,mimeType)"}' --format json
    ```
 
 1. **Choose the content path**: read [service recipes](references/services.md) for metadata versus bodies, Docs tabs, Sheets ranges, Gmail MIME/replies, Calendar times, Slides and Drive exports. Prefer a `+helper` listed by `gws <service> --help` when its documented semantics match the request.
