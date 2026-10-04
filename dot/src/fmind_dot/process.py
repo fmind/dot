@@ -19,7 +19,7 @@ from pathlib import Path
 from threading import Event, Lock
 from typing import IO
 
-from fmind_dot.errors import DotError
+from fmind_dot.errors import CommandTimeoutError, DotError
 
 # SIGTERM grace before SIGKILL: long enough for git to unlock, short enough for Ctrl+C.
 _TERMINATION_GRACE_SECONDS = 2.0
@@ -352,7 +352,7 @@ class Runner:
             )
         except subprocess.TimeoutExpired as error:
             _terminate(process)
-            raise DotError(f"command timed out: {args[0]}") from error
+            raise CommandTimeoutError(f"command timed out: {args[0]}") from error
         except BaseException:
             _terminate(process)
             raise

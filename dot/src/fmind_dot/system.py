@@ -18,7 +18,7 @@ from fmind_dot import deploy
 from fmind_dot.auth import workspace_token_valid
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
-from fmind_dot.errors import DotError
+from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
@@ -318,8 +318,10 @@ def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
             timeout=state.config.doctor.probe_timeout_seconds,
             check=False,
         )
-    except (DotError, OSError) as error:
-        return "timed out" if "timed out" in str(error).lower() else "failed"
+    except CommandTimeoutError:
+        return "timed out"
+    except DotError, OSError:
+        return "failed"
     return "output exceeded limit" if result.output_truncated else result
 
 
