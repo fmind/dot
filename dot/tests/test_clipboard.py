@@ -46,11 +46,13 @@ def backend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, names: tuple[str, .
 
 
 @pytest.mark.parametrize(
-    ("platform", "names", "display", "wayland"),
+    ("platform", "names", "display", "wayland", "sommelier", "expected"),
     [
-        ("darwin", ("pbcopy", "pbpaste"), "", ""),
-        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "wayland-0"),
-        ("linux", ("wl-copy", "wl-paste"), "", "wayland-0"),
+        ("darwin", ("pbcopy", "pbpaste"), "", "", "", "pbcopy"),
+        # Both displays: ChromeOS Sommelier prefers X11; other desktops prefer native Wayland.
+        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "wayland-0", "1", "xclip"),
+        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "wayland-0", "", "wl-copy"),
+        ("linux", ("wl-copy", "wl-paste"), "", "wayland-0", "", "wl-copy"),
     ],
 )
 def test_native_round_trip_preserves_literal_utf8(
@@ -61,16 +63,22 @@ def test_native_round_trip_preserves_literal_utf8(
     names: tuple[str, ...],
     display: str,
     wayland: str,
+    sommelier: str,
+    expected: str,
 ) -> None:
     store = backend(tmp_path, monkeypatch, names)
     monkeypatch.setattr(sys, "platform", platform)
     monkeypatch.setenv("DISPLAY", display)
     monkeypatch.setenv("WAYLAND_DISPLAY", wayland)
+    if sommelier:
+        monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
+    else:
+        monkeypatch.delenv("SOMMELIER_VERSION", raising=False)
     payload = "Médéric 🦊\n`literal` $(touch should-not-exist)\n\n".encode()
     result = clipboard.copy_text(payload)
     assert store.read_bytes() == payload[:-1]
     assert "verified" in result
-    assert names[0] in result
+    assert expected in result
     assert "Médéric" not in result
     assert not (tmp_path / "should-not-exist").exists()
 
