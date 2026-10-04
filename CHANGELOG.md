@@ -2,6 +2,45 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.4.0] - 2026-10-04
+
+### 🚀 Features
+
+- _(cache)_ Label each provider in a multi-provider report
+- _(agent)_ Fail context checks on duplicate skill names
+- _(skills)_ Optimize the catalog and give colliding skills unique names
+
+### 🐛 Bug Fixes
+
+- _(cli)_ Keep Fish completion candidates whole and on one line
+- _(agent)_ Name date-filter time bases and reject zero-length windows
+- _(secret)_ Supply scoped credentials without reading dot.yaml
+- _(trust)_ Report when no harness has state to trust
+
+### ♻️ Refactor
+
+- _(process)_ Classify probe timeouts by error type
+- _(tasks)_ Drop an unused release helper and a redundant audit guard
+
+### 📚 Documentation
+
+- _(dot-cli)_ Document scoped secrets, trust notices, cache labels, and date rules
+- Illustrate the README and add an SVG illustration standard
+
+### 🧪 Testing
+
+- _(agy)_ Keep the registry sentinel out of macOS temporary paths
+- _(clipboard)_ Pin the Sommelier signal in backend selection cases
+
+### ⚙️ Build & CI
+
+- Drop redundant ignore patterns and widen format and lint coverage
+- _(tools)_ Drop harper-ls and its Neovim prose LSP
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Refresh locked tools and sidecar dependency graphs
+
 ## [8.3.0] - 2026-10-04
 
 ### 🚀 Features
