@@ -16,19 +16,7 @@ gui:
   scrollPastBottom: false
   showCommandLog: false
   nerdFontsVersion: "3"
-  # Source: https://github.com/fmind/theme/blob/main/themes/lazygit/fmind.yml
-  # Update this block after changing the upstream theme.
-  theme:
-    activeBorderColor: [blue, bold]
-    inactiveBorderColor: ["#9aa0a6"]
-    searchingActiveBorderColor: [yellow, bold]
-    optionsTextColor: [blue]
-    selectedLineBgColor: ["#d2e3fc"]
-    cherryPickedCommitFgColor: ["#0d652d"]
-    cherryPickedCommitBgColor: ["#ceead6"]
-    markedBaseCommitFgColor: ["#174ea6"]
-    markedBaseCommitBgColor: ["#feefc3"]
-    unstagedChangesColor: [red]
+  # The fmind theme lives in theme.yml, merged through LG_CONFIG_FILE (env.fish).
 
 os:
   editPreset: nvim

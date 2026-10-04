@@ -1,6 +1,7 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
 # Theme files are pinned to one fmind/theme commit with checksums because several execute
 # (Fish, Neovim Lua, ptpython, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
+# Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 {{ $base := "https://raw.githubusercontent.com/fmind/theme/727497c9344a958a91774d256943805fd8e396c0/themes" }}
 
 {{ if or (eq .chezmoi.os "darwin") (eq .chezmoi.os "linux") -}}
@@ -84,6 +85,12 @@
     type = "file"
     url = "{{ $base }}/bat/fmind.tmTheme"
     checksum.sha256 = "55d5b5806641f0feead7bc1255eaf48d2a4844397deb5863c90d3f684399f0e8"
+
+# LG_CONFIG_FILE (env.fish) layers this file over the managed lazygit config.
+[".config/lazygit/theme.yml"]
+    type = "file"
+    url = "{{ $base }}/lazygit/fmind.yml"
+    checksum.sha256 = "a70c6b6e01180478f23832b831d6c664900a948900c9b956c159c4dd3c6f38c6"
 
 [".config/lsd/colors.yaml"]
     type = "file"
