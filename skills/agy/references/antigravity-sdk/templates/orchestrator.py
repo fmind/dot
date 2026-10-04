@@ -28,8 +28,8 @@ class Audit(pydantic.BaseModel):
 
 def record_finding(area: str, detail: str) -> str:
     """Records one audit finding for the given area."""
-    # Custom Python tools bypass the policy engine entirely -- it gates built-ins
-    # such as run_command and edit_file -- so they must stay side-effect free.
+    # Policies gate custom tools by function name (deny_all() blocks this one
+    # unless allowed), but the function body runs unsandboxed: keep it side-effect free.
     print(f"finding_recorded area_chars={len(area)} detail_chars={len(detail)}", file=sys.stderr)
     return "recorded"
 
@@ -40,6 +40,9 @@ async def trace_turn(_prompt: types.Content) -> types.HookResult:
     print("turn_started", file=sys.stderr)
     return types.HookResult(allow=True)
 
+
+# read_only() includes SCHEDULE, which can leave timers or cron jobs behind.
+READ_TOOLS = [tool for tool in types.BuiltinTools.read_only() if tool != types.BuiltinTools.SCHEDULE]
 
 READER = types.SubagentConfig(
     name="reader",
@@ -83,7 +86,6 @@ def build(workspace: str) -> LocalAgentConfig:
             ),
         ),
         workspaces=[root],
-        tools=[record_finding],  # subagent tools must also be registered here
         subagents=[READER, CRITIC],
         capabilities=types.CapabilitiesConfig(
             enable_subagents=True,
@@ -91,10 +93,7 @@ def build(workspace: str) -> LocalAgentConfig:
             max_subagent_depth=1,  # without this, delegation nests without bound
             # read_only() omits START_SUBAGENT: filtering to it alone silently
             # disables delegation and rejects max_subagent_depth at validation.
-            enabled_tools=[
-                *types.BuiltinTools.read_only(),
-                types.BuiltinTools.START_SUBAGENT,
-            ],
+            enabled_tools=[*READ_TOOLS, types.BuiltinTools.START_SUBAGENT],
         ),
         # Session budgets complement the caller deadline; policies select tools.
         budget_config=types.BudgetConfig(max_model_calls=40, max_tool_calls=80, max_total_tokens=400_000),
@@ -103,7 +102,8 @@ def build(workspace: str) -> LocalAgentConfig:
         policies=[
             policy.deny_all(),
             policy.allow(types.BuiltinTools.START_SUBAGENT.value),
-            *[policy.allow(tool.value) for tool in types.BuiltinTools.read_only()],
+            policy.allow(record_finding.__name__),  # scoped to CRITIC's tools
+            *[policy.allow(tool.value) for tool in READ_TOOLS],
             *policy.workspace_only([root]),
             policy.deny(types.BuiltinTools.RUN_COMMAND.value),
         ],
