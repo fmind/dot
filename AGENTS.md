@@ -43,10 +43,10 @@ Key routines:
 ## Layout
 
 - `.agents/skills/` holds local skills; `.claude/skills` links to it. Other host state is gitignored.
-- `.github/` owns CI, release, security, audit, and dependency-update automation.
+- `.github/` owns CI, release, security, audit, and dependency-update automation; `.github/assets/` holds the README's SVG illustrations, outside chezmoi deployment.
 - `dot/` contains the runtime package, repository-only `dot_tasks/`, uv lock, and pytest suite.
 - `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host (with OpenCode in `dot_config/opencode/`).
-- Every root `dot_*` or `private_dot_*` source maps to its home target (`dot_config/` holds application configuration); `.chezmoitemplates/` holds the shared JSON/TOML merge, shell managed-block, skill-catalog, and hook `dot`-path helpers used by modify and hook templates.
+- Every root `dot_*` or `private_dot_*` source maps to its home target (`dot_config/` holds application configuration); `.chezmoitemplates/` holds the shared JSON/TOML merge, shell managed-block, skill-catalog, and hook `dot`-path helpers used by modify, hook, and ignore templates.
 - `modify_dot_bashrc`, `modify_dot_profile`, and darwin-only `modify_dot_zprofile` add PATH and mise activation to existing shell files; `run_once_after_*` install Grok and Antigravity; `run_after_bat-theme` rebuilds the bat theme cache when the theme or bat changes. `.chezmoiignore` gates platform-specific targets, including Crostini-only notification and garcon drop-in files.
 - `run_after_dot-trust` runs `dot trust all` and `dot trust <sourceDir>` so every harness trusts the configured workspaces, their owner-allowlisted repositories, and this checkout. Mise trust is machine-local (`mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`).
 - `.chezmoiexternal.toml.tmpl` fetches commit-pinned theme files from `fmind/theme` and font archives, all SHA-256-checked, during apply, while style blocks that must be merged are copied into managed sources.

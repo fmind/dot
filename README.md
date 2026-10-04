@@ -6,6 +6,14 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 [Install](#installation) · [Use](#everyday-use) · [Credentials](#credentials) · [Adapt](#adapting-this)
 
+<a href=".github/assets/dot-overview.svg">
+  <img
+    src=".github/assets/dot-overview.svg"
+    alt="How dot works: clone this repository of dotfiles, persona, skills, tool baseline and encrypted credentials; install.sh bootstraps mise and chezmoi; chezmoi applies files, mise installs locked tools and the dot CLI checks health, so your Linux or macOS workstation gets its terminal, editor, Python, cloud tools and six agent harnesses. Change the source, never the deployed copy."
+    width="960"
+  >
+</a>
+
 ## Highlights
 
 - **Terminal:** Fish, Starship, Atuin, zoxide, fzf, Ghostty, and Zellij.
@@ -66,6 +74,14 @@ dot agent stats           # Review agent usage and prompt statistics
 dot orphan                # List files no longer managed by chezmoi
 ```
 
+<a href=".github/assets/everyday-loop.svg">
+  <img
+    src=".github/assets/everyday-loop.svg"
+    alt="The everyday loop: edit the source in ~/.local/share/chezmoi, preview with mise run diff, apply with mise run apply, then check with dot doctor. Deployed copies such as ~/.config/ghostty/config are overwritten by the next apply."
+    width="960"
+  >
+</a>
+
 Edit managed files in `~/.local/share/chezmoi`, then preview and apply:
 
 ```bash
@@ -103,6 +119,14 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 
 ## Agent roles
 
+<a href=".github/assets/agent-layer.svg">
+  <img
+    src=".github/assets/agent-layer.svg"
+    alt="One agent layer for six harnesses: the persona, skill catalog, specialist roles and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode; dot agent session sync archives their sessions and dot agent stats reports usage."
+    width="960"
+  >
+</a>
+
 Shared roles (code, security, and ops reviewers; solution architect; product and course designers; AI evaluator; content editor and presenter; deep researcher; code debugger; project maintainer) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), preview with `mise run agents:diff`, run `mise run agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
 
 ## Agent skills
@@ -112,6 +136,14 @@ Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alo
 Use `/clipboard` to copy the requested deliverable from the preceding exchange, or `/clipboard <selection>` to choose a result. The [clipboard skill](skills/clipboard/SKILL.md) verifies the copied text using native macOS or ChromeOS/Linux tools.
 
 ## Credentials
+
+<a href=".github/assets/credentials.svg">
+  <img
+    src=".github/assets/credentials.svg"
+    alt="Three credential paths and nothing exported at shell startup: interactive logins whose tokens each tool keeps; age-encrypted seeds that apply writes only when absent; and scoped keys that dot secret run gives to one command, failing closed on an empty value. Customer work selects accounts explicitly."
+    width="960"
+  >
+</a>
 
 ### Authentication & Logins
 

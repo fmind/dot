@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" role="img" aria-labelledby="title desc">
+<title id="title">One agent layer for six harnesses</title>
+<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, dot_agents/supagents/ is one set of specialist roles, and host folders such as dot_claude/ and dot_codex/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; mise run agents compiles the roles into native profiles; host settings are merged in place. Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
+<style>
+text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helvetica, Arial, sans-serif; fill: #202124; }
+.code { font-family: "Google Sans Code", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+.card { fill: #FFFFFF; stroke: #DADCE0; }
+.label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #595D62; }
+.chip { fill: #F1F3F4; }
+.chip-text { font-size: 14px; }
+.muted { font-size: 12.5px; fill: #595D62; }
+.box { fill: #FFFFFF; stroke: #174EA6; stroke-width: 2; }
+.tile { fill: #D2E3FC; }
+.tile-title { font-size: 14px; font-weight: 700; fill: #174EA6; }
+.flow { fill: none; stroke: #174EA6; stroke-width: 2; }
+.arrowhead { fill: #174EA6; }
+</style>
+</defs>
+<rect class="card" x="1" y="1" width="958" height="478" rx="16"/>
+
+<!-- Written once -->
+<text class="label" x="212" y="44" text-anchor="middle">THIS REPOSITORY · WRITTEN ONCE</text>
+<g text-anchor="middle">
+<rect class="tile" x="32" y="64" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="89">dot_agents/AGENTS.md</text><text class="muted" x="212" y="109">one persona every harness loads</text>
+<rect class="tile" x="32" y="138" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="163">skills/</text><text class="muted" x="212" y="183">one shared skill catalog</text>
+<rect class="tile" x="32" y="212" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="237">dot_agents/supagents/</text><text class="muted" x="212" y="257">one set of specialist roles</text>
+<rect class="tile" x="32" y="286" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="311">dot_claude/ · dot_codex/ · …</text><text class="muted" x="212" y="331">per-host settings, hooks and links</text>
+</g>
+
+<!-- Deployment -->
+<text class="label" x="496" y="44" text-anchor="middle">DEPLOYED BY CHEZMOI</text>
+<g text-anchor="middle">
+<line class="flow" x1="396" y1="94" x2="596" y2="94" marker-end="url(#arrow)"/><text class="code muted" x="496" y="84">~/.agents/AGENTS.md</text>
+<line class="flow" x1="396" y1="168" x2="596" y2="168" marker-end="url(#arrow)"/><text class="code muted" x="496" y="158">~/.agents/skills/</text>
+<line class="flow" x1="396" y1="242" x2="596" y2="242" marker-end="url(#arrow)"/><text class="code muted" x="496" y="232">mise run agents</text><text class="muted" x="496" y="262">native role profiles</text>
+<line class="flow" x1="396" y1="316" x2="596" y2="316" marker-end="url(#arrow)"/><text class="muted" x="496" y="306">merged in place</text>
+</g>
+
+<!-- Harnesses -->
+<text class="label" x="764" y="44" text-anchor="middle">SIX HARNESSES</text>
+<rect class="box" x="600" y="60" width="328" height="292" rx="14"/>
+<g text-anchor="middle">
+<rect class="chip" x="620" y="78" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="100">Antigravity</text>
+<rect class="chip" x="620" y="122" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="144">Claude Code</text>
+<rect class="chip" x="620" y="166" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="188">Codex</text>
+<rect class="chip" x="620" y="210" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="232">GitHub Copilot</text>
+<rect class="chip" x="620" y="254" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="276">Grok</text>
+<rect class="chip" x="620" y="298" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="320">OpenCode</text>
+</g>
+
+<!-- Sessions to reports -->
+<line class="flow" x1="764" y1="356" x2="764" y2="392" marker-end="url(#arrow)"/>
+<text class="muted" x="776" y="379">sessions</text>
+<g text-anchor="middle">
+<rect class="tile" x="600" y="396" width="328" height="56" rx="10"/><text class="code tile-title" x="764" y="420">dot agent session sync</text><text class="muted" x="764" y="440">a local archive of every harness</text>
+<line class="flow" x1="596" y1="424" x2="396" y2="424" marker-end="url(#arrow)"/><text class="code muted" x="496" y="414">dot agent stats</text>
+<rect class="tile" x="32" y="396" width="360" height="56" rx="10"/><text class="tile-title" x="212" y="420">Usage reports</text><text class="muted" x="212" y="440">tokens · API value · actual costs</text>
+</g>
+</svg>

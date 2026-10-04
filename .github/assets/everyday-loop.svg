@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="380" viewBox="0 0 960 380" role="img" aria-labelledby="title desc">
+<title id="title">The everyday loop: edit the source, preview, apply, check</title>
+<desc id="desc">Step 1: edit the source in your Git checkout at ~/.local/share/chezmoi, for example dot_config/ghostty/config.tmpl. mise run all formats, checks, tests and builds; git commit runs lefthook checks and CI keeps the full gate; mise run upgrade advances tools, theme and plugins. Step 2: mise run diff previews the change against your home directory. Step 3: mise run apply writes the files and runs eligible hooks, producing ~/.config/ghostty/config. Do not edit deployed copies: the next apply overwrites them. Step 4: dot doctor checks workstation health, and dot orphan lists files chezmoi no longer manages.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
+<style>
+text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helvetica, Arial, sans-serif; fill: #202124; }
+.code { font-family: "Google Sans Code", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+.card { fill: #FFFFFF; stroke: #DADCE0; }
+.label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #595D62; }
+.chip { fill: #F1F3F4; }
+.chip-text { font-size: 13px; }
+.muted { font-size: 12.5px; fill: #595D62; }
+.path { font-size: 14px; font-weight: 700; fill: #174EA6; }
+.box { fill: #FFFFFF; stroke: #174EA6; stroke-width: 2; }
+.tile { fill: #D2E3FC; }
+.tile-title { font-size: 14px; font-weight: 700; fill: #174EA6; }
+.err { fill: #FAD2CF; stroke: #EA4335; }
+.err-text { font-size: 14px; font-weight: 700; fill: #A50E0E; }
+.step { fill: #174EA6; }
+.step-text { font-size: 13px; font-weight: 700; fill: #FFFFFF; }
+.flow { fill: none; stroke: #174EA6; stroke-width: 2; }
+.arrowhead { fill: #174EA6; }
+</style>
+</defs>
+<rect class="card" x="1" y="1" width="958" height="378" rx="16"/>
+
+<!-- Source -->
+<text class="label" x="204" y="44" text-anchor="middle">SOURCE · YOUR GIT CHECKOUT</text>
+<rect class="box" x="24" y="60" width="360" height="296" rx="14"/>
+<g text-anchor="middle">
+<text class="code path" x="204" y="92">~/.local/share/chezmoi</text>
+<rect class="tile" x="44" y="108" width="320" height="60" rx="10"/><text class="tile-title" x="204" y="133">Edit the source</text><text class="code muted" x="204" y="153">dot_config/ghostty/config.tmpl</text>
+<rect class="chip" x="44" y="188" width="320" height="34" rx="17"/><text class="chip-text" x="204" y="210"><tspan class="code">mise run all</tspan> · format, check, test, build</text>
+<rect class="chip" x="44" y="230" width="320" height="34" rx="17"/><text class="chip-text" x="204" y="252"><tspan class="code">git commit</tspan> · lefthook checks, CI gate</text>
+<rect class="chip" x="44" y="272" width="320" height="34" rx="17"/><text class="chip-text" x="204" y="294"><tspan class="code">mise run upgrade</tspan> · tools, theme, plugins</text>
+<text class="muted" x="204" y="336">the one place to edit · Git keeps history</text>
+</g>
+<circle class="step" cx="44" cy="108" r="11"/><text class="step-text" x="44" y="112.5" text-anchor="middle">1</text>
+
+<!-- 2 Preview and 3 Apply -->
+<g text-anchor="middle">
+<line class="flow" x1="392" y1="150" x2="568" y2="150" stroke-dasharray="6 5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<text class="code" x="480" y="128" style="font-size:13.5px;font-weight:700">mise run diff</text>
+<circle class="step" cx="480" cy="150" r="11"/><text class="step-text" x="480" y="154.5">2</text>
+<text class="muted" x="480" y="178">preview the change</text>
+<line class="flow" x1="392" y1="250" x2="568" y2="250" marker-end="url(#arrow)"/>
+<text class="code" x="480" y="228" style="font-size:13.5px;font-weight:700">mise run apply</text>
+<circle class="step" cx="480" cy="250" r="11"/><text class="step-text" x="480" y="254.5">3</text>
+<text class="muted" x="480" y="278">write files, run hooks</text>
+</g>
+
+<!-- Home -->
+<text class="label" x="756" y="44" text-anchor="middle">HOME · DEPLOYED FILES</text>
+<rect class="box" x="576" y="60" width="360" height="296" rx="14"/>
+<g text-anchor="middle">
+<text class="code path" x="756" y="92">~/.config/ghostty/config</text>
+<rect class="err" x="596" y="108" width="320" height="60" rx="10"/><text class="err-text" x="756" y="133">Do not edit deployed copies</text><text class="muted" x="756" y="153">the next apply overwrites them</text>
+<rect class="tile" x="596" y="188" width="320" height="60" rx="10"/><text class="code tile-title" x="756" y="213">dot doctor</text><text class="muted" x="756" y="233">check workstation health</text>
+<rect class="chip" x="596" y="272" width="320" height="34" rx="17"/><text class="chip-text" x="756" y="294"><tspan class="code">dot orphan</tspan> · files chezmoi no longer manages</text>
+<text class="muted" x="756" y="336">repeat from step 1 for the next change</text>
+</g>
+<circle class="step" cx="596" cy="188" r="11"/><text class="step-text" x="596" y="192.5" text-anchor="middle">4</text>
+</svg>

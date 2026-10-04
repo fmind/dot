@@ -18,6 +18,11 @@
 
 [Try it](#try-it) · [Documentation]({{docs_url}}) · [Examples]({{examples_url}}) · [Get help]({{support_url}})
 
+<!-- Hero illustration: one hand-authored SVG of how the project works (diagrams-as-code SVG guide). Remove it rather than ship a placeholder. -->
+<a href="docs/assets/{{concept}}.svg">
+  <img src="docs/assets/{{concept}}.svg" alt="{{Conclusion the illustration shows}}" width="960">
+</a>
+
 ## See it work
 
 {{Show one real input and its useful result, or a real screenshot with descriptive alt text. Explain the outcome in one sentence. For a small CLI/library, merge this with Try it.}}
@@ -48,7 +53,7 @@ Expected result:
 
 ## How it works
 
-{{One short explanation or small diagram only if it helps use the project. Link deeper architecture/reference material.}}
+{{One short explanation beside an SVG illustration of the mechanism, only if it helps use the project. Link deeper architecture/reference material.}}
 
 ## Fit and limits
 

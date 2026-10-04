@@ -12,24 +12,25 @@ Help a new reader answer three questions: **Is this for me? What will I get? How
 
 ## Reader journey
 
-| Order             | Content                                                                               | Reader's question                                  |
-| ----------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Opening           | Compact SVG logo, project name, one-sentence purpose, useful badges, short navigation | What is this, who is it for, and where do I start? |
-| Result            | One real input → output example, screenshot, or short demo with a text equivalent     | What useful thing will happen?                     |
-| Quickstart        | Prerequisites → install → necessary configuration → first use → expected result       | Can I make that happen myself?                     |
-| Why this project? | Three to five distinct benefits, each tied to observable behavior                     | Why would I choose it?                             |
-| How it works      | A short explanation, small diagram, or file layout only when it clarifies use         | What do I need to understand?                      |
-| Fit and limits    | Relevant trade-offs, maturity, supported platforms, cost and data boundaries          | Does it suit my situation?                         |
-| Next steps        | Task-oriented docs, support, contribution and license links                           | Where do I go next?                                |
+| Order             | Content                                                                                                  | Reader's question                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Opening           | Compact SVG logo, project name, one-sentence purpose, useful badges, short navigation, hero illustration | What is this, who is it for, and where do I start? |
+| Result            | One real input → output example, screenshot, or short demo with a text equivalent                        | What useful thing will happen?                     |
+| Quickstart        | Prerequisites → install → necessary configuration → first use → expected result                          | Can I make that happen myself?                     |
+| Why this project? | Three to five distinct benefits, each tied to observable behavior                                        | Why would I choose it?                             |
+| How it works      | A short explanation beside an SVG illustration of the mechanism, or a file layout                        | What do I need to understand?                      |
+| Fit and limits    | Relevant trade-offs, maturity, supported platforms, cost and data boundaries                             | Does it suit my situation?                         |
+| Next steps        | Task-oriented docs, support, contribution and license links                                              | Where do I go next?                                |
 
 The result and quickstart may be one section for a small CLI or library. A short explanation can come first if essential to safe use; avoid a terminology lesson before the reader sees value. Use one obvious primary action such as **Try it**, with three or four secondary links. Keep ordinary body text left-aligned and headings descriptive. GitHub already provides an outline; add a manual table of contents only when it helps.
 
 ## Visual identity
 
 - **Default to a project-owned SVG logo** in a stable asset path such as `docs/assets/logo.svg`. Reuse an established mark; new marks should be simple and recognizable at small sizes. Keep editable vector sources, a `viewBox`, and explicit display dimensions; around 96–128 pixels is a starting point for a standalone mark, not a fixed rule for wordmarks.
-- **Make it portable**: use self-contained SVG paths/shapes with no scripts, remote resources, or required installed fonts. Outline lettering when needed. Include meaningful image alt text and keep the name and purpose as real text outside the image. SVG syntax validation does not replace visual inspection.
+- **Make the logo portable**: use self-contained SVG paths/shapes with no scripts, remote resources, or required installed fonts. Outline lettering when needed. Include meaningful image alt text and keep the name and purpose as real text outside the image. SVG syntax validation does not replace visual inspection.
 - **Check light and dark themes**: prefer one mark that works on both, or use GitHub's supported `picture` pattern with a fallback. Verify at narrow/mobile and desktop widths without tiny text or horizontal scrolling. A large banner must earn its space by explaining the product.
-- **Respect identity**: for Fmind projects use [fmind-visuals](../../fmind-visuals/SKILL.md) and the canonical theme unless the project specifies otherwise. Retain a distinct project symbol; do not reuse another project's mascot. GitHub controls README text fonts; apply brand typography to owned assets and sites.
+- **Illustrate concepts with SVG**: place a hero illustration of how the project works under the opening, then one illustration per key concept (a loop, a before/after, a mapping, a boundary) where it replaces paragraphs. Follow the [SVG guide](../../diagrams-as-code/references/svg.md): hand-authored, branded, an opaque light card, a full text equivalent, and a link to the full-size file. Keep [Mermaid](../../diagrams-as-code/references/mermaid.md) for contributor, architecture, and reference docs.
+- **Respect identity**: use the customer's brand for a customer project; otherwise follow [fmind-visuals](../../fmind-visuals/SKILL.md) and the canonical theme unless the project specifies another. Retain a distinct project symbol; do not reuse another project's mascot. GitHub controls README text fonts; apply brand typography to owned assets and sites.
 - **Show the product**: use a real screenshot for a UI, a short captured terminal session or input/output block for a CLI, and a runnable snippet with its result for a library. Use synthetic data, readable type, a static/text fallback for motion, and a small asset payload. Do not fabricate screenshots, results, users, or testimonials.
 
 Use relative repository assets by default so branches and local previews stay coherent. When package registries or documentation exports require absolute URLs, verify their renderer and asset availability; do not point an unreleased README at an asset that exists only locally.
@@ -72,7 +73,7 @@ This is an editorial standard, not evidence that a README increases adoption. Me
 
 Reviewed on 2026-09-26; these are evolving examples, not templates to copy verbatim or evidence of product quality.
 
-- [Brain Framework](https://github.com/fmind/brain-framework): the local reference demonstrates a distinctive SVG, useful badges, owned-file benefits, and explicit fit/limits. Keep those strengths; make the first result earlier and move detailed reference material behind links.
+- [Brain Framework](https://github.com/fmind/brain-framework): the local reference demonstrates a distinctive SVG logo, concept illustrations (a loop hero, a before/after, a vocabulary mapping), useful badges, owned-file benefits, and explicit fit/limits. Keep those strengths; make the first result earlier and move detailed reference material behind links.
 - [OpenClaw](https://github.com/openclaw/openclaw/blob/main/README.md): borrow the direct purpose, visible install/onboarding path, and goal-oriented documentation routes.
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent/blob/main/README.md): borrow the memorable differentiator and concrete usage descriptions; validate comparative claims independently and keep operational detail out of the opening.
 - [GitHub README guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes), [workflow badges](https://docs.github.com/en/actions/how-tos/monitor-workflows/add-a-status-badge), and [theme-aware pictures](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github).
