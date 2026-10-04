@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import PurePath
 from typing import Annotated, Any
 
 import typer
@@ -51,6 +52,22 @@ _GITHUB_IMPLIED = {
     "project": {"read:project"},
     "write:packages": {"read:packages"},
 }
+# Lowercase gcloud stderr fragments that require a fresh login; doctor shares them. gcloud ends
+# every relogin error with its login command; transport failures never name one.
+GCLOUD_LOGIN_MARKERS = (
+    "invalid_grant",
+    "expired or revoked",
+    "reauthenticat",
+    "to obtain new credentials",
+    "gcloud auth login",
+    "gcloud auth application-default login",
+    "not currently have an active account",
+    "no credentialed accounts",
+    "default credentials were not found",
+    "could not automatically determine credentials",
+    "credentials not found",
+)
+GITHUB_KEYRING_REMEDY = "unlock the system keyring, then run gh auth logout and dot setup github"
 _GOOGLE_SCOPE_ALIASES = {
     "email": "https://www.googleapis.com/auth/userinfo.email",
     "profile": "https://www.googleapis.com/auth/userinfo.profile",
@@ -125,8 +142,16 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False)
         raise DotError("Workspace login did not satisfy the configured scopes; inspect gws auth status and retry")
 
 
+def github_status_command(host: str) -> list[str]:
+    return ["gh", "auth", "status", "--active", "--hostname", host, "--json", "hosts"]
+
+
 def github_status(state: State, host: str) -> dict[str, Any] | None:
-    status = probe_json(state, ["gh", "auth", "status", "--active", "--hostname", host, "--json", "hosts"])
+    return github_entry(probe_json(state, github_status_command(host)), host)
+
+
+def github_entry(status: object, host: str) -> dict[str, Any] | None:
+    """Select the active account from gh status JSON: None when unauthenticated; raises when unknown."""
     if not isinstance(status, dict) or not isinstance(status.get("hosts"), dict):
         raise unknown("github")
     entries = status["hosts"].get(host, [])
@@ -140,9 +165,11 @@ def github_status(state: State, host: str) -> dict[str, Any] | None:
     entry = active[0]
     if entry.get("state") == "success":
         return entry
-    # JSON status exits zero on invalid tokens and network errors alike.
+    # JSON status exits zero on invalid tokens and network errors alike; gh 2.102 reports a rejected
+    # token as "non-200 OK status code: 401 Unauthorized".
     if entry.get("state") == "error" and any(
-        marker in str(entry.get("error", "")).lower() for marker in ("token is invalid", "(http 401)")
+        marker in str(entry.get("error", "")).lower()
+        for marker in ("token is invalid", "(http 401)", "401 unauthorized")
     ):
         return None
     raise unknown("github")
@@ -182,6 +209,7 @@ def login_github(
     entry = None if force else github_status(state, selected)
     if not force and github_ready(state, entry, reconcile=reconcile):
         print("GitHub is already authenticated with the requested scope policy.", file=state.stderr)
+        warn_plaintext_github_token(state, entry)
         return
     env_names = (
         ("GH_TOKEN", "GITHUB_TOKEN")
@@ -199,9 +227,28 @@ def login_github(
         # A fresh login cannot remove grants retained from an earlier authorization.
         if reconcile and policy.remove_scopes:
             execute(state, refresh)
-    if not github_ready(state, github_status(state, selected), reconcile=reconcile):
+    entry = github_status(state, selected)
+    if not github_ready(state, entry, reconcile=reconcile):
         raise DotError(
             "GitHub authentication did not satisfy the configured scope policy; inspect gh auth status and retry"
+        )
+    warn_plaintext_github_token(state, entry)
+
+
+def github_token_plaintext(entry: dict[str, Any] | None) -> bool:
+    """Report whether gh stored the token in plaintext hosts.yml because no keyring accepted it."""
+    # gh reports "keyring", an environment variable name, or the config file path as tokenSource;
+    # it falls back to plaintext hosts.yml silently when the system keyring is unavailable.
+    source = entry.get("tokenSource") if entry else None
+    return isinstance(source, str) and PurePath(source).name == "hosts.yml"
+
+
+def warn_plaintext_github_token(state: State, entry: dict[str, Any] | None) -> None:
+    if github_token_plaintext(entry):
+        print(
+            f"Warning: the GitHub token is stored in plaintext hosts.yml; {GITHUB_KEYRING_REMEDY} "
+            "to move it to the keyring.",
+            file=state.stderr,
         )
 
 
@@ -214,22 +261,8 @@ def gcp_ready(state: State) -> bool:
         result = probe(state, args)
         if result.returncode == 0 and result.stdout.strip():
             continue
-        # Never render access tokens or raw provider diagnostics. gcloud ends every
-        # relogin error with its login command; transport failures never name one.
-        missing = (
-            "invalid_grant",
-            "expired or revoked",
-            "reauthenticat",
-            "to obtain new credentials",
-            "gcloud auth login",
-            "gcloud auth application-default login",
-            "not currently have an active account",
-            "no credentialed accounts",
-            "default credentials were not found",
-            "could not automatically determine credentials",
-            "credentials not found",
-        )
-        if result.returncode and any(marker in result.stderr.lower() for marker in missing):
+        # Never render access tokens or raw provider diagnostics.
+        if result.returncode and any(marker in result.stderr.lower() for marker in GCLOUD_LOGIN_MARKERS):
             ready = False
         else:
             raise unknown("gcp")

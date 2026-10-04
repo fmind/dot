@@ -266,11 +266,15 @@ class GitHubConfig(StrictModel):
 
 class WorkspaceConfig(StrictModel):
     project: Project | None = None
+    # gws replaces its whole grant on login, so this list is the single owner of every scope
+    # borrowed from it, including the read-only analytics, Search Console, and YouTube scopes
+    # that brain sensors use; dropping one breaks those consumers on the next login.
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/analytics.readonly",
             "https://www.googleapis.com/auth/calendar",
             "https://www.googleapis.com/auth/chat.memberships",
             "https://www.googleapis.com/auth/chat.messages",
@@ -299,11 +303,16 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/script.projects",
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/tasks",
+            "https://www.googleapis.com/auth/webmasters.readonly",
+            "https://www.googleapis.com/auth/youtube.readonly",
+            "https://www.googleapis.com/auth/yt-analytics.readonly",
         ],
         min_length=1,
     )
     apis: list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*\.googleapis\.com$")]] = Field(
         default_factory=lambda: [
+            "analyticsadmin.googleapis.com",
+            "analyticsdata.googleapis.com",
             "calendar-json.googleapis.com",
             "chat.googleapis.com",
             "cloudsupport.googleapis.com",
@@ -315,9 +324,12 @@ class WorkspaceConfig(StrictModel):
             "meet.googleapis.com",
             "people.googleapis.com",
             "script.googleapis.com",
+            "searchconsole.googleapis.com",
             "sheets.googleapis.com",
             "slides.googleapis.com",
             "tasks.googleapis.com",
+            "youtube.googleapis.com",
+            "youtubeanalytics.googleapis.com",
         ],
         min_length=1,
     )

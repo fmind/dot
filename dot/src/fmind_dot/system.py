@@ -15,7 +15,14 @@ import typer
 from typer.completion import get_completion_script
 
 from fmind_dot import deploy
-from fmind_dot.auth import workspace_token_valid
+from fmind_dot.auth import (
+    GCLOUD_LOGIN_MARKERS,
+    GITHUB_KEYRING_REMEDY,
+    github_entry,
+    github_status_command,
+    github_token_plaintext,
+    workspace_token_valid,
+)
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -30,17 +37,13 @@ _AUTH_PROBES = {
     "gcloud-adc": (["gcloud", "auth", "application-default", "print-access-token"], True),
     "gws": (["gws", "auth", "status"], False),
 }
+# gcloud markers are shared with dot login gcp so both classify the same stderr.
 _AUTH_FAILURE_MARKERS = (
-    "invalid_grant",
-    "expired or revoked",
-    "reauthentication failed",
+    *GCLOUD_LOGIN_MARKERS,
     "not currently logged in",
-    "do not currently have an active account",
-    "no credentialed accounts",
     "not logged into any github hosts",
     "authentication token is invalid",
     "invalid authentication credentials",
-    "credentials not found",
     "login required",
 )
 # Operating thresholds shared with the persona and the dot-cli disk-space guide.
@@ -357,10 +360,24 @@ def _workspace_auth_result(output: str, path: Path) -> CheckResult:
     return CheckResult("gws", "fail", "auth check returned invalid status; state unknown", str(path), "broken")
 
 
+def _github_auth_result(output: str, host: str, path: Path) -> CheckResult:
+    try:
+        entry = github_entry(json.loads(output), host)
+    except ValueError, DotError:
+        return CheckResult("gh", "fail", "auth check returned invalid status; state unknown", str(path), "broken")
+    if entry is None:
+        return CheckResult("gh", "fail", "NOT authenticated", str(path), "unauthenticated")
+    if github_token_plaintext(entry):
+        details = f"authenticated; token in plaintext hosts.yml: {GITHUB_KEYRING_REMEDY}"
+        return CheckResult("gh", "warn", details, str(path), "insecure")
+    return CheckResult("gh", "pass", "authenticated", str(path), "healthy")
+
+
 def _auth_results(state: State) -> list[CheckResult]:
     results: list[CheckResult] = []
     github_host = os.environ.get("GH_HOST") or state.config.auth.github.host
-    probes = {"gh": (["gh", "auth", "status", "--hostname", github_host], False), **_AUTH_PROBES}
+    # JSON status exits zero without credentials; only its active entry proves readiness.
+    probes = {"gh": (github_status_command(github_host), True), **_AUTH_PROBES}
     for label, (command, requires_output) in probes.items():
         path = state.runner.which(command[0])
         if path is None:
@@ -370,11 +387,12 @@ def _auth_results(state: State) -> list[CheckResult]:
         if isinstance(result, str):
             results.append(CheckResult(label, "fail", f"auth check {result}; state unknown", str(path), "broken"))
         elif result.returncode == 0 and (not requires_output or result.stdout.strip()):
-            results.append(
-                _workspace_auth_result(result.stdout, path)
-                if label == "gws"
-                else CheckResult(label, "pass", "authenticated", str(path), "healthy")
-            )
+            if label == "gh":
+                results.append(_github_auth_result(result.stdout, github_host, path))
+            elif label == "gws":
+                results.append(_workspace_auth_result(result.stdout, path))
+            else:
+                results.append(CheckResult(label, "pass", "authenticated", str(path), "healthy"))
         elif result.returncode == 0:
             results.append(
                 CheckResult(label, "fail", "auth check returned no usable output; state unknown", str(path), "broken")
