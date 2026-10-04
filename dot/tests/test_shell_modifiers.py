@@ -26,7 +26,7 @@ def render(tmp_path: Path, modifier: str, content: str) -> str:
     config = tmp_path / "chezmoi.toml"
     config.write_text("", encoding="utf-8")
     source = tmp_path / "source"
-    source.mkdir(exist_ok=True)
+    shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates", dirs_exist_ok=True)
     command = [chezmoi, "--source", str(source), "--destination", str(tmp_path), "--config", str(config)]
     command += ["execute-template", "--with-stdin", "--file", str(template_path)]
     result = subprocess.run(command, input=content, encoding="utf-8", capture_output=True, check=False, timeout=30)
@@ -43,9 +43,49 @@ def test_modifier_preserves_target_and_is_repeatable(tmp_path: Path, modifier: s
     assert first.count(sentinel) == 1
     assert first.count(activation) == 1
     assert "Docs:" not in first
-    # Shell installers append with `>>`; a missing newline would merge their line into `fi`.
-    assert first.endswith("fi\n")
+    # Shell installers append with `>>`; a missing newline would merge their line into the block.
+    assert first.splitlines()[-1].startswith("# chezmoi: end mise-")
+    assert first.endswith("\n")
     assert render(tmp_path, modifier, first) == first
+
+
+@pytest.mark.parametrize("modifier", sorted(MODIFIERS))
+def test_modifier_rewrites_stale_block_in_place(tmp_path: Path, modifier: str) -> None:
+    sentinel, _activation = MODIFIERS[modifier]
+    end = sentinel.replace("chezmoi: ", "chezmoi: end ")
+    current = render(tmp_path, modifier, "export BEFORE=1\n")
+    stale = current.replace(f"{sentinel}\n", f"{sentinel}\n# stale line\n") + "export AFTER=1\n"
+    rewritten = render(tmp_path, modifier, stale)
+    assert rewritten == current + "export AFTER=1\n"
+    assert rewritten.count(end) == 1
+
+
+def test_bashrc_migrates_unterminated_blocks_without_losing_content(tmp_path: Path) -> None:
+    # Blocks deployed up to v8.2.0 have no end marker and lack later comment lines.
+    legacy = (
+        "# chezmoi: mise-bash-path\n"
+        "# Make mise-installed tools available to non-interactive shells.\n"
+        'export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/bin:${PATH}"\n'
+        "\n"
+        "export USER_SETTING=1\n"
+        "\n"
+        "# chezmoi: mise-bash-integration\n"
+        'if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then\n'
+        '  mise_activation="$(mise activate bash)"\n'
+        '  eval "${mise_activation}"\n'
+        "fi\n"
+        "\n"
+        "# Added by an installer\n"
+        'export PATH="${HOME}/.tool/bin:${PATH}"\n'
+    )
+    migrated = render(tmp_path, "modify_dot_bashrc", legacy)
+    assert migrated == render(tmp_path, "modify_dot_bashrc", migrated)
+    for line in ("export USER_SETTING=1\n", "# Added by an installer\n", 'export PATH="${HOME}/.tool/bin:${PATH}"\n'):
+        assert migrated.count(line) == 1
+    assert "Claude Code snapshots this shell" in migrated
+    assert migrated.count("# chezmoi: end mise-bash-path\n") == 1
+    assert migrated.count("# chezmoi: end mise-bash-integration\n") == 1
+    assert migrated.count("mise/shims") == 1
 
 
 def test_zprofile_is_deployed_only_on_macos() -> None:

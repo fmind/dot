@@ -1,26 +1,13 @@
 # chezmoi:modify-template
 {{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
-{{- $pathSentinel := "# chezmoi: mise-bash-path" -}}
-{{- $pathBlock := `# chezmoi: mise-bash-path
-# Make mise-installed tools available to non-interactive shells.
+{{- $path := `# Make mise-installed tools available to non-interactive shells.
 export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"` -}}
-{{- $activationBlock := `# chezmoi: mise-bash-integration
-# Set up mise activation for interactive bash shells.
+{{- $activation := `# Set up mise activation for interactive bash shells.
 # Claude Code snapshots this shell but not the hook state that mise() needs, which
 # makes every mise call exit 127 there; its shells rely on the shims instead.
 if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate bash)"
   eval "${mise_activation}"
 fi` -}}
-{{- /* Rewrite an activation block deployed before the Claude Code guard. */ -}}
-{{- $stdin := .chezmoi.stdin | replace "\nif command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" "\nif [ -z \"${CLAUDECODE:-}\" ] && command -v mise >/dev/null 2>&1; then\n  mise_activation=\"$(mise activate bash)\"" -}}
-{{- if contains $pathSentinel $stdin -}}
-{{- $stdin -}}
-{{- else -}}
-{{ $pathBlock }}
-{{- if ne (trim .chezmoi.stdin) "" }}
-
-{{ .chezmoi.stdin -}}
-{{ end }}
-{{ $activationBlock }}{{ "\n" }}
-{{- end -}}
+{{- $text := includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-bash-path" "body" $path "position" "top" "legacyEnd" "export PATH=.*") -}}
+{{- includeTemplate "managed-block.tmpl" (dict "stdin" $text "name" "mise-bash-integration" "body" $activation "position" "bottom" "legacyEnd" "fi") -}}
