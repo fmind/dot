@@ -200,6 +200,9 @@ class HarnessConfigTests(unittest.TestCase):
             {"matcher": "startup|resume", "hooks": [{"type": "command", "command": command, "timeout": 30}]},
         ]
         assert self.render(template, rendered) == rendered
+        # Codex rewrites its config in its own layout; a converged target must stay byte-identical.
+        converged = f"# written by codex\n{rendered}"
+        assert self.render(template, converged) == converged
 
     def test_claude_registers_brain_session_hook_once_beside_host_hooks(self):
         command = self._brain_hook()
