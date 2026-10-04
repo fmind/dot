@@ -12,13 +12,14 @@ from fmind_dot.archive.parsers import AGENT_ADAPTERS
 from fmind_dot.archive.store import (
     BUNDLE_SUFFIX,
     SESSION_PARSER_VERSION,
+    SESSION_STORE_VERSION,
     ensure_session_store,
     read_session_manifest,
 )
 from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, source_root
 from fmind_dot.config import expand_path
-from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
+from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State
 
 _CLI_NAME = "dot"
@@ -187,8 +188,7 @@ def _check_archive(root: Path, agent: str) -> tuple[str, int]:
 
 
 def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorResult]:
-    if agent and agent not in _DOCTOR_INTEGRATIONS:
-        raise DotError(f"unknown agent {agent!r}; choose one of {', '.join(_DOCTOR_INTEGRATIONS)}")
+    """Inspect every adapter, or one name the CLI has already validated."""
     root = ensure_session_store()
     results: list[AgentDoctorResult] = []
     for name in AGENT_ADAPTERS:
@@ -205,7 +205,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         elif hooks not in {"configured", "not-required"}:
             hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
         elif archive not in {"readable", "empty"}:
-            hint = f"inspect the unreadable bundles under ~/.agents/sessions/v3/{name}"
+            hint = f"inspect the unreadable bundles under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
         elif not synced or failures:
             hint = f"dot agent session sync --agent {name}"
         else:
@@ -234,8 +234,7 @@ def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") ->
             {"name": result.agent, "status": "pass" if result.healthy else "fail", "details": asdict(result)}
             for result in results
         ]
-        json.dump(diagnostic_report("agents", checks), state.stdout, ensure_ascii=False, indent=2)
-        state.stdout.write("\n")
+        write_json(state.stdout, diagnostic_report("agents", checks))
     else:
         state.stdout.write("Agent doctor\n")
         for result in results:

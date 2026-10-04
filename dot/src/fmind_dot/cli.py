@@ -13,11 +13,14 @@ import typer
 from typer import _click
 from typer.completion import completion_init
 
-from fmind_dot import __version__
+from fmind_dot import __version__, orphan, repository, system, trust, workstation
+from fmind_dot.agent import agent_app
+from fmind_dot.auth import login_app, setup_app
 from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, help_group
 from fmind_dot.config import dump_config, load_config, starter_config
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
+from fmind_dot.secrets import secret_app
 from fmind_dot.state import State, state_from
 
 # Plain help (non-TTY) wraps at 80 columns and truncates command summaries; Rich ignores these.
@@ -154,23 +157,12 @@ def config_validate(context: typer.Context) -> None:
 
 
 app.add_typer(config_app, name="config")
-
-# Command modules register after the shared helpers exist, keeping each workflow
-# independently testable without a second framework layer.
-from fmind_dot import orphan, repository, system, trust, workstation  # noqa: E402
-from fmind_dot.agent import agent_app  # noqa: E402
-from fmind_dot.auth import login_app, setup_app  # noqa: E402
-from fmind_dot.secrets import secret_app  # noqa: E402
-
 app.add_typer(agent_app, name="agent")
 app.add_typer(login_app, name="login")
 app.add_typer(setup_app, name="setup")
 app.add_typer(secret_app, name="secret")
-workstation.register(app)
-system.register(app)
-repository.register_repository_commands(app)
-trust.register(app)
-orphan.register(app)
+for module in (workstation, system, repository, trust, orphan):
+    module.register(app)
 
 
 def _invoke_app() -> int:

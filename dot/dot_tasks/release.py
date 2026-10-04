@@ -24,8 +24,7 @@ class ReleaseConfig:
 
 _RELEASE_VERSION_FILE = Path("dot/pyproject.toml")
 _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
-_RELEASE_LOCK_FILE = Path("dot/uv.lock")
-_RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, _RELEASE_LOCK_FILE)
+_RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, Path("dot/uv.lock"))
 _RELEASE_CLIFF_CONFIG = Path("dot_config/git-cliff/cliff.toml")
 # --remote selects only the Git remote that receives the commit and tag; CD and
 # the public release are always observed on this GitHub repository.
@@ -48,34 +47,9 @@ _WAIT_RETRIES = 3
 # Release versions only: a SemVer pre-release or build suffix normalizes differently
 # in PEP 440 distribution names, so CD would reject the artifacts after tagging.
 _SEMVER_TAG = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
-_PROJECT_SECTION = re.compile(r"(?m)^\[project\]\s*$")
-_SECTION = re.compile(r"(?m)^\[[^\n]+\]\s*$")
-_VERSION_ASSIGNMENT = re.compile(r'(?m)^version\s*=\s*"([^"\r\n]+)"\s*$')
-
-
-@dataclass(frozen=True)
-class _ReleaseSnapshot:
-    version: bytes
-    changelog: bytes
-    lock: bytes
-    version_mode: int
-    changelog_mode: int
-    lock_mode: int
-
-
-def _project_version_match(content: str) -> re.Match[str]:
-    project = _PROJECT_SECTION.search(content)
-    if project is None:
-        raise DotError(f"{_RELEASE_VERSION_FILE} must contain a [project] table")
-    next_section = _SECTION.search(content, project.end())
-    section = content[project.end() : next_section.start() if next_section else len(content)]
-    matches = list(_VERSION_ASSIGNMENT.finditer(section))
-    if len(matches) != 1:
-        raise DotError(
-            f"{_RELEASE_VERSION_FILE} [project] must contain exactly one string version; found {len(matches)}"
-        )
-    match = matches[0]
-    return _VERSION_ASSIGNMENT.match(content, project.end() + match.start(), project.end() + match.end()) or match
+# Original bytes and permission bits of each generated file, restored without Git or
+# a subprocess so an interrupted preparation still rolls back.
+type _ReleaseSnapshot = dict[Path, tuple[bytes, int]]
 
 
 def _require_tool(state: State, command: str, guidance: str | None = None) -> None:
@@ -92,29 +66,15 @@ def _confirm(state: State, prompt: str) -> bool:
 
 def read_release_version(root: Path) -> str:
     """Read the sole PEP 621 project version used by release preparation."""
-    path = root / _RELEASE_VERSION_FILE
     try:
-        content = path.read_text()
-        parsed = tomllib.loads(content)
+        parsed = tomllib.loads((root / _RELEASE_VERSION_FILE).read_text())
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise DotError(f"failed to read {_RELEASE_VERSION_FILE}: {error}") from error
-    match = _project_version_match(content)
-    value = parsed.get("project", {}).get("version")
-    if not isinstance(value, str) or value != match.group(1):
-        raise DotError(f"{_RELEASE_VERSION_FILE} has an ambiguous project version")
+    project = parsed.get("project")
+    value = project.get("version") if isinstance(project, dict) else None
+    if not isinstance(value, str):
+        raise DotError(f"{_RELEASE_VERSION_FILE} must define a static string [project] version")
     return value
-
-
-def write_release_version(root: Path, tag: str) -> None:
-    """Replace only the PEP 621 project version assignment."""
-    if not _SEMVER_TAG.fullmatch(tag):
-        raise DotError(f"invalid semantic version tag {tag!r}")
-    path = root / _RELEASE_VERSION_FILE
-    content = path.read_text()
-    match = _project_version_match(content)
-    start, end = match.span(1)
-    updated = content[:start] + tag.removeprefix("v") + content[end:]
-    path.write_text(updated)
 
 
 def validate_release_status(status_output: str) -> None:
@@ -140,29 +100,16 @@ def validate_release_status(status_output: str) -> None:
 
 
 def _snapshot_release(root: Path) -> _ReleaseSnapshot:
-    version_path = root / _RELEASE_VERSION_FILE
-    changelog_path = root / _RELEASE_CHANGELOG_FILE
-    lock_path = root / _RELEASE_LOCK_FILE
-    return _ReleaseSnapshot(
-        version=version_path.read_bytes(),
-        changelog=changelog_path.read_bytes(),
-        lock=lock_path.read_bytes(),
-        version_mode=stat.S_IMODE(version_path.stat().st_mode),
-        changelog_mode=stat.S_IMODE(changelog_path.stat().st_mode),
-        lock_mode=stat.S_IMODE(lock_path.stat().st_mode),
-    )
+    return {
+        path: ((root / path).read_bytes(), stat.S_IMODE((root / path).stat().st_mode))
+        for path in _RELEASE_GENERATED_FILES
+    }
 
 
 def _restore_release(root: Path, snapshot: _ReleaseSnapshot) -> None:
-    version_path = root / _RELEASE_VERSION_FILE
-    changelog_path = root / _RELEASE_CHANGELOG_FILE
-    lock_path = root / _RELEASE_LOCK_FILE
-    version_path.write_bytes(snapshot.version)
-    version_path.chmod(snapshot.version_mode)
-    changelog_path.write_bytes(snapshot.changelog)
-    changelog_path.chmod(snapshot.changelog_mode)
-    lock_path.write_bytes(snapshot.lock)
-    lock_path.chmod(snapshot.lock_mode)
+    for path, (content, mode) in snapshot.items():
+        (root / path).write_bytes(content)
+        (root / path).chmod(mode)
 
 
 def _git_output(state: State, *args: str, cwd: Path | None = None, check: bool = True) -> str:
@@ -348,7 +295,7 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
     state.runner.run(["gh", "auth", "status"], timeout=_TOOL_TIMEOUT_SECONDS)
     _require_tool(state, "git-cliff", "run 'mise run tools' or install it via mise")
     _require_tool(state, "mise", "release validation cannot run")
-    _require_tool(state, "uv", "release lock regeneration cannot run")
+    _require_tool(state, "uv", "release version and lock updates cannot run")
     root_text = _git_output(state, "rev-parse", "--show-toplevel")
     if not root_text:
         raise DotError("git returned an empty repository root")
@@ -394,14 +341,16 @@ def run_release(state: State, *, yes: bool = False, settings: ReleaseConfig | No
     except OSError as error:
         raise DotError(f"failed to snapshot release files: {error}") from error
     try:
-        write_release_version(root, bumped)
+        # uv rewrites only [project].version and relocks; --no-sync leaves the venv alone.
         state.runner.run(
-            ["git-cliff", "--config", str(_RELEASE_CLIFF_CONFIG), "--bump", "-o", str(_RELEASE_CHANGELOG_FILE)],
+            ["uv", "version", bumped.removeprefix("v"), "--project", str(_RELEASE_VERSION_FILE.parent), "--no-sync"],
             cwd=root,
             timeout=_TOOL_TIMEOUT_SECONDS,
         )
         state.runner.run(
-            ["uv", "lock", "--project", str(_RELEASE_VERSION_FILE.parent)], cwd=root, timeout=_TOOL_TIMEOUT_SECONDS
+            ["git-cliff", "--config", str(_RELEASE_CLIFF_CONFIG), "--bump", "-o", str(_RELEASE_CHANGELOG_FILE)],
+            cwd=root,
+            timeout=_TOOL_TIMEOUT_SECONDS,
         )
         _validate_prepared_release(state, root, bumped)
     except KeyboardInterrupt:

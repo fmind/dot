@@ -10,7 +10,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from dot_tasks.mise_locks import LOCK_REVISION, bundle, capture
+from dot_tasks.mise_locks import bundle, capture
 
 
 def validate(configuration: Path) -> None:
@@ -69,10 +69,6 @@ def refresh(root: Path, *, bump: bool = False) -> None:
         command = ["mise", "lock", "--global", "--yes"]
         if bump:
             command.append("--bump")
-        seeded = tomllib.loads((configuration / "mise.lock").read_text(encoding="utf-8"))
-        if seeded.get("lockfile_version") != LOCK_REVISION:
-            # One-time format migration: mise keeps an existing lock's revision otherwise.
-            command.append("--upgrade")
         subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
             command, cwd=workspace, env=environment, check=True, timeout=1800
         )

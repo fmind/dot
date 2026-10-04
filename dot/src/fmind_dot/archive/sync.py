@@ -13,7 +13,6 @@ from fmind_dot.archive.parsers import (
     GROK_TRANSCRIPT_NAME,
     AgentAdapter,
     ParsedSession,
-    agent_adapters,
     enumerate_sessions,
     resolve_cwd,
 )
@@ -24,10 +23,8 @@ from fmind_dot.archive.store import (
     SessionSource,
     ensure_session_store,
     ingest_session,
-    read_session_bundle,
     read_session_manifest,
     report_ingestion,
-    session_bundle_path,
     session_store_root,
 )
 from fmind_dot.config import expand_path
@@ -51,7 +48,6 @@ class SyncOutcome:
     ingested: int = 0
     unchanged: int = 0
     retained: int = 0
-    retained_current_transcripts: int = 0
     skipped: int = 0
     failed: int = 0
 
@@ -129,8 +125,8 @@ def _capture(
     parsed: ParsedSession,
     signature: str,
     previous: SessionManifest | None,
-) -> tuple[SessionIngestionResult | None, DotError | None]:
-    """Publish one parse; a usage extraction failure never replaces the archived copy."""
+) -> tuple[SessionIngestionResult, DotError | None]:
+    """Publish one parse; a malformed source or usage failure never replaces an archived measurement."""
     source = SessionSource(
         type=parsed.source_type,
         fingerprint=parsed.fingerprint,
@@ -147,15 +143,16 @@ def _capture(
             adapter.name, session_id, parsed.logs, source, usage=usage, expected_generation=generation
         ), None
     # Provider metric errors can quote source values: report the outcome, not the detail.
-    # If nothing is archived, keep the transcript without usage. Check under the publication
-    # lock; an empty signature makes the next sync retry rather than skip this source.
+    # The transcript still publishes under the usual non-shrink rules, keeping any archived
+    # measurement; an empty signature makes the next sync retry rather than skip this source.
     source.signature = ""
     result = ingest_session(
-        adapter.name, session_id, parsed.logs, source, preserve_existing=True, expected_generation=generation
+        adapter.name, session_id, parsed.logs, source, usage_failed=True, expected_generation=generation
     )
-    if result.status == "retained":
-        return None, DotError("usage extraction failed; kept the archived copy and its usage")
-    return result, DotError("usage extraction failed; archived the transcript without usage")
+    cause = "usage extraction failed" if parsed.usage_error is not None else "malformed source records"
+    if result.manifest.usage is not None:
+        return result, DotError(f"{cause}; kept the archived usage")
+    return result, DotError(f"{cause}; archived the transcript without usage")
 
 
 def _database_checkpoint(root: Path, agent: str) -> str:
@@ -213,7 +210,7 @@ def sync_sessions(
         detail = bounded_failure(error, session_id)
         state.stderr.write(f"agent-session: failed to {operation} for {adapter.label}: {detail}\n")
 
-    for adapter in agent_adapters():
+    for adapter in AGENT_ADAPTERS.values():
         if agent and adapter.name != agent:
             continue
         failed_before = outcome.failed
@@ -275,28 +272,17 @@ def sync_sessions(
                 result, failure = _capture(
                     adapter, session_id, parsed, parsed.fingerprint if adapter.database else signature, previous
                 )
-                if result is not None and result.status == "retained" and failure is None and not parsed.malformed:
-                    # Usage retention does not make identical transcript text stale.
-                    # Prove equality against the retained generation and still-current source.
-                    manifest, logs = read_session_bundle(session_bundle_path(adapter.name, session_id))
-                    if (
-                        manifest == result.manifest
-                        and logs == parsed.logs
-                        and _source_signature(_source_files(adapter, path))[0] == observed
-                    ):
-                        counts.retained_current_transcripts += 1
             except _SESSION_ERRORS as error:
                 # One malformed session must not block the sessions and adapters after it.
                 fail(adapter, "capture session", error, session_id)
                 continue
-            if result is not None:
-                stored[session_id] = replace(result.manifest, usage=None)
-                setattr(counts, result.status, getattr(counts, result.status) + 1)
-                if not quiet and result.status in {"ingested", "retained"}:
-                    state.stderr.write(report_ingestion(result) + "\n")
+            stored[session_id] = replace(result.manifest, usage=None)
+            setattr(counts, result.status, getattr(counts, result.status) + 1)
+            if not quiet and result.status in {"ingested", "retained"}:
+                state.stderr.write(report_ingestion(result) + "\n")
             if failure is not None:
                 fail(adapter, "capture session", failure, session_id)
-        for name in ("selected", "ingested", "unchanged", "retained", "retained_current_transcripts", "skipped"):
+        for name in ("selected", "ingested", "unchanged", "retained", "skipped"):
             setattr(outcome, name, getattr(outcome, name) + getattr(counts, name))
         if not quiet and scanned:
             verb = "selected" if dry_run else "ingested"

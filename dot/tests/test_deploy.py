@@ -103,6 +103,8 @@ def test_install_uses_explicit_uv_path_and_disables_dependency_source_builds(tmp
     build = next(command for command in uv_calls if command[1] == "build")
     assert build[build.index("--python") + 1] == deploy_dot.PYTHON_VERSION
     assert {"--no-cache", "--no-config", "--no-python-downloads", "--no-sources", "--offline"} <= set(build)
+    export = next(command for command in uv_calls if command[1] == "export")
+    assert "--locked" in export
     sync = next(command for command in uv_calls if command[1:3] == ["pip", "sync"])
     assert sync[sync.index("--only-binary") + 1] == ":all:"
     assert [str(install_root / "venv-a/bin/dot"), "--version"] in calls

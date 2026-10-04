@@ -11,9 +11,13 @@ import pytest
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
-from fmind_dot.trust import github_owner, run_trust, trust_folder
+from fmind_dot.trust import github_owner, run_trust, trust_folders
 
 COPILOT_HEADER = "// User settings belong in settings.json.\n// This file is managed automatically.\n"
+
+
+def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = None) -> list[str]:
+    return trust_folders([folder], dry_run=dry_run, home=home)[folder]
 
 
 def harness_home(home: Path) -> None:

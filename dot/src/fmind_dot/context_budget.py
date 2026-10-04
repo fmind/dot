@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -12,6 +12,7 @@ import yaml
 
 from fmind_dot.command_group import JsonOption
 from fmind_dot.errors import DotError
+from fmind_dot.reporting import display_path, write_json
 
 CONTEXT_TOKEN_LIMIT = 5_000
 MAX_INPUT_BYTES = 1 << 20
@@ -165,12 +166,10 @@ def _totals(entries: list[ContextEntry]) -> dict[str, int]:
 
 
 def context_report(project: Path, *, global_root: Path | None = None, source: Path | None = None) -> dict[str, Any]:
-    """Measure explicit shared roots, not a guessed host prompt or recursive workspace."""
+    """Measure explicit shared roots, not a guessed host prompt or recursive workspace; source wins over global_root."""
     project = project.expanduser().resolve()
     if not project.is_dir():
         raise DotError(f"project directory does not exist: {project}")
-    if source is not None and global_root is not None:
-        raise DotError("choose --source or --global-root, not both")
     if source is not None:
         source = source.expanduser().resolve()
         if not (source / "skills").is_dir() or not (source / "dot_agents/AGENTS.md").is_file():
@@ -224,11 +223,6 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
     }
 
 
-def _display_path(value: str) -> str:
-    path = Path(value)
-    return str(Path("~") / path.relative_to(Path.home())) if path.is_relative_to(Path.home()) else value
-
-
 def _print_report(report: dict[str, Any], *, details: bool) -> None:
     typer.echo("Agent context · estimated tokens")
     typer.echo(f"Budget: below {CONTEXT_TOKEN_LIMIT:,} tokens for global and local, separately.\n")
@@ -270,8 +264,8 @@ def _print_report(report: dict[str, Any], *, details: bool) -> None:
             typer.echo(f"  {scope.capitalize():<10} {totals['on_demand_skill_file_estimated_tokens']:>9,}")
         typer.echo("\nSources")
         for scope, roots in report["roots"].items():
-            typer.echo(f"  {scope.capitalize() + ' AGENTS.md':<17} {_display_path(roots['agents'])}")
-            typer.echo(f"  {scope.capitalize() + ' skills':<17} {_display_path(roots['skills'])}")
+            typer.echo(f"  {scope.capitalize() + ' AGENTS.md':<17} {display_path(roots['agents'])}")
+            typer.echo(f"  {scope.capitalize() + ' skills':<17} {display_path(roots['skills'])}")
         typer.echo(f"\n{report['coverage']}")
     else:
         typer.echo("Use --details for source paths, on-demand costs, and coverage.")
@@ -314,7 +308,7 @@ def register(agent_app: typer.Typer) -> None:
             raise typer.BadParameter("choose --source or --global-root, not both")
         report = context_report(project, global_root=global_root, source=source)
         if as_json:
-            typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+            write_json(sys.stdout, report)
         elif check and report["passed"] and not details:
             # Agents run the gate often; a pass needs one line, a failure keeps the full table.
             typer.echo(_check_summary(report))

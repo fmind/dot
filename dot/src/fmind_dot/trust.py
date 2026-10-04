@@ -138,7 +138,7 @@ def _toml_table(
 def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
     # Claude keeps trust in ~/.claude.json but its state directory is ~/.claude.
     return {
-        "claude": (home / ".claude.json", lambda path, text, folders: _claude(path, text, folders)),
+        "claude": (home / ".claude.json", _claude),
         "codex": (
             home / ".codex" / "config.toml",
             lambda path, text, folders: _toml_table(path, text, folders, "projects", "trust_level", "trusted"),
@@ -173,11 +173,6 @@ def trust_folders(folders: list[Path], *, dry_run: bool = False, home: Path | No
             for folder in _update(path, edit, list(selected), dry_run=dry_run):
                 changed[selected[folder]].append(name)
     return changed
-
-
-def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = None) -> list[str]:
-    """Trust one folder in every installed harness; return the harnesses that changed."""
-    return trust_folders([folder], dry_run=dry_run, home=home)[folder]
 
 
 def github_owner(origin: str) -> str | None:

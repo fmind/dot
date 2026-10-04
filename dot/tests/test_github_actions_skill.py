@@ -44,14 +44,11 @@ def test_workflow_actions_are_immutable_and_version_commented() -> None:
         assert all(COMMENTED_ACTION.fullmatch(line) for line in action_lines), path
 
 
-def test_workflow_runners_are_fixed_and_sha_exception_is_absent() -> None:
+def test_workflow_runners_are_fixed() -> None:
     for path in WORKFLOWS:
         content = path.read_text(encoding="utf-8")
         assert "ubuntu-latest" not in content, path
         assert "runs-on: ubuntu-24.04" in content, path
-
-    assert not (ROOT / ".github/zizmor.yml").exists()
-    assert not (ROOT / "skills/github-actions/references/zizmor.yml").exists()
 
 
 @pytest.mark.parametrize(

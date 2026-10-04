@@ -409,7 +409,7 @@ def aggregate_usage(
         subscription = (subscriptions or {}).get(record.harness)
         zone = ZoneInfo(subscription.timezone) if billing and subscription else ZoneInfo("UTC")
         day = subscription.renewal_day if billing and subscription else 1
-        selected: dict[tuple[str, str, str, str, str], list[UsageRecord]] = {}
+        selected: dict[tuple[str, str, str, str, str], list[bool]] = {}  # priced flag per included sample
         samples = [_sample_record(record, sample) for sample in record.samples] or [record]
         for sample in samples:
             timestamp = _parse_usage_timestamp(sample.timestamp)
@@ -435,8 +435,8 @@ def aggregate_usage(
             stamp = timestamp.isoformat()
             row.first_timestamp = min(row.first_timestamp, stamp) if row.first_timestamp else stamp
             row.last_timestamp = max(row.last_timestamp, stamp)
-            selected.setdefault(key, []).append(sample)
             equivalent, reason = api_equivalent(sample, rates)
+            selected.setdefault(key, []).append(equivalent is not None)
             row.measurements += 1
             if equivalent is None:
                 row.unpriced_reasons[reason] = row.unpriced_reasons.get(reason, 0) + 1
@@ -450,9 +450,7 @@ def aggregate_usage(
         for key, included in selected.items():
             row = grouped[key]
             evidence = sessions.setdefault(key, {}).setdefault(session, _SessionEvidence())
-            evidence.priced = evidence.priced and all(
-                api_equivalent(sample, rates)[0] is not None for sample in included
-            )
+            evidence.priced = evidence.priced and all(included)
             evidence.session_timestamp = evidence.session_timestamp or not record.samples
             evidence.legacy = evidence.legacy or record.legacy_accounting
             # A provider's session cost cannot be apportioned between dates/models. Claude's

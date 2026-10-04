@@ -15,10 +15,9 @@ from dot_tasks.release import (
     remote_release_tag_commit,
     run_release,
     validate_release_status,
-    write_release_version,
 )
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import RUN_OUTPUT_LIMIT_BYTES, CommandResult, Runner
 from fmind_dot.state import State
 
 
@@ -77,9 +76,8 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env, on_stdout_line
+        del cwd, stdin, stdout, stderr, env
         call = tuple(args)
         self.interactive_calls.append(call)
         response = self.responses.get(call, CommandResult("", "", 0))
@@ -96,39 +94,8 @@ class RecordingRunner(Runner):
         return response.returncode
 
 
-class VersionRevertingRunner(RecordingRunner):
-    def __init__(self, pyproject: Path, content: str) -> None:
-        super().__init__()
-        self.pyproject = pyproject
-        self.content = content
-
-    def interactive(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        stdin: IO[str] | None = None,
-        stdout: IO[str] | None = None,
-        stderr: IO[str] | None = None,
-        env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
-    ) -> int:
-        code = super().interactive(
-            args,
-            cwd=cwd,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-            env=env,
-            on_stdout_line=on_stdout_line,
-        )
-        if tuple(args) == ("mise", "run", "test"):
-            self.pyproject.write_text(self.content)
-        return code
-
-
 class RealLockRunner(RecordingRunner):
-    """Keep release side effects fake while exercising uv's real lock writer."""
+    """Keep release side effects fake while exercising uv's real version and lock writer."""
 
     def run(
         self,
@@ -140,13 +107,15 @@ class RealLockRunner(RecordingRunner):
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        if tuple(args) == ("uv", "lock", "--project", "dot"):
+        if args[0] == "uv":
             self.calls.append(tuple(args))
             command_env = dict(env or {})
             command_env["UV_OFFLINE"] = "1"
-            return Runner.run(
+            # Bypass the recording run_bounded override, which delegates back to run().
+            return Runner.run_bounded(
                 self,
                 args,
+                max_output_bytes=RUN_OUTPUT_LIMIT_BYTES,
                 cwd=cwd,
                 input_text=input_text,
                 env=command_env,
@@ -161,6 +130,38 @@ class RealLockRunner(RecordingRunner):
             timeout=timeout,
             check=check,
         )
+
+
+class VersionRevertingRunner(RealLockRunner):
+    def __init__(self, pyproject: Path, content: str) -> None:
+        super().__init__()
+        self.pyproject = pyproject
+        self.content = content
+
+    def interactive(
+        self,
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        stdin: IO[str] | None = None,
+        stdout: IO[str] | None = None,
+        stderr: IO[str] | None = None,
+        env: Mapping[str, str] | None = None,
+    ) -> int:
+        code = super().interactive(
+            args,
+            cwd=cwd,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            env=env,
+        )
+        if tuple(args) == ("mise", "run", "test"):
+            self.pyproject.write_text(self.content)
+        return code
+
+
+UV_VERSION = ("uv", "version", "1.27.0", "--project", "dot", "--no-sync")
 
 
 def make_state(runner: Runner | None = None) -> State:
@@ -328,7 +329,6 @@ class GitPushRaceRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
         if tuple(args[:2]) == ("git", "push") and not self.mutated:
             self.mutation()
@@ -340,7 +340,6 @@ class GitPushRaceRunner(Runner):
             stdout=stdout,
             stderr=stderr,
             env=env,
-            on_stdout_line=on_stdout_line,
         )
 
 
@@ -485,7 +484,7 @@ def test_release_regenerates_valid_lock_and_stages_it(tmp_path: Path) -> None:
         ["uv", "lock", "--project", str(project), "--check"],
         env={"UV_OFFLINE": "1"},
     )
-    assert ("uv", "lock", "--project", "dot") in runner.calls
+    assert UV_VERSION in runner.calls
     assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") in runner.calls
 
 
@@ -500,7 +499,7 @@ def test_release_failure_restores_regenerated_lock(tmp_path: Path, task: str) ->
 
     assert read_release_version(tmp_path) == "1.26.2"
     assert (project / "uv.lock").read_bytes() == original_lock
-    assert ("uv", "lock", "--project", "dot") in runner.calls
+    assert UV_VERSION in runner.calls
     Runner().run(
         ["uv", "lock", "--project", str(project), "--check"],
         env={"UV_OFFLINE": "1"},
@@ -509,131 +508,84 @@ def test_release_failure_restores_regenerated_lock(tmp_path: Path, task: str) ->
 
 def test_release_validation_failure_restores_pyproject(tmp_path: Path) -> None:
     pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    original = '[project]\nname = "fmind-dot"\nversion = "1.26.2"\n'
-    original_lock = "version = 1\n"
-    pyproject.write_text(original)
-    (tmp_path / "dot" / "uv.lock").write_text(original_lock)
-    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n")
-    parent = "b" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(parent, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(parent, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("feat: migrate", "", 0),
-        ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version"): CommandResult(
-            "v1.27.0", "", 0
-        ),
-        ("git", "describe", "--tags", "--abbrev=0"): CommandResult("v1.26.2", "", 0),
-        ("mise", "run", "test"): CommandResult("", "", 1),
-    }
-    state = make_state(runner)
+    project, original_lock = copy_release_project(tmp_path)
+    original = pyproject.read_text()
+    runner = release_runner(tmp_path)
+    runner.responses[("mise", "run", "test")] = CommandResult("", "", 1)
 
     with pytest.raises(DotError, match="project test failed"):
-        run_release(state, yes=True)
+        run_release(make_state(runner), yes=True)
 
+    assert UV_VERSION in runner.calls
     assert pyproject.read_text() == original
-    assert (tmp_path / "dot" / "uv.lock").read_text() == original_lock
+    assert (project / "uv.lock").read_bytes() == original_lock
     assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") not in runner.calls
 
 
 def test_release_validation_interrupt_restores_files_and_propagates(tmp_path: Path) -> None:
     pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    original_project = '[project]\nname = "fmind-dot"\nversion = "1.26.2"\n'
-    original_changelog = "# Changelog\n"
-    original_lock = "version = 1\n"
-    pyproject.write_text(original_project)
-    (tmp_path / "dot" / "uv.lock").write_text(original_lock)
-    (tmp_path / "CHANGELOG.md").write_text(original_changelog)
-    parent = "b" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(parent, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(parent, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("feat: migrate", "", 0),
-        ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version"): CommandResult(
-            "v1.27.0", "", 0
-        ),
-        ("git", "describe", "--tags", "--abbrev=0"): CommandResult("v1.26.2", "", 0),
-        ("mise", "run", "test"): KeyboardInterrupt(),
-    }
+    project, original_lock = copy_release_project(tmp_path)
+    original_project = pyproject.read_text()
+    original_changelog = (tmp_path / "CHANGELOG.md").read_text()
+    runner = release_runner(tmp_path)
+    runner.responses[("mise", "run", "test")] = KeyboardInterrupt()
 
     with pytest.raises(KeyboardInterrupt):
         run_release(make_state(runner), yes=True)
 
     assert pyproject.read_text() == original_project
     assert (tmp_path / "CHANGELOG.md").read_text() == original_changelog
-    assert (tmp_path / "dot" / "uv.lock").read_text() == original_lock
+    assert (project / "uv.lock").read_bytes() == original_lock
     assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") not in runner.calls
 
 
 def test_release_commit_interrupt_restores_files_and_index_then_propagates(tmp_path: Path) -> None:
     pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    original_project = '[project]\nname = "fmind-dot"\nversion = "1.26.2"\n'
-    original_changelog = "# Changelog\n"
-    original_lock = "version = 1\n"
-    pyproject.write_text(original_project)
-    (tmp_path / "dot" / "uv.lock").write_text(original_lock)
-    (tmp_path / "CHANGELOG.md").write_text(original_changelog)
-    parent = "b" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(parent, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(parent, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("feat: migrate", "", 0),
-        ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version"): CommandResult(
-            "v1.27.0", "", 0
-        ),
-        ("git", "describe", "--tags", "--abbrev=0"): CommandResult("v1.26.2", "", 0),
-        ("git", "status", "--porcelain=v1", "-z", "--untracked-files=all"): CommandResult(
-            " M CHANGELOG.md\0 M dot/pyproject.toml\0", "", 0
-        ),
-        ("git", "commit", "-m", "chore(release): v1.27.0"): KeyboardInterrupt(),
-    }
+    project, original_lock = copy_release_project(tmp_path)
+    original_project = pyproject.read_text()
+    original_changelog = (tmp_path / "CHANGELOG.md").read_text()
+    runner = release_runner(tmp_path)
+    runner.responses[("git", "commit", "-m", "chore(release): v1.27.0")] = KeyboardInterrupt()
 
     with pytest.raises(KeyboardInterrupt):
         run_release(make_state(runner), yes=True)
 
+    assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") in runner.calls
     assert pyproject.read_text() == original_project
     assert (tmp_path / "CHANGELOG.md").read_text() == original_changelog
-    assert (tmp_path / "dot" / "uv.lock").read_text() == original_lock
+    assert (project / "uv.lock").read_bytes() == original_lock
     assert ("git", "reset", "--mixed", "HEAD") in runner.calls
 
 
 def test_release_validation_rejects_reverted_package_version(tmp_path: Path) -> None:
     pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    original_project = '[project]\nname = "fmind-dot"\nversion = "1.26.2"\n'
-    pyproject.write_text(original_project)
-    (tmp_path / "dot" / "uv.lock").write_text("version = 1\n")
-    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n")
-    parent = "b" * 40
+    copy_release_project(tmp_path)
+    original_project = pyproject.read_text()
     runner = VersionRevertingRunner(pyproject, original_project)
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(parent, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(parent, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("feat: migrate", "", 0),
-        ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version"): CommandResult(
-            "v1.27.0", "", 0
-        ),
-        ("git", "describe", "--tags", "--abbrev=0"): CommandResult("v1.26.2", "", 0),
-        ("git", "status", "--porcelain=v1", "-z", "--untracked-files=all"): CommandResult(" M CHANGELOG.md\0", "", 0),
-    }
+    runner.responses = release_runner(tmp_path).responses
+    runner.responses[("git", "status", "--porcelain=v1", "-z", "--untracked-files=all")] = CommandResult(
+        " M CHANGELOG.md\0", "", 0
+    )
 
     with pytest.raises(DotError, match="release validation changed the package version"):
         run_release(make_state(runner), yes=True)
 
+    assert UV_VERSION in runner.calls
     assert pyproject.read_text() == original_project
+
+
+def test_release_rejects_invalid_bumped_version_before_writing(tmp_path: Path) -> None:
+    project, original_lock = copy_release_project(tmp_path)
+    for tag in ("1.2", "v1.2.3-rc.1", "v1.2.3+build.1"):
+        runner = release_runner(tmp_path)
+        runner.responses[("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")] = (
+            CommandResult(tag, "", 0)
+        )
+        with pytest.raises(DotError, match="invalid semantic version tag"):
+            run_release(make_state(runner), yes=True)
+        assert all(call[0] != "uv" for call in runner.calls)
+    assert read_release_version(tmp_path) == "1.26.2"
+    assert (project / "uv.lock").read_bytes() == original_lock
 
 
 def test_prepared_release_refreshes_installed_python_cli(tmp_path: Path) -> None:
@@ -806,7 +758,7 @@ def test_release_no_change_and_cancellation_have_no_side_effects(tmp_path: Path)
     no_change_state = make_state(no_change_runner)
 
     assert run_release(no_change_state, yes=True) is None
-    assert ("uv", "lock", "--project", "dot") not in no_change_runner.calls
+    assert UV_VERSION not in no_change_runner.calls
     assert isinstance(no_change_state.stdout, io.StringIO)
     assert "Nothing to release" in no_change_state.stdout.getvalue()
 
@@ -814,18 +766,18 @@ def test_release_no_change_and_cancellation_have_no_side_effects(tmp_path: Path)
     cancel_state = make_state(cancel_runner)
     cancel_state.stdin = io.StringIO("no\n")
     assert run_release(cancel_state) is None
-    assert ("uv", "lock", "--project", "dot") not in cancel_runner.calls
+    assert UV_VERSION not in cancel_runner.calls
     assert isinstance(cancel_state.stdout, io.StringIO)
     assert "Release canceled" in cancel_state.stdout.getvalue()
 
 
-def test_pyproject_version_update_is_exact_and_release_status_is_confined(tmp_path: Path) -> None:
+def test_release_version_update_is_exact_and_release_status_is_confined(tmp_path: Path) -> None:
     pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    pyproject.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n\n[tool.demo]\nversion = "9"\n')
+    copy_release_project(tmp_path)
+    pyproject.write_text(pyproject.read_text() + '\n[tool.demo]\nversion = "9"\n')
+    runner = release_runner(tmp_path)
 
-    assert read_release_version(tmp_path) == "1.26.2"
-    write_release_version(tmp_path, "v1.27.0")
+    assert run_release(make_state(runner), yes=True) == "v1.27.0"
     assert read_release_version(tmp_path) == "1.27.0"
     assert 'version = "9"' in pyproject.read_text()
     validate_release_status(" M CHANGELOG.md\0 M dot/pyproject.toml\0 M dot/uv.lock\0")
@@ -844,20 +796,13 @@ def test_release_metadata_rejects_missing_ambiguous_and_invalid_versions(tmp_pat
     with pytest.raises(DotError, match="failed to read"):
         read_release_version(tmp_path)
 
-    pyproject.write_text('[tool.demo]\nversion = "1.0.0"\n')
-    with pytest.raises(DotError, match=r"must contain a \[project\] table"):
-        read_release_version(tmp_path)
+    for content in ('[tool.demo]\nversion = "1.0.0"\n', "[project]\nversion = 1\n", 'project = "flat"\n'):
+        pyproject.write_text(content)
+        with pytest.raises(DotError, match=r"static string \[project\] version"):
+            read_release_version(tmp_path)
 
-    pyproject.write_text("[project]\nversion = 1\n")
-    with pytest.raises(DotError, match="exactly one string version"):
+    pyproject.write_text("[project\n")
+    with pytest.raises(DotError, match="failed to read"):
         read_release_version(tmp_path)
-
-    pyproject.write_text('[project]\nversion = "1\\u002e2.3"\n')
-    with pytest.raises(DotError, match="ambiguous project version"):
-        read_release_version(tmp_path)
-
-    for tag in ("1.2", "v1.2.3-rc.1", "v1.2.3+build.1"):
-        with pytest.raises(DotError, match="invalid semantic version tag"):
-            write_release_version(tmp_path, tag)
     with pytest.raises(DotError, match="malformed git status record"):
         validate_release_status("bad\0")

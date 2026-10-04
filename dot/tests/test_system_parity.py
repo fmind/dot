@@ -86,7 +86,6 @@ class ScriptedRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
         del cwd, stdin, stderr, env
         command = list(args)
@@ -95,8 +94,6 @@ class ScriptedRunner(Runner):
         for line in lines:
             if stdout is not None:
                 stdout.write(line)
-            if on_stdout_line is not None:
-                on_stdout_line(line)
         return self.interactive_codes.get(command[0], 0)
 
 
@@ -321,10 +318,10 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
     with pytest.raises(DotError, match="unknown agent notify event"):
         hooks.build_notification("codex", "unknown", None)
 
-    minimal = hooks.build_notification("custom", "session-end", None)
-    assert minimal == hooks.Notification("🏁 custom", "Session ended")
+    minimal = hooks.build_notification("custom", "needs-input", None)
+    assert minimal == hooks.Notification("⏳ custom", "Needs your input")
     assert (
-        'display notification "Session ended"'
+        'display notification "Needs your input"'
         in hooks.notification_command(ScriptedRunner(), minimal, system="darwin")[2]
     )
 
@@ -1120,6 +1117,11 @@ def test_completion_mise_resolution_error_is_not_a_missing_tool(
         system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
 
 
+def _zellij_pane(monkeypatch: pytest.MonkeyPatch, pane: str) -> None:
+    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "work")
+    monkeypatch.setenv("ZELLIJ_PANE_ID", pane)
+
+
 @pytest.mark.parametrize(
     ("output", "expected"),
     [
@@ -1132,28 +1134,34 @@ def test_completion_mise_resolution_error_is_not_a_missing_tool(
         ("invalid JSON", ""),
     ],
 )
-def test_notification_title_uses_only_originating_terminal(output: str, expected: str) -> None:
+def test_notification_title_uses_only_originating_terminal(
+    monkeypatch: pytest.MonkeyPatch, output: str, expected: str
+) -> None:
+    _zellij_pane(monkeypatch, "7")
     runner = ScriptedRunner({"zellij"}, run=lambda *_args: CommandResult(output, "", 0))
-    assert hooks.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == expected
+    assert hooks.notification_title(runner) == expected
     assert runner.output_limits == [PROBE_OUTPUT_LIMIT_BYTES]
 
 
 @pytest.mark.parametrize("failure", ["timeout", "exited", "truncated"])
-def test_notification_title_failure_keeps_plain_notification(failure: str) -> None:
+def test_notification_title_failure_keeps_plain_notification(monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
+    _zellij_pane(monkeypatch, "7")
+
     def run(*_args: object) -> CommandResult:
         if failure == "timeout":
             raise DotError("command timed out: zellij")
         return CommandResult("[]", "", int(failure == "exited"), stdout_truncated=failure == "truncated")
 
     runner = ScriptedRunner({"zellij"}, run=run)
-    assert hooks.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": "7"}.get) == ""
+    assert hooks.notification_title(runner) == ""
     assert hooks.build_notification("codex", "stop", Path("/work/project")).details == ()
 
 
 @pytest.mark.parametrize("pane", ["", "terminal_7", "-1", "\uff17"])
-def test_notification_title_skips_unavailable_origin(pane: str) -> None:
+def test_notification_title_skips_unavailable_origin(monkeypatch: pytest.MonkeyPatch, pane: str) -> None:
+    _zellij_pane(monkeypatch, pane)
     runner = ScriptedRunner({"zellij"})
-    assert hooks.notification_title(runner, {"ZELLIJ_SESSION_NAME": "work", "ZELLIJ_PANE_ID": pane}.get) == ""
+    assert hooks.notification_title(runner) == ""
     assert runner.calls == []
 
 

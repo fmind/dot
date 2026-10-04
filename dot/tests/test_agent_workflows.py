@@ -109,7 +109,7 @@ def _fixture_adapter(
     monkeypatch: pytest.MonkeyPatch, state: State, tmp_path: Path, parser: object, session_id: str = "fixture-id"
 ) -> None:
     adapter = AgentAdapter("fixture", "Fixture", False, parser)  # ty: ignore[invalid-argument-type]
-    monkeypatch.setattr(archive_sync_module, "agent_adapters", lambda: [adapter])
+    monkeypatch.setattr(archive_sync_module, "AGENT_ADAPTERS", {"fixture": adapter})
     monkeypatch.setattr(archive_sync_module, "enumerate_sessions", lambda *_args: [(session_id, "", tmp_path)])
     state.config.agent.sources["fixture"] = str(tmp_path)
 
@@ -208,7 +208,8 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
     assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (4, 5, 6)
     assert "agent-session: failed to capture session for Claude: " in synced.stderr
     assert "a-surrogate" not in synced.stderr
-    assert synced.stderr.count("usage extraction failed; archived the transcript without usage") == 3
+    assert synced.stderr.count("usage extraction failed; archived the transcript without usage") == 2
+    assert synced.stderr.count("malformed source records; archived the transcript without usage") == 1
     assert isinstance(synced.exception, DotError)
     assert "session sync recorded 4 failure(s)" in str(synced.exception)
     manifests = {

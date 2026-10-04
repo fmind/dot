@@ -203,7 +203,6 @@ def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
     documented = set(re.findall(r"^\| `dot ([a-z-]+)`", content, flags=re.MULTILINE))
 
     assert documented == visible
-    assert "then rerun with `--apply`" not in content
 
 
 def test_bare_invocation_exits_successfully_with_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

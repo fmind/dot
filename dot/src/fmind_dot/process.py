@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import codecs
-import io
 import locale
 import os
 import re
@@ -14,8 +12,9 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from threading import Event, Lock
 from typing import IO
@@ -88,12 +87,10 @@ class _BoundedCapture:
 
 
 def _remaining_time(deadline: float | None, timeout: float | None) -> float | None:
-    if deadline is None:
+    if deadline is None or timeout is None:
         return None
     remaining = deadline - time.monotonic()
     if remaining <= 0:
-        if timeout is None:
-            raise RuntimeError("subprocess deadline requires a timeout")
         raise subprocess.TimeoutExpired("command", timeout)
     return remaining
 
@@ -194,7 +191,7 @@ def _set_foreground(terminal: int, group: int) -> None:
 
 
 @contextmanager
-def _foreground_terminal(process: subprocess.Popen[str], stream: IO[str] | None) -> Iterator[int | None]:
+def _foreground_terminal(process: subprocess.Popen[bytes], stream: IO[str] | None) -> Iterator[int | None]:
     terminal = None
     if os.name == "posix":
         try:
@@ -215,7 +212,7 @@ def _foreground_terminal(process: subprocess.Popen[str], stream: IO[str] | None)
             _set_foreground(terminal, os.getpgrp())
 
 
-def _relay_terminal_stop(process: subprocess.Popen[str], terminal: int | None) -> None:
+def _relay_terminal_stop(process: subprocess.Popen[bytes], terminal: int | None) -> None:
     if terminal is None or process.poll() is not None:
         return
     try:
@@ -232,45 +229,15 @@ def _relay_terminal_stop(process: subprocess.Popen[str], terminal: int | None) -
             os.killpg(process.pid, signal.SIGCONT)
 
 
-def _wait_interactive(
-    process: subprocess.Popen[str],
-    terminal: int | None,
-    output: IO[str],
-    on_stdout_line: Callable[[str], None] | None,
-) -> int:
-    if on_stdout_line is None or process.stdout is None:
-        if terminal is None:
-            return process.wait()
-        while True:
-            _relay_terminal_stop(process, terminal)
-            try:
-                return process.wait(timeout=0.1)
-            except subprocess.TimeoutExpired:
-                pass
-    # Read chunks so a partial stdout line cannot block cancellation or job
-    # control. Preserve the text/universal-newline contract of Popen.readline.
-    decoder = io.IncrementalNewlineDecoder(codecs.getincrementaldecoder(locale.getencoding())("replace"), True)
-    pending = ""
-    with selectors.DefaultSelector() as selector:
-        selector.register(process.stdout, selectors.EVENT_READ)
-        while selector.get_map() or process.poll() is None:
-            _relay_terminal_stop(process, terminal)
-            for key, _events in selector.select(timeout=0.1):
-                content = os.read(key.fd, 65536)
-                pending += decoder.decode(content, final=not content)
-                while "\n" in pending:
-                    line, pending = pending.split("\n", 1)
-                    output.write(line + "\n")
-                    output.flush()
-                    on_stdout_line(line + "\n")
-                if not content:
-                    selector.unregister(key.fileobj)
-                    if pending:
-                        output.write(pending)
-                        output.flush()
-                        on_stdout_line(pending)
-                        pending = ""
-    return process.wait()
+def _wait_interactive(process: subprocess.Popen[bytes], terminal: int | None) -> int:
+    if terminal is None:
+        return process.wait()
+    while True:
+        _relay_terminal_stop(process, terminal)
+        try:
+            return process.wait(timeout=0.1)
+        except subprocess.TimeoutExpired:
+            pass
 
 
 class Runner:
@@ -317,7 +284,7 @@ class Runner:
         check: bool = True,
     ) -> CommandResult:
         """Run a command whose complete output the caller needs; oversized output is an error."""
-        result = self._run(
+        result = self.run_bounded(
             args,
             cwd=cwd,
             input_text=input_text,
@@ -328,8 +295,7 @@ class Runner:
         )
         if result.output_truncated:
             raise DotError(f"command output exceeded {RUN_OUTPUT_LIMIT_BYTES} bytes: {args[0]}")
-        # Keep the universal-newline text contract callers had before capture became bounded.
-        return replace(result, stdout=_universal_newlines(result.stdout), stderr=_universal_newlines(result.stderr))
+        return result
 
     def run_bounded(
         self,
@@ -343,27 +309,6 @@ class Runner:
         check: bool = True,
     ) -> CommandResult:
         """Run a command while draining all output and retaining one bounded byte budget."""
-        return self._run(
-            args,
-            cwd=cwd,
-            input_text=input_text,
-            env=env,
-            timeout=timeout,
-            check=check,
-            max_output_bytes=max_output_bytes,
-        )
-
-    def _run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None,
-        input_text: str | None,
-        env: Mapping[str, str] | None,
-        timeout: float | None,
-        check: bool,
-        max_output_bytes: int,
-    ) -> CommandResult:
         if not args:
             raise DotError("cannot run an empty command")
         if max_output_bytes <= 0:
@@ -396,10 +341,11 @@ class Runner:
                 timeout,
                 max_output_bytes,
             )
-            # Undecodable bytes are replaced; tool output is not trusted text.
+            # Undecodable bytes are replaced; tool output is not trusted text. Universal
+            # newlines keep the text contract of subprocess text mode for every caller.
             result = CommandResult(
-                stdout=capture.stdout.decode(encoding, errors="replace"),
-                stderr=capture.stderr.decode(encoding, errors="replace"),
+                stdout=_universal_newlines(capture.stdout.decode(encoding, errors="replace")),
+                stderr=_universal_newlines(capture.stderr.decode(encoding, errors="replace")),
                 returncode=process.returncode,
                 stdout_truncated=capture.stdout_truncated,
                 stderr_truncated=capture.stderr_truncated,
@@ -407,9 +353,6 @@ class Runner:
         except subprocess.TimeoutExpired as error:
             _terminate(process)
             raise DotError(f"command timed out: {args[0]}") from error
-        except KeyboardInterrupt:
-            _terminate(process)
-            raise
         except BaseException:
             _terminate(process)
             raise
@@ -431,7 +374,6 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
         if not args:
             raise DotError("cannot run an empty command")
@@ -443,22 +385,31 @@ class Runner:
             cwd=cwd,
             env=command_env,
             stdin=stdin,
-            stdout=subprocess.PIPE if on_stdout_line is not None else stdout,
+            stdout=stdout,
             stderr=stderr,
             process_group=0 if os.name == "posix" else None,
-            text=on_stdout_line is not None,
-            encoding=locale.getencoding() if on_stdout_line is not None else None,
-            errors="replace" if on_stdout_line is not None else None,
         )
         try:
             with _foreground_terminal(process, stdin) as terminal:
-                code = _wait_interactive(process, terminal, sys.stdout if stdout is None else stdout, on_stdout_line)
+                code = _wait_interactive(process, terminal)
                 if code == -signal.SIGINT:
                     raise KeyboardInterrupt
                 return code
         except BaseException:
             _terminate(process)
             raise
-        finally:
-            if process.stdout is not None:
-                process.stdout.close()
+
+
+def run_parallel[T, R](runner: Runner, function: Callable[[T], R], items: Sequence[T], workers: int) -> list[R]:
+    """Map items over a bounded pool; an interruption cancels every running command."""
+    if not items:
+        return []
+    executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
+    try:
+        return list(executor.map(function, items))
+    except BaseException:
+        # Cancelled runners refuse new commands, so queued workers stop at their next call.
+        runner.cancel()
+        raise
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)

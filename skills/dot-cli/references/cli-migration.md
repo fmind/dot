@@ -36,21 +36,21 @@ Help works even with missing or malformed configuration. Commands still validate
 
 Public JSON reports use a top-level `schema` field. Update selectors as follows; warnings and errors remain on stderr. A failure before report construction may produce no JSON, so always check the exit status.
 
-| Command                          | Schema                        | Data selector                                                                                                |
-| -------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `dot pull --json`                | `dot.pull/v1`                 | `.repositories[]` instead of `.[]`; `.complete` records success.                                             |
-| `dot pull --dry-run --json`      | `dot.pull.plan/v1`            | `.repositories[]` (unchanged).                                                                               |
-| `dot status --json`              | `dot.status/v1`               | `.repositories[]`; `.docker` is removed.                                                                     |
-| `dot status --stats --json`      | `dot.status.stats/v1`         | Top-level counts (unchanged).                                                                                |
-| `dot agent session list --json`  | `dot.agent.session.list/v2`   | `.sessions[]`; no `lineage_id`/`generation_id`, adds `parser_version`.                                       |
-| `dot agent session show`         | `dot.agent.session.show/v2`   | `.session`; same fields as list.                                                                             |
-| `dot agent session export`       | `dot.agent.sessions/v2`       | `.sessions[]` (JSON) or `.session` (NDJSON); same fields as list.                                            |
-| `dot agent session sync --json`  | `dot.agent.session.sync/v2`   | Counts `selected`, `ingested`, `unchanged`, `retained`, `retained_current_transcripts`, `skipped`, `failed`. |
-| `dot agent session stats --json` | `dot.agent.sessions.stats/v2` | No `generations`/`superseded_generations`.                                                                   |
-| `dot agent usage list --json`    | `dot.agent.usage.list/v1`     | `.records[]` instead of `.[]`.                                                                               |
-| `dot agent usage show`           | `dot.agent.usage.show/v1`     | `.record` instead of the root object.                                                                        |
-| `dot orphan --json`              | `dot.orphan/v1`               | `.targets[]` instead of `.[]`.                                                                               |
-| `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` and `.usage[]` (unchanged).                                                                       |
+| Command                          | Schema                        | Data selector                                                                |
+| -------------------------------- | ----------------------------- | ---------------------------------------------------------------------------- |
+| `dot pull --json`                | `dot.pull/v1`                 | `.repositories[]` instead of `.[]`; `.complete` records success.             |
+| `dot pull --dry-run --json`      | `dot.pull.plan/v1`            | `.repositories[]` (unchanged).                                               |
+| `dot status --json`              | `dot.status/v1`               | `.repositories[]`; `.docker` is removed.                                     |
+| `dot status --stats --json`      | `dot.status.stats/v1`         | Top-level counts (unchanged).                                                |
+| `dot agent session list --json`  | `dot.agent.session.list/v2`   | `.sessions[]`; no `lineage_id`/`generation_id`, adds `parser_version`.       |
+| `dot agent session show`         | `dot.agent.session.show/v2`   | `.session`; same fields as list.                                             |
+| `dot agent session export`       | `dot.agent.sessions/v2`       | `.sessions[]` (JSON) or `.session` (NDJSON); same fields as list.            |
+| `dot agent session sync --json`  | `dot.agent.session.sync/v2`   | Counts `selected`, `ingested`, `unchanged`, `retained`, `skipped`, `failed`. |
+| `dot agent session stats --json` | `dot.agent.sessions.stats/v2` | No `generations`/`superseded_generations`.                                   |
+| `dot agent usage list --json`    | `dot.agent.usage.list/v1`     | `.records[]` instead of `.[]`.                                               |
+| `dot agent usage show`           | `dot.agent.usage.show/v1`     | `.record` instead of the root object.                                        |
+| `dot orphan --json`              | `dot.orphan/v1`               | `.targets[]` instead of `.[]`.                                               |
+| `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` and `.usage[]` (unchanged).                                       |
 
 Token-only reports set `prompts` to `null`; prompt-only reports leave `usage` empty. Diagnostics retain the `dot.diagnostics/v1` envelope; agent doctor details now carry `agent`, `hooks`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, and `next`. The `agent.doctor` and `agent.hook_failures` configuration keys are removed; delete them from custom configuration files, and delete `~/.agents/hook-failures` once no longer needed. Native cache/provider output and internal host hook protocols retain their native formats.
 

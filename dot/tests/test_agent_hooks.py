@@ -66,7 +66,7 @@ def test_turn_notifications_obey_idle_and_reentry_guards(
     assert len(captured) == 1
 
 
-@pytest.mark.parametrize("agent", ["claude", "grok", "codex", "copilot", "agy", "antigravity"])
+@pytest.mark.parametrize("agent", ["claude", "grok", "codex", "copilot", "agy"])
 @pytest.mark.parametrize("field", ["background_tasks", "backgroundTasks", "session_crons", "sessionCrons"])
 def test_background_work_never_announces_a_handoff(monkeypatch: pytest.MonkeyPatch, agent: str, field: str) -> None:
     captured: list[Notification] = []
@@ -117,10 +117,10 @@ def test_question_alerts_survive_background_work_and_stop_reentry(monkeypatch: p
 
 
 @pytest.mark.parametrize("payload", ["", '{"fullyIdle":false}', "{}"])
-def test_antigravity_alias_requires_explicit_idle(monkeypatch: pytest.MonkeyPatch, payload: str) -> None:
+def test_agy_stop_requires_explicit_idle(monkeypatch: pytest.MonkeyPatch, payload: str) -> None:
     captured: list[Notification] = []
     monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
-    result = CliRunner().invoke(app, ["agent", "hook", "notify", "antigravity", "stop"], input=payload)
+    result = CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], input=payload)
     assert result.exit_code == 0
     assert captured == []
 

@@ -36,6 +36,16 @@ _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
 NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
 NonEmptyStr = Annotated[str, Field(strict=True, min_length=1)]
 
+# Token counters in stored usage; turn counts and the 1-hour subset are not separate evidence.
+_TOKEN_COUNTERS = (
+    "input_tokens",
+    "output_tokens",
+    "cached_tokens",
+    "cache_write_tokens",
+    "reasoning_tokens",
+    "total_tokens",
+)
+
 Completeness = Literal["complete", "partial"]
 IngestionStatus = Literal["ingested", "unchanged", "retained", "skipped"]
 
@@ -313,10 +323,14 @@ def ingest_session(
     source: SessionSource | None = None,
     *,
     usage: dict[str, Any] | None = None,
-    preserve_existing: bool = False,
+    usage_failed: bool = False,
     expected_generation: tuple[str, str] | None = None,
 ) -> SessionIngestionResult:
-    """Keep the latest copy of a session, but never replace it with a shorter transcript."""
+    """Keep the latest copy of a session, but never replace it with a shorter transcript.
+
+    ``usage_failed`` marks a capture that could not measure usage (malformed input or a provider
+    metric error): its absent usage is never evidence, so any archived measurement is retained.
+    """
     source = source or SessionSource()
     path = session_bundle_path(agent, session_id)
     for number, log in enumerate(logs, start=1):
@@ -361,25 +375,14 @@ def ingest_session(
             # wins even when both captures contain the same number of messages.
             return SessionIngestionResult("retained", stored or manifest)
         if stored is not None:
-            if preserve_existing:
-                return SessionIngestionResult("retained", stored)
             # Older parsers classified absent counters as measured zero. An identical
             # source can correct that classification without discarding actual usage.
             reinterpreted_zero = (
-                stored.parser_version != manifest.parser_version
+                not usage_failed
+                and stored.parser_version != manifest.parser_version
                 and stored.source_fingerprint == manifest.source_fingerprint
                 and stored.usage is not None
-                and not any(
-                    stored.usage.get(name)
-                    for name in (
-                        "input_tokens",
-                        "output_tokens",
-                        "cached_tokens",
-                        "cache_write_tokens",
-                        "reasoning_tokens",
-                        "total_tokens",
-                    )
-                )
+                and not any(stored.usage.get(name) for name in _TOKEN_COUNTERS)
                 and (
                     not (stored.usage.get("cost_known") or stored.usage.get("cost_usd"))
                     or (

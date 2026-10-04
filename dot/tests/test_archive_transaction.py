@@ -124,20 +124,21 @@ def test_truncated_source_never_shrinks_the_archived_copy(tmp_path: Path, monkey
     assert _tokens() == [(10, 5)]
 
 
-def test_usage_error_keeps_the_last_measured_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_usage_error_keeps_the_last_measurement_and_grows_the_transcript(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Regression for 2b5fbbd: a failed extraction must never cost the measured usage."""
     state, source = source_session(tmp_path, monkeypatch)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
-    measured = path.read_bytes()
     with source.open("a") as stream:
         stream.write(_answer("answer-2", "2026-09-01T10:02:00Z", -1, 7))
 
     for _ in range(2):
         with pytest.raises(DotError, match="1 failure"):
             sync_sessions(state, agent="claude")
-        assert "kept the archived copy and its usage" in _text(state.stderr)
-        assert path.read_bytes() == measured
+        assert "usage extraction failed; kept the archived usage" in _text(state.stderr)
+        assert read_session_manifest(path).record_count == 3
         assert _tokens() == [(10, 5)]
 
     # Once the source measures again, the longer transcript and its usage replace the copy.
@@ -145,6 +146,28 @@ def test_usage_error_keeps_the_last_measured_copy(tmp_path: Path, monkeypatch: p
     sync_sessions(state, agent="claude")
     assert read_session_manifest(path).record_count == 3
     assert _tokens() == [(30, 12)]
+
+
+def test_malformed_line_never_freezes_the_transcript(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A persistent malformed record keeps the measurement but still archives later messages."""
+    state, source = source_session(tmp_path, monkeypatch)
+    sync_sessions(state, agent="claude")
+    path = session_bundle_path("claude", "fixture-id")
+    with source.open("a") as stream:
+        stream.write("{\n")
+    with pytest.raises(DotError, match="1 failure"):
+        sync_sessions(state, agent="claude")
+    assert "malformed source records; kept the archived usage" in _text(state.stderr)
+    with source.open("a") as stream:
+        stream.write(_answer("answer-2", "2026-09-01T10:02:00Z", 20, 7))
+
+    with pytest.raises(DotError, match="1 failure"):
+        sync_sessions(state, agent="claude")
+
+    manifest, records = read_session_bundle(path)
+    assert [record.content for record in records][-1] == "response answer-2"
+    assert (manifest.malformed_records, manifest.completeness, manifest.source_signature) == (1, "partial", "")
+    assert _tokens() == [(10, 5)]
 
 
 @pytest.mark.parametrize("field", ["input_tokens", "cost_usd"])
@@ -172,7 +195,7 @@ def test_wrong_type_usage_keeps_the_last_measured_copy(
         with pytest.raises(DotError, match="1 failure"):
             sync_sessions(state, agent="claude")
         assert path.read_bytes() == measured
-        assert "kept the archived copy and its usage" in _text(state.stderr)
+        assert "usage extraction failed; kept the archived usage" in _text(state.stderr)
         assert "private-invalid-metric" not in _text(state.stderr)
 
 
@@ -197,7 +220,7 @@ def test_malformed_usage_container_keeps_the_last_measured_copy(
             sync_sessions(state, agent="claude")
         assert path.read_bytes() == measured
         assert _tokens() == [(10, 5)]
-        assert "kept the archived copy and its usage" in _text(state.stderr)
+        assert "usage extraction failed; kept the archived usage" in _text(state.stderr)
         assert "private-invalid-container" not in _text(state.stderr)
 
 
@@ -499,7 +522,7 @@ def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(t
     path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
     outcome = sync_sessions(state, agent="grok")
     assert bundle.read_bytes() == measured
-    assert outcome.retained_current_transcripts == outcome.retained == 1
+    assert outcome.retained == 1
     assert outcome.ingested == 0
     rows[0]["params"]["update"]["content"]["text"] += " with a new instruction"
     path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
@@ -509,7 +532,7 @@ def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(t
     assert records[0].content == "Keep this owner request with a new instruction"
     assert manifest.usage == json.loads(measured.split(b"\n", 1)[0])["usage"]
     assert (manifest.usage_parser_version, manifest.source_signature) == (manifest.parser_version, "")
-    assert (outcome.retained, outcome.retained_current_transcripts, outcome.ingested) == (1, 1, 0)
+    assert (outcome.retained, outcome.ingested) == (1, 0)
     # Sync retries the source without rewriting a current transcript.
     published = bundle.read_bytes()
     assert sync_sessions(state, agent="grok").retained == 1

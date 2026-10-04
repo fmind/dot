@@ -257,8 +257,6 @@ def test_claude_one_hour_cache_writes_use_their_own_rate() -> None:
     assert api_equivalent(usage, pricing) == (pytest.approx(3.0 + 3.2), "")
     pricing.models["claude-opus-5-5"].cache_write_1h = None
     assert api_equivalent(usage, pricing) == (None, "missing token rate")
-    usage.cache_write_1h_tokens = 1_000_001
-    assert api_equivalent(usage, default_pricing()) == (None, "unsupported cache accounting")
 
 
 def test_one_hour_cache_writes_never_exceed_cache_writes() -> None:

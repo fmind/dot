@@ -1,12 +1,9 @@
 """Bounded multi-repository synchronization and status."""
 
-import json
 import stat
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from threading import Event
 from time import monotonic
 from typing import Annotated, Literal
 
@@ -15,7 +12,8 @@ import typer
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, diagnostic_line
+from fmind_dot.process import CommandResult, diagnostic_line, run_parallel
+from fmind_dot.reporting import write_json
 from fmind_dot.state import State, require_tools, state_from
 
 
@@ -59,6 +57,9 @@ class RepositoryStatus:
 # collide with an editor, hook, or agent writing the same repository.
 _STATUS = ("--no-optional-locks", "status", "--porcelain")
 _GIT_ROOT_TIMEOUT_SECONDS = 30
+# Status reads only local refs; it needs no network allowance like pull.timeout_seconds.
+_STATUS_TIMEOUT_SECONDS = 30
+DirtyPolicy = Literal["skip", "allow"]
 # Concurrent workers fail fast instead of waiting on a terminal or askpass credential prompt.
 _GIT_ENVIRONMENT = {"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"}
 # Ordered classification of git stderr into stable causes that never echo remote output.
@@ -171,6 +172,18 @@ def _remaining_timeout(deadline: float) -> float:
     return remaining
 
 
+def _upstream(state: State, path: Path, deadline: float) -> str:
+    """Return the configured upstream ref, or an empty string when the branch tracks none."""
+    result = state.runner.run(
+        ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        cwd=path,
+        env=_GIT_ENVIRONMENT,
+        timeout=_remaining_timeout(deadline),
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def _branch(state: State, path: Path, deadline: float) -> str:
     branch = _git(state, path, ["branch", "--show-current"], deadline).strip()
     return branch or _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
@@ -188,27 +201,15 @@ def _pull_repository(
     path: Path,
     push: bool,
     timeout: float,
-    cancelled: Event | None = None,
     *,
-    dirty_policy: str = "skip",
+    dirty_policy: DirtyPolicy = "skip",
 ) -> RepoResult:
     deadline = monotonic() + timeout
     branch = ""
     dirty = False
 
     def git(arguments: Sequence[str]) -> str:
-        if cancelled is not None and cancelled.is_set():
-            raise DotError("operation cancelled")
         return _git(state, path, arguments, deadline)
-
-    def has_upstream() -> bool:
-        result = state.runner.run(
-            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-            cwd=path,
-            timeout=_remaining_timeout(deadline),
-            check=False,
-        )
-        return result.returncode == 0
 
     try:
         branch = _branch(state, path, deadline)
@@ -220,7 +221,7 @@ def _pull_repository(
         except DotError as fetch_error:
             raise DotError(f"failed to fetch repository: {fetch_error}") from fetch_error
         try:
-            upstream = has_upstream()
+            upstream = _upstream(state, path, deadline)
         except DotError as upstream_error:
             raise DotError(f"failed to inspect upstream: {upstream_error}") from upstream_error
         if not upstream:
@@ -262,12 +263,10 @@ def run_pull(
     paths: Sequence[Path] = (),
     dry_run: bool = False,
     as_json: bool = False,
-    dirty_policy: str = "skip",
+    dirty_policy: DirtyPolicy = "skip",
 ) -> list[RepoResult]:
     """Fetch and fast-forward configured repositories concurrently."""
     require_tools(state, [["git"]])
-    if dirty_policy not in {"skip", "allow"}:
-        raise typer.BadParameter("must be skip or allow", param_hint="--dirty")
     repositories = find_git_repositories(state, paths)
     if dry_run:
         plan = {
@@ -278,46 +277,33 @@ def run_pull(
             "repositories": [str(path) for path in repositories],
         }
         if as_json:
-            state.stdout.write(json.dumps(plan, indent=2) + "\n")
+            write_json(state.stdout, plan)
         else:
             state.stdout.write(f"Pull plan (no fetch or changes): dirty={dirty_policy}, push={push}\n")
             for path in repositories:
                 state.stdout.write(f"  {path}\n")
         return []
     if not repositories:
-        state.stdout.write(
-            json.dumps({"schema": "dot.pull/v1", "complete": True, "repositories": []}) + "\n"
-            if as_json
-            else "No git repositories found in configured pull directories.\n"
-        )
+        if as_json:
+            write_json(state.stdout, {"schema": "dot.pull/v1", "complete": True, "repositories": []})
+        else:
+            state.stdout.write("No git repositories found in configured pull directories.\n")
         return []
     timeout = state.config.pull.timeout_seconds
-    cancelled = Event()
-    executor = ThreadPoolExecutor(max_workers=state.config.pull.concurrency)
-    try:
-        results = list(
-            executor.map(
-                lambda path: _pull_repository(state, path, push, timeout, cancelled, dirty_policy=dirty_policy),
-                repositories,
-            )
-        )
-    except BaseException:
-        cancelled.set()
-        state.runner.cancel()
-        raise
-    finally:
-        executor.shutdown(wait=True, cancel_futures=True)
+    results = run_parallel(
+        state.runner,
+        lambda path: _pull_repository(state, path, push, timeout, dirty_policy=dirty_policy),
+        repositories,
+        state.config.pull.concurrency,
+    )
     if as_json:
-        state.stdout.write(
-            json.dumps(
-                {
-                    "schema": "dot.pull/v1",
-                    "complete": not any(item.error or item.push_error for item in results),
-                    "repositories": [asdict(item) | {"path": str(item.path)} for item in results],
-                },
-                indent=2,
-            )
-            + "\n"
+        write_json(
+            state.stdout,
+            {
+                "schema": "dot.pull/v1",
+                "complete": not any(item.error or item.push_error for item in results),
+                "repositories": [asdict(item) | {"path": str(item.path)} for item in results],
+            },
         )
         if any(item.error or item.push_error for item in results):
             raise DotError("pull completed with repository errors")
@@ -350,17 +336,11 @@ def run_pull(
 
 
 def _repository_status(state: State, path: Path) -> RepositoryStatus:
-    deadline = monotonic() + 30
+    deadline = monotonic() + _STATUS_TIMEOUT_SECONDS
     try:
         branch = _branch(state, path, deadline)
         dirty = bool(_git(state, path, _STATUS, deadline).strip())
-        upstream_result = state.runner.run(
-            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-            cwd=path,
-            timeout=_remaining_timeout(deadline),
-            check=False,
-        )
-        upstream = upstream_result.stdout.strip() if upstream_result.returncode == 0 else ""
+        upstream = _upstream(state, path, deadline)
         ahead = behind = 0
         if upstream:
             counts = _git(state, path, ["rev-list", "--left-right", "--count", "HEAD...@{u}"], deadline).split()
@@ -404,14 +384,9 @@ def gather_status(state: State, paths: Sequence[Path] = ()) -> list[RepositorySt
     """Collect repository status concurrently."""
     require_tools(state, [["git"]])
     repositories = find_git_repositories(state, paths)
-    executor = ThreadPoolExecutor(max_workers=8)
-    try:
-        return list(executor.map(lambda path: _repository_status(state, path), repositories))
-    except BaseException:
-        state.runner.cancel()
-        raise
-    finally:
-        executor.shutdown(wait=True, cancel_futures=True)
+    return run_parallel(
+        state.runner, lambda path: _repository_status(state, path), repositories, state.config.pull.concurrency
+    )
 
 
 def run_status(
@@ -437,40 +412,29 @@ def run_status(
             "errors": sum(bool(item.error) for item in status),
         }
         document = {"schema": "dot.status.stats/v1", "remote_state": "cached", "complete": not failed, **totals}
-        state.stdout.write(
-            json.dumps(document, indent=2) + "\n"
-            if as_json
-            else "Repository statistics (cached upstream state)\n"
-            + "".join(f"{key}: {value}\n" for key, value in totals.items())
-        )
+        if as_json:
+            write_json(state.stdout, document)
+        else:
+            state.stdout.write(
+                "Repository statistics (cached upstream state)\n"
+                + "".join(f"{key}: {value}\n" for key, value in totals.items())
+            )
         if failed:
             raise DotError("repository statistics are incomplete")
         return status
     visible = [item for item in status if not needs_attention or item.needs_attention]
     if as_json:
-        repositories: list[dict[str, object]] = []
-        for item in visible:
-            repository: dict[str, object] = {
-                "name": item.name,
-                "parent": item.parent,
-                "branch": item.branch,
-                "dirty": item.dirty,
-                "path": item.path,
-                "upstream": item.upstream,
-                "ahead": item.ahead,
-                "behind": item.behind,
-                "operation": item.operation,
-            }
-            if item.error:
-                repository["error"] = item.error
-            repositories.append(repository)
+        # Healthy entries omit the empty error field.
+        repositories = [
+            {key: value for key, value in asdict(item).items() if key != "error" or value} for item in visible
+        ]
         document = {
             "schema": "dot.status/v1",
             "repositories": repositories,
             "complete": not failed,
             "remote_state": "cached",
         }
-        state.stdout.write(json.dumps(document, indent=2) + "\n")
+        write_json(state.stdout, document)
         if failed:
             raise DotError("repository inspection is incomplete")
         return status
@@ -502,7 +466,7 @@ def pull_command(
     ] = False,
     as_json: JsonOption = False,
     dirty: Annotated[
-        Literal["skip", "allow"], typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
+        DirtyPolicy, typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
     ] = "skip",
 ) -> None:
     run_pull(state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json, dirty_policy=dirty)
@@ -522,6 +486,6 @@ def status_command(
     run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention, stats=stats)
 
 
-def register_repository_commands(parent: typer.Typer) -> None:
+def register(parent: typer.Typer) -> None:
     parent.command("pull", help="Update configured repositories with bounded concurrency")(pull_command)
     parent.command("status", help="Show repository status using cached upstream refs")(status_command)
