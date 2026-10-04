@@ -414,9 +414,9 @@ checksum = "sha256:8de2f0cd8a659b01abf86e7fbb8cea4f28ada62fd288429a2bbc040db1b98
 url = "https://conda.anaconda.org/conda-forge/linux-64/openh264-2.6.0-h8c49934_2.conda"
 checksum = "sha256:6d54eeb307488f725a8f14af955467249735fa69ffd822763e53784aff05b8a3"
 
-[conda-packages.linux-x64."openssl-3.6.4-h781a0a9_0"]
-url = "https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.4-h781a0a9_0.conda"
-checksum = "sha256:4747b2d6a8336f52343bceb8a1ebf41a9e6e665b9d2e3f989972de53a310599e"
+[conda-packages.linux-x64."openssl-3.6.5-h781a0a9_0"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.5-h781a0a9_0.conda"
+checksum = "sha256:9c1533f1cf784f0e250919c0c9762d0b0e6bc727a79290ffb7cea1ceca1d038c"
 
 [conda-packages.linux-x64."pango-1.58.2-h7bb47b9_1"]
 url = "https://conda.anaconda.org/conda-forge/linux-64/pango-1.58.2-h7bb47b9_1.conda"
@@ -850,9 +850,9 @@ checksum = "sha256:7024a48c8c0d0114ed4ab53c76bf9275d50e91ba7cea367a9aead638d3c29
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/openh264-2.6.0-hf8510ef_2.conda"
 checksum = "sha256:abbf05ef3f338eb70623400c6ecf3318fe3a71fbf56b1099d7b3fddd13a0a0aa"
 
-[conda-packages.macos-arm64."openssl-3.6.4-h55eecbc_0"]
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.6.4-h55eecbc_0.conda"
-checksum = "sha256:f23239eacd75c4c50705e68fae1aa3292da473e6a3a4abe2330f1e6afa680704"
+[conda-packages.macos-arm64."openssl-3.6.5-h55eecbc_0"]
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.6.5-h55eecbc_0.conda"
+checksum = "sha256:44fbc526456571a9fb8fa18157f6f269d4d4bd40eef20183a93b9c9296f94497"
 
 [conda-packages.macos-arm64."pango-1.58.2-hf9b25ef_1"]
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/pango-1.58.2-hf9b25ef_1.conda"
@@ -1500,7 +1500,7 @@ conda_deps = [
     "libstdcxx-16.2.0-h934c35e_7",
     "libiconv-1.18-h0cb94f2_3",
     "libjxl-0.12.0-heb2dce7_4",
-    "openssl-3.6.4-h781a0a9_0",
+    "openssl-3.6.5-h781a0a9_0",
     "pulseaudio-client-17.0-hb10c1b2_4",
     "libsndfile-1.2.2-hbc6d301_3",
     "x264-1!164.3095-h7cc23a3_3",
@@ -1629,7 +1629,7 @@ conda_deps = [
     "libdav1d7-1.5.4-h74c22ad_4",
     "libiconv-1.18-he4c29f2_3",
     "libjxl-0.12.0-hb71b141_4",
-    "openssl-3.6.4-h55eecbc_0",
+    "openssl-3.6.5-h55eecbc_0",
     "x264-1!164.3095-hb001647_3",
     "x265-3.5-h55d2f36_4",
     "libintl-0.25.1-hae62183_2",
@@ -1958,21 +1958,6 @@ url_api = "https://api.github.com/repos/hadolint/hadolint/releases/assets/496546
 checksum = "sha256:01d927294962b5387f9ead4f18679158452be4f17c765ad0bdffe5264b9c7b0a"
 url = "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-windows-x86_64.exe"
 url_api = "https://api.github.com/repos/hadolint/hadolint/releases/assets/496546508"
-
-[[tools.harper-ls]]
-version = "2.12.0"
-backend = "aqua:Automattic/harper/harper-ls"
-specifiers = ["latest"]
-
-[tools.harper-ls."platforms.linux-x64"]
-checksum = "sha256:da87a01c49e535d6d6157f388ffc87edd9d4065fe04cc13b7a10b227defb1ba7"
-url = "https://github.com/Automattic/harper/releases/download/v2.12.0/harper-ls-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/Automattic/harper/releases/assets/604099381"
-
-[tools.harper-ls."platforms.macos-arm64"]
-checksum = "sha256:98b3a404c91241c47448c623fe0b3eb79a980f23056b1feb88425194c2812770"
-url = "https://github.com/Automattic/harper/releases/download/v2.12.0/harper-ls-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/Automattic/harper/releases/assets/603959798"
 
 [[tools.helm]]
 version = "4.3.0"
