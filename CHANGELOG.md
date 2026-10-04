@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [9.0.3] - 2026-10-04
+
+### 🐛 Bug Fixes
+
+- _(auth)_ Copy the GitHub device code through X11 on Crostini
+- _(codex)_ Leave a converged config in the layout Codex wrote
+
 ## [9.0.2] - 2026-10-04
 
 ### 🐛 Bug Fixes
