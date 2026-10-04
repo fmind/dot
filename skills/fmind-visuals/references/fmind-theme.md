@@ -85,6 +85,10 @@ flowchart LR
 
 For a renderer without Mermaid frontmatter support, move the same configuration into its site-level Mermaid configuration. Load Google Sans before rendering and keep its selection in root-level `config.fontFamily` so label measurements remain stable.
 
+## SVG Illustrations
+
+README and user-doc illustrations copy [illustration.svg](../templates/illustration.svg). Its `<style>` maps the roles above to classes: `chip` (panel items), `box` (primary-bordered system boundary), `tile` (selection fill, primary code title), `config` (warning surface), `err` (error surface), `step`, `flow`, and `arrowhead` (primary badges and arrows), `mask` (canvas behind captions), and `label` and `muted` (secondary text). The outer card stays white with a light `#DADCE0` border so the art reads on dark README themes. For a customer brand, swap these values and font names only.
+
 ## D2
 
 An Fmind article diagram imports [diagram.d2](../templates/diagram.d2) and uses its classes on a light surface. The diagram surface stays light, matching the light-only canonical site and the global theme.

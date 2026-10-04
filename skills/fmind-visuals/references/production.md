@@ -19,7 +19,8 @@
 
 ## Diagrams
 
-1. **Start with Mermaid**: apply the portable Fmind frontmatter from [fmind-theme.md](fmind-theme.md), then render with the external Mermaid renderer when the destination cannot render source directly.
+1. **Start technical diagrams with Mermaid**: apply the portable Fmind frontmatter from [fmind-theme.md](fmind-theme.md), then render with the external Mermaid renderer when the destination cannot render source directly.
+1. **Illustrate user docs with SVG**: README, documentation-site concept, and course illustrations start from [illustration.svg](../templates/illustration.svg) and follow the [SVG guide](../../diagrams-as-code/references/svg.md); the hand-authored SVG is its own source.
 1. **Use D2 for its specialist boundary**: start Fmind article diagrams from [diagram.d2](../templates/diagram.d2), or retain an existing D2 source for a bespoke standalone composition.
 1. **Set every font slot**: use the eight static-face mappings in [fmind-theme.md](fmind-theme.md). Within Pub, `pub render diagram` supplies them from `assets/fonts/`; new article diagrams import `assets/fmind/diagram-v2.d2`. Keep previous imports and rendered assets intact.
 1. **Keep source beside exports**: store `.mmd` or `.d2` with its SVG and the prose or deck that owns the claim.

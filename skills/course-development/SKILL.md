@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Develop a Technical Course
@@ -39,4 +39,4 @@ Read [reference-course.md](references/reference-course.md) only for a course tha
 ## Documentation
 
 - Reference course: `~/mlops-courses/agentops-open-course` (its `AGENTS.md` owns the page frame, gates, and authoring rules).
-- Companion skills: [mermaid](../diagrams-as-code/references/mermaid.md) (diagrams), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).
+- Companion skills: [mermaid](../diagrams-as-code/references/mermaid.md) (technical diagrams), [svg](../diagrams-as-code/references/svg.md) (concept illustrations), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).

@@ -14,21 +14,21 @@ Use this reference when writing or restructuring pages; [course-development](../
 
 The starter configuration enables every construct below. Bodies of admonitions, tabs, and annotations use four-space indentation; keep it when formatting.
 
-| Need                         | Syntax                                                                                                                                                                         |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Callout                      | `!!! tip "Title"`; collapsible `??? note`, expanded `???+ note`; GitHub `> [!NOTE]` with `gh-admonitions`                                                                      |
-| Alternatives (OS, language)  | `=== "uv"` blocks; `content.tabs.link` syncs equal labels across the site                                                                                                      |
-| Code block extras            | ` ```python title="app.py" linenums="1" hl_lines="2 3" `; `# (1)!` plus a numbered list annotates a line                                                                       |
-| Inline highlighted code      | `` `#!python print("hi")` ``                                                                                                                                                   |
-| Include tested source        | `--8<-- "src/pkg/module.py"` or a marked section `--8<-- "file.py:name"` between `# --8<-- [start:name]` and `[end:name]`                                                      |
-| Diagram                      | ` ```mermaid ` fences; prefer Mermaid for flowcharts, sequences, states, classes, and ER diagrams                                                                              |
-| Cards and layout             | `<div class="grid cards" markdown>` around a list; `[Label](page.md){ .md-button .md-button--primary }`                                                                        |
-| Glossary and tooltips        | `*[CLI]: Command-Line Interface` in `includes/abbreviations.md`, one per paragraph (blank line between, or formatters merge them); `[link](page.md "Tooltip")`                 |
-| Icons and emoji              | `:lucide-rocket:`, `:material-check:`, `:fontawesome-brands-github:`, `:octicons-arrow-right-24:`                                                                              |
-| Keys, marks, formulas        | `++ctrl+k++`, `==highlight==`, `^^insert^^`, `~~delete~~`, `H~2~O`, `$E=mc^2$` (needs MathJax or KaTeX JS)                                                                     |
-| Task lists, footnotes        | `- [x] Done`, `Claim[^1]` with `[^1]: Source`                                                                                                                                  |
-| Image variants and captions  | `![Alt](img.png#only-light)` / `#only-dark`; `/// caption` after an image or table                                                                                             |
-| Page controls (front matter) | `hide: [navigation, toc, footer, path, tags]`, `icon: lucide/rocket`, `status: new` (declared in `[project.extra.status]`), `search: {exclude: true}`, `template: custom.html` |
+| Need                         | Syntax                                                                                                                                                                                                |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Callout                      | `!!! tip "Title"`; collapsible `??? note`, expanded `???+ note`; GitHub `> [!NOTE]` with `gh-admonitions`                                                                                             |
+| Alternatives (OS, language)  | `=== "uv"` blocks; `content.tabs.link` syncs equal labels across the site                                                                                                                             |
+| Code block extras            | ` ```python title="app.py" linenums="1" hl_lines="2 3" `; `# (1)!` plus a numbered list annotates a line                                                                                              |
+| Inline highlighted code      | `` `#!python print("hi")` ``                                                                                                                                                                          |
+| Include tested source        | `--8<-- "src/pkg/module.py"` or a marked section `--8<-- "file.py:name"` between `# --8<-- [start:name]` and `[end:name]`                                                                             |
+| Diagram                      | ` ```mermaid ` fences for technical pages (flowcharts, sequences, states, classes, ER); [SVG illustrations](../../diagrams-as-code/references/svg.md) in `docs/assets/` for landing and concept pages |
+| Cards and layout             | `<div class="grid cards" markdown>` around a list; `[Label](page.md){ .md-button .md-button--primary }`                                                                                               |
+| Glossary and tooltips        | `*[CLI]: Command-Line Interface` in `includes/abbreviations.md`, one per paragraph (blank line between, or formatters merge them); `[link](page.md "Tooltip")`                                        |
+| Icons and emoji              | `:lucide-rocket:`, `:material-check:`, `:fontawesome-brands-github:`, `:octicons-arrow-right-24:`                                                                                                     |
+| Keys, marks, formulas        | `++ctrl+k++`, `==highlight==`, `^^insert^^`, `~~delete~~`, `H~2~O`, `$E=mc^2$` (needs MathJax or KaTeX JS)                                                                                            |
+| Task lists, footnotes        | `- [x] Done`, `Claim[^1]` with `[^1]: Source`                                                                                                                                                         |
+| Image variants and captions  | `![Alt](img.png#only-light)` / `#only-dark`; `/// caption` after an image or table                                                                                                                    |
+| Page controls (front matter) | `hide: [navigation, toc, footer, path, tags]`, `icon: lucide/rocket`, `status: new` (declared in `[project.extra.status]`), `search: {exclude: true}`, `template: custom.html`                        |
 
 ## Content practices
 
