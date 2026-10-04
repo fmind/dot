@@ -11,12 +11,13 @@ from typing import Annotated
 
 import typer
 from typer import _click
+from typer._click.shell_completion import add_completion_class
 from typer.completion import completion_init
 
 from fmind_dot import __version__, orphan, repository, system, trust, workstation
 from fmind_dot.agent import agent_app
 from fmind_dot.auth import login_app, setup_app
-from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, help_group
+from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, FishCompletion, help_group
 from fmind_dot.config import dump_config, load_config, starter_config
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
@@ -29,6 +30,7 @@ _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "terminal_width": 16
 
 # Preserve the shell protocol used by `dot completion` without Typer's duplicate flags.
 completion_init()
+add_completion_class(FishCompletion, FishCompletion.name)
 app = typer.Typer(
     cls=AlphabeticalGroup,
     name="dot",
