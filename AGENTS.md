@@ -22,7 +22,7 @@ See [common tasks](README.md#repository-tasks); `mise tasks` lists all tasks and
 Key routines:
 
 - **Iterate**: Edit source → run the relevant checks above → preview the affected chezmoi diff → apply when deployment is in scope. Apply executes eligible installation hooks as well as writing managed files. Lefthook runs commit/push checks; pre-run them only to diagnose a failure. CI retains the full gate.
-- **Documentation**: `mise run check:docs` checks documentation contracts; `mise run check:skills` checks both skill catalogs and their local links. [repository-docs](skills/repository-docs/SKILL.md) owns documentation synchronization.
+- **Documentation**: `mise run check:skills` checks both skill catalogs, their context budgets, and local links in skills and root documentation. [repository-docs](skills/repository-docs/SKILL.md) owns documentation synchronization.
 - **Workstation vs Gate**: `mise run verify` and `mise run doctor` inspect local workstation health; `mise run check`, `test`, and `all` validate the repository. `all` also formats files; isolate it when unrelated edits are present.
 - **Add tool**: Insert into `[tools]` in `dot_config/mise/config.toml.tmpl`, alphabetically within its group (backend-prefixed entries, registry names, then per-platform tables) → `chezmoi apply --force ~/.config/mise` → `mise run lock` → `mise run tools`.
 - **Upgrade tools**: `mise run upgrade` updates this workstation's tools and lockfiles; [upgrade-tools](skills/upgrade-tools/SKILL.md) also inventories and aligns the other local repositories. The task alone does not perform that cross-repository migration.
@@ -46,7 +46,7 @@ Key routines:
 - `.github/` owns CI, release, security, audit, and dependency-update automation.
 - `dot/` contains the runtime package, repository-only `dot_tasks/`, uv lock, and pytest suite.
 - `dot_agents/` is the shared persona source; `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, and `dot_grok/` adapt it to each host (with OpenCode in `dot_config/opencode/`).
-- Every root `dot_*` or `private_dot_*` source maps to its home target (`dot_config/` holds application configuration); `.chezmoitemplates/` holds the shared JSON/TOML merge, skill-catalog, and hook `dot`-path helpers used by modify and hook templates.
+- Every root `dot_*` or `private_dot_*` source maps to its home target (`dot_config/` holds application configuration); `.chezmoitemplates/` holds the shared JSON/TOML merge, shell managed-block, skill-catalog, and hook `dot`-path helpers used by modify and hook templates.
 - `modify_dot_bashrc`, `modify_dot_profile`, and darwin-only `modify_dot_zprofile` add PATH and mise activation to existing shell files; `run_once_after_*` install Grok and Antigravity; `run_after_bat-theme` rebuilds the bat theme cache when the theme or bat changes. `.chezmoiignore` gates platform-specific targets, including Crostini-only notification and garcon drop-in files.
 - `run_after_dot-trust` runs `dot trust all` and `dot trust <sourceDir>` so every harness trusts the configured workspaces, their owner-allowlisted repositories, and this checkout. Mise trust is machine-local (`mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`).
 - `.chezmoiexternal.toml.tmpl` fetches commit-pinned theme files from `fmind/theme` and font archives, all SHA-256-checked, during apply, while style blocks that must be merged are copied into managed sources.

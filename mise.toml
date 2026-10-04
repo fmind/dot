@@ -82,7 +82,6 @@ depends = [
   "check:actions",
   "check:agents",
   "check:chezmoi",
-  "check:docs",
   "check:fish",
   "check:format",
   "check:leaks",
@@ -117,11 +116,6 @@ trap 'rm -rf "$render_destination" "$render_config"' EXIT
 chezmoi init --source "$PWD" --config-path "$render_config/chezmoi.toml" --persistent-state "$render_config/state.boltdb" --promptDefaults
 chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destination" --config "$render_config/chezmoi.toml" --persistent-state "$render_config/state.boltdb" --exclude=encrypted
 """
-
-[tasks."check:docs"]
-alias = "co"
-description = "Validate documentation against the Python CLI and repository paths"
-run = "uv run --frozen --project dot pytest -q dot/tests/test_contracts.py -k documentation"
 
 [tasks."check:format"]
 alias = "cf"
@@ -183,10 +177,10 @@ run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/ter
 
 [tasks."check:shell"]
 alias = "cs"
-description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh"
+description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh and plain run scripts"
 # shellcheck cannot parse {{ }} actions, so templates are rendered with prompt defaults
 # first. Modify templates render their managed block against an empty target. shfmt
-# stays on install.sh: it cannot rewrite a template from its rendered copy.
+# skips templates: it cannot rewrite a template from its rendered copy.
 run = """
 rendered="$(mktemp -d)"
 trap 'rm -rf "$rendered"' EXIT
@@ -194,16 +188,16 @@ chezmoi init --source "$PWD" --config-path "$rendered/chezmoi.toml" --persistent
 for template in run_*.sh.tmpl modify_dot_*; do
   chezmoi execute-template --source "$PWD" --config "$rendered/chezmoi.toml" --persistent-state "$rendered/state.boltdb" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
-shellcheck --rcfile dot_config/shellcheckrc install.sh "$rendered"/*.bash
-shfmt -d -i 2 -s install.sh
+shellcheck --rcfile dot_config/shellcheckrc install.sh run_*.sh "$rendered"/*.bash
+shfmt -d -i 2 -s install.sh run_*.sh
 """
 
 [tasks."check:skills"]
 alias = "ck"
-description = "Validate first-party Agent Skill packages"
+description = "Validate first-party Agent Skill packages, context budgets, and documentation links"
 run = [
   "gh skill publish --dry-run skills",
-  "uv run --frozen --project dot pytest -q dot/tests/test_contracts.py -k skills",
+  "uv run --frozen --directory dot python -m dot_tasks.skill_contracts",
 ]
 
 [tasks."check:tools"]
@@ -228,7 +222,7 @@ description = "Audit installed npm and pipx tool environments"
 run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit"
 
 [tasks."report:skills"]
-description = "Report skill discovery budgets and informational routing diagnostics"
+description = "Report skill discovery budgets and on-demand load estimates"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --report"
 
 [tasks."report:coverage"]
