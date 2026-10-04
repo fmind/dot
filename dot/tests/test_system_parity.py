@@ -17,7 +17,7 @@ import fmind_dot.deploy as deploy
 import fmind_dot.hooks as hooks
 import fmind_dot.system as system
 from fmind_dot.config import Config, SecretConfig, ToolConfig
-from fmind_dot.errors import DotError
+from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, Runner
 from fmind_dot.state import State
 
@@ -596,13 +596,13 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     def probes(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
         if args[0] == "/bin/timeout-tool":
-            raise DotError("command timed out")
+            raise CommandTimeoutError("command timed out")
         if args[0] == "/bin/error-tool":
             raise OSError("private operating-system error")
         if args == ["gh", "auth", "status", "--hostname", "github.com"]:
             return CommandResult("", "Login required for private-host", 1)
         if args == ["gcloud", "auth", "print-access-token"]:
-            raise DotError("command timed out")
+            raise CommandTimeoutError("command timed out")
         if args == ["gcloud", "auth", "application-default", "print-access-token"]:
             raise OSError("private adc error")
         if args == ["gws", "auth", "status"]:

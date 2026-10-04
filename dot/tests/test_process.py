@@ -13,7 +13,7 @@ from unittest.mock import Mock
 import pytest
 
 from fmind_dot import process as process_module
-from fmind_dot.errors import DotError
+from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 
 
@@ -363,7 +363,7 @@ def _wait_for(path: Path) -> None:
 def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
     ready, clean = tmp_path / "ready", tmp_path / "clean"
 
-    with pytest.raises(DotError, match="command timed out"):
+    with pytest.raises(CommandTimeoutError, match="command timed out"):
         Runner().run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], timeout=0.75)
 
     assert ready.exists(), "child did not install its handler before the timeout"
