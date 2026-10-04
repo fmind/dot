@@ -135,6 +135,13 @@
     stash = "#595d62"
     HEAD = "#681da8"
 
+# Personal checkouts and this public source always commit with the personal address, even
+# where user.email is a work address; machine-local configuration below still wins.
+{{- range list (printf "%s/" .chezmoi.sourceDir) "~/fmind/" "~/fmind-ai/" "~/mlops-courses/" }}
+[includeIf {{ printf "gitdir:%s" . | quote }}]
+    path = {{ joinPath $.chezmoi.homeDir ".config/git/personal.gitconfig" | quote }}
+{{- end }}
+
 # Include machine-local configuration and conditional profiles if present.
 [include]
     path = {{ joinPath .chezmoi.homeDir ".config/git/config.local" | quote }}
