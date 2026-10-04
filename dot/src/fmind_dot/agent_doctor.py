@@ -24,7 +24,7 @@ from fmind_dot.state import State
 
 _CLI_NAME = "dot"
 # Session capture moved to `dot agent session sync`; these hooks now fail on every event.
-_RETIRED_HOOKS = (("agent", "hook", "session"), ("agent", "hook", "copilot-session-end"))
+_RETIRED_HOOKS = (("agent", "hook", "session"),)
 
 
 @dataclass(frozen=True)
@@ -71,13 +71,13 @@ def _command_hooks(config: Mapping[str, object], agent: str) -> Iterator[tuple[s
         for group in groups:
             if not isinstance(group, Mapping):
                 continue
-            handlers = [group] if agent in {"agy", "copilot"} else group.get("hooks")
+            handlers = [group] if agent == "agy" else group.get("hooks")
             if not isinstance(handlers, list):
                 continue
             for handler in handlers:
                 if not isinstance(handler, Mapping) or handler.get("type") != "command":
                     continue
-                command = handler.get("bash" if agent == "copilot" else "command")
+                command = handler.get("command")
                 if isinstance(command, str) and (arguments := _dot_arguments(command)):
                     yield event, arguments
 
@@ -127,12 +127,11 @@ def _check_hooks(definition: DoctorIntegration) -> str:
     configured = set(_command_hooks(config, definition.agent))
     if any(arguments[: len(retired)] == retired for _, arguments in configured for retired in _RETIRED_HOOKS):
         return "retired-capture-hook"
-    stop_event = "agentStop" if definition.agent == "copilot" else "Stop"
     missing = [
         event
         for event in definition.notify_events
         if (
-            "Notification" if event in {"needs-input", "ready"} else stop_event,
+            "Notification" if event in {"needs-input", "ready"} else "Stop",
             ("agent", "hook", "notify", definition.agent, event),
         )
         not in configured
