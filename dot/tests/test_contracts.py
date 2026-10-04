@@ -519,6 +519,7 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
         )
     }
     outstanding = {
+        "dot_config/dot/private_secrets/remove_UV_PUBLISH_TOKEN",
         "dot_config/fish/conf.d/remove_secrets.fish",
         "dot_config/nvim/lua/plugins/remove_prose.lua",
         "dot_copilot/hooks/remove_notify.json",
@@ -527,6 +528,27 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     }
     markers = {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()}
     assert markers == outstanding
+
+
+@pytest.mark.skipif(shutil.which("fish") is None, reason="fish is not installed")
+@pytest.mark.parametrize("fetched", [False, True])
+def test_fzf_theme_file_is_exported_only_once_fetched(tmp_path: Path, fetched: bool) -> None:
+    # fzf exits 2 on a missing FZF_DEFAULT_OPTS_FILE, and a targeted or offline apply skips externals.
+    theme = tmp_path / ".config/fzf/theme.conf"
+    if fetched:
+        theme.parent.mkdir(parents=True)
+        theme.touch()
+    env = {key: value for key, value in os.environ.items() if key != "FZF_DEFAULT_OPTS_FILE"} | {"HOME": str(tmp_path)}
+    script = "source $argv[1]; set -q FZF_DEFAULT_OPTS_FILE; and echo $FZF_DEFAULT_OPTS_FILE"
+    result = subprocess.run(
+        ["fish", "--no-config", "-c", script, ROOT / "dot_config/fish/conf.d/fzf.fish"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.stdout.strip() == (str(theme) if fetched else "")
 
 
 def test_deploy_uses_the_locked_python_runtime_graph() -> None:

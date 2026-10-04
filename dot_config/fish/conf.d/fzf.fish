@@ -5,8 +5,11 @@ set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden --strip-cwd-prefix --exclude .gi
 
 # Colours live in the theme, not here. The file is fetched from
 # github.com/fmind/theme by .chezmoiexternal.toml.tmpl and is read before
-# FZF_DEFAULT_OPTS, so this file keeps owning layout, bindings and previews.
-set -gx FZF_DEFAULT_OPTS_FILE $HOME/.config/fzf/theme.conf
+# FZF_DEFAULT_OPTS, so this file keeps owning layout, bindings and previews. fzf
+# rejects a missing options file, so wait until chezmoi has fetched it.
+if test -r $HOME/.config/fzf/theme.conf
+    set -gx FZF_DEFAULT_OPTS_FILE $HOME/.config/fzf/theme.conf
+end
 
 # Default options
 set -gx FZF_DEFAULT_OPTS \
