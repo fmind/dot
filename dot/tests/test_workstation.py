@@ -218,6 +218,53 @@ def test_workspace_override_does_not_prove_stored_credentials(
     assert "private" not in result.output + str(result.exception)
 
 
+def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
+    # gws replaces its whole grant on login: dropping a borrowed scope breaks its consumers.
+    workspace = Config().auth.workspace
+    for scope in ("analytics.readonly", "webmasters.readonly", "youtube.readonly", "yt-analytics.readonly"):
+        assert f"https://www.googleapis.com/auth/{scope}" in workspace.scopes
+    for api in ("analyticsadmin", "analyticsdata", "searchconsole", "youtube", "youtubeanalytics"):
+        assert f"{api}.googleapis.com" in workspace.apis
+
+
+def test_workspace_grant_missing_borrowed_scope_logs_in(provider: RecordingRunner) -> None:
+    borrowed = "https://www.googleapis.com/auth/youtube.readonly"
+    granted = [scope for scope in Config().auth.workspace.scopes if scope != borrowed]
+    provider.responses = [workspace_status(scopes=granted), workspace_status()]
+    result = CliRunner().invoke(app, ["login", "workspace"])
+    assert result.exit_code == 0, result.exception
+    assert borrowed in provider.actions[0][-1].split(",")
+
+
+@pytest.mark.parametrize("arguments", [["login", "github"], ["setup", "github"]])
+def test_github_plaintext_token_warns_after_satisfied_probe(provider: RecordingRunner, arguments: list[str]) -> None:
+    provider.responses = [github_status(tokenSource="/home/user/.config/gh/hosts.yml")]
+    result = CliRunner().invoke(app, arguments)
+    assert result.exit_code == 0, result.exception
+    assert not provider.actions
+    assert "plaintext hosts.yml" in result.stderr
+
+
+def test_github_plaintext_token_warns_after_login(provider: RecordingRunner) -> None:
+    provider.responses = [
+        response({"hosts": {}}),
+        github_status(tokenSource="/home/user/.config/gh/hosts.yml"),
+    ]
+    result = CliRunner().invoke(app, ["login", "github"])
+    assert result.exit_code == 0, result.exception
+    assert provider.actions[0][:3] == ["gh", "auth", "login"]
+    assert "plaintext hosts.yml" in result.stderr
+    assert "/home/user" not in result.stderr
+
+
+@pytest.mark.parametrize("source", ["keyring", "GH_TOKEN", None])
+def test_github_keyring_or_environment_token_does_not_warn(provider: RecordingRunner, source: str | None) -> None:
+    provider.responses = [github_status() if source is None else github_status(tokenSource=source)]
+    result = CliRunner().invoke(app, ["login", "github"])
+    assert result.exit_code == 0, result.exception
+    assert "plaintext" not in result.stderr
+
+
 def test_github_normalized_grants_skip_login(provider: RecordingRunner) -> None:
     scopes = [scope for scope in Config().auth.github.scopes if scope != "read:packages"]
     provider.responses = [github_status(scopes=scopes)]

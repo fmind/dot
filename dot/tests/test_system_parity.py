@@ -434,13 +434,22 @@ def test_doctor_workspace_auth_inspects_native_status(payload: object, status: s
     assert "private-" not in json.dumps(report)
 
 
+def _gh_status_command(host: str) -> list[str]:
+    return ["gh", "auth", "status", "--active", "--hostname", host, "--json", "hosts"]
+
+
+def _gh_status_runner(host: str, **entry: object) -> ScriptedRunner:
+    payload = {"hosts": {host: [{"state": "success", "active": True, "tokenSource": "keyring", **entry}]}}
+    return ScriptedRunner({"gh"}, run=lambda _args, _cwd, _input, _check: CommandResult(json.dumps(payload), "", 0))
+
+
 def test_verify_github_auth_uses_configured_host_without_changing_scopes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GH_HOST", raising=False)
     config = _minimal_verify_config()
     config.auth.github.host = "github.example.test"
-    runner = ScriptedRunner({"gh"})
+    runner = _gh_status_runner("github.example.test")
     results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert ["gh", "auth", "status", "--hostname", "github.example.test"] in runner.calls
+    assert _gh_status_command("github.example.test") in runner.calls
     assert results["auth"][0]["status"] == "pass"
 
 
@@ -448,9 +457,60 @@ def test_verify_github_auth_prefers_gh_host_like_login(monkeypatch: pytest.Monke
     monkeypatch.setenv("GH_HOST", "github.env.test")
     config = _minimal_verify_config()
     config.auth.github.host = "github.example.test"
-    runner = ScriptedRunner({"gh"})
+    runner = _gh_status_runner("github.env.test")
     system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert ["gh", "auth", "status", "--hostname", "github.env.test"] in runner.calls
+    assert _gh_status_command("github.env.test") in runner.calls
+
+
+@pytest.mark.parametrize(
+    ("output", "status", "condition"),
+    [
+        ({"tokenSource": "keyring"}, "pass", "healthy"),
+        ({"tokenSource": "/home/private-user/.config/gh/hosts.yml"}, "warn", "insecure"),
+        ({"state": "error", "error": "non-200 OK status code: 401 Unauthorized body: {}"}, "fail", "unauthenticated"),
+        ({"state": "error", "error": "private network failure"}, "fail", "broken"),
+        ('{"hosts": {}}', "fail", "unauthenticated"),
+        ("private-invalid-json", "fail", "broken"),
+    ],
+    ids=["keyring", "plaintext-hosts-yml", "invalid-token", "network-error", "no-account", "bad-json"],
+)
+def test_doctor_github_auth_inspects_token_source(
+    monkeypatch: pytest.MonkeyPatch, output: dict[str, str] | str, status: str, condition: str
+) -> None:
+    monkeypatch.delenv("GH_HOST", raising=False)
+    runner = (
+        _gh_status_runner("github.com", **output)
+        if isinstance(output, dict)
+        else ScriptedRunner({"gh"}, run=lambda _args, _cwd, _input, _check: CommandResult(output, "", 0))
+    )
+
+    report = system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True)
+
+    result = report["auth"][0]
+    assert (result["name"], result["status"], result["condition"]) == ("gh", status, condition)
+    if status == "warn":
+        assert "gh auth logout" in result["details"]
+    assert "private" not in json.dumps(report)
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "ERROR: (gcloud.auth.application-default.print-access-token) Your default credentials were not found.",
+        "Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+    ],
+    ids=["adc-missing", "reauth-needed"],
+)
+def test_doctor_gcloud_adc_login_errors_are_unauthenticated(stderr: str) -> None:
+    def adc(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
+        del cwd, input_text, check
+        return CommandResult("", stderr, 1) if "application-default" in args else CommandResult("token", "", 0)
+
+    runner = ScriptedRunner({"gcloud"}, run=adc)
+    report = system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True)
+
+    auth = {item["name"]: item for item in report["auth"]}
+    assert (auth["gcloud-adc"]["details"], auth["gcloud-adc"]["condition"]) == ("NOT authenticated", "unauthenticated")
 
 
 @pytest.mark.parametrize(
@@ -599,7 +659,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
             raise CommandTimeoutError("command timed out")
         if args[0] == "/bin/error-tool":
             raise OSError("private operating-system error")
-        if args == ["gh", "auth", "status", "--hostname", "github.com"]:
+        if args == _gh_status_command("github.com"):
             return CommandResult("", "Login required for private-host", 1)
         if args == ["gcloud", "auth", "print-access-token"]:
             raise CommandTimeoutError("command timed out")

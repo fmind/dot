@@ -16,7 +16,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
 
 ## Workflow
 
-1. **Workstation probes**: `dot doctor --deep --json` checks GitHub, the gcloud CLI, ADC, and Workspace with bounded probes and never prints tokens. Read only the auth group; `condition` distinguishes `unauthenticated` from `broken` (state unknown).
+1. **Workstation probes**: `dot doctor --deep --json` checks GitHub, the gcloud CLI, ADC, and Workspace with bounded probes and never prints tokens. Read only the auth group; `condition` distinguishes `unauthenticated` from `broken` (state unknown) and flags `insecure` when gh keeps its token in plaintext `hosts.yml`.
 
    ```bash
    dot doctor --deep --json | jq -c '.checks[] | select(.group == "auth") | {name, status, condition, details}'
