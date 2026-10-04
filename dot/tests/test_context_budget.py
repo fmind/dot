@@ -78,6 +78,77 @@ def test_combined_deduplicates_physical_files_and_exposes_name_collisions(tmp_pa
     report = context_report(project, global_root=global_root)
     assert report["totals"]["combined"]["skills"] == 2
     assert report["collisions"] == ["shared"]
+    assert report["duplicates"] == [
+        {"name": "shared", "paths": [str(path), str(project / ".agents/skills/shared/SKILL.md")]}
+    ]
+    assert report["passed"] is False
+
+
+def test_check_fails_on_cross_scope_duplicate_with_paths_and_guidance(tmp_path: Path) -> None:
+    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_copy = skill(global_root, "shared")
+    local_copy = skill(project / ".agents", "shared")
+    arguments = ["agent", "context", "--project", str(project), "--global-root", str(global_root)]
+    plain = runner.invoke(app, arguments)
+    assert plain.exit_code == 0
+    assert "Duplicate skill names" in plain.stdout
+    checked = runner.invoke(app, [*arguments, "--check"])
+    assert checked.exit_code == 1
+    output = strip_ansi(checked.stdout)
+    # A failing check keeps the full report: the name, both copies, and how to fix it.
+    assert "Duplicate skill names · FAIL" in output
+    assert f"    {global_copy}\n    {local_copy}\n" in output
+    assert "Hosts resolve duplicate skill names differently" in output
+    assert "Rename one skill or remove a copy" in output
+    as_json = runner.invoke(app, [*arguments, "--check", "--json"])
+    assert as_json.exit_code == 1
+    report = json.loads(as_json.stdout)
+    assert report["passed"] is False
+    assert all(budget["passed"] for budget in report["budgets"].values())
+    assert report["duplicates"] == [{"name": "shared", "paths": [str(global_copy), str(local_copy)]}]
+    assert "Duplicate skill names: shared." in as_json.stderr
+    assert "Rename one skill or remove a copy" in as_json.stderr
+
+
+def test_duplicate_paths_stay_absolute_in_json_under_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    global_root, project = tmp_path / "global", tmp_path / "project"
+    skill(global_root, "shared")
+    skill(project / ".agents", "shared")
+    arguments = ["agent", "context", "--project", str(project), "--global-root", str(global_root)]
+    report = json.loads(runner.invoke(app, [*arguments, "--json"]).stdout)
+    [duplicate] = report["duplicates"]
+    assert duplicate["paths"] == [entry["path"] for entry in report["entries"] if entry["name"] == "shared"]
+    # Text output abbreviates for humans only.
+    text = strip_ansi(runner.invoke(app, arguments).stdout)
+    assert "    ~/global/skills/shared/SKILL.md\n" in text
+
+
+def test_nested_same_name_within_one_scope_is_a_duplicate(tmp_path: Path) -> None:
+    global_root = tmp_path / "global"
+    top = skill(global_root, "shared")
+    package = skill(global_root, "package")
+    nested = skill(package.parent, "shared")
+    report = context_report(tmp_path, global_root=global_root)
+    [duplicate] = report["duplicates"]
+    assert duplicate["name"] == "shared"
+    assert sorted(duplicate["paths"]) == sorted([str(top), str(nested)])
+    assert report["passed"] is False
+
+
+def test_symlinked_skill_root_is_not_a_duplicate(tmp_path: Path) -> None:
+    global_root, project = tmp_path / "global", tmp_path / "project"
+    skill(global_root, "shared")
+    (project / ".agents").mkdir(parents=True)
+    # Bridges such as .claude/skills -> .agents/skills expose the same files, not rival copies.
+    (project / ".agents/skills").symlink_to(global_root / "skills", target_is_directory=True)
+    result = runner.invoke(
+        app, ["agent", "context", "--project", str(project), "--global-root", str(global_root), "--check"]
+    )
+    assert result.exit_code == 0, result.output
+    assert result.stdout.startswith("PASS")
+    report = context_report(project, global_root=global_root)
+    assert report["duplicates"] == report["collisions"] == []
 
 
 def test_context_ignores_reserved_skill_directories(tmp_path: Path) -> None:

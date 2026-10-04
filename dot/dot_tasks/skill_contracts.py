@@ -18,7 +18,13 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
-from fmind_dot.context_budget import CONTEXT_TOKEN_LIMIT, context_report, estimated_tokens, skill_index_entry
+from fmind_dot.context_budget import (
+    CONTEXT_TOKEN_LIMIT,
+    DUPLICATE_GUIDANCE,
+    context_report,
+    estimated_tokens,
+    skill_index_entry,
+)
 from fmind_dot.errors import DotError
 
 MAX_DESCRIPTION = 180
@@ -618,15 +624,22 @@ def repository_findings(root: Path) -> list[str]:
         normalized[key] = name
     # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
     try:
-        budgets = context_report(root, source=root)["budgets"]
+        context = context_report(root, source=root)
     except DotError as error:
         findings.append(f"agent context: {error}")
     else:
         findings.extend(
             f"{scope} AGENTS.md + skill discovery contains {budget['estimated_tokens']} estimated tokens; "
             f"must be below {CONTEXT_TOKEN_LIMIT}; reduce instructions or discovery without losing task triggers"
-            for scope, budget in budgets.items()
+            for scope, budget in context["budgets"].items()
             if not budget["passed"]
+        )
+        # Declared names can collide even when directory names differ; hosts then shadow one copy.
+        findings.extend(
+            f"agent context: duplicate skill name {item['name']!r} in "
+            + ", ".join(_relative(root, Path(path)) for path in item["paths"])
+            + f"; {DUPLICATE_GUIDANCE}"
+            for item in context["duplicates"]
         )
     findings.extend(documentation_findings(root))
     return sorted(set(findings))

@@ -357,6 +357,22 @@ def test_skills_contract_budgets_instructions_in_each_scope(tmp_path: Path, scop
     assert checker.repository_findings(root) == []
 
 
+def test_skills_contract_fails_on_duplicate_declared_skill_names(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    # Directory names are unique, so a nested package is how a declared name can repeat.
+    nested = root / "skills/fixture-helper/extra/fixture/SKILL.md"
+    nested.parent.mkdir(parents=True)
+    nested.write_text((root / "skills/fixture/SKILL.md").read_text())
+    findings = checker.repository_findings(root)
+    assert any(
+        finding.startswith("agent context: duplicate skill name 'fixture' in ")
+        and "skills/fixture/SKILL.md" in finding
+        and "skills/fixture-helper/extra/fixture/SKILL.md" in finding
+        and "Rename one skill or remove a copy" in finding
+        for finding in findings
+    ), findings
+
+
 def test_skills_contract_does_not_budget_the_combined_total(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     (root / "dot_agents/AGENTS.md").write_text("g" * 12_000)
