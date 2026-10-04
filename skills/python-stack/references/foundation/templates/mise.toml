@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.10.0"
+min_version = "2026.10.2"
 
 [settings]
 lockfile = true
@@ -89,7 +89,7 @@ run = "rm -rf .cache .pytest_cache .ruff_cache .coverage htmlcov dist"
 alias = "v"
 description = "Write an HTML coverage report"
 depends = ["test"]
-run = "uv run coverage html"
+run = "uv run --locked coverage html"
 
 [tasks."report:coverage"]
 description = "Show per-file coverage from the last test run without rerunning tests"
@@ -98,7 +98,7 @@ run = "uv run --locked coverage report"
 [tasks.docs]
 alias = "d"
 description = "Generate HTML docs (pdoc)"
-run = "uv run pdoc -o .cache/docs <package>"
+run = "uv run --locked pdoc -o .cache/docs <package>"
 
 [tasks.format]
 alias = "f"
@@ -115,11 +115,11 @@ run = ["mise run format:imports", "mise run format:ruff"]
 
 [tasks."format:imports"]
 description = "Sort Python imports"
-run = "uv run ruff check --select=I --fix --force-exclude"
+run = "uv run --locked ruff check --select=I --fix --force-exclude"
 
 [tasks."format:ruff"]
 description = "Format Python sources"
-run = "uv run ruff format --force-exclude"
+run = "uv run --locked ruff format --force-exclude"
 
 [tasks.install]
 alias = "i"
@@ -145,7 +145,7 @@ run = "uv run --locked pytest -q -m integration"
 [tasks."test:watch"]
 alias = "tw"
 description = "Run offline tests in watch mode"
-run = 'uv run pytest-watcher . -q -m "not integration"'
+run = 'uv run --locked pytest-watcher . -q -m "not integration"'
 
 [tasks.upgrade]
 alias = "u"

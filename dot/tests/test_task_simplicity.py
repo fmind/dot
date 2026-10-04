@@ -138,7 +138,7 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
     uv = bin_dir / "uv"
     uv.write_text(
         "#!/usr/bin/env python3\nimport os, sys\n"
-        'os.execv(os.environ["RUFF_BIN"], [os.environ["RUFF_BIN"], *sys.argv[3:]])\n'
+        'os.execv(os.environ["RUFF_BIN"], [os.environ["RUFF_BIN"], *sys.argv[sys.argv.index("ruff") + 1 :]])\n'
     )
     uv.chmod(0o755)
     env.update({"PATH": f"{bin_dir}:{env['PATH']}", "RUFF_BIN": str(ruff)})
