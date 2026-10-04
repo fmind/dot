@@ -167,6 +167,58 @@ def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
     assert "agent-session-sync: done (0 failed)" in _stderr(state)
 
 
+def test_session_sync_follows_codex_rollouts_into_archived_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    name = "rollout-2026-09-06T08-00-00-codex-moved.jsonl"
+
+    def turn(index: int) -> dict[str, object]:
+        return {
+            "timestamp": f"2026-09-06T08:00:0{index}Z",
+            "type": "response_item",
+            "payload": {"role": "user", "content": f"prompt {index}"},
+        }
+
+    live = tmp_path / ".codex/sessions/2026/09/06" / name
+    _write_jsonl(live, turn(1))
+    state = _state()
+    assert sync_sessions(state, agent="codex").ingested == 1
+
+    # Codex moves an archived thread out of sessions/ and can keep appending to it.
+    archived = tmp_path / ".codex/archived_sessions" / name
+    archived.parent.mkdir(mode=0o700)
+    live.rename(archived)
+    _write_jsonl(archived, turn(1), turn(2))
+    assert sync_sessions(state, agent="codex").ingested == 1
+    manifest, records = read_session_bundle(session_bundle_path("codex", "codex-moved"))
+    assert (manifest.record_count, records[-1].content) == (2, "prompt 2")
+
+    # A live copy of the same id takes precedence over the archived one.
+    _write_jsonl(live, turn(1), turn(2), turn(3))
+    _write_jsonl(archived, turn(1))
+    outcome = sync_sessions(state, agent="codex")
+    assert (outcome.selected, outcome.ingested, outcome.failed) == (1, 1, 0)
+    assert read_session_manifest(session_bundle_path("codex", "codex-moved")).record_count == 3
+
+
+def test_session_sync_dry_run_summary_omits_the_unevaluated_retained_count(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _write_jsonl(
+        tmp_path / ".codex/sessions/rollout-2026-09-06T08-00-00-codex-dry.jsonl",
+        {"timestamp": "2026-09-06T08:00:00Z", "type": "response_item", "payload": {"role": "user", "content": "hi"}},
+    )
+    state = _state()
+
+    assert sync_sessions(state, agent="codex", dry_run=True).selected == 1
+
+    # Retention is decided only during capture, so a dry run cannot report it.
+    assert "codex: 1 selected, 0 unchanged\n" in _stderr(state)
+    assert "retained" not in _stderr(state)
+
+
 def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -280,6 +332,40 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
     assert set(usage) == {"agy", "claude", "copilot", "grok"}
     assert usage["agy"].turn_count == 1
     assert usage["grok"].total_tokens == 21
+
+
+def test_agy_workspace_discovered_later_recaptures_an_unchanged_transcript(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store = tmp_path / ".gemini/antigravity-cli"
+    record = {"created_at": "2026-09-06T08:00:00Z", "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "hi"}
+    _write_jsonl(store / "brain/agy-cwd/.system_generated/logs/transcript.jsonl", record)
+    state = _state()
+
+    first = sync_sessions(state, agent="agy")
+    with closing(sqlite3.connect(store / "conversation_summaries.db")) as connection:
+        connection.execute("CREATE TABLE conversation_summaries (conversation_id text, workspace_uris text NOT NULL)")
+        connection.execute(
+            "INSERT INTO conversation_summaries VALUES ('agy-cwd', ?)", (json.dumps(["file:///work/project"]),)
+        )
+        connection.commit()
+    second = sync_sessions(state, agent="agy")
+    third = sync_sessions(state, agent="agy")
+
+    assert (first.ingested, second.ingested, third.ingested, third.unchanged) == (1, 1, 0, 1)
+    manifest, logs = read_session_bundle(session_bundle_path("agy", "agy-cwd"))
+    assert manifest.cwd == "/work/project"
+    assert [log.cwd for log in logs] == ["/work/project"]
+    assert sync_sessions(state, agent="agy", cwd="/work/project").unchanged == 1
+
+    # A pruned summaries row keeps the captured workspace while the transcript is unchanged.
+    with closing(sqlite3.connect(store / "conversation_summaries.db")) as connection:
+        connection.execute("DELETE FROM conversation_summaries")
+        connection.commit()
+    pruned = sync_sessions(state, agent="agy")
+    assert (pruned.ingested, pruned.unchanged) == (0, 1)
+    assert read_session_bundle(session_bundle_path("agy", "agy-cwd"))[0].cwd == "/work/project"
 
 
 def test_copilot_sessions_are_captured_from_the_database_without_a_hook(

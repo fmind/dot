@@ -547,10 +547,15 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
             "cost_known_sessions",
         ):
             setattr(total, name, getattr(total, name) + getattr(row, name))
-    if any(row.legacy_accounting_sessions for row in rows):
-        write(
-            "Legacy accounting present: recapture available sources with 'dot agent session sync'; old Claude totals may count repeated response blocks."
+    if flagged := sorted({row.harness for row in rows if row.legacy_accounting_sessions}):
+        # Retained sessions keep their measuring parser, so a sync cannot clear them.
+        note = (
+            f"Legacy accounting in {', '.join(flagged)}: recapture available sources with 'dot agent session sync'; "
+            "sessions retained from truncated sources keep their archived measurement."
         )
+        if "claude" in flagged:
+            note += " Old Claude totals may count repeated response blocks."
+        write(note)
     if any(row.session_timestamp_sessions for row in rows):
         write("Some usage has only a session timestamp; its monthly allocation is approximate.")
     if periods:

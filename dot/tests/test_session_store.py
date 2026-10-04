@@ -318,3 +318,61 @@ def test_transcript_serialization_preserves_empty_required_fields_and_optional_o
         '{"ts":"","agent":"codex","sid":"one","role":"user","content":"café","model":"test"}\n'.encode()
     )
     assert SessionLog.from_dict(log.to_dict() | {"future": "ignored"}) == log
+
+
+def test_retained_results_prove_a_current_transcript_only_from_identical_complete_records(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    measured = {"measurement_kind": "provider-reported", "input_tokens": 10}
+    first = ingest_session("codex", "session-1", _logs(2), SessionSource(fingerprint="a" * 64), usage=measured)
+    assert not first.current_transcript
+
+    # Usage lost, transcript identical: retained with the archived bundle proven current.
+    same = ingest_session("codex", "session-1", _logs(2), SessionSource(fingerprint="b" * 64), usage=None)
+    assert (same.status, same.current_transcript) == ("retained", True)
+    # Usage lost, transcript grew: the longer transcript publishes and is the current one.
+    grown = ingest_session("codex", "session-1", _logs(3), SessionSource(fingerprint="c" * 64), usage=None)
+    assert (grown.status, grown.current_transcript, grown.manifest.record_count) == ("retained", True, 3)
+    # A malformed capture publishes a partial transcript: never proof of a complete one.
+    partial = ingest_session(
+        "codex", "session-1", _logs(3), SessionSource(fingerprint="d" * 64, malformed=1), usage_failed=True
+    )
+    assert (partial.status, partial.current_transcript) == ("retained", False)
+    # A partial archive (an interrupted write) is replaced by a complete capture of the same records.
+    interrupted = ingest_session(
+        "codex", "session-1", _logs(4), SessionSource(fingerprint="i" * 64, malformed=1), usage_failed=True
+    )
+    assert (interrupted.status, interrupted.manifest.completeness) == ("retained", "partial")
+    # Repeating that partial capture rewrites nothing, so its ingestion time and position hold.
+    bundle = session_bundle_path("codex", "session-1")
+    before = (bundle.stat().st_ino, bundle.stat().st_mtime_ns, bundle.read_bytes())
+    again = ingest_session(
+        "codex", "session-1", _logs(4), SessionSource(fingerprint="i" * 64, malformed=1), usage_failed=True
+    )
+    assert (again.status, again.current_transcript) == ("retained", False)
+    assert again.manifest.ingested_at == interrupted.manifest.ingested_at
+    assert (bundle.stat().st_ino, bundle.stat().st_mtime_ns, bundle.read_bytes()) == before
+    repaired = ingest_session("codex", "session-1", _logs(4), SessionSource(fingerprint="j" * 64), usage=None)
+    assert (repaired.status, repaired.current_transcript, repaired.manifest.completeness) == (
+        "retained",
+        True,
+        "complete",
+    )
+    assert repaired.manifest.usage == measured
+    ingest_session("codex", "session-1", _logs(4), SessionSource(fingerprint="e" * 64), usage=measured)
+
+    # A shrunk source keeps the longer archive, which no longer matches the source.
+    shrunk = ingest_session("codex", "session-1", _logs(3), SessionSource(fingerprint="f" * 64), usage=measured)
+    assert (shrunk.status, shrunk.current_transcript) == ("retained", False)
+
+    # A competing publication wins; it is current only when it holds exactly this capture's records.
+    stale_generation = (SESSION_PARSER_VERSION, "0" * 64)
+    competing = ingest_session(
+        "codex", "session-1", _logs(4), SessionSource(fingerprint="g" * 64), expected_generation=stale_generation
+    )
+    assert (competing.status, competing.current_transcript) == ("retained", True)
+    diverged = ingest_session(
+        "codex", "session-1", _logs(5), SessionSource(fingerprint="h" * 64), expected_generation=stale_generation
+    )
+    assert (diverged.status, diverged.current_transcript) == ("retained", False)

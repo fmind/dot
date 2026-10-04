@@ -13,21 +13,21 @@ Requested data goes to stdout; progress and errors go to stderr. Exit codes are 
 
 Check the exit status: a failure before report construction may produce no JSON, and warnings stay on stderr.
 
-| Command                          | Schema                        | Data selector                                                                |
-| -------------------------------- | ----------------------------- | ---------------------------------------------------------------------------- |
-| `dot pull --json`                | `dot.pull/v1`                 | `.repositories[]`; `.complete` records success.                              |
-| `dot pull --dry-run --json`      | `dot.pull.plan/v1`            | `.repositories[]`                                                            |
-| `dot status --json`              | `dot.status/v1`               | `.repositories[]`                                                            |
-| `dot status --stats --json`      | `dot.status.stats/v1`         | Top-level counts.                                                            |
-| `dot agent session list --json`  | `dot.agent.session.list/v2`   | `.sessions[]` with `parser_version`.                                         |
-| `dot agent session show`         | `dot.agent.session.show/v2`   | `.session`; same fields as list.                                             |
-| `dot agent session export`       | `dot.agent.sessions/v2`       | `.sessions[]` (JSON) or `.session` (NDJSON).                                 |
-| `dot agent session sync --json`  | `dot.agent.session.sync/v2`   | Counts `selected`, `ingested`, `unchanged`, `retained`, `skipped`, `failed`. |
-| `dot agent session stats --json` | `dot.agent.sessions.stats/v2` | Top-level counts.                                                            |
-| `dot agent usage list --json`    | `dot.agent.usage.list/v1`     | `.records[]`                                                                 |
-| `dot agent usage show`           | `dot.agent.usage.show/v1`     | `.record`                                                                    |
-| `dot orphan --json`              | `dot.orphan/v1`               | `.targets[]`                                                                 |
-| `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` (`null` when token-only) and `.usage[]` (empty when prompt-only). |
+| Command                          | Schema                        | Data selector                                                                                                |
+| -------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `dot pull --json`                | `dot.pull/v1`                 | `.repositories[]`; `.complete` records success.                                                              |
+| `dot pull --dry-run --json`      | `dot.pull.plan/v1`            | `.repositories[]`                                                                                            |
+| `dot status --json`              | `dot.status/v1`               | `.repositories[]`                                                                                            |
+| `dot status --stats --json`      | `dot.status.stats/v1`         | Top-level counts.                                                                                            |
+| `dot agent session list --json`  | `dot.agent.session.list/v2`   | `.sessions[]` with `parser_version`.                                                                         |
+| `dot agent session show`         | `dot.agent.session.show/v2`   | `.session`; same fields as list.                                                                             |
+| `dot agent session export`       | `dot.agent.sessions/v2`       | `.sessions[]` (JSON) or `.session` (NDJSON).                                                                 |
+| `dot agent session sync --json`  | `dot.agent.session.sync/v2`   | Counts `selected`, `ingested`, `unchanged`, `retained`, `retained_current_transcripts`, `skipped`, `failed`. |
+| `dot agent session stats --json` | `dot.agent.sessions.stats/v2` | Top-level counts.                                                                                            |
+| `dot agent usage list --json`    | `dot.agent.usage.list/v1`     | `.records[]`                                                                                                 |
+| `dot agent usage show`           | `dot.agent.usage.show/v1`     | `.record`                                                                                                    |
+| `dot orphan --json`              | `dot.orphan/v1`               | `.targets[]`                                                                                                 |
+| `dot agent stats --json`         | `dot.agent.stats/v2`          | `.prompts` (`null` when token-only) and `.usage[]` (empty when prompt-only).                                 |
 
 Diagnostics use the `dot.diagnostics/v1` envelope; agent doctor details carry `agent`, `hooks`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, and `next`. Native cache/provider output keeps its native format.
 

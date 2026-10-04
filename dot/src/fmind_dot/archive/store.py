@@ -175,6 +175,9 @@ _MANIFEST_ADAPTER = TypeAdapter(SessionManifest)
 class SessionIngestionResult:
     status: IngestionStatus
     manifest: SessionManifest
+    # Retained only: the archived bundle is a complete current-parser copy of exactly this complete
+    # capture's records, so the archive kept nothing but usage (see _holds_current_transcript).
+    current_transcript: bool = False
 
 
 def fingerprint_bytes(content: bytes) -> str:
@@ -316,6 +319,18 @@ def _loses_measurement(previous: dict[str, Any], current: dict[str, Any] | None)
     )
 
 
+def _holds_current_transcript(
+    archived: SessionManifest, archived_logs: list[SessionLog], captured: SessionManifest, logs: list[SessionLog]
+) -> bool:
+    """Prove a retained archive lost nothing: both copies complete, same parser, identical records."""
+    return (
+        captured.completeness == archived.completeness == "complete"
+        and archived.parser_version == captured.parser_version
+        and archived.record_count == len(archived_logs) == len(logs)
+        and archived_logs == logs
+    )
+
+
 def ingest_session(
     agent: str,
     session_id: str,
@@ -373,7 +388,15 @@ def ingest_session(
         if expected_generation is not None and generation != expected_generation:
             # The source was parsed before taking this lock. A competing publication
             # wins even when both captures contain the same number of messages.
-            return SessionIngestionResult("retained", stored or manifest)
+            if stored is None:
+                return SessionIngestionResult("retained", manifest)
+            try:
+                _, archived_logs = read_session_bundle(path)
+            except OSError, ValueError:
+                # An unreadable competing copy proves nothing about the transcript.
+                return SessionIngestionResult("retained", stored)
+            current = _holds_current_transcript(stored, archived_logs, manifest, logs)
+            return SessionIngestionResult("retained", stored, current_transcript=current)
         if stored is not None:
             # Older parsers classified absent counters as measured zero. An identical
             # source can correct that classification without discarding actual usage.
@@ -425,11 +448,22 @@ def ingest_session(
                     # Match in source order without confusing inserted user records or
                     # model/CWD corrections with an earlier assistant's streamed chunks.
                     return SessionIngestionResult("retained", stored)
-            if retain_usage and previous_logs == logs and stored.parser_version == manifest.parser_version:
-                # Only the measurement changed: the archived bundle is already current.
-                return SessionIngestionResult("retained", stored)
+            if (
+                retain_usage
+                and previous_logs == logs
+                and stored.parser_version == manifest.parser_version
+                and (stored.completeness == "complete" or manifest.completeness != "complete")
+            ):
+                # Only the measurement changed: the archived bundle is already current. A partial
+                # archive falls through only so a complete capture of the same records can replace it.
+                current = _holds_current_transcript(stored, previous_logs, manifest, logs)
+                return SessionIngestionResult("retained", stored, current_transcript=current)
         _write_bundle(root, manifest, logs)
-        return SessionIngestionResult("retained" if retain_usage else "ingested", manifest)
+        if retain_usage:
+            # The bundle just published holds this capture's records; only the usage is archived.
+            current = _holds_current_transcript(manifest, logs, manifest, logs)
+            return SessionIngestionResult("retained", manifest, current_transcript=current)
+        return SessionIngestionResult("ingested", manifest)
 
 
 def report_ingestion(result: SessionIngestionResult) -> str:

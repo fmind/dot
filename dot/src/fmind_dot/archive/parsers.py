@@ -14,7 +14,7 @@ from fnmatch import fnmatchcase
 from io import BytesIO
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlsplit
 
 from fmind_dot.archive.store import (
     SessionLog,
@@ -26,6 +26,12 @@ from fmind_dot.archive.store import (
 from fmind_dot.archive.usage import UsageRecord
 
 AGY_TRANSCRIPT_NAMES = ("transcript_full.jsonl", "transcript.jsonl")
+# Antigravity transcripts carry no CWD; the CLI records each conversation's workspace URIs here,
+# beside the conversation directories root.
+AGY_SUMMARIES_NAME = "conversation_summaries.db"
+_AGY_SUMMARIES_LIMIT = 100_000
+# Codex moves archived rollouts here, beside its sessions root.
+CODEX_ARCHIVED_NAME = "archived_sessions"
 GROK_TRANSCRIPT_NAME = "updates.jsonl"
 # xAI reports exact integer cost ticks; its headless-mode guide defines 1 USD = 10^10 ticks.
 _GROK_TICKS_PER_USD = 10**10
@@ -62,6 +68,8 @@ class AgentAdapter:
     label: str
     database: bool
     parser: SessionParser
+    # The CWD comes from metadata outside the transcript file, so it joins the source signature.
+    external_cwd: bool = False
 
 
 def resolve_cwd(value: str) -> str:
@@ -239,6 +247,9 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
     usage.output_tokens = (output_bytes + 3) // 4
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, None, _undated_usage_timestamp(logs, path))
+    if usage.cwd:
+        # The workspace comes from the summaries database, not the transcript bytes.
+        fingerprint = fingerprint_json({"transcript": fingerprint, "cwd": usage.cwd})
     return ParsedSession(
         logs,
         fingerprint,
@@ -1045,13 +1056,54 @@ def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> Parsed
 
 
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
-    "agy": AgentAdapter("agy", "agy", False, parse_agy_session),
+    "agy": AgentAdapter("agy", "agy", False, parse_agy_session, external_cwd=True),
     "claude": AgentAdapter("claude", "Claude", False, parse_claude_session),
     "codex": AgentAdapter("codex", "Codex", False, parse_codex_session),
     "grok": AgentAdapter("grok", "Grok", False, parse_grok_session),
     "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session),
     "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session),
 }
+
+
+def _file_uri_path(value: object) -> str:
+    """Return the absolute local path of a file URI, or an empty string for anything else."""
+    if not isinstance(value, str):
+        return ""
+    parts = urlsplit(value)
+    # Check NUL after decoding: unquote turns %00 into the byte that path resolution rejects.
+    path = unquote(parts.path)
+    if parts.scheme != "file" or parts.netloc not in {"", "localhost"} or not path.startswith("/") or "\x00" in path:
+        return ""
+    return path
+
+
+def agy_workspaces(root: Path) -> dict[str, str]:
+    """Map each Antigravity conversation id to its first local workspace path."""
+    path = root.parent / AGY_SUMMARIES_NAME
+    if not path.exists():
+        # Older CLI releases kept no summaries database: sessions stay without a CWD.
+        return {}
+    with closing(_connect_read_only(path)) as connection:
+        rows = connection.execute(
+            "SELECT conversation_id, workspace_uris FROM conversation_summaries LIMIT ?",
+            (_AGY_SUMMARIES_LIMIT + 1,),
+        ).fetchall()
+    if len(rows) > _AGY_SUMMARIES_LIMIT:
+        raise ValueError(f"Antigravity summaries exceed {_AGY_SUMMARIES_LIMIT} conversations")
+    workspaces: dict[str, str] = {}
+    for identifier, uris in rows:
+        if not isinstance(identifier, str) or not isinstance(uris, str) or not uris:
+            continue
+        try:
+            values = json.loads(uris)
+        except ValueError, RecursionError:
+            # One unreadable row costs only that conversation's CWD.
+            continue
+        if isinstance(values, list):
+            workspace = next((path for path in map(_file_uri_path, values) if path), "")
+            if workspace:
+                workspaces[identifier] = workspace
+    return workspaces
 
 
 def _raise_walk_error(error: OSError) -> None:
@@ -1072,6 +1124,7 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
     """Return session id, CWD, and source path for one verified adapter."""
     candidates: list[tuple[str, str, Path]] = []
     if agent == "agy":
+        workspaces = agy_workspaces(root)
         for directory in sorted(root.iterdir()):
             if not stat.S_ISDIR(directory.lstat().st_mode):
                 continue
@@ -1082,7 +1135,7 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
                 except FileNotFoundError:
                     continue
                 if stat.S_ISREG(mode):
-                    candidates.append((directory.name, "", path))
+                    candidates.append((directory.name, workspaces.get(directory.name, ""), path))
                     break
     elif agent == "claude":
         for path in _session_files(root, ("*.jsonl",)):
@@ -1090,10 +1143,23 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
             if is_valid_session_id(session_id):
                 candidates.append((session_id, "", path))
     elif agent == "codex":
+        # Archived rollouts can still grow after the move; the live copy wins a duplicate id.
+        live: set[str] = set()
         for path in _session_files(root, ("*.jsonl",)):
             session_id = codex_session_id(path)
             if is_valid_session_id(session_id):
+                live.add(session_id)
                 candidates.append((session_id, "", path))
+        archived = root.parent / CODEX_ARCHIVED_NAME
+        try:
+            archived_mode = archived.lstat().st_mode
+        except FileNotFoundError:
+            archived_mode = 0
+        if stat.S_ISDIR(archived_mode):
+            for path in _session_files(archived, ("*.jsonl",)):
+                session_id = codex_session_id(path)
+                if is_valid_session_id(session_id) and session_id not in live:
+                    candidates.append((session_id, "", path))
     elif agent == "grok":
         directories = {path.parent for path in _session_files(root, (GROK_TRANSCRIPT_NAME, "signals.json"))}
         for directory in sorted(directories):
@@ -1126,10 +1192,12 @@ def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
 
 __all__ = [
     "AGENT_ADAPTERS",
+    "AGY_SUMMARIES_NAME",
     "AGY_TRANSCRIPT_NAMES",
     "GROK_TRANSCRIPT_NAME",
     "AgentAdapter",
     "ParsedSession",
+    "agy_workspaces",
     "claude_session_id",
     "codex_session_id",
     "enumerate_sessions",
