@@ -8,12 +8,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
-from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
-from fmind_dot.process import Runner
 from fmind_dot.secrets import personal_token
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,11 +21,11 @@ def secret_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
     for name in tuple(os.environ):
-        if name.startswith("UV_PUBLISH_") or name in {"UV_CONFIG_FILE", "UV_INSECURE_HOST", "TEST_API_KEY"}:
+        if name in {"UV_PUBLISH_TOKEN", "TEST_API_KEY", "OTHER_API_KEY"}:
             monkeypatch.delenv(name)
     directory = tmp_path / ".config/dot/secrets"
     directory.mkdir(parents=True, mode=0o700)
-    for name in ("TEST_API_KEY", "UV_PUBLISH_TOKEN"):
+    for name in ("TEST_API_KEY", "OTHER_API_KEY"):
         path = directory / name
         path.write_text("synthetic-personal\n")
         path.chmod(0o600)
@@ -51,7 +48,7 @@ def test_scoped_key_arguments_stdio_and_exit_status(secret_home: Path) -> None:
     child = (
         "import os,sys; "
         "assert os.environ['TEST_API_KEY'] == 'synthetic-personal'; "
-        "assert 'UV_PUBLISH_TOKEN' not in os.environ; "
+        "assert 'OTHER_API_KEY' not in os.environ; "
         "assert sys.argv[1:] == ['a b', '$(touch nope)', '--flag']; "
         "print('child output'); print('child error', file=sys.stderr); sys.exit(7)"
     )
@@ -119,7 +116,7 @@ def test_invalid_secret_fails_before_launch(secret_home: Path, kind: str) -> Non
     if kind in {"missing", "link", "fifo", "directory"}:
         path.unlink()
     if kind == "link":
-        path.symlink_to(path.with_name("UV_PUBLISH_TOKEN"))
+        path.symlink_to(path.with_name("OTHER_API_KEY"))
     elif kind == "fifo":
         os.mkfifo(path)
     elif kind == "directory":
@@ -147,60 +144,14 @@ def test_missing_tool_does_not_read_secret(secret_home: Path) -> None:
     assert "required tools are missing" in result.stderr
 
 
-def test_pypi_command_is_scoped_and_destination_fixed(secret_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert Path.home() == secret_home
-    calls: list[tuple[list[str], dict[str, str]]] = []
-
-    def interactive(_self: Runner, args: list[str], **kwargs: object) -> int:
-        env = kwargs["env"]
-        assert isinstance(env, dict)
-        calls.append((args, env))
-        return 9
-
-    monkeypatch.setattr(Runner, "interactive", interactive)
-    monkeypatch.setattr(Runner, "which", lambda _self, _name: "/synthetic/uv")
-    result = CliRunner().invoke(app, ["secret", "publish", "--dry-run", "dist/file with spaces.whl"])
-    assert result.exit_code == 9
-    args, env = calls[0]
-    assert args == [
-        "uv",
-        "publish",
-        "--no-config",
-        "--publish-url",
-        "https://upload.pypi.org/legacy/",
-        "--check-url",
-        "https://pypi.org/simple/",
-        "--trusted-publishing",
-        "never",
-        "--keyring-provider",
-        "disabled",
-        "--dry-run",
-        "--",
-        "dist/file with spaces.whl",
-    ]
-    assert env == {"UV_PUBLISH_TOKEN": "synthetic-personal"}
-    assert "UV_PUBLISH_TOKEN" not in os.environ
-    assert result.output == ""
-
-
-@pytest.mark.parametrize(
-    "name",
-    [
-        "UV_PUBLISH_INDEX",
-        "UV_PUBLISH_URL",
-        "UV_PUBLISH_CHECK_URL",
-        "UV_PUBLISH_USERNAME",
-        "UV_PUBLISH_PASSWORD",
-        "UV_CONFIG_FILE",
-        "UV_INSECURE_HOST",
-    ],
-)
-def test_pypi_rejects_customer_configuration(secret_home: Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
-    assert Path.home() == secret_home
-    monkeypatch.setenv(name, "customer")
-    result = CliRunner().invoke(app, ["secret", "publish"])
-    assert isinstance(result.exception, DotError)
-    assert "use uv publish" in str(result.exception)
+@pytest.mark.parametrize("arguments", [["secret", "publish", "--dry-run"], ["secret", "publish", "dist/x.whl"]])
+def test_personal_pypi_publishing_is_retired(secret_home: Path, arguments: list[str]) -> None:
+    # Packages publish through PyPI Trusted Publishing; no command supplies a personal upload token.
+    result = invoke_process(secret_home, *arguments)
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "synthetic-personal" not in result.stderr
+    assert not (ROOT / "dot_config/dot/private_secrets/encrypted_private_UV_PUBLISH_TOKEN.age").exists()
 
 
 def test_doctor_does_not_require_ambient_api_keys() -> None:
