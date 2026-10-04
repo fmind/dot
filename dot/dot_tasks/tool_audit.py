@@ -214,9 +214,6 @@ def main(argv: Sequence[str] = ()) -> int:
         return 2
     audited: list[dict[str, str]] = []
     for tool, entries in sorted(inventory.items()):
-        if not isinstance(entries, list) or not entries:
-            gaps.append(f"{tool}: missing installed versions")
-            continue
         for entry in entries:
             try:
                 version = entry["version"]

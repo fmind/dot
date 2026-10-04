@@ -9,10 +9,10 @@ from typing import IO
 import pytest
 
 from dot_tasks.release import (
+    _remote_release_tag_objects,
     push_prepared_commit,
     push_release_tag,
     read_release_version,
-    remote_release_tag_commit,
     run_release,
     validate_release_status,
 )
@@ -249,7 +249,7 @@ def test_remote_tag_resolution_prefers_exact_peeled_commit() -> None:
         f"{'b' * 40}\t{refspec}\n{commit}\t{refspec}^{{}}\n", "", 0
     )
 
-    assert remote_release_tag_commit(make_state(runner), "origin", refspec) == commit
+    assert _remote_release_tag_objects(make_state(runner), "origin", refspec) == ("b" * 40, commit)
     assert runner.output_limits[-1] == 4096
 
 
@@ -265,7 +265,7 @@ def test_remote_tag_resolution_rejects_truncated_output() -> None:
     )
 
     with pytest.raises(DotError, match="exceeded 4096 bytes"):
-        remote_release_tag_commit(make_state(runner), "origin", refspec)
+        _remote_release_tag_objects(make_state(runner), "origin", refspec)
 
 
 @pytest.mark.parametrize(
@@ -292,7 +292,7 @@ def test_remote_tag_resolution_rejects_ambiguous_records(output: str, message: s
     )
 
     with pytest.raises(DotError, match=message):
-        remote_release_tag_commit(make_state(runner), "origin", refspec)
+        _remote_release_tag_objects(make_state(runner), "origin", refspec)
 
 
 def test_rejected_release_tag_push_accepts_remote_annotated_tag_at_expected_commit() -> None:
