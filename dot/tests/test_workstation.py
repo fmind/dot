@@ -33,6 +33,7 @@ class RecordingRunner(Runner):
         self.responses: list[CommandResult | Exception] = []
         self.action_code = 0
         self.missing: set[str] = set()
+        self.envs: list[Mapping[str, str] | None] = []
 
     def which(self, command: str) -> Path | None:
         return None if command in self.missing else Path("/bin") / command
@@ -69,12 +70,13 @@ class RecordingRunner(Runner):
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
     ) -> int:
-        assert cwd is env is None
+        assert cwd is None
         assert stdin is not None
         assert stdout is not None
         assert stderr is not None
         self.calls.append(list(args))
         self.actions.append(list(args))
+        self.envs.append(env)
         return self.action_code
 
 
@@ -300,6 +302,22 @@ def test_github_no_accounts_logs_in(provider: RecordingRunner) -> None:
     result = CliRunner().invoke(app, ["login", "github"])
     assert result.exit_code == 0, result.exception
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
+
+
+@pytest.mark.parametrize(
+    ("sommelier", "display", "expected"),
+    [("1", ":0", {"WAYLAND_DISPLAY": ""}), ("", ":0", None), ("1", "", None)],
+)
+def test_github_login_copies_the_device_code_through_x11_on_crostini(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, sommelier: str, display: str, expected: object
+) -> None:
+    # Under Sommelier, wl-copy never forks, so gh would wait on it forever after printing nothing.
+    monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
+    monkeypatch.setenv("DISPLAY", display)
+    provider.responses = [response({"hosts": {}}), github_status()]
+    result = CliRunner().invoke(app, ["login", "github"])
+    assert result.exit_code == 0, result.exception
+    assert provider.envs == [expected]
 
 
 @pytest.mark.parametrize(
