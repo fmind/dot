@@ -41,7 +41,7 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-c
 xcode-select --install
 ```
 
-The installer requires mise 2026.10.0 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
+The installer requires mise 2026.10.2 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
 
 ## Installation
 
@@ -55,7 +55,7 @@ git clone https://github.com/fmind/dot.git ~/.local/share/chezmoi
 bash ~/.local/share/chezmoi/install.sh
 ```
 
-Enter **your own** Git name, email, and GitHub username when prompted; the defaults are mine. Open a new shell and run `dot doctor` to check the installation.
+Enter **your own** Git name, email, personal-repository email, and GitHub username when prompted; the defaults are mine. Open a new shell and run `dot doctor` to check the installation.
 
 To resume interrupted setup, rerun the installer. Set `SKIP_GIT_PULL=true` to use an existing checkout without fetching upstream. From an initialized checkout, `mise run full` reapplies files and synchronizes locked tools, `dot`, and completions.
 
@@ -176,11 +176,10 @@ For hooks, notifications, and provider overrides, see [agent harnesses](skills/a
 
 Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode use native credential files, seeded only when absent so later logins survive apply. Use `hf auth login`, `kaggle auth login`, or OpenCode's `/connect` for your own accounts. For customer work, select credentials explicitly using the [account override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
 
-Supply a personal key to one command with `dot secret run`; use `dot secret publish` for PyPI. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
+Supply a personal key to one command with `dot secret run`; PyPI packages publish through Trusted Publishing, not a personal token. A `remove_` marker deletes the retired `UV_PUBLISH_TOKEN` seed on apply; revoke that token on pypi.org. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
 
 ```bash
 dot secret run STITCH_ACCESS_TOKEN -- <command>
-dot secret publish --dry-run
 ```
 
 The helper preserves existing environment values; an empty value fails instead of loading the personal key. See [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials) for supported keys and precedence.
@@ -196,7 +195,7 @@ Fork and replace these personal defaults:
 1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and the clone URL in [`install.sh`](install.sh). Use unmanaged `~/.config/git/config.local` for Git overrides and `includeIf` profiles.
 1. **Secrets:** replace the age recipient and remove or re-encrypt credential sources before applying; see [Secret Management](#secret-management).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md), which every harness loads.
-1. **Workspaces:** change `pull.directories` and `trust.github_owners` in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json). Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.
+1. **Workspaces:** change `pull.directories` and `trust.github_owners` in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and the personal-checkout `includeIf` directories in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl), which commit with the personal-repository email. Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.
 1. **Theme:** change [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl); theme files are pinned to an [fmind/theme](https://github.com/fmind/theme) commit that `mise run upgrade` advances.
 
 ## Uninstall / rollback
