@@ -137,7 +137,10 @@
 
 # Personal checkouts and this public source always commit with the personal address, even
 # where user.email is a work address; machine-local configuration below still wins.
-{{- range list (printf "%s/" .chezmoi.sourceDir) "~/fmind/" "~/fmind-ai/" "~/mlops-courses/" }}
+# Git resolves symlinks in a "~/" pattern (macOS /var, linked homes) but not in an absolute one.
+{{- $source := printf "%s/" .chezmoi.sourceDir }}
+{{- if hasPrefix (printf "%s/" .chezmoi.homeDir) $source }}{{ $source = printf "~/%s" (trimPrefix (printf "%s/" .chezmoi.homeDir) $source) }}{{ end }}
+{{- range list $source "~/fmind/" "~/fmind-ai/" "~/mlops-courses/" }}
 [includeIf {{ printf "gitdir:%s" . | quote }}]
     path = {{ joinPath $.chezmoi.homeDir ".config/git/personal.gitconfig" | quote }}
 {{- end }}
