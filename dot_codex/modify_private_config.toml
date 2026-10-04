@@ -33,7 +33,7 @@ vim_mode_default = true
 {{- $_ = set $managedConfig "sqlite_home" (joinPath .chezmoi.homeDir ".codex/sqlite") -}}
 {{- /* The brain's session-context hook prints plain text, which Codex adds as developer
        context on startup and resume. It joins host SessionStart hooks only where the brain is
-       checked out, decoded from TOML so uniq keeps one copy; Codex skips it until /hooks trusts it. */ -}}
+       checked out, decoded from TOML so it compares with the target; Codex skips it until /hooks trusts it. */ -}}
 {{- $sessionContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/session-context.py" -}}
 {{- if stat $sessionContext -}}
 {{-   $current := dict -}}
@@ -42,6 +42,11 @@ vim_mode_default = true
 {{-   if not (kindIs "slice" $sessionStart) }}{{ fail "hooks.SessionStart must be an array" }}{{ end -}}
 {{-   $command := printf "%s %s" $sessionContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
 {{-   $entry := fromToml (printf "matcher = \"startup|resume\"\n[[hooks]]\ntype = \"command\"\ncommand = %s\ntimeout = 30\n" (toJson $command)) -}}
-{{-   $_ = set $managedConfig "hooks" (dict "SessionStart" (append $sessionStart $entry | uniq)) -}}
+{{-   $present := false -}}
+{{-   range $sessionStart }}{{ if deepEqual . $entry }}{{ $present = true }}{{ end }}{{ end -}}
+{{- /* Touch hooks only when the entry is missing: append yields []interface{} while fromToml
+       decodes tables as []map[string]interface{}, so a merged copy never deepEquals the target
+       and toml-merge would re-serialize the file Codex keeps rewriting on every apply. */ -}}
+{{-   if not $present }}{{ $_ = set $managedConfig "hooks" (dict "SessionStart" (append $sessionStart $entry)) }}{{ end -}}
 {{- end -}}
 {{- includeTemplate "toml-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "defaults" dict) -}}
