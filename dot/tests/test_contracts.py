@@ -520,6 +520,7 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     }
     outstanding = {
         "dot_config/fish/conf.d/remove_secrets.fish",
+        "dot_config/nvim/lua/plugins/remove_prose.lua",
         "dot_copilot/hooks/remove_notify.json",
         "dot_copilot/hooks/remove_session-log.json",
         *retired_agents,
