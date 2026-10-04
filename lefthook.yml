@@ -33,8 +33,8 @@ pre-commit:
       run: mise run format:python:style {staged_files}
       stage_fixed: true
     format:shell:
-      # The task formats exactly this file; shell templates are lint-only.
-      glob: "install.sh"
+      # The task formats exactly these plain scripts; shell templates are lint-only.
+      glob: "{install.sh,run_*.sh}"
       priority: 10
       run: mise run format:shell
       stage_fixed: true
