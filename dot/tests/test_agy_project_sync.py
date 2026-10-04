@@ -63,9 +63,10 @@ def test_invalid_registry_fails_before_writing(
     (tmp_path / "owner/repo/.git").mkdir(parents=True)
     registry = tmp_path / ".gemini/config/projects"
     registry.mkdir(parents=True)
-    (registry / "broken.json").write_text("{private")
+    # macOS temporary paths live under /private, so the sentinel must not be a path word.
+    (registry / "broken.json").write_text("{registry-content-sentinel")
     assert run(tmp_path, monkeypatch, "--apply") == 1
-    assert "private" not in capsys.readouterr().err
+    assert "registry-content-sentinel" not in capsys.readouterr().err
     assert [path.name for path in registry.iterdir()] == ["broken.json"]
 
 
