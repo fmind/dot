@@ -75,6 +75,18 @@ def test_macos_ci_exercises_runtime_and_starters_with_the_repository_toolchain()
     assert toolchain < render < runtime < starters < clean
 
 
+def test_release_build_waits_for_macos_tests_without_cache() -> None:
+    jobs = _jobs(ROOT / ".github/workflows/cd.yml")
+    (name,) = (name for name, job in jobs.items() if job["runs-on"].startswith("macos-"))
+    macos = jobs[name]
+    assert not _writes(macos)
+    toolchain = _index(macos, lambda step: step.get("uses", "").startswith("jdx/mise-action@"))
+    assert macos["steps"][toolchain]["with"]["cache"] is False
+    assert toolchain < _index(macos, lambda step: step.get("run") == "mise run test")
+    (build,) = (job for job in jobs.values() if any("mise run all" in run for run in _commands(job)))
+    assert name in _needs(build)
+
+
 def test_release_credentials_never_share_a_job_with_the_build_toolchain() -> None:
     jobs = _jobs(ROOT / ".github/workflows/cd.yml")
     privileged = {name: job for name, job in jobs.items() if _writes(job)}
