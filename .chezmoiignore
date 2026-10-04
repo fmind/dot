@@ -2,26 +2,16 @@
 # Preflight shared skill ownership while rendering source state, before forced apply can replace a package.
 {{ includeTemplate "skill-catalog-check.tmpl" . }}
 
-# Generated artifacts use target-path patterns, including nested tool caches.
+# Generated artifacts use target-path patterns. chezmoi already skips dot-prefixed
+# source entries, such as .venv and tool caches, at any depth.
 **/*.py[co]
-**/.cache
-**/.coverage*
-**/.mise-lock-capture-*
-**/.mypy_cache
-**/.pytest_cache
-**/.ruff_cache
-**/.ty_cache
-**/.venv
 **/__pycache__
 **/build
 **/dist
 **/htmlcov
 
-# The native Hugging Face credential is intentionally managed under the home cache.
-!.cache
-
-# Repository-only sources and tooling.
-.antigravitycli
+# Repository-only sources and tooling. Supagents roles compile into native harness profiles.
+.agents/supagents
 AGENTS.md
 CHANGELOG.md
 LICENSE

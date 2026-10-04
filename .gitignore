@@ -3,7 +3,6 @@
 # Local agent state; shared skills remain versioned.
 .agents/prompts/
 .agents/tmp/
-.antigravitycli/
 .claude/*
 !.claude/skills
 .codex/
@@ -23,10 +22,6 @@ __pycache__/
 build/
 dist/
 htmlcov/
-
-# Only the managed launcher belongs in this generated bin directory.
-dot_local/bin/*
-!dot_local/bin/symlink_dot.tmpl
 
 # Optional workstation locks stay local; shared dependency graphs are versioned.
 dot_config/mise/mise.local.lock

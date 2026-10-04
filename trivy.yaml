@@ -23,12 +23,10 @@ scan:
     - "**/.venv"
     - "**/__pycache__"
     - .agents
-    - .antigravitycli
     - .claude
     - .codex
     - .gemini
     - .git
     - .grok
-    - dot_local/bin
 vulnerability:
   ignore-unfixed: true

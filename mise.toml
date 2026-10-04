@@ -32,7 +32,7 @@ PYTHONDONTWRITEBYTECODE = "1"
 
 [vars]
 # First-party Python outside skill templates; shared by check:python and format:python.
-python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts skills/clipboard/scripts"
+python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts skills/clipboard/scripts skills/cloud-run/templates"
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
@@ -123,7 +123,7 @@ description = "Check config and markup formatting (dprint)"
 run = "dprint check"
 
 [tasks."check:fish"]
-description = "Validate Fish syntax without loading user configuration"
+description = "Validate Fish syntax without loading user configuration, then run the Fish behavior tests"
 run = """
 for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish; do
   fish --no-config --no-execute "$file"
@@ -165,7 +165,7 @@ description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
   "uv run --frozen --project dot ruff check {{vars.python_sources}}",
   "uv run --frozen --project dot ruff format --check {{vars.python_sources}}",
-  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/deleguate-tasks/scripts ../skills/clipboard/scripts",
+  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/deleguate-tasks/scripts ../skills/clipboard/scripts ../skills/cloud-run/templates",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
   "uv lock --check --project dot",
 ]
@@ -276,7 +276,7 @@ run = "uv run --frozen --project dot ruff format --force-exclude"
 [tasks."format:shell"]
 alias = "fs"
 description = "Format shell scripts"
-run = "shfmt -w -i 2 -s install.sh"
+run = "shfmt -w -i 2 -s install.sh run_*.sh"
 
 [tasks.install]
 alias = "i"
@@ -377,7 +377,7 @@ run = "uv run --frozen --no-dev --directory dot python -m dot_tasks.publish"
 
 [tasks.tools]
 alias = "mt"
-description = "Install the locked repository and global tools"
+description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
   '''
@@ -400,7 +400,7 @@ run = "mise trust -y mise.toml"
 
 [tasks.upgrade]
 alias = "mu"
-description = "Upgrade Python dependencies, mise tools, the theme pin, and Neovim plugins"
+description = "Upgrade Python dependencies, mise tools, the theme pin, dprint plugins, and Neovim plugins"
 run = [
   "uv lock --upgrade --project dot",
   # Refresh version pins before installing the selected releases.
