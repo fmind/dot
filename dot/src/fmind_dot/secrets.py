@@ -44,6 +44,7 @@ def personal_token(name: str) -> str:
 
 
 def launch(state: State, command: list[str], name: str) -> None:
+    # Scoped credentials never read dot.yaml, so an invalid configuration cannot block them.
     require_tools(state, [command])
     code = state.runner.interactive(
         command,
@@ -63,7 +64,7 @@ def run(
 ) -> None:
     if name == "UV_PUBLISH_TOKEN":
         raise typer.BadParameter("use dot secret publish for the personal PyPI token", param_hint="NAME")
-    launch(state_from(context), command, name)
+    launch(state_from(context, require_config=False), command, name)
 
 
 @secret_app.command("publish", help="Publish to PyPI using the personal token; other registries use uv publish")
@@ -100,4 +101,4 @@ def publish(
     if dry_run:
         command.append("--dry-run")
     command.extend(["--", *(files or ["dist/*"])])
-    launch(state_from(context), command, "UV_PUBLISH_TOKEN")
+    launch(state_from(context, require_config=False), command, "UV_PUBLISH_TOKEN")

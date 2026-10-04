@@ -75,6 +75,13 @@ def test_scoped_key_arguments_stdio_and_exit_status(secret_home: Path) -> None:
     assert not (secret_home / "nope").exists()
 
 
+def test_scoped_key_ignores_invalid_configuration(secret_home: Path) -> None:
+    (secret_home / ".config/dot.yaml").write_text("unknown_key: true\n")
+    child = "import os,sys; sys.exit(0 if os.environ['TEST_API_KEY'] == 'synthetic-personal' else 9)"
+    result = invoke_process(secret_home, "secret", "run", "TEST_API_KEY", "--", sys.executable, "-c", child)
+    assert result.returncode == 0, result.stderr
+
+
 def test_customer_environment_wins_without_reading_personal_file(
     secret_home: Path,
     monkeypatch: pytest.MonkeyPatch,
