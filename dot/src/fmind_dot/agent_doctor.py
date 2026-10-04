@@ -248,10 +248,12 @@ def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") ->
                 state.stdout.write(f"  next: {result.next}\n")
             if result.sync_retained:
                 # Informational: truncated sources are retained by design; a measurement that
-                # a new parse would lose points at a parser gap. Sync names each session.
+                # a new parse would lose points at a parser gap. Sync reports one line per
+                # retained capture but, like its failures, never prints session identities.
                 state.stdout.write(
-                    f"  note: {result.sync_retained} session(s) kept their archived copy; "
-                    f"dot agent session sync --agent {result.agent} lists them\n"
+                    f"  note: {result.sync_retained} session(s) kept their archived copy "
+                    "(truncated source or a parse that would lose usage); "
+                    f"dot agent session sync --agent {result.agent} reports each one\n"
                 )
     if not all(result.healthy for result in results):
         raise DotError("agent doctor found unhealthy integrations")

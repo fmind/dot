@@ -223,12 +223,12 @@ def session_store_root() -> Path:
     return Path.home() / ".agents" / "sessions" / SESSION_STORE_VERSION
 
 
-def session_bundle_path(agent: str, session_id: str, root: Path | None = None) -> Path:
+def session_bundle_path(agent: str, session_id: str) -> Path:
     if not is_valid_session_id(agent):
         raise ValueError(f"invalid agent format: {agent!r}")
     if not is_valid_session_id(session_id):
         raise ValueError(f"invalid session_id format: {session_id!r}")
-    return (root or session_store_root()) / agent / f"{session_id}{BUNDLE_SUFFIX}"
+    return session_store_root() / agent / f"{session_id}{BUNDLE_SUFFIX}"
 
 
 def _parse_manifest(header: bytes, path: Path) -> SessionManifest:
@@ -280,9 +280,9 @@ def read_session_bundle(path: Path) -> tuple[SessionManifest, list[SessionLog]]:
     return manifest, _parse_records([line for line in lines if line.strip()], manifest, path)
 
 
-def discover_session_bundles(root: Path | None = None) -> list[Path]:
+def discover_session_bundles() -> list[Path]:
     """List bundle files; hidden names are temporary files or sync state."""
-    root = root or ensure_session_store()
+    root = ensure_session_store()
     if not root.is_dir():
         return []
     return sorted(

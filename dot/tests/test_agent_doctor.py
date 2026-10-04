@@ -291,9 +291,10 @@ def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.Mo
     results = run_agent_doctor(state, agent="grok")
 
     assert (results[0].sync_retained, results[0].sync_failures) == (3, 0)
-    assert "note: 3 session(s) kept their archived copy; dot agent session sync --agent grok lists them" in _text(
-        state.stdout
-    )
+    assert (
+        "note: 3 session(s) kept their archived copy (truncated source or a parse that would lose usage); "
+        "dot agent session sync --agent grok reports each one"
+    ) in _text(state.stdout)
 
 
 @pytest.mark.parametrize("retained", [-1, True, "3"], ids=["negative", "boolean", "string"])

@@ -7,7 +7,6 @@ from calendar import monthrange
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import IO, Annotated, Any, Literal, Required, TypedDict
 from zoneinfo import ZoneInfo
 
@@ -311,11 +310,11 @@ class UsageStats:
         return result
 
 
-def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
+def iter_usage_records() -> Iterator[UsageRecord]:
     """Yield the usage measured for each archived session."""
     from fmind_dot.archive.store import discover_session_bundles, read_session_manifest
 
-    for path in discover_session_bundles(root):
+    for path in discover_session_bundles():
         manifest = read_session_manifest(path)
         if manifest.usage is None:
             continue
@@ -333,8 +332,8 @@ def iter_usage_records(*, root: Path | None = None) -> Iterator[UsageRecord]:
         yield record
 
 
-def load_usage_records(*, root: Path | None = None) -> list[UsageRecord]:
-    return list(iter_usage_records(root=root))
+def load_usage_records() -> list[UsageRecord]:
+    return list(iter_usage_records())
 
 
 def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: bool = False) -> datetime:
@@ -352,7 +351,8 @@ def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: 
         else:
             duration += timedelta(seconds=amount)
         position = match.end()
-    if position == len(value) and position > 0:
+    # An empty window is a mistake, so 0h is rejected like 0d.
+    if position == len(value) and duration:
         return now - duration
     if value.endswith("d") and value[:-1].isdigit() and int(value[:-1]) > 0:
         return now - timedelta(days=int(value[:-1]))
@@ -489,10 +489,10 @@ def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: 
     return filtered[:limit] if limit > 0 else filtered
 
 
-def show_usage_record(harness: str, session_id: str, *, root: Path | None = None) -> UsageRecord:
+def show_usage_record(harness: str, session_id: str) -> UsageRecord:
     if not harness or not session_id:
         raise ValueError("usage: dot agent usage show <agent> <session-id>")
-    for record in iter_usage_records(root=root):
+    for record in iter_usage_records():
         if record.harness == harness and record.session_id == session_id:
             return record
     raise ValueError(f"usage record not found for {harness} session {session_id}")

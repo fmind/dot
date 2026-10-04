@@ -100,9 +100,9 @@ class SessionSummary:
         return result
 
 
-def discover_sessions(root: Path | None = None) -> list[SessionSummary]:
+def discover_sessions() -> list[SessionSummary]:
     """Read every manifest; one unreadable bundle fails the whole query rather than hiding a session."""
-    return [SessionSummary.from_manifest(path, read_session_manifest(path)) for path in discover_session_bundles(root)]
+    return [SessionSummary.from_manifest(path, read_session_manifest(path)) for path in discover_session_bundles()]
 
 
 def _ingestion_timestamp(value: str) -> datetime | None:
@@ -134,11 +134,10 @@ def query_session_summaries(
     validate_content: bool = False,
     statuses: set[str] | None = None,
     limit: int | None = None,
-    root: Path | None = None,
 ) -> list[SessionSummary]:
     query = query or SessionQuery()
     summaries: list[SessionSummary] = []
-    for summary in discover_sessions(root):
+    for summary in discover_sessions():
         # Discard known nonmatches before reading their transcripts; an absent
         # manifest cwd still needs the content-based fallback below.
         if not _manifest_matches(summary, query) or (query.cwd and summary.cwd and summary.cwd != query.cwd):

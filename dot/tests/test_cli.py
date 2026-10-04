@@ -601,6 +601,26 @@ def test_every_command_and_group_has_a_description() -> None:
     inspect(get_command(app), "dot")
 
 
+def test_date_filters_share_values_and_name_their_time_basis() -> None:
+    help_by_path: dict[str, str] = {}
+
+    def inspect(command: _click.Command, path: str) -> None:
+        for parameter in command.params:
+            if parameter.opts[0] in {"--since", "--until"}:
+                help_by_path[f"{path} {parameter.opts[0]}"] = getattr(parameter, "help", "") or ""
+        if isinstance(command, TyperGroup):
+            for name, child in command.commands.items():
+                inspect(child, f"{path} {name}")
+
+    inspect(get_command(app), "dot")
+    assert help_by_path["dot agent session list --since"].startswith("Ingested since")
+    assert help_by_path["dot agent stats --until"].startswith("Active until")
+    assert help_by_path["dot agent session sync --since"].startswith("Only sources modified since")
+    for path, text in help_by_path.items():
+        values = "UTC date (whole day)" if path.endswith("--until") else "duration (7d, 24h), UTC date, or timestamp"
+        assert values in text, path
+
+
 def test_fish_completion_keeps_complete_command_summaries(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
     monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
