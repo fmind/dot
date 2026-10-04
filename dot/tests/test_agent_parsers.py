@@ -1019,3 +1019,77 @@ def test_deeply_nested_grok_signals_fail_usage_extraction_only(tmp_path: Path) -
 def test_unexpandable_home_paths_are_malformed_input() -> None:
     with pytest.raises(ValueError, match="cannot expand a home directory"):
         parser_module.resolve_cwd("~dot-test-no-such-user/project")
+
+
+def _agy_summaries(path: Path, rows: list[tuple[object, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("CREATE TABLE conversation_summaries (conversation_id text, workspace_uris text NOT NULL)")
+        connection.executemany("INSERT INTO conversation_summaries VALUES (?, ?)", rows)
+        connection.commit()
+
+
+def test_agy_sessions_take_their_workspace_from_the_summaries_database(tmp_path: Path) -> None:
+    root = tmp_path / "antigravity-cli/brain"
+    rows: list[tuple[object, object]] = [
+        ("project", json.dumps(["file:///work/my%20project"])),
+        ("multiple", json.dumps(["https://example.com/repo", "file://localhost/work/second", "file:///work/third"])),
+        ("empty", ""),
+        ("remote", json.dumps(["file://host/share", "vscode-remote://ssh/work", "file:relative"])),
+        ("malformed", "["),
+        ("scalar", json.dumps("file:///work/scalar")),
+        ("missing-transcript", json.dumps(["file:///work/none"])),
+        ("encoded-nul", json.dumps(["file:///work/a%00b"])),
+    ]
+    _agy_summaries(tmp_path / "antigravity-cli/conversation_summaries.db", rows)
+    for session_id, _ in rows:
+        if session_id != "missing-transcript":
+            _jsonl(_agy_transcript(root, str(session_id)), [])
+    _jsonl(_agy_transcript(root, "unlisted"), [])
+
+    candidates = {session_id: cwd for session_id, cwd, _ in enumerate_sessions(root, "agy")}
+
+    assert candidates == {
+        "project": "/work/my project",
+        "multiple": "/work/second",
+        "empty": "",
+        "remote": "",
+        "malformed": "",
+        "scalar": "",
+        "encoded-nul": "",
+        "unlisted": "",
+    }
+
+
+def test_agy_without_summaries_database_keeps_sessions_without_workspace(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _jsonl(_agy_transcript(root, "session"), [])
+    assert [(session_id, cwd) for session_id, cwd, _ in enumerate_sessions(root, "agy")] == [("session", "")]
+
+
+def test_agy_unreadable_summaries_database_fails_the_scan(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _jsonl(_agy_transcript(root, "session"), [])
+    with closing(sqlite3.connect(tmp_path / "conversation_summaries.db")) as connection:
+        connection.execute("CREATE TABLE other (value text)")
+    with pytest.raises(sqlite3.Error):
+        enumerate_sessions(root, "agy")
+
+
+def test_agy_workspace_marks_records_usage_and_fingerprint(tmp_path: Path) -> None:
+    path = tmp_path / "transcript.jsonl"
+    _jsonl(
+        path, [{"created_at": "2026-01-01T00:00:00Z", "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "hi"}]
+    )
+    without = parse_agy_session(path, "agy-id")
+    located = parse_agy_session(path, "agy-id", "/work/project")
+    assert without.fingerprint == fingerprint_bytes(path.read_bytes())
+    assert located.fingerprint != without.fingerprint
+    assert [record.cwd for record in located.logs] == ["/work/project"]
+    assert _usage(located).cwd == "/work/project"
+
+
+def _agy_transcript(root: Path, session_id: str) -> Path:
+    path = root / session_id / ".system_generated/logs/transcript.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path

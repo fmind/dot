@@ -419,3 +419,56 @@ def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
         assert record.cost_usd == pytest.approx(0.0005)
         assert record.input_tokens == 10
         assert not record.legacy_accounting
+
+
+def _sync_json(state: State, agent: str) -> dict[str, object]:
+    state.stdout = io.StringIO()
+    sync_sessions(state, agent=agent, as_json=True)
+    return json.loads(state.stdout.getvalue())
+
+
+def test_sync_json_proves_only_retained_transcripts_that_match_the_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No retained session: nothing to prove.
+    state = _state(tmp_path / "none", "claude", monkeypatch)
+    _write(tmp_path / "none/source/session.jsonl", [_claude(130)])
+    first = _sync_json(state, "claude")
+    assert (first["schema"], first["ingested"], first["retained"], first["retained_current_transcripts"]) == (
+        "dot.agent.session.sync/v2",
+        1,
+        0,
+        0,
+    )
+    again = _sync_json(state, "claude")
+    assert (again["unchanged"], again["retained"], again["retained_current_transcripts"]) == (1, 0, 0)
+
+    # Retained and current: only the usage measurement is kept; the archived transcript is the source's.
+    state = _state(tmp_path / "usage", "claude", monkeypatch)
+    source = tmp_path / "usage/source/session.jsonl"
+    _write(source, [_claude(130)])
+    sync_sessions(state, agent="claude")
+    _write(source, [_claude()])
+    current = _sync_json(state, "claude")
+    assert (current["failed"], current["retained"], current["retained_current_transcripts"]) == (0, 1, 1)
+
+    # Retained but stale: the source shrank, so the archive keeps a transcript that no longer matches it.
+    state = _state(tmp_path / "stale", "grok", monkeypatch)
+    source = tmp_path / "stale/source/project/session/updates.jsonl"
+
+    def chunk(role: str, text: str) -> dict:
+        return {
+            "timestamp": 1_788_256_800,
+            "params": {"_meta": {"promptId": "prompt"}, "update": {"sessionUpdate": role, "content": {"text": text}}},
+        }
+
+    rows = [
+        chunk("user_message_chunk", "Question"),
+        chunk("agent_message_chunk", "First. "),
+        chunk("agent_message_chunk", "Last."),
+    ]
+    _write(source, rows)
+    sync_sessions(state, agent="grok")
+    _write(source, rows[:-1])
+    stale = _sync_json(state, "grok")
+    assert (stale["failed"], stale["retained"], stale["retained_current_transcripts"]) == (0, 1, 0)

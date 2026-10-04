@@ -43,12 +43,17 @@ _SESSION_ERRORS = (OSError, ValueError, TypeError, sqlite3.Error, DotError)
 
 @dataclass
 class SyncOutcome:
-    """Session counts: parsed (selected) sources publish as ingested, unchanged, retained, or skipped."""
+    """Session counts: parsed (selected) sources publish as ingested, unchanged, retained, or skipped.
+
+    ``retained_current_transcripts`` counts the retained sessions whose archived bundle is proven to
+    hold the complete current transcript (only usage was kept), so it never exceeds ``retained``.
+    """
 
     selected: int = 0
     ingested: int = 0
     unchanged: int = 0
     retained: int = 0
+    retained_current_transcripts: int = 0
     skipped: int = 0
     failed: int = 0
 
@@ -246,13 +251,21 @@ def sync_sessions(
             try:
                 if not adapter.database:
                     signature, modified = _source_signature(_source_files(adapter, path))
+                previous = stored.get(session_id)
+                stored_signature = signature
+                if adapter.external_cwd and signature:
+                    if source_cwd:
+                        # A workspace discovered after capture must recapture an unchanged transcript.
+                        stored_signature = f"{signature};cwd={source_cwd}"
+                    elif previous is not None and previous.source_signature.startswith(f"{signature};cwd="):
+                        # Pruned metadata must not recapture an unchanged transcript without its workspace.
+                        stored_signature = previous.source_signature
                 if since and datetime.fromtimestamp(modified, UTC) < since:
                     continue
-                previous = stored.get(session_id)
                 unchanged = (
                     bool(database_signature) and database_signature == checkpoint
                     if adapter.database
-                    else bool(signature) and previous is not None and previous.source_signature == signature
+                    else bool(signature) and previous is not None and previous.source_signature == stored_signature
                 )
                 if previous and previous.parser_version == SESSION_PARSER_VERSION and unchanged:
                     if not cwd or previous.cwd == cwd:
@@ -271,7 +284,7 @@ def sync_sessions(
                     continue
                 # Database stat changes belong to the shared checkpoint, not every bundle.
                 result, failure = _capture(
-                    adapter, session_id, parsed, parsed.fingerprint if adapter.database else signature, previous
+                    adapter, session_id, parsed, parsed.fingerprint if adapter.database else stored_signature, previous
                 )
             except _SESSION_ERRORS as error:
                 # One malformed session must not block the sessions and adapters after it.
@@ -279,18 +292,22 @@ def sync_sessions(
                 continue
             stored[session_id] = replace(result.manifest, usage=None)
             setattr(counts, result.status, getattr(counts, result.status) + 1)
+            if result.status == "retained" and result.current_transcript:
+                counts.retained_current_transcripts += 1
             if not quiet and result.status in {"ingested", "retained"}:
                 state.stderr.write(report_ingestion(result) + "\n")
             if failure is not None:
                 fail(adapter, "capture session", failure, session_id)
-        for name in ("selected", "ingested", "unchanged", "retained", "skipped"):
+        for name in ("selected", "ingested", "unchanged", "retained", "retained_current_transcripts", "skipped"):
             setattr(outcome, name, getattr(outcome, name) + getattr(counts, name))
         if not quiet and scanned:
-            verb = "selected" if dry_run else "ingested"
-            state.stderr.write(
-                f"{adapter.name}: {getattr(counts, verb)} {verb}, {counts.unchanged} unchanged, "
-                f"{counts.retained} retained\n"
+            # Retention is decided during capture, which a dry run never reaches.
+            summary = (
+                f"{counts.selected} selected, {counts.unchanged} unchanged"
+                if dry_run
+                else f"{counts.ingested} ingested, {counts.unchanged} unchanged, {counts.retained} retained"
             )
+            state.stderr.write(f"{adapter.name}: {summary}\n")
         if complete_pass:
             try:
                 if database_signature:

@@ -395,6 +395,27 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
     assert "$0.6250" in output.getvalue()
 
 
+def test_write_usage_stats_names_the_harnesses_with_legacy_accounting() -> None:
+    def note(*rows: UsageStats) -> str:
+        output = StringIO()
+        write_usage_stats(output, list(rows), by_model=False)
+        return " ".join(output.getvalue().split())
+
+    grok = note(UsageStats(harness="grok", sessions=3, legacy_accounting_sessions=3), UsageStats(harness="claude"))
+    assert "Legacy accounting in grok: recapture available sources with 'dot agent session sync'" in grok
+    assert "sessions retained from truncated sources keep their archived measurement." in grok
+    assert "Claude" not in grok
+
+    both = note(
+        UsageStats(harness="grok", legacy_accounting_sessions=1),
+        UsageStats(harness="claude", legacy_accounting_sessions=1),
+    )
+    assert "Legacy accounting in claude, grok:" in both
+    assert "Old Claude totals may count repeated response blocks." in both
+
+    assert "Legacy accounting" not in note(UsageStats(harness="claude"))
+
+
 def test_usage_cli_lists_filters_aggregates_and_shows_records(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
