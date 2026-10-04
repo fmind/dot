@@ -31,19 +31,13 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
     rate = pricing.models.get(record.model)
     if record.model in {"", "mixed", "unknown"} or rate is None:
         return None, "unknown or mixed model"
-    if record.cache_write_1h_tokens > record.cache_write_tokens:
-        return None, "unsupported cache accounting"
+    # UsageRecord validation keeps 1-hour cache writes within cache writes.
     input_tokens = record.input_tokens
-    if record.harness == "codex":
-        # OpenAI input includes cached reads and cache writes; Claude/Copilot input excludes them.
+    if record.harness in CACHE_INCLUSIVE_INPUT_HARNESSES:
+        # OpenAI input and Grok ACP input include cached reads and cache writes; Claude/Copilot input excludes them.
         input_tokens -= record.cached_tokens + record.cache_write_tokens
         if input_tokens < 0:
-            return None, "unsupported Codex cache accounting"
-    elif record.harness == "grok":
-        # Grok ACP input is the full prompt sum: both cache buckets are subsets of it.
-        input_tokens -= record.cached_tokens + record.cache_write_tokens
-        if input_tokens < 0:
-            return None, "unsupported Grok cache accounting"
+            return None, f"unsupported {record.harness.capitalize()} cache accounting"
     components = (
         (input_tokens, rate.input),
         (record.output_tokens, rate.output),

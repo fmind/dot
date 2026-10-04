@@ -63,9 +63,8 @@ class FakeRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env, on_stdout_line
+        del cwd, stdin, stdout, stderr, env
         self.calls.append(list(args))
         return 0
 

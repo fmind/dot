@@ -404,13 +404,13 @@ def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
     if incomplete:
         outcome = sync_sessions(state, agent="grok")
         # The current parser republishes the transcript; the retained usage keeps parser 7 accounting.
-        assert (outcome.retained, outcome.retained_current_transcripts) == (1, 1)
+        assert outcome.retained == 1
         assert store.read_session_manifest(bundle).usage_parser_version == "7"
         assert load_usage_records()[0].legacy_accounting
         republished = bundle.read_bytes()
         assert republished != before
         outcome = sync_sessions(state, agent="grok")
-        assert (outcome.retained, outcome.retained_current_transcripts) == (1, 1)
+        assert outcome.retained == 1
         assert bundle.read_bytes() == republished
     else:
         assert sync_sessions(state, agent="grok").ingested == 1

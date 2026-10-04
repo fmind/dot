@@ -13,6 +13,7 @@ import typer
 
 from fmind_dot.command_group import JsonOption
 from fmind_dot.errors import DotError
+from fmind_dot.reporting import display_path, write_json
 from fmind_dot.state import State, require_tools, state_from
 
 # chezmoi also records scripts and remove_ markers; only written targets can be orphaned.
@@ -95,23 +96,18 @@ def find_orphans(state: State) -> list[Orphan]:
     return orphans
 
 
-def _display(path: str) -> str:
-    home = str(Path.home())
-    return "~" + path[len(home) :] if path == home or path.startswith(home + os.sep) else path
-
-
 def run_orphan(state: State, *, as_json: bool = False) -> list[Orphan]:
     orphans = find_orphans(state)
     if as_json:
         document = {"schema": "dot.orphan/v1", "targets": [asdict(orphan) for orphan in orphans]}
-        state.stdout.write(json.dumps(document, indent=2) + "\n")
+        write_json(state.stdout, document)
         return orphans
     if not orphans:
         state.stdout.write("✓ No orphaned chezmoi targets.\n")
         return orphans
     state.stdout.write(f"{len(orphans)} target(s) chezmoi wrote but no longer manages:\n")
     for orphan in orphans:
-        state.stdout.write(f"  {orphan.status:<10} {orphan.type:<8} {_display(orphan.path)}\n")
+        state.stdout.write(f"  {orphan.status:<10} {orphan.type:<8} {display_path(orphan.path)}\n")
     state.stdout.write(
         "unchanged: still chezmoi's last write; modified/replaced: changed since, possibly by a new owner.\n"
         "Nothing was deleted. Remove a leftover, or forget a kept path with:\n"

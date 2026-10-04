@@ -6,7 +6,7 @@ import json
 import math
 import sqlite3
 import stat
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -83,7 +83,8 @@ def _json_document(content: str | bytes, label: str) -> object:
         raise ValueError(f"{label} is nested too deeply") from None
 
 
-def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]]:
+def _decode_jsonl(content: bytes) -> Iterator[dict[str, Any] | None]:
+    """Yield each JSON object record, or None for a malformed one."""
     # JSONL records end at LF, not at Unicode separators embedded in JSON strings.
     # Decode one LF-delimited record at a time: large Codex snapshots can be
     # nearly a gigabyte, and splitting a decoded copy multiplies peak memory.
@@ -95,15 +96,11 @@ def _decode_jsonl(content: bytes) -> Iterator[tuple[dict[str, Any] | None, bool]
             value = json.loads(line)
         except UnicodeDecodeError, json.JSONDecodeError, RecursionError:
             # An undecodable record is malformed; it must not cost the rest of the session.
-            yield None, True
-            continue
-        if not isinstance(value, dict):
-            yield None, True
-            continue
-        yield value, False
+            value = None
+        yield value if isinstance(value, dict) else None
 
 
-def _jsonl_snapshot(path: Path) -> tuple[Iterator[tuple[dict[str, Any] | None, bool]], str, int]:
+def _jsonl_snapshot(path: Path) -> tuple[Iterator[dict[str, Any] | None], str, int]:
     content = path.read_bytes()
     return _decode_jsonl(content), fingerprint_bytes(content), len(content)
 
@@ -116,6 +113,22 @@ def _usage_token_count(value: object, field: str) -> int | None:
     if value < 0 or (isinstance(value, float) and (not math.isfinite(value) or not value.is_integer())):
         raise ValueError(f"usage record field {field!r} must be a non-negative integer")
     return int(value)
+
+
+def _apply_counters(
+    record: UsageRecord,
+    counters: Mapping[str, object],
+    fields: tuple[tuple[str, str], ...],
+    *,
+    accumulate: bool = False,
+) -> None:
+    """Copy (or add) the present provider counters; an input, output, or total counter proves a measurement."""
+    for source, target in fields:
+        count = _usage_token_count(counters.get(source), target)
+        if count is not None:
+            setattr(record, target, getattr(record, target) + count if accumulate else count)
+            if target in {"input_tokens", "output_tokens", "total_tokens"}:
+                record.measurement_kind = "provider-reported"
 
 
 def _usage_mapping(value: object, field: str, *, optional: bool = True) -> dict[str, Any]:
@@ -193,11 +206,9 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
     )
     input_bytes = output_bytes = 0
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
-    for raw, bad in records:
-        if bad:
-            malformed += 1
-            continue
+    for raw in records:
         if raw is None:
+            malformed += 1
             continue
         decoded += 1
         timestamp = raw.get("created_at")
@@ -244,6 +255,14 @@ def claude_session_id(path: Path) -> str:
     return "" if path.name in {"memory.jsonl", "journal.jsonl"} else path.stem
 
 
+_CLAUDE_TOKEN_FIELDS = (
+    ("input_tokens", "input_tokens"),
+    ("output_tokens", "output_tokens"),
+    ("cache_read_input_tokens", "cached_tokens"),
+    ("cache_creation_input_tokens", "cache_write_tokens"),
+)
+
+
 def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     timestamp = raw.get("timestamp")
     if isinstance(timestamp, str) and timestamp:
@@ -274,17 +293,7 @@ def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
         # Claude's local error/interrupt responses do not make a billed request.
         record.measurement_kind = "provider-reported"
     usage = _usage_mapping(message.get("usage"), "usage")
-    for source, target in (
-        ("input_tokens", "input_tokens"),
-        ("output_tokens", "output_tokens"),
-        ("cache_read_input_tokens", "cached_tokens"),
-        ("cache_creation_input_tokens", "cache_write_tokens"),
-    ):
-        count = _usage_token_count(usage.get(source), target)
-        if count is not None:
-            setattr(record, target, getattr(record, target) + count)
-            if target in {"input_tokens", "output_tokens"}:
-                record.measurement_kind = "provider-reported"
+    _apply_counters(record, usage, _CLAUDE_TOKEN_FIELDS, accumulate=True)
     # 1-hour cache writes are a subset of cache_creation_input_tokens with their own price.
     creation = _usage_mapping(usage.get("cache_creation"), "cache_creation")
     count = _usage_token_count(creation.get("ephemeral_1h_input_tokens"), "cache_write_1h_tokens")
@@ -308,11 +317,9 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
     # Only validates an undated sample: untimed sessions drop their samples below.
     sample_fallback = _undated_usage_timestamp([], path)
-    for raw, bad in records:
-        if bad:
-            malformed += 1
-            continue
+    for raw in records:
         if raw is None:
+            malformed += 1
             continue
         decoded += 1
         declared = raw.get("sessionId")
@@ -520,12 +527,7 @@ def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     elif kind == "event_msg" and payload.get("type") == "token_count":
         info = _usage_mapping(payload.get("info"), "info")
         total = _usage_mapping(info.get("total_token_usage"), "total_token_usage")
-        for source, target in _CODEX_TOKEN_FIELDS:
-            count = _usage_token_count(total.get(source), target)
-            if count is not None:
-                setattr(record, target, count)
-                if target in {"input_tokens", "output_tokens", "total_tokens"}:
-                    record.measurement_kind = "provider-reported"
+        _apply_counters(record, total, _CODEX_TOKEN_FIELDS)
 
 
 def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -541,9 +543,7 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
         cwd=active_cwd,
     )
     samples: list[UsageRecord] = []
-    previous_counts = dict.fromkeys(
-        ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens", "reasoning_tokens", "total_tokens"), 0
-    )
+    previous_counts = dict.fromkeys((target for _, target in _CODEX_TOKEN_FIELDS), 0)
     timed = True
     # Codex 0.153+ records every response, including compactions that cumulative snapshots omit.
     responses: dict[str, UsageRecord] = {}
@@ -551,11 +551,9 @@ def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSes
     recorded = True
     meta: dict[str, Any] | None = None
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
-    for raw, bad in records:
-        if bad:
-            malformed += 1
-            continue
+    for raw in records:
         if raw is None:
+            malformed += 1
             continue
         decoded += 1
         if meta is None and raw.get("type") == "session_meta":
@@ -725,11 +723,9 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
             "signals": fingerprint_bytes(signals) if signals is not None else None,
         }
     )
-    for raw, bad in records:
-        if bad:
-            malformed += 1
-            continue
+    for raw in records:
         if raw is None:
+            malformed += 1
             continue
         decoded += 1
         params = _mapping(raw.get("params"))
@@ -825,12 +821,7 @@ def _grok_turn_usage(
             # One completed turn is one prompt however many models billed it.
             turn_count=1 if index == 0 else 0,
         )
-        for source, target in _GROK_TOKEN_FIELDS:
-            count = _usage_token_count(counters.get(source), target)
-            if count is not None:
-                setattr(sample, target, count)
-                if target in {"input_tokens", "output_tokens", "total_tokens"}:
-                    sample.measurement_kind = "provider-reported"
+        _apply_counters(sample, counters, _GROK_TOKEN_FIELDS)
         samples.append(sample.finalize(fallback_timestamp=fallback_timestamp))
     # An unstamped turn cannot establish a complete bill, including known zero.
     return samples, ticks or 0, ticks is not None
@@ -840,11 +831,11 @@ def _parse_grok_usage(
     content: bytes | None,
     session_id: str,
     cwd: str,
-    samples: list[UsageRecord] | None = None,
-    cost_ticks: int = 0,
-    cost_complete: bool = True,
+    samples: list[UsageRecord],
+    cost_ticks: int,
+    cost_complete: bool,
     *,
-    timed: bool = True,
+    timed: bool,
     fallback_timestamp: str,
 ) -> UsageRecord | None:
     record = UsageRecord(
@@ -886,19 +877,19 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     return connection
 
 
-def _copilot_rows(connection: sqlite3.Connection, session_id: str | None = None) -> list[dict[str, Any]]:
-    columns = """SELECT t.session_id, t.turn_index, t.user_message, t.assistant_response,
-                         t.timestamp, s.cwd
-                  FROM turns t JOIN sessions s ON t.session_id = s.id"""
-    if session_id is None:
-        cursor = connection.execute(columns + " ORDER BY t.session_id, t.turn_index, t.id")
-    else:
-        cursor = connection.execute(
-            columns + " WHERE t.session_id = ? ORDER BY t.session_id, t.turn_index, t.id",
-            (session_id,),
-        )
-    return [
-        {
+def _copilot_turns(
+    connection: sqlite3.Connection, session_id: str, fallback_cwd: str
+) -> tuple[list[dict[str, Any]], list[SessionLog]]:
+    """Return the session's turn rows (fingerprint evidence) and their transcript records."""
+    rows: list[dict[str, Any]] = []
+    logs: list[SessionLog] = []
+    for row in connection.execute(
+        """SELECT t.session_id, t.turn_index, t.user_message, t.assistant_response, t.timestamp, s.cwd
+           FROM turns t JOIN sessions s ON t.session_id = s.id
+           WHERE t.session_id = ? ORDER BY t.turn_index, t.id""",
+        (session_id,),
+    ):
+        turn = {
             "session_id": row["session_id"],
             "user_message": row["user_message"] or "",
             "assistant_response": row["assistant_response"] or "",
@@ -906,22 +897,13 @@ def _copilot_rows(connection: sqlite3.Connection, session_id: str | None = None)
             "cwd": row["cwd"] or "",
             "turn_index": row["turn_index"],
         }
-        for row in cursor
-    ]
-
-
-def parse_copilot_rows(session_id: str, rows: list[dict[str, Any]], fallback_cwd: str = "") -> list[SessionLog]:
-    logs: list[SessionLog] = []
-    for row in rows:
-        cwd = resolve_cwd(str(row.get("cwd") or fallback_cwd))
-        timestamp = str(row.get("timestamp") or "")
-        user = row.get("user_message")
-        if isinstance(user, str) and user.strip():
-            logs.append(SessionLog(timestamp, "copilot", session_id, "user", user, cwd))
-        assistant = row.get("assistant_response")
-        if isinstance(assistant, str) and assistant.strip():
-            logs.append(SessionLog(timestamp, "copilot", session_id, "assistant", assistant, cwd))
-    return logs
+        rows.append(turn)
+        cwd = resolve_cwd(str(turn["cwd"] or fallback_cwd))
+        timestamp = str(turn["timestamp"])
+        for role, text in (("user", turn["user_message"]), ("assistant", turn["assistant_response"])):
+            if isinstance(text, str) and text.strip():
+                logs.append(SessionLog(timestamp, "copilot", session_id, role, text, cwd))
+    return rows, logs
 
 
 def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -929,8 +911,7 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
         raise ValueError(f"invalid copilot session id {session_id!r}")
     with closing(_connect_read_only(path)) as connection:
         connection.execute("BEGIN")
-        rows = _copilot_rows(connection, session_id)
-        logs = parse_copilot_rows(session_id, rows, cwd)
+        rows, logs = _copilot_turns(connection, session_id, cwd)
         try:
             usage = _extract_copilot_usage(connection, session_id, cwd, _undated_usage_timestamp(logs, path))
             usage_error = None
@@ -955,6 +936,15 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
     )
 
 
+_COPILOT_TOKEN_FIELDS = (
+    ("input_tokens", "input_tokens"),
+    ("output_tokens", "output_tokens"),
+    ("cache_read_tokens", "cached_tokens"),
+    ("cache_write_tokens", "cache_write_tokens"),
+    ("reasoning_tokens", "reasoning_tokens"),
+)
+
+
 def _extract_copilot_usage(
     connection: sqlite3.Connection, session_id: str, cwd: str, fallback_timestamp: str
 ) -> UsageRecord | None:
@@ -977,15 +967,11 @@ def _extract_copilot_usage(
             record.cwd = resolve_cwd(session["cwd"] or "")
         record.timestamp = session["created_at"] or ""
     for row in rows:
-        if row[0]:
-            record.observe_model(str(row[0]))
-        record.input_tokens += _usage_token_count(row[1], "input_tokens") or 0
-        record.output_tokens += _usage_token_count(row[2], "output_tokens") or 0
-        record.cached_tokens += _usage_token_count(row[3], "cached_tokens") or 0
-        record.cache_write_tokens += _usage_token_count(row[4], "cache_write_tokens") or 0
-        record.reasoning_tokens += _usage_token_count(row[5], "reasoning_tokens") or 0
+        if row["model"]:
+            record.observe_model(str(row["model"]))
+        _apply_counters(record, dict(row), _COPILOT_TOKEN_FIELDS, accumulate=True)
         record.turn_count += 1
-    if not rows or any(all(value is None for value in row[1:3]) for row in rows):
+    if not rows or any(row["input_tokens"] is None and row["output_tokens"] is None for row in rows):
         return None
     record.total_tokens = record.input_tokens + record.output_tokens + record.cached_tokens + record.cache_write_tokens
     return record.finalize(fallback_timestamp=fallback_timestamp)
@@ -1068,10 +1054,6 @@ AGENT_ADAPTERS: dict[str, AgentAdapter] = {
 }
 
 
-def agent_adapters() -> list[AgentAdapter]:
-    return list(AGENT_ADAPTERS.values())
-
-
 def _raise_walk_error(error: OSError) -> None:
     raise error
 
@@ -1148,7 +1130,6 @@ __all__ = [
     "GROK_TRANSCRIPT_NAME",
     "AgentAdapter",
     "ParsedSession",
-    "agent_adapters",
     "claude_session_id",
     "codex_session_id",
     "enumerate_sessions",
@@ -1156,7 +1137,6 @@ __all__ = [
     "parse_agy_session",
     "parse_claude_session",
     "parse_codex_session",
-    "parse_copilot_rows",
     "parse_copilot_session",
     "parse_grok_session",
     "resolve_cwd",

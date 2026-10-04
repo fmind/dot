@@ -83,20 +83,23 @@ def unknown(provider: str) -> DotError:
     )
 
 
+def workspace_token_valid(status: object) -> bool | None:
+    """Classify gws status JSON: True for a valid token, False when unauthenticated, None when unknown."""
+    # Native status exits zero even without credentials; only its JSON proves readiness.
+    if not isinstance(status, dict):
+        return None
+    if status.get("auth_method") == "none" or status.get("token_valid") is False:
+        return False
+    return True if status.get("token_valid") is True else None
+
+
 def workspace_ready(state: State) -> bool:
     status = probe_json(state, ["gws", "auth", "status"])
-    if not isinstance(status, dict):
-        raise unknown("workspace")
-    if status.get("auth_method") == "none":
+    valid = workspace_token_valid(status)
+    if valid is False:
         return False
-    if status.get("token_valid") is False:
-        return False
-    scopes = status.get("scopes")
-    if (
-        status.get("token_valid") is not True
-        or not isinstance(scopes, list)
-        or not all(isinstance(scope, str) for scope in scopes)
-    ):
+    scopes = status.get("scopes") if valid and isinstance(status, dict) else None
+    if not isinstance(scopes, list) or not all(isinstance(scope, str) for scope in scopes):
         raise unknown("workspace")
     granted = {_GOOGLE_SCOPE_ALIASES.get(scope, scope) for scope in scopes}
     requested = {_GOOGLE_SCOPE_ALIASES.get(scope, scope) for scope in state.config.auth.workspace.scopes}

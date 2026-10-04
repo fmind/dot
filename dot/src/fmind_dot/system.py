@@ -6,8 +6,7 @@ import shutil
 import stat
 import tempfile
 import tomllib
-from collections.abc import Mapping
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
@@ -16,16 +15,17 @@ import typer
 from typer.completion import get_completion_script
 
 from fmind_dot import deploy
+from fmind_dot.auth import workspace_token_valid
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
-from fmind_dot.diagnostics import diagnostic_report
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
-from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult
+from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, run_parallel
+from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State, require_tools, state_from
 
+# gh probes the configured host and is prepended at run time.
 _AUTH_PROBES = {
-    "gh": (["gh", "auth", "status"], False),
     "gcloud": (["gcloud", "auth", "print-access-token"], True),
     "gcloud-adc": (["gcloud", "auth", "application-default", "print-access-token"], True),
     "gws": (["gws", "auth", "status"], False),
@@ -309,42 +309,33 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
     return results
 
 
-def _tool_results(state: State) -> list[CheckResult]:
-    timeout = state.config.doctor.probe_timeout_seconds
+def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
+    """Run one bounded doctor probe; a string names why it produced no usable result."""
+    try:
+        result = state.runner.run_bounded(
+            list(args),
+            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
+            timeout=state.config.doctor.probe_timeout_seconds,
+            check=False,
+        )
+    except (DotError, OSError) as error:
+        return "timed out" if "timed out" in str(error).lower() else "failed"
+    return "output exceeded limit" if result.output_truncated else result
 
+
+def _tool_results(state: State) -> list[CheckResult]:
     def probe(tool: str) -> CheckResult:
         path = state.runner.which(tool)
         if path is None:
             return CheckResult(tool, "fail", "command not found", condition="missing")
-        args = _TOOL_PROBE_ARGS.get(tool, ("--version",))
-        try:
-            result = state.runner.run_bounded(
-                [str(path), *args],
-                max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-                timeout=timeout,
-                check=False,
-            )
-        except (DotError, OSError) as error:
-            detail = "capability probe timed out" if "timed out" in str(error).lower() else "capability probe failed"
-            return CheckResult(tool, "fail", detail, str(path), "broken")
-        if result.output_truncated:
-            return CheckResult(tool, "fail", "capability probe output exceeded limit", str(path), "broken")
+        result = _probe(state, [str(path), *_TOOL_PROBE_ARGS.get(tool, ("--version",))])
+        if isinstance(result, str):
+            return CheckResult(tool, "fail", f"capability probe {result}", str(path), "broken")
         if result.returncode != 0:
             return CheckResult(tool, "fail", "capability probe failed", str(path), "broken")
         return CheckResult(tool, "pass", "capability probe passed", str(path), "healthy")
 
-    tools = state.config.doctor.tools
-    if not tools:
-        return []
-    workers = min(state.config.doctor.probe_concurrency, len(tools))
-    executor = ThreadPoolExecutor(max_workers=workers)
-    try:
-        return list(executor.map(probe, tools))
-    except BaseException:
-        state.runner.cancel()
-        raise
-    finally:
-        executor.shutdown(wait=True, cancel_futures=True)
+    return run_parallel(state.runner, probe, state.config.doctor.tools, state.config.doctor.probe_concurrency)
 
 
 def _recognized_auth_failure(result: CommandResult) -> bool:
@@ -353,49 +344,29 @@ def _recognized_auth_failure(result: CommandResult) -> bool:
 
 
 def _workspace_auth_result(output: str, path: Path) -> CheckResult:
-    # Native status exits zero even without credentials; only its JSON proves readiness.
     try:
-        status = json.loads(output)
+        valid = workspace_token_valid(json.loads(output))
     except ValueError:
-        status = None
-    if isinstance(status, dict):
-        if status.get("auth_method") == "none" or status.get("token_valid") is False:
-            return CheckResult("gws", "fail", "NOT authenticated", str(path), "unauthenticated")
-        if status.get("token_valid") is True:
-            return CheckResult("gws", "pass", "authenticated", str(path), "healthy")
+        valid = None
+    if valid is False:
+        return CheckResult("gws", "fail", "NOT authenticated", str(path), "unauthenticated")
+    if valid:
+        return CheckResult("gws", "pass", "authenticated", str(path), "healthy")
     return CheckResult("gws", "fail", "auth check returned invalid status; state unknown", str(path), "broken")
 
 
 def _auth_results(state: State) -> list[CheckResult]:
     results: list[CheckResult] = []
-    timeout = state.config.doctor.probe_timeout_seconds
-    probes = dict(_AUTH_PROBES)
     github_host = os.environ.get("GH_HOST") or state.config.auth.github.host
-    probes["gh"] = (["gh", "auth", "status", "--hostname", github_host], False)
+    probes = {"gh": (["gh", "auth", "status", "--hostname", github_host], False), **_AUTH_PROBES}
     for label, (command, requires_output) in probes.items():
         path = state.runner.which(command[0])
         if path is None:
             results.append(CheckResult(label, "skip", f"{command[0]} not installed", condition="skipped"))
             continue
-        try:
-            result = state.runner.run_bounded(
-                command,
-                max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-                timeout=timeout,
-                check=False,
-            )
-        except (DotError, OSError) as error:
-            detail = (
-                "auth check timed out; state unknown"
-                if "timed out" in str(error).lower()
-                else "auth check failed; state unknown"
-            )
-            results.append(CheckResult(label, "fail", detail, str(path), "broken"))
-            continue
-        if result.output_truncated:
-            results.append(
-                CheckResult(label, "fail", "auth check output exceeded limit; state unknown", str(path), "broken")
-            )
+        result = _probe(state, command)
+        if isinstance(result, str):
+            results.append(CheckResult(label, "fail", f"auth check {result}; state unknown", str(path), "broken"))
         elif result.returncode == 0 and (not requires_output or result.stdout.strip()):
             results.append(
                 _workspace_auth_result(result.stdout, path)
@@ -418,17 +389,9 @@ def _docker_results(state: State) -> list[CheckResult]:
     if path is None:
         # A container engine is optional; doctor.tools decides whether its absence fails.
         return [CheckResult("docker", "skip", "not installed (optional)", condition="skipped")]
-    try:
-        result = state.runner.run_bounded(
-            ["docker", "info"],
-            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=state.config.doctor.probe_timeout_seconds,
-            check=False,
-        )
-    except DotError, OSError:
-        return [CheckResult("docker", "fail", "service probe failed", str(path), "broken")]
-    if result.output_truncated:
-        return [CheckResult("docker", "fail", "service probe output exceeded limit", str(path), "broken")]
+    result = _probe(state, ["docker", "info"])
+    if isinstance(result, str):
+        return [CheckResult("docker", "fail", f"service probe {result}", str(path), "broken")]
     return [
         CheckResult("docker", "pass", "running", str(path), "healthy")
         if result.returncode == 0
@@ -441,22 +404,9 @@ def _install_results(state: State) -> list[CheckResult]:
     chezmoi = state.runner.which("chezmoi")
     if chezmoi is None:
         return [CheckResult(name, "skip", "chezmoi not installed", condition="skipped")]
-    try:
-        source_result = state.runner.run_bounded(
-            ["chezmoi", "source-path"],
-            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=state.config.doctor.probe_timeout_seconds,
-            check=False,
-        )
-    except DotError, OSError:
-        return [CheckResult(name, "warn", "could not resolve chezmoi source", condition="unknown")]
-    source_text = source_result.stdout.strip()
-    if (
-        source_result.output_truncated
-        or source_result.returncode != 0
-        or not source_text
-        or len(source_text.splitlines()) != 1
-    ):
+    source_result = _probe(state, ["chezmoi", "source-path"])
+    source_text = "" if isinstance(source_result, str) or source_result.returncode else source_result.stdout.strip()
+    if not source_text or len(source_text.splitlines()) != 1:
         return [CheckResult(name, "warn", "could not resolve chezmoi source", condition="unknown")]
     source = Path(source_text)
     source_package = source / "dot/src/fmind_dot"
@@ -607,7 +557,7 @@ def register(app: typer.Typer) -> None:
             checks = headroom_results()
             if json_output:
                 payload = [dict(_check_result_payload(item), group="resources") for item in checks]
-                typer.echo(json.dumps(diagnostic_report("headroom", payload), indent=2), file=state.stdout)
+                write_json(state.stdout, diagnostic_report("headroom", payload))
             else:
                 typer.echo(_headroom_line(checks), file=state.stdout)
             if any(item.status == "fail" for item in checks):
@@ -618,7 +568,7 @@ def register(app: typer.Typer) -> None:
             checks = [
                 dict(item, group=group) for group, items in results.items() if group != "passed" for item in items
             ]
-            typer.echo(json.dumps(diagnostic_report("workstation", checks), indent=2), file=state.stdout)
+            write_json(state.stdout, diagnostic_report("workstation", checks))
         else:
             _print_doctor(state, results)
         if not results["passed"]:

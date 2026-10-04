@@ -87,22 +87,18 @@ def test_capture_accepts_crlf_hash_normalization(tmp_path: Path) -> None:
 )
 def test_bundle_rejects_malformed_structure(tmp_path: Path, body: str) -> None:
     lock = tmp_path / "mise.lock"
-    lock.write_text("lockfile_version = 2\n" + body)
+    lock.write_text("lockfile_version = 3\n" + body)
     with pytest.raises(ValueError, match=r"table|references"):
         bundle(lock)
 
 
-def test_capture_migrates_legacy_destination_but_rejects_downgrade(tmp_path: Path) -> None:
+def test_capture_rejects_another_lock_revision(tmp_path: Path) -> None:
     source = _lock(tmp_path / "live")
-    destination = tmp_path / "mise.lock"
-    legacy = b"lockfile_version = 1\n[tools]\n"
-    destination.write_bytes(legacy)
-    capture(source, destination)
+    destination = _lock(tmp_path / "managed")
     before = bundle(destination)
-    for revision in (1, 2):
-        source.write_bytes(f"lockfile_version = {revision}\n[tools]\n".encode())
-        with pytest.raises(ValueError, match="Upgrade"):
-            capture(source, destination)
+    source.write_bytes(b"lockfile_version = 2\n[tools]\n")
+    with pytest.raises(ValueError, match="expected revision 3"):
+        capture(source, destination)
     assert bundle(destination) == before
 
 

@@ -10,8 +10,8 @@ import pytest
 
 from fmind_dot.archive import parsers as parser_module
 from fmind_dot.archive.parsers import (
+    AGENT_ADAPTERS,
     ParsedSession,
-    agent_adapters,
     enumerate_sessions,
     parse_agy_session,
     parse_claude_session,
@@ -659,7 +659,7 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
     signals_only = grok_root / "%2Fwork%2Fgrok/signals-id"
     signals_only.mkdir()
 
-    assert [adapter.name for adapter in agent_adapters()] == [
+    assert list(AGENT_ADAPTERS) == [
         "agy",
         "claude",
         "codex",

@@ -5,7 +5,6 @@ import json
 import os
 import platform
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
@@ -18,12 +17,10 @@ from fmind_dot.state import State
 _NOTIFY_EVENTS = {
     "stop": ("✅", "Your turn"),
     "ready": ("✅", "Your turn"),
-    "session-end": ("🏁", "Session ended"),
     "needs-input": ("⏳", "Needs your input"),
 }
 _NOTIFY_AGENTS = {
     "agy": "Antigravity",
-    "antigravity": "Antigravity",
     "claude": "Claude Code",
     "codex": "Codex",
     "copilot": "Copilot",
@@ -39,10 +36,15 @@ class Notification:
     details: tuple[str, ...] = ()
 
 
-def notification_title(runner: Runner, getenv: Callable[[str], str | None] = os.environ.get) -> str:
+def notification_title(runner: Runner) -> str:
     """Read only the originating terminal title; unavailable metadata is optional."""
-    pane = getenv("ZELLIJ_PANE_ID") or ""
-    if not getenv("ZELLIJ_SESSION_NAME") or not pane.isascii() or not pane.isdecimal() or not runner.which("zellij"):
+    pane = os.environ.get("ZELLIJ_PANE_ID") or ""
+    if (
+        not os.environ.get("ZELLIJ_SESSION_NAME")
+        or not pane.isascii()
+        or not pane.isdecimal()
+        or not runner.which("zellij")
+    ):
         return ""
     try:
         result = runner.run_bounded(
@@ -233,7 +235,7 @@ def notification_workspace(stream: IO[str] | None, agent: str, event: str = "sto
         for field in ("background_tasks", "backgroundTasks", "session_crons", "sessionCrons"):
             if field in payload and payload[field] != []:
                 return None
-        if agent in {"agy", "antigravity"} and payload.get("fullyIdle") is not True:
+        if agent == "agy" and payload.get("fullyIdle") is not True:
             return None
     if agent in {"claude", "grok"}:
         kind = payload.get("notification_type", payload.get("notificationType"))

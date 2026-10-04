@@ -17,8 +17,7 @@ import pytest
 ARRIVAL_DEADLINE_SECONDS = 30
 
 
-@pytest.mark.parametrize("streamed", [False, True])
-def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> None:
+def test_cancellation_stops_grandchildren(tmp_path: Path) -> None:
     started, release, finished = (tmp_path / name for name in ("started", "release", "finished"))
     grandchild = (
         "import os,pathlib,sys,time\n"
@@ -34,9 +33,7 @@ def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> Non
         "import sys\n"
         "import fmind_dot.cli as cli\n"
         "from fmind_dot.process import Runner\n"
-        f"callback = (lambda line: None) if {streamed!r} else None\n"
-        "cli._invoke_app=lambda: Runner().interactive(\n"
-        " [sys.executable,'-c',*sys.argv[1:]],on_stdout_line=callback)\n"
+        "cli._invoke_app=lambda: Runner().interactive([sys.executable,'-c',*sys.argv[1:]])\n"
         "cli.main()\n"
     )
     process = subprocess.Popen(
@@ -68,9 +65,8 @@ def test_cancellation_stops_grandchildren(tmp_path: Path, streamed: bool) -> Non
                 os.kill(int(pid), signal.SIGKILL)
 
 
-@pytest.mark.parametrize("streamed", [False, True])
 @pytest.mark.parametrize("interrupt", ["keyboard", "sigterm"])
-def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: bool, interrupt: str) -> None:
+def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, interrupt: str) -> None:
     child_pid_path = tmp_path / "terminal-child"
     child = (
         "import os,pathlib,signal,sys,time\n"
@@ -89,8 +85,7 @@ def test_terminal_input_suspend_resume_and_interrupt(tmp_path: Path, streamed: b
         "from fmind_dot.process import Runner\n"
         "def invoke():\n"
         " try:\n"
-        f"  callback=(lambda line: None) if {streamed!r} else None\n"
-        "  return Runner().interactive([sys.executable,'-c',sys.argv[1],sys.argv[2]],on_stdout_line=callback)\n"
+        "  return Runner().interactive([sys.executable,'-c',sys.argv[1],sys.argv[2]])\n"
         " finally: print('RESTORED:'+str(os.tcgetpgrp(0)==os.getpgrp()),flush=True)\n"
         "cli._invoke_app=invoke\n"
         "cli.main()\n"

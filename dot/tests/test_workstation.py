@@ -1,7 +1,7 @@
 """Public workstation workflows use recorded providers, never real credentials or caches."""
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import IO, Any
 
@@ -68,9 +68,8 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stdout_line: Callable[[str], None] | None = None,
     ) -> int:
-        assert cwd is env is on_stdout_line is None
+        assert cwd is env is None
         assert stdin is not None
         assert stdout is not None
         assert stderr is not None

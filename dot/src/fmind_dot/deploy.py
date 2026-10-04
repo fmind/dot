@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tomllib
 import uuid
+from collections.abc import Iterable
 
 PYTHON_VERSION = "3.14"
 SLOTS = ("venv-a", "venv-b")
@@ -57,36 +58,36 @@ def _wheel(directory: pathlib.Path) -> pathlib.Path:
     return wheels[0].resolve(strict=True)
 
 
+def _framed_digest(entries: Iterable[tuple[bytes, bytes]]) -> str:
+    # Length prefixes keep distinct (name, content) sequences from producing the same byte stream.
+    digest = hashlib.sha256()
+    for name, content in entries:
+        digest.update(len(name).to_bytes(4, "big"))
+        digest.update(name)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+    return digest.hexdigest()
+
+
 def _package_digest(directory: pathlib.Path) -> str:
     # Bundled rate cards affect runtime behavior just as Python modules do.
     files = sorted(path for path in directory.rglob("*") if path.is_file() and path.suffix in {".py", ".yaml"})
     if not files:
         raise FileNotFoundError(directory)
-    digest = hashlib.sha256()
-    for path in files:
-        relative = path.relative_to(directory).as_posix().encode()
-        content = path.read_bytes()
-        digest.update(len(relative).to_bytes(4, "big"))
-        digest.update(relative)
-        digest.update(len(content).to_bytes(8, "big"))
-        digest.update(content)
-    return digest.hexdigest()
+    return _framed_digest((path.relative_to(directory).as_posix().encode(), path.read_bytes()) for path in files)
 
 
-def _install_basis_digest(source: pathlib.Path) -> str:
-    digest = hashlib.sha256()
-    for name, content in (
-        ("package", _package_digest(source / "dot/src/fmind_dot").encode()),
-        ("pyproject", (source / "dot/pyproject.toml").read_bytes()),
-        ("lock", (source / "dot/uv.lock").read_bytes()),
-        ("license", (source / "dot/LICENSE").read_bytes()),
-    ):
-        encoded_name = name.encode()
-        digest.update(len(encoded_name).to_bytes(4, "big"))
-        digest.update(encoded_name)
-        digest.update(len(content).to_bytes(8, "big"))
-        digest.update(content)
-    return digest.hexdigest()
+def _install_basis_digest(source: pathlib.Path, package_digest: str | None = None) -> str:
+    package = package_digest or _package_digest(source / "dot/src/fmind_dot")
+    return _framed_digest(
+        (name.encode(), content)
+        for name, content in (
+            ("package", package.encode()),
+            ("pyproject", (source / "dot/pyproject.toml").read_bytes()),
+            ("lock", (source / "dot/uv.lock").read_bytes()),
+            ("license", (source / "dot/LICENSE").read_bytes()),
+        )
+    )
 
 
 def _installed_version() -> str:
@@ -137,7 +138,7 @@ def write_install_receipt(source_root: pathlib.Path, wheel_sha256: str, expected
     return target
 
 
-def install_receipt_matches(source: pathlib.Path) -> bool:
+def install_receipt_matches(source: pathlib.Path, package_digest: str | None = None) -> bool:
     """Accept only an owner-only receipt that attests the current source basis and installed version."""
     receipt = PACKAGE_DIRECTORY / INSTALL_RECEIPT_NAME
     try:
@@ -149,7 +150,7 @@ def install_receipt_matches(source: pathlib.Path) -> bool:
         return (
             isinstance(wheel_sha256, str)
             and _is_sha256(wheel_sha256)
-            and decoded == _install_receipt(source, wheel_sha256, _install_basis_digest(source))
+            and decoded == _install_receipt(source, wheel_sha256, _install_basis_digest(source, package_digest))
         )
     except OSError, RuntimeError, ValueError:
         return False
@@ -164,9 +165,10 @@ def install_staleness(source: pathlib.Path) -> str:
         version = tomllib.load(stream).get("project", {}).get("version")
     if not isinstance(version, str) or version != _installed_version():
         return "installed version differs from source"
-    if _package_digest(source / "dot/src/fmind_dot") != _package_digest(PACKAGE_DIRECTORY):
+    source_digest = _package_digest(source / "dot/src/fmind_dot")
+    if source_digest != _package_digest(PACKAGE_DIRECTORY):
         return "installed Python package differs from source"
-    if not install_receipt_matches(source):
+    if not install_receipt_matches(source, source_digest):
         return "install receipt differs from source"
     return ""
 
