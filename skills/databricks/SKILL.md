@@ -1,13 +1,13 @@
 ---
 name: databricks
-description: "Operate Databricks bundles, jobs, pipelines, and Unity Catalog with databricks."
+description: "Operate Databricks bundles, jobs, pipelines, and Unity Catalog."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Databricks CLI
@@ -67,7 +67,7 @@ Resolve the workspace, profile, and bundle target before mutations; deployments 
 
 ## Official Skills
 
-- Upstream: Databricks Agent Skills at `databricks/databricks-agent-skills`.
+- Upstream: Databricks Agent Skills at `databricks/databricks-agent-skills`; select from its top-level `skills/`, not the per-harness copies under `plugins/databricks/`.
 
 ## Documentation
 

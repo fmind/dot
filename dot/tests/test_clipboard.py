@@ -1,6 +1,7 @@
 """Exercise clipboard round trips without touching the desktop clipboard."""
 
 import importlib.util
+import io
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -32,7 +33,8 @@ def backend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, names: tuple[str, .
             "import os,sys\nfrom pathlib import Path\n"
             "store=Path(os.environ['FAKE_CLIPBOARD'])\n"
             "mode=os.environ['FAKE_MODE']\n"
-            "if mode=='fail': sys.exit(7)\n"
+            "if mode=='fail': sys.stderr.write(\"Error: Can't open display\\n\"); sys.exit(7)\n"
+            "if mode=='hang': import time; time.sleep(30)\n"
             "reading=Path(sys.argv[0]).name in ('pbpaste','wl-paste') or '-o' in sys.argv\n"
             "if reading:\n"
             "    sys.stdout.buffer.write(b'changed' if mode=='mismatch' else store.read_bytes())\n"
@@ -66,7 +68,7 @@ def test_native_round_trip_preserves_literal_utf8(
     monkeypatch.setenv("WAYLAND_DISPLAY", wayland)
     payload = "Médéric 🦊\n`literal` $(touch should-not-exist)\n\n".encode()
     result = clipboard.copy_text(payload)
-    assert store.read_bytes() == payload
+    assert store.read_bytes() == payload[:-1]
     assert "verified" in result
     assert names[0] in result
     assert "Médéric" not in result
@@ -106,3 +108,70 @@ def test_headless_session_preserves_existing_clipboard(
     with pytest.raises(RuntimeError, match="DISPLAY"):
         clipboard.copy_text(b"new")
     assert store.read_bytes() == b"preserve"
+
+
+@pytest.mark.parametrize(("keep", "expected"), [(False, b"command"), (True, b"command\n")])
+def test_one_final_newline_is_stripped_unless_kept(
+    clipboard: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, keep: bool, expected: bytes
+) -> None:
+    store = backend(tmp_path, monkeypatch, ("pbcopy", "pbpaste"))
+    monkeypatch.setattr(sys, "platform", "darwin")
+    clipboard.copy_text(b"command\n", keep_final_newline=keep)
+    assert store.read_bytes() == expected
+    assert clipboard.environment()["LC_CTYPE"] == "UTF-8"
+
+
+def test_lone_newline_and_oversized_payloads_are_rejected(clipboard: ModuleType) -> None:
+    with pytest.raises(ValueError, match="nothing to copy"):
+        clipboard.copy_text(b"\n")
+    with pytest.raises(ValueError, match="limit"):
+        clipboard.copy_text(b"x" * (clipboard.LIMIT + 1))
+
+
+@pytest.mark.parametrize(
+    ("names", "sommelier", "expected"),
+    [
+        (("xclip", "wl-copy", "wl-paste"), "0.20", "xclip"),
+        (("xclip", "wl-copy", "wl-paste"), "", "wl-copy"),
+        (("wl-copy", "wl-paste"), "0.20", "wl-copy"),
+    ],
+)
+def test_linux_backend_prefers_x11_only_on_crostini(
+    clipboard: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    names: tuple[str, ...],
+    sommelier: str,
+    expected: str,
+) -> None:
+    backend(tmp_path, monkeypatch, names)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
+    assert expected in clipboard.copy_text(b"text")
+
+
+def test_backend_failure_reports_native_diagnostics(
+    clipboard: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    backend(tmp_path, monkeypatch, ("pbcopy", "pbpaste"), mode="fail")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    with pytest.raises(RuntimeError, match="Can't open display"):
+        clipboard.copy_text(b"text")
+
+
+def test_main_reports_timeout_without_claiming_success(
+    clipboard: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    backend(tmp_path, monkeypatch, ("pbcopy", "pbpaste"), mode="hang")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(clipboard, "TIMEOUT", 0.5)
+    monkeypatch.setattr(sys, "stdin", type("Stdin", (), {"buffer": io.BytesIO(b"text")})())
+    assert clipboard.main([]) == 1
+    captured = capsys.readouterr()
+    assert "timed out" in captured.err
+    assert "verified" not in captured.out

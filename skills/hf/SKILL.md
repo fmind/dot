@@ -1,13 +1,13 @@
 ---
 name: hf
-description: "Operate Hugging Face models, datasets, Spaces, transfers, and jobs with hf."
+description: "Operate Hugging Face models, datasets, Spaces, and jobs with hf."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Hugging Face CLI
@@ -27,7 +27,7 @@ Use `hf` for Hub operations from the shell. The CLI generates its own command sk
 
 1. **Inspect cache use before cleanup**: `hf cache ls` and `hf cache prune --dry-run` show retained data and proposed deletions. Remove only recorded task-owned disposable entries with `hf cache rm <repo-id-or-revision>` after checking consumers; broad pruning of shared revisions or incomplete downloads requires explicit cleanup scope. `HF_HOME` relocates the cache for future operations.
 1. **Upload with authority**: `hf repos create <repo-id> --private` then `hf upload <repo-id> <local-path> --private`; `hf upload` creates a missing repository with the account's default visibility unless `--private` is set. Confirm repository, visibility, and license before the first push, then verify with `hf models info` or `hf repos ls`.
-1. **Remote compute with authority**: `hf jobs run` and `hf jobs uv run` bill by hardware flavor; confirm the flavor and timeout, then watch `hf jobs logs` and `hf jobs ps`.
+1. **Remote compute with authority**: `hf jobs run` and `hf jobs uv run` bill by hardware flavor; confirm the flavor and timeout, then watch `hf jobs logs` and `hf jobs ps`. `hf sandbox` VMs run on Jobs and `hf endpoints deploy` creates hourly-billed Inference Endpoints, so they need the same authority; release what you started with `hf sandbox kill` or `hf endpoints pause`.
 
 ## Gotchas
 
@@ -42,6 +42,7 @@ Upstream: `huggingface/skills`, the same packages the CLI marketplace serves. Th
 
 ```bash
 hf skills list
+hf skills preview                            # review the generated CLI skill
 hf skills add --dest .agents/skills          # the CLI skill
 hf skills add <name> --dest .agents/skills
 hf skills update

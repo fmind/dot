@@ -32,7 +32,7 @@ PYTHONDONTWRITEBYTECODE = "1"
 
 [vars]
 # First-party Python outside skill templates; shared by check:python and format:python.
-python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/deleguate-tasks/scripts skills/clipboard/scripts skills/cloud-run/templates"
+python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/delegate-tasks/scripts skills/clipboard/scripts skills/diagrams-as-code/references/svg/scripts skills/fmind-visuals/scripts skills/social-post/scripts skills/update-ignores/scripts skills/cloud-run/templates"
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
@@ -165,7 +165,7 @@ description = "Lint, format-check, type-check, and validate Python packaging"
 run = [
   "uv run --frozen --project dot ruff check {{vars.python_sources}}",
   "uv run --frozen --project dot ruff format --check {{vars.python_sources}}",
-  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/deleguate-tasks/scripts ../skills/clipboard/scripts ../skills/cloud-run/templates",
+  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/delegate-tasks/scripts ../skills/clipboard/scripts ../skills/diagrams-as-code/references/svg/scripts ../skills/fmind-visuals/scripts ../skills/social-post/scripts ../skills/update-ignores/scripts ../skills/cloud-run/templates",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
   "uv lock --check --project dot",
 ]

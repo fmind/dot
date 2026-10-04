@@ -1,7 +1,7 @@
 # Git History Investigation
 
 1. **Frame the question**: Name the repository, tracked path, line range or symbol, proposed change, and the specific uncertainty; keep the scope small enough that every cited commit can be inspected.
-1. **Establish coverage**: Use `git` to record branch, `HEAD`, dirty state, available refs, and whether the clone is shallow; say which evidence Git cannot supply when the path is untracked, generated, vendored, or absent at `HEAD`. Preserve staged, unstaged, and untracked work.
+1. **Establish coverage**: Use `git` to record branch, `HEAD`, dirty state, available refs (remote names, never raw remote URLs, which can contain credentials), and whether the clone is shallow; say which evidence Git cannot supply when the path is untracked, generated, vendored, or absent at `HEAD`. Preserve staged, unstaged, and untracked work.
 
    ```bash
    git status --short

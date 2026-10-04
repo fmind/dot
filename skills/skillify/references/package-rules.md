@@ -51,8 +51,7 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 
 - References explain decisions or procedures; templates/assets are copied or adapted into output; scripts perform demonstrated deterministic work. Create folders only when they contain useful files. Executables belong under a `scripts/` directory, including one owned by a guide.
 - Validate all reachable instructional Markdown for missing or unsafe links. Templates may refer to generated destinations, but must still reject unsafe local URI schemes. Resolve links relative to the containing document.
-- Promotion: move the guide and owned resources into a new package, rename its entrypoint to `SKILL.md`, add root metadata, fix relative links, and update callers, manifest, and installation declarations. Remove the former guide rather than keeping two copies. Test the resulting package independently before claiming standalone portability.
-- A first-party catalog may link across global/local owners. Before publishing one package independently, bundle necessary resources or replace sibling paths with available skill-name routing; validate a disposable copy containing only that package.
+- Promoting a guide to a package, publishing one package standalone, or adding host metadata (`agents/openai.yaml`): follow [portability](portability.md).
 - Preserve useful procedures during consolidation, including defaults, non-obvious failures, and authorization boundaries. Git history records obsolete names; do not keep duplicate live instructions merely as aliases.
 - Preserve corrections with their reason and scope: durable personal preferences belong in global AGENTS.md, repository invariants in project AGENTS.md, reusable procedures in the owning skill or guide, and detailed evidence in references or existing memory. Keep a prerequisite or non-obvious failure warning before the action it constrains; a reference is sufficient only when the agent can recognize its loading condition. Update memory only when the user explicitly requests it.
 
@@ -65,7 +64,3 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 - Register root owners and required tools in `skills/contracts.json`. No separate guide manifest is required.
 - Validate formatting, metadata, reachable resources, links, budget boundaries, and changed installation behavior. Test explicit tools, unnamed task requests, neighboring tasks, no-route requests, and promotion. [Adoption checks](adoption-check.md) distinguish static proof from observed host behavior.
 - Keep usage review local and requested; count observed skill loads, not catalog mentions. Do not add a telemetry service or automatically retire unobserved skills.
-
-## Host metadata
-
-Add `agents/openai.yaml` only for needed interface metadata, dependencies, or an explicit invocation policy. Link it from the entrypoint; use supported fields and preserve existing user-selected invocation behavior. Host-specific selection settings do not establish cross-host discovery behavior.

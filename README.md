@@ -35,7 +35,7 @@ Install the host prerequisites first; the rest installs in user space:
 
 ```bash
 # Debian / Ubuntu
-sudo apt install -y git curl libatomic1 build-essential gnome-keyring
+sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard
 
 # macOS
 xcode-select --install
@@ -131,9 +131,11 @@ Shared roles (code, security, and ops reviewers; solution architect; product and
 
 ## Agent skills
 
-Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alongside independently installed packages. Restart agent sessions after catalog changes. See [skill authoring](skills/skillify/SKILL.md) and [catalog maintenance](.agents/skills/dot-skills/SKILL.md); upgrades from v6.x need the [retired-link cleanup](.agents/skills/dot-skills/references/installed-links.md#retired-links).
+Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alongside independently installed packages. Restart agent sessions after catalog changes. See [skill authoring](skills/skillify/SKILL.md) and [catalog maintenance](.agents/skills/dot-skills/SKILL.md); upgrades from v6.x, or from releases that shipped `bf-use`, `deleguate-tasks`, or `security-review` (now `bf`, `delegate-tasks`, and `code-security`), need the [retired-link cleanup](.agents/skills/dot-skills/references/installed-links.md#retired-links).
 
 Use `/clipboard` to copy the requested deliverable from the preceding exchange, or `/clipboard <selection>` to choose a result. The [clipboard skill](skills/clipboard/SKILL.md) verifies the copied text using native macOS or ChromeOS/Linux tools.
+
+Other everyday shortcuts: `/full-review` reviews a whole project and applies verified fixes, `/smoke` runs every task and CLI command, `/trim <path>` shortens without losing meaning, `/update-ignores` reconciles ignore files with the stack, `/auth-status` lists expired logins with the exact re-login command, and `/handoff` saves a continuation prompt before `/clear`. For writing, `/draft-mail` creates Gmail drafts only, `/social-post` writes paste-safe channel copy, and `/fact-check` verifies claims and links.
 
 ## Credentials
 

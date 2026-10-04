@@ -28,7 +28,7 @@ Each role equips a persona with a skill bundle, keeps lengthy work out of the co
 | Role                 | Purpose                                                              | Claude preloads                          |
 | -------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
 | `code-reviewer`      | Correctness, regressions, and data loss in changes                   | repository-review                        |
-| `security-reviewer`  | Vulnerabilities, secrets, supply chain, agent integrations           | security-review, threat-model            |
+| `security-reviewer`  | Vulnerabilities, secrets, supply chain, agent integrations           | code-security, threat-model              |
 | `solution-architect` | Options, trade-offs, failure modes, and diagrams                     | implementation-plan, threat-model        |
 | `product-designer`   | Journeys, copy, hierarchy, accessibility, responsive states          | product-design-review, product-loop      |
 | `ops-reviewer`       | Rollout, recovery, observability, infrastructure, containers         | production-readiness, observability      |

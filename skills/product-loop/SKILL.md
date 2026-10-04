@@ -1,13 +1,13 @@
 ---
 name: product-loop
-description: "Guide product discovery, specification, launch, and learning with explicit build-or-stop decisions."
+description: "Run product discovery, PRDs, launches, and learning; decide build or stop."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-loop
   created: "2026-08-09"
-  updated: "2026-09-19"
+  updated: "2026-10-04"
 ---
 
 # Product Loop
@@ -22,12 +22,12 @@ Move a product bet through discovery, specification, launch, and learning. Enter
 1. **Define the decision**: choose a behavioral outcome, segment, time box, success threshold, guardrails, and evidence that would stop or reverse the plan.
 1. **Close the phase** with the decision, its evidence, remaining uncertainty, and the smallest next step within the user's scope.
 
-| Situation                                  | Read when needed                                                                         | Decision                                     |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Problem, demand, or wedge is unproven      | [Discover](references/discover.md), [demand tests](references/demand-tests.md)           | Build, test first, park, or stop             |
-| Validated intent needs observable behavior | [Specify](references/specify.md)                                                         | Requirements, acceptance, and open decisions |
-| Built capability needs a bounded audience  | [Launch](references/launch.md), [production-readiness](../production-readiness/SKILL.md) | Launch, limit exposure, or hold              |
-| An experiment or launch produced results   | [Learn](references/learn.md)                                                             | Continue, iterate, pivot, stop, or extend    |
+| Situation                                      | Read when needed                                                                         | Decision                                     |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Problem, demand, or wedge is unproven          | [Discover](references/discover.md), [demand tests](references/demand-tests.md)           | Build, test first, park, or stop             |
+| Validated intent needs a behavioral spec (PRD) | [Specify](references/specify.md)                                                         | Requirements, acceptance, and open decisions |
+| Built capability needs a bounded audience      | [Launch](references/launch.md), [production-readiness](../production-readiness/SKILL.md) | Launch, limit exposure, or hold              |
+| An experiment or launch produced results       | [Learn](references/learn.md)                                                             | Continue, iterate, pivot, stop, or extend    |
 
 ## Gotchas
 

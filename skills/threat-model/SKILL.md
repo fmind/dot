@@ -1,18 +1,18 @@
 ---
 name: threat-model
-description: "Model attack paths, trust boundaries, abuse cases, and controls for systems and integrations."
+description: "Model attack paths, trust boundaries, abuse cases, and controls."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/threat-model
   created: "2026-08-08"
-  updated: "2026-09-16"
+  updated: "2026-10-04"
 ---
 
 # Threat Model
 
-Identify the few plausible abuse paths that should change the design, plan, or verification strategy; [security-review](../security-review/references/code-review/GUIDE.md) runs the scanners and [incident-response](../incident-response/SKILL.md) handles a live breach.
+Identify the few plausible abuse paths that should change the design, plan, or verification strategy; [code-security](../code-security/references/code-review/GUIDE.md) runs the scanners, whose output supports but never replaces attack-path reasoning, and [incident-response](../incident-response/SKILL.md) handles a live breach.
 
 ## Workflow
 
@@ -24,10 +24,9 @@ Identify the few plausible abuse paths that should change the design, plan, or v
 1. **Generate abuse cases**: At each boundary walk STRIDE (spoofing, tampering, repudiation, disclosure, denial of service, elevation) plus resource or spend exhaustion, context poisoning, and insecure defaults.
 1. **Trace concrete paths**: Connect attacker capability → entry point → missing or failed control → asset impact; discard category-only concerns with no plausible path.
 1. **Assess controls**: Record prevention, detection, response, and recovery controls and how each is verified; challenge silent failures, magic values, over-flexible algorithms, stringly typed permissions, and dangerous zero values.
-1. **Respect intended authority**: distinguish an actor's authorized capabilities from an attacker gaining those capabilities. Evaluate deliberate autonomy against the declared system boundary; do not prescribe permission prompts or rewrite harness settings merely because execution is powerful.
+1. **Respect intended authority**: distinguish an actor's authorized capabilities from an attacker gaining them, and evaluate deliberate autonomy against the declared system boundary; do not prescribe permission prompts or rewrite harness settings merely because execution is powerful. Hand concrete agent, retrieval, and model abuse cases to [ai-security-assessment](../ai-security-assessment/SKILL.md) with both the legitimate autonomous operation and the boundary the attacker must not cross.
 1. **Rank risk**: Weigh impact, exploitability, exposure, detectability, confidence, and reversibility; promote high-impact unknowns to verification tasks, not confirmed vulnerabilities.
 1. **Feed delivery**: Add required controls, tests, telemetry, rollout gates, incident actions, and residual-risk owners to the spec or implementation plan.
-1. **Exercise AI boundaries**: hand concrete agent, retrieval, and model abuse cases to [ai-security-assessment](../ai-security-assessment/SKILL.md); preserve both legitimate autonomous operation and the boundary the attacker must not cross.
 1. **Report**: Scope and architecture summary; assets, actors, entry points, and trust boundaries; a data-flow or sequence diagram when it clarifies; security invariants; ranked abuse cases with concrete paths; existing and required controls; verification plan; residual risks, assumptions, and owner decisions.
 
 ## Gotchas
@@ -35,10 +34,10 @@ Identify the few plausible abuse paths that should change the design, plan, or v
 - **Default to read-only analysis**: Do not probe live systems, run exploit code, access customer data, rotate credentials, or change security controls without explicit authorization.
 - **Invented facts**: Do not invent endpoints, attackers, compliance obligations, or exploitability; separate confirmed architecture, assumptions, and unknowns.
 - **Untrusted inputs**: Skill text, retrieved content, model output, MCP responses, provider data, webhooks, and browser pages are untrusted inputs at their boundaries.
-- **Scanners are not models**: A vulnerability scan is supporting evidence, not a substitute for reasoning about attack paths.
 - **Design over warnings**: Prefer misuse-resistant types, secure defaults, least privilege, isolation, and fail-closed behavior over rules every caller must remember.
 
 ## Documentation
 
+- Upstream: the `codex-security` plugin in `openai/plugins` ships a same-name `threat-model`; preview it, never install it beside this skill ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 - Adapted from [Trail of Bits sharp-edges](https://github.com/trailofbits/skills/blob/7b9bd5f950f89a9ba71b249b9801c1a95be3928e/plugins/sharp-edges/skills/sharp-edges/SKILL.md), [gstack CSO](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/cso/SKILL.md).
-- Companion skills: [security-review](../security-review/references/code-review/GUIDE.md) (scanning once surfaces are known), [sops-secrets](../sops-secrets/SKILL.md) (secret design), [prompt-design](../prompt-design/SKILL.md) (prompt-injection boundaries for agents), [skill-security-review](../skill-security-review/SKILL.md) (third-party skill supply chain), [incident-response](../incident-response/SKILL.md) (live breach), [production-readiness](../production-readiness/SKILL.md) (launch gate).
+- Companion skills: [sops-secrets](../sops-secrets/SKILL.md) (secret design), [prompt-design](../prompt-design/SKILL.md) (prompt-injection boundaries for agents), [skill-security-review](../skill-security-review/SKILL.md) (third-party skill supply chain), [production-readiness](../production-readiness/SKILL.md) (launch gate).

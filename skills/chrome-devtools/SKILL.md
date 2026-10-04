@@ -1,13 +1,13 @@
 ---
 name: chrome-devtools
-description: "Inspect, debug, and automate Chrome through DevTools, including performance and accessibility."
+description: "Debug Chrome with DevTools MCP: console, network, performance, accessibility."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Chrome DevTools
@@ -24,16 +24,22 @@ npx --yes chrome-devtools-mcp@1.10.1 --isolated --headless --no-usage-statistics
 
 The MCP client starts that process over stdio. Use a dedicated browser profile. Keep remote debugging on loopback; browser content, network bodies, cookies, screenshots, and traces may expose private data. The two opt-out flags disable MCP usage statistics and CrUX URL lookups respectively.
 
-For shell workflows, the same package exposes `chrome-devtools`; resolve it with `npm exec --yes --package=chrome-devtools-mcp@1.10.1 -- chrome-devtools <command>`. Inspect `status` before starting a daemon, then explicitly start the task's session with `start --workspace="$PWD" --no-usage-statistics --no-performance-crux`. The CLI otherwise starts a persistent daemon automatically and enables unrestricted file access by default. Read `start --help` for the installed flags; do not stop or repurpose another task's daemon.
+## Task guides
+
+<!-- guides:start -->
+
+- [cli](references/cli.md): Drive DevTools from the shell with the chrome-devtools CLI daemon instead of an MCP connection.
+
+<!-- guides:end -->
 
 ## Workflow
 
 1. **Identify the target**: list pages and select the intended page ID, URL, viewport, and browser mode. Take a fresh accessibility snapshot before using element UIDs; navigation and rerenders can invalidate them.
 1. **Reproduce the symptom**: list bounded console errors and failed-request metadata, then inspect only the relevant request IDs and bodies. Reuse a still-current snapshot; refresh it after navigation or a relevant rerender. Save large traces as artifacts instead of returning their raw contents. Redact credentials and private request data.
 1. **Measure performance**: record a bounded trace of the same action before and after a change; preserve CPU/network throttling, cache conditions, viewport, and tool versions. Stop traces you started and save artifacts in the authorized workspace.
-1. **Check accessibility**: inspect roles, names, focus order, keyboard operation, and visible contrast. Combine automated checks with manual interaction; an accessibility tree or Lighthouse score alone does not establish WCAG conformance.
-1. **Investigate memory and cookies**: compare repeated lifecycle actions and heap snapshots when those tools are available; inspect `HttpOnly`, `Secure`, `SameSite`, and partitioning in the request's actual context. A single heap size or cookie attribute is not a diagnosis.
-1. **Verify the fix**: repeat the reproduction and relevant measurements, then add a regression test through the owning project workflow. Close task-owned pages and stop only a daemon created for this task.
+1. **Check accessibility**: inspect roles, names, focus order, keyboard operation, and visible contrast. Run `lighthouse_audit` for the one-shot accessibility, SEO, and best-practice report; it reloads the page unless `mode` is `snapshot`, and it excludes performance, which needs a trace. Combine automated checks with manual interaction; an accessibility tree or Lighthouse score alone does not establish WCAG conformance.
+1. **Investigate memory and cookies**: compare repeated lifecycle actions and heap snapshots; `take_heapsnapshot` is on by default, while `compare_heapsnapshots` and the other analysis tools need `--memoryDebugging` on the MCP server; inspect `HttpOnly`, `Secure`, `SameSite`, and partitioning in the request's actual context. A single heap size or cookie attribute is not a diagnosis.
+1. **Verify the fix**: repeat the reproduction and relevant measurements, then add a regression test through the owning project workflow. Close task-owned pages.
 
 ## Gotchas
 
@@ -43,10 +49,10 @@ For shell workflows, the same package exposes `chrome-devtools`; resolve it with
 
 ## Official Skills
 
-Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills). Use `skills add ChromeDevTools/chrome-devtools-mcp --list`, then follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) for the required guidance.
+Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills). Use `skills add ChromeDevTools/chrome-devtools-mcp --list`, then follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) for the required guidance. Select task-specific entries such as `a11y-debugging` or `memory-leak-debugging`; preview the same-name `chrome-devtools` entry (also in `github/awesome-copilot`) instead of installing it ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 
-- [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [CLI](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md) · [Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)
+- [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)
 - Releases: [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp/releases)
-- Companion skills: [mcp-setup](../mcp-setup/SKILL.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [benchmark](../benchmark/references/command-http.md), [quality-assurance](../quality-assurance/SKILL.md).
+- Companion skills: [mcp-setup](../mcp-setup/SKILL.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [benchmark](../benchmark/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md).

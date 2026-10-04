@@ -1,6 +1,6 @@
 ---
 name: copier
-description: "New reusable templates and tracked updates."
+description: "Author new reusable Copier templates, generate projects, and apply tracked template updates."
 ---
 
 # Copier

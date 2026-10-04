@@ -1,24 +1,24 @@
 ---
 name: github-issues
-description: "Plan, draft, update, link, and close GitHub issues with gh."
+description: "Plan, draft, update, link, and close GitHub issues."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # GitHub Issues
 
-Plan, read, and mutate GitHub issues from verified repository and remote state. When audit findings need prioritization, drafts, or dependency ordering, follow the [backlog workflow](references/backlog.md) before any GitHub mutation.
+Plan, read, and mutate GitHub issues from verified repository and remote state.
 
 ## Workflow
 
-Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request serialization when needed.
+Use [gh](../gh/SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
 
-1. **Confirm the target**: resolve the repository from the explicit URL or `gh repo view --json nameWithOwner,visibility` and state `OWNER/REPO`; never print raw remote URLs, which can contain credentials; never infer another repository from a similarly named checkout.
+1. **Confirm the target**: resolve the repository from the explicit URL or `gh repo view --json nameWithOwner,visibility` and state `OWNER/REPO`; never infer another repository from a similarly named checkout.
 1. **Refresh current state** before proposing a change:
 
    ```bash
@@ -42,14 +42,10 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 
 - **Green is not closed**: verify the issue's acceptance criteria and requested delivery boundary before `gh issue close`; local passing code is not delivery.
 - **People and planning fields**: assignments, comment notifications, milestones, and project changes are coordination acts; make them only when the request names them.
-- **Raw findings**: classify, deduplicate, prioritize, and draft review findings through the [backlog workflow](references/backlog.md) before creating issues from them.
-
-## Official Skills
-
-Upstream: `cli/cli`; the [gh connector](../gh/SKILL.md#official-skills) owns pinned review and installation of its skills.
 
 ## Documentation
 
+- Upstream: `github/awesome-copilot` ships a same-name `github-issues` (GitHub MCP tools); preview it, never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 - [gh issue manual](https://cli.github.com/manual/gh_issue)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
 - Companion skills: [repository-review](../repository-review/SKILL.md) (verified findings), [implementation-plan](../implementation-plan/SKILL.md) (ordered implementation), [github-pull-request](../github-pull-request/SKILL.md) (the PR).

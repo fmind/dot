@@ -11,7 +11,7 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 
 1. For a new service, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; choose database integration only when needed.
 1. Inspect the application with `uv run litestar --app <package>:app info`, `routes`, and `schema openapi`; these need no server and no extra, and autodiscovery does not find `src/<package>/__init__.py`. Read the source for the application factory, dependencies, and test client setup.
-1. Select the upstream skill for the actual feature: routing, dependency injection, DTO/OpenAPI, authentication, middleware, templates and HTMX, or testing.
+1. Consult the upstream `litestar` references for the actual feature (routing, dependency injection, DTO/OpenAPI, authentication, middleware), `litestar-htmx` for templates and HTMX, and `litestar-testing` for tests.
 1. For template styles, keep the existing asset pipeline; [web-frontend's standalone Tailwind workflow](../../../web-frontend/references/tailwind.md) covers Python templates, class discovery, and production CSS builds.
 1. Keep the existing server and database choices. Run local request tests for success, invalid input, authorization, and lifespan behavior.
 
@@ -27,7 +27,7 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 
 ## Official Skills
 
-Upstream: [litestar-org/litestar-skills](https://github.com/litestar-org/litestar-skills). Follow the shared [vendor-skill policy](../../../agent-project/references/vendor-skills.md) and select the Litestar application guidance.
+Upstream: [litestar-org/litestar-skills](https://github.com/litestar-org/litestar-skills). Follow the shared [vendor-skill policy](../../../agent-project/references/vendor-skills.md) and select `litestar` (core framework, consolidated with references) and only the ecosystem skills the app uses.
 
 ## Documentation
 

@@ -1,13 +1,13 @@
 ---
 name: agent-frameworks
-description: "Build Python agents with Google ADK, LangChain, LangGraph, and agents-cli: tools, state, and retrieval."
+description: "Build Python agents with Google ADK, LangChain, LangGraph, and agents-cli."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-frameworks
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Agent Frameworks

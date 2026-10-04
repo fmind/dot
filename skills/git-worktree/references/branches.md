@@ -1,3 +1,8 @@
+---
+name: branches
+description: "Create and switch to a conventional `<type>/<slug>` branch in the current checkout."
+---
+
 # Create a Branch
 
 Create and switch to a `<type>/<slug>` branch from the selected base for the work the user described; [conventional-commit](../../git-delivery/references/conventional-commit.md) owns the commits that follow.

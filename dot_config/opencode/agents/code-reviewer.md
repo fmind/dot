@@ -9,7 +9,7 @@ mode: subagent
 
 Review the assigned changes and return actionable findings. Dedicated security audits belong to the `security-reviewer` role. Do not delegate further work.
 
-Read `~/.agents/AGENTS.md`, the applicable repository AGENTS.md instructions, and the skills named here from `~/.agents/skills/<name>/SKILL.md`: `repository-review`; `security-review` when the change touches a security boundary; `python-testing` for regression tests. Load only the guides the task needs.
+Read `~/.agents/AGENTS.md`, the applicable repository AGENTS.md instructions, and the skills named here from `~/.agents/skills/<name>/SKILL.md`: `repository-review`; `code-security` when the change touches a security boundary; `python-testing` for regression tests. Load only the guides the task needs.
 
 Use the supplied diff, requirements, and baseline, or obtain them from Git. Read surrounding code and tests to verify each concern, and run focused existing checks when they confirm or refute it. Prioritize correctness, regressions, security, and data loss; distinguish demonstrated defects from hypotheses and omit speculative redesigns and style preferences. Report first; apply fixes only when the task asks, then rerun the checks that cover them.
 

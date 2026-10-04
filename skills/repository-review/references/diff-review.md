@@ -1,20 +1,15 @@
 # Diff Review Procedure
 
-Read for the detailed campaign, protocol, or reporting requirements when the task needs them.
+Use for a diff, patch, branch, PR, or self-review; shared candidate, intent, risk, verification, severity, and authorization rules live in [repository-review](../SKILL.md).
 
-1. **Resolve the target**: Read the request, issue, spec, and change description; record base, head, and whether the candidate is a dirty tree, local commit, or remote pull-request head. Preserve staged, unstaged, and untracked work.
+1. **Resolve the target**: read the request, issue, spec, and change description; record whether the candidate is a dirty tree, local commit, or remote pull-request head, with its base and head.
 1. **Inventory the delta**: start with `git diff --stat` and `git diff --name-status` for the selected revisions or index, then read complete patches by path with `git diff ... -- <path>`. Use `rg -n` to locate callers and read the relevant source ranges. Track reviewed paths so smaller reads still cover the requested scope; inspect generator inputs and lockfile changes when relevant rather than dumping every generated line or silently excluding them.
-1. **Read tests first**: Determine what behavior the candidate claims, whether the tests can fail for that defect class, and which requirements stay unproved.
-1. **Trace intended versus implemented**: Map permissions, user journeys, data rules, failure semantics, and operational promises to concrete code paths and tests.
-1. **Review by risk**: Weigh correctness, data integrity, authorization, input boundaries, concurrency, resource lifecycle, error propagation, compatibility, migration, performance, observability, and rollback in proportion to the change.
-1. **Classify scope**: Compare every changed dependency, config, public API, generated artifact, and unrelated-looking hunk with the stated contract and its real call or build path.
+1. **Read tests first**: determine what behavior the candidate claims, whether the tests can fail for that defect class, and which requirements stay unproved. When cheap, prove it with one temporary mutation in a scratch copy or worktree; a mutation that stays green is a missing-test finding.
+1. **Trace intended versus implemented**: map permissions, user journeys, data rules, failure semantics, and operational promises to concrete code paths and tests.
+1. **Classify scope**: compare every changed dependency, config, public API, generated artifact, and unrelated-looking hunk with the stated contract and its real call or build path.
    - Classify it as **keep** (necessary and connected), **split** (independently valuable or unrelated), or **justify** (real but non-obvious coupling).
    - Path names alone do not prove scope creep; never stage, revert, discard, or rewrite the candidate because a detector labels a path unrelated.
-1. **Verify each finding**: Reproduce it by code tracing, a focused test, or a safe temporary experiment, and quote the file and line that make it real.
-1. **Run proportional checks**: Start with focused tests and static analysis, and record which candidate each result covers.
-1. **Gate when proportionate**: run the full gate only for explicit full qualification, repository requirements, or cross-cutting risk. A read-only review can finish with focused evidence and stated limits. Reuse passing results; apply the [dirty-tree rule](../../mise/SKILL.md#gotchas) when unrelated work is present.
-1. **Calibrate**: Discard preferences and speculation; rank what remains by user impact, exploitability, data loss, regression likelihood, and confidence. Do not manufacture findings to make the review look useful.
-1. **Report**: use the shared severity scale in [repository-review](../SKILL.md); lead with findings, then candidate identity, checks run, and residual risks. A finding can use this compact shape:
+1. **Report**: verify and rank findings with the shared rules, quoting the file and line that make each one real. A finding can use this compact shape:
 
    ```text
    [P1] Short imperative title — path/to/file.ext:line
@@ -26,4 +21,4 @@ Read for the detailed campaign, protocol, or reporting requirements when the tas
 
 ## Sources
 
-- Adapted from [agent-skills code-review-and-quality](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/code-review-and-quality/SKILL.md), [gstack review](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/review/SKILL.md), [pm-skills intended-vs-implemented](https://github.com/phuryn/pm-skills/blob/18468a95b427e70e258b51389796367c6f684e7d/pm-ai-shipping/skills/intended-vs-implemented/SKILL.md), [codebase design](https://github.com/mattpocock/skills/blob/84fdeffd12f2ee307994d1eb6feb48173b6e0502/skills/engineering/codebase-design/SKILL.md).
+- Adapted from [agent-skills code-review-and-quality](https://github.com/addyosmani/agent-skills/blob/1401c8b8030e023baeebb31781a6653fe8e93026/skills/code-review-and-quality/SKILL.md), [gstack review](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/review/SKILL.md), [pm-skills intended-vs-implemented](https://github.com/phuryn/pm-skills/blob/18468a95b427e70e258b51389796367c6f684e7d/pm-ai-shipping/skills/intended-vs-implemented/SKILL.md), [codebase design](https://github.com/mattpocock/skills/blob/84fdeffd12f2ee307994d1eb6feb48173b6e0502/skills/engineering/codebase-design/SKILL.md).

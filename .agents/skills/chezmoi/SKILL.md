@@ -43,7 +43,7 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 - **Literal delimiters**: emit another tool's `{{ ... }}` as ``{{`{{ .Destination }}`}}`` (backticks inside an action); `.chezmoi.toml.tmpl` needs this too.
 - **Templates fail closed**: one template error aborts the whole apply; debug with `chezmoi execute-template < file` or `chezmoi apply --dry-run` before committing.
 - **Credential lifecycle**: use `create_encrypted_private_*` for native login seeds so account switches survive apply; scoped keys remain managed under `~/.config/dot/secrets/`. Never restore global shell exports. Follow [secret setup](../../../README.md#secret-management) and [credential precedence](../../../skills/dot-cli/references/authentication.md); preview secret targets with status/metadata, never a plaintext diff.
-- **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [security-review](../../../skills/security-review/references/code-review/GUIDE.md)).
+- **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [code-security](../../../skills/code-security/references/code-review/GUIDE.md)).
 - **`.chezmoiignore`** (templated doublestar patterns, not gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`, CI) out of apply and skips key-dependent files without the age key.
 - **Ignore patterns** match target paths; a leading `!` excludes a match from ignoring and takes priority over every other pattern, whatever the order.
 - **`.chezmoi.toml.tmpl`** seeds `~/.config/chezmoi/chezmoi.toml` on `chezmoi init`, prompting per-host data with `promptStringOnce . "key" "question" "default"`.
@@ -55,4 +55,4 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 - [templating](https://www.chezmoi.io/user-guide/templating/) · [age encryption](https://www.chezmoi.io/user-guide/encryption/age/)
 - Releases: [chezmoi](https://github.com/twpayne/chezmoi/releases)
 - Companion skills: [mise](../../../skills/mise/SKILL.md) (pins chezmoi, wraps apply, diff, doctor), [dprint](../../../skills/dprint/SKILL.md) (formats source configurations).
-- Also: [security-review](../../../skills/security-review/references/code-review/GUIDE.md) (leak scanning around `*.age` files), [dot-cli](../../../skills/dot-cli/SKILL.md) (workstation and archive commands).
+- Also: [code-security](../../../skills/code-security/references/code-review/GUIDE.md) (leak scanning around `*.age` files), [dot-cli](../../../skills/dot-cli/SKILL.md) (workstation and archive commands).

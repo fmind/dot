@@ -1,13 +1,13 @@
 ---
 name: observability
-description: "Instrument Python services and agents with structured logs, traces, metrics, and correlation."
+description: "Instrument Python services and agents with structured logs, traces, and metrics."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Observability
@@ -31,7 +31,6 @@ Use one Python telemetry stack for services and agents: `structlog` JSON on stdo
 ## Gotchas
 
 - **Bound investigation output**: select incident time and correlation IDs before loading logs; include custom event fields when needed for diagnosis. A limit is a partial view, not proof of absence. Keep complete authorized captures as local artifacts and expand the query when the cause falls outside the initial window.
-
 - **Cloud Logging keys are exact**: plain `level` and `msg` are not promoted to severity and message fields.
 - **Sampling follows the parent**: use `parentbased_traceidratio` with a measured production ratio; keep 100% sampling for bounded development only.
 - **Cardinality is a budget**: do not put user IDs, raw URL IDs, prompts, errors, or tool arguments in metric labels.
@@ -40,10 +39,10 @@ Use one Python telemetry stack for services and agents: `structlog` JSON on stdo
 
 ## Official Skills
 
-Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, and `grafana/skills`. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and install only the backend selection the project uses.
+Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, and `grafana/skills`. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and install only the backend selection the project uses. The Vercel plugin in `openai/plugins` ships an unrelated same-name `observability` skill; never install it beside this one. Exclude `mlflow/skills`' same-name `agent-evaluation` from any selection ([name policy](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 
 - [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [OTLP configuration](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/) · [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) · [Cloud Logging structured logs](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google-built OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel)
 - Releases: [OpenTelemetry Python](https://github.com/open-telemetry/opentelemetry-python/releases)
-- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-adk](../agent-frameworks/references/google-adk.md), [gcloud](../gcloud/SKILL.md), [benchmark](../benchmark/references/command-http.md).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [google-adk](../agent-frameworks/references/google-adk.md), [gcloud](../gcloud/SKILL.md), [benchmark](../benchmark/SKILL.md).

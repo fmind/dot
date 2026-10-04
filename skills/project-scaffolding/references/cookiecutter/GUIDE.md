@@ -1,6 +1,6 @@
 ---
 name: cookiecutter
-description: "Existing Cookiecutter/Cruft generation and template updates."
+description: "Generate from existing Cookiecutter templates and update Cruft-tracked projects without losing local edits."
 ---
 
 # Cookiecutter
@@ -27,7 +27,7 @@ Use Cookiecutter for existing or explicitly requested Cookiecutter templates; [C
 
 ## Official Skills
 
-No consumer Agent Skill was found in the inspected [cookiecutter/cookiecutter](https://github.com/cookiecutter/cookiecutter) repository on 2026-09-10. Use the official documentation below; community packages are not upstream endorsements.
+No consumer Agent Skill was found in the inspected [cookiecutter/cookiecutter](https://github.com/cookiecutter/cookiecutter) repository on 2026-10-04. Use the official documentation below; community packages are not upstream endorsements.
 
 ## Documentation
 

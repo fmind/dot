@@ -1,18 +1,18 @@
 ---
 name: resolve-conflicts
-description: "Resolve Git merge or rebase conflicts; preserve intent and verify the combined result."
+description: "Resolve Git merge or rebase conflicts by both sides' intent; verify the result."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Resolve Conflicts
 
-Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. If the operation targets the wrong base or cannot safely continue, preserve existing resolutions and report the problem before an authorized abort; aborting can discard conflict-resolution work. Never "take ours" unless history shows the incoming change is obsolete. Branch naming lives in [Git branch preparation](../git-worktree/SKILL.md); committing and pushing in [git-add-commit-push](../git-delivery/references/git-add-commit-push.md).
+Finish a stopped `git merge` or `git rebase` by understanding what each side meant, not by picking a side. If the operation targets the wrong base or cannot safely continue, preserve existing resolutions and report the problem before an authorized abort; aborting can discard conflict-resolution work. Never "take ours" unless history shows the incoming change is obsolete.
 
 ## Workflow
 
@@ -37,7 +37,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
    git add <file>...
    git rebase --continue   # or: git merge --continue
    ```
-1. **Prove it**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
+1. **Prove it**: Run the repository's owning gate (e.g. `mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
 1. **Push only when already authorized**: a rewritten private branch may need `git push --force-with-lease`; resolving conflicts alone does not authorize that history update, and never force-push a shared branch (`main`, or one others build on), merge into it instead.
 
 ## Gotchas
@@ -45,11 +45,11 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 - **Show the ancestor**: `git config merge.conflictStyle zdiff3` puts the base version inside the markers so both sides' edits are visible.
 - **Lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
 - **Deleted on one side**: `DU` or `UD` means one side removed the file; find out why before restoring it.
-- **Rebase repeats**: the same hunk can conflict on several commits; `git config rerere.enabled true` replays a recorded resolution.
+- **Rebase repeats**: the same hunk can conflict on several commits. Start the rebase with `git -c rerere.enabled=true rebase <base>` and repeat the `-c` on every `--continue`; enabling it only at `--continue` does not record the conflict already stopped on. Either form creates `$(git rev-parse --git-path rr-cache)`, which keeps rerere active while `rerere.enabled` is unset, so remove that directory afterwards if it did not exist before. Persisting rerere through `git config` or that directory changes repository configuration and needs consent.
 - **Stop when unsure**: if intent cannot be recovered from history, ask the user for the decision; contacting the author requires authorization.
 
 ## Documentation
 
 - [git merge](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) · [git rebase](https://git-scm.com/docs/git-rebase) · [git rerere](https://git-scm.com/docs/git-rerere)
-- Adapted from [mattpocock/skills resolving-merge-conflicts](https://github.com/mattpocock/skills/blob/321658273cb1d20b76026717d027d505790106d4/skills/engineering/resolving-merge-conflicts/SKILL.md).
+- Adapted from [mattpocock/skills resolving-merge-conflicts](https://github.com/mattpocock/skills/blob/321658273cb1d20b76026717d027d505790106d4/skills/engineering/resolving-merge-conflicts/SKILL.md) (removed upstream in `daa01d8`).
 - Companion skills: [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) (commit and push), [repository-history](../repository-history/SKILL.md) (why a change exists), [mise](../mise/SKILL.md) (the gate).

@@ -38,11 +38,7 @@ Turn the staged changes into one Conventional Commits subject and commit them; [
 
 1. **Stop on failure** (pre-commit hook, nothing staged): show the failure briefly; do not amend.
 
-## Gotchas
-
-- **No push**: this skill never runs `git push`; [git-add-commit-push](git-add-commit-push.md) does.
-
 ## Documentation
 
 - [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-- Companion skills: [Git branch preparation](../../git-worktree/SKILL.md) (branch first), [git-add-commit-push](git-add-commit-push.md) (stage, commit, push), [github-pull-request](../../github-pull-request/SKILL.md) (open the PR).
+- Companion skills: [git-worktree](../../git-worktree/SKILL.md) (branch first), [git-add-commit-push](git-add-commit-push.md) (stage, commit, push), [github-pull-request](../../github-pull-request/SKILL.md) (open the PR).

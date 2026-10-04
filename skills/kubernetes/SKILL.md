@@ -1,20 +1,20 @@
 ---
 name: kubernetes
-description: "Operate Kubernetes clusters with kubectl, Helm, k9s, kustomize, and stern."
+description: "Operate Kubernetes with kubectl, Helm, k9s, kustomize, and stern."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-10-03"
+  updated: "2026-10-04"
 ---
 
 # Kubernetes Cluster and Workload Operations
 
 Use `kubectl`, `helm`, `k9s`, `kustomize`, and `stern` for Kubernetes cluster inspection, manifest authoring, Helm releases, and log debugging. [docker](../docker/SKILL.md) manages container runtimes and [infra-as-code](../infra-as-code/SKILL.md) provisions managed cloud clusters.
 
-Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk headroom. Confirm user authority for cluster mutations and spending, reusing existing authorization. Pin `--context` and `--namespace` (or Helm's `--kube-context`) after resolving the intended cluster.
+Confirm user authority for cluster mutations and spending, reusing existing authorization. Pin `--context` and `--namespace` (or Helm's `--kube-context`) after resolving the intended cluster.
 
 ## Workflow
 
@@ -33,11 +33,7 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
    kustomize build <kustomization-dir> | kubeconform -strict -summary -kubernetes-version <cluster-version> -
    ```
 
-1. **Spin up local clusters only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name before creation. Prefer manifest checks when they can answer the question; stop task clusters promptly after runtime tests.
-
-   ```bash
-   k3d cluster create <task-cluster> --agents 1 --kubeconfig-switch-context=false
-   ```
+1. **Use a local cluster only when needed**: read [k3d](references/k3d.md) before creating or deleting one; manifest checks often answer the question without it.
 
 1. **Deploy declaratively**: apply configurations using Helm or Kustomize; preview changes before mutating cluster state.
 
@@ -55,19 +51,18 @@ Local k3d clusters need an existing Docker-compatible engine and 20 GiB disk hea
    kubectl --context <context> get pods,events -n <namespace>
    ```
 
-1. **Teardown task clusters**: stop or delete only the disposable cluster whose successful creation was recorded for this task. A failed create does not authorize deleting a pre-existing cluster with that name.
-
-   ```bash
-   k3d cluster stop <task-cluster>
-   # Or delete:
-   k3d cluster delete <task-cluster>
-   ```
-
 ## Gotchas
 
 - **Context changes**: omitted context flags use mutable kubeconfig defaults. Pass the selected context on each call; change the persistent current context only when that change is requested.
-- **Off-by-default local clusters**: local k3d nodes consume significant CPU and RAM inside Docker or Colima; stop clusters when inactive.
 - **Secret redaction**: avoid running unbounded `kubectl get secret -o yaml`; inspect metadata and annotate keys without printing raw base64 payloads to terminal logs.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [k3d](references/k3d.md): Create, budget, and tear down disposable local k3d clusters for runtime tests.
+
+<!-- guides:end -->
 
 ## Documentation
 

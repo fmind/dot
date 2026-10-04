@@ -1,6 +1,6 @@
 ---
 name: fmind-visuals
-description: "Create branded decks, SVG illustrations, terminal demos, and visual assets in the customer's or Fmind identity."
+description: "Create Typst decks, VHS terminal demos, and logo or cover variants in Fmind or client branding."
 license: MIT
 metadata:
   kind: task
@@ -16,37 +16,28 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind ide
 
 ## Workflow
 
-1. **Select the format** from the table while respecting an explicitly requested format or an existing project.
+1. **Select the format** while respecting an explicitly requested format or an existing project: Typst for talks and slide decks, VHS for reproducible terminal demonstrations. [Diagrams as code](../diagrams-as-code/SKILL.md) owns diagrams and illustrations (Mermaid, SVG, and D2, including Fmind article diagrams).
 1. **Apply the brand**: use the customer's palette, fonts, and logo when the repository or engagement specifies them; ask for its brand guide rather than guessing. Otherwise use Google Sans for headings and body text, Google Sans Code for code, and the palette from [fmind/theme](https://github.com/fmind/theme). Bundle the fonts with their OFL notices and use the existing reviewed logo. Keep colors, text roles, and contrast aligned with the source theme; [fmind-theme.md](references/fmind-theme.md) lists the full palette. Preserve published assets when branding changes.
-1. **Create**: follow [production.md](references/production.md); start decks from [deck.typ](templates/deck.typ), technical diagrams with [Mermaid](../diagrams-as-code/references/mermaid.md), README and user-doc illustrations from [illustration.svg](templates/illustration.svg) with the [SVG guide](../diagrams-as-code/references/svg.md), and article diagrams from the light-surface [D2 template](templates/diagram.d2).
-1. **Verify**: run `typstyle`, compile with `typst`, and inspect every rendered page or diagram for legibility, clipping, font loading, and accessibility. Keep editable sources beside their exports.
-
-## Canonical Tool Choice
-
-| Need                                                        | Tool                                                 | Boundary                                                                                                                   |
-| ----------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Fmind talk or slide deck                                    | Typst                                                | Start from [deck.typ](templates/deck.typ); retain source and export PDF                                                    |
-| Flow, sequence, state, class, ER, compact technical diagram | [Mermaid](../diagrams-as-code/references/mermaid.md) | Default for technical docs: AGENTS.md, skills, architecture, contributor and reference pages                               |
-| README, documentation-site, or course concept illustration  | [SVG](../diagrams-as-code/references/svg.md)         | Start from [illustration.svg](templates/illustration.svg); one concept per image, opaque light card                        |
-| Fmind article diagram                                       | [D2](../diagrams-as-code/references/d2.md)           | Import [diagram.d2](templates/diagram.d2), light surface                                                                   |
-| Existing D2 source or bespoke standalone composition        | [D2](../diagrams-as-code/references/d2.md)           | Specialist fallback                                                                                                        |
-| Reproducible terminal demonstration                         | VHS                                                  | Follow [recording](references/recording.md) and adapt [demo.tape](templates/demo.tape); keep the tape and synthetic inputs |
+1. **Explore variants** when the look is open (logo, cover, hero illustration, deck theme) or the user rejects a draft: follow [variants](references/variants.md) instead of iterating on one guess.
+1. **Create**: follow [production.md](references/production.md) for decks and Fmind diagram branding, or [recording.md](references/recording.md) for VHS demos; keep the tape and synthetic inputs.
+1. **Verify**: compile success is not visual success. Inspect every rendered page, frame, or diagram for legibility, clipping, font loading, and accessibility, and keep editable sources beside their exports.
 
 ## Gotchas
 
-- **Compile success is not visual success**: inspect the PDF or PNG at projector and mobile-preview sizes; fixed bounds can clip dense content.
-- **One thesis per page**: use one claim, mechanism, decision, or artifact; split dense content instead of shrinking type.
 - **Decoration**: remove decorative nodes, gradients, and generic AI imagery.
 - **Accessibility**: diagrams need a prose equivalent or alt text, and text must retain readable contrast and size.
-- **External diagrams**: render Mermaid or D2 to SVG before embedding it in Typst; keep the `.mmd` or `.d2` source beside the export.
 
-## Official Skills
+## Task guides
 
-Typst is invoked directly for decks; Mermaid, SVG, and D2 use their companion guides in this catalog. No additional upstream skill bundle is required.
+<!-- guides:start -->
+
+- [variants](references/variants.md): Numbered logo, cover, illustration, or deck-theme variant rounds with a light and dark contact sheet.
+
+<!-- guides:end -->
 
 ## Documentation
 
 - [Fmind website](https://www.fmind.dev/) · [Typst](https://typst.app/docs/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
 - Releases: [Typst](https://github.com/typst/typst/releases)
 - [VHS documentation](https://github.com/charmbracelet/vhs) · Releases: [VHS](https://github.com/charmbracelet/vhs/releases)
-- Companion skills: [mermaid](../diagrams-as-code/references/mermaid.md) (technical diagrams), [svg](../diagrams-as-code/references/svg.md) (user-doc illustrations), [d2](../diagrams-as-code/references/d2.md) (specialist diagrams), and [technical-publishing](../technical-publishing/SKILL.md) (Fmind articles).
+- Companion skills: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2) and [technical-publishing](../technical-publishing/SKILL.md) (Fmind articles).

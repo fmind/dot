@@ -1,13 +1,13 @@
 ---
 name: data-migration
-description: "Migrate persisted schemas, formats, and archives while preserving data and recovery options."
+description: "Migrate database schemas (Alembic, SQLite), file formats, and archives with tested recovery."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/data-migration
   created: "2026-09-09"
-  updated: "2026-09-16"
+  updated: "2026-10-04"
 ---
 
 # Data Migration

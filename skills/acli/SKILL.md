@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-09-26"
+  updated: "2026-10-04"
 ---
 
 # Atlassian CLI
@@ -16,10 +16,11 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
 
 ## Workflow
 
-1. **Resolve the account**: use `acli auth status`, `acli auth login`, and `acli auth switch` for OAuth accounts. Jira API-token authentication uses `acli jira auth status` and the service-specific login below; pipe the token on stdin, never as an argument.
+1. **Resolve the account**: use `acli auth status`, `acli auth login`, and `acli auth switch` for OAuth accounts. API-token authentication is per service: `acli jira auth` and `acli confluence auth` each provide `login`, `status`, and `switch`; pipe the token on stdin, never as an argument.
 
    ```bash
    acli jira auth login --site <site>.atlassian.net --email <email> --token < token.txt
+   acli confluence auth login --site <site>.atlassian.net --email <email> --token < token.txt
    ```
 
 1. **Bounded reads**: JQL with a limit and explicit fields, JSON for anything a tool parses.
@@ -30,13 +31,13 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
    acli confluence page view --id <page-id> --body-format storage --json
    ```
 
-1. **Expand content selectively**: add `description` or `comment` when the requested work needs them; read decisions and acceptance criteria before editing. Treat a search that reaches its limit as partial, and narrow or paginate before claiming completeness. Save large Confluence bodies locally and inspect relevant sections.
-1. **Write with authority**: reuse existing authority for the requested keys, fields, and effects; ask only when consequential scope is missing. Comments, assignments, and bulk operations must be included in that authority. Prefer `--generate-json` then `--from-json` for reproducible creations.
+1. **Expand content selectively**: add `description` or `comment` when the requested work needs them; read decisions and acceptance criteria before editing. Treat a search that reaches its `--limit` as partial: check the total with `--count`, then narrow the JQL or use `--paginate` before claiming completeness. Save large Confluence bodies locally and inspect relevant sections.
+1. **Write with authority**: reuse existing authority for the requested keys, fields, and effects; ask only when consequential scope is missing. Comments, assignments, and bulk operations must be included in that authority. Prefer `--generate-json` then `--from-json` for reproducible creations, and pass multiline text through files (`--description-file`, `comment create --body-file`) instead of inline arguments.
 
    ```bash
-   acli jira workitem create --project TEAM --type Task --summary "<summary>" --json
+   acli jira workitem create --project TEAM --type Task --summary "<summary>" --description-file description.txt --json
    acli jira workitem transition --key TEAM-123 --status "In Progress"
-   acli jira workitem comment create --key TEAM-123 --body "<text>"
+   acli jira workitem comment create --key TEAM-123 --body-file comment.txt
    ```
 
 1. **Verify by reading back**: `view --json` after every mutation and compare the requested fields.

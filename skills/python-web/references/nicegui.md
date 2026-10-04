@@ -29,7 +29,7 @@ If that release lacks `llms.md`, use the official documentation and installed so
 
 ## Official Skills
 
-As checked on 2026-09-10, [zauberzeug/nicegui](https://github.com/zauberzeug/nicegui) provides an official [LLM reference](https://github.com/zauberzeug/nicegui/blob/main/nicegui/llms.md), also served at [llms.txt](https://nicegui.io/llms.txt). No reusable application-authoring `SKILL.md` was found in that repository; its `.claude/skills` entries cover upstream maintenance. Use the installed reference above rather than installing those maintenance skills into an application.
+As checked on 2026-10-04, [zauberzeug/nicegui](https://github.com/zauberzeug/nicegui) provides an official [LLM reference](https://github.com/zauberzeug/nicegui/blob/main/nicegui/llms.md), also served at [llms.txt](https://nicegui.io/llms.txt). No reusable application-authoring `SKILL.md` was found in that repository; its `.claude/skills` entries cover upstream maintenance. Use the installed reference above rather than installing those maintenance skills into an application.
 
 ## Documentation
 

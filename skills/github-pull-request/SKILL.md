@@ -1,18 +1,18 @@
 ---
 name: github-pull-request
-description: "Create, update, and verify GitHub pull requests for the intended branch and base."
+description: "Open, update, and verify GitHub pull requests."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # GitHub Pull Request
 
-Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [Git branch preparation](../git-worktree/SKILL.md) owns branch creation; [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) owns commit and push repair.
+Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [git-worktree](../git-worktree/SKILL.md) owns branch creation; [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) owns commit and push repair.
 
 ## Workflow
 
@@ -33,12 +33,8 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 
 1. **Verify from GitHub**: re-read the PR's title, body, base, head SHA, state, and URL. Compare the head SHA with the intended local commit before reporting the PR URL and validation; local tests do not establish hosted CI.
 
-## Official Skills
-
-Upstream: `cli/cli`, skill `gh`, provides GitHub CLI invocation guidance; it shares the local connector's name, and the [gh connector](../gh/SKILL.md#official-skills) owns its pinned review and installation.
-
 ## Documentation
 
 - [gh pr manual](https://cli.github.com/manual/gh_pr)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [Git branch preparation](../git-worktree/SKILL.md), [conventional-commit](../git-delivery/references/conventional-commit.md), [github-issues](../github-issues/SKILL.md).
+- Companion skills: [git-worktree](../git-worktree/SKILL.md), [conventional-commit](../git-delivery/references/conventional-commit.md), [github-issues](../github-issues/SKILL.md).

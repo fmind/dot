@@ -19,8 +19,24 @@ How each host finds the persona, global skills, and workspace skills, and the re
 - `grok inspect` lists project instructions, permissions, and every skill with its scope (`project` or `user`); `--json` is available.
 - Claude Code and Antigravity expose `/skills` in the interactive session only; explicit invocation (`/<skill-name>`) is the fallback proof in Claude.
 - `opencode debug skill` can include skill bodies; inspect needed names locally and keep private instruction content out of reports.
+- `gh skill list` (preview) scans every supported host's project and user directories in one pass; `--agent`, `--scope`, and `--json` narrow it. It proves files are present, not that a host loaded them.
 - A listing proves discovery by that interface; only a captured model input proves prompt inclusion, and neither proves instruction following. Validate behavior against explicit acceptance cases in a disposable, instrumented run.
 - Cursor also discovers compatibility directories documented in [its skills guide](https://cursor.com/docs/skills). User-level packages remain local unless explicitly distributed to a remote execution environment; use project packages or worker-image installation for Cloud Agents and self-hosted workers.
+
+## Same-name resolution
+
+Hosts disagree when two skills, or a skill and a command, share a name (checked 2026-10-04):
+
+| Host        | Global vs project skill                       | Built-in command vs skill                                                                     |
+| ----------- | --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Antigravity | Project overrides global                      | Print-mode built-ins win; interactive built-ins untested                                      |
+| Claude Code | Personal (`~/.claude/skills`) beats project   | Skill replaces the built-in (not its aliases)                                                 |
+| Codex       | Both copies listed; the model picks           | No clash: skills use `$name`, not `/name`                                                     |
+| Copilot     | Project > `--plugin-dir` > personal, silently | Built-in keeps `/name`; the skill loses its slash command                                     |
+| Grok        | Local > repo > user                           | Built-in keeps `/name`; skill reachable as `/<scope>:name` (e.g. `/local:name`, `/user:name`) |
+| OpenCode    | Nondeterministic; logs `duplicate skill name` | Built-in, custom, and MCP commands keep the name                                              |
+
+A symlinked `.claude/skills` -> `.agents/skills` layout exposes the same files twice, which is harmless. Otherwise keep skill names unique across global and project scopes and distinct from host built-in commands; `dot agent context --check` fails on duplicates between `~/.agents/skills` and the project's `.agents/skills`; other host directories are not checked.
 
 ## Native plugin catalogs
 

@@ -1,13 +1,13 @@
 ---
 name: python-mlops
-description: "Build Python ML pipelines: pandas/Pandera, scikit-learn training, MLflow experiments and models, monitoring, and marimo notebooks."
+description: "Build Python ML pipelines: Pandera, scikit-learn, MLflow, monitoring, marimo notebooks."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-mlops
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Python MLOps

@@ -1,6 +1,6 @@
 ---
 name: dot-cli
-description: "Operate dot workstation commands: agent context budgets, archives, usage, health, and cleanup."
+description: "Run dot workstation commands: doctor, login, setup, cleanup, disk space, orphans, context budgets, archives."
 license: MIT
 metadata:
   kind: connector
@@ -12,7 +12,7 @@ metadata:
 
 # Dot CLI
 
-Use `dot` for bounded repository operations, local diagnostics, and agent-session archives. The installed command and its `--help` own the active interface. Dot also owns workstation login, setup, and cache workflows; native CLIs retain credentials and provider behavior. Skills own AI writing, release, and provider-source retention.
+Use `dot` for bounded repository operations, local diagnostics, and agent-session archives. The installed command and its `--help` own the active interface. Dot also owns workstation login, setup, and cache workflows; native CLIs retain credentials and provider behavior.
 
 ## Workflow
 
@@ -35,12 +35,11 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 
 ## Workflow ownership
 
-Use [conventional-commit](../git-delivery/references/conventional-commit.md) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy; inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics. `dot login google` excludes GitHub. Skip decisions require usable credentials and requested scope coverage; unknown status fails, and `--force` explicitly requests authentication. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
+Use [conventional-commit](../git-delivery/references/conventional-commit.md) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy ([authentication](references/authentication.md)); inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics, and use [auth-status](../auth-status/SKILL.md) for a read-only login and expiry sweep. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
 
 ## Documentation
 
 - [fmind/dot](https://github.com/fmind/dot) — setup, implementation, and repository tasks.
 - [Daily workflows](references/daily-workflows.md) — command examples for repositories, sessions and statistics, cleanup, publication, and completions.
-- [CLI migration](references/cli-migration.md) — command changes, date boundaries, JSON selectors.
 - Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
-- Companion skills: [agent-usage](../agent-usage/SKILL.md), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).
+- Companion skills: [agent-usage](../agent-usage/SKILL.md) (usage and cost reports), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

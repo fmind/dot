@@ -1,18 +1,18 @@
 ---
 name: aws
-description: "Operate AWS accounts, resources, and SSO profiles with aws and aws-sso-util."
+description: "Operate AWS accounts and SSO profiles with aws and aws-sso-util."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Amazon Web Services CLI
 
-Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch operations. [infra-as-code](../infra-as-code/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
+Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch operations.
 
 ## Workflow
 
@@ -52,10 +52,10 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 
 ## Official Skills
 
-AWS publishes agent skills through the [Agent Toolkit](https://docs.aws.amazon.com/agent-toolkit/latest/userguide/). Review candidates read-only with `aws agent-toolkit list-available-skills` and `aws agent-toolkit get-skill-file --skill-name <name> --file-path SKILL.md --skill-version <version>`, then install only through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md). Never run `aws configure agent-toolkit --yes`: it installs default skills into every detected agent and configures the AWS MCP server. `AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED=true` suppresses the toolkit prompt that `aws configure`, `aws configure sso`, and a first `aws login` show when they detect a coding agent.
+AWS publishes agent skills through the [Agent Toolkit](https://docs.aws.amazon.com/agent-toolkit/latest/userguide/). Review candidates read-only with `aws agent-toolkit list-available-skills` or `search-skills --search-query <topic>`, `get-skill-metadata --skill-name <name>` (version and file list), and `aws agent-toolkit get-skill-file --skill-name <name> --file-path SKILL.md --skill-version <version>`, then install only through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md). Never run `aws configure agent-toolkit --yes`: it installs default skills into every detected agent and configures the AWS MCP server. The workstation sets `AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED=true` to suppress the toolkit prompt.
 
 ## Documentation
 
 - [AWS CLI User Guide](https://docs.aws.amazon.com/cli/latest/userguide/) · [AWS CLI Command Reference](https://docs.aws.amazon.com/cli/latest/)
 - Releases: [AWS CLI GitHub Releases](https://github.com/aws/aws-cli/releases)
-- Companion skills: [infra-as-code](../infra-as-code/SKILL.md) (provisioning), [security-review](../security-review/SKILL.md) (IAM audits), [incident-response](../incident-response/SKILL.md) (outages).
+- Companion skills: [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure), [code-security](../code-security/SKILL.md) (IAM audits), [incident-response](../incident-response/SKILL.md) (live outages).

@@ -16,7 +16,7 @@ AGY:
   ]
 CLAUDE:
   model: inherit
-  skills: [security-review, threat-model]
+  skills: [code-security, threat-model]
 CODEX: {}
 COPILOT: {}
 GROK: {}
@@ -28,7 +28,7 @@ OPENCODE:
 
 Review the assigned scope for security defects and return verified findings. Do not delegate further work.
 
-Read `~/.agents/AGENTS.md`, the applicable repository AGENTS.md instructions, and the skills named here from `~/.agents/skills/<name>/SKILL.md`: `security-review`; `threat-model` for new trust boundaries, authentication, personal data, public exposure, or tool-using agents; `ai-security-assessment` for adversarial tests of model, retrieval, or tool paths; `skill-security-review` for third-party skills, plugins, hooks, or MCP servers. Load only the guides the task needs.
+Read `~/.agents/AGENTS.md`, the applicable repository AGENTS.md instructions, and the skills named here from `~/.agents/skills/<name>/SKILL.md`: `code-security`; `threat-model` for new trust boundaries, authentication, personal data, public exposure, or tool-using agents; `ai-security-assessment` for adversarial tests of model, retrieval, or tool paths; `skill-security-review` for third-party skills, plugins, hooks, or MCP servers. Load only the guides the task needs.
 
 Use the supplied diff, files, requirements, and baseline, or obtain them from Git. Trace attacker-controlled inputs to security decisions through actual callers and effective configuration. Run the repository security checks and scanners (Gitleaks, Trivy, uv audit, zizmor) that the repository or skill defines. Never read secret values, run untrusted candidate code outside an isolated environment, or exercise exploits against live systems. Report first; apply fixes only when the task asks, then rerun the checks that cover them. When a tool, database, or network is unavailable, record the coverage gap instead of claiming an all-clear.
 

@@ -1,13 +1,13 @@
 ---
 name: xh
-description: "Inspect HTTP endpoints with bounded, credential-safe requests using xh."
+description: "Inspect HTTP endpoints with bounded, credential-safe xh requests."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-09-23"
+  updated: "2026-10-04"
 ---
 
 # xh HTTP Inspection
@@ -29,11 +29,13 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
    ```
 
 1. **Protect credentials**: pass synthetic or environment-sourced authorization only to the intended origin. Use `--print=h` or `--body`; never `--verbose`, `--debug`, `--curl`, sessions, or request-header printing around secrets.
-1. **Interpret honestly**: `--timeout` covers an individual request, including response-body reads in xh 0.26.2, despite its help calling it a connection timeout; the byte cap bounds displayed output. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing; a Range request is not a guaranteed transfer limit. In Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success. Record status, relevant response headers, truncation, and any untested redirect or authentication boundary.
+1. **Interpret honestly**: in Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success. Record status, relevant response headers, truncation, and any untested redirect or authentication boundary.
 1. **Require authority for writes**: POST, PUT, PATCH, DELETE, uploads, and state-changing form or JSON bodies need explicit authorization for the exact target and effect.
 
 ## Gotchas
 
+- `--timeout` covers an individual request, including response-body reads in xh 0.26.2, despite its help calling it a connection timeout. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing.
+- A Range request is not a guaranteed transfer limit; the byte cap bounds only displayed output.
 - `--follow` can forward a request to another origin; inspect `Location` first and never follow an untrusted redirect with credentials.
 - `--verify=no` disables TLS verification and is not an acceptable workaround.
 - `--session` persists cookies and credentials; prefer no session, or use `--session-read-only` only with an explicitly approved synthetic fixture.

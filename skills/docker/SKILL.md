@@ -1,35 +1,29 @@
 ---
 name: docker
-description: "Run and inspect Docker containers, Compose services, and Colima on macOS."
+description: "Run and inspect Docker containers, Compose stacks, and Colima."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Docker and Container Runtime Management
 
-Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. [containerize](../containerize/SKILL.md) builds and signs images; [trivy](../security-review/references/trivy/GUIDE.md) scans them for vulnerabilities.
+Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. [containerize](../containerize/SKILL.md) builds and signs images; [trivy](../code-security/references/trivy/GUIDE.md) scans them for vulnerabilities.
 
 Docker, Compose, and Colima are host prerequisites; workstation tools do not install or start them. Inspect `docker context ls` before choosing a runtime and pass `docker --context <context>` on consequential commands; do not change the persistent default just to run a task. Container runs execute project code; reuse authority for the requested workload and resolve missing scope before running untrusted images or consequential workloads. Preserve existing volumes and containers.
 
 ## Runtime Selection
 
-- **macOS**: use [Colima](https://github.com/abiosoft/colima) as the default container runtime instead of Docker Desktop. Colima runs a lightweight Linux VM using Lima and provides a compatible Docker socket. `--activate=false` keeps the current Docker context; address the VM explicitly.
-  ```bash
-  colima start --cpus 4 --memory 8 --activate=false
-  docker --context colima info --format '{{.ServerVersion}}'
-  colima status
-  colima stop
-  ```
 - **Linux**: use the existing Docker-compatible engine; host daemon installation is outside user-space mise setup.
+- **macOS**: use Colima instead of Docker Desktop; read [colima](references/colima.md) for its context, socket, memory, and mount behavior.
 
 ## Workflow
 
-1. **Verify daemon health and storage budget**: confirm the daemon is responsive and check storage footprint before launching workloads. Preserve 20 GiB free space on the workstation.
+1. **Verify daemon health and storage budget**: confirm the daemon is responsive and check storage footprint before launching workloads. Run `dot doctor --headroom` before large pulls or builds.
 
    ```bash
    docker info --format 'Server={{.ServerVersion}} Driver={{.Driver}} Containers={{.Containers}} Images={{.Images}}'
@@ -45,12 +39,7 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
    docker --context <context> compose -p <project> -f <compose-file> down
    ```
 
-1. **Run interactive debugging**: use `lazydocker` for a terminal dashboard or attach to a container directly.
-
-   ```bash
-   lazydocker
-   docker exec -it <container-id> sh
-   ```
+1. **Leave interactive debugging to the user**: `lazydocker` and `docker exec -it <container-id> sh` need a TTY; suggest them for user-driven sessions and use bounded non-interactive `docker exec <container-id> <command>` otherwise.
 
 1. **Read container logs boundedly**: select the container and incident window; widen the window when needed, and keep streaming opt-in. Use `inspect --format` for specific state fields instead of dumping environment and mount details.
 
@@ -58,21 +47,23 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
    docker logs --since 15m --tail 100 <container-id>
    ```
 
-1. **Clean up task containers**: always use `--rm` for ephemeral runs to avoid accumulating dead containers.
-
-   ```bash
-   docker run --rm -it <existing-image-or-approved-digest> echo "quick check"
-   ```
+1. **Clean up task resources**: use `docker run --rm <existing-image-or-approved-digest> <command>` for ephemeral runs, and follow [resource cleanup](../containerize/references/resource-cleanup.md) for task-created volumes, networks, images, and builders.
 
 ## Gotchas
 
-- **Colima socket path**: on macOS, Colima binds the Docker socket under `~/.colima/default/docker.sock`. If tools fail to locate the socket, set `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"`.
-- **VM memory limits**: containers in Colima share the VM's memory budget. Exit code 137 means SIGKILL and does not alone prove an OOM; check the container's `State.OOMKilled`, configured limits, and runtime/kernel evidence before changing `colima start --memory <gb>`.
-- **Volume mounts on macOS**: the driver depends on the VM profile: `vz` supports virtiofs, while QEMU profiles can use sshfs or 9p. Inspect the profile's `vmType` and `mountType` against [Colima's configuration](https://github.com/abiosoft/colima/blob/main/embedded/defaults/colima.yaml) before diagnosing performance; keep write-heavy build caches inside the VM when practical.
+- **Exit 137 is not proof of OOM**: it means SIGKILL; check `docker inspect --format '{{.State.OOMKilled}}' <container-id>`, the configured memory limit, and kernel/runtime evidence before changing limits. On macOS, Colima's VM budget also applies; see [colima](references/colima.md).
+
+## Task guides
+
+<!-- guides:start -->
+
+- [colima](references/colima.md): Run Docker on macOS through Colima: VM start, socket, memory limits, and mounts.
+
+<!-- guides:end -->
 
 ## Documentation
 
 - [Docker Documentation](https://docs.docker.com/) · [Docker Compose Reference](https://docs.docker.com/compose/)
-- [Colima GitHub Repository](https://github.com/abiosoft/colima) · [Lazydocker](https://github.com/jesseduffield/lazydocker)
-- Releases: [Docker Engine](https://docs.docker.com/engine/release-notes/) · [Colima](https://github.com/abiosoft/colima/releases)
-- Companion skills: [containerize](../containerize/SKILL.md) (image authoring), [trivy](../security-review/references/trivy/GUIDE.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).
+- [Lazydocker](https://github.com/jesseduffield/lazydocker)
+- Releases: [Docker Engine](https://docs.docker.com/engine/release-notes/)
+- Companion skills: [containerize](../containerize/SKILL.md) (image authoring), [trivy](../code-security/references/trivy/GUIDE.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).

@@ -1,18 +1,18 @@
 ---
 name: git-worktree
-description: "Prepare Git branches, isolated worktrees, or snapshots that preserve staged and unstaged changes."
+description: "Create Git branches, worktrees, or isolated snapshots of uncommitted work."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-worktree
   created: "2026-09-09"
-  updated: "2026-10-03"
+  updated: "2026-10-04"
 ---
 
 # Git Worktree
 
-Choose a branch in the current checkout or an isolated workspace according to the task. Branch naming and creation follow [branches](references/branches.md); isolation, candidate identity, and cleanup follow the workflow below. A branch-only request needs no extra checkout.
+Choose a branch in the current checkout or an isolated workspace according to the task. A branch-only request needs no extra checkout and follows the [branches](references/branches.md) guide; isolation, candidate identity, and cleanup follow the workflow below.
 
 ## Workflow
 
@@ -24,6 +24,14 @@ Choose a branch in the current checkout or an isolated workspace according to th
 1. **Return only intended changes**: review the destination diff, transfer task-owned changes when authorized, and preserve the source index. Commits, pushes, and merges follow the user's requested delivery flow.
 1. **Clean up deliberately**: inspect destination status and recover useful artifacts first. Use `git worktree remove <destination>` for an owned clean linked worktree; retain a dirty one until its changes are accounted for. Remove only the recorded disposable clone for a copied candidate.
 1. **Report identity**: revision, included dirty changes, executed gate, source-versus-tested differences, and any retained workspace.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [branches](references/branches.md): Create and switch to a conventional `<type>/<slug>` branch in the current checkout.
+
+<!-- guides:end -->
 
 ## Gotchas
 
