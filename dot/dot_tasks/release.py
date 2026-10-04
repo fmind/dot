@@ -163,12 +163,6 @@ def _remote_release_tag_objects(state: State, remote: str, refspec: str) -> tupl
     return direct, peeled
 
 
-def remote_release_tag_commit(state: State, remote: str, refspec: str) -> str:
-    """Resolve the peeled commit only when the exact remote tag is annotated."""
-    direct, peeled = _remote_release_tag_objects(state, remote, refspec)
-    return peeled if direct and peeled else ""
-
-
 def push_release_tag(state: State, remote: str, tag: str, commit: str) -> None:
     """Create and push an annotated tag, reconciling uncertain remote success."""
     refspec = f"refs/tags/{tag}"
