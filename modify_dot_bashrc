@@ -9,5 +9,5 @@ if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate bash)"
   eval "${mise_activation}"
 fi` -}}
-{{- $text := includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-bash-path" "body" $path "position" "top" "legacyEnd" "export PATH=.*") -}}
-{{- includeTemplate "managed-block.tmpl" (dict "stdin" $text "name" "mise-bash-integration" "body" $activation "position" "bottom" "legacyEnd" "fi") -}}
+{{- $text := includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-bash-path" "body" $path "position" "top") -}}
+{{- includeTemplate "managed-block.tmpl" (dict "stdin" $text "name" "mise-bash-integration" "body" $activation "position" "bottom") -}}

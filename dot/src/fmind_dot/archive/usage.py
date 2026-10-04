@@ -489,15 +489,6 @@ def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: 
     return filtered[:limit] if limit > 0 else filtered
 
 
-def show_usage_record(harness: str, session_id: str) -> UsageRecord:
-    if not harness or not session_id:
-        raise ValueError("usage: dot agent usage show <agent> <session-id>")
-    for record in iter_usage_records():
-        if record.harness == harness and record.session_id == session_id:
-            return record
-    raise ValueError(f"usage record not found for {harness} session {session_id}")
-
-
 def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool) -> None:
     if not rows:
         output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
@@ -601,6 +592,5 @@ __all__ = [
     "list_usage_records",
     "load_usage_records",
     "parse_flexible_time",
-    "show_usage_record",
     "write_usage_stats",
 ]

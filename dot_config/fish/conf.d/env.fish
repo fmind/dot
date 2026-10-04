@@ -36,6 +36,8 @@ end
 # a diagram export never downloads a second browser into ~/.cache/puppeteer.
 if command -q google-chrome
     set -gx PUPPETEER_EXECUTABLE_PATH (command -v google-chrome)
+else if test -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    set -gx PUPPETEER_EXECUTABLE_PATH "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 end
 set -gx RIPGREP_CONFIG_PATH $HOME/.config/ripgrep/config
 set -gx TRIVY_CONFIG $HOME/.config/trivy/trivy.yaml

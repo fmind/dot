@@ -10,33 +10,14 @@ concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  # A tag can point at a commit whose CI is still running or red: repeat the macOS
-  # tests here so a platform regression blocks the release instead of shipping.
-  macos:
-    name: Test on macOS
-    runs-on: macos-15
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install toolchain
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
-        with:
-          cache: false
-          version: 2026.10.2
-      - name: Render chezmoi source
-        run: mise run check:chezmoi
-      - name: Run repository tests
-        run: mise run test
-  # Run the full toolchain, gate, and build backend with a read-only token.
-  # Only the distributions and release notes cross into the attest and publish jobs.
-  build:
-    name: Build release distributions
-    needs: macos
+  # A tag can point at a commit whose CI is still running or red: rerun the gate
+  # with a read-only token so a regression blocks the release instead of shipping.
+  gate:
+    name: Gate release
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      notes: ${{ steps.notes.outputs.notes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,7 +26,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
           cache: false
           # Match the tested bootstrap baseline and revision-3 lockfile reader.
@@ -58,70 +39,24 @@ jobs:
           printf '%s\n' "$status"
           test -z "$status"
       - name: Extract release notes
-        # dot/dist is ignored, so the notes travel with the distributions in one artifact.
-        run: git-cliff --config dot_config/git-cliff/cliff.toml --latest --strip all > dot/dist/notes.md
-      - name: Validate tag against built version
-        # Bind the tag to the distributions before the attest job signs them.
-        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md --validate-only
-      - name: Upload release payload
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release
-          path: dot/dist/
-          if-no-files-found: error
-          retention-days: 1
-  # The OIDC token lives in a job that executes no repository code or dependency:
-  # it only downloads the validated payload and signs its digests.
-  attest:
-    name: Attest build provenance
-    needs: build
-    runs-on: ubuntu-24.04
-    permissions:
-      attestations: write # Store provenance for the validated release distributions.
-      contents: read
-      id-token: write # Sign provenance with this workflow's short-lived identity.
-    timeout-minutes: 10
-    steps:
-      - name: Download release payload
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release
-          path: dot/dist/
-      - name: Attest build provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: |
-            dot/dist/*.whl
-            dot/dist/*.tar.gz
+        id: notes
+        run: |
+          {
+            echo "notes<<EOF_RELEASE_NOTES"
+            git-cliff --config dot_config/git-cliff/cliff.toml --latest --strip all
+            echo "EOF_RELEASE_NOTES"
+          } >> "$GITHUB_OUTPUT"
+  # The write token lives in a job that checks out and runs no repository code.
   publish:
     name: Publish GitHub release
-    needs: [build, attest]
+    needs: gate
     runs-on: ubuntu-24.04
     permissions:
-      contents: write # The final publication step creates the release and uploads assets.
-    timeout-minutes: 20
+      contents: write # Create the release for the gated tag.
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install publication runtime
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
-        with:
-          cache: false
-          # The publication task needs only the locked Python runtime; no build,
-          # lint, or scan tool is installed beside the write-scoped token.
-          install_args: uv python
-          version: 2026.10.2
-      - name: Download release payload
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release
-          path: dot/dist/
-      - name: Validate tag against built version
-        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md --validate-only
-      - name: Publish GitHub release
-        # Expose GH_TOKEN to the publication helper only for the write operation.
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: mise run release:publish --tag "$GITHUB_REF_NAME" --notes-file dot/dist/notes.md
+          NOTES: ${{ needs.gate.outputs.notes }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --notes "$NOTES"

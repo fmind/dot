@@ -1,10 +1,9 @@
-"""Validate first-party skill packages and repository documentation links."""
+"""Validate first-party skill packages; lychee checks Markdown links in `check:skills`."""
 
 from __future__ import annotations
 
 import argparse
 import functools
-import json
 import os
 import re
 import stat
@@ -38,7 +37,6 @@ GUIDE_START = "<!-- guides:start -->"
 GUIDE_END = "<!-- guides:end -->"
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-TOOL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
 FRONTMATTER_FIELDS = {
     "allowed-tools",
     "compatibility",
@@ -58,7 +56,6 @@ class _HTMLTargetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.targets: list[str] = []
-        self.anchors: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._collect(tag, attrs)
@@ -72,8 +69,6 @@ class _HTMLTargetParser(HTMLParser):
             if value is None:
                 continue
             name = name.lower()
-            if name == "id" or (tag == "a" and name == "name"):
-                self.anchors.add(value)
             if name == "data" and tag != "object":
                 continue
             if name in HTML_LINK_ATTRIBUTES:
@@ -119,25 +114,6 @@ def _relative(root: Path, path: Path) -> str:
         return path.relative_to(root).as_posix()
     except ValueError:
         return str(path)
-
-
-def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"duplicate key {key!r}")
-        result[key] = value
-    return result
-
-
-def _read_json(path: Path) -> tuple[dict[str, Any] | None, list[str]]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
-    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
-        return None, [f"{path.as_posix()}: invalid JSON: {error}"]
-    if not isinstance(value, dict):
-        return None, [f"{path.as_posix()}: expected a JSON object"]
-    return value, []
 
 
 def _discover_skills(root: Path) -> tuple[dict[str, Path], list[str]]:
@@ -320,11 +296,9 @@ def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
     return findings
 
 
-def _resource_findings(root: Path, skill: Path) -> tuple[list[str], str]:
+def _resource_findings(root: Path, skill: Path) -> list[str]:
     directory = skill.parent
-    root_content = skill.read_text(encoding="utf-8")
-    chunks = [root_content]
-    texts = {skill: root_content}
+    texts = {skill: skill.read_text(encoding="utf-8")}
     resources: set[Path] = set()
     findings: list[str] = []
     for path in sorted(directory.rglob("*")):
@@ -378,25 +352,12 @@ def _resource_findings(root: Path, skill: Path) -> tuple[list[str], str]:
         unsafe = _unsafe_text_finding(_relative(root, path), text)
         if unsafe:
             findings.append(unsafe)
-        chunks.append(text)
         texts[path] = text
     reached = _reachable_resources(skill, texts, resources)
     findings.extend(
         f"{_relative(root, path)}: resource is not reachable from SKILL.md" for path in sorted(resources - reached)
     )
-    # Code-path disclosures also expose Markdown; validate those documents even
-    # when no hyperlink led the normal link walker to them.
-    findings.extend(
-        _link_findings(
-            root, directory, documents=tuple(path for path in sorted(reached) if path in texts and path.suffix == ".md")
-        )
-    )
-    return findings, "\n".join(chunks)
-
-
-def _contains_tool(content: str, tool: str) -> bool:
-    boundary = r"A-Za-z0-9_.+\-"
-    return re.search(rf"(?<![{boundary}]){re.escape(tool)}(?![{boundary}])", content, re.IGNORECASE) is not None
+    return findings
 
 
 @functools.cache
@@ -415,94 +376,7 @@ def _document_targets(content: str) -> tuple[str, ...]:
     return tuple(targets)
 
 
-@functools.cache
-def _markdown_anchors(content: str) -> frozenset[str]:
-    """Match GitHub heading slugs, duplicate suffixes, and explicit HTML anchors."""
-    tokens = MARKDOWN.parse(content)
-    anchors: set[str] = set()
-    parser = _HTMLTargetParser()
-    for index, token in enumerate(tokens):
-        if token.type == "heading_open":
-            title = "".join(
-                child.content
-                for child in tokens[index + 1].children or []
-                if child.type in {"text", "code_inline", "image"}
-            ).lower()
-            slug = "".join(
-                character
-                for character in title
-                if character in " _-" or unicodedata.category(character)[0] in {"L", "N", "M"}
-            ).replace(" ", "-")
-            unique, suffix = slug, 0
-            while unique in anchors:
-                suffix += 1
-                unique = f"{slug}-{suffix}"
-            anchors.add(unique)
-        for candidate in [token, *(token.children or [])]:
-            if candidate.type in {"html_block", "html_inline"}:
-                parser.feed(candidate.content)
-    return frozenset(anchors | parser.anchors)
-
-
-def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] | None = None) -> list[str]:
-    findings: list[str] = []
-    resolved_root = root.resolve()
-    resolved_directory = directory.resolve()
-    pending = list(documents) if documents is not None else [directory / "SKILL.md"]
-    seen: set[Path] = set()
-    anchors: dict[Path, frozenset[str]] = {}
-    while pending:
-        document = pending.pop()
-        if document in seen:
-            continue
-        seen.add(document)
-        if document.is_symlink():
-            findings.append(f"{_relative(root, document)}: symbolic link is not allowed")
-            continue
-        try:
-            content = document.read_text(encoding="utf-8")
-        except (OSError, UnicodeError) as error:
-            findings.append(f"{_relative(root, document)}: cannot read Markdown: {error}")
-            continue
-        for raw_target in _document_targets(content):
-            target = raw_target.strip().strip("<>")
-            if not target or target.startswith("{"):
-                continue
-            parsed = urlsplit(target)
-            if parsed.scheme:
-                if parsed.scheme.lower() == "file":
-                    findings.append(f"{_relative(root, document)}: unsupported local link {target!r}")
-                continue
-            if parsed.netloc:
-                continue
-            if target.startswith(("/", "~")):
-                findings.append(f"{_relative(root, document)}: local link {target!r} must be repository-relative")
-                continue
-            relative_document = document.relative_to(directory)
-            if "templates" in relative_document.parts[:-1]:
-                # Template links become relative to the generated project after copying.
-                continue
-            local = unquote(parsed.path)
-            resolved = (document.parent / local).resolve() if local else document.resolve()
-            if not resolved.is_relative_to(resolved_root):
-                findings.append(f"{_relative(root, document)}: local link {target!r} escapes the repository")
-            elif not resolved.exists():
-                findings.append(f"{_relative(root, document)}: missing local link {target!r}")
-            elif resolved.is_file() and resolved.suffix.lower() == ".md":
-                if parsed.fragment:
-                    try:
-                        if resolved not in anchors:
-                            anchors[resolved] = _markdown_anchors(resolved.read_text(encoding="utf-8"))
-                        if unquote(parsed.fragment) not in anchors[resolved]:
-                            findings.append(f"{_relative(root, document)}: missing local anchor {target!r}")
-                    except OSError, UnicodeError:
-                        findings.append(f"{_relative(root, document)}: cannot inspect local anchor {target!r}")
-                if documents is None and resolved.is_relative_to(resolved_directory):
-                    pending.append(resolved)
-    return findings
-
-
-def _skill_findings(root: Path, name: str, path: Path, tools: list[str]) -> tuple[list[str], str | None]:
+def _skill_findings(root: Path, name: str, path: Path) -> tuple[list[str], str | None]:
     relative = _relative(root, path)
     metadata, body, findings = _frontmatter(path, root)
     if metadata is None:
@@ -546,73 +420,18 @@ def _skill_findings(root: Path, name: str, path: Path, tools: list[str]) -> tupl
     elif first_section < 2:
         findings.append(f"{relative}: H1 must be followed by a one-line intent before the first H2 section")
 
-    resource_findings, package_text = _resource_findings(root, path)
-    findings.extend(resource_findings)
-    for tool in tools:
-        if not TOOL_PATTERN.fullmatch(tool):
-            findings.append(f"skills/contracts.json: skill {name!r} has invalid required tool {tool!r}")
-        elif not _contains_tool(package_text, tool):
-            findings.append(f"{relative}: required tool {tool!r} is undocumented")
+    findings.extend(_resource_findings(root, path))
     return findings, description
 
 
-def _manifest(root: Path) -> tuple[dict[str, list[str]], list[str]]:
-    path = root / "skills/contracts.json"
-    data, findings = _read_json(path)
-    if data is None:
-        return {}, findings
-    if set(data) != {"skills", "version"}:
-        findings.append("skills/contracts.json: expected only 'version' and 'skills' fields")
-    if data.get("version") != 1:
-        findings.append("skills/contracts.json: version must be 1")
-    raw_skills = data.get("skills")
-    if not isinstance(raw_skills, dict):
-        findings.append("skills/contracts.json: skills must be an object")
-        return {}, findings
-    skills: dict[str, list[str]] = {}
-    for name, raw_tools in raw_skills.items():
-        if (
-            not isinstance(name, str)
-            or not isinstance(raw_tools, list)
-            or not all(isinstance(tool, str) for tool in raw_tools)
-        ):
-            findings.append(f"skills/contracts.json: skill {name!r} must map to an array of tool names")
-            continue
-        if len(raw_tools) != len(set(raw_tools)):
-            findings.append(f"skills/contracts.json: skill {name!r} repeats a required tool")
-        skills[name] = raw_tools
-    return skills, findings
-
-
-def documentation_findings(root: Path) -> list[str]:
-    """Check local links and anchors in the root documentation."""
-    documents = tuple(
-        path
-        for path in (
-            root / "README.md",
-            root / "AGENTS.md",
-            root / "dot_agents/AGENTS.md",
-            root / ".github/SECURITY.md",
-        )
-        if path.is_file()
-    )
-    return _link_findings(root, root, documents=documents)
-
-
 def repository_findings(root: Path) -> list[str]:
-    """Return every deterministic catalog, package, budget, and documentation finding."""
+    """Return every deterministic catalog, package, and budget finding."""
     root = root.resolve()
-    manifest, findings = _manifest(root)
-    discovered, discovery_findings = _discover_skills(root)
-    findings.extend(discovery_findings)
-    for name in sorted(set(discovered) - set(manifest)):
-        findings.append(f"skills/contracts.json: active skill {name!r} has no required-tools declaration")
-    for name in sorted(set(manifest) - set(discovered)):
-        findings.append(f"skills/contracts.json: registered skill {name!r} has no active SKILL.md")
+    discovered, findings = _discover_skills(root)
 
     descriptions: dict[str, str] = {}
     for name, path in sorted(discovered.items()):
-        package_findings, description = _skill_findings(root, name, path, manifest.get(name, []))
+        package_findings, description = _skill_findings(root, name, path)
         findings.extend(package_findings)
         if description is not None:
             descriptions[name] = description
@@ -641,7 +460,6 @@ def repository_findings(root: Path) -> list[str]:
             + f"; {DUPLICATE_GUIDANCE}"
             for item in context["duplicates"]
         )
-    findings.extend(documentation_findings(root))
     return sorted(set(findings))
 
 

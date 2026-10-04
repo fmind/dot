@@ -45,7 +45,7 @@ sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by d
 - **Key names still leak**: sops encrypts values, not keys, so `stripe_production_key:` in a public repo is information; name keys neutrally when the repo is public.
 - **Never edit ciphertext by hand**: sops stores a MAC over the file and out-of-band edits fail decryption; go through `sops edit` or `sops set`.
 - **Rule match is positional**: `sops edit` picks the first `creation_rules` entry whose `path_regex` matches the path relative to `.sops.yaml`, so run sops from the repo root, and run `updatekeys` after any recipient change.
-- **gitleaks coexists**: the [lefthook](../github-actions/references/lefthook.md) pre-commit scans staged content, catching a staged plaintext sibling of an `*.enc.*` file. Inspect the redacted rule and location for every finding, including `*.enc.*` files; the suffix does not prove that comments, keys, or excluded fields are encrypted. Confirm whether plaintext was exposed before rotating credentials per [gitleaks](../code-security/references/gitleaks.md).
+- **gitleaks coexists**: the [lefthook](../github-actions/references/lefthook.md) pre-commit scans the working tree, catching a plaintext sibling of an `*.enc.*` file. Inspect the redacted rule and location for every finding, including `*.enc.*` files; the suffix does not prove that comments, keys, or excluded fields are encrypted. Confirm whether plaintext was exposed before rotating credentials per [gitleaks](../code-security/references/gitleaks.md).
 
 ## Task guides
 

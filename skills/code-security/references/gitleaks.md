@@ -10,10 +10,9 @@ Find credentials before they reach a remote and the ones that already did; each 
 ## Commands
 
 ```bash
-gitleaks git --redact=100 --staged --verbose --no-banner                        # pre-commit: the change about to be committed
-gitleaks git --redact=100 --log-opts="--max-count=100" --verbose --no-banner    # check:leaks:history: recent commits (bounded, fast)
-gitleaks git --redact=100 --verbose --no-banner                                 # full history: the scheduled audit
-gitleaks dir . --redact=100 --verbose --no-banner                               # working tree, including untracked files
+gitleaks dir . --redact=100 --verbose --no-banner                # check:leaks: working tree, including untracked files
+gitleaks git --redact=100 --verbose --no-banner                  # check:leaks:full: complete history, the scheduled audit
+gitleaks git --redact=100 --staged --verbose --no-banner         # ad hoc: only the change about to be committed
 gitleaks git --redact=100 --report-format sarif --report-path gitleaks.sarif
 ```
 
@@ -21,25 +20,16 @@ gitleaks git --redact=100 --report-format sarif --report-path gitleaks.sarif
 
 ## Mise Task
 
-Expose explicit scopes per [mise](../../mise/SKILL.md). The normal gate scans working-tree files and bounded history; the [lefthook](../../github-actions/references/lefthook.md) pre-commit scan calls `check:leaks:staged`. Native Git options handle an unborn `HEAD` without a shell wrapper.
+Expose two scopes per [mise](../../mise/SKILL.md). The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.gitleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check` run scans every commit before it exists; the scheduled job audits the full history.
 
 ```toml
 [tasks."check:leaks"]
-description = "Scan the working tree and recent commits for leaked secrets"
-depends = ["check:leaks:tree", "check:leaks:history"]
-
-[tasks."check:leaks:tree"]
-description = "Scan working-tree files, including untracked files"
+description = "Scan working-tree files, including untracked files, for leaked secrets"
 run = "gitleaks dir . --redact=100 --verbose --no-banner"
 
-[tasks."check:leaks:history"]
-description = "Scan the latest 100 commits reachable from HEAD"
-# An unborn HEAD has no history; check:leaks:tree still scans its files.
-run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose --no-banner'
-
-[tasks."check:leaks:staged"]
-description = "Scan only staged changes before committing"
-run = "gitleaks git --redact=100 --staged --verbose --no-banner"
+[tasks."check:leaks:full"]
+description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
+run = "gitleaks git --redact=100 --verbose --no-banner"
 ```
 
 ## When a Secret Is Found
@@ -52,12 +42,12 @@ run = "gitleaks git --redact=100 --staged --verbose --no-banner"
 ## Gotchas
 
 - **Policy is part of the evidence**: inspect effective configuration, ignore files, baselines, and inline `gitleaks:allow` comments. For an untrusted candidate, run from a trusted directory with reviewed `--config` and `--gitleaks-ignore-path` files and `--ignore-gitleaks-allow`; do not let the candidate suppress its own findings. Redaction protects output, not scan completeness.
-- **Shallow CI checkouts**: fetch the depth the task scans (`fetch-depth: 100`) and keep the full-history audit in the scheduled `security.yml` job at `fetch-depth: 0` per [github-actions](../../github-actions/references/ci-cd/GUIDE.md).
-- **Fresh repository**: `--ignore-missing HEAD --` permits an unborn `HEAD`; the separate working-tree scan remains mandatory. After the first commit, the history scan covers the latest 100 commits reachable from `HEAD`. Choose a named scope instead of changing modes through forwarded flags.
+- **Full-history checkout**: the scheduled `security.yml` job needs `fetch-depth: 0` per [github-actions](../../github-actions/references/ci-cd/GUIDE.md); a shallow clone silently narrows `check:leaks:full`.
+- **Bypassed hooks**: a commit made with `--no-verify` or outside the hooks is caught only by the weekly full-history audit; run `check:leaks:full` after importing foreign history.
 - **`--redact` in shared logs**: never print a found secret in CI output or an uploaded report.
 
 ## Documentation
 
 - [gitleaks](https://github.com/gitleaks/gitleaks)
 - Releases: [gitleaks](https://github.com/gitleaks/gitleaks/releases)
-- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (also reports secrets in `fs` scans).
+- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (its `secret` scanner stays disabled; keep one secret scanner per repository).

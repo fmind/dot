@@ -8,10 +8,10 @@ pkg:
   # Development tools execute locally and in CI, so include their dependencies.
   include-dev-deps: true
 scan:
+  # Gitleaks owns secret scanning; keep one secret scanner per repository.
   scanners:
     - license
     - misconfig
-    - secret
     - vuln
   skip-dirs:
     - .agents/tmp

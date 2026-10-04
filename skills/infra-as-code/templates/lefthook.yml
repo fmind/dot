@@ -12,9 +12,6 @@ pre-commit:
       priority: 10
       run: mise run format:tofu {staged_files}
       stage_fixed: true
-    check:leaks:staged:
-      priority: 20
-      run: mise run check:leaks:staged
     check:
       priority: 30
       run: mise run check

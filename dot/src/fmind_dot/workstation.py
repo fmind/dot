@@ -3,6 +3,7 @@
 import os
 import select
 import shlex
+from collections.abc import Callable
 from pathlib import Path
 from typing import IO, Annotated, Literal
 
@@ -43,7 +44,14 @@ def _ensure_hf_cache_dir() -> None:
     Path(os.path.expandvars(str(selected))).mkdir(parents=True, exist_ok=True)
 
 
-def execute(state: State, args: list[str], *, dry_run: bool = False, env: dict[str, str] | None = None) -> None:
+def execute(
+    state: State,
+    args: list[str],
+    *,
+    dry_run: bool = False,
+    env: dict[str, str] | None = None,
+    on_stderr_line: Callable[[str], None] | None = None,
+) -> None:
     """Preserve caller environment, directory, terminal, and native diagnostics."""
     if dry_run:
         print(shlex.join(args), file=state.stdout)
@@ -51,7 +59,9 @@ def execute(state: State, args: list[str], *, dry_run: bool = False, env: dict[s
     require_tools(state, [args])
     if args[:2] == ["hf", "cache"]:
         _ensure_hf_cache_dir()
-    code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env)
+    code = state.runner.interactive(
+        args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env, on_stderr_line=on_stderr_line
+    )
     if code != 0:
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 

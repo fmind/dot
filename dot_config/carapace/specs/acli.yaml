@@ -1,0 +1,6 @@
+# Docs: https://carapace-sh.github.io/carapace-spec/
+# acli 1.3.39 dropped `acli completion` but still answers cobra's `acli __complete` protocol.
+name: acli
+parsing: disabled
+completion:
+  positionalany: ["$carapace.bridge.Cobra([acli])"]

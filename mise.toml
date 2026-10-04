@@ -48,6 +48,7 @@ gh = "latest"
 git-cliff = "latest"
 gitleaks = "latest"
 lefthook = "latest"
+lychee = "latest"
 neovim = "latest"
 python = "latest"
 shellcheck = "latest"
@@ -94,7 +95,7 @@ depends = [
 
 [tasks."check:network"]
 description = "Run the checks that download vulnerability data (pre-push)"
-depends = ["check:scan", "check:vuln", "check:vuln:locks"]
+depends = ["check:scan", "check:vuln"]
 
 [tasks."check:actions"]
 alias = "ca"
@@ -123,35 +124,22 @@ description = "Check config and markup formatting (dprint)"
 run = "dprint check"
 
 [tasks."check:fish"]
-description = "Validate Fish syntax without loading user configuration, then run the Fish behavior tests"
+description = "Validate Fish syntax without loading user configuration (behavior tests run in test)"
 run = """
 for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish; do
   fish --no-config --no-execute "$file"
 done
-uv run --frozen --project dot pytest -q dot/tests/test_fish.py
 """
 
 [tasks."check:leaks"]
 alias = "cl"
-description = "Scan the working tree and recent commits for leaked secrets"
-depends = ["check:leaks:tree", "check:leaks:history"]
-
-[tasks."check:leaks:tree"]
-description = "Scan working-tree files, including untracked files"
+description = "Scan working-tree files, including untracked files, for leaked secrets"
+# The pre-commit hook runs this through check:local; check:leaks:full covers the history weekly.
 run = "gitleaks dir . --redact=100 --verbose --no-banner"
-
-[tasks."check:leaks:history"]
-description = "Scan the latest 100 commits reachable from HEAD"
-# An unborn HEAD has no history; check:leaks:tree still scans its files.
-run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose --no-banner'
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
 run = "gitleaks git --redact=100 --verbose --no-banner"
-
-[tasks."check:leaks:staged"]
-description = "Scan only staged changes before committing"
-run = "gitleaks git --redact=100 --staged --verbose --no-banner"
 
 [tasks."check:lua"]
 alias = "cu"
@@ -172,7 +160,7 @@ run = [
 
 [tasks."check:scan"]
 alias = "ct"
-description = "Scan dependencies, IaC, and secrets (Trivy)"
+description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
 run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]
@@ -198,6 +186,8 @@ description = "Validate first-party Agent Skill packages, context budgets, and d
 run = [
   "gh skill publish --dry-run skills",
   "uv run --frozen --directory dot python -m dot_tasks.skill_contracts",
+  # Generated-project templates link relative to their future repository.
+  "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md'",
 ]
 
 [tasks."check:tools"]
@@ -209,17 +199,6 @@ run = "mise tasks validate"
 alias = "cv"
 description = "Audit the locked Python dependency graph"
 run = "uv audit --project dot --preview-features audit-command --locked"
-
-[tasks."check:vuln:locks"]
-description = "Audit committed npm tool locks, which check:scan skips as unrecognized aube locks"
-# Concurrent Trivy runs share one vulnerability DB; a cold download remaps it under the
-# other reader (SIGBUS in CI). Order after check:scan whenever both are scheduled.
-wait_for = ["check:scan"]
-run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit --locks {{config_root}}/dot_config/mise/locks"
-
-[tasks."check:vuln:tools"]
-description = "Audit installed npm and pipx tool environments"
-run = "uv run --frozen --directory dot python -m dot_tasks.tool_audit"
 
 [tasks."report:skills"]
 description = "Report skill discovery budgets and on-demand load estimates"
@@ -339,19 +318,14 @@ run = "chezmoi diff --force"
 
 [tasks.doctor]
 alias = "mo"
-description = "Run chezmoi, mise, and installed-tool health checks"
+description = "Run chezmoi and mise health checks"
 # chezmoi probes hardlinks from its source into TMPDIR; /tmp can be another filesystem.
-run = ['TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor", "mise run check:vuln:tools"]
+run = ['TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor"]
 
 [tasks.hooks]
 alias = "mh"
 description = "Install repository Git hooks"
 run = "lefthook install"
-
-[tasks.full]
-alias = "mf"
-description = "Apply dotfiles and synchronize locked tools, dot, and completions"
-run = "mise run tools"
 
 [tasks.lock]
 alias = "mk"
@@ -367,16 +341,11 @@ run = [
 
 [tasks.release]
 alias = "mr"
-description = "Prepare and dispatch an exact-head GitHub release"
+description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
-[tasks."release:publish"]
-description = "Publish built GitHub release assets or verify an existing release"
-# CD runs this beside the write-scoped token, so only the locked runtime graph is synced.
-run = "uv run --frozen --no-dev --directory dot python -m dot_tasks.publish"
-
 [tasks.tools]
-alias = "mt"
+alias = ["mt", "full", "mf"]
 description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.

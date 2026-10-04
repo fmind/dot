@@ -11,7 +11,7 @@ from typing import IO, Any
 
 from fmind_dot.archive.parsers import resolve_cwd
 from fmind_dot.errors import DotError
-from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, Runner
+from fmind_dot.process import Runner
 from fmind_dot.state import State
 
 _NOTIFY_EVENTS = {
@@ -47,13 +47,8 @@ def notification_title(runner: Runner) -> str:
     ):
         return ""
     try:
-        result = runner.run_bounded(
-            ["zellij", "action", "list-panes", "--json"],
-            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=1,
-            check=False,
-        )
-        if result.returncode or result.stdout_truncated:
+        result = runner.run(["zellij", "action", "list-panes", "--json"], timeout=1, check=False)
+        if result.returncode:
             return ""
         panes = json.loads(result.stdout)
     except DotError, OSError, ValueError, RecursionError:

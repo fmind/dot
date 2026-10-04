@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import sqlite3
 import subprocess
 import sys
@@ -18,18 +19,11 @@ from typer.testing import CliRunner
 
 import fmind_dot.cli as cli
 from fmind_dot.cli import app
-from fmind_dot.config import Config, load_config
 from fmind_dot.errors import DotError
 from fmind_dot.process import Runner
 
 runner = CliRunner()
 ROOT = Path(__file__).resolve().parents[2]
-
-
-@pytest.fixture(autouse=True)
-def unmanaged_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep config commands from querying the workstation's real chezmoi inventory."""
-    monkeypatch.setattr(cli, "_managed_config", lambda _state: False)
 
 
 def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,7 +92,7 @@ def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch
     result = runner.invoke(app, ["config", "--help"])
 
     assert result.exit_code == 0
-    for command in ("edit", "init", "path", "show", "validate"):
+    for command in ("edit", "path", "show"):
         assert command in result.stdout
     assert not re.search(r"\([a-z]\)", result.stdout)
 
@@ -147,10 +141,10 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
                 "trust",
             ],
         ),
-        (["config"], ["edit", "init", "path", "show", "validate"]),
+        (["config"], ["edit", "path", "show"]),
         (["agent"], ["context", "doctor", "session", "stats", "usage"]),
-        (["agent", "session"], ["export", "list", "show", "stats", "sync"]),
-        (["agent", "usage"], ["list", "show"]),
+        (["agent", "session"], ["list", "show", "sync"]),
+        (["agent", "usage"], ["list"]),
         (["agent", "hook"], ["notify"]),
     ],
 )
@@ -183,16 +177,10 @@ def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() 
 
     session = agent.commands["session"]
     assert isinstance(session, TyperGroup)
-    assert set(session.commands) == {
-        "export",
-        "list",
-        "show",
-        "stats",
-        "sync",
-    }
+    assert set(session.commands) == {"list", "show", "sync"}
     usage = agent.commands["usage"]
     assert isinstance(usage, TyperGroup)
-    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list", "show"}
+    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list"}
 
 
 def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
@@ -203,6 +191,33 @@ def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
     documented = set(re.findall(r"^\| `dot ([a-z-]+)`", content, flags=re.MULTILINE))
 
     assert documented == visible
+
+
+def documented_dot_examples() -> list[str]:
+    """Collect `dot ...` lines from fenced examples in the README and every skill."""
+    sources = [
+        ROOT / "README.md",
+        *sorted((ROOT / "skills").rglob("*.md")),
+        *sorted((ROOT / ".agents/skills").rglob("*.md")),
+    ]
+    examples: list[str] = []
+    for source in sources:
+        fenced = False
+        for line in source.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+            elif fenced and line.startswith("dot ") and " -- " not in line:
+                examples.append(line.split("#", 1)[0].split("|", 1)[0].strip())
+    return sorted(set(examples))
+
+
+@pytest.mark.parametrize("example", documented_dot_examples())
+def test_documented_dot_examples_parse(example: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    # --help stops after parsing, so unknown commands and options fail without running anything.
+    result = runner.invoke(app, [*shlex.split(example)[1:], "--help"])
+
+    assert result.exit_code == 0, result.output
 
 
 def test_bare_invocation_exits_successfully_with_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -265,7 +280,7 @@ def test_config_validation_errors_do_not_disclose_input(
 ) -> None:
     config = tmp_path / "config.yaml"
     config.write_text(content)
-    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(config), "config", "validate"])
+    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(config), "config", "show"])
     with pytest.raises(SystemExit) as stopped:
         cli.main()
     captured = capsys.readouterr()
@@ -307,68 +322,11 @@ def test_config_path_expands_the_current_home(tmp_path: Path, monkeypatch: pytes
     assert result.stdout == f"{tmp_path}/custom/dot.yaml\n"
 
 
-def test_config_init_round_trips_refuses_clobber_and_supports_force(tmp_path: Path) -> None:
-    path = tmp_path / "nested" / "dot.yaml"
-
-    initialized = runner.invoke(app, ["--config", str(path), "config", "init"])
-    assert initialized.exit_code == 0
-    assert initialized.stdout == f"✓ Wrote starter configuration to {path}\n"
-    starter = path.read_text(encoding="utf-8")
-    # Defaults stay commented so later releases can still change them.
-    assert yaml.safe_load(starter) == {"schema_version": 3}
-    assert "#   concurrency: 8\n" in starter
-    reference = starter.split("\n", 3)[3]
-    uncommented = "\n".join(line.removeprefix("#").removeprefix(" ") for line in reference.splitlines())
-    assert yaml.safe_load(uncommented) | {"schema_version": 3} == Config().model_dump(mode="python")
-    assert load_config(path) == Config()
-
-    path.write_text("pull:\n  concurrency: 2\n", encoding="utf-8")
-    refused = runner.invoke(app, ["--config", str(path), "config", "init"])
-    assert refused.exit_code == 1
-    assert isinstance(refused.exception, DotError)
-    assert "use --force to overwrite" in str(refused.exception)
-    assert yaml.safe_load(path.read_text(encoding="utf-8"))["pull"]["concurrency"] == 2
-
-    forced = runner.invoke(app, ["--config", str(path), "config", "init", "--force"])
-    assert forced.exit_code == 0
-    assert path.read_text(encoding="utf-8") == starter
-
-
-def test_config_init_rejects_a_dangling_symlink(tmp_path: Path) -> None:
-    target = tmp_path / "missing.yaml"
-    path = tmp_path / "dot.yaml"
-    path.symlink_to(target)
-
-    result = runner.invoke(app, ["--config", str(path), "config", "init"])
-
-    assert result.exit_code == 1
-    assert isinstance(result.exception, DotError)
-    assert not target.exists()
-
-
-def test_config_init_wraps_directory_creation_and_write_failures(tmp_path: Path) -> None:
-    blocked_parent = tmp_path / "blocked"
-    blocked_parent.write_text("not a directory", encoding="utf-8")
-    nested = blocked_parent / "dot.yaml"
-
-    directory_failure = runner.invoke(app, ["--config", str(nested), "config", "init"])
-    assert directory_failure.exit_code == 1
-    assert isinstance(directory_failure.exception, DotError)
-    assert "failed to create config directory" in str(directory_failure.exception)
-
-    directory_target = tmp_path / "directory.yaml"
-    directory_target.mkdir()
-    write_failure = runner.invoke(app, ["--config", str(directory_target), "config", "init", "--force"])
-    assert write_failure.exit_code == 1
-    assert isinstance(write_failure.exception, DotError)
-    assert "failed to write config file" in str(write_failure.exception)
-
-
 @pytest.mark.parametrize(
     ("editor", "expected"),
     [("custom-editor --wait", ["custom-editor", "--wait"]), ("   ", ["vi"])],
 )
-def test_config_edit_scaffolds_and_opens_the_selected_editor(
+def test_config_edit_opens_the_selected_editor_and_validates(
     editor: str,
     expected: list[str],
     tmp_path: Path,
@@ -382,6 +340,7 @@ def test_config_edit_scaffolds_and_opens_the_selected_editor(
 
     def interactive(_self: Runner, arguments: Sequence[str], **_kwargs: object) -> int:
         calls.append(list(arguments))
+        Path(arguments[-1]).write_text("pull:\n  concurrency: 2\n", encoding="utf-8")
         return 0
 
     monkeypatch.setenv("EDITOR", editor)
@@ -391,8 +350,8 @@ def test_config_edit_scaffolds_and_opens_the_selected_editor(
     result = runner.invoke(app, ["--config", str(path), "config", "edit"])
 
     assert result.exit_code == 0
-    assert path.is_file()
     assert calls == [[*expected, str(path)]]
+    assert result.stdout == "✓ Configuration is valid.\n"
 
 
 def test_config_edit_reports_missing_editor_and_failed_exit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -421,32 +380,6 @@ def test_config_edit_reports_missing_editor_and_failed_exit(tmp_path: Path, monk
     assert failed_result.exit_code == 1
     assert isinstance(failed_result.exception, DotError)
     assert str(failed_result.exception) == "editor exited with status 23"
-
-
-def test_config_validate_distinguishes_defaults_explicit_missing_and_invalid(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    implicit = runner.invoke(app, ["config", "validate"])
-    assert implicit.exit_code == 0
-    assert "built-in defaults are in effect" in implicit.stdout
-
-    missing = tmp_path / "missing.yaml"
-    explicit = runner.invoke(app, ["--config", str(missing), "config", "validate"])
-    assert explicit.exit_code == 1
-    assert isinstance(explicit.exception, FileNotFoundError)
-
-    invalid = tmp_path / "invalid.yaml"
-    invalid.write_text("pull:\n  directoories: []\n", encoding="utf-8")
-    rejected = runner.invoke(app, ["--config", str(invalid), "config", "validate"])
-    assert rejected.exit_code == 1
-    assert "directoories" in str(rejected.exception)
-
-    valid = tmp_path / "valid.yaml"
-    valid.write_text("pull:\n  concurrency: 2\n", encoding="utf-8")
-    accepted = runner.invoke(app, ["--config", str(valid), "config", "validate"])
-    assert accepted.exit_code == 0
-    assert accepted.stdout == f"✓ Configuration at {valid} is valid.\n"
 
 
 @pytest.mark.parametrize(
@@ -481,9 +414,12 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
     blocked_parent.write_text("not a directory", encoding="utf-8")
     environment = os.environ.copy()
     environment["HOME"] = str(tmp_path)
-    # An empty PATH hides chezmoi, so the child cannot query the workstation's managed files.
+    # A PATH with only a stub editor keeps the child away from workstation tools.
     (tmp_path / "bin").mkdir()
+    (tmp_path / "bin/editor").write_text("#!/bin/sh\n", encoding="utf-8")
+    (tmp_path / "bin/editor").chmod(0o755)
     environment["PATH"] = str(tmp_path / "bin")
+    environment["EDITOR"] = "editor"
 
     result = subprocess.run(
         [
@@ -493,7 +429,7 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
             "--config",
             str(blocked_parent / "dot.yaml"),
             "config",
-            "init",
+            "edit",
         ],
         cwd=Path(__file__).parents[1],
         env=environment,
@@ -564,7 +500,7 @@ def test_main_reports_keyboard_interrupt_raised_inside_a_command(
 
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(cli, "state_from", interrupt)
-    monkeypatch.setattr(sys, "argv", ["dot", "config", "validate"])
+    monkeypatch.setattr(sys, "argv", ["dot", "config", "show"])
 
     with pytest.raises(SystemExit) as exit_info:
         cli.main()

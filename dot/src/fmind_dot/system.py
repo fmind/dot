@@ -1,13 +1,12 @@
 """Workstation diagnostics, completions, and installation freshness."""
 
-import json
 import os
 import shutil
 import stat
 import tempfile
 import tomllib
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -16,36 +15,22 @@ from typer.completion import get_completion_script
 
 from fmind_dot import deploy
 from fmind_dot.auth import (
-    GCLOUD_LOGIN_MARKERS,
+    GCLOUD_CLI_TOKEN,
     GITHUB_KEYRING_REMEDY,
-    github_entry,
-    github_status_command,
+    adc_ready,
+    gcloud_ready,
+    github_status,
     github_token_plaintext,
-    workspace_token_valid,
+    workspace_ready,
 )
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.private_files import write_atomic_file
-from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, run_parallel
+from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State, require_tools, state_from
 
-# gh probes the configured host and is prepended at run time.
-_AUTH_PROBES = {
-    "gcloud": (["gcloud", "auth", "print-access-token"], True),
-    "gcloud-adc": (["gcloud", "auth", "application-default", "print-access-token"], True),
-    "gws": (["gws", "auth", "status"], False),
-}
-# gcloud markers are shared with dot login gcp so both classify the same stderr.
-_AUTH_FAILURE_MARKERS = (
-    *GCLOUD_LOGIN_MARKERS,
-    "not currently logged in",
-    "not logged into any github hosts",
-    "authentication token is invalid",
-    "invalid authentication credentials",
-    "login required",
-)
 # Operating thresholds shared with the persona and the dot-cli disk-space guide.
 _GIB = 1024**3
 _DISK_FAIL_GIB = 10
@@ -225,48 +210,7 @@ def _environment_results(state: State) -> list[CheckResult]:
         CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "warn", "unset (optional)")
         for name in state.config.doctor.env_vars.optional
     )
-    if "opencode" in state.config.doctor.tools:
-        results.append(_opencode_project_result(state))
     return results
-
-
-def _opencode_project_result(state: State) -> CheckResult:
-    name = "opencode-project"
-    if state.runner.which("opencode") is None:
-        return CheckResult(name, "skip", "opencode not installed (see Tools)")
-    try:
-        # Let OpenCode resolve JSONC, overrides, and environment substitution.
-        # Disable external plugins and never render the potentially secret output.
-        result = state.runner.run_bounded(
-            ["opencode", "debug", "config", "--pure"],
-            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=state.config.doctor.probe_timeout_seconds,
-            check=False,
-        )
-        if result.returncode or result.output_truncated:
-            return CheckResult(name, "fail", "resolved configuration probe failed; run opencode debug config privately")
-        config = json.loads(result.stdout)
-        if not isinstance(config, dict) or not isinstance(config.get("provider", {}), dict):
-            raise ValueError("invalid configuration shape")
-        vertex = config.get("provider", {}).get("google-vertex")
-        uses_vertex = any(
-            isinstance(config.get(key), str) and config[key].startswith("google-vertex/")
-            for key in ("model", "small_model")
-        )
-        if vertex is None and not uses_vertex:
-            return CheckResult(name, "skip", "Google Vertex provider not configured")
-        if not isinstance(vertex, dict) or not isinstance(vertex.get("options", {}), dict):
-            raise ValueError("invalid provider options")
-        project = vertex.get("options", {}).get("project")
-    except DotError, OSError, ValueError:
-        return CheckResult(name, "fail", "unable to resolve configuration; run opencode debug config privately")
-    if not isinstance(project, str) or not project.strip() or "{" in project or "}" in project:
-        return CheckResult(
-            name,
-            "fail",
-            "set the Google Vertex project in OpenCode configuration or its referenced environment variable",
-        )
-    return CheckResult(name, "pass", "Google Vertex project selected (access not checked)")
 
 
 def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
@@ -313,19 +257,13 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
 
 
 def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
-    """Run one bounded doctor probe; a string names why it produced no usable result."""
+    """Run one doctor probe; a string names why it produced no usable result."""
     try:
-        result = state.runner.run_bounded(
-            list(args),
-            max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES,
-            timeout=state.config.doctor.probe_timeout_seconds,
-            check=False,
-        )
+        return state.runner.run(list(args), timeout=state.config.doctor.probe_timeout_seconds, check=False)
     except CommandTimeoutError:
         return "timed out"
     except DotError, OSError:
         return "failed"
-    return "output exceeded limit" if result.output_truncated else result
 
 
 def _tool_results(state: State) -> list[CheckResult]:
@@ -343,64 +281,42 @@ def _tool_results(state: State) -> list[CheckResult]:
     return run_parallel(state.runner, probe, state.config.doctor.tools, state.config.doctor.probe_concurrency)
 
 
-def _recognized_auth_failure(result: CommandResult) -> bool:
-    diagnostic = f"{result.stdout}\n{result.stderr}".lower()
-    return any(marker in diagnostic for marker in _AUTH_FAILURE_MARKERS)
-
-
-def _workspace_auth_result(output: str, path: Path) -> CheckResult:
-    try:
-        valid = workspace_token_valid(json.loads(output))
-    except ValueError:
-        valid = None
-    if valid is False:
-        return CheckResult("gws", "fail", "NOT authenticated", str(path), "unauthenticated")
-    if valid:
-        return CheckResult("gws", "pass", "authenticated", str(path), "healthy")
-    return CheckResult("gws", "fail", "auth check returned invalid status; state unknown", str(path), "broken")
-
-
-def _github_auth_result(output: str, host: str, path: Path) -> CheckResult:
-    try:
-        entry = github_entry(json.loads(output), host)
-    except ValueError, DotError:
-        return CheckResult("gh", "fail", "auth check returned invalid status; state unknown", str(path), "broken")
-    if entry is None:
-        return CheckResult("gh", "fail", "NOT authenticated", str(path), "unauthenticated")
-    if github_token_plaintext(entry):
-        details = f"authenticated; token in plaintext hosts.yml: {GITHUB_KEYRING_REMEDY}"
-        return CheckResult("gh", "warn", details, str(path), "insecure")
-    return CheckResult("gh", "pass", "authenticated", str(path), "healthy")
-
-
 def _auth_results(state: State) -> list[CheckResult]:
+    """Report the same readiness that dot login checks, without authenticating."""
+
+    def github() -> CheckResult | bool:
+        entry = github_status(state)
+        if github_token_plaintext(entry):
+            details = f"authenticated; token in plaintext hosts.yml: {GITHUB_KEYRING_REMEDY}"
+            return CheckResult("gh", "warn", details, condition="insecure")
+        return entry is not None
+
+    checks: dict[str, tuple[str, Callable[[], CheckResult | bool]]] = {
+        "gh": ("gh", github),
+        "gcloud": ("gcloud", lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
+        "gcloud-adc": ("gcloud", lambda: adc_ready(state)),
+        "gws": ("gws", lambda: workspace_ready(state)),
+    }
     results: list[CheckResult] = []
-    github_host = os.environ.get("GH_HOST") or state.config.auth.github.host
-    # JSON status exits zero without credentials; only its active entry proves readiness.
-    probes = {"gh": (github_status_command(github_host), True), **_AUTH_PROBES}
-    for label, (command, requires_output) in probes.items():
-        path = state.runner.which(command[0])
+    for label, (tool, check) in checks.items():
+        path = state.runner.which(tool)
         if path is None:
-            results.append(CheckResult(label, "skip", f"{command[0]} not installed", condition="skipped"))
+            results.append(CheckResult(label, "skip", f"{tool} not installed", condition="skipped"))
             continue
-        result = _probe(state, command)
-        if isinstance(result, str):
-            results.append(CheckResult(label, "fail", f"auth check {result}; state unknown", str(path), "broken"))
-        elif result.returncode == 0 and (not requires_output or result.stdout.strip()):
-            if label == "gh":
-                results.append(_github_auth_result(result.stdout, github_host, path))
-            elif label == "gws":
-                results.append(_workspace_auth_result(result.stdout, path))
-            else:
-                results.append(CheckResult(label, "pass", "authenticated", str(path), "healthy"))
-        elif result.returncode == 0:
-            results.append(
-                CheckResult(label, "fail", "auth check returned no usable output; state unknown", str(path), "broken")
-            )
-        elif _recognized_auth_failure(result):
-            results.append(CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated"))
-        else:
+        try:
+            ready = check()
+        except CommandTimeoutError:
+            results.append(CheckResult(label, "fail", "auth check timed out; state unknown", str(path), "broken"))
+            continue
+        except DotError, OSError:
             results.append(CheckResult(label, "fail", "auth check failed; state unknown", str(path), "broken"))
+            continue
+        if isinstance(ready, CheckResult):
+            results.append(replace(ready, path=str(path)))
+        elif ready:
+            results.append(CheckResult(label, "pass", "authenticated", str(path), "healthy"))
+        else:
+            results.append(CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated"))
     return results
 
 

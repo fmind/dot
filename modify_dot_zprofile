@@ -8,4 +8,4 @@ if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
   mise_activation="$(mise activate zsh)"
   eval "${mise_activation}"
 fi` -}}
-{{- includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-zsh-integration" "body" $activation "position" "bottom" "legacyEnd" "fi") -}}
+{{- includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-zsh-integration" "body" $activation "position" "bottom") -}}

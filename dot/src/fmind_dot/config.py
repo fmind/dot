@@ -230,14 +230,12 @@ class DoctorConfig(StrictModel):
 
 # Policy values are data; native command arguments and safety boundaries stay in code.
 Scope = Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_:/.-]*$")]
-Host = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9.-]*$")]
 Project = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
 CacheProvider = Literal["docker", "hf", "uv"]
 PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
 
 
 class GitHubConfig(StrictModel):
-    host: Host = "github.com"
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "gist",
@@ -335,9 +333,25 @@ class WorkspaceConfig(StrictModel):
     )
 
 
+class GcpConfig(StrictModel):
+    # ADC login replaces its whole grant, so this list owns every ADC consumer's scope: gcloud's
+    # default ADC scopes plus Colab's. `dot login colab` requires the Colab scopes to stay listed.
+    adc_scopes: list[Scope] = Field(
+        default_factory=lambda: [
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/sqlservice.login",
+            "https://www.googleapis.com/auth/colaboratory",
+        ],
+        min_length=1,
+    )
+
+
 class AuthConfig(StrictModel):
     github: GitHubConfig = Field(default_factory=GitHubConfig)
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
+    gcp: GcpConfig = Field(default_factory=GcpConfig)
     probe_timeout_seconds: Seconds = 45.0
 
 
@@ -426,21 +440,3 @@ def load_config(path: str | Path | None = None) -> Config:
 
 def dump_config(config: Config) -> str:
     return yaml.safe_dump(config.model_dump(mode="python"), allow_unicode=True, sort_keys=False)
-
-
-def starter_config() -> str:
-    """Return a starter file whose defaults stay commented out.
-
-    Active copies would pin every default list and the pricing card, because configured
-    lists replace defaults; later releases could then never update them.
-    """
-    defaults = Config().model_dump(mode="python")
-    version = defaults.pop("schema_version")
-    reference = yaml.safe_dump(defaults, allow_unicode=True, sort_keys=False)
-    commented = "".join(f"# {line}" if line.strip() else "#\n" for line in reference.splitlines(keepends=True))
-    return (
-        f"schema_version: {version}\n"
-        "# Uncomment only the settings to override: mappings merge with the built-in defaults,\n"
-        "# while a configured list replaces its default list. `dot config show` prints the result.\n"
-        f"{commented}"
-    )

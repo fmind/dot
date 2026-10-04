@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import stat
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from io import StringIO
 from pathlib import Path
-from typing import IO, Any
+from typing import Any
 
 import pytest
 import typer
@@ -18,83 +18,11 @@ import fmind_dot.hooks as hooks
 import fmind_dot.system as system
 from fmind_dot.config import Config, SecretConfig, ToolConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
-from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult, Runner
+from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
+from tests.fakes import ScriptedRunner
 
-RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
 _WHEEL_SHA256 = "a" * 64
-
-
-class ScriptedRunner(Runner):
-    def __init__(
-        self,
-        installed: set[str] | None = None,
-        *,
-        run: RunHandler | None = None,
-        interactive_codes: Mapping[str, int] | None = None,
-        interactive_output: Mapping[str, Sequence[str]] | None = None,
-    ) -> None:
-        self.installed = installed or set()
-        self.run_handler = run
-        self.interactive_codes = interactive_codes or {}
-        self.interactive_output = interactive_output or {}
-        self.calls: list[list[str]] = []
-        self.output_limits: list[int | None] = []
-        self.interactive_calls: list[list[str]] = []
-
-    def which(self, command: str) -> Path | None:
-        return Path("/bin") / command if command in self.installed else None
-
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        del env, timeout
-        command = list(args)
-        self.calls.append(command)
-        result = self.run_handler(command, cwd, input_text, check) if self.run_handler else CommandResult("ok\n", "", 0)
-        if check and result.returncode != 0:
-            raise DotError(f"command failed ({result.returncode}): {command[0]}")
-        return result
-
-    def run_bounded(
-        self,
-        args: Sequence[str],
-        *,
-        max_output_bytes: int,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        self.output_limits.append(max_output_bytes)
-        return self.run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
-
-    def interactive(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        stdin: IO[str] | None = None,
-        stdout: IO[str] | None = None,
-        stderr: IO[str] | None = None,
-        env: Mapping[str, str] | None = None,
-    ) -> int:
-        del cwd, stdin, stderr, env
-        command = list(args)
-        self.interactive_calls.append(command)
-        lines = self.interactive_output.get(command[0], ())
-        for line in lines:
-            if stdout is not None:
-                stdout.write(line)
-        return self.interactive_codes.get(command[0], 0)
 
 
 def state_with(
@@ -412,13 +340,25 @@ def _minimal_verify_config() -> Config:
     [
         ({"auth_method": "none"}, "fail", "unauthenticated"),
         ({"auth_method": "oauth", "token_valid": False}, "fail", "unauthenticated"),
-        ({"auth_method": "oauth", "token_valid": True}, "pass", "healthy"),
+        ({"auth_method": "oauth", "token_valid": True, "scopes": Config().auth.workspace.scopes}, "pass", "healthy"),
+        ({"auth_method": "oauth", "token_valid": True, "scopes": ["openid"]}, "fail", "unauthenticated"),
+        ({"auth_method": "oauth", "token_valid": True}, "fail", "broken"),
         ({"auth_method": "oauth", "token_valid": "true"}, "fail", "broken"),
         ({"unexpected": "private-response"}, "fail", "broken"),
         ([], "fail", "broken"),
         ("private-invalid-json", "fail", "broken"),
     ],
-    ids=["no-credentials", "invalid-token", "valid-token", "wrong-type", "unknown-shape", "array", "bad-json"],
+    ids=[
+        "no-credentials",
+        "invalid-token",
+        "valid-token",
+        "missing-scopes",
+        "unreported-scopes",
+        "wrong-type",
+        "unknown-shape",
+        "array",
+        "bad-json",
+    ],
 )
 def test_doctor_workspace_auth_inspects_native_status(payload: object, status: str, condition: str) -> None:
     output = payload if isinstance(payload, str) else json.dumps(payload)
@@ -434,32 +374,12 @@ def test_doctor_workspace_auth_inspects_native_status(payload: object, status: s
     assert "private-" not in json.dumps(report)
 
 
-def _gh_status_command(host: str) -> list[str]:
-    return ["gh", "auth", "status", "--active", "--hostname", host, "--json", "hosts"]
+_GH_STATUS = ["gh", "auth", "status", "--active", "--hostname", "github.com", "--json", "hosts"]
 
 
-def _gh_status_runner(host: str, **entry: object) -> ScriptedRunner:
-    payload = {"hosts": {host: [{"state": "success", "active": True, "tokenSource": "keyring", **entry}]}}
+def _gh_status_runner(**entry: object) -> ScriptedRunner:
+    payload = {"hosts": {"github.com": [{"state": "success", "active": True, "tokenSource": "keyring", **entry}]}}
     return ScriptedRunner({"gh"}, run=lambda _args, _cwd, _input, _check: CommandResult(json.dumps(payload), "", 0))
-
-
-def test_verify_github_auth_uses_configured_host_without_changing_scopes(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("GH_HOST", raising=False)
-    config = _minimal_verify_config()
-    config.auth.github.host = "github.example.test"
-    runner = _gh_status_runner("github.example.test")
-    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert _gh_status_command("github.example.test") in runner.calls
-    assert results["auth"][0]["status"] == "pass"
-
-
-def test_verify_github_auth_prefers_gh_host_like_login(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GH_HOST", "github.env.test")
-    config = _minimal_verify_config()
-    config.auth.github.host = "github.example.test"
-    runner = _gh_status_runner("github.env.test")
-    system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert _gh_status_command("github.env.test") in runner.calls
 
 
 @pytest.mark.parametrize(
@@ -474,12 +394,9 @@ def test_verify_github_auth_prefers_gh_host_like_login(monkeypatch: pytest.Monke
     ],
     ids=["keyring", "plaintext-hosts-yml", "invalid-token", "network-error", "no-account", "bad-json"],
 )
-def test_doctor_github_auth_inspects_token_source(
-    monkeypatch: pytest.MonkeyPatch, output: dict[str, str] | str, status: str, condition: str
-) -> None:
-    monkeypatch.delenv("GH_HOST", raising=False)
+def test_doctor_github_auth_inspects_token_source(output: dict[str, str] | str, status: str, condition: str) -> None:
     runner = (
-        _gh_status_runner("github.com", **output)
+        _gh_status_runner(**output)
         if isinstance(output, dict)
         else ScriptedRunner({"gh"}, run=lambda _args, _cwd, _input, _check: CommandResult(output, "", 0))
     )
@@ -487,6 +404,7 @@ def test_doctor_github_auth_inspects_token_source(
     report = system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True)
 
     result = report["auth"][0]
+    assert _GH_STATUS in runner.calls
     assert (result["name"], result["status"], result["condition"]) == ("gh", status, condition)
     if status == "warn":
         assert "gh auth logout" in result["details"]
@@ -513,69 +431,6 @@ def test_doctor_gcloud_adc_login_errors_are_unauthenticated(stderr: str) -> None
     assert (auth["gcloud-adc"]["details"], auth["gcloud-adc"]["condition"]) == ("NOT authenticated", "unauthenticated")
 
 
-@pytest.mark.parametrize(
-    ("document", "status"),
-    [
-        ({"provider": {"google-vertex": {"options": {"project": "private-project"}}}}, "pass"),
-        ({"provider": {"google-vertex": {"options": {"project": ""}}}}, "fail"),
-        ({"provider": {"google-vertex": {"options": {"project": "   "}}}}, "fail"),
-        ({"provider": {"google-vertex": {"options": {"project": "{env:PRIVATE_PROJECT}"}}}}, "fail"),
-        ({"provider": {"google-vertex": {"options": {"project": 123}}}}, "fail"),
-        ({"provider": {"google-vertex": {"options": {}}}}, "fail"),
-        ({"provider": {"google-vertex": {"options": []}}}, "fail"),
-        ({"provider": []}, "fail"),
-        ([], "fail"),
-        ({"model": "google-vertex/model"}, "fail"),
-        ({"small_model": "google-vertex/model"}, "fail"),
-        ({"model": "other/model"}, "skip"),
-    ],
-)
-def test_verify_opencode_uses_resolved_config_and_redacts_project(document: object, status: str) -> None:
-    config = _minimal_verify_config()
-    config.doctor.tools = ["opencode"]
-    runner = ScriptedRunner(
-        {"opencode"},
-        run=lambda _args, _cwd, _input_text, _check: CommandResult(json.dumps(document), "private-stderr", 0),
-    )
-    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert results["env_vars"][0]["name"] == "opencode-project"
-    assert results["env_vars"][0]["status"] == status
-    assert ["opencode", "debug", "config", "--pure"] in runner.calls
-    assert runner.output_limits
-    assert all(limit == 64 * 1024 for limit in runner.output_limits)
-    assert "private-project" not in json.dumps(results)
-    assert "private-stderr" not in json.dumps(results)
-    assert "PRIVATE_PROJECT" not in json.dumps(results)
-
-
-@pytest.mark.parametrize(
-    "failure",
-    [
-        CommandResult("private-invalid-json", "private-stderr", 0),
-        CommandResult("private-output", "private-stderr", 1),
-        CommandResult("{}", "private-stderr", 0, stdout_truncated=True),
-        DotError("private-timeout"),
-        OSError("private-error"),
-    ],
-)
-def test_verify_opencode_fails_closed_for_probe_errors(failure: CommandResult | Exception) -> None:
-    def probe(_args: list[str], _cwd: Path | None, _input: str | None, _check: bool) -> CommandResult:
-        if isinstance(failure, Exception):
-            raise failure
-        return failure
-
-    result = system._opencode_project_result(state_with(ScriptedRunner({"opencode"}, run=probe)))  # noqa: SLF001
-    assert result.status == "fail"
-    assert "private-" not in result.details
-
-
-def test_verify_opencode_missing_tool_skips_configuration_probe() -> None:
-    runner = ScriptedRunner()
-    result = system._opencode_project_result(state_with(runner))  # noqa: SLF001
-    assert result.status == "skip"
-    assert runner.calls == []
-
-
 def test_verify_probes_path_visible_tools_and_redacts_output() -> None:
     config = _minimal_verify_config()
     config.doctor.tools = ["healthy", "broken"]
@@ -592,7 +447,6 @@ def test_verify_probes_path_visible_tools_and_redacts_output() -> None:
     assert by_name["healthy"]["status"] == "pass"
     assert by_name["broken"]["status"] == "fail"
     assert by_name["broken"]["condition"] == "broken"
-    assert all(limit == PROBE_OUTPUT_LIMIT_BYTES for limit in runner.output_limits)
     encoded = json.dumps(results)
     assert "stdout-secret" not in encoded
     assert "stderr-secret" not in encoded
@@ -605,7 +459,7 @@ def test_verify_requires_nonempty_access_tokens_without_rendering_them() -> None
         del cwd, input_text, check
         if args == ["gcloud", "auth", "print-access-token"]:
             return CommandResult("", "", 0)
-        if args == ["gcloud", "auth", "application-default", "print-access-token"]:
+        if args[:4] == ["gcloud", "auth", "application-default", "print-access-token"]:
             return CommandResult("synthetic-secret-token", "", 0)
         return CommandResult("ok", "", 0)
 
@@ -616,29 +470,6 @@ def test_verify_requires_nonempty_access_tokens_without_rendering_them() -> None
     assert auth_results["gcloud"]["condition"] == "broken"
     assert auth_results["gcloud-adc"]["status"] == "pass"
     assert "synthetic-secret-token" not in json.dumps(results)
-
-
-def test_verify_fails_closed_when_probe_output_is_truncated() -> None:
-    config = _minimal_verify_config()
-    config.doctor.tools = ["noisy"]
-
-    def truncated(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
-        del cwd, input_text, check
-        if args[0] == "/bin/noisy":
-            return CommandResult("healthy", "", 0, stdout_truncated=True)
-        if args == ["gcloud", "auth", "print-access-token"]:
-            return CommandResult("token", "", 0, stdout_truncated=True)
-        if args == ["docker", "info"]:
-            return CommandResult("running", "", 0, stdout_truncated=True)
-        return CommandResult("ok", "", 0)
-
-    runner = ScriptedRunner({"noisy", "gcloud", "docker"}, run=truncated)
-    results = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-
-    assert results["passed"] is False
-    assert results["tools"][0]["status"] == "fail"
-    assert results["auth"][1]["status"] == "fail"
-    assert results["docker"][0]["status"] == "fail"
 
 
 def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
@@ -655,11 +486,11 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
             raise CommandTimeoutError("command timed out")
         if args[0] == "/bin/error-tool":
             raise OSError("private operating-system error")
-        if args == _gh_status_command("github.com"):
+        if args == _GH_STATUS:
             return CommandResult("", "Login required for private-host", 1)
         if args == ["gcloud", "auth", "print-access-token"]:
             raise CommandTimeoutError("command timed out")
-        if args == ["gcloud", "auth", "application-default", "print-access-token"]:
+        if args[:4] == ["gcloud", "auth", "application-default", "print-access-token"]:
             raise OSError("private adc error")
         if args == ["gws", "auth", "status"]:
             return CommandResult("", "unclassified private failure", 2)
@@ -674,7 +505,8 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     assert tools["timeout-tool"]["details"] == "capability probe timed out"
     assert tools["error-tool"]["details"] == "capability probe failed"
     auth = {item["name"]: item for item in results["auth"]}
-    assert auth["gh"]["condition"] == "unauthenticated"
+    # gh JSON status exits zero without credentials; a failed status is unknown, as for dot login.
+    assert auth["gh"]["condition"] == "broken"
     assert auth["gcloud"]["details"] == "auth check timed out; state unknown"
     assert auth["gcloud-adc"]["details"] == "auth check failed; state unknown"
     assert auth["gws"]["condition"] == "broken"
@@ -1006,7 +838,7 @@ def test_malformed_install_receipt_is_never_accepted(monkeypatch: pytest.MonkeyP
 
 
 def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest.MonkeyPatch) -> None:
-    app = typer.Typer()
+    app = typer.Typer(add_completion=False)
     system.register(app)
     state = state_with(ScriptedRunner())
     empty_sections = {
@@ -1045,7 +877,7 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
 
 
 def test_system_command_surface_and_verify_flags() -> None:
-    app = typer.Typer()
+    app = typer.Typer(add_completion=False)
     system.register(app)
     command = get_command(app)
     assert isinstance(command, TyperGroup)
@@ -1195,17 +1027,16 @@ def test_notification_title_uses_only_originating_terminal(
     _zellij_pane(monkeypatch, "7")
     runner = ScriptedRunner({"zellij"}, run=lambda *_args: CommandResult(output, "", 0))
     assert hooks.notification_title(runner) == expected
-    assert runner.output_limits == [PROBE_OUTPUT_LIMIT_BYTES]
 
 
-@pytest.mark.parametrize("failure", ["timeout", "exited", "truncated"])
+@pytest.mark.parametrize("failure", ["timeout", "exited"])
 def test_notification_title_failure_keeps_plain_notification(monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
     _zellij_pane(monkeypatch, "7")
 
     def run(*_args: object) -> CommandResult:
         if failure == "timeout":
             raise DotError("command timed out: zellij")
-        return CommandResult("[]", "", int(failure == "exited"), stdout_truncated=failure == "truncated")
+        return CommandResult("[]", "", int(failure == "exited"))
 
     runner = ScriptedRunner({"zellij"}, run=run)
     assert hooks.notification_title(runner) == ""

@@ -1,22 +1,21 @@
-"""Bounded subprocess execution for CLI integrations."""
+"""Subprocess execution for CLI integrations: timeouts, cancellation, and process-group cleanup."""
 
 from __future__ import annotations
 
 import locale
 import os
 import re
-import selectors
 import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Event, Lock
 from typing import IO
 
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -24,11 +23,6 @@ from fmind_dot.errors import CommandTimeoutError, DotError
 # SIGTERM grace before SIGKILL: long enough for git to unlock, short enough for Ctrl+C.
 _TERMINATION_GRACE_SECONDS = 2.0
 _TERMINATION_TIMEOUT_SECONDS = 3
-_PIPE_WRITE_BYTES = 4096
-# Shared ceiling for every status probe captured with run_bounded.
-PROBE_OUTPUT_LIMIT_BYTES = 64 * 1024
-# Ceiling for ordinary captured commands; exceeding it fails instead of truncating their output.
-RUN_OUTPUT_LIMIT_BYTES = 32 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -38,13 +32,6 @@ class CommandResult:
     stdout: str
     stderr: str
     returncode: int
-    stdout_truncated: bool = False
-    stderr_truncated: bool = False
-
-    @property
-    def output_truncated(self) -> bool:
-        """Report whether either captured stream exceeded the shared byte budget."""
-        return self.stdout_truncated or self.stderr_truncated
 
 
 _CREDENTIAL_URL = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]+@")
@@ -60,115 +47,34 @@ def diagnostic_line(text: str, limit: int = 160) -> str:
     return line if len(line) <= limit else line[: limit - 1].rstrip() + "…"
 
 
-def _universal_newlines(text: str) -> str:
-    return text.replace("\r\n", "\n").replace("\r", "\n")
+def _environment(env: Mapping[str, str] | None) -> dict[str, str]:
+    command_env = os.environ.copy()
+    if env:
+        command_env.update(env)
+    return command_env
 
 
-class _BoundedCapture:
-    """Keep a shared output budget while callers continue draining both pipes."""
-
-    def __init__(self, limit: int) -> None:
-        self._remaining = limit
-        self.stdout = bytearray()
-        self.stderr = bytearray()
-        self.stdout_truncated = False
-        self.stderr_truncated = False
-
-    def append(self, stream: str, chunk: bytes) -> None:
-        retained = chunk[: self._remaining]
-        target = self.stdout if stream == "stdout" else self.stderr
-        target.extend(retained)
-        self._remaining -= len(retained)
-        if len(retained) != len(chunk):
-            if stream == "stdout":
-                self.stdout_truncated = True
-            else:
-                self.stderr_truncated = True
+def _signal(process: subprocess.Popen[str], signum: signal.Signals, *, group: bool = True) -> None:
+    """Signal the child's process group, falling back to the child itself."""
+    if group:
+        with suppress(ProcessLookupError, PermissionError):
+            os.killpg(process.pid, signum)
+            return
+    # Popen ignores signals once the child has been reaped.
+    with suppress(ProcessLookupError):
+        process.send_signal(signum)
 
 
-def _remaining_time(deadline: float | None, timeout: float | None) -> float | None:
-    if deadline is None or timeout is None:
-        return None
-    remaining = deadline - time.monotonic()
-    if remaining <= 0:
-        raise subprocess.TimeoutExpired("command", timeout)
-    return remaining
-
-
-def _communicate_bounded(
-    process: subprocess.Popen[bytes],
-    input_bytes: bytes | None,
-    timeout: float | None,
-    limit: int,
-) -> _BoundedCapture:
-    """Drain child pipes without retaining more than ``limit`` bytes in memory."""
-    deadline = None if timeout is None else time.monotonic() + timeout
-    captured = _BoundedCapture(limit)
-    input_offset = 0
-    input_view = memoryview(input_bytes or b"")
-    with selectors.DefaultSelector() as selector:
-        if process.stdin is not None:
-            if input_bytes:
-                selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
-            else:
-                process.stdin.close()
-        if process.stdout is not None:
-            selector.register(process.stdout, selectors.EVENT_READ, "stdout")
-        if process.stderr is not None:
-            selector.register(process.stderr, selectors.EVENT_READ, "stderr")
-
-        while selector.get_map():
-            ready = selector.select(_remaining_time(deadline, timeout))
-            if not ready:
-                _remaining_time(deadline, timeout)
-                continue
-            for key, _events in ready:
-                if key.data == "stdin":
-                    try:
-                        input_offset += os.write(key.fd, input_view[input_offset : input_offset + _PIPE_WRITE_BYTES])
-                    except BrokenPipeError:
-                        if process.stdin is not None:
-                            selector.unregister(process.stdin)
-                            process.stdin.close()
-                    else:
-                        if input_offset >= len(input_view) and process.stdin is not None:
-                            selector.unregister(process.stdin)
-                            process.stdin.close()
-                    continue
-                chunk = os.read(key.fd, 32 * 1024)
-                if chunk:
-                    captured.append(key.data, chunk)
-                else:
-                    output = process.stdout if key.data == "stdout" else process.stderr
-                    if output is not None:
-                        selector.unregister(output)
-                        output.close()
-    process.wait(timeout=_remaining_time(deadline, timeout))
-    return captured
-
-
-def _signal_group(process: subprocess.Popen[str] | subprocess.Popen[bytes], signum: signal.Signals) -> bool:
-    """Signal the child's process group and report whether the signal was delivered."""
+def _terminate(process: subprocess.Popen[str], *, group: bool = True) -> None:
+    """Stop the launched process and keep escaped descendants holding pipes from blocking."""
     try:
-        os.killpg(process.pid, signum)
-    except ProcessLookupError, PermissionError:
-        return False
-    return True
-
-
-def _terminate(process: subprocess.Popen[str] | subprocess.Popen[bytes]) -> None:
-    """Stop the launched process group and keep escaped descendants holding pipes from blocking."""
-    try:
-        if os.name == "posix" and _signal_group(process, signal.SIGTERM):
-            # Children own their session, so a terminal Ctrl+C never reaches them.
-            # Let tools such as git release locks and refs before the hard kill.
-            with suppress(subprocess.TimeoutExpired):
-                process.wait(timeout=_TERMINATION_GRACE_SECONDS)
+        # Let tools such as git release locks and refs before the hard kill.
+        _signal(process, signal.SIGTERM, group=group)
+        with suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=_TERMINATION_GRACE_SECONDS)
     finally:
-        # A second interrupt during the grace period must still kill the group.
-        killed = os.name == "posix" and _signal_group(process, signal.SIGKILL)
-        if not killed and process.poll() is None:
-            process.kill()
+        # A second interrupt during the grace period must still kill the process.
+        _signal(process, signal.SIGKILL, group=group)
     # A descendant may create a new session while retaining these descriptors.
     # Closing our ends keeps its lifetime from extending the caller's timeout.
     for stream in (process.stdin, process.stdout, process.stderr):
@@ -180,73 +86,45 @@ def _terminate(process: subprocess.Popen[str] | subprocess.Popen[bytes]) -> None
         process.kill()
 
 
-def _set_foreground(terminal: int, group: int) -> None:
-    # The wrapper is in the background while its child owns the terminal.
-    previous = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTTOU})
-    try:
-        with suppress(OSError):
-            os.tcsetpgrp(terminal, group)
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous)
-
-
 @contextmanager
-def _foreground_terminal(process: subprocess.Popen[bytes], stream: IO[str] | None) -> Iterator[int | None]:
-    terminal = None
-    if os.name == "posix":
-        try:
-            descriptor = (stream if stream is not None else sys.stdin).fileno()
-            if os.isatty(descriptor) and os.tcgetpgrp(descriptor) == os.getpgrp():
-                terminal = descriptor
-        except OSError, ValueError:
-            pass
+def _deferred_interrupts() -> Iterator[None]:
+    """Leave Ctrl+C to an interactive child, which shares dot's foreground process group."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    # A handler, unlike SIG_IGN, resets to the default in the executed child.
+    previous = signal.signal(signal.SIGINT, lambda _signum, _frame: None)
     try:
-        if terminal is not None:
-            _set_foreground(terminal, process.pid)
-            # A fast child may already have stopped on SIGTTIN before the handoff.
-            with suppress(ProcessLookupError, PermissionError):
-                os.killpg(process.pid, signal.SIGCONT)
-        yield terminal
+        yield
     finally:
-        if terminal is not None:
-            _set_foreground(terminal, os.getpgrp())
+        signal.signal(signal.SIGINT, previous)
 
 
-def _relay_terminal_stop(process: subprocess.Popen[bytes], terminal: int | None) -> None:
-    if terminal is None or process.poll() is not None:
-        return
-    try:
-        stopped = os.waitid(os.P_PID, process.pid, os.WSTOPPED | os.WNOHANG)
-    except ChildProcessError:
-        return
-    if stopped is not None:
-        _set_foreground(terminal, os.getpgrp())
-        # Let the shell suspend/resume dot as a job, then return the terminal to
-        # its child. SIGSTOP also works when a host inherited ignored SIGTSTP.
-        os.kill(os.getpid(), signal.SIGSTOP)
-        _set_foreground(terminal, process.pid)
-        with suppress(ProcessLookupError, PermissionError):
-            os.killpg(process.pid, signal.SIGCONT)
+def _is_terminal(stream: IO[str] | None, default: IO[str]) -> bool:
+    """Whether the child inherits a terminal on this descriptor (None means dot's own stream)."""
+    with suppress(AttributeError, OSError, ValueError):
+        return os.isatty((stream if stream is not None else default).fileno())
+    return False
 
 
-def _wait_interactive(process: subprocess.Popen[bytes], terminal: int | None) -> int:
-    if terminal is None:
-        return process.wait()
-    while True:
-        _relay_terminal_stop(process, terminal)
-        try:
-            return process.wait(timeout=0.1)
-        except subprocess.TimeoutExpired:
-            pass
+def _relay_lines(source: IO[str], target: IO[str] | None, on_line: Callable[[str], None]) -> None:
+    """Echo each child line as it arrives, then let the caller react to it."""
+    destination = target if target is not None else sys.stderr
+    # The daemon thread owns the pipe and closes it at EOF, after any escaped descendant holding it exits.
+    with suppress(OSError, ValueError), source:
+        for line in source:
+            destination.write(line)
+            destination.flush()
+            on_line(line)
 
 
 class Runner:
     """Run external tools with timeout and process-group cleanup."""
 
     def __init__(self) -> None:
-        self._cancelled = Event()
-        self._process_lock = Lock()
-        self._processes: set[subprocess.Popen[bytes]] = set()
+        self._cancelled = threading.Event()
+        self._process_lock = threading.Lock()
+        self._processes: set[subprocess.Popen[str]] = set()
 
     def cancel(self) -> None:
         """Stop captured worker processes and prohibit subsequent commands."""
@@ -254,20 +132,13 @@ class Runner:
         with self._process_lock:
             processes = tuple(self._processes)
         # The communicating worker owns its pipes and reaps the child.
-        if os.name != "posix":
-            for process in processes:
-                if process.poll() is None:
-                    process.kill()
-            return
         for process in processes:
-            if not _signal_group(process, signal.SIGTERM) and process.poll() is None:
-                process.terminate()
+            _signal(process, signal.SIGTERM)
         deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
         while time.monotonic() < deadline and any(process.poll() is None for process in processes):
             time.sleep(0.05)
         for process in processes:
-            if not _signal_group(process, signal.SIGKILL) and process.poll() is None:
-                process.kill()
+            _signal(process, signal.SIGKILL)
 
     def which(self, command: str) -> Path | None:
         resolved = shutil.which(command)
@@ -283,50 +154,22 @@ class Runner:
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        """Run a command whose complete output the caller needs; oversized output is an error."""
-        result = self.run_bounded(
-            args,
-            cwd=cwd,
-            input_text=input_text,
-            env=env,
-            timeout=timeout,
-            check=check,
-            max_output_bytes=RUN_OUTPUT_LIMIT_BYTES,
-        )
-        if result.output_truncated:
-            raise DotError(f"command output exceeded {RUN_OUTPUT_LIMIT_BYTES} bytes: {args[0]}")
-        return result
-
-    def run_bounded(
-        self,
-        args: Sequence[str],
-        *,
-        max_output_bytes: int,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        """Run a command while draining all output and retaining one bounded byte budget."""
+        """Capture a command's output in its own session; undecodable bytes are replaced."""
         if not args:
             raise DotError("cannot run an empty command")
-        if max_output_bytes <= 0:
-            raise DotError("maximum captured output must be positive")
         if self._cancelled.is_set():
             raise DotError("operation cancelled")
-        command_env = os.environ.copy()
-        if env:
-            command_env.update(env)
-        encoding = locale.getencoding()
         process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
             list(args),
             cwd=cwd,
-            env=command_env,
+            env=_environment(env),
             stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            start_new_session=os.name == "posix",
+            # Text mode also applies universal newlines; tool output is not trusted text.
+            encoding=locale.getencoding(),
+            errors="replace",
+            start_new_session=True,
         )
         try:
             with self._process_lock:
@@ -335,21 +178,7 @@ class Runner:
             # cleanup path as other failures, without trying to read closed pipes.
             if self._cancelled.is_set():
                 raise DotError("operation cancelled")
-            capture = _communicate_bounded(
-                process,
-                input_text.encode(encoding) if input_text is not None else None,
-                timeout,
-                max_output_bytes,
-            )
-            # Undecodable bytes are replaced; tool output is not trusted text. Universal
-            # newlines keep the text contract of subprocess text mode for every caller.
-            result = CommandResult(
-                stdout=_universal_newlines(capture.stdout.decode(encoding, errors="replace")),
-                stderr=_universal_newlines(capture.stderr.decode(encoding, errors="replace")),
-                returncode=process.returncode,
-                stdout_truncated=capture.stdout_truncated,
-                stderr_truncated=capture.stderr_truncated,
-            )
+            stdout, stderr = process.communicate(input_text, timeout=timeout)
         except subprocess.TimeoutExpired as error:
             _terminate(process)
             raise CommandTimeoutError(f"command timed out: {args[0]}") from error
@@ -359,11 +188,11 @@ class Runner:
         finally:
             with self._process_lock:
                 self._processes.discard(process)
-        if check and result.returncode != 0:
+        if check and process.returncode != 0:
             # Tool stderr can contain credentials or provider payloads; callers opt in
             # to rendering bounded diagnostics only after they have classified them.
-            raise DotError(f"command failed ({result.returncode}): {args[0]}")
-        return result
+            raise DotError(f"command failed ({process.returncode}): {args[0]}")
+        return CommandResult(stdout=stdout, stderr=stderr, returncode=process.returncode)
 
     def interactive(
         self,
@@ -374,30 +203,49 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
+        """Run with the caller's terminal; `on_stderr_line` relays stderr so callers can react to prompts.
+
+        A child using the terminal stays in dot's process group, so the terminal delivers Ctrl+C and
+        Ctrl+Z to both. Without one, it gets its own group so that a SIGTERM to dot (timeout, a
+        supervisor, CI cancellation) also stops the child's descendants.
+        """
         if not args:
             raise DotError("cannot run an empty command")
-        command_env = os.environ.copy()
-        if env:
-            command_env.update(env)
-        process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
-            list(args),
-            cwd=cwd,
-            env=command_env,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-            process_group=0 if os.name == "posix" else None,
-        )
-        try:
-            with _foreground_terminal(process, stdin) as terminal:
-                code = _wait_interactive(process, terminal)
+        streams = [(stdin, sys.stdin), (stdout, sys.stdout)]
+        if on_stderr_line is None:
+            streams.append((stderr, sys.stderr))
+        detached = not any(_is_terminal(stream, default) for stream, default in streams)
+        with nullcontext() if detached else _deferred_interrupts():
+            process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
+                list(args),
+                cwd=cwd,
+                env=_environment(env),
+                stdin=stdin,
+                stdout=stdout,
+                stderr=subprocess.PIPE if on_stderr_line is not None else stderr,
+                text=True,
+                errors="replace",
+                process_group=0 if detached else None,
+            )
+            relay = None
+            if on_stderr_line is not None and process.stderr is not None:
+                # The relay owns the pipe: closing it while the thread reads would wait on its buffer lock.
+                source, process.stderr = process.stderr, None
+                relay = threading.Thread(target=_relay_lines, args=(source, stderr, on_stderr_line), daemon=True)
+                relay.start()
+            try:
+                code = process.wait()
+                if relay is not None:
+                    # An escaped descendant may keep the pipe open; never wait on it indefinitely.
+                    relay.join(timeout=_TERMINATION_TIMEOUT_SECONDS)
                 if code == -signal.SIGINT:
                     raise KeyboardInterrupt
                 return code
-        except BaseException:
-            _terminate(process)
-            raise
+            except BaseException:
+                _terminate(process, group=detached)
+                raise
 
 
 def run_parallel[T, R](runner: Runner, function: Callable[[T], R], items: Sequence[T], workers: int) -> list[R]:

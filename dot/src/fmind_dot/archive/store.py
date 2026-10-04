@@ -20,31 +20,19 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field, StrictBool, StrictStr, TypeAdapter, ValidationError
 
-from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
 SESSION_PARSER_VERSION = "10"
-# Earlier captures remain readable and are flagged as legacy until their sources are recaptured.
+# Every released parser stays readable: a bundle whose source the provider deleted can never be
+# recaptured. Earlier captures are flagged as legacy until their sources are recaptured.
 READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", "9", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
-LEGACY_STORE_VERSION = "v2"
-_LAST_MIGRATING_RELEASE = "7.0.4"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
 
 NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
 NonEmptyStr = Annotated[str, Field(strict=True, min_length=1)]
-
-# Token counters in stored usage; turn counts and the 1-hour subset are not separate evidence.
-_TOKEN_COUNTERS = (
-    "input_tokens",
-    "output_tokens",
-    "cached_tokens",
-    "cache_write_tokens",
-    "reasoning_tokens",
-    "total_tokens",
-)
 
 Completeness = Literal["complete", "partial"]
 IngestionStatus = Literal["ingested", "unchanged", "retained", "skipped"]
@@ -285,7 +273,7 @@ def read_session_bundle(path: Path) -> tuple[SessionManifest, list[SessionLog]]:
 
 def discover_session_bundles() -> list[Path]:
     """List bundle files; hidden names are temporary files or sync state."""
-    root = ensure_session_store()
+    root = session_store_root()
     if not root.is_dir():
         return []
     return sorted(
@@ -338,13 +326,12 @@ def ingest_session(
     source: SessionSource | None = None,
     *,
     usage: dict[str, Any] | None = None,
-    usage_failed: bool = False,
     expected_generation: tuple[str, str] | None = None,
 ) -> SessionIngestionResult:
     """Keep the latest copy of a session, but never replace it with a shorter transcript.
 
-    ``usage_failed`` marks a capture that could not measure usage (malformed input or a provider
-    metric error): its absent usage is never evidence, so any archived measurement is retained.
+    Absent usage (a first capture, malformed input, or a provider metric error) is never
+    evidence, so any archived measurement is retained.
     """
     source = source or SessionSource()
     path = session_bundle_path(agent, session_id)
@@ -374,7 +361,7 @@ def ingest_session(
     retain_usage = False
     if not logs and usage is None and not path.exists():
         return SessionIngestionResult("skipped", manifest)
-    root = ensure_session_store()
+    root = session_store_root()
     # Atomic replacement protects readers; the lock also protects the read/compare/write
     # decision against another sync process. Keep the lock inode stable between writers.
     lock = private_directory(root) / ".write.lock"
@@ -398,26 +385,7 @@ def ingest_session(
             current = _holds_current_transcript(stored, archived_logs, manifest, logs)
             return SessionIngestionResult("retained", stored, current_transcript=current)
         if stored is not None:
-            # Older parsers classified absent counters as measured zero. An identical
-            # source can correct that classification without discarding actual usage.
-            reinterpreted_zero = (
-                not usage_failed
-                and stored.parser_version != manifest.parser_version
-                and stored.source_fingerprint == manifest.source_fingerprint
-                and stored.usage is not None
-                and not any(stored.usage.get(name) for name in _TOKEN_COUNTERS)
-                and (
-                    not (stored.usage.get("cost_known") or stored.usage.get("cost_usd"))
-                    or (
-                        usage is not None
-                        and (usage.get("cost_known"), usage.get("cost_usd"))
-                        == (stored.usage.get("cost_known"), stored.usage.get("cost_usd"))
-                    )
-                )
-            )
-            retain_usage = (
-                stored.usage is not None and not reinterpreted_zero and _loses_measurement(stored.usage, usage)
-            )
+            retain_usage = stored.usage is not None and _loses_measurement(stored.usage, usage)
             if retain_usage:
                 # Keep the archived measurement and its parser, but still publish a transcript that
                 # does not shrink. An empty signature makes sync retry until the source measures again.
@@ -475,19 +443,6 @@ def report_ingestion(result: SessionIngestionResult) -> str:
     )
 
 
-def ensure_session_store() -> Path:
-    """Return the active store root; a store that only exists in the retired v2 layout fails closed."""
-    root = session_store_root()
-    if not root.exists() and (root.parent / LEGACY_STORE_VERSION).is_dir():
-        # v2 migration shipped through dot 7.0.4; the v2 files are never modified or removed here.
-        raise DotError(
-            f"session archive ~/.agents/sessions/{LEGACY_STORE_VERSION} predates sessions/{SESSION_STORE_VERSION}; "
-            f"migrate it once with dot v{_LAST_MIGRATING_RELEASE} (check out that tag in a separate worktree and "
-            f"run 'uv run --frozen --project dot dot agent session list'), then retry"
-        )
-    return root
-
-
 __all__ = [
     "SESSION_PARSER_VERSION",
     "SESSION_SCHEMA_VERSION",
@@ -497,7 +452,6 @@ __all__ = [
     "SessionManifest",
     "SessionSource",
     "discover_session_bundles",
-    "ensure_session_store",
     "fingerprint_bytes",
     "fingerprint_json",
     "fingerprint_logs",

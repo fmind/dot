@@ -201,9 +201,7 @@ def test_apply_individual_skills_preserves_other_packages(
         "source\\[1]*?{one,two}literal",
     ],
 )
-def test_glob_characters_in_source_path_cannot_bypass_skill_ownership(
-    installation: tuple[Path, Path, list[str]], name: str
-) -> None:
+def test_glob_characters_in_source_path_are_rejected(installation: tuple[Path, Path, list[str]], name: str) -> None:
     source, home, command = installation
     moved = source.with_name(name)
     source.rename(moved)
@@ -218,14 +216,9 @@ def test_glob_characters_in_source_path_cannot_bypass_skill_ownership(
     result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
 
     assert result.returncode != 0
-    assert "belongs to another source" in result.stderr
+    assert "contains glob characters" in result.stderr
     assert target.readlink() == foreign
     assert (foreign / "SKILL.md").read_text() == "preserve owner\n"
-    target.unlink()
-    # The escaped path must still permit installation and a repeat apply for our own link.
-    for _ in range(2):
-        subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
-        assert target.readlink() == moved / "skills/python-stack"
 
 
 def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path, list[str]]) -> None:

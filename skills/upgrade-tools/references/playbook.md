@@ -45,7 +45,7 @@ Raise `requires-python` and dependency floors in `pyproject.toml` by hand, only 
 
 ```sh
 tofu init -upgrade                                                 # providers and modules within constraints
-tofu providers lock -platform=linux_amd64 -platform=darwin_arm64   # platform hashes for CI
+tofu providers lock -platform=linux_amd64 -platform=darwin_arm64   # only for mirrors or non-OpenTofu registries
 ```
 
 Validate with `tofu validate`, `tflint`, and `trivy config`. See [infra-as-code](../../infra-as-code/SKILL.md).

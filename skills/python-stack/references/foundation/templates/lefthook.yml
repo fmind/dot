@@ -19,9 +19,6 @@ pre-commit:
       priority: 15
       run: mise run format:ruff {staged_files}
       stage_fixed: true
-    check:leaks:staged:
-      priority: 20
-      run: mise run check:leaks:staged
     check:
       priority: 30
       run: mise run check

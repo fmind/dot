@@ -20,6 +20,8 @@ linux_only = {version = "latest", os = ["linux"]}
 
 
 def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "config.toml").write_text(CONFIG)
     graph = directory / "locks/example/1.0"
     graph.mkdir(parents=True, exist_ok=True)
     (graph / "uv.lock").write_bytes(content)
@@ -69,17 +71,10 @@ def test_refresh_uses_portable_source_and_isolated_config(
         check: bool,
         timeout: int,
         cwd: Path | None = None,
-        capture_output: bool = False,
-        text: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         assert check
         assert timeout > 0
         commands.append(args)
-        if args[0] == "chezmoi":
-            assert str(source / "config.toml.tmpl") in args
-            assert capture_output
-            assert text
-            return subprocess.CompletedProcess(args, 0, CONFIG)
         assert cwd is not None
         assert cwd != root
         staging.append(cwd)
@@ -131,15 +126,9 @@ def test_refresh_failure_preserves_the_managed_bundle(
         check: bool,
         timeout: int,
         cwd: Path | None = None,
-        capture_output: bool = False,
-        text: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         assert check
         assert timeout > 0
-        if args[0] == "chezmoi":
-            assert capture_output
-            assert text
-            return subprocess.CompletedProcess(args, 0, CONFIG)
         assert cwd is not None
         staging.append(cwd)
         configuration = Path(env["MISE_CONFIG_DIR"])

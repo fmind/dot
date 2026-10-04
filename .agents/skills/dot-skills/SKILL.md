@@ -17,7 +17,7 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 ## Workflow
 
 1. **Choose the owner**: inspect `git diff` and `git diff --cached`, apply skillify's admission rule, then read neighboring descriptions and extend an existing skill when it owns the workflow. Reusable skills belong in `skills/`; repository procedures belong in `.agents/skills/`. A tool's presence in the environment does not require a global skill.
-1. **Register additions**: first check the independent global/local limits: each scope (AGENTS.md plus skill discovery: names, descriptions, and paths) must stay below 5,000 estimated tokens (characters / 4, rounded up) with `dot agent context --source . --project . --check`; on-demand bodies and host/plugin catalogs are not measured, and combined totals are informational. Reduce overhead without losing distinctive triggers when full. Add each admitted skill and its required CLI tools to [contracts.json](../../../skills/contracts.json). Each global skill also needs `dot_agents/skills/symlink_<name>.tmpl` containing `{{ .chezmoi.sourceDir }}/skills/<name>`.
+1. **Register additions**: first check the independent global/local limits: each scope (AGENTS.md plus skill discovery: names, descriptions, and paths) must stay below 5,000 estimated tokens (characters / 4, rounded up) with `dot agent context --source . --project . --check`; on-demand bodies and host/plugin catalogs are not measured, and combined totals are informational. Reduce overhead without losing distinctive triggers when full. Each global skill needs `dot_agents/skills/symlink_<name>.tmpl` containing `{{ .chezmoi.sourceDir }}/skills/<name>`.
 1. **Connect resources**: use `metadata.kind` as the single connector, task, or collection tag. Keep a single procedure in the root; preserve substantial optional modes as guides at `references/<name>.md` or `references/<name>/GUIDE.md`, with their owned resources. Run `mise run format:skills` to generate parent routing indexes. Never nest `SKILL.md`. Update project `AGENTS.md` when workflow ownership changes; setup, usage, and the short task reference belong in `README.md`.
 1. **Validate**: run `mise run check:skills` and formatting checks for edited files. For installation changes, also target `uv run --frozen --project dot pytest -q dot/tests/test_skill_install_links.py`. Follow project `AGENTS.md` for broader qualification; prose-only changes do not require the full Python suite or build. Use [git-worktree](../../../skills/git-worktree/SKILL.md) when formatters could alter unrelated work. Re-run the budget check from step 2 (omit `--source` to measure installed shared roots). Review `mise run report:skills` when descriptions or guides change; its estimates are diagnostic.
 1. **Exercise changed guidance**: walk a realistic request through the skill using safe commands and disposable fixtures for writes. For output changes, compare success and failure cases, exit codes, diagnostics, and completeness markers. When host integration changes, check the affected host separately; catalog checks do not prove discovery or selection.
@@ -25,12 +25,12 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 ## Rename or remove
 
 1. Use `rg` to find the old name and path across both catalogs, docs, host configuration, and `dot/`. For a rename, change the directory, frontmatter name, provenance path, and update date together; preserve needed guidance when consolidating packages.
-1. Update the manifest, inbound links, and global link declaration together. Preserve historical records, then search again and validate as above.
+1. Update inbound links and the global link declaration together. Preserve historical records, then search again and validate as above.
 1. Apply leaves retired installed links in place. Use the [installed-link recovery guide](references/installed-links.md) for cleanup, collisions, source relocation, or catalog ownership.
 
 ## Boundaries
 
-- Keep `~/.agents/skills/` a real shared directory, never `exact_`. Independently installed packages remain outside this repository and its manifest; names must be unique.
+- Keep `~/.agents/skills/` a real shared directory, never `exact_`. Independently installed packages remain outside this repository; names must be unique.
 - `mise run check:skills` validates both first-party roots; `gh skill publish --dry-run skills` alone covers only the global directory. Sibling references are allowed here; standalone publication needs the package rules' portability check.
 
 ## Documentation

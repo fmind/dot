@@ -15,11 +15,9 @@ from fmind_dot.archive import store as session_store
 from fmind_dot.archive.parsers import GROK_TRANSCRIPT_NAME
 from fmind_dot.archive.query import SessionQuery, query_session_summaries
 from fmind_dot.archive.store import (
-    ensure_session_store,
     read_session_bundle,
     read_session_manifest,
     session_bundle_path,
-    session_store_root,
 )
 from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import load_usage_records
@@ -224,7 +222,7 @@ def test_malformed_usage_container_keeps_the_last_measured_copy(
         assert "private-invalid-container" not in _text(state.stderr)
 
 
-def test_sync_recaptures_version_five_user_text_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_recaptures_older_parser_bundles(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from fmind_dot.archive.sync import _source_signature
 
     state, source = source_session(tmp_path, monkeypatch)
@@ -234,7 +232,7 @@ def test_sync_recaptures_version_five_user_text_blocks(tmp_path: Path, monkeypat
     parsed = parsers.parse_claude_session(source, "fixture-id")
     assert parsed.usage is not None
     with monkeypatch.context() as legacy:
-        legacy.setattr(session_store, "SESSION_PARSER_VERSION", "5")
+        legacy.setattr(session_store, "SESSION_PARSER_VERSION", "9")
         session_store.ingest_session(
             "claude",
             "fixture-id",
@@ -246,15 +244,13 @@ def test_sync_recaptures_version_five_user_text_blocks(tmp_path: Path, monkeypat
             ),
             usage=parsed.usage.to_dict(),
         )
-    assert load_usage_records()[0].legacy_accounting
 
     result = sync_sessions(state, agent="claude")
 
     manifest, records = read_session_bundle(session_bundle_path("claude", "fixture-id"))
     assert result.ingested == 1
-    assert manifest.parser_version != "5"
+    assert manifest.parser_version == session_store.SESSION_PARSER_VERSION
     assert [record.content for record in records] == ["fixture", "response answer-1"]
-    assert not load_usage_records()[0].legacy_accounting
 
 
 def test_new_session_with_failed_usage_archives_its_transcript_and_retries(
@@ -379,53 +375,6 @@ def test_public_queries_report_unsupported_store_without_traceback(
     assert "unsupported session format" in captured.err
     assert "dot agent session sync" in captured.err
     assert "Traceback" not in captured.err
-
-
-# --- retired v2 store ---------------------------------------------------------------------------------------------
-
-
-def _v2_store(home: Path) -> dict[Path, bytes]:
-    """Write a stand-in for the retired v2 layout and return its exact content."""
-    manifest = home / ".agents/sessions/v2/claude/lineage/generation/manifest.json"
-    manifest.parent.mkdir(parents=True, mode=0o700)
-    manifest.write_text('{"schema_version": 2}\n')
-    return _snapshot(home / ".agents/sessions/v2")
-
-
-def _snapshot(root: Path) -> dict[Path, bytes]:
-    return {path: path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
-
-
-def test_retired_v2_store_fails_closed_without_modifying_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
-    before = _v2_store(tmp_path)
-
-    with pytest.raises(DotError, match=r"sessions/v2 predates sessions/v3; migrate it once with dot v7\.0\.4"):
-        sync_sessions(state, agent="claude")
-
-    assert not session_store_root().exists()
-    assert _snapshot(tmp_path / ".agents/sessions/v2") == before
-
-
-def test_existing_v3_store_ignores_a_leftover_v2_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
-    sync_sessions(state, agent="claude")
-    _v2_store(tmp_path)
-
-    assert ensure_session_store() == session_store_root()
-    assert [summary.session_id for summary in query_session_summaries()] == ["fixture-id"]
-
-
-def test_dry_run_does_not_touch_a_retired_v2_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
-    _v2_store(tmp_path)
-    before = _snapshot(tmp_path)
-
-    outcome = sync_sessions(state, agent="claude", dry_run=True)
-
-    assert outcome.selected == 1
-    assert not session_store_root().exists()
-    assert _snapshot(tmp_path) == before
 
 
 def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

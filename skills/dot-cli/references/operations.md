@@ -9,18 +9,18 @@ description: "Inspect repositories, diagnose workstation health, and manage sess
 
 | Command          | Purpose                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| `dot agent`      | Sync, query, and export session archives; check notify hooks and sync health; report activity.                  |
+| `dot agent`      | Sync and query session archives; check notify hooks and sync health; report activity.                           |
 | `dot cache`      | Inspect configured native caches, or select Docker, Hugging Face, or uv.                                        |
-| `dot login`      | Show providers; authenticate Workspace, GCP, GitHub, Colab ADC, or the Workspace-then-GCP `google` sequence.    |
+| `dot login`      | Show providers; authenticate Workspace, GCP, GitHub, Colab ADC, or `all` providers.                             |
 | `dot prune`      | Show providers; `dot prune all` cleans configured caches after confirmation (`--dry-run` previews).             |
 | `dot orphan`     | List files chezmoi deployed but no longer manages, with whether each still holds its last write; never deletes. |
 | `dot setup`      | Reconcile GitHub scopes or an explicit Workspace project and OAuth client.                                      |
 | `dot secret`     | Supply a personal key to one command without exporting it globally.                                             |
 | `dot completion` | Generate and syntax-check Fish completions before atomic replacement; `--check` validates without installing.   |
-| `dot config`     | Show, locate, initialize, edit, and validate strict YAML configuration.                                         |
+| `dot config`     | Show, locate, and edit strict YAML configuration; edits are validated when the editor exits.                    |
 | `dot doctor`     | Check local tools, permissions, environment, and installation; `--deep` adds provider authentication probes.    |
 | `dot pull`       | Fetch and fast-forward selected repositories with bounded concurrency and an explicit dirty-tree policy.        |
-| `dot status`     | Inspect selected repositories without fetching; optionally report attention counts.                             |
+| `dot status`     | Inspect selected repositories without fetching; optionally show only those needing attention.                   |
 | `dot trust`      | Pre-accept harness folder trust for a repository, or `all` for the configured workspaces.                       |
 
 ## Workflow
@@ -31,4 +31,4 @@ description: "Inspect repositories, diagnose workstation health, and manage sess
 1. **Capture and inspect sessions**: `dot agent session sync --agent codex --dry-run --json` previews parsing; remove `--dry-run` to capture changed sessions. `dot agent stats` and `dot agent usage` sync incrementally before reporting. See [daily workflows](daily-workflows.md) for date semantics, selection, and store boundaries.
 1. **Scope personal credentials**: `dot secret run` follows [scoped credentials](authentication.md#scoped-credentials); use ordinary commands for customer profiles, SDK ADC, and native HF/Kaggle/OpenCode logins.
 
-In the dotfiles repository, `mise run doctor` also runs chezmoi and mise diagnostics plus `check:vuln:tools`. That audit covers installed npm and pipx versions selected by a mise configuration source; retired or unmanaged installations are outside its scope. It reports audited versions, advisory findings, and coverage gaps, and fails when nothing was audited or any finding or gap remains. `mise run verify` runs the installed `dot doctor` alone; neither command replaces the repository gate.
+In the dotfiles repository, `mise run doctor` also runs chezmoi and mise diagnostics; `check:scan` audits the committed npm and pipx tool locks that `--locked` installs follow. `mise run verify` runs the installed `dot doctor` alone; neither command replaces the repository gate.

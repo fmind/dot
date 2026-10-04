@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import IO
 
 import pytest
 from typer.testing import CliRunner
@@ -12,64 +11,13 @@ from fmind_dot import system
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.hooks import Notification, build_notification, notification_command
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import CommandResult
 from fmind_dot.state import State
 from fmind_dot.system import run_doctor
+from tests.fakes import ScriptedRunner
 
 
-class FakeRunner(Runner):
-    def __init__(self, installed: set[str] | None = None) -> None:
-        self.installed = installed or set()
-        self.calls: list[list[str]] = []
-        self.output_limits: list[int | None] = []
-
-    def which(self, command: str) -> Path | None:
-        return Path("/bin") / command if command in self.installed else None
-
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        del cwd, input_text, env, timeout, check
-        self.calls.append(list(args))
-        return CommandResult(stdout="ok\n", stderr="", returncode=0)
-
-    def run_bounded(
-        self,
-        args: Sequence[str],
-        *,
-        max_output_bytes: int,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        self.output_limits.append(max_output_bytes)
-        return self.run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
-
-    def interactive(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        stdin: IO[str] | None = None,
-        stdout: IO[str] | None = None,
-        stderr: IO[str] | None = None,
-        env: Mapping[str, str] | None = None,
-    ) -> int:
-        del cwd, stdin, stdout, stderr, env
-        self.calls.append(list(args))
-        return 0
-
-
-def state_with(runner: FakeRunner, config: Config | None = None) -> State:
+def state_with(runner: ScriptedRunner, config: Config | None = None) -> State:
     state = State(runner=runner)
     state._config = config or Config()  # noqa: SLF001 - explicit dependency injection for the command boundary.
     return state
@@ -89,7 +37,7 @@ def test_build_notification_preserves_agent_hook_context() -> None:
 
 
 def test_notification_command_prefers_notify_send() -> None:
-    runner = FakeRunner({"notify-send", "gdbus"})
+    runner = ScriptedRunner({"notify-send", "gdbus"})
 
     command = notification_command(runner, Notification("Done", "Turn finished", ("~/dot",)), system="linux")
 
@@ -109,12 +57,11 @@ def test_verify_fails_closed_for_required_environment_and_tools(
     secret.write_text("encrypted", encoding="utf-8")
     secret.chmod(0o600)
     config.doctor.secrets[0].path = str(secret)
-    runner = FakeRunner({"python"})
+    runner = ScriptedRunner({"python"})
 
     results = run_doctor(state_with(runner, config), fix=False)
 
     assert results["passed"] is False
-    assert all(limit is not None for limit in runner.output_limits)
     encoded = json.dumps(results)
     assert "MISSING (required)" in encoded
     assert '"name": "missing", "status": "fail"' in encoded
@@ -132,7 +79,7 @@ def test_verify_omits_empty_optional_result_fields(monkeypatch: pytest.MonkeyPat
         lambda _state: [system.CheckResult("minimal", "pass", "")],
     )
 
-    results = run_doctor(state_with(FakeRunner(), config), fix=False)
+    results = run_doctor(state_with(ScriptedRunner(), config), fix=False)
 
     assert results["env_vars"] == [{"name": "minimal", "status": "pass"}]
 
@@ -145,7 +92,7 @@ def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPat
         return [system.CheckResult("fixture", "pass", "authenticated")]
 
     monkeypatch.setattr(system, "_auth_results", probe)
-    state = state_with(FakeRunner())
+    state = state_with(ScriptedRunner())
     local = run_doctor(state, fix=False)
     assert probes == []
     assert local["auth"][0]["status"] == "skip"
@@ -155,8 +102,8 @@ def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPat
 
 
 def test_doctor_detects_pgcli_import_failure() -> None:
-    class BrokenPgcli(FakeRunner):
-        def run_bounded(self, args: Sequence[str], **kwargs: object) -> CommandResult:
+    class BrokenPgcli(ScriptedRunner):
+        def run(self, args: Sequence[str], **kwargs: object) -> CommandResult:  # type: ignore[override]
             del kwargs
             if list(args) == ["/bin/pgcli", "--version"]:
                 return CommandResult(stdout="", stderr="ImportError: no pq wrapper available", returncode=1)
@@ -183,7 +130,7 @@ def test_doctor_rejects_secret_directories_without_changing_permissions(tmp_path
     config.doctor.tools = []
     config.doctor.secrets[0].path = str(secret)
 
-    result = run_doctor(state_with(FakeRunner(), config), fix=fix)
+    result = run_doctor(state_with(ScriptedRunner(), config), fix=fix)
 
     assert result["secrets"][0]["status"] == "fail"
     assert result["secrets"][0]["details"] == "not a regular file"

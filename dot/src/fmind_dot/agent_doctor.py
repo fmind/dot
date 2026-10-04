@@ -13,18 +13,16 @@ from fmind_dot.archive.store import (
     BUNDLE_SUFFIX,
     SESSION_PARSER_VERSION,
     SESSION_STORE_VERSION,
-    ensure_session_store,
     read_session_manifest,
+    session_store_root,
 )
-from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, source_root
+from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, SYNC_WINDOW_STATE_NAME, source_root
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State
 
 _CLI_NAME = "dot"
-# Session capture moved to `dot agent session sync`; these hooks now fail on every event.
-_RETIRED_HOOKS = (("agent", "hook", "session"),)
 
 
 @dataclass(frozen=True)
@@ -125,8 +123,6 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         )
         return "configured" if enabled else "disabled"
     configured = set(_command_hooks(config, definition.agent))
-    if any(arguments[: len(retired)] == retired for _, arguments in configured for retired in _RETIRED_HOOKS):
-        return "retired-capture-hook"
     missing = [
         event
         for event in definition.notify_events
@@ -143,32 +139,58 @@ def _count(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
-def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, int]:
-    """Return source presence, last complete sync time (or never/stale/unreadable), failures, and retained."""
-    source = "present" if source_root(state, agent).exists() else "missing"
+@dataclass(frozen=True)
+class _SyncState:
+    synced_at: str
+    timestamp: datetime
+    failed: int
+    retained: int
+    current: bool
+
+
+def _read_sync_state(path: Path) -> _SyncState | str:
+    """Parse one sync state file, or return never/unreadable."""
     try:
-        document = json.loads((root / agent / SYNC_STATE_NAME).read_bytes())
+        document = json.loads(path.read_bytes())
     except FileNotFoundError:
-        return source, "never", 0, 0
+        return "never"
     except OSError, ValueError, RecursionError:
-        return source, "unreadable", 0, 0
+        return "unreadable"
     if not isinstance(document, dict) or document.get("schema") != SYNC_STATE_SCHEMA:
-        return source, "unreadable", 0, 0
+        return "unreadable"
     synced_at, failed = document.get("synced_at"), _count(document.get("failed"))
     # States written before the retained count existed report none.
     retained = _count(document.get("retained", 0))
     if not isinstance(synced_at, str) or failed is None or retained is None:
-        return source, "unreadable", 0, 0
+        return "unreadable"
     try:
         timestamp = datetime.fromisoformat(synced_at)
     except ValueError:
-        return source, "unreadable", 0, 0
+        return "unreadable"
     if timestamp.tzinfo is None:
-        return source, "unreadable", 0, 0
-    if document.get("parser_version") != SESSION_PARSER_VERSION:
+        return "unreadable"
+    return _SyncState(synced_at, timestamp, failed, retained, document.get("parser_version") == SESSION_PARSER_VERSION)
+
+
+def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, int]:
+    """Return source presence, newest sync time (or never/stale/unreadable), failures, and retained.
+
+    Only a complete pass proves the archive, so it decides never/stale/unreadable. A newer windowed
+    (`--since`) pass by the current parser then reports its time, and its counts when they are larger:
+    it cannot clear failures of older sessions that only a complete pass retries.
+    """
+    source = "present" if source_root(state, agent).exists() else "missing"
+    complete = _read_sync_state(root / agent / SYNC_STATE_NAME)
+    if isinstance(complete, str):
+        return source, complete, 0, 0
+    if not complete.current:
         # Another parser captured this state: the archive needs a recapture by the current one.
-        return source, "stale", failed, retained
-    return source, synced_at, failed, retained
+        return source, "stale", complete.failed, complete.retained
+    window = _read_sync_state(root / agent / SYNC_WINDOW_STATE_NAME)
+    # The window state is auxiliary: a missing, unreadable or outdated one never hides the complete pass.
+    if isinstance(window, str) or not window.current or window.timestamp <= complete.timestamp:
+        return source, complete.synced_at, complete.failed, complete.retained
+    return source, window.synced_at, max(complete.failed, window.failed), max(complete.retained, window.retained)
 
 
 def _check_archive(root: Path, agent: str) -> tuple[str, int]:
@@ -188,7 +210,7 @@ def _check_archive(root: Path, agent: str) -> tuple[str, int]:
 
 def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorResult]:
     """Inspect every adapter, or one name the CLI has already validated."""
-    root = ensure_session_store()
+    root = session_store_root()
     results: list[AgentDoctorResult] = []
     for name in AGENT_ADAPTERS:
         if agent and name != agent:

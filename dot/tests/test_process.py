@@ -7,7 +7,6 @@ import time
 from io import StringIO
 from pathlib import Path
 from threading import Thread
-from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -15,53 +14,6 @@ import pytest
 from fmind_dot import process as process_module
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
-
-
-def test_terminal_handoff_restores_signal_mask_after_child_exit(monkeypatch: pytest.MonkeyPatch) -> None:
-    previous = {process_module.signal.SIGUSR1}
-    mask = Mock(return_value=previous)
-    monkeypatch.setattr(process_module.signal, "pthread_sigmask", mask)
-    monkeypatch.setattr(process_module.os, "tcsetpgrp", Mock(side_effect=ProcessLookupError))
-
-    process_module._set_foreground(0, 424_242)  # noqa: SLF001 - reproduce child exit during terminal handoff.
-
-    assert mask.call_args_list == [
-        ((process_module.signal.SIG_BLOCK, {process_module.signal.SIGTTOU}),),
-        ((process_module.signal.SIG_SETMASK, previous),),
-    ]
-
-
-def test_terminal_stop_relay_tolerates_child_reaped_after_poll(monkeypatch: pytest.MonkeyPatch) -> None:
-    child = Mock(pid=424_242)
-    child.poll.return_value = None
-    monkeypatch.setattr(process_module.os, "waitid", Mock(side_effect=ChildProcessError))
-    suspend = Mock()
-    monkeypatch.setattr(process_module.os, "kill", suspend)
-
-    process_module._relay_terminal_stop(child, 0)  # noqa: SLF001 - reproduce exit between poll and waitid.
-
-    suspend.assert_not_called()
-
-
-@pytest.mark.parametrize("error_cls", [ProcessLookupError, PermissionError])
-def test_terminal_stop_relay_tolerates_unavailable_group_while_wrapper_suspended(
-    monkeypatch: pytest.MonkeyPatch, error_cls: type[OSError]
-) -> None:
-    child = Mock(pid=424_242)
-    child.poll.return_value = None
-    monkeypatch.setattr(process_module.os, "waitid", Mock(return_value=object()))
-    foreground = Mock()
-    monkeypatch.setattr(process_module, "_set_foreground", foreground)
-    suspend = Mock()
-    monkeypatch.setattr(process_module.os, "kill", suspend)
-    resume = Mock(side_effect=error_cls)
-    monkeypatch.setattr(process_module.os, "killpg", resume)
-
-    process_module._relay_terminal_stop(child, 0)  # noqa: SLF001 - resume after the stopped child has exited.
-
-    suspend.assert_called_once_with(os.getpid(), process_module.signal.SIGSTOP)
-    resume.assert_called_once_with(child.pid, process_module.signal.SIGCONT)
-    assert foreground.call_count == 2
 
 
 @pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker", "status-worker", "doctor-worker"])
@@ -101,8 +53,8 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         "  repository.gather_status(State(runner=runner))\n"
         " elif os.environ['DOT_MODE']=='doctor-worker':\n"
         "  runner.which=lambda _tool: Path(sys.executable)\n"
-        "  bounded=runner.run_bounded\n"
-        "  runner.run_bounded=lambda _args,**kwargs: bounded(command,**kwargs)\n"
+        "  run=runner.run\n"
+        "  runner.run=lambda _args,**kwargs: run(command,**kwargs)\n"
         "  state=State(runner=runner)\n"
         "  state._config=Config()\n"
         "  state.config.doctor.tools=['fixture']\n"
@@ -156,7 +108,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         process.communicate(timeout=5)
 
 
-def test_runner_validates_commands_and_output_budget() -> None:
+def test_runner_validates_commands() -> None:
     runner = Runner()
 
     assert runner.which(sys.executable) == Path(sys.executable)
@@ -165,8 +117,6 @@ def test_runner_validates_commands_and_output_budget() -> None:
         runner.run([])
     with pytest.raises(DotError, match="empty command"):
         runner.interactive([])
-    with pytest.raises(DotError, match="captured output must be positive"):
-        runner.run_bounded([sys.executable], max_output_bytes=0)
 
 
 def test_cancel_prohibits_subsequent_worker_commands(tmp_path: Path) -> None:
@@ -253,60 +203,21 @@ def test_interactive_preserves_cwd_and_environment(tmp_path: Path) -> None:
     assert result_path.read_text(encoding="utf-8") == "present"
 
 
-def test_bounded_capture_drains_oversized_stdout_and_stderr() -> None:
-    output_bytes = 2 * 1024 * 1024
-    script = f"import os\nos.write(1, b'o' * {output_bytes})\nos.write(2, b'e' * {output_bytes})\n"
-
-    result = Runner().run_bounded([sys.executable, "-c", script], timeout=5, max_output_bytes=4096)
-
-    assert result.returncode == 0
-    assert len(result.stdout.encode()) + len(result.stderr.encode()) == 4096
-    assert set(result.stdout) <= {"o"}
-    assert set(result.stderr) <= {"e"}
-    assert result.output_truncated
-    assert result.stdout_truncated or result.stderr_truncated
-
-
-def test_bounded_capture_preserves_small_output_and_input() -> None:
-    script = "import sys; value=sys.stdin.read(); print(value); print('diagnostic', file=sys.stderr)"
-
-    result = Runner().run_bounded(
-        [sys.executable, "-c", script],
-        input_text="payload",
-        max_output_bytes=4096,
-    )
-
-    assert result.stdout == "payload\n"
-    assert result.stderr == "diagnostic\n"
-    assert not result.output_truncated
-
-
-def test_bounded_capture_streams_large_input_and_delivers_empty_input_eof() -> None:
+def test_run_streams_large_input_and_delivers_empty_input_eof() -> None:
     payload = "x" * (256 * 1024)
     reader = "import sys; value=sys.stdin.read(); print(len(value))"
 
-    large = Runner().run_bounded(
-        [sys.executable, "-c", reader],
-        input_text=payload,
-        max_output_bytes=64,
-        timeout=5,
-    )
-    empty = Runner().run_bounded(
-        [sys.executable, "-c", reader],
-        input_text="",
-        max_output_bytes=64,
-        timeout=5,
-    )
+    large = Runner().run([sys.executable, "-c", reader], input_text=payload, timeout=5)
+    empty = Runner().run([sys.executable, "-c", reader], input_text="", timeout=5)
 
     assert large.stdout == f"{len(payload)}\n"
     assert empty.stdout == "0\n"
 
 
-def test_bounded_capture_tolerates_child_closing_stdin_early() -> None:
-    result = Runner().run_bounded(
+def test_run_tolerates_child_closing_stdin_early() -> None:
+    result = Runner().run(
         [sys.executable, "-c", "import os,time; os.close(0); time.sleep(.05)"],
         input_text="x" * (1024 * 1024),
-        max_output_bytes=64,
         timeout=5,
     )
 
@@ -315,26 +226,12 @@ def test_bounded_capture_tolerates_child_closing_stdin_early() -> None:
     assert result.stderr == ""
 
 
-def test_bounded_capture_replaces_invalid_locale_bytes() -> None:
-    script = "import os; os.write(1, bytes([255, 254])); os.write(2, bytes([253]))"
-
-    result = Runner().run_bounded([sys.executable, "-c", script], max_output_bytes=3)
-
-    assert result.stdout == "��"
-    assert result.stderr == "�"
-    assert not result.output_truncated
-
-
-def test_run_shares_bounded_capture_and_fails_instead_of_truncating(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(process_module, "RUN_OUTPUT_LIMIT_BYTES", 8)
+def test_run_applies_universal_newlines() -> None:
     script = "import os; os.write(1, b'a\\r\\nb\\rc')"
     assert Runner().run([sys.executable, "-c", script]).stdout == "a\nb\nc"
 
-    with pytest.raises(DotError, match="command output exceeded 8 bytes"):
-        Runner().run([sys.executable, "-c", "print('x' * 64)"], check=False)
 
-
-def test_run_replaces_invalid_locale_bytes_like_bounded_capture() -> None:
+def test_run_replaces_invalid_locale_bytes() -> None:
     script = "import os; os.write(1, b'ok\\xff\\n'); os.write(2, b'\\xfe')"
 
     result = Runner().run([sys.executable, "-c", script])
@@ -359,7 +256,6 @@ def _wait_for(path: Path) -> None:
     assert path.exists(), "child did not become ready before the startup deadline"
 
 
-@pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
 def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
     ready, clean = tmp_path / "ready", tmp_path / "clean"
 
@@ -370,7 +266,6 @@ def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
     assert clean.read_text() == "clean"
 
 
-@pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
 @pytest.mark.parametrize("group_error", [None, ProcessLookupError, PermissionError])
 def test_cancel_lets_child_handle_sigterm_before_kill(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, group_error: type[OSError] | None
@@ -397,7 +292,6 @@ def test_cancel_lets_child_handle_sigterm_before_kill(
     assert [result.returncode for result in results] == [0]
 
 
-@pytest.mark.skipif(os.name != "posix", reason="process groups and SIGTERM are POSIX contracts")
 @pytest.mark.parametrize("stop", ["timeout", "cancel"])
 @pytest.mark.parametrize("group_error", [None, ProcessLookupError, PermissionError])
 def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
@@ -453,7 +347,7 @@ def test_timeout_is_bounded_when_descendant_escapes_process_group() -> None:
 
     started = time.monotonic()
     with pytest.raises(DotError, match="command timed out"):
-        Runner().run_bounded([sys.executable, "-c", parent], timeout=0.1, max_output_bytes=64)
+        Runner().run([sys.executable, "-c", parent], timeout=0.1)
 
     assert time.monotonic() - started < 1.5
 
@@ -461,86 +355,9 @@ def test_timeout_is_bounded_when_descendant_escapes_process_group() -> None:
 def test_timeout_is_bounded_for_silent_process() -> None:
     started = time.monotonic()
     with pytest.raises(DotError, match="command timed out"):
-        Runner().run_bounded(
-            [sys.executable, "-c", "import time; time.sleep(30)"],
-            timeout=0.05,
-            max_output_bytes=64,
-        )
+        Runner().run([sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.05)
 
     assert time.monotonic() - started < 1.5
-
-
-@pytest.mark.parametrize("error_cls", [ProcessLookupError, PermissionError])
-def test_termination_falls_back_when_process_group_is_unavailable(
-    monkeypatch: pytest.MonkeyPatch, error_cls: type[OSError]
-) -> None:
-    class StubbornProcess:
-        def __init__(self) -> None:
-            self.pid = 424_243
-            self.stdin = StringIO()
-            self.stdout = StringIO()
-            self.stderr = StringIO()
-            self.kills = 0
-            self.waits = 0
-
-        def poll(self) -> None:
-            return None
-
-        def kill(self) -> None:
-            self.kills += 1
-
-        def wait(self, timeout: float | None) -> int:
-            del timeout
-            self.waits += 1
-            if self.waits == 1:
-                raise process_module.subprocess.TimeoutExpired("command", 3)
-            return -9
-
-    process = StubbornProcess()
-
-    def missing_group(_pid: int, _signal: int) -> None:
-        raise error_cls
-
-    monkeypatch.setattr(process_module.os, "killpg", missing_group)
-    process_module._terminate(  # noqa: SLF001 - exercise cleanup fallback contract.
-        cast("subprocess.Popen[str]", process)
-    )
-
-    assert process.kills == 2
-    assert process.waits == 1
-    assert process.stdin.closed
-    assert process.stdout.closed
-    assert process.stderr.closed
-
-
-def test_termination_uses_direct_kill_off_posix(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Process:
-        pid = 424_244
-        stdin = None
-        stdout = None
-        stderr = None
-
-        def __init__(self) -> None:
-            self.killed = False
-
-        def poll(self) -> None:
-            return None
-
-        def kill(self) -> None:
-            self.killed = True
-
-        def wait(self, timeout: float | None) -> int:
-            del timeout
-            return -9
-
-    process = Process()
-    monkeypatch.setattr(process_module.os, "name", "nt")
-
-    process_module._terminate(  # noqa: SLF001 - exercise portable cleanup contract.
-        cast("subprocess.Popen[str]", process)
-    )
-
-    assert process.killed
 
 
 def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -564,6 +381,9 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
             self.waited = True
             return self.returncode
 
+        def communicate(self, *_args: object, **_kwargs: object) -> tuple[str, str]:
+            raise KeyboardInterrupt
+
     process = InterruptedProcess()
     signals: list[tuple[int, int]] = []
 
@@ -571,11 +391,7 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
         del args, kwargs
         return process
 
-    def interrupted(*_args: object) -> None:
-        raise KeyboardInterrupt
-
     monkeypatch.setattr(process_module.subprocess, "Popen", popen)
-    monkeypatch.setattr(process_module, "_communicate_bounded", interrupted)
     monkeypatch.setattr(process_module.os, "killpg", lambda pid, sig: signals.append((pid, sig)))
 
     with pytest.raises(KeyboardInterrupt):
@@ -586,3 +402,84 @@ def test_keyboard_interrupt_terminates_child_and_closes_capture_pipes(monkeypatc
     assert process.stdin.closed
     assert process.stdout.closed
     assert process.stderr.closed
+
+
+def test_interactive_child_restores_default_interrupt_and_reports_it() -> None:
+    previous = process_module.signal.getsignal(process_module.signal.SIGINT)
+    # dot defers Ctrl+C to the child; an inherited SIG_IGN would make the child immune to it.
+    inherited = "import signal,sys; sys.exit(0 if signal.getsignal(signal.SIGINT) is signal.default_int_handler else 9)"
+    interrupted = "import os,signal; signal.signal(signal.SIGINT, signal.SIG_DFL); os.kill(os.getpid(), signal.SIGINT)"
+
+    assert Runner().interactive([sys.executable, "-c", inherited]) == 0
+    with pytest.raises(KeyboardInterrupt):
+        Runner().interactive([sys.executable, "-c", interrupted])
+    assert process_module.signal.getsignal(process_module.signal.SIGINT) is previous
+
+
+def test_interactive_relay_echoes_stderr_lines_and_reports_each() -> None:
+    lines: list[str] = []
+    stderr = StringIO()
+    script = "import sys; sys.stderr.write('Open this URL:\\n  https://example.test\\n'); sys.exit(3)"
+    with Path(os.devnull).open(encoding="utf-8") as stdin:
+        code = Runner().interactive(
+            [sys.executable, "-c", script], stdin=stdin, stderr=stderr, on_stderr_line=lines.append
+        )
+    assert code == 3
+    assert lines == ["Open this URL:\n", "  https://example.test\n"]
+    assert stderr.getvalue() == "".join(lines)
+
+
+def test_interactive_relay_returns_while_an_escaped_descendant_holds_stderr(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(process_module, "_TERMINATION_TIMEOUT_SECONDS", 0.2)
+    lines: list[str] = []
+    started = time.monotonic()
+    # The background sleep inherits the stderr pipe and outlives the shell.
+    code = Runner().interactive(
+        ["sh", "-c", "echo ready >&2; sleep 5 & exit 0"], stderr=StringIO(), on_stderr_line=lines.append
+    )
+    assert code == 0
+    assert time.monotonic() - started < 3
+    assert lines == ["ready\n"]
+
+
+def test_sigterm_stops_descendants_of_a_child_without_a_terminal(tmp_path: Path) -> None:
+    pid_file = tmp_path / "descendant.pid"
+    launcher = (
+        "import signal,sys\n"
+        "from fmind_dot.cli import _interrupt_on_sigterm\n"
+        "from fmind_dot.process import Runner\n"
+        "signal.signal(signal.SIGTERM, _interrupt_on_sigterm)\n"
+        "try:\n"
+        f" Runner().interactive(['sh','-c','sleep 30 & echo $! > {pid_file}; wait'])\n"
+        "except KeyboardInterrupt:\n"
+        " sys.exit(130)\n"
+    )
+    # Supervisors and CI give dot no terminal; the shell's background sleep must not outlive it.
+    dot = subprocess.Popen(
+        [sys.executable, "-c", launcher],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while not (pid_file.exists() and pid_file.read_text().strip()):
+            assert time.monotonic() < deadline, "the child never started"
+            time.sleep(0.02)
+        descendant = int(pid_file.read_text())
+        dot.terminate()
+        assert dot.wait(timeout=10) == 130
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(descendant, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            os.kill(descendant, process_module.signal.SIGKILL)
+            pytest.fail("the descendant survived SIGTERM to dot")
+    finally:
+        if dot.poll() is None:
+            dot.kill()
+            dot.wait()

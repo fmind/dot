@@ -2,10 +2,10 @@
 # Search-only exclusions for ripgrep/fd; Git tracking is unaffected.
 # Generated lockfiles and per-tool dependency graphs.
 *.lock
-aube-lock.yaml
-lazy-lock.json
-dot_config/mise/locks/
 CHANGELOG.md
+aube-lock.yaml
+dot_config/mise/locks/
+lazy-lock.json
 # Generated per-host subagent profiles; dot_agents/supagents/ is the source.
 dot_claude/agents/
 dot_codex/agents/

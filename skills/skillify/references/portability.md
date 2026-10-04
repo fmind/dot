@@ -4,7 +4,7 @@ Read when promoting a guide to its own package, publishing one package outside t
 
 ## Promotion
 
-Move the guide and owned resources into a new package, rename its entrypoint to `SKILL.md`, add root metadata, fix relative links, and update callers, manifest, and installation declarations. Remove the former guide rather than keeping two copies. Test the resulting package independently before claiming standalone portability.
+Move the guide and owned resources into a new package, rename its entrypoint to `SKILL.md`, add root metadata, fix relative links, and update callers and installation declarations. Remove the former guide rather than keeping two copies. Test the resulting package independently before claiming standalone portability.
 
 ## Standalone publication
 

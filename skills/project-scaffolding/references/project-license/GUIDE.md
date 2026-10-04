@@ -13,7 +13,7 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 1. **Read the existing license first**: `ls LICENSE*` and `gh repo view --json nameWithOwner,isPrivate,licenseInfo`; an existing license stays unless the user asked to replace it.
 1. **Select the license**:
    - Public code under `fmind`, `fmind-ai`, or `mlops-courses`: MIT, from [MIT](templates/MIT).
-   - Written course material (lessons, exercises, prose): CC-BY-4.0 as `LICENSE.txt`, from [CC-BY-4.0](templates/CC-BY-4.0); `mlops-courses/mlops-coding-course` is the reference example.
+   - Written course material (lessons, exercises, prose): CC-BY-4.0 as `LICENSE.txt`, fetched verbatim with `curl -fsSL https://creativecommons.org/licenses/by/4.0/legalcode.txt -o LICENSE.txt`; `mlops-courses/mlops-coding-course` is the reference example.
    - Every private repository and every other namespace: proprietary, from [PROPRIETARY](templates/PROPRIETARY); never an open-source license.
 1. **Write the file** at the repository root:
    - Copyright holder from the namespace: `fmind` and `fmind-ai` use `Médéric Hurier (Fmind)`; `mlops-courses` uses `MLOps Courses`. When unsure, copy the holder from a sibling repository.
@@ -29,5 +29,5 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 ## Documentation
 
 - [Choose an Open Source License](https://choosealicense.com/) · [SPDX license list](https://spdx.org/licenses/) · [PEP 639](https://peps.python.org/pep-0639/)
-- [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — the legal code shipped in [templates/CC-BY-4.0](templates/CC-BY-4.0).
+- [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [legal code](https://creativecommons.org/licenses/by/4.0/legalcode.txt)
 - Companion skills: [bootstrap](../bootstrap.md) (calls this guide when bootstrapping), [github-repository](../../../github-repository/SKILL.md) (repository settings).

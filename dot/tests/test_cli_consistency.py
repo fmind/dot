@@ -17,7 +17,7 @@ def isolated_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
 
 
-@pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login", "google"]])
+@pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login", "all"]])
 def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> None:
     config = tmp_path / "bad.yaml"
     config.write_text("pull:\n  typo: true\n")
@@ -81,12 +81,12 @@ def test_removed_cleanup_cannot_delete_retained_files(tmp_path: Path, monkeypatc
     assert report.read_text() == "retained work"
 
 
-def test_google_login_dry_run_names_its_scope() -> None:
-    result = CliRunner().invoke(app, ["login", "google", "--dry-run"])
+def test_login_all_dry_run_names_every_provider() -> None:
+    result = CliRunner().invoke(app, ["login", "all", "--dry-run"])
     assert result.exit_code == 0
+    assert "gh auth login" in result.stdout
     assert "gws auth login" in result.stdout
     assert "gcloud auth login" in result.stdout
-    assert "gh auth" not in result.stdout
 
 
 @pytest.mark.parametrize("command", [["agent", "prompts", "stats"], ["agent", "usage", "stats"]])

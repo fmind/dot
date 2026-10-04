@@ -1,6 +1,6 @@
 # Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: Security
-# Push CI scans only the latest commits, so a secret committed earlier and later
+# Push CI scans only the working tree, so a secret committed earlier and later
 # removed would never be seen again. This is the full-history counterpart: same
 # pinned scanners, whole history, no reports to parse — a finding fails the job.
 on:
@@ -24,12 +24,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false # scanners only read the checkout
       - name: Install mise system
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
           version: 2026.10.2
       - name: Scan complete Git history
-        run: gitleaks git --redact=100 --verbose --no-banner
+        run: mise run check:leaks:full
       - name: Scan full checkout
         # Delegate to the task so the scheduled scan cannot drift from the local gate.
         run: mise run check:scan

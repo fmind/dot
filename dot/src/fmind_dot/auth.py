@@ -2,6 +2,9 @@
 
 import json
 import os
+import sys
+import webbrowser
+from collections.abc import Callable
 from pathlib import PurePath
 from typing import Annotated, Any
 
@@ -9,13 +12,13 @@ import typer
 from pydantic import TypeAdapter, ValidationError
 
 from fmind_dot.command_group import help_group
-from fmind_dot.config import Host, Project
+from fmind_dot.config import Project
 from fmind_dot.errors import DotError
-from fmind_dot.process import PROBE_OUTPUT_LIMIT_BYTES, CommandResult
+from fmind_dot.process import CommandResult
 from fmind_dot.state import State, require_tools, state_from
 from fmind_dot.workstation import DryRun, ForceLogin, execute
 
-login_app = help_group("Authenticate GitHub, Workspace, Google Cloud, or Colab")
+login_app = help_group("Authenticate GitHub, Workspace, Google Cloud, or Colab; all reconciles every provider")
 setup_app = help_group("Reconcile provider setup and configured policy")
 _COLAB_ADC_SCOPES = (
     "openid",
@@ -23,9 +26,7 @@ _COLAB_ADC_SCOPES = (
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/colaboratory",
 )
-HostOption = Annotated[
-    str | None, typer.Option("--host", envvar="GH_HOST", help="GitHub host; overrides auth.github.host")
-]
+GITHUB_HOST = "github.com"
 # GitHub normalizes grants, dropping scopes implied by broader grants.
 # https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps
 _GITHUB_IMPLIED = {
@@ -52,9 +53,11 @@ _GITHUB_IMPLIED = {
     "project": {"read:project"},
     "write:packages": {"read:packages"},
 }
-# Lowercase gcloud stderr fragments that require a fresh login; doctor shares them. gcloud ends
-# every relogin error with its login command; transport failures never name one.
+# Lowercase gcloud stderr fragments that require a fresh login. gcloud ends
+# every relogin error with its login command; transport failures never name one. Google rejects a
+# token refresh for scopes outside the stored grant, which gcloud reports as an invalid scopes value.
 GCLOUD_LOGIN_MARKERS = (
+    "invalid scopes value",
     "invalid_grant",
     "expired or revoked",
     "reauthenticat",
@@ -68,6 +71,9 @@ GCLOUD_LOGIN_MARKERS = (
     "credentials not found",
 )
 GITHUB_KEYRING_REMEDY = "unlock the system keyring, then run gh auth logout and dot setup github"
+GCLOUD_CLI_TOKEN = ["gcloud", "auth", "print-access-token"]
+# Native OAuth URLs that dot may open on behalf of a CLI that only prints them.
+_GOOGLE_OAUTH_URL = "https://accounts.google.com/"
 _GOOGLE_SCOPE_ALIASES = {
     "email": "https://www.googleapis.com/auth/userinfo.email",
     "profile": "https://www.googleapis.com/auth/userinfo.profile",
@@ -76,12 +82,7 @@ _GOOGLE_SCOPE_ALIASES = {
 
 def probe(state: State, args: list[str]) -> CommandResult:
     require_tools(state, [args])
-    result = state.runner.run_bounded(
-        args, max_output_bytes=PROBE_OUTPUT_LIMIT_BYTES, timeout=state.config.auth.probe_timeout_seconds, check=False
-    )
-    if result.output_truncated:
-        raise DotError(f"{args[0]} status exceeded the output limit; inspect the provider directly and retry")
-    return result
+    return state.runner.run(args, timeout=state.config.auth.probe_timeout_seconds, check=False)
 
 
 def probe_json(state: State, args: list[str]) -> object:
@@ -137,24 +138,50 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False)
     if not force and workspace_ready(state):
         print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
         return
-    execute(state, args)
+    # gws 0.22.5 prints its OAuth URL on stderr but never launches a browser.
+    execute(state, args, on_stderr_line=browser_opener(state))
     if not workspace_ready(state):
         raise DotError("Workspace login did not satisfy the configured scopes; inspect gws auth status and retry")
 
 
-def github_status_command(host: str) -> list[str]:
-    return ["gh", "auth", "status", "--active", "--hostname", host, "--json", "hosts"]
+def open_browser(url: str) -> bool:
+    """Open a URL in the graphical browser; report False when none is available."""
+    # webbrowser honors $BROWSER (garcon-url-handler on Crostini), but without a graphical
+    # session it falls back to console browsers that would seize the terminal mid-login.
+    if sys.platform != "darwin" and not any(os.environ.get(name) for name in ("BROWSER", "DISPLAY", "WAYLAND_DISPLAY")):
+        return False
+    try:
+        return webbrowser.open(url)
+    except webbrowser.Error:
+        return False
 
 
-def github_status(state: State, host: str) -> dict[str, Any] | None:
-    return github_entry(probe_json(state, github_status_command(host)), host)
+def browser_opener(state: State) -> Callable[[str], None]:
+    """Open the first Google OAuth URL a native login prints; the printed URL stays the fallback."""
+    opened = False
+
+    def on_line(line: str) -> None:
+        nonlocal opened
+        url = line.strip()
+        if opened or not url.startswith(_GOOGLE_OAUTH_URL) or any(char.isspace() for char in url):
+            return
+        opened = True
+        if open_browser(url):
+            print("Opened the sign-in page in your browser.", file=state.stderr, flush=True)
+
+    return on_line
 
 
-def github_entry(status: object, host: str) -> dict[str, Any] | None:
+def github_status(state: State) -> dict[str, Any] | None:
+    status = probe_json(state, ["gh", "auth", "status", "--active", "--hostname", GITHUB_HOST, "--json", "hosts"])
+    return github_entry(status)
+
+
+def github_entry(status: object) -> dict[str, Any] | None:
     """Select the active account from gh status JSON: None when unauthenticated; raises when unknown."""
     if not isinstance(status, dict) or not isinstance(status.get("hosts"), dict):
         raise unknown("github")
-    entries = status["hosts"].get(host, [])
+    entries = status["hosts"].get(GITHUB_HOST, [])
     if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
         raise unknown("github")
     active = [entry for entry in entries if entry.get("active") is True]
@@ -189,34 +216,26 @@ def github_ready(state: State, entry: dict[str, Any] | None, *, reconcile: bool)
     return set(policy.scopes) <= granted and (not reconcile or not set(policy.remove_scopes) & scopes)
 
 
-def login_github(
-    state: State, host: str | None, *, reconcile: bool = False, force: bool = False, dry_run: bool = False
-) -> None:
-    try:
-        selected = TypeAdapter(Host).validate_python(host if host is not None else state.config.auth.github.host)
-    except ValidationError as error:
-        raise typer.BadParameter("expected a hostname", param_hint="--host") from error
+def login_github(state: State, *, reconcile: bool = False, force: bool = False, dry_run: bool = False) -> None:
     policy = state.config.auth.github
-    args = ["gh", "auth", "login", "--hostname", selected, "--scopes", ",".join(policy.scopes)]
+    args = ["gh", "auth", "login", "--hostname", GITHUB_HOST, "--scopes", ",".join(policy.scopes)]
     refresh = ["gh", "auth", "refresh", *args[3:]]
     if reconcile and policy.remove_scopes:
         refresh.extend(["--remove-scopes", ",".join(policy.remove_scopes)])
+    # --web skips the authentication-method prompt; the Git protocol is resolved from gh's
+    # configuration at run time, and the SSH key prompt remains a deliberate per-machine choice.
+    login = [*args, "--web"]
     if dry_run:
-        execute(state, args, dry_run=True)
+        execute(state, login, dry_run=True)
         if reconcile:
             execute(state, refresh, dry_run=True)
         return
-    entry = None if force else github_status(state, selected)
+    entry = None if force else github_status(state)
     if not force and github_ready(state, entry, reconcile=reconcile):
         print("GitHub is already authenticated with the requested scope policy.", file=state.stderr)
         warn_plaintext_github_token(state, entry)
         return
-    env_names = (
-        ("GH_TOKEN", "GITHUB_TOKEN")
-        if selected == "github.com" or selected.endswith(".ghe.com")
-        else ("GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
-    )
-    if any(os.environ.get(name) for name in env_names):
+    if any(os.environ.get(name) for name in ("GH_TOKEN", "GITHUB_TOKEN")):
         raise DotError(
             "an environment token controls GitHub authentication; update or unset it before changing OAuth scopes"
         )
@@ -224,16 +243,23 @@ def login_github(
     if entry is not None:
         execute(state, refresh, env=env)
     else:
-        execute(state, args, env=env)
+        execute(state, [*login, *github_git_protocol(state)], env=env)
         # A fresh login cannot remove grants retained from an earlier authorization.
         if reconcile and policy.remove_scopes:
             execute(state, refresh, env=env)
-    entry = github_status(state, selected)
+    entry = github_status(state)
     if not github_ready(state, entry, reconcile=reconcile):
         raise DotError(
             "GitHub authentication did not satisfy the configured scope policy; inspect gh auth status and retry"
         )
     warn_plaintext_github_token(state, entry)
+
+
+def github_git_protocol(state: State) -> list[str]:
+    """Pass gh's configured Git protocol so login skips its prompt; unknown values keep the prompt."""
+    result = probe(state, ["gh", "config", "get", "git_protocol", "--host", GITHUB_HOST])
+    value = result.stdout.strip()
+    return ["--git-protocol", value] if result.returncode == 0 and value in {"https", "ssh"} else []
 
 
 def github_login_env() -> dict[str, str] | None:
@@ -262,30 +288,41 @@ def warn_plaintext_github_token(state: State, entry: dict[str, Any] | None) -> N
         )
 
 
-def gcp_ready(state: State) -> bool:
-    ready = True
-    for args in (
-        ["gcloud", "auth", "print-access-token"],
-        ["gcloud", "auth", "application-default", "print-access-token"],
-    ):
-        result = probe(state, args)
-        if result.returncode == 0 and result.stdout.strip():
-            continue
-        # Never render access tokens or raw provider diagnostics.
-        if result.returncode and any(marker in result.stderr.lower() for marker in GCLOUD_LOGIN_MARKERS):
-            ready = False
-        else:
-            raise unknown("gcp")
-    return ready
+def gcloud_ready(state: State, args: list[str], provider: str = "gcp") -> bool:
+    result = probe(state, args)
+    if result.returncode == 0 and result.stdout.strip():
+        return True
+    # Never render access tokens or raw provider diagnostics.
+    if result.returncode and any(marker in result.stderr.lower() for marker in GCLOUD_LOGIN_MARKERS):
+        return False
+    raise unknown(provider)
+
+
+def adc_ready(state: State, provider: str = "gcp") -> bool:
+    """Refresh ADC for the configured scopes; Google rejects scopes outside the stored grant."""
+    scopes = ",".join(state.config.auth.gcp.adc_scopes)
+    return gcloud_ready(
+        state, ["gcloud", "auth", "application-default", "print-access-token", f"--scopes={scopes}"], provider
+    )
+
+
+def adc_login_command(state: State) -> list[str]:
+    return ["gcloud", "auth", "application-default", "login", f"--scopes={','.join(state.config.auth.gcp.adc_scopes)}"]
 
 
 def login_gcp(state: State, *, force: bool = False, dry_run: bool = False) -> None:
-    args = ["gcloud", "auth", "login", "--update-adc"]
+    # Separate logins keep the configured ADC grant: `gcloud auth login --update-adc` would replace
+    # it with gcloud's defaults and silently drop scopes such as Colab's.
+    cli = ["gcloud", "auth", "login"]
+    adc = adc_login_command(state)
     if dry_run:
-        execute(state, args, dry_run=True)
+        execute(state, cli, dry_run=True)
+        execute(state, adc, dry_run=True)
         return
-    if not force and gcp_ready(state):
-        print("Google Cloud and ADC already provide usable credentials.", file=state.stderr)
+    cli_ready = not force and gcloud_ready(state, GCLOUD_CLI_TOKEN)
+    adc_current = not force and adc_ready(state)
+    if cli_ready and adc_current:
+        print("Google Cloud CLI and ADC already provide usable credentials.", file=state.stderr)
         return
     if (
         os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -295,8 +332,11 @@ def login_gcp(state: State, *, force: bool = False, dry_run: bool = False) -> No
         raise DotError(
             "external credentials override Google Cloud or ADC; repair or unset the override before OAuth login"
         )
-    execute(state, args)
-    if not gcp_ready(state):
+    if not cli_ready:
+        execute(state, cli)
+    if not adc_current:
+        execute(state, adc)
+    if not (gcloud_ready(state, GCLOUD_CLI_TOKEN) and adc_ready(state)):
         raise DotError(
             "Google Cloud login did not provide usable CLI and ADC credentials; inspect gcloud auth and retry"
         )
@@ -325,23 +365,30 @@ def colab_ready(state: State) -> bool:
     )
 
 
-def login_colab(state: State, *, dry_run: bool = False) -> None:
-    args = ["gcloud", "auth", "application-default", "login", f"--scopes={','.join(_COLAB_ADC_SCOPES)}"]
+def login_colab(state: State, *, force: bool = False, dry_run: bool = False) -> None:
+    missing = [scope for scope in _COLAB_ADC_SCOPES if scope not in state.config.auth.gcp.adc_scopes]
+    if missing:
+        raise DotError(f"auth.gcp.adc_scopes must include the Colab scopes: {', '.join(missing)}")
+    args = adc_login_command(state)
+    sessions = ["colab", "--auth=adc", "sessions"]
     if dry_run:
         execute(state, args, dry_run=True)
-        execute(state, ["colab", "--auth=adc", "sessions"], dry_run=True)
+        execute(state, sessions, dry_run=True)
         return
-    require_tools(state, [args, ["colab"]])
-    # The session backend can accept a token without the RuntimeService scope.
-    # Always request the full grant instead of using session access to skip login.
-    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        raise DotError(
-            "external credentials override Colab ADC; repair or unset GOOGLE_APPLICATION_CREDENTIALS before OAuth login"
-        )
-    execute(state, args)
+    require_tools(state, [args, sessions])
+    # The session backend can accept a token without the RuntimeService scope, so the
+    # scoped ADC refresh, not session access, decides whether to skip authorization.
+    if not force and adc_ready(state, "colab"):
+        print("ADC already grants the configured scopes.", file=state.stderr)
+    else:
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+            raise DotError(
+                "external credentials override Colab ADC; repair or unset GOOGLE_APPLICATION_CREDENTIALS before OAuth login"
+            )
+        execute(state, args)
     if not colab_ready(state):
         raise DotError(
-            "Colab login did not provide usable ADC with the required scopes; inspect colab --auth=adc sessions and retry"
+            "Colab login did not provide usable ADC with the required scopes; inspect colab --auth=adc sessions and retry dot login colab --force"
         )
     print("Colab accepts ADC credentials.", file=state.stderr)
 
@@ -358,13 +405,17 @@ def workspace_apis(state: State, project: str) -> set[str]:
     return {row["config"]["name"] for row in enabled}
 
 
-def workspace_configured(state: State, project: str) -> bool:
+def workspace_client(state: State, project: str) -> tuple[bool, set[str] | None]:
+    """Report whether the OAuth client targets the project, plus its enabled APIs when gws listed them."""
     status = probe_json(state, ["gws", "auth", "status"])
     if not isinstance(status, dict) or type(status.get("client_config_exists")) is not bool:
         raise DotError("Workspace client configuration state is unknown; inspect gws auth status before setup")
-    return (
-        status["client_config_exists"] and status.get("project_id") == project and not status.get("client_config_error")
-    )
+    same_project = status.get("project_id") == project
+    configured = status["client_config_exists"] and same_project and not status.get("client_config_error")
+    # gws queries gcloud live for its own project, which saves a separate services listing.
+    apis = status.get("enabled_apis")
+    listed = same_project and isinstance(apis, list) and all(isinstance(api, str) for api in apis)
+    return configured, set(apis) if listed else None
 
 
 def setup_workspace(state: State, project: str | None, *, dry_run: bool = False) -> None:
@@ -384,15 +435,15 @@ def setup_workspace(state: State, project: str | None, *, dry_run: bool = False)
         execute(state, setup, dry_run=True)
         return
     require_tools(state, [enable, setup])
-    missing = sorted(set(apis) - workspace_apis(state, selected))
-    configured = workspace_configured(state, selected)
+    configured, enabled = workspace_client(state, selected)
+    missing = sorted(set(apis) - (enabled if enabled is not None else workspace_apis(state, selected)))
     if missing:
         execute(state, ["gcloud", "services", "enable", *missing, "--project", selected, "--quiet"])
         if set(apis) - workspace_apis(state, selected):
             raise DotError("Workspace APIs remain missing after enablement; inspect gcloud services list and retry")
     if not configured:
         execute(state, setup)
-        if not workspace_configured(state, selected):
+        if not workspace_client(state, selected)[0]:
             raise DotError("Workspace OAuth client setup is incomplete; inspect gws auth status and retry")
     print(
         "Workspace setup is complete."
@@ -408,8 +459,8 @@ def workspace(context: typer.Context, force: ForceLogin = False, dry_run: DryRun
 
 
 @login_app.command("github", help="Ensure GitHub OAuth authentication and requested scopes")
-def github(context: typer.Context, host: HostOption = None, force: ForceLogin = False, dry_run: DryRun = False) -> None:
-    login_github(state_from(context), host, force=force, dry_run=dry_run)
+def github(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
+    login_github(state_from(context), force=force, dry_run=dry_run)
 
 
 @login_app.command("gcp", help="Ensure Google Cloud and ADC both have usable credentials")
@@ -417,25 +468,31 @@ def gcp(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = Fal
     login_gcp(state_from(context), force=force, dry_run=dry_run)
 
 
-@login_app.command("colab", help="Authenticate Colab with scoped ADC and verify session access")
-def colab(context: typer.Context, dry_run: DryRun = False) -> None:
-    login_colab(state_from(context), dry_run=dry_run)
+@login_app.command("colab", help="Ensure ADC grants the Colab scopes and verify session access")
+def colab(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
+    login_colab(state_from(context), force=force, dry_run=dry_run)
 
 
-@login_app.command("google", help="Authenticate Workspace, then Google Cloud and ADC; stop on failure")
-def google(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
+@login_app.command(
+    "all", help="Reconcile GitHub, Workspace setup and login, then Google Cloud and ADC; skip what is ready"
+)
+def login_all(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
     state = state_from(context)
     if not dry_run:
-        require_tools(state, [["gws"], ["gcloud"]])
+        require_tools(state, [["gh"], ["gws"], ["gcloud"]])
+    login_github(state, reconcile=True, force=force, dry_run=dry_run)
+    project = os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project
+    if project:
+        setup_workspace(state, project, dry_run=dry_run)
+    else:
+        print("Skipping Workspace setup: set GWS_PROJECT or auth.workspace.project.", file=state.stderr)
     login_workspace(state, force=force, dry_run=dry_run)
     login_gcp(state, force=force, dry_run=dry_run)
 
 
 @setup_app.command("github", help="Ensure requested GitHub scopes and remove configured excluded grants")
-def github_setup(
-    context: typer.Context, host: HostOption = None, force: ForceLogin = False, dry_run: DryRun = False
-) -> None:
-    login_github(state_from(context), host, reconcile=True, force=force, dry_run=dry_run)
+def github_setup(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
+    login_github(state_from(context), reconcile=True, force=force, dry_run=dry_run)
 
 
 @setup_app.command("workspace", help="Enable missing Workspace APIs and configure OAuth for an explicit project")

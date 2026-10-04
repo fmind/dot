@@ -10,10 +10,13 @@ pkg:
   # The repository executes its development toolchain during validation.
   include-dev-deps: true
 scan:
+  # Gitleaks (check:leaks) owns secret scanning.
   scanners:
     - misconfig
-    - secret
     - vuln
+  # mise's npm tool locks use aube's pnpm-compatible format under its own name.
+  file-patterns:
+    - pnpm:aube-lock\.yaml
   skip-dirs:
     - "**/.cache"
     - "**/.mypy_cache"

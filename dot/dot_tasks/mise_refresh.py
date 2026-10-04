@@ -38,15 +38,6 @@ def refresh(root: Path, *, bump: bool = False) -> None:
     """Resolve the managed configuration in isolation and publish its complete bundle."""
     source = root / "dot_config/mise"
     environment = dict(os.environ)
-    render_command = ["chezmoi", "execute-template", "--source", str(root), "--file", str(source / "config.toml.tmpl")]
-    rendered = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
-        render_command,
-        env=environment,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
     # Keep native graph resolution off RAM-backed /tmp on constrained Linux hosts.
     with tempfile.TemporaryDirectory(prefix="dot-mise-refresh-", dir="/var/tmp") as temporary:
         workspace = Path(temporary)
@@ -56,7 +47,7 @@ def refresh(root: Path, *, bump: bool = False) -> None:
             target = configuration / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(content)
-        (configuration / "config.toml").write_text(rendered.stdout, encoding="utf-8")
+        (configuration / "config.toml").write_bytes((source / "config.toml").read_bytes())
         # Preserve HOME for credentials and installed tools, but exclude live
         # user and system config: --global also targets system lockfiles.
         environment.update(

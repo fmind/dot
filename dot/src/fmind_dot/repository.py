@@ -395,33 +395,10 @@ def run_status(
     as_json: bool = False,
     paths: Sequence[Path] = (),
     needs_attention: bool = False,
-    stats: bool = False,
 ) -> list[RepositoryStatus]:
     """Render repository status for humans or scripts."""
     status = gather_status(state, paths)
     failed = any(item.error for item in status)
-    if stats:
-        totals = {
-            "repositories": len(status),
-            "dirty": sum(item.dirty for item in status),
-            "ahead": sum(item.ahead > 0 for item in status),
-            "behind": sum(item.behind > 0 for item in status),
-            "diverged": sum(item.ahead > 0 and item.behind > 0 for item in status),
-            "no_upstream": sum(not item.upstream and not item.error for item in status),
-            "in_progress": sum(bool(item.operation) for item in status),
-            "errors": sum(bool(item.error) for item in status),
-        }
-        document = {"schema": "dot.status.stats/v1", "remote_state": "cached", "complete": not failed, **totals}
-        if as_json:
-            write_json(state.stdout, document)
-        else:
-            state.stdout.write(
-                "Repository statistics (cached upstream state)\n"
-                + "".join(f"{key}: {value}\n" for key, value in totals.items())
-            )
-        if failed:
-            raise DotError("repository statistics are incomplete")
-        return status
     visible = [item for item in status if not needs_attention or item.needs_attention]
     if as_json:
         # Healthy entries omit the empty error field.
@@ -481,9 +458,8 @@ def status_command(
     needs_attention: Annotated[
         bool, typer.Option("--needs-attention", help="Only show repositories requiring attention")
     ] = False,
-    stats: Annotated[bool, typer.Option("--stats", help="Summarize repository health counts")] = False,
 ) -> None:
-    run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention, stats=stats)
+    run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention)
 
 
 def register(parent: typer.Typer) -> None:

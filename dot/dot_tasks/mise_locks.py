@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import shutil
-import tempfile
 import tomllib
 from pathlib import Path
 
@@ -54,58 +52,17 @@ def bundle(lock: Path, *, verify: bool = True) -> dict[Path, bytes]:
 
 
 def capture(source: Path, destination: Path) -> None:
-    """Copy referenced files, publish the lock last, then retire old references."""
+    """Copy referenced files, write the lock last, then retire old references.
+
+    The destination is tracked by Git, which restores an interrupted copy.
+    """
     incoming = bundle(source)
     previous = bundle(destination, verify=False) if destination.exists() else {}
-    # Validate every write/delete location before changing anything. Personal locks
-    # and files not referenced by the previously managed lock are left alone.
-    for relative in incoming.keys() | previous.keys():
-        if any((destination.parent / parent).is_symlink() for parent in (relative, *relative.parents)):
-            raise ValueError(f"Managed dependency files must not use symlinks: {relative}")
-    staging = Path(tempfile.mkdtemp(prefix=".mise-lock-capture-", dir=destination.parent))
-    retain_recovery = False
-    try:
-        for relative, content in incoming.items():
-            target = staging / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(content)
-        # Graph paths can be reused when only transitive dependencies change.
-        # Keep rollback copies: publishing the top-level lock last alone would
-        # leave its old digests pointing at new bytes after an interrupted write.
-        backups = staging / "previous"
-        changed: list[Path] = []
-        try:
-            for relative in incoming:
-                target = destination if relative == Path(source.name) else destination.parent / relative
-                if target.exists():
-                    backup = backups / relative
-                    backup.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(target, backup)
-            order = [relative for relative in incoming if relative != Path(source.name)] + [Path(source.name)]
-            for relative in order:
-                target = destination if relative == Path(source.name) else destination.parent / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                changed.append(relative)
-                (staging / relative).replace(target)
-        except BaseException:
-            try:
-                for relative in reversed(changed):
-                    target = destination if relative == Path(source.name) else destination.parent / relative
-                    backup = backups / relative
-                    if backup.exists():
-                        backup.replace(target)
-                    else:
-                        target.unlink(missing_ok=True)
-            except BaseException as error:
-                retain_recovery = True
-                raise OSError(
-                    f"Lock publication and rollback failed; recovery files retained at {backups}. "
-                    f"Restore these files into {destination.parent} before retrying."
-                ) from error
-            raise
-    finally:
-        if not retain_recovery:
-            shutil.rmtree(staging)
+    lock = Path(source.name)
+    for relative in sorted(incoming, key=lambda path: path == lock):
+        target = destination if relative == lock else destination.parent / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(incoming[relative])
     for relative in previous.keys() - incoming.keys():
         target = destination.parent / relative
         target.unlink()

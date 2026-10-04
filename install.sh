@@ -3,38 +3,9 @@ set -euo pipefail
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/share/mise/shims:${PATH}"
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
-# The mise release that CI tests: installed when mise is absent, and the minimum
-# accepted from an existing installation. Keep equal to the workflow pins.
+# The mise release that CI tests, installed when mise is absent. mise.toml's
+# min_version rejects an older existing installation. Keep equal to the workflow pins.
 MINIMUM_MISE_VERSION="2026.10.2"
-
-version_at_least() {
-  local actual=$1 minimum=$2 actual_part minimum_part
-  local IFS=.
-  read -r -a actual_parts <<<"${actual}"
-  read -r -a minimum_parts <<<"${minimum}"
-  for index in 0 1 2; do
-    actual_part=${actual_parts[${index}]:-0}
-    minimum_part=${minimum_parts[${index}]:-0}
-    ((10#${actual_part} > 10#${minimum_part})) && return 0
-    ((10#${actual_part} < 10#${minimum_part})) && return 1
-  done
-  return 0
-}
-
-# Error trap handler for clean bootstrapping diagnostics
-on_error() {
-  local exit_code=$?
-  echo "==================================================" >&2
-  echo "  ✗ Error: install.sh failed at line $1 with exit code ${exit_code}." >&2
-  echo "==================================================" >&2
-  echo "  Please check the following bootstrap prerequisites:" >&2
-  echo "  1. Ensure you have active internet connectivity." >&2
-  echo "  2. Confirm both git and curl are installed on your host." >&2
-  echo "  3. On Linux: verify 'libatomic1', 'build-essential', and 'gnome-keyring' are installed." >&2
-  echo "  4. Check that ~/.local/bin is writeable by your current user." >&2
-  echo "==================================================" >&2
-}
-trap 'on_error $LINENO' ERR
 
 # Install mise
 command -v mise >/dev/null || {
@@ -46,12 +17,6 @@ command -v mise >/dev/null || {
   curl -fsSL --proto '=https' --tlsv1.2 -o "${mise_installer}" https://mise.run
   MISE_VERSION="v${MINIMUM_MISE_VERSION}" bash "${mise_installer}"
 }
-
-mise_version="$(mise --version | awk '{print $1}')"
-if [[ ! ${mise_version} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! version_at_least "${mise_version}" "${MINIMUM_MISE_VERSION}"; then
-  echo "mise ${MINIMUM_MISE_VERSION} or newer is required; found ${mise_version:-unknown}. Run: mise self-update ${MINIMUM_MISE_VERSION}" >&2
-  exit 1
-fi
 
 # Install chezmoi
 command -v chezmoi >/dev/null || {

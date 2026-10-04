@@ -375,15 +375,15 @@ def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
 
-    first = CliRunner().invoke(app, ["agent", "usage", "show", "copilot", "copilot-live"])
+    first = CliRunner().invoke(app, ["agent", "usage", "list", "--agent", "copilot", "--json"])
     with closing(sqlite3.connect(database)) as connection:
         connection.execute("UPDATE assistant_usage_events SET input_tokens = 20 WHERE session_id = 'copilot-live'")
         connection.commit()
-    second = CliRunner().invoke(app, ["agent", "usage", "show", "copilot", "copilot-live"])
+    second = CliRunner().invoke(app, ["agent", "usage", "list", "--agent", "copilot", "--json"])
 
     assert first.exit_code == second.exit_code == 0
-    assert json.loads(first.stdout)["record"]["total_tokens"] == 17
-    record = json.loads(second.stdout)["record"]
+    assert json.loads(first.stdout)["records"][0]["total_tokens"] == 17
+    [record] = json.loads(second.stdout)["records"]
     assert (record["model"], record["total_tokens"]) == ("gpt-test", 27)
     assert [path.name for path in (tmp_path / ".agents/sessions/v3/copilot").glob("*.jsonl")] == ["copilot-live.jsonl"]
     assert read_session_manifest(session_bundle_path("copilot", "copilot-live")).record_count == 2
@@ -548,24 +548,16 @@ def test_session_and_usage_cli_surfaces_report_ingested_evidence(
 
     listed = CliRunner().invoke(app, ["agent", "session", "list", "--agent", "claude"])
     shown = CliRunner().invoke(app, ["agent", "session", "show", session_id, "--content"])
-    exported = CliRunner().invoke(
-        app,
-        ["agent", "session", "export", "--session", session_id, "--redact-content"],
-    )
     usage_list = CliRunner().invoke(app, ["agent", "usage", "list", "--json"])
-    usage_show = CliRunner().invoke(app, ["agent", "usage", "show", "claude", session_id])
     usage_stats = CliRunner().invoke(app, ["agent", "stats", "--tokens-only", "--json", "--by-model"])
 
     assert listed.exit_code == 0
     assert f"claude {session_id} records=1" in listed.stdout
     assert shown.exit_code == 0
     assert json.loads(shown.stdout)["session"]["records"][0]["content"] == "answer"
-    assert exported.exit_code == 0
-    assert json.loads(exported.stdout)["sessions"][0]["records"][0]["content"] == "[redacted]"
     assert usage_list.exit_code == 0
-    assert json.loads(usage_list.stdout)["records"][0]["session_id"] == session_id
-    assert usage_show.exit_code == 0
-    assert json.loads(usage_show.stdout)["record"]["total_tokens"] == 7
+    [usage] = json.loads(usage_list.stdout)["records"]
+    assert (usage["session_id"], usage["total_tokens"]) == (session_id, 7)
     assert usage_stats.exit_code == 0
     assert json.loads(usage_stats.stdout)["usage"][0]["model"] == "claude-test"
 
@@ -717,11 +709,8 @@ def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, 
     [
         ["agent", "stats", "--agent", "claud"],
         ["agent", "usage", "list", "--agent", "claud"],
-        ["agent", "usage", "show", "claud", "session-id"],
         ["agent", "session", "list", "--agent", "claud"],
         ["agent", "session", "show", "session-id", "--agent", "claud"],
-        ["agent", "session", "export", "--agent", "claud"],
-        ["agent", "session", "stats", "--agent", "claud"],
         ["agent", "session", "sync", "--agent", "claud"],
         ["agent", "doctor", "--agent", "claud"],
     ],
@@ -765,22 +754,20 @@ def test_reports_with_no_sync_read_the_archive_as_stored(monkeypatch: pytest.Mon
     monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
     stats = CliRunner().invoke(app, ["agent", "stats", "--no-sync", "--tokens-only", "--json"])
     listed = CliRunner().invoke(app, ["agent", "usage", "list", "--no-sync", "--json"])
-    shown = CliRunner().invoke(app, ["agent", "usage", "show", "--no-sync", "claude", session_id])
 
     assert stats.exit_code == 0
     assert "without a sync" in json.loads(stats.stdout)["coverage"]
     assert [row["sessions"] for row in json.loads(stats.stdout)["usage"]] == [1]
     assert listed.exit_code == 0
-    assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == [session_id]
-    assert shown.exit_code == 0
-    assert json.loads(shown.stdout)["record"]["input_tokens"] == 4
+    [record] = json.loads(listed.stdout)["records"]
+    assert (record["session_id"], record["input_tokens"]) == (session_id, 4)
 
 
 def test_subagent_transcripts_count_once_with_their_parent_session(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     from fmind_dot.archive.query import SessionQuery
-    from fmind_dot.archive.statistics import prompt_statistics, session_statistics
+    from fmind_dot.archive.statistics import prompt_statistics
 
     monkeypatch.setenv("HOME", str(tmp_path))
     project = tmp_path / "claude/-work-project"
@@ -815,8 +802,6 @@ def test_subagent_transcripts_count_once_with_their_parent_session(
     assert result.exit_code == 0, result.output
     [row] = json.loads(result.stdout)["usage"]
     assert (row["sessions"], row["input_tokens"], row["cost_usd"], row["cost_complete"]) == (1, 1100, 0.5, True)
-    statistics = session_statistics(SessionQuery())
-    assert (statistics["sessions"], statistics["sidechain_sessions"], statistics["agents"]) == (1, 1, {"claude": 1})
     prompts = prompt_statistics(SessionQuery())
     assert (prompts["prompts"], prompts["sidechain_sessions"], prompts["complete"]) == (1, 1, True)
     sessions = {item["session_id"]: item for item in json.loads(listed.stdout)["sessions"]}
