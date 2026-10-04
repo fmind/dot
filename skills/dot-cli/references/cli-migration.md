@@ -17,7 +17,7 @@ These changes follow Dot 5.2.0; the session archive changes follow Dot 6.3.2. Up
 | `dot agent hook session`                          | Removed with its harness hooks; `dot agent session sync`, which `stats` and `usage` run first.            |
 | `dot agent hook copilot-session-end`              | Removed; sync reads `~/.copilot/session-store.db` directly.                                               |
 | `dot agent doctor --fix`/`--dry-run`              | `chezmoi diff` and `chezmoi apply --force` on the named hook configuration.                               |
-| `dot doctor -f`                                   | `dot doctor --fix`; `-f` now always means `--force` (`config init`, `login`, `setup`).                    |
+| `dot doctor -f`                                   | `dot doctor --fix`; `-f` means `--force` wherever it exists (`config init`, `login`, `setup github`).     |
 | `doctor.github_host` configuration key            | Removed; doctor probes `GH_HOST`, then `auth.github.host`, like `dot login github`.                       |
 | `dot agent doctor --deep`/`--explain`             | Removed; the doctor reports notify hooks, last sync, and archive readability per agent.                   |
 | `session list --all-generations`, `show --latest` | Removed; one copy per session. Statuses are `current`, `partial`, `legacy`, `invalid`.                    |
@@ -28,9 +28,9 @@ Use `--agent` consistently; `--harness` and `-a` remain filter aliases. Both lis
 
 ## Date boundaries and errors
 
-Date-only `--since` begins at midnight UTC; date-only `--until` includes the whole UTC day. Explicit timestamps retain their exact boundary. Duration filters such as `7d` and `24h` are accepted across date-filtered commands. Timestamp sources remain distinct: source modification for sync, ingestion for session queries, conversation events for prompt statistics, and request or session timestamps for usage statistics.
+Date-only `--since` begins at midnight UTC; date-only `--until` includes the whole UTC day. Explicit timestamps retain their exact boundary. Duration filters such as `7d` and `24h` are accepted across date-filtered commands; zero-length durations such as `0d` and `0h` exit 2. Timestamp sources remain distinct: source modification for sync, ingestion for session queries, conversation events for prompt statistics, and request or session timestamps for usage statistics.
 
-Help works even with missing or malformed configuration. Commands still validate configuration before inspecting or changing state. Invalid command inputs exit 2; configuration, provider, and incomplete-result failures exit 1. Failed fetches remain failures even without an upstream branch.
+Help works even with missing or malformed configuration. Commands that read configuration still validate it before inspecting or changing state; `orphan`, `secret`, and the notification hook never read it. Invalid command inputs exit 2; configuration, provider, and incomplete-result failures exit 1. Failed fetches remain failures even without an upstream branch.
 
 ## JSON selectors
 
