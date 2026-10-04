@@ -601,6 +601,27 @@ def test_every_command_and_group_has_a_description() -> None:
     inspect(get_command(app), "dot")
 
 
+def test_fish_completion_keeps_complete_command_summaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
+    monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
+    monkeypatch.setenv("_TYPER_COMPLETE_ARGS", "dot ")
+    result = CliRunner().invoke(app, prog_name="dot")
+    summaries = dict(line.split("\t", 1) for line in result.stdout.splitlines())
+    assert summaries["orphan"] == "List files chezmoi deployed but no longer manages (read-only; never deletes)"
+    assert not any(summary.endswith("...") for summary in summaries.values())
+
+
+def test_fish_completion_keeps_long_option_help_on_one_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Rich would wrap this at an 80-column console and split one candidate in two.
+    monkeypatch.setenv("COLUMNS", "40")
+    monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
+    monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
+    monkeypatch.setenv("_TYPER_COMPLETE_ARGS", "dot agent context --")
+    result = CliRunner().invoke(app, prog_name="dot")
+    assert all("\t" in line for line in result.stdout.splitlines()), result.stdout
+    assert "--check\tExit 1 at 5000 instruction + discovery tokens in either global or local scope" in result.stdout
+
+
 def test_agent_stats_documents_every_option() -> None:
     root = get_command(app)
     assert isinstance(root, TyperGroup)

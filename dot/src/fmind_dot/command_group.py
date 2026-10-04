@@ -5,6 +5,8 @@ from typing import Annotated, Literal
 
 import typer
 from typer import _click
+from typer._click.shell_completion import CompletionItem
+from typer._completion_classes import FishComplete
 from typer.core import TyperGroup
 
 # Rich panels triple help size; agents and pipes read plain Click help instead.
@@ -19,6 +21,24 @@ class AlphabeticalGroup(TyperGroup):
 
     def list_commands(self, ctx: _click.Context) -> list[str]:
         return sorted(super().list_commands(ctx))
+
+    def shell_complete(self, ctx: _click.Context, incomplete: str) -> list[CompletionItem]:
+        # Click cuts command summaries at 45 columns, hiding most of their meaning;
+        # the shell fits the complete first line to the terminal instead.
+        items = super().shell_complete(ctx, incomplete)
+        for item in items:
+            if (command := self.commands.get(item.value)) is not None:
+                item.help = command.get_short_help_str(limit=sys.maxsize)
+        return items
+
+
+class FishCompletion(FishComplete):
+    """Emit one line per candidate: Typer renders help through Rich, which wraps it at the
+    terminal width, so a narrow pane would split a description into a bogus candidate."""
+
+    def format_completion(self, item: CompletionItem) -> str:
+        # dot help carries no Rich markup; collapsing whitespace is the only formatting needed.
+        return f"{item.value}\t{' '.join(item.help.split())}" if item.help else str(item.value)
 
 
 def help_group(description: str) -> typer.Typer:

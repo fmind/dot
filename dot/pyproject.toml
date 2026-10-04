@@ -12,8 +12,8 @@ authors = [{ name = "Médéric HURIER" }]
 dependencies = [
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
-  # cli.py and command_group.py import private typer._click: review each minor.
   "tomlkit>=0.15.1",
+  # cli.py and command_group.py import private typer._click and typer._completion_classes: review each minor.
   "typer>=0.27.2,<0.28",
 ]
 
