@@ -9,7 +9,7 @@ Attack a plan's load-bearing assumptions while course correction is still cheap;
 
 ## Workflow
 
-1. **Reconstruct intent**: Read the full plan, its source requirements, and repository reality, never a summary; state the desired outcome, non-goals, constraints, evidence, and proof required for completion.
+1. **Reconstruct intent**: Read the full plan and its source requirements, never a summary; state the desired outcome, non-goals, constraints, evidence, and proof required for completion.
 1. **Steelman first**: State the strongest case for the intended outcome before criticizing the approach.
 1. **Inspect current reality**: Verify the source paths, interfaces, dependencies, runtime assumptions, and existing mechanisms the plan replaces or duplicates.
 1. **Map claims**: Extract the decisions and assumptions the plan depends on; flag any requirement without a task, task without a requirement, or success claim without proof.

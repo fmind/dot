@@ -1,20 +1,20 @@
 ---
 name: python-testing
-description: "Write Python tests with pytest, fixtures, property tests, and test-driven development."
+description: "Write Python tests with pytest, fixtures, property tests, and TDD."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-testing
   created: "2026-08-08"
-  updated: "2026-09-26"
+  updated: "2026-10-04"
 ---
 
 # Python Testing
 
 Prove a change with an honest red-green-refactor cycle: a failing test that detects the missing or broken behavior, then the smallest trustworthy change; [quality-assurance](../quality-assurance/SKILL.md) owns the broader campaign and [systematic-debugging](../systematic-debugging/SKILL.md) owns failures not yet understood.
 
-For pytest fixture, collection, or assertion maintenance, use [pytest mechanics](references/pytest.md) directly. Use the red-green-refactor workflow below when implementing a behavior change; test-only maintenance does not require inventing a production change.
+Test-only maintenance follows [pytest mechanics](references/pytest.md) directly without inventing a production change; use the red-green-refactor workflow below when implementing a behavior change.
 
 ## Workflow
 
@@ -27,7 +27,7 @@ For pytest fixture, collection, or assertion maintenance, use [pytest mechanics]
 1. **Repeat**: Take the next smallest behavior, edge case, or failure path through a new red cycle.
 1. **Prove the regression test**: Reuse the observed red result. If implementation preceded the test or its ability to detect the defect remains uncertain, safely exercise the test against the unfixed code in isolation, then confirm green with the fix.
 1. **Qualify proportionately**: reuse passing focused and subsystem results while relevant inputs remain unchanged; add affected static checks. Run the full gate only when repository policy or cross-cutting risk requires it. Apply the [dirty-tree rule](../mise/SKILL.md#gotchas) when unrelated work is present.
-1. **Report evidence**: summarize the observed red and green outcomes, checks actually run, and remaining limits; do not run additional suites merely to fill the report.
+1. **Report evidence**: summarize the observed red and green outcomes, checks actually run, and remaining limits; name every failure observed, including pre-existing ones. Do not run additional suites merely to fill the report.
 
 ## Gotchas
 
@@ -40,10 +40,11 @@ For pytest fixture, collection, or assertion maintenance, use [pytest mechanics]
 
 ## References
 
+- [pytest mechanics](references/pytest.md): read for fixture, collection, assertion, async-mode, xdist, plugin, or coverage maintenance.
 - [Property tests](references/property-tests.md): read when parsers, codecs, migrations, or state transitions need generated input coverage; use `uv` for project test dependencies.
 
 ## Documentation
 
-- Adapted from [Superpowers test-driven-development](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/skills/test-driven-development/SKILL.md), [agent-skills test-driven-development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/test-driven-development/SKILL.md).
+- Adapted from [Superpowers test-driven-development](https://github.com/obra/superpowers/blob/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/test-driven-development/SKILL.md), [agent-skills test-driven-development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/test-driven-development/SKILL.md).
 - Releases: [pytest changelog](https://docs.pytest.org/en/stable/changelog.html)
-- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (risk-based campaign), [systematic-debugging](../systematic-debugging/SKILL.md) (unexplained failure), [implementation-plan](../implementation-plan/SKILL.md) (planned slices), [mise](../mise/SKILL.md) (task vocabulary).
+- Companion skills: [implementation-plan](../implementation-plan/SKILL.md) (planned slices), [mise](../mise/SKILL.md) (task vocabulary).

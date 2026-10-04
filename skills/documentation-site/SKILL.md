@@ -1,6 +1,6 @@
 ---
 name: documentation-site
-description: "Build Zensical documentation and course websites, the default docs generator: navigation, search, API reference, GitHub Pages, and MkDocs or Hugo migration."
+description: "Build Zensical docs and course sites: navigation, API docs, Pages, MkDocs/Hugo migration."
 license: MIT
 metadata:
   kind: task
@@ -35,18 +35,14 @@ Use Zensical as the default static site generator for project documentation, cou
 - **Strict mode has gaps**: it catches missing pages, anchors, snippets (`check_paths`), and unresolved autorefs, but unclosed fences and unknown icon shortcodes build silently. Review the rendered pages.
 - **`site_url` is load-bearing**: `llmstxt` aborts without it; instant navigation, previews, and the sitemap degrade; a wrong prefix breaks social card and `llms.txt` links.
 - **Unsupported plugins are silently ignored**: Zensical never runs MkDocs plugin code. Check the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) for the locked version before relying on one. `gen-files`, `hooks`, `exclude_docs`, `draft_docs`, and `not_in_nav` are unsupported.
-- **Feature conflicts**: `navigation.indexes` excludes `toc.integrate`; `navigation.prune` excludes `navigation.expand`; offline builds must drop instant navigation, analytics, repository facts, and comments.
-- **Third-party requests**: Google Fonts and Mermaid (unpkg) load externally; use `font = false` or self-hosted assets when privacy rules require it, and add the [cookie consent](https://zensical.org/docs/setup/data-privacy/) before analytics.
+- **Feature conflicts and external requests**: some theme features exclude each other, offline builds drop several, and fonts, Mermaid, and analytics contact third parties; check [configuration](references/configuration.md) before enabling one.
 - **Layout limits**: `docs_dir` cannot be `.`; uv's symlink link mode is unsupported; `serve` has no strict mode, and a busy port fails with `Address already in use` (pass `-a 127.0.0.1:<port>`).
 - **Version churn**: Zensical is pre-1.0 (0.0.x) and releases often; keep `uv.lock` committed, upgrade with `uv lock --upgrade-package zensical`, and rebuild `--clean`. The CI template stays cache-free as upstream advises. Tested on 0.0.67.
 - **Brand**: the starter applies [fmind/theme](https://github.com/fmind/theme) tokens to the light scheme and Google Sans fonts. Preserve an existing site's identity; follow [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos and assets.
-
-## Official Skills
-
-No upstream authoring `SKILL.md` was found in `zensical/zensical` or `zensical/docs` on 2026-10-03. [Zensical Studio](https://zensical.org/studio) (VS Code) adds a preview, formatter, linter, and link refactoring for Zensical and MkDocs projects.
 
 ## Documentation
 
 - [Get started](https://zensical.org/docs/get-started/) · [Create a site](https://zensical.org/docs/create-your-site/) · [Configuration](https://zensical.org/docs/setup/basics/) · [Authoring](https://zensical.org/docs/authoring/markdown/)
 - [Validation](https://zensical.org/docs/setup/validation/) · [Plugins](https://zensical.org/docs/compatibility/mkdocs/plugins/) · [Customization](https://zensical.org/docs/customization/) · [Publishing](https://zensical.org/docs/publish-your-site/)
 - Source: [zensical/zensical](https://github.com/zensical/zensical) · [zensical/docs](https://github.com/zensical/docs) · Releases: [Zensical](https://github.com/zensical/zensical/releases)
+- Official skills: none upstream in `zensical/zensical` or `zensical/docs` (checked 2026-10-03). [Zensical Studio](https://zensical.org/studio) (VS Code) adds a preview, formatter, linter, and link refactoring for Zensical and MkDocs projects.

@@ -1,13 +1,13 @@
 ---
 name: mcp-setup
-description: "Configure MCP servers in coding-agent settings and verify project or user access."
+description: "Add or fix MCP servers in coding agents and verify access."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-setup
   created: "2026-06-23"
-  updated: "2026-09-26"
+  updated: "2026-10-04"
 ---
 
 # MCP Setup
@@ -32,6 +32,6 @@ Connect only the MCP capability the task needs, using the installed host's nativ
 
 ## Documentation
 
-- [Model Context Protocol](https://modelcontextprotocol.io) · [MCP registry](https://registry.modelcontextprotocol.io) · [Google Cloud managed MCP](references/google-cloud-mcp.md)
+- [Model Context Protocol](https://modelcontextprotocol.io) · [MCP registry](https://registry.modelcontextprotocol.io)
 - Releases: [specification changelog](https://modelcontextprotocol.io/specification/latest/changelog) · [protocol releases](https://github.com/modelcontextprotocol/modelcontextprotocol/releases)
-- Companion skills: [agent-project](../agent-project/SKILL.md) (repository layout), [gcloud](../gcloud/SKILL.md) (project and IAM context for managed servers).
+- Companion skill: [gcloud](../gcloud/SKILL.md) (project and IAM context for managed servers).

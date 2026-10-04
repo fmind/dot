@@ -24,7 +24,7 @@ articles/<slug>_<YYYY-MM-DD>/
 
 The directory name defines the public slug and date: `<slug>` is the URL slug and `<YYYY-MM-DD>` is the public date. `posts/seo.txt` can override the slug.
 
-Prepare and review article and channel deliverables through the project workflow before authorized publication. With no channel selection, prepare SEO, LinkedIn, and X. After successful publication, Pub removes `article.md` and the canonical site owns the body; read that source for subsequent channel copy. Medium imports its live URL manually; create no duplicate article or `medium.md`, and preserve historical copies.
+After successful publication, Pub removes `article.md` and the canonical site owns the body; read that source for subsequent channel copy and preserve historical copies.
 
 ### Announcements
 
@@ -34,7 +34,7 @@ announcements/<slug>_<YYYY-MM-DD>/
 └── posts/                # Channel adaptations plus published.md
 ```
 
-Pipeline flow: `draft.txt -> posts/`. Used for releases, awards, or talks with no standalone article.
+Pipeline flow: `draft.txt -> posts/`. Used for releases, awards, or talks with no standalone article; write the posts with [social-post](../../social-post/SKILL.md) unless the project has its own post workflow.
 
 ### Media & Episodes
 

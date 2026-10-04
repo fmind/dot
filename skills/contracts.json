@@ -48,6 +48,12 @@
     "ast-grep": [
       "ast-grep"
     ],
+    "auth-status": [
+      "dot",
+      "jq",
+      "gh",
+      "gws"
+    ],
     "aws": [
       "aws",
       "aws-sso-util"
@@ -57,6 +63,9 @@
       "locust",
       "oha",
       "uv"
+    ],
+    "bf": [
+      "bf"
     ],
     "chezmoi": [
       "chezmoi"
@@ -84,6 +93,12 @@
       "gcloud",
       "trivy"
     ],
+    "code-security": [
+      "gitleaks",
+      "rg",
+      "trivy",
+      "uv"
+    ],
     "colab": [
       "colab",
       "dot"
@@ -102,12 +117,13 @@
     "databricks": [
       "databricks"
     ],
-    "deleguate-tasks": [
+    "delegate-tasks": [
       "agy"
     ],
     "diagrams-as-code": [
       "d2",
-      "mmdc"
+      "mmdc",
+      "python"
     ],
     "docker": [
       "docker"
@@ -150,20 +166,29 @@
     "dprint": [
       "dprint"
     ],
+    "draft-mail": [
+      "gws"
+    ],
     "duckdb": [
       "duckdb",
       "sqlite3"
     ],
-    "bf-use": [
-      "bf"
+    "fact-check": [
+      "git",
+      "lychee"
     ],
     "fmind-visuals": [
       "ffmpeg",
+      "python",
       "ttyd",
       "typst",
       "typstyle",
       "uv",
       "vhs"
+    ],
+    "full-review": [
+      "git",
+      "mise"
     ],
     "gcloud": [
       "gcloud"
@@ -205,6 +230,10 @@
       "gws",
       "jq",
       "uv"
+    ],
+    "handoff": [
+      "python",
+      "git"
     ],
     "hf": [
       "hf"
@@ -309,12 +338,6 @@
       "systemctl",
       "systemd-analyze"
     ],
-    "security-review": [
-      "gitleaks",
-      "rg",
-      "trivy",
-      "uv"
-    ],
     "skill-security-review": [
       "gitleaks",
       "rg",
@@ -322,6 +345,13 @@
     ],
     "skillify": [
       "skills"
+    ],
+    "smoke": [
+      "mise",
+      "jq"
+    ],
+    "social-post": [
+      "python"
     ],
     "sops-secrets": [
       "age",
@@ -338,6 +368,11 @@
     "technical-publishing": [],
     "terms-review": [],
     "threat-model": [],
+    "trim": [],
+    "update-ignores": [
+      "python",
+      "git"
+    ],
     "upgrade-tools": [
       "mise"
     ],

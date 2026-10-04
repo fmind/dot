@@ -1,20 +1,18 @@
 ---
 name: username-recon
-description: "Check public usernames with Sherlock; scope searches, verify matches, and preserve evidence."
+description: "Check usernames across sites with Sherlock (OSINT)."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/username-recon
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Public Username Reconnaissance
 
-Use `sherlock-project/sherlock`, distributed as `sherlock-project`, for public username checks within the requested scope.
-
-Keep targets, techniques, time window, and stop conditions explicit. Reconnaissance does not authorize exploitation. Stop on scope escape or unexpected impact; another technique needs its own bounded procedure.
+Use `sherlock-project/sherlock`, distributed as `sherlock-project`, for public username OSINT checks within the requested scope. Keep usernames, sites, time window, and stop conditions explicit, and stop on scope escape or unexpected impact; this reconnaissance authorizes neither exploitation nor other techniques.
 
 ## Workflow
 
@@ -34,11 +32,8 @@ Keep targets, techniques, time window, and stop conditions explicit. Reconnaissa
 - Without `--local`, Sherlock can fetch current site definitions independently of the pinned package. Bundled definitions can become stale, and local mode bypasses upstream exclusion updates: verify each reported match against the current site response before claiming presence.
 - Avoid all-site expansion, automatic browsing, or remote site-definition overrides unless the request requires them; a remote definition controls where requests go. Release checks can still contact upstream in local mode.
 
-## Official Skills
-
-No consumer Agent Skill was found in the inspected [sherlock-project/sherlock](https://github.com/sherlock-project/sherlock) repository on 2026-09-10. Use the official documentation below; community packages are not upstream endorsements.
-
 ## Documentation
 
 - [Usage](https://sherlockproject.xyz/usage) · [Source and installation](https://github.com/sherlock-project/sherlock)
 - Releases: [Sherlock](https://github.com/sherlock-project/sherlock/releases)
+- Upstream ships no consumer Agent Skill (checked 2026-10-04); community packages are not upstream endorsements.

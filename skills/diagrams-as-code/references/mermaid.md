@@ -5,7 +5,7 @@ description: "Technical-doc diagrams in Markdown and GitHub: syntax, validation,
 
 # Mermaid Diagram Standard
 
-Mermaid is the default format for technical documentation because the same editable text renders in GitHub Markdown and documentation renderers with Mermaid support. Keep the source portable, reviewable, and close to the prose it explains. README and user-doc concept illustrations use [SVG](svg.md); the choice between Mermaid, SVG, [D2](d2.md), or no diagram lives in [fmind-visuals](../../fmind-visuals/SKILL.md).
+Mermaid is the default format for technical documentation because the same editable text renders in GitHub Markdown and documentation renderers with Mermaid support. Keep the source portable, reviewable, and close to the prose it explains. [Diagrams as code](../SKILL.md) owns the choice between Mermaid, [SVG](svg/GUIDE.md), [D2](d2.md), or no diagram.
 
 ## Workflow
 
@@ -35,4 +35,4 @@ Mermaid is the default format for technical documentation because the same edita
 
 - [Syntax reference](https://mermaid.js.org/intro/syntax-reference.html) · [Theming](https://mermaid.js.org/config/theming) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)
 - Releases: [Mermaid](https://github.com/mermaid-js/mermaid/releases) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli/releases)
-- Companion skills: [fmind-visuals](../../fmind-visuals/SKILL.md) (tool choice and Fmind theme), [svg](svg.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).
+- Companion skills: [fmind-visuals](../../fmind-visuals/SKILL.md) (Fmind theme), [svg](svg/GUIDE.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).

@@ -43,7 +43,7 @@ Each record contains:
 }
 ```
 
-`measurement_kind` is `provider-reported` for Claude, Codex, Copilot, and Grok sessions with complete turn usage; `estimated` for Antigravity's byte-based token approximation; `context-only` for Grok's final context-window fallback; and empty, reported as `unknown` in statistics, for a cost-only record whose provider reported a cost without token counters. Inspect the field on each record, not just its harness. `cwd` is the resolved absolute project path. `cache_write_1h_tokens` is the Claude 1-hour subset of `cache_write_tokens`. Subagent records add `sidechain: true` and, when known, `parent_session_id`; exclude them when counting sessions. `source_bytes` records the bytes inspected by the usage extractor and is not a token count.
+`measurement_kind` is `provider-reported` for Claude, Codex, Copilot, and Grok sessions with complete turn usage; `estimated` for Antigravity's byte-based token approximation; `context-only` for Grok's final context-window fallback; and empty, reported as `unknown` in statistics, for a cost-only record whose provider reported a cost without token counters. Inspect the field on each record, not just its harness. `harness` and `agent` hold the same value, so group by either; the CLI also accepts `--agent` or `--harness`. `cwd` is the resolved absolute project path. `cache_write_1h_tokens` is the Claude 1-hour subset of `cache_write_tokens`. Subagent records add `sidechain: true` and, when known, `parent_session_id`; exclude them when counting sessions. `source_bytes` records the bytes inspected by the usage extractor and is not a token count.
 
 ## Commands
 
@@ -75,7 +75,12 @@ dot agent stats --tokens-only                         # total and first/last rec
 dot agent stats --tokens-only --monthly                # calendar months in UTC
 dot agent stats --tokens-only --billing --agent codex        # configured renewal cycles
 dot agent stats --tokens-only --monthly --by-model --json      # detailed token and pricing fields
+dot agent stats --tokens-only --no-sync                # report the archive as stored, without syncing first
 ```
+
+Reports first sync changed sessions incrementally; sync failures print on stderr and the report still prints. Use `--no-sync` for a reproducible rerun over an unchanged archive. Terminal reports use wrapped sections per agent, model, project, or period; exact counts and accounting qualifications remain visible. Add `--by-model` or `--json` for detail; omit `--tokens-only` when prompt statistics are also needed.
+
+API equivalents use the offline rate card in `agent.pricing`, independently of recorded cost. Check `priced_measurements`, `pricing_complete`, `legacy_accounting_sessions`, and `unpriced_reasons`. Rates assume standard short context; Claude 1-hour cache writes use their own rate, other cache writes the 5-minute rate. Unknown models and unsupported accounting remain unpriced. API-equivalent value divided by the configured USD subscription charge is a usage comparison, not verified savings or a quality score.
 
 Subscription configuration lives under `agent.subscriptions` in the selected Dot YAML file:
 

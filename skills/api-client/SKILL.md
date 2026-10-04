@@ -1,13 +1,13 @@
 ---
 name: api-client
-description: "Build typed Python HTTP API clients with bounded pagination, retries, and clear failures."
+description: "Build typed Python HTTPX API clients with bounded pagination and retries."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/api-client
   created: "2026-09-09"
-  updated: "2026-09-16"
+  updated: "2026-10-04"
 ---
 
 # API Client

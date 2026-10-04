@@ -1,6 +1,6 @@
 # Loop Skill Contracts
 
-Read this while writing the repository-local skills for an inner, middle, and outer loop. Adapt names and domain rules; preserve the ownership and exit boundaries.
+Read this while writing the repository-local skills for an inner, middle, and outer loop, or a helper CLI they call. Adapt names and domain rules; preserve the ownership and exit boundaries.
 
 ## Shared shape
 
@@ -33,6 +33,12 @@ Read this while writing the repository-local skills for an inner, middle, and ou
 - **Action**: Prefer deleting a step or clarifying a skill; add a deterministic CLI helper only for repeated mechanical friction.
 - **Proof**: Test the changed invariant and replay representative prior decisions using only information available at the time.
 - **Exit**: Record the comparison to make next time and finish the bounded review; never start the middle loop implicitly.
+
+## Deterministic helpers
+
+- Build a small typed CLI run through `uv` with [cli-contracts](../../cli-development/references/cli-contracts.md) and [typer](../../cli-development/references/typer/GUIDE.md).
+- Useful commands validate scope and records, enforce transitions, append atomically, deduplicate launches, reconcile uncertain external operations, verify source or artifact identity, expose status, and render report context.
+- Each command performs one explicit operation and exits. It must not select hypotheses, allocate the portfolio, launch agent harnesses, schedule itself, interpret unchanged blockers as progress, or decide whether evidence merits promotion.
 
 ## Review questions
 

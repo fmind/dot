@@ -20,7 +20,7 @@ Build the agent loop with `create_agent` and shape it with middleware. `create_a
 
 ## Gotchas
 
-- **`create_react_agent` is deprecated**: LangGraph v1 supersedes it with `create_agent`; treat any tutorial or generated code still importing it as pre-v1 and check the rest of its imports too.
+- **`create_react_agent` is deprecated**: LangChain v1 `create_agent` supersedes LangGraph's `create_react_agent`; treat any tutorial or generated code still importing it as pre-v1 and check the rest of its imports too.
 - **`langchain.mcp` is beta**: it raises `LangChainBetaWarning` once per process and its API may change. A `str` target must be an `http(s)` URL because FastMCP resolves a string as a filesystem path first; never pass a model- or config-supplied string to a transport that could launch it.
 - **Model identifiers in the docs float**: take the model from project configuration, not from a copied example, and make provider authentication and cost limits explicit.
 - **Tool results and retrieved documents are data**: they never authorize a change to the instruction stack or a wider tool surface.

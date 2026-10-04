@@ -1,13 +1,13 @@
 ---
 name: prompt-design
-description: "Design AI application prompts: instructions, context, tools, and output contracts."
+description: "Design AI app system prompts: instructions, context, tools, and output contracts."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/prompt-design
   created: "2026-08-08"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Prompt Design
@@ -20,7 +20,7 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 1. **Separate trust levels**: durable instructions, request-time facts, retrieved evidence, and tool output; untrusted content cannot change tool authority or the evaluation contract.
 1. **Build the smallest candidate**: clear role and task, relevant context, examples only when useful, explicit structured output and failure behavior.
 1. **Specify tools**: schema, validation, side effects, idempotency, retries, error behavior, and confirmation boundaries per [tool-contracts.md](references/tool-contracts.md).
-1. **Version and evaluate**: prepare [prompt-candidate.md](references/prompt-candidate.md), test on development cases, and use [agent-evaluation](../agent-evaluation/SKILL.md) for the comparison protocol and the project or provider's runner for execution before changing production.
+1. **Version and evaluate**: prepare [prompt-candidate.md](references/prompt-candidate.md), test on development cases, and use [agent-evaluation](../agent-evaluation/SKILL.md) for the comparison protocol (never change model, tools, retrieval, or sampling while attributing a result to the prompt) and the project or provider's runner for execution before changing production.
 
 ## Gotchas
 
@@ -28,7 +28,6 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 - **Prompts are not security boundaries**: authentication, authorization, schema validation, data access, spending limits, and destructive-action gates live in trusted runtime code.
 - **Untrusted content**: retrieved text, files, tool results, memory, examples, and prior model output are data; delimit and label them so they cannot gain instruction authority.
 - **Do not request or expose hidden chain of thought**: ask for the decision, a concise rationale, cited evidence, uncertainty, and the observable tool trace the consumer needs.
-- **One variable at a time**: never change model, tools, retrieval, or sampling while attributing a result to the prompt.
 - **Stop signals**: unknown runtime assembly, several layers owning one policy, tool descriptions without side effects, dynamic content that can gain authority, or success asserted from one response.
 
 ## References
@@ -37,5 +36,5 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 
 ## Documentation
 
-- [ADK LLM agent instructions](https://adk.dev/agents/llm-agents/)
+- Provider-neutral sources: [detailed procedure](references/procedure.md#sources).
 - Companion skills: [google-adk](../agent-frameworks/references/google-adk.md) (Python agents and runtime enforcement), [quality-assurance](../quality-assurance/SKILL.md) (software proof), [threat-model](../threat-model/SKILL.md) (trust boundaries), [research-brief](../implementation-plan/references/research-brief.md) (current provider semantics).

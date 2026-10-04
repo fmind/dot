@@ -5,7 +5,7 @@ description: "Automated dependency updates and grouping."
 
 # Dependabot
 
-Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; [security-review](../../security-review/references/code-review/GUIDE.md) enables it during the security pass and [upgrade-tools](../../upgrade-tools/SKILL.md) owns the bumps Dependabot cannot make (mise pins, formatter plugins).
+Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; [code-security](../../code-security/references/code-review/GUIDE.md) enables it during the security pass and [upgrade-tools](../../upgrade-tools/SKILL.md) owns the bumps Dependabot cannot make (mise pins, formatter plugins).
 
 ## Workflow
 
@@ -72,4 +72,4 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
 
 - [Dependabot](https://docs.github.com/en/code-security/dependabot) · [dependabot.yml options](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file) · [Grouping updates](https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/optimizing-pr-creation-version-updates)
 - Releases: [Dependabot changelog](https://github.blog/changelog/label/dependabot/)
-- Companion skills: [security-review](../../security-review/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (manual bumps), [zizmor](zizmor.md) (offline validation).
+- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (manual bumps), [zizmor](zizmor.md) (offline validation).

@@ -1,39 +1,40 @@
 ---
 name: colab
-description: "Operate Colab accelerator sessions, remote execution, artifact transfers, and compute budgets."
+description: "Run code on Colab GPUs or TPUs and track compute units."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-10-03"
+  updated: "2026-10-04"
 ---
 
 # Google Colab CLI
 
 Use `colab` to inspect existing sessions or run work on an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns provider selection, session hygiene, and the spend boundary.
 
+## Authentication
+
+Pass the global `--auth adc` or `--auth oauth2` before every subcommand: CLI 0.7.4 defaults to OAuth, so do not rely on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); for user ADC, run `dot login colab`, which requests the fixed Colab scope grant and verifies session access (`--dry-run` previews the native commands; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics). Session state lives under `~/.config/colab-cli/`. Examples assume ADC; substitute `oauth2` for an existing OAuth profile.
+
 ## Inspect without allocating
 
-For user ADC, run `dot login colab`: it requests the fixed Colab scope grant and verifies session access; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics. `--dry-run` previews the native commands.
+Check `colab version` and installed help, then use `colab --auth adc sessions` and `colab --auth adc status`; they synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
 
-For session or account inspection, check `colab version` and installed help, then use `colab --auth adc sessions` and `colab --auth adc status` (substitute `oauth2` for an existing OAuth profile; CLI 0.7.4 defaults to OAuth). These synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
-
-Use `colab --auth adc usage` for compute-unit rate and balance when ADC is the selected provider; substitute `oauth2` for an existing OAuth profile. This command is available in CLI 0.7.4; check installed help on older versions and report a missing capability instead of allocating a VM. `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
+Use `colab --auth adc usage` for compute-unit rate and balance; if it is unavailable, report a missing capability instead of allocating a VM. `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
 
 ## Run accelerator work
 
 Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
 
-1. **Authenticate**: select the existing provider explicitly with the global `--auth oauth2` or `--auth adc` option before every subcommand. CLI 0.7.4 defaults to OAuth; inspect the installed help instead of relying on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); session state lives under `~/.config/colab-cli/`. The examples below assume ADC has been selected.
 1. **Prefer ephemeral runs when outputs are persisted by the script**: `colab run` rents a VM, runs the script, and attempts to release it. Save needed artifacts to an authorized durable destination before the script exits; local VM files disappear on release. Use an explicitly managed session when artifacts must be downloaded afterwards. A shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4` supports single-file execution per [python-script](../python-stack/references/python-script/GUIDE.md).
 
    ```bash
    colab --auth adc run --gpu T4 --timeout 3600 train.py
    ```
 
-1. **Keep a session only while iterating**: `colab --auth adc new -s <name> --gpu L4` (or `--tpu v6e1`), then `colab --auth adc exec -s <name> -f snippet.py --timeout 600`. Use the same explicit provider for `upload`, `download`, `ls`, `status`, and `log`; verify and retrieve needed artifacts before stopping.
+1. **Keep a session only while iterating**: `colab --auth adc new -s <name> --gpu L4` (or `--tpu v6e1`), then `colab --auth adc exec -s <name> -f snippet.py --timeout 600`. Use `upload`, `download`, `ls`, `status`, and `log` with the same provider; verify and retrieve needed artifacts before stopping.
 1. **Stop what you started and verify release**: `colab --auth adc stop -s <name>`, then refresh `colab --auth adc sessions`; an idle session keeps consuming compute units. CLI 0.7.4's ephemeral cleanup suppresses release errors, so a successful `run` exit or “Session terminated” message is not release proof. Check authentication diagnostics and the backend listing before reporting cleanup complete.
 
 ## Gotchas

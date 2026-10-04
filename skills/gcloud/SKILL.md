@@ -1,18 +1,18 @@
 ---
 name: gcloud
-description: "Use gcloud for Google Cloud projects, IAM, billing, APIs, logs, and diagnostics."
+description: "Use gcloud for Google Cloud projects, IAM, billing, APIs, and logs."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Google Cloud CLI
 
-Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit operations. [cloud-run](../cloud-run/SKILL.md) owns deployment, [infra-as-code](../infra-as-code/SKILL.md) owns provisioned infrastructure, and [incident-response](../incident-response/SKILL.md) owns a live outage.
+Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit operations.
 
 ## Defaults
 
@@ -43,10 +43,10 @@ Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); its CLI guardrail skill applies to every `gcloud` call. That skill is also named `gcloud`; compare it with this connector before installing.
+Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); its CLI guardrail skill applies to every `gcloud` call. That skill is also named `gcloud`: preview it and apply its guardrails, but never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 
 - [gcloud reference](https://docs.cloud.google.com/sdk/gcloud/reference) · [Authenticate for the gcloud CLI](https://docs.cloud.google.com/sdk/docs/authenticate)
 - Releases: [gcloud release notes](https://docs.cloud.google.com/sdk/docs/release-notes)
-- Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deploy), [infra-as-code](../infra-as-code/SKILL.md) (provision), [incident-response](../incident-response/SKILL.md) (outage).
+- Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deployment), [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure), [incident-response](../incident-response/SKILL.md) (live outage).

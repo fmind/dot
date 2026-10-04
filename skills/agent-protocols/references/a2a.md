@@ -25,7 +25,7 @@ Use the official `a2aproject/a2a-python` distribution `a2a-sdk` and the `a2aproj
 
 ## Official Skills
 
-The official [a2aproject/a2a-cli](https://github.com/a2aproject/a2a-cli) repository provides the `a2a-cli` Agent Skill (`skills/a2a-cli/SKILL.md`) to drive and test A2A agents from the command line, installable with `skills add a2aproject/a2a-cli --skill a2a-cli` or via its agent plugin. The official [a2aproject/a2a-python](https://github.com/a2aproject/a2a-python) repository contains contributor `mistake-reflection` guidance, not a consumer SDK skill in the inspected tree. Use its SDK docs and samples; do not confuse Agent Card skills with installable authoring guidance.
+The official [a2aproject/a2a-cli](https://github.com/a2aproject/a2a-cli) repository provides the `a2a-cli` Agent Skill (`skills/a2a-cli/SKILL.md`) to drive and test A2A agents from the command line, installable with `skills add a2aproject/a2a-cli --skill a2a-cli` or via its agent plugin; `a2a skill` prints the copy bundled with the installed CLI for review without installing. The official [a2aproject/a2a-python](https://github.com/a2aproject/a2a-python) repository contains contributor `mistake-reflection` guidance, not a consumer SDK skill in the inspected tree. Use its SDK docs and samples; do not confuse Agent Card skills with installable authoring guidance.
 
 ## Documentation
 

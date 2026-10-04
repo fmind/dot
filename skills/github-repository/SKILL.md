@@ -1,80 +1,62 @@
 ---
 name: github-repository
-description: "Configure GitHub topics, descriptions, merge policy, and security settings with gh."
+description: "Set GitHub repo description, topics, merge policy, and security settings."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # GitHub Repository
 
-Derive a repository's description, homepage, and topics from its codebase and apply the requested fields with `gh repo edit`. For a new solo-maintained repository or an explicitly requested settings pass, use the baseline below; a metadata-only request does not include merge policy, sidebar features, or security settings.
+Derive a repository's description, homepage, and topics from its codebase and apply the requested fields with `gh repo edit`. For a new solo-maintained repository or an explicitly requested settings pass, use the [settings baseline](references/settings-baseline.md); a metadata-only request does not include merge policy, sidebar features, or security settings.
 
 ## Workflow
 
-Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request serialization when needed.
+Use [gh](../gh/SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
 
 1. **Extract metadata** from the codebase:
    - Project metadata: Python `pyproject.toml` (`[project]` name, description, and URLs).
    - `README.md`: the first paragraphs give a one-line description under ~140 characters.
    - Homepage: use the configured, verified canonical site; do not infer a live Pages site merely from the repository name.
    - Topics: 3 to 6 lowercase tags for language, frameworks, tools, or domain (`agent`, `python`, `cli`); letters, numbers, and hyphens only, 50 characters max, 20 per repository.
-1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated. Resolve repository identity through `gh`; never print raw remote URLs, which can contain credentials:
+1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated:
 
    ```bash
-   gh auth status
-   gh repo view --json nameWithOwner,visibility,isInOrganization,description,homepageUrl,repositoryTopics,deleteBranchOnMerge,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed,hasIssuesEnabled,hasProjectsEnabled,hasWikiEnabled,hasDiscussionsEnabled
+   state="$(gh repo view --json nameWithOwner,visibility,description,homepageUrl,repositoryTopics)"
    ```
 
-1. **Build one scoped edit**: for metadata-only work, include only the requested metadata flags and topic changes. Use the complete baseline below only when repository settings are in scope, preserving an existing team's policy and active wiki/projects/discussions unless their removal was requested. Add the desired topics, remove obsolete topics only when replacing the set, and append `--enable-issues=false` only when the project tracks issues elsewhere. Query the repository REST payload and add the two secret-scanning flags only for a public repository or when `security_and_analysis.secret_scanning` is present; otherwise report that the capability is unavailable and continue with the remaining settings:
+1. **Build one scoped edit**: include only the requested metadata flags; add the desired topics and remove obsolete ones only when replacing the set:
 
    ```bash
-   repository="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-   repository_json="$(gh api "repos/$repository")"
+   repository="$(jq -r .nameWithOwner <<<"$state")"
    desired_topics=(tag1 tag2 tag3)
-   args=(
-     --description "<description>" --homepage "<homepage-url>"
-     --delete-branch-on-merge --enable-squash-merge
-     --squash-merge-commit-message pr-title-description
-     --enable-merge-commit=false --enable-rebase-merge=false --allow-update-branch
-     --enable-wiki=false --enable-projects=false --enable-discussions=false
-   )
+   args=(--description "<description>" --homepage "<homepage-url>")
    for topic in "${desired_topics[@]}"; do args+=(--add-topic "$topic"); done
    while IFS= read -r topic; do
      [[ " ${desired_topics[*]} " == *" $topic "* ]] || args+=(--remove-topic "$topic")
-   done < <(jq -r '.topics[]' <<<"$repository_json")
-   if [[ "$(jq -r .visibility <<<"$repository_json")" == public ]] ||
-     [[ "$(jq -r '.security_and_analysis.secret_scanning.status? // empty' <<<"$repository_json")" ]]; then
-     args+=(--enable-secret-scanning --enable-secret-scanning-push-protection)
-   else
-     echo "Secret scanning is unavailable for $repository; leaving it unchanged." >&2
-   fi
-   gh repo edit "$repository" "${args[@]}"
+   done < <(jq -r '(.repositoryTopics // [])[].name' <<<"$state")
    ```
 
-1. **Protect a public repository** in the same settings pass: enable private vulnerability reporting and add a default-branch ruleset that blocks deletion and force pushes without requiring pull requests or signatures, so direct pushes keep working. Skip the ruleset when `gh api "repos/$repository/rules/branches/<default-branch>" --jq 'map(.type)'` already lists both rules:
+1. **Extend for a settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) appends merge policy, sidebar features, and secret scanning to the same `args`, then protects a public repository after the edit.
+1. **Apply** once with `gh repo edit "$repository" "${args[@]}"`.
+1. **Verify** with the same `gh repo view --json ...` fields and report the ones that changed; a settings pass also runs the guide's read-back, which covers fields `gh repo view` does not expose.
 
-   ```bash
-   gh api -X PUT "repos/$repository/private-vulnerability-reporting"
-   gh api -X POST "repos/$repository/rulesets" --input - <<'EOF'
-   {"name": "Protect default branch", "target": "branch", "enforcement": "active",
-    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-    "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}], "bypass_actors": []}
-   EOF
-   ```
+## Task guides
 
-1. **Verify** with the same `gh repo view --json ...` call and report the fields that changed.
+<!-- guides:start -->
+
+- [settings-baseline](references/settings-baseline.md): Apply the solo-maintainer merge, feature, secret-scanning, and default-branch protection baseline idempotently.
+
+<!-- guides:end -->
 
 ## Gotchas
 
 - **Truncation**: keep the description single-line and under ~140 characters or the GitHub UI truncates it.
-- **Secret scanning eligibility**: public repositories are covered; private and internal repositories require an eligible GitHub Secret Protection or Advanced Security entitlement. Capability-detect instead of inferring availability from personal versus organization ownership.
 - **Visibility**: never pass `--visibility` or `--accept-visibility-change-consequences` unless the user explicitly asks.
-- **Plan limits**: rulesets and branch protection on a private repository need GitHub Pro or Team; on Free the API answers 403 `Upgrade to GitHub Pro`. Report the gap instead of changing visibility. Private vulnerability reporting applies to public repositories only.
 
 ## Documentation
 

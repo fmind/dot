@@ -1,13 +1,13 @@
 ---
 name: mise
-description: "Manage mise tool versions, environments, and repository tasks shared by local checks and CI."
+description: "Manage mise tool pins, lockfiles, environments, and tasks shared by hooks and CI."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Mise
@@ -17,8 +17,7 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 ## Workflow
 
 1. **Inspect** the repository's existing tasks, lockfile, tool providers, hooks, and CI before changing the contract.
-1. **Select versions** using the [shared tool baseline](references/tool-versions.md): `fmind/dot` tracks `latest`, including Python; other owned repositories use exact pins from its managed lockfile. Apply this before installing copied scaffold selectors.
-1. **Reuse installations**: compare `mise ls --installed --json` with the baseline before installing; use the same backend, options and exact version where compatible. Do not run independent upgrades or copy tool binaries into projects. Report duplicate versions and documented exceptions; a matching version string alone does not prove reuse.
+1. **Select and reuse versions** per the [shared tool baseline](references/tool-versions.md) before installing copied scaffold selectors: `fmind/dot` tracks `latest`, including Python; other owned repositories pin exact baseline versions. Compare `mise ls --installed --json` with the baseline to reuse installations; never run independent upgrades or copy tool binaries into projects.
 1. **Keep tasks simple**: prefer direct commands, short sequential `run` arrays, and declarative dependencies. A short multiline sequence for setup and cleanup is acceptable; avoid explicit `bash -c`/`sh -c`, nested conditions, argument-dispatch wrappers, and large shell programs. Use native tool options or explicit task names first; put necessary procedural logic in a small maintained script, preferably Python.
 1. **Keep the shared vocabulary** below; read [task conventions](references/task-conventions.md) for subtask names, concise output, argument forwarding, dependency order, and tool updates.
 1. **Pin and install** the project toolchain, then validate task definitions with `mise tasks validate`; use `mise run <task>` in automation.
@@ -28,15 +27,15 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 
 Every project exposes the same core tasks with short aliases so agents, hooks, and CI stay portable:
 
-| Task      | Alias | Purpose                                                                                                                                                                            |
-| --------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                                                                                                                      |
-| `format`  | `f`   | Format all sources (fans out to `format:*`).                                                                                                                                       |
-| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                                                                                                                             |
-| `test`    | `t`   | Run the test suite.                                                                                                                                                                |
-| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                                                                                                                              |
-| `watch`   | `w`   | Run the app with live reload, or re-run tests where there is no app to serve; omitted only by a stack with neither, such as [infra-as-code](../infra-as-code/templates/mise.toml). |
-| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate.                                                                                                                     |
+| Task      | Alias | Purpose                                                        |
+| --------- | ----- | -------------------------------------------------------------- |
+| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).  |
+| `format`  | `f`   | Format all sources (fans out to `format:*`).                   |
+| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).         |
+| `test`    | `t`   | Run the test suite.                                            |
+| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).          |
+| `watch`   | `w`   | Live reload, or re-run tests; omitted by stacks with neither.  |
+| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate. |
 
 Python projects start from [python-stack](../python-stack/references/foundation/templates/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [infra-as-code](../infra-as-code/templates/mise.toml).
 
@@ -50,8 +49,7 @@ Python projects start from [python-stack](../python-stack/references/foundation/
 
 ## Documentation
 
-- [Shared tool baseline](references/tool-versions.md) · [upgrade-tools](../upgrade-tools/SKILL.md) for cross-repository alignment
-- [Provenance pilot and adoption boundary](references/provenance-pilot.md)
+- [upgrade-tools](../upgrade-tools/SKILL.md) for cross-repository alignment
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
 - Companion skills: [lefthook](../github-actions/references/lefthook.md) (hooks call these tasks), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI installs the toolchain with `mise-action` and runs `mise run all`).

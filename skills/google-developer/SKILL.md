@@ -1,18 +1,18 @@
 ---
 name: google-developer
-description: "Find official Google developer docs and vendor skills beyond dedicated local owners."
+description: "Find official Google developer docs and vendor skills (google/skills): Cloud, Ads, Analytics."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Google Developer Catalog
 
-Route Google product work to the relevant selection in [google/skills](https://github.com/google/skills). Existing owners keep their procedures: [gcloud](../gcloud/SKILL.md) for CLI identity and cloud defaults, [cloud-run](../cloud-run/SKILL.md) for service deployment, [infra-as-code](../infra-as-code/SKILL.md) for provisioning, [gws](../gws/SKILL.md) for Workspace, [agy](../agy/SKILL.md) for Antigravity, [model-providers](../model-providers/SKILL.md) for Gemini access, [agent-frameworks](../agent-frameworks/SKILL.md) for ADK and agents-cli, and [colab](../colab/SKILL.md) and [kaggle](../kaggle/SKILL.md) for notebooks and competitions.
+Route Google product work to the relevant selection in [google/skills](https://github.com/google/skills). Existing owners keep their procedures: [gcloud](../gcloud/SKILL.md) (CLI identity and cloud defaults), [cloud-run](../cloud-run/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), [gws](../gws/SKILL.md), [agy](../agy/SKILL.md), [model-providers](../model-providers/SKILL.md), [agent-frameworks](../agent-frameworks/SKILL.md), [colab](../colab/SKILL.md), and [kaggle](../kaggle/SKILL.md).
 
 ## Workflow
 

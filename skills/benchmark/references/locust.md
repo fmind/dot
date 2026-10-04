@@ -5,7 +5,7 @@ description: "Concurrent user scenarios, capacity tests, and acceptance threshol
 
 # Locust
 
-Use Locust for concurrent user behavior and service capacity tests; [benchmark](command-http.md) owns simple HTTP/command benchmarks.
+Use Locust for concurrent user behavior and service capacity tests; [command-http](command-http.md) owns simple HTTP/command benchmarks, and the [benchmark workflow](../SKILL.md) owns controls, uncertainty, and reporting.
 
 ## Workflow
 
@@ -27,7 +27,7 @@ Use Locust for concurrent user behavior and service capacity tests; [benchmark](
 
 ## Official Skills
 
-No consumer Agent Skill was found in the inspected [locustio/locust](https://github.com/locustio/locust) repository on 2026-09-10. Use the official documentation below; community packages are not upstream endorsements.
+No consumer Agent Skill was found in the inspected [locustio/locust](https://github.com/locustio/locust) repository on 2026-10-04. Use the official documentation below; community packages are not upstream endorsements.
 
 ## Documentation
 

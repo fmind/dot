@@ -3,9 +3,9 @@ name: command-http
 description: "Compare command latency with hyperfine or measure HTTP throughput with oha."
 ---
 
-# Benchmark
+# Command and HTTP Benchmarks
 
-Two tools, two questions. `hyperfine` answers "how long does this command take" with warmup, repeated runs, and a comparison; `oha` answers "how does this endpoint behave under load" with latency percentiles and a live TUI. Diagnosing why something is slow belongs to [systematic-debugging](../../systematic-debugging/SKILL.md); this skill produces the numbers.
+Two tools, two questions. `hyperfine` answers "how long does this command take" with warmup, repeated runs, and a comparison; `oha` answers "how does this endpoint behave under load" with latency percentiles and a live TUI. This guide supplies the commands; the [benchmark workflow](../SKILL.md) owns the question, controls, repetitions, and report.
 
 ## Commands
 
@@ -18,14 +18,6 @@ oha -z 30s -c 50 -q 100 --latency-correction http://localhost:8080/health # 30 s
 oha -n 2000 -c 20 -m POST -H 'Content-Type: application/json' -d '{"q":1}' http://localhost:8080/api
 oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080/   # scriptable output for CI or a report
 ```
-
-## Workflow
-
-1. **Fix the question**: one command or endpoint, one metric (mean latency, p99, requests per second), one hypothesis.
-1. **Control the machine**: close heavy processes, run on AC power, and pin versions; record CPU, OS, and tool versions in the report.
-1. **Warm up and repeat**: at least 3 warmup runs and 10 measured runs for commands; at least 30 seconds for endpoints. Compare against a baseline measured the same way in the same session.
-1. **Quantify uncertainty**: compare repeated, equivalently controlled runs and report uncertainty in the difference; a run's standard deviation alone does not decide significance. Alternate baseline/candidate measurements when machine drift matters.
-1. **Report**: the command lines, the exported table, the relative change, and the conditions. Keep `bench.json` if the number will be tracked over time.
 
 ## Gotchas
 

@@ -1,13 +1,13 @@
 ---
 name: agent-usage
-description: "Analyze agent token usage, costs, subscriptions, and efficiency with dot and local queries."
+description: "Analyze agent token usage, costs, and subscriptions with dot and DuckDB queries."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Agent Usage
@@ -21,9 +21,7 @@ Analyze the shared usage archive with dot and DuckDB. Preserve the difference be
 1. **Analyze comparable data**: account for missing sessions, model aliases, cache tokens, provider accounting differences, and time zones before aggregating.
 1. **Report**: include period, sources, completeness, units, assumptions, and the query or artifact supporting the result; protect prompt and account data.
 
-Use `dot agent stats --tokens-only` for a quick total with coverage dates and API equivalents. Add `--monthly` for UTC months or `--billing --agent codex` for configured subscription cycles. Terminal reports use wrapped sections per agent, model, project, or period; exact counts and accounting qualifications remain visible. Add `--by-model` or `--json` for detail; omit `--tokens-only` when prompt statistics are also needed. [queries.md](references/queries.md) owns configuration examples and accounting limitations. Reports first sync changed sessions incrementally; sync failures print on stderr and the report still prints.
-
-API equivalents use the offline rate card in `agent.pricing`, independently of recorded cost. Check `priced_measurements`, `pricing_complete`, `legacy_accounting_sessions`, and `unpriced_reasons`. Rates assume standard short context; Claude 1-hour cache writes use their own rate, other cache writes the 5-minute rate. Unknown models and unsupported accounting remain unpriced. API-equivalent value divided by the configured USD subscription charge is a usage comparison, not verified savings or a quality score.
+Quick total: `dot agent stats --tokens-only` (coverage dates and API equivalents). [queries.md](references/queries.md) owns flags, pricing fields, and billing configuration. API equivalents are offline rate-card estimates, never the bill or verified savings.
 
 ## Gotchas
 
@@ -31,9 +29,8 @@ API equivalents use the offline rate card in `agent.pricing`, independently of r
 - **Model attribution and dates**: Claude/Codex/Grok request samples retain per-request models and timestamps, including model switches and month boundaries. Sources without reliable samples use whole-session timestamps; check `session_timestamp_sessions`. Codex 0.153+ samples come from per-response records, including compaction requests; when they disagree with the thread total, or an older cumulative counter is corrected, the provider total stays without request allocation rather than inventing deltas.
 - **Read the provenance**: `measurement_kind` distinguishes provider-reported totals, Antigravity's byte-based estimate, and Grok's context-only fallback when turn usage is unavailable. Grok turn ledgers can instead provide real consumption measurements; inspect the record rather than assuming a measurement kind from the harness name. Statistics group these separately and do not combine unlike measurements into one total.
 - **One copy per session**: transcript and usage are replaced together, never by a shorter transcript or a failed extraction, so each session counts once. When only the measurement becomes unavailable, the longer transcript publishes with the archived measurement, counted as retained.
-- **Subagents are sidechains**: Claude subagent transcripts and Codex subagent threads are archived separately but belong to their parent session. Statistics add their tokens to the parent's session and project without another session, prompt, or recorded cost (the parent's cost covers them); usage records mark them `sidechain`.
-- **Capture uses one write path**: `session sync` reads each harness's own store; hooks only notify. Bundles from older accounting versions needing recapture are flagged as legacy accounting (parser 3 may overcount Claude streaming blocks) until sync recaptures their sources ([contracts](../dot-cli/references/contracts.md)).
-- **Both harness and agent fields exist**: queries can group by either `harness` or `agent` interchangeably.
+- **Subagents are sidechains**: their tokens join the parent session and project without another session or recorded cost; exclude `sidechain` records when counting sessions.
+- **Capture uses one write path**: `session sync` reads each harness's own store; hooks only notify. Check `legacy_accounting_sessions` before trusting older totals ([contracts](../dot-cli/references/contracts.md)).
 - **`sync` fails loud, reports warn**: `dot agent session sync` records each failed session, continues, and exits 1 at the end; the sync before `stats` and `usage` only warns on stderr. A failed usage extraction keeps the archived measurement.
 
 ## Documentation

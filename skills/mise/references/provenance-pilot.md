@@ -1,6 +1,6 @@
 # Provenance Pilot
 
-Pilot date: 2026-09-05 with mise 2026.9.1 on Linux x86_64.
+Pilot date: 2026-09-05 with mise 2026.9.1 on Linux x86_64. This is historical evidence: re-run the pilot on the installed mise release before relying on its conclusion or changing the policy.
 
 Current mise can verify SLSA, Cosign, Minisign, and GitHub artifact attestations for supported aqua and GitHub artifacts, and records a verified provenance type in `mise.lock`. Cross-platform records are metadata detection rather than native verification; `github_attestations = "unavailable"` is a negative cache entry, not provenance.
 

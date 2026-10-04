@@ -1,69 +1,62 @@
 ---
 name: infra-as-code
-description: "Manage OpenTofu/Terraform infrastructure, providers, state, plans, and migrations."
+description: "Manage OpenTofu/Terraform modules, providers, state, and plans."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Infrastructure as Code
 
 Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; the binary is `tofu`). A repository that needs a BSL-licensed feature or employer-mandated HashiCorp Terraform pins `terraform` in its own mise configuration and documents the deviation.
 
-## 1. Core Stack
+## Defaults
 
-- **Engine**: OpenTofu via mise (`opentofu` tool, `tofu` binary); verify provider, backend, state, and language-feature compatibility before migration; OpenTofu also supports client-side state encryption.
+- **Engine**: OpenTofu via mise (`opentofu` tool, `tofu` binary); verify provider, backend, state, and language-feature compatibility before a Terraform migration.
 - **Tasks and hooks**: [mise.toml](templates/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](templates/lefthook.yml) wires the hooks per [lefthook](../github-actions/references/lefthook.md).
-- **Docs**: `terraform-docs` injects the inputs/outputs table into `README.md` between `<!-- BEGIN_TF_DOCS -->` / `<!-- END_TF_DOCS -->` markers, configured by [terraform-docs.yml](templates/terraform-docs.yml).
-- **Cloud planning is explicit**: `build` generates documentation; `mise run plan` creates `tmp/plan.tfplan` only for the selected backend, workspace, and cloud target. A plan can access APIs, state, and data sources. Applying it requires the authorized target and reviewed plan (`tofu apply tmp/plan.tfplan`); keep plan and apply out of automatic gates.
-
-## 2. Project Scaffolding Workflow
-
-1. **Information**: define the project `Slug`, GCP `Project ID`, and default `Region`.
-1. **Config files**:
-   - [mise.toml](templates/mise.toml) and [lefthook.yml](templates/lefthook.yml); replace the template's `latest` placeholders with exact versions from the workstation baseline and commit the generated `mise.lock` per [mise](../mise/SKILL.md).
-   - `.tflint.hcl` from [tflint.hcl](templates/tflint.hcl) — pins the terraform preset and the GCP ruleset release.
-   - `.terraform-docs.yml` from [terraform-docs.yml](templates/terraform-docs.yml), plus the `TF_DOCS` markers in `README.md`.
-   - `dprint.json` per [dprint](../dprint/SKILL.md), a reviewed project `trivy.yaml` per [trivy](../security-review/references/trivy/GUIDE.md); `.gitignore` from [gitignore](templates/gitignore), `LICENSE` per [project-license](../project-scaffolding/references/project-license/GUIDE.md).
-1. **Sources** (flat root module; no `modules/` tree until a unit is reused):
-   - [versions.tf](templates/versions.tf) — version constraints, provider pins, and the commented GCS backend and encryption blocks.
-   - [main.tf](templates/main.tf), [variables.tf](templates/variables.tf) (typed, validated inputs), [outputs.tf](templates/outputs.tf).
-   - [terraform.example.tfvars](templates/terraform.example.tfvars) — non-secret example and static-scan values; replace the project ID before planning.
-   - `tests/main.tftest.hcl` from [main.tftest.hcl](templates/main.tftest.hcl) — plan-only native tests.
-1. **Validate**: `git init --initial-branch=main`, then `mise run install` and `mise run all` — no cloud API access for this starter because the backend is commented and the test uses `mock_provider`; downloading tools/providers still needs network access.
-1. **Lock providers**: commit `.terraform.lock.hcl`. Since OpenTofu 1.12, `tofu init` records every platform's checksums from the OpenTofu Registry; run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64` only for mirror-only installs or providers from other registries.
-1. **Promote the backend**: once backend creation and state migration are authorized, create the versioned GCS bucket (commands in [versions.tf](templates/versions.tf)), back up the current state, verify the source workspace and destination prefix, and uncomment `backend "gcs"`. Run `tofu init -migrate-state` for the reviewed move; authorized non-interactive migration uses `tofu init -migrate-state -force-copy -input=false`. Verify the destination state before removing the local backup.
-
-## 3. State & Secrets
-
-- **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block (GCP KMS, sketched in [versions.tf](templates/versions.tf)). To encrypt existing state, back up the state and keys, apply once with the `unencrypted` migration fallback and without `enforced`, then remove the fallback and enforce. Never rename key-provider or method labels once data is encrypted.
-- **Variable files**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets per [sops-secrets](../sops-secrets/SKILL.md) as `TF_VAR_<name>` entries: `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'`. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at apply: `sops exec-env secrets.enc.env 'tofu apply tmp/plan.tfplan'`.
+- **Docs**: `terraform-docs` injects the inputs/outputs table into `README.md` between `<!-- BEGIN_TF_DOCS -->` / `<!-- END_TF_DOCS -->` markers, configured by [terraform-docs.yml](templates/terraform-docs.yml); `mise run build` regenerates it without cloud access.
 - **Credentials**: Application Default Credentials locally; Workload Identity Federation in CI per [github-actions](../github-actions/references/ci-cd/GUIDE.md) — no service-account keys.
+- **New repositories** follow the [scaffold](references/scaffold.md) guide.
 
-## 4. Testing Standard
+## Workflow
 
-- **Native tests first**: `tofu test` over `tests/*.tftest.hcl` with `command = plan` asserts on planned attributes ([main.tftest.hcl](templates/main.tftest.hcl)) ; the supplied `mock_provider` keeps this starter offline. Plan mode alone can still authenticate, refresh state, and read data sources.
-- **Apply-mode tests**: `command = apply` creates real (then destroyed) resources; reserve it for behavior a plan cannot prove, with approved project access and cost.
-- **Policy checks**: encode "must never happen" rules (public buckets, missing labels) as `check:scan` trivy findings or plan-test assertions.
+1. **Resolve the target**: identify the root module, backend, workspace (`tofu workspace show`), cloud project, credentials, and the authorized change scope. A fresh clone runs `mise run install` first: validation, linting, and tests need `tofu init` providers and `tflint --init` rulesets.
+1. **Edit minimally**: change the smallest root module that owns the resource; keep one state per concern.
+1. **Check before planning**: run `mise run check` and `mise run test`; tests stay offline only while every provider is mocked (the starter's `mock_provider`), otherwise plan-mode tests can authenticate, refresh state, and read data sources. Native tests over `tests/*.tftest.hcl` use `command = plan` ([main.tftest.hcl](templates/main.tftest.hcl)); encode "must never happen" rules (public buckets, missing labels) as `check:scan` trivy findings or plan-test assertions.
+1. **Plan explicitly**: `mise run plan` writes `tmp/plan.tfplan` for the selected backend, workspace, and cloud target; feed secrets per State and secrets below. A plan can access APIs, state, and data sources, so keep plan and apply out of automatic gates.
+1. **Review the plan**: read `tofu show tmp/plan.tfplan` and flag every replacement, destroy, IAM change, and cost-relevant resource before asking for apply authority.
+1. **Apply the reviewed plan when authorized**: `tofu apply tmp/plan.tfplan` against the same target, then delete the saved plan.
+1. **Verify**: re-read the changed resources and run the same target's plan with its secret inputs, e.g. `sops exec-env secrets.enc.env 'tofu plan -input=false -detailed-exitcode'`; exit 0 means no remaining drift, 2 means pending changes, 1 is an error.
+
+## State and secrets
+
+- **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block. Read [state-encryption](references/state-encryption.md) before enabling it or migrating existing state.
+- **Variable files**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets per [sops-secrets](../sops-secrets/SKILL.md) as `TF_VAR_<name>` entries: `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'`. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at apply: `sops exec-env secrets.enc.env 'tofu apply tmp/plan.tfplan'`.
 
 ## Gotchas
 
-- **`tofu init` before everything**: `check:validate`, `check:lint`, and `test` need providers downloaded; a fresh clone runs `mise run install` first.
+- **Apply-mode tests create resources**: `command = apply` creates real (then destroyed) resources; reserve it for behavior a plan cannot prove, with approved project access and cost.
 - **tflint rulesets are downloaded**: `tflint --init` (in `install:lint`) fetches the plugins pinned in [tflint.hcl](templates/tflint.hcl); export `GITHUB_TOKEN` in CI to avoid API rate limits.
 - **terraform-docs needs markers**: `inject` mode only rewrites between the `TF_DOCS` markers; add them to `README.md` once at scaffold time.
 - **Provider majors move fast**: [versions.tf](templates/versions.tf) pins the google provider to one major with `~>`; bump majors deliberately with [upgrade-tools](../upgrade-tools/SKILL.md) and read the upgrade guide, because resources rename across majors.
 - **One state per concern**: several small root modules (one per GCS `prefix`) beat one monolithic state — smaller blast radius, faster plans.
 
-## Official Skills
+## Task guides
 
-Upstream: `hashicorp/agent-skills`; follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select only the Terraform or provider guidance needed by the stack.
+<!-- guides:start -->
+
+- [scaffold](references/scaffold.md): Create a new OpenTofu root module from the templates, validate it offline, lock providers, and promote its GCS backend.
+- [state-encryption](references/state-encryption.md): Enable OpenTofu client-side state and plan encryption with GCP KMS, including plaintext state migration.
+
+<!-- guides:end -->
 
 ## Documentation
 
 - [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
 - Releases: [OpenTofu](https://github.com/opentofu/opentofu/releases) · [what's new](https://opentofu.org/docs/intro/whats-new/)
-- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI), [security-review](../security-review/references/code-review/GUIDE.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).
+- Upstream: `hashicorp/agent-skills` per the [vendor-skill policy](../agent-project/references/vendor-skills.md); select only the Terraform or provider guidance the stack needs.
+- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI), [code-security](../code-security/references/code-review/GUIDE.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).

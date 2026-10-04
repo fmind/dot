@@ -1,13 +1,13 @@
 ---
 name: ast-grep
-description: "Find and safely rewrite Python syntax with ast-grep patterns and rules."
+description: "Search, outline, and rewrite code structurally with ast-grep rules."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-09-26"
+  updated: "2026-10-04"
 ---
 
 # ast-grep
@@ -17,6 +17,7 @@ Structural code search and rewrite: a pattern is real code with meta-variables, 
 ## Commands
 
 ```bash
+ast-grep outline -l python src/                                                 # symbols, imports, and members per file
 ast-grep run -p 'print($$$ARGS)' -l python src/                                      # scope search to the relevant source
 ast-grep run -p 'print($$$ARGS)' -r 'logger.info($$$ARGS)' -l python src/             # dry run: prints the diff, changes nothing
 ast-grep run -p 'print($$$ARGS)' -r 'logger.info($$$ARGS)' -l python --update-all src/ # apply after reviewing the dry run (-i to confirm per hunk)
@@ -28,7 +29,7 @@ ast-grep scan -r rules/no-print.yml --format github                             
 ## Workflow
 
 1. **Write the pattern as code**: `$NAME` matches one node, `$$$NAME` a sequence (arguments, statements), `$_` a node without binding; always pass `-l <lang>` so the pattern parses in the right grammar, and use `--debug-query=ast` when a pattern that should match does not.
-1. **Search first**: pass the relevant path or `--globs`; use `--files-with-matches` when only filenames are needed, then read selected matches with `-C 2`. Use JSON only for structured processing. Widen scope deliberately, and use `--no-ignore` only when skipped files are relevant.
+1. **Search first**: map unfamiliar files with `ast-grep outline` before reading full source; pass the relevant path or `--globs`; use `--files-with-matches` when only filenames are needed, then read selected matches with `-C 2`. Use JSON only for structured processing. Widen scope deliberately, and use `--no-ignore vcs` (or `hidden`; the flag requires a value) only when skipped files are relevant.
 1. **Rewrite in two steps**: add `-r` to see the diff, then `--update-all` (or `-i` for an interactive session); captured meta-variables are reused in the replacement.
 1. **Promote to a rule**: for a lint or a repeated refactor, `ast-grep new project` scaffolds `sgconfig.yml` and `rules/`; a rule file has `id`, `language`, `rule` (`pattern`, `kind`, `inside`, `has`, `not`), optional `fix`, `severity`, and `message`; `ast-grep test` runs its `valid` and `invalid` cases.
 1. **Wire into the gate**: run `ast-grep scan` inside `check:lint` (see [mise](../mise/SKILL.md)) so hooks and CI apply the same rules.
@@ -43,7 +44,7 @@ ast-grep scan -r rules/no-print.yml --format github                             
 
 ## Official Skills
 
-Upstream: `ast-grep/agent-skill`; follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select the structural-search guidance.
+Upstream: `ast-grep/agent-skill` ships `ast-grep` (structural search) and `ast-grep-outline` (codebase map); preview the same-name upstream `ast-grep` instead of installing it ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)); the rest follow the same policy.
 
 ## Documentation
 

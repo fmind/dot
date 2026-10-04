@@ -1,6 +1,6 @@
 ---
 name: project-scaffolding
-description: "Create repositories and maintain Copier or Cookiecutter/Cruft templates, updates, and licenses."
+description: "Create repos and licenses; author Copier, Cookiecutter, or Cruft templates and apply their updates."
 license: MIT
 metadata:
   kind: collection
@@ -22,9 +22,9 @@ Read only the matching guide and its required resources. Use a known guide direc
 
 <!-- guides:start -->
 
-- [bootstrap](references/bootstrap.md): Repository bootstrap and stack composition.
-- [cookiecutter](references/cookiecutter/GUIDE.md): Existing Cookiecutter/Cruft generation and template updates.
-- [copier](references/copier.md): New reusable templates and tracked updates.
-- [project-license](references/project-license/GUIDE.md): Repository license choice and metadata.
+- [bootstrap](references/bootstrap.md): Create a new repository: location, visibility, stack composition, shared layer, validation, and first push.
+- [cookiecutter](references/cookiecutter/GUIDE.md): Generate from existing Cookiecutter templates and update Cruft-tracked projects without losing local edits.
+- [copier](references/copier.md): Author new reusable Copier templates, generate projects, and apply tracked template updates.
+- [project-license](references/project-license/GUIDE.md): Choose, write, and declare a repository LICENSE (MIT, CC-BY-4.0, or proprietary) by namespace and content.
 
 <!-- guides:end -->

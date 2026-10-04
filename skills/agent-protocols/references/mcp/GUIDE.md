@@ -3,7 +3,7 @@ name: mcp
 description: "MCP tool and context clients/servers, transports, schemas, and protocol tests."
 ---
 
-# MCP Server
+# MCP
 
 Use the official `mcp` Python SDK for typed tools, resources, prompts, and consuming clients. [python-stack](../../../python-stack/references/foundation/GUIDE.md) owns shared setup; [mcp-setup](../../../mcp-setup/SKILL.md) owns host registration and [A2A implementation](../a2a.md) owns agent interoperability.
 
@@ -29,21 +29,21 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
    ```
 1. **Secure HTTP before exposure**: validate `Origin`, bind local development to `127.0.0.1`, require OAuth or workload identity remotely, and authorize each tool against the caller and requested resource.
 1. **Consume an existing server**: use `async with Client(<approved-url-or-stdio-parameters>) as client`, inspect advertised schemas, and call only requested tools/resources. Bound call duration and output; test an unknown tool, invalid arguments, cancellation, and transport failure. A client-only project can install plain `mcp` without the CLI extra.
-1. **Ship and verify**: containerize a hosted server with [containerize](../../../containerize/references/image-build/GUIDE.md), deploy with [cloud-run](../../../cloud-run/SKILL.md), register it through [mcp-setup](../../../mcp-setup/SKILL.md), then make one real tool call end to end.
+1. **Ship and verify**: containerize a hosted server with [containerize](../../../containerize/SKILL.md), deploy with [cloud-run](../../../cloud-run/SKILL.md), register it through [mcp-setup](../../../mcp-setup/SKILL.md), then make one real tool call end to end.
 
 ## Gotchas
 
 - **Use SDK v2 APIs**: `MCPServer` and `Client` are the current stable surface; pin `<2` only while maintaining an intentional v1 application.
-- **Streamable HTTP replaced HTTP+SSE**: do not build a new SSE server, and do not depend on in-memory protocol sessions when instances can scale or restart. Revision 2026-07-28, the latest in SDK 2.2.0, removes sessions and the `initialize` handshake (`Client` falls back to it for older servers) and deprecates Roots, Sampling, Logging, and Dynamic Client Registration: pass server-minted handles as tool arguments for cross-call state, log to stderr or OpenTelemetry, and prefer Client ID Metadata Documents for OAuth clients.
+- **Streamable HTTP replaced HTTP+SSE**: do not build a new SSE server, and do not depend on in-memory protocol sessions when instances can scale or restart. Revision 2026-07-28, the latest through SDK 2.3.0, removes sessions and the `initialize` handshake (`Client` falls back to it for older servers) and deprecates Roots, Sampling, Logging, and Dynamic Client Registration: pass server-minted handles as tool arguments for cross-call state, log to stderr or OpenTelemetry, and prefer Client ID Metadata Documents for OAuth clients.
 - **Cancellation is work cancellation**: stop downstream I/O when the client disconnects or cancels rather than letting detached work continue.
 - **Tool output is untrusted too**: bound it, avoid secret-bearing errors, and return citations or provenance when a tool supplies facts to a model.
 
 ## Official Skills
 
-Upstream: `anthropics/skills`, an official Anthropic bundle with MCP builder guidance, not a skill release from the Python SDK maintainers. The inspected `modelcontextprotocol/python-sdk` tree has contributor test guidance rather than a consumer SDK skill. Follow the shared [vendor-skill policy](../../../agent-project/references/vendor-skills.md), then verify the selected Python guidance against the project's locked SDK API.
+Upstream: `anthropics/skills`, an official Anthropic bundle with MCP builder guidance, not a skill release from the Python SDK maintainers; Claude Code users can instead review the `mcp-server-dev` plugin in `anthropics/claude-plugins-official` (`build-mcp-server`, `build-mcp-app`, `build-mcpb`). The inspected `modelcontextprotocol/python-sdk` tree has contributor test guidance rather than a consumer SDK skill. Follow the shared [vendor-skill policy](../../../agent-project/references/vendor-skills.md), then verify the selected Python guidance against the project's locked SDK API.
 
 ## Documentation
 
 - [MCP specification](https://modelcontextprotocol.io/specification/latest) · [Python SDK](https://github.com/modelcontextprotocol/python-sdk) · [Python SDK docs](https://py.sdk.modelcontextprotocol.io/)
 - Releases: [Python SDK](https://github.com/modelcontextprotocol/python-sdk/releases) · [specification changelog](https://modelcontextprotocol.io/specification/latest/changelog)
-- Companion skills: [mcp-setup](../../../mcp-setup/SKILL.md) (host registration), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../containerize/references/image-build/GUIDE.md), [cloud-run](../../../cloud-run/SKILL.md).
+- Companion skills: [mcp-setup](../../../mcp-setup/SKILL.md) (host registration), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../containerize/SKILL.md), [cloud-run](../../../cloud-run/SKILL.md).

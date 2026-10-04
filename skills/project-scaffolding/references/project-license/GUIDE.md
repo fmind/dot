@@ -1,6 +1,6 @@
 ---
 name: project-license
-description: "Repository license choice and metadata."
+description: "Choose, write, and declare a repository LICENSE (MIT, CC-BY-4.0, or proprietary) by namespace and content."
 ---
 
 # Project License
@@ -22,13 +22,12 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 
 ## Gotchas
 
-- **Namespace is not content type**: `mlops-courses` can contain public code under MIT or written course material under CC-BY-4.0; inspect what the repository publishes before choosing.
+- **Namespace is not content type**: `mlops-courses` holds both, MIT for code repositories and CC-BY-4.0 for the written course; inspect what the repository publishes before choosing.
 - **`LICENSE.txt`**: a course repository may carry `LICENSE.txt`; writing `LICENSE` next to it leaves two conflicting licenses.
-- **Code and prose differ**: one course organization holds both, MIT for code repositories and CC-BY-4.0 for the written course; check what the repository publishes.
 - **SPDX only**: plain `"Proprietary"` is not a valid SPDX expression and modern build tools reject it; use `LicenseRef-Proprietary`.
 
 ## Documentation
 
 - [Choose an Open Source License](https://choosealicense.com/) · [SPDX license list](https://spdx.org/licenses/) · [PEP 639](https://peps.python.org/pep-0639/)
 - [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — the legal code shipped in [templates/CC-BY-4.0](templates/CC-BY-4.0).
-- Companion skills: [project-scaffolding](../bootstrap.md) (calls this skill when bootstrapping), [github-repository](../../../github-repository/SKILL.md) (repository settings).
+- Companion skills: [bootstrap](../bootstrap.md) (calls this guide when bootstrapping), [github-repository](../../../github-repository/SKILL.md) (repository settings).

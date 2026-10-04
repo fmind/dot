@@ -13,7 +13,7 @@ gws drive files list --params '{"pageSize":20,"q":"trashed = false","fields":"ne
 uv run --no-project python ~/.agents/skills/gws/scripts/pages.py pages.ndjson --items files
 ```
 
-The helper accepts a single pretty JSON object or multiple JSON pages, rejects API error objects and incomplete results, and treats an omitted repeated field as empty. Use `--allow-incomplete` only when a labeled partial sample is sufficient. Preserve the query and page tokens; a field mask that drops them makes completeness unknowable. Use `messages` for Gmail/Chat, `spaces` for Chat spaces, and `items` for Calendar, after confirming the schema. Gmail `users.messages.list` returns only message IDs and thread IDs; use `messages.get` or `+read` for snippets, headers, and bodies.
+Save stdout and check the gws exit status before processing it. Preserve the query and page tokens; a field mask that drops them makes completeness unknowable. Use `messages` for Gmail/Chat, `spaces` for Chat spaces, and `items` for Calendar, after confirming the schema. Gmail `users.messages.list` returns only message IDs and thread IDs; use `messages.get` or `+read` for snippets, headers, and bodies.
 
 For a Google-native file, inspect `drive.files.export` and use an allowed export MIME type with `--output <file>`. For uploaded binary files, inspect `drive.files.get` with `alt=media` and `--output <file>`. Do not parse binary output as JSON. Use `gws drive +upload --help` or `files create --upload <path>`; metadata `mimeType` is the destination type, while `--upload-content-type` describes source bytes for conversion. Uploading or exporting does not change sharing by itself; inspect permissions separately when the task requires it.
 

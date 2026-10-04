@@ -1,6 +1,6 @@
 ---
 name: course-development
-description: "Design technical courses, lessons, and executable labs with learning and acceptance criteria."
+description: "Design technical courses, lessons, exercises, and executable labs."
 license: MIT
 metadata:
   kind: task
@@ -27,7 +27,7 @@ Build a course learners can understand, execute, and finish. Use [documentation-
 
 ## Optional Reference Profile
 
-Read [reference-course.md](references/reference-course.md) only for a course that adopts those Markdown conventions, exercise fields, and task names. Otherwise use the course's own authoring contract.
+Read [reference-course.md](references/reference-course.md) only for a course that adopts the conventions, exercise fields, and task names of the reference course (`~/mlops-courses/agentops-open-course`, whose `AGENTS.md` owns the page frame, gates, and authoring rules). Otherwise use the course's own authoring contract.
 
 ## Gotchas
 
@@ -38,5 +38,4 @@ Read [reference-course.md](references/reference-course.md) only for a course tha
 
 ## Documentation
 
-- Reference course: `~/mlops-courses/agentops-open-course` (its `AGENTS.md` owns the page frame, gates, and authoring rules).
-- Companion skills: [mermaid](../diagrams-as-code/references/mermaid.md) (technical diagrams), [svg](../diagrams-as-code/references/svg.md) (concept illustrations), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).
+- Companion skills: [mermaid](../diagrams-as-code/references/mermaid.md) (technical diagrams), [svg](../diagrams-as-code/references/svg/GUIDE.md) (concept illustrations), [playwright](../playwright/SKILL.md) (browser checks), [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [production-readiness](../production-readiness/SKILL.md) (proof ladder).

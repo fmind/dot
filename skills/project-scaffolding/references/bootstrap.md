@@ -1,16 +1,16 @@
 ---
 name: bootstrap
-description: "Repository bootstrap and stack composition."
+description: "Create a new repository: location, visibility, stack composition, shared layer, validation, and first push."
 ---
 
-# New Project
+# Repository Bootstrap
 
 Bootstrap a repository by composing the selected foundation and application owner, then adding the shared repository layer; [repository-maintenance](../../repository-maintenance/SKILL.md) owns the recurring refresh afterwards.
 
 ## Workflow
 
 1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to private visibility; public resources require explicit user instruction. Default to `~/fmind` for personal `fmind` repositories, `~/fmind-ai` for `fmind-ai`, and `~/mlops-courses` for `mlops-courses`; ask only for consequential details not established by the task.
-1. **Choose template ownership**: [Copier](copier.md) is the default when creating or maintaining a reusable project template. Keep existing Cookiecutter/Cruft projects on [their workflow](cookiecutter/GUIDE.md) unless migration is requested; a one-off repository does not require a new template.
+1. **Choose template ownership**: a one-off repository needs no new template. Reusable templates default to [Copier](copier.md); existing Cookiecutter/Cruft projects stay on [their workflow](cookiecutter/GUIDE.md) unless migration is requested.
 1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and project `AGENTS.md` where supplied:
    - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md) owns the minimal package and quality defaults.
    - Python CLI: the Python foundation, then [typer](../../cli-development/references/typer/GUIDE.md) for application scaffolding and [cli-contracts](../../cli-development/references/cli-contracts.md) for command behavior.
@@ -20,9 +20,9 @@ Bootstrap a repository by composing the selected foundation and application owne
    - Documentation or course site: [documentation-site](../../documentation-site/SKILL.md), with [course-development](../../course-development/SKILL.md) for lessons; infrastructure: [infra-as-code](../../infra-as-code/SKILL.md)
 1. **Add the shared layer**, skipping what the foundation or application owner already produced:
    - `LICENSE` and manifest field: [project-license](project-license/GUIDE.md)
-   - `.ignore`: configure `.ignore` for Neovim search (ripgrep/fd) to exclude items with no search value (fixtures, snapshots, generated data, minified assets) without altering Git tracking.
+   - `.ignore` for Neovim search (fixtures, snapshots, generated data, minified assets) without altering Git tracking: [update-ignores](../../update-ignores/SKILL.md)
    - `dprint.json`: [dprint](../../dprint/SKILL.md); hooks installed: [lefthook](../../github-actions/references/lefthook.md)
-   - `trivy.yaml` plus the `check:*` scan tasks: [security-review](../../security-review/references/code-review/GUIDE.md)
+   - `trivy.yaml` plus the `check:*` scan tasks: [code-security](../../code-security/references/code-review/GUIDE.md)
    - `.github/workflows/ci.yml` and `security.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md)
    - `AGENTS.md`, `.agents/skills/`, and the `.claude/skills` bridge: [agent-project](../../agent-project/SKILL.md); `README.md` and documentation: [repository-docs](../../repository-docs/SKILL.md)
 1. **Make the project approachable**: apply the [README standard](../../repository-docs/references/readme.md) and its starter: a project-owned SVG logo, clear audience and outcome, useful badges backed by existing resources, and a verified first result. Keep private or unpublished resources private; omit unavailable badges and links until publication is authorized. Link detailed reference material instead of expanding the landing page.
@@ -48,4 +48,3 @@ Bootstrap a repository by composing the selected foundation and application owne
 ## Documentation
 
 - [gh repo create manual](https://cli.github.com/manual/gh_repo_create) · [Agent Skills](https://agentskills.io)
-- Companion skills: [repository-maintenance](../../repository-maintenance/SKILL.md) (recurring refresh), [security-review](../../security-review/references/code-review/GUIDE.md) (security checklist), [mise](../../mise/SKILL.md) (task vocabulary).

@@ -1,13 +1,13 @@
 ---
 name: scheduled-jobs
-description: "Configure and diagnose scheduled commands using systemd user timers or macOS launchd."
+description: "Schedule and debug local jobs with systemd timers or macOS launchd."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Scheduled Jobs

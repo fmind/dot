@@ -39,4 +39,4 @@ zizmor --fix .github/workflows/                           # experimental; the de
 
 - [zizmor](https://docs.zizmor.sh) · [Audit rules](https://docs.zizmor.sh/audits/)
 - Releases: [zizmor release notes](https://docs.zizmor.sh/release-notes/) · [GitHub releases](https://github.com/zizmorcore/zizmor/releases)
-- Companion skills: [github-actions](ci-cd/GUIDE.md) (the `check:actions` task), [dependabot](dependabot.md) (`--collect dependabot`), [security-review](../../security-review/references/code-review/GUIDE.md).
+- Companion skills: [github-actions](ci-cd/GUIDE.md) (the `check:actions` task), [dependabot](dependabot.md) (`--collect dependabot`), [code-security](../../code-security/references/code-review/GUIDE.md).

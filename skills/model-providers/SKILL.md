@@ -1,13 +1,13 @@
 ---
 name: model-providers
-description: "Configure model access through GCP Agent Platform (default), Gemini API, or OpenRouter."
+description: "Configure model access via GCP Agent Platform (Vertex), Gemini API, or OpenRouter."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/model-providers
   created: "2026-09-16"
-  updated: "2026-10-02"
+  updated: "2026-10-04"
 ---
 
 # Model Providers

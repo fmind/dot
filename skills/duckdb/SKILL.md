@@ -1,13 +1,13 @@
 ---
 name: duckdb
-description: "Query, transform, and export files or databases with DuckDB and SQLite."
+description: "Query and export CSV, Parquet, JSON, or SQLite data with DuckDB."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-09-26"
+  updated: "2026-10-04"
 ---
 
 # DuckDB and SQLite
@@ -42,11 +42,17 @@ Use [data-migration](../data-migration/SKILL.md) when changing an application sc
 
 ## Gotchas
 
-- **Do not open a live SQLite database with DuckDB while the app writes to it**: use a consistent SQLite backup or `sqlite3 -readonly` directly. A plain copy of the main file can omit committed WAL data; use SQLite's backup API or `.backup` for a snapshot.
+- **Do not open a live SQLite database with DuckDB while the app writes to it**: use a consistent SQLite backup or `sqlite3 -readonly` directly. A plain copy of the main file can omit committed WAL data; use SQLite's backup API or `.backup` for a snapshot. `ATTACH ... (TYPE sqlite)` autoinstalls the `sqlite` extension, which needs network the first time.
 - **Glob paths quote as strings**: `'events/*.parquet'` works, unquoted paths do not.
 - **Memory and spill space**: size the budget from available RAM and disk; start conservatively on a shared machine, for example `SET memory_limit='256MB'` and `SET threads=1`, then measure. Many operators spill to disk, but `memory_limit` is not a process-wide hard limit and some allocations or operators can still exhaust memory. Set a task-owned temporary directory and `max_temp_directory_size` when spill volume matters; preserve the workstation's required disk headroom.
-- **Extensions load on demand**: `httpfs`, `spatial`, `postgres` install once with `INSTALL <ext>; LOAD <ext>;` and need network the first time.
-- **Secrets**: use the selected extension's credential provider, never literal credentials in SQL. Core `httpfs` accesses GCS through the S3 API and needs HMAC credentials; its `credential_chain` does not consume Google ADC. ADC requires a separately reviewed compatible extension, such as the community [gcs extension](https://duckdb.org/community_extensions/extensions/gcs), or downloading through an authorized Google client first.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [remote-storage](references/remote-storage.md): Remote object storage (S3, GCS, HTTP) and extensions: install, load, and credential providers.
+
+<!-- guides:end -->
 
 ## Official Skills
 

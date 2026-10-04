@@ -22,7 +22,7 @@ uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py \
   message.md --syntax markdown > body.json
 ```
 
-The helper validates common mistakes without rewriting prose or code. It is not a complete markup parser: review images, HTML, nested/escaped delimiters and any unsupported syntax yourself. Native mentions use `<users/ID>`; Markdown mentions use the documented `chat-user` element. Resolve the intended identity rather than guessing display names, and never add an all-space mention unless requested. The helper preserves mentions already in the authored text, so include their notification effect in the content review.
+The helper is not a complete markup parser: review images, HTML, nested/escaped delimiters and any unsupported syntax yourself. Native mentions use `<users/ID>`; Markdown mentions use the documented `chat-user` element. Resolve the intended identity rather than guessing display names, and never add an all-space mention unless requested. The helper preserves mentions already in the authored text, so include their notification effect in the content review.
 
 ## Reply to an existing thread
 

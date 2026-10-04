@@ -1,6 +1,6 @@
 ---
 name: diagrams-as-code
-description: "Create and check diagrams: Mermaid for technical docs, SVG illustrations for READMEs and user docs, D2 for standalone layouts."
+description: "Create and check Mermaid, SVG, and D2 diagrams and README illustrations."
 license: MIT
 metadata:
   kind: task
@@ -12,7 +12,13 @@ metadata:
 
 # Diagrams as Code
 
-Choose the simplest diagram that explains the system. Technical docs (AGENTS.md, skills, architecture, contributor and reference pages) use Mermaid, which renders in Markdown and GitHub. User docs (READMEs, documentation-site landing and concept pages, courses) illustrate concepts with hand-authored, branded SVG. Preserve existing D2 sources or use D2 for a standalone composition. [Fmind visuals](../fmind-visuals/SKILL.md) owns decks, branding, and terminal demos.
+Choose the simplest picture that explains the system, or none when prose, a list, or a table is more direct. This skill owns the format choice; [fmind-visuals](../fmind-visuals/SKILL.md) owns brand, decks, and terminal demos.
+
+| Need                                                                       | Format                           | Why                                                        |
+| -------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
+| Technical docs: AGENTS.md, skills, architecture, contributor, reference    | [Mermaid](references/mermaid.md) | Renders in Markdown and GitHub; maintainers edit structure |
+| User docs: README, documentation-site landing and concept pages, courses   | [SVG](references/svg/GUIDE.md)   | Composed, branded illustration that carries one concept    |
+| Existing `.d2` sources, Fmind article diagrams, bespoke standalone layouts | [D2](references/d2.md)           | Containers, layers, and exports Mermaid cannot express     |
 
 ## Workflow
 
@@ -24,6 +30,6 @@ Read only the matching guide and its required resources. Use a known guide direc
 
 - [d2](references/d2.md): D2 sources, standalone layouts, theming, and exports.
 - [mermaid](references/mermaid.md): Technical-doc diagrams in Markdown and GitHub: syntax, validation, and rendering.
-- [svg](references/svg.md): Hand-authored SVG illustrations for READMEs and user docs: composition, branding, embedding, and visual checks.
+- [svg](references/svg/GUIDE.md): Hand-authored SVG illustrations for READMEs and user docs: composition, branding, embedding, and visual checks.
 
 <!-- guides:end -->

@@ -1,6 +1,6 @@
 # Review AI Steps in GitHub Actions
 
-Use this pass for any agent harness invoked by Actions. [github-agentic-workflow](../../github-agentic-workflow/GUIDE.md) owns GitHub's specific Agentic Workflows product; [security-review](../../../../security-review/references/code-review/GUIDE.md) owns finding verification.
+Use this pass for any agent harness invoked by Actions. [github-agentic-workflow](../../github-agentic-workflow/GUIDE.md) owns GitHub's specific Agentic Workflows product; [code-security](../../../../code-security/references/code-review/GUIDE.md) owns finding verification.
 
 1. Identify every AI invocation and its real inputs, including prompt files, environment variables, API fetches, artifacts, and build logs. Read called composite actions and reusable workflows at their resolved revisions; report inaccessible or unresolved dependencies as coverage gaps.
 1. Establish who can trigger the job and control each input. Follow the event actor, checked-out revision, effective token permissions, available credentials, and tool access through the relevant steps. Do not equate a trusted workflow file with trusted pull-request content.

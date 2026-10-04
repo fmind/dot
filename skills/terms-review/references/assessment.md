@@ -1,8 +1,3 @@
----
-name: assessment
-description: "Map applicable clauses to requirements and produce a scoped verdict with evidence and gaps."
----
-
 # Assessment Record
 
 Use the relevant checklist items and verdict contract when mapping clauses and writing the review.

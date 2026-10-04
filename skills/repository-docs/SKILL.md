@@ -1,6 +1,6 @@
 ---
 name: repository-docs
-description: "Write and synchronize README, AGENTS.md content, and repository instructions with verified behavior."
+description: "Write and sync README, AGENTS.md, and repo docs with verified behavior."
 license: MIT
 metadata:
   kind: task
@@ -18,7 +18,7 @@ Keep human and agent documentation aligned with the implementation, with one can
 
 1. **Inventory**: locate `README.md`, root and nested `AGENTS.md`, `docs/`, community files such as `.github/SECURITY.md`, generated help, and `.agents/skills/*/SKILL.md`; include any additional catalog declared by the repository.
 1. **Trace behavior**: compare documentation with entry points, source, tests, manifests, mise tasks, hooks, CI, and current `--help`; verify paths, options, versions, examples, and supported behavior.
-1. **Choose the audience**: use [README guidance](references/readme.md) for project identity, SVG illustrations, useful badges, proof of value, and the first successful use; adapt its starter for new projects. Use [AGENTS guidance](references/agents.md) for commands, constraints, invariants, and layout.
+1. **Choose the audience**: use [README guidance](references/readme.md) for project identity, proof of value, and the first successful use, adapting its starter for new projects; add [README assets](references/readme-assets.md) for SVG logos, illustrations, and badges. Use [AGENTS guidance](references/agents.md) for commands, constraints, invariants, and layout.
 1. **Update canonical owners**: keep setup and usage in human docs, agent commands and invariants in `AGENTS.md`, and reusable procedures in skills; link instead of copying.
 1. **Verify**: run the repository's documentation gate, `lychee --include-fragments <files>` for links and anchors, `dprint check` for markup, and the site build where applicable; inspect rendered pages after layout changes.
 1. **Report**: name what changed, the source evidence and checks, and any external workflow or claim that remains unverified.

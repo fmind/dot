@@ -25,7 +25,7 @@ updates:
           - patch
   - package-ecosystem: docker
     # Keeps the digest-pinned base images in the shipped Dockerfile template current.
-    directory: /skills/containerize/references/image-build/templates
+    directory: /skills/containerize/templates
     schedule:
       interval: weekly
       day: monday
