@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [8.3.0] - 2026-10-04
+
+### 🚀 Features
+
+- _(theme)_ Fetch the lazygit theme and guard copied theme blocks
+- _(shell)_ End-mark managed shell blocks and migrate legacy ones
+
+### ♻️ Refactor
+
+- _(config)_ Retire completed host migrations and bridges
+- _(skills)_ Replace the lexical routing fixture with package and budget checks
+- _(dot)_ Simplify CLI internals and the release task
+
+### 📚 Documentation
+
+- _(agy)_ Document agy 1.2.16 modes, remote control, and SDK usage
+
+### 🧪 Testing
+
+- _(process)_ Let the SIGTERM timeout case outlast loaded interpreter startup
+
 ## [8.2.0] - 2026-10-03
 
 ### 🚀 Features
