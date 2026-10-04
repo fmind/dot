@@ -3,7 +3,6 @@
 Package validation proves structure. Test a substantial skill addition or routing change with a small set of realistic tasks to check whether it is discoverable and useful. Keep the procedure manual and bounded unless repetition demonstrates a need for automation.
 
 1. Choose a natural request that should load the skill, a neighboring request that should load another owner, and an observable successful outcome. Define these before examining execution results; avoid putting the skill name into the natural routing prompt.
-1. Register the ownership expectations in the catalog's existing routing fixture. The lexical report is a diagnostic, not evidence of the host's actual selection.
 1. Use a fresh host session with the final catalog discoverable, raw fixtures, and the minimum project context. Observe which skills it selects. An explicit `$skill-name` test checks execution but cannot prove automatic discovery.
 1. Exercise the skill on a safe isolated task, including the failure boundary that motivated it. Check files, exit status, data, or attempted actions rather than accepting the agent's completion statement.
 1. Compare against the prior skill or baseline workflow under comparable conditions when claiming improvement. Record success, required corrections, unnecessary operations, completion time, and token/cost data if available; one trial is an anecdote, not a reliability estimate.

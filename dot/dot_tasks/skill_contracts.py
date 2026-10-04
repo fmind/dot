@@ -1,10 +1,10 @@
-"""Validate first-party skill packages and report lexical routing diagnostics."""
+"""Validate first-party skill packages and repository documentation links."""
 
 from __future__ import annotations
 
 import argparse
+import functools
 import json
-import math
 import os
 import re
 import stat
@@ -18,79 +18,11 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
-from fmind_dot.context_budget import (
-    CONTEXT_TOKEN_LIMIT,
-    Scope,
-    estimated_tokens,
-    skill_index_entry,
-)
-
-# Skill names retired since v6.1.0; prose may use one only to label the guide or package that kept it.
-RETIRED_SKILLS = (
-    "a2a-python-sdk",
-    "agent-mcp",
-    "agent-prompt",
-    "agents-cli",
-    "antigravity-sdk",
-    "claude",
-    "cli-contracts",
-    "codex",
-    "conventional-commit",
-    "cookiecutter",
-    "copier",
-    "copilot",
-    "cosign",
-    "cursor",
-    "d2",
-    "dependabot",
-    "django",
-    "fastapi",
-    "git-add-commit-push",
-    "github-agentic-workflow",
-    "gitleaks",
-    "google-adk",
-    "gradio",
-    "grok",
-    "jules",
-    "langchain",
-    "langextract",
-    "langgraph",
-    "lefthook",
-    "litestar",
-    "locust",
-    "loop-engineering",
-    "marimo",
-    "mcp-server",
-    "mermaid",
-    "modern-web",
-    "new-project",
-    "nicegui",
-    "opencode",
-    "plan-review",
-    "project-health",
-    "project-license",
-    "pydantic",
-    "python-async",
-    "python-script",
-    "release",
-    "ruff",
-    "secure",
-    "sherlock",
-    "technical-research",
-    "terraform",
-    "test-driven-development",
-    "trivy",
-    "ty",
-    "typer",
-    "uv",
-    "zensical",
-    "zizmor",
-)
+from fmind_dot.context_budget import CONTEXT_TOKEN_LIMIT, context_report, estimated_tokens, skill_index_entry
+from fmind_dot.errors import DotError
 
 MAX_DESCRIPTION = 180
 MAX_DESCRIPTION_AVERAGE = 100
-# Each scope budgets AGENTS.md plus skill discovery; the combined total is informational.
-MAX_CONTEXT_TOKENS = CONTEXT_TOKEN_LIMIT
 MAX_NAME = 64
 MAX_SKILL_BYTES = 1 << 20
 MAX_SKILL_LINES = 500
@@ -101,9 +33,6 @@ GUIDE_END = "<!-- guides:end -->"
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOOL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
-TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
-ACTIVE_STACK_PATTERN = re.compile(r"\b(?:Go|Golang|TypeScript)\b")
-HISTORY_PATTERN = re.compile(r"\b(?:archive|archived|external|historical|history|retired|third-party)\b", re.IGNORECASE)
 FRONTMATTER_FIELDS = {
     "allowed-tools",
     "compatibility",
@@ -116,66 +45,6 @@ FRONTMATTER_FIELDS = {
 RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
 CACHE_NAMES = {".DS_Store", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 HTML_LINK_ATTRIBUTES = {"action", "background", "cite", "data", "formaction", "href", "poster", "src", "xlink:href"}
-ROUTING_FIELDS = {"cases", "construction", "created", "proof_boundary", "purpose", "version"}
-CASE_FIELDS = {
-    "categories",
-    "expected",
-    "forbidden",
-    "id",
-    "primary",
-    "guide",
-    "prompt",
-    "require_all_top_k",
-    "route",
-    "top_k",
-}
-STOP_WORDS = {
-    "a",
-    "an",
-    "and",
-    "any",
-    "are",
-    "as",
-    "at",
-    "be",
-    "before",
-    "by",
-    "for",
-    "from",
-    "help",
-    "i",
-    "in",
-    "into",
-    "is",
-    "it",
-    "its",
-    "me",
-    "my",
-    "need",
-    "needs",
-    "of",
-    "on",
-    "or",
-    "our",
-    "rather",
-    "so",
-    "than",
-    "that",
-    "the",
-    "them",
-    "this",
-    "through",
-    "to",
-    "use",
-    "using",
-    "want",
-    "we",
-    "when",
-    "where",
-    "with",
-    "you",
-    "your",
-}
 MARKDOWN = MarkdownIt("commonmark")
 
 
@@ -329,19 +198,28 @@ def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, li
     return metadata, body, []
 
 
+def _unsafe_character(character: str) -> bool:
+    code = ord(character)
+    # Variation selectors are combining marks (Mn), not format characters (Cf), but
+    # runs of them can smuggle hidden instructions just as Unicode tag characters can.
+    return (
+        (code < 32 and character not in "\n\r\t")
+        or code == 127
+        or unicodedata.category(character) == "Cf"
+        or 0xFE00 <= code <= 0xFE0F
+        or 0xE0100 <= code <= 0xE01EF
+    )
+
+
 def _unsafe_text_finding(relative: str, text: str) -> str | None:
-    for character in text:
-        if character not in "\n\r\t" and (ord(character) < 32 or ord(character) == 127):
-            return f"{relative}: unsafe control character U+{ord(character):04X}"
-        # Variation selectors are combining marks (Mn), not format characters (Cf), but
-        # runs of them can smuggle hidden instructions just as Unicode tag characters can.
-        if (
-            unicodedata.category(character) == "Cf"
-            or 0xFE00 <= ord(character) <= 0xFE0F
-            or 0xE0100 <= ord(character) <= 0xE01EF
-        ):
-            return f"{relative}: bidirectional or invisible Unicode U+{ord(character):04X}"
-    return None
+    # Inspect each distinct character once, then report the earliest occurrence.
+    unsafe = [character for character in set(text) if _unsafe_character(character)]
+    if not unsafe:
+        return None
+    character = min(unsafe, key=text.index)
+    if character.isascii():
+        return f"{relative}: unsafe control character U+{ord(character):04X}"
+    return f"{relative}: bidirectional or invisible Unicode U+{ord(character):04X}"
 
 
 def _directly_disclosed(content: str, relative: str) -> bool:
@@ -515,7 +393,8 @@ def _contains_tool(content: str, tool: str) -> bool:
     return re.search(rf"(?<![{boundary}]){re.escape(tool)}(?![{boundary}])", content, re.IGNORECASE) is not None
 
 
-def _document_targets(content: str) -> list[str]:
+@functools.cache
+def _document_targets(content: str) -> tuple[str, ...]:
     targets: list[str] = []
     for token in MARKDOWN.parse(content):
         for candidate in [token, *(token.children or [])]:
@@ -527,37 +406,11 @@ def _document_targets(content: str) -> list[str]:
                 parser = _HTMLTargetParser()
                 parser.feed(candidate.content)
                 targets.extend(parser.targets)
-    return targets
+    return tuple(targets)
 
 
-def _link_labels(content: str) -> list[tuple[str, str]]:
-    """Pair each Markdown link's visible label with its target."""
-    links: list[tuple[str, str]] = []
-    for token in MARKDOWN.parse(content):
-        label: list[str] | None = None
-        href = ""
-        for child in token.children or []:
-            if child.type == "link_open":
-                label, href = [], str(child.attrGet("href") or "")
-            elif child.type == "link_close" and label is not None:
-                links.append(("".join(label).strip(), href))
-                label = None
-            elif label is not None and child.type in {"text", "code_inline"}:
-                label.append(child.content)
-    return links
-
-
-def _retired_label(document: Path, label: str, target: str) -> bool:
-    """A retired skill name may label only the guide or package that kept the name."""
-    parsed = urlsplit(target)
-    if label not in RETIRED_SKILLS or parsed.scheme or parsed.netloc or not parsed.path:
-        return False
-    path = (document.parent / unquote(parsed.path)).resolve()
-    owner = path.parent.name if path.name in {"GUIDE.md", "SKILL.md"} else path.stem
-    return owner != label
-
-
-def _markdown_anchors(content: str) -> set[str]:
+@functools.cache
+def _markdown_anchors(content: str) -> frozenset[str]:
     """Match GitHub heading slugs, duplicate suffixes, and explicit HTML anchors."""
     tokens = MARKDOWN.parse(content)
     anchors: set[str] = set()
@@ -582,7 +435,7 @@ def _markdown_anchors(content: str) -> set[str]:
         for candidate in [token, *(token.children or [])]:
             if candidate.type in {"html_block", "html_inline"}:
                 parser.feed(candidate.content)
-    return anchors | parser.anchors
+    return frozenset(anchors | parser.anchors)
 
 
 def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] | None = None) -> list[str]:
@@ -591,7 +444,7 @@ def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] |
     resolved_directory = directory.resolve()
     pending = list(documents) if documents is not None else [directory / "SKILL.md"]
     seen: set[Path] = set()
-    anchors: dict[Path, set[str]] = {}
+    anchors: dict[Path, frozenset[str]] = {}
     while pending:
         document = pending.pop()
         if document in seen:
@@ -605,13 +458,6 @@ def _link_findings(root: Path, directory: Path, *, documents: tuple[Path, ...] |
         except (OSError, UnicodeError) as error:
             findings.append(f"{_relative(root, document)}: cannot read Markdown: {error}")
             continue
-        if "templates" not in document.relative_to(directory).parts[:-1]:
-            findings.extend(
-                f"{_relative(root, document)}: link label {label!r} is a retired skill name; "
-                f"name the current owner of {target!r}"
-                for label, target in _link_labels(content)
-                if _retired_label(document, label, target)
-            )
         for raw_target in _document_targets(content):
             target = raw_target.strip().strip("<>")
             if not target or target.startswith("{"):
@@ -732,130 +578,8 @@ def _manifest(root: Path) -> tuple[dict[str, list[str]], list[str]]:
     return skills, findings
 
 
-def _string_list(value: object) -> list[str] | None:
-    if not isinstance(value, list) or not value or not all(isinstance(item, str) and item.strip() for item in value):
-        return None
-    return value
-
-
-def _routing_findings(root: Path, catalog: set[str]) -> list[str]:
-    path = root / "dot/testdata/skills/routing-boundaries.json"
-    data, findings = _read_json(path)
-    if data is None:
-        return findings
-    if set(data) != ROUTING_FIELDS:
-        findings.append(f"{_relative(root, path)}: unexpected or missing top-level fields")
-    if data.get("version") != 1:
-        findings.append(f"{_relative(root, path)}: version must be 1")
-    for field in ("created", "purpose", "construction", "proof_boundary"):
-        if not isinstance(data.get(field), str) or not data[field].strip():
-            findings.append(f"{_relative(root, path)}: {field} must be a non-empty string")
-    cases = data.get("cases")
-    if not isinstance(cases, list):
-        findings.append(f"{_relative(root, path)}: cases must be an array")
-        return findings
-
-    seen_ids: set[str] = set()
-    seen_prompts: set[str] = set()
-    primaries: set[str] = set()
-    routed = multi = no_route = 0
-    for index, case in enumerate(cases):
-        owner = f"{_relative(root, path)}: case {index}"
-        if not isinstance(case, dict):
-            findings.append(f"{owner} must be an object")
-            continue
-        unknown = sorted(set(case) - CASE_FIELDS)
-        if unknown:
-            findings.append(f"{owner} has unknown fields: {', '.join(unknown)}")
-        identifier = case.get("id")
-        if not isinstance(identifier, str) or not identifier.strip():
-            findings.append(f"{owner} requires a non-empty id")
-        elif identifier in seen_ids:
-            findings.append(f"{owner} repeats id {identifier!r}")
-        else:
-            seen_ids.add(identifier)
-            owner = f"{_relative(root, path)}: {identifier}"
-        prompt = case.get("prompt")
-        normalized = " ".join(prompt.lower().split()) if isinstance(prompt, str) else ""
-        if len(normalized) < 20:
-            findings.append(f"{owner}: prompt is too short")
-        elif normalized in seen_prompts:
-            findings.append(f"{owner}: prompt is duplicated")
-        else:
-            seen_prompts.add(normalized)
-        categories = _string_list(case.get("categories"))
-        if categories is None or len(categories) != len(set(categories)):
-            findings.append(f"{owner}: categories must be a non-empty unique string array")
-
-        if case.get("route", True) is False:
-            no_route += 1
-            if any(
-                field in case for field in ("expected", "primary", "guide", "top_k", "require_all_top_k", "forbidden")
-            ):
-                findings.append(f"{owner}: a no-route probe cannot declare skill or rank fields")
-            continue
-        if "route" in case and case["route"] is not True:
-            findings.append(f"{owner}: route must be a boolean")
-        routed += 1
-        expected = _string_list(case.get("expected"))
-        if expected is None or len(expected) != len(set(expected)):
-            findings.append(f"{owner}: expected must be a non-empty unique string array")
-            expected = []
-        primary = case.get("primary")
-        if not isinstance(primary, str) or primary not in expected:
-            findings.append(f"{owner}: primary must name one expected skill")
-        elif primary in catalog:
-            primaries.add(primary)
-        if "guide" in case:
-            guide = case["guide"]
-            packages, _ = _discover_skills(root)
-            package = packages.get(primary) if isinstance(primary, str) else None
-            available = (
-                {p.relative_to(package.parent).as_posix() for p in _guides(package.parent)} if package else set()
-            )
-            if not isinstance(guide, str) or guide not in available:
-                findings.append(f"{owner}: guide must name a metadata-bearing guide in the primary skill")
-        top_k = case.get("top_k")
-        if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= 5:
-            findings.append(f"{owner}: top_k must be an integer from 1 to 5")
-        forbidden = case.get("forbidden", [])
-        if not isinstance(forbidden, list) or not all(isinstance(item, str) for item in forbidden):
-            findings.append(f"{owner}: forbidden must be a string array")
-            forbidden = []
-        for skill in [*expected, *forbidden]:
-            if skill not in catalog:
-                findings.append(f"{owner}: referenced skill {skill!r} is absent from the catalog")
-        if set(expected) & set(forbidden):
-            findings.append(f"{owner}: a skill cannot be both expected and forbidden")
-        if len(expected) > 1:
-            multi += 1
-            all_top_k = case.get("require_all_top_k")
-            if (
-                isinstance(all_top_k, bool)
-                or not isinstance(all_top_k, int)
-                or not isinstance(top_k, int)
-                or not top_k <= all_top_k <= 5
-            ):
-                findings.append(f"{owner}: require_all_top_k must be between top_k and 5 for multi-intent probes")
-        elif "require_all_top_k" in case:
-            findings.append(f"{owner}: require_all_top_k is only valid for multi-intent probes")
-    if routed == 0:
-        findings.append(f"{_relative(root, path)}: corpus needs a routable probe")
-    if multi == 0:
-        findings.append(f"{_relative(root, path)}: corpus needs a multi-intent probe")
-    if no_route == 0:
-        findings.append(f"{_relative(root, path)}: corpus needs a no-route probe")
-    missing_primaries = sorted(catalog - primaries)
-    if missing_primaries:
-        findings.append(
-            f"{_relative(root, path)}: active skills without a primary routing probe: {', '.join(missing_primaries)}"
-        )
-    return findings
-
-
 def documentation_findings(root: Path) -> list[str]:
-    """Reject stale active-stack claims while allowing explicit archive or external context."""
-    findings: list[str] = []
+    """Check local links and anchors in the root documentation."""
     documents = tuple(
         path
         for path in (
@@ -866,18 +590,11 @@ def documentation_findings(root: Path) -> list[str]:
         )
         if path.is_file()
     )
-    findings.extend(_link_findings(root, root, documents=documents))
-    for path in documents:
-        if not path.is_file():
-            continue
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if ACTIVE_STACK_PATTERN.search(line) and HISTORY_PATTERN.search(line) is None:
-                findings.append(f"{_relative(root, path)}:{line_number}: active Go or TypeScript implementation claim")
-    return findings
+    return _link_findings(root, root, documents=documents)
 
 
 def repository_findings(root: Path) -> list[str]:
-    """Return every deterministic catalog, package, routing, and documentation finding."""
+    """Return every deterministic catalog, package, budget, and documentation finding."""
     root = root.resolve()
     manifest, findings = _manifest(root)
     discovered, discovery_findings = _discover_skills(root)
@@ -899,32 +616,20 @@ def repository_findings(root: Path) -> list[str]:
         if key in normalized:
             findings.append(f"skills {normalized[key]!r} and {name!r} have identical descriptions")
         normalized[key] = name
-    for scope, tokens in _startup_estimates(root, descriptions, discovered).items():
-        if tokens >= MAX_CONTEXT_TOKENS:
-            findings.append(
-                f"{scope} AGENTS.md + skill discovery contains {tokens} estimated tokens; "
-                f"must be below {MAX_CONTEXT_TOKENS}; reduce instructions or discovery without losing task triggers"
-            )
-    findings.extend(_routing_findings(root, set(discovered)))
+    # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
+    try:
+        budgets = context_report(root, source=root)["budgets"]
+    except DotError as error:
+        findings.append(f"agent context: {error}")
+    else:
+        findings.extend(
+            f"{scope} AGENTS.md + skill discovery contains {budget['estimated_tokens']} estimated tokens; "
+            f"must be below {CONTEXT_TOKEN_LIMIT}; reduce instructions or discovery without losing task triggers"
+            for scope, budget in budgets.items()
+            if not budget["passed"]
+        )
     findings.extend(documentation_findings(root))
     return sorted(set(findings))
-
-
-def _startup_estimates(root: Path, descriptions: dict[str, str], discovered: dict[str, Path]) -> dict[Scope, int]:
-    estimates: dict[Scope, int] = {}
-    for scope, catalog, instructions in (
-        ("global", root / "skills", root / "dot_agents/AGENTS.md"),
-        ("local", root / ".agents/skills", root / "AGENTS.md"),
-    ):
-        scope_name: Scope = "global" if scope == "global" else "local"
-        size = len(instructions.read_text(encoding="utf-8")) if instructions.is_file() else 0
-        size += sum(
-            len(skill_index_entry(name, description, scope_name))
-            for name, description in descriptions.items()
-            if discovered[name].parent.parent == catalog
-        )
-        estimates[scope_name] = estimated_tokens(size)
-    return estimates
 
 
 def _render_global_index(descriptions: dict[str, str]) -> str:
@@ -950,7 +655,7 @@ def catalog_report(root: Path, *, details: bool = True) -> str:
     local_size = sum(
         len(skill_index_entry(name, description, "local")) for name, description in local_descriptions.items()
     )
-    startup = _startup_estimates(root, _descriptions(root), discovered)
+    startup = context_report(root, source=root)["budgets"]
     average = sum(map(len, descriptions.values())) / len(descriptions) if descriptions else 0.0
     kinds = dict.fromkeys(sorted(SKILL_KINDS), 0)
     members: dict[str, list[str]] = {kind: [] for kind in sorted(SKILL_KINDS)}
@@ -986,17 +691,14 @@ def catalog_report(root: Path, *, details: bool = True) -> str:
         "(names, descriptions, and portable paths)\n"
         f"Combined estimated index tokens: {discovery} (informational) "
         "(characters / 4; not host tokenization or billing)\n"
-        f"Global AGENTS.md + skill discovery: {startup['global']} / <{MAX_CONTEXT_TOKENS} estimated tokens\n"
-        f"Local AGENTS.md + skill discovery: {startup['local']} / <{MAX_CONTEXT_TOKENS} estimated tokens\n"
+        f"Global AGENTS.md + skill discovery: {startup['global']['estimated_tokens']} / <{CONTEXT_TOKEN_LIMIT} "
+        "estimated tokens\n"
+        f"Local AGENTS.md + skill discovery: {startup['local']['estimated_tokens']} / <{CONTEXT_TOKEN_LIMIT} "
+        "estimated tokens\n"
         "Full breakdown: dot agent context --source . --project .\n"
         f"On-demand paths ({'all' if details else 'five largest'}; estimates exclude resources and runtime output):\n"
         + "\n".join(costs)
     )
-
-
-def _words(text: str) -> set[str]:
-    # Two-character CLI names such as uv, ty, hf, xh, and d2 are high-signal routing cues.
-    return {word for word in TOKEN_PATTERN.findall(text.lower()) if len(word) >= 2 and word not in STOP_WORDS}
 
 
 def _descriptions(root: Path) -> dict[str, str]:
@@ -1009,43 +711,10 @@ def _descriptions(root: Path) -> dict[str, str]:
     return descriptions
 
 
-def overlap_report(root: Path, *, details: bool = True) -> str:
-    """Render a transparent lexical ranking without creating a pass threshold."""
-    descriptions = _descriptions(root)
-    routing, errors = _read_json(root / "dot/testdata/skills/routing-boundaries.json")
-    if routing is None or errors or not isinstance(routing.get("cases"), list):
-        return "Skill routing overlap: informational only; routing corpus is unavailable."
-    lines = ["Skill routing overlap (informational only; not host routing or safety evidence):"]
-    matched = total = 0
-    for case in routing["cases"]:
-        if not isinstance(case, dict) or case.get("route", True) is False:
-            continue
-        prompt = case.get("prompt", "")
-        query = _words(prompt) if isinstance(prompt, str) else set()
-        ranking: list[tuple[float, str]] = []
-        for name, description in descriptions.items():
-            words = _words(f"{name} {description}")
-            shared = len(query & words)
-            score = shared / math.sqrt(len(query) * len(words)) if query and words else 0.0
-            ranking.append((score, name))
-        ranking.sort(key=lambda item: (-item[0], item[1]))
-        primary = case.get("primary", "")
-        if ranking and ranking[0][1] == primary and ranking[0][0] > 0:
-            matched += 1
-        total += 1
-        leaders = ", ".join(f"{name}={score:.3f}" for score, name in ranking[:3])
-        if details:
-            lines.append(f"- {case.get('id', '<missing>')}: expected={primary}; leaders=[{leaders}]")
-    lines.append(f"Lexical rank-1 matches: {matched}/{total}; informational only.")
-    return "\n".join(lines)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", action="store_true", help="print informational lexical routing diagnostics")
-    parser.add_argument(
-        "--details", action="store_true", help="include category members, every guide cost, and routing case"
-    )
+    parser.add_argument("--report", action="store_true", help="print informational catalog and load estimates")
+    parser.add_argument("--details", action="store_true", help="include category members and every guide cost")
     parser.add_argument("--sync", action="store_true", help="refresh marked guide indexes from guide metadata")
     args = parser.parse_args()
     if args.details and not args.report:
@@ -1073,11 +742,9 @@ def main() -> int:
             sys.stderr.write(f"error: {finding}\n")
         return 1
     if args.report:
-        sys.stdout.write(
-            f"{catalog_report(root, details=args.details)}\n{overlap_report(root, details=args.details)}\n"
-        )
+        sys.stdout.write(f"{catalog_report(root, details=args.details)}\n")
         if not args.details:
-            sys.stdout.write("Use mise run report:skills -- --details for category members and complete diagnostics.\n")
+            sys.stdout.write("Use mise run report:skills -- --details for category members and every guide cost.\n")
     else:
         sys.stdout.write(f"Validated {len(_descriptions(root))} first-party skills.\n")
     return 0

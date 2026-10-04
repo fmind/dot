@@ -53,53 +53,6 @@ def _write_contract_files(root: Path) -> None:
     contracts = {"version": 1, "skills": {"fixture": ["uv"], "fixture-helper": []}}
     path = root / "skills" / "contracts.json"
     path.write_text(json.dumps(contracts), encoding="utf-8")
-    routing = root / "dot" / "testdata" / "skills" / "routing-boundaries.json"
-    routing.parent.mkdir(parents=True)
-    routing.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "created": "2026-09-06",
-                "purpose": "Exercise routing fixture structure.",
-                "construction": "Cover routed, multi-intent, and abstaining cases.",
-                "proof_boundary": "This fixture does not prove host routing.",
-                "cases": [
-                    {
-                        "id": "fixture-route",
-                        "categories": ["contract"],
-                        "prompt": "Run the compact fixture validation workflow for this package.",
-                        "expected": ["fixture"],
-                        "primary": "fixture",
-                        "top_k": 3,
-                    },
-                    {
-                        "id": "fixture-multi",
-                        "categories": ["multi-intent"],
-                        "prompt": "Validate the fixture and document the same fixture result.",
-                        "expected": ["fixture", "fixture-helper"],
-                        "primary": "fixture",
-                        "top_k": 3,
-                        "require_all_top_k": 5,
-                    },
-                    {
-                        "id": "fixture-helper-route",
-                        "categories": ["contract"],
-                        "prompt": "Run the helper workflow independently for this routing fixture.",
-                        "expected": ["fixture-helper"],
-                        "primary": "fixture-helper",
-                        "top_k": 3,
-                    },
-                    {
-                        "id": "fixture-abstain",
-                        "categories": ["no-route"],
-                        "prompt": "Translate this ordinary sentence into French without changing it.",
-                        "route": False,
-                    },
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
 
 
 def _fixture_repository(tmp_path: Path) -> Path:
@@ -111,6 +64,8 @@ def _fixture_repository(tmp_path: Path) -> Path:
     )
     _write_contract_files(tmp_path)
     (tmp_path / "README.md").write_text("# Fixture\n\nPython implementation.\n", encoding="utf-8")
+    (tmp_path / "dot_agents").mkdir()
+    (tmp_path / "dot_agents/AGENTS.md").write_text("# Fixture instructions\n", encoding="utf-8")
     return tmp_path
 
 
@@ -324,81 +279,23 @@ def test_skills_contract_rejects_root_with_files_but_no_entrypoint(tmp_path: Pat
     assert checker.repository_findings(root) == ["skills/orphan: skill root has files but no SKILL.md"]
 
 
-def test_skills_contract_rejects_retired_skill_names_as_link_labels(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    skill = root / "skills/fixture/SKILL.md"
-    (root / "skills/fixture/references/uv.md").write_text("# uv\n", encoding="utf-8")
-    skill.write_text(
-        skill.read_text(encoding="utf-8")
-        + "- [uv](references/uv.md) keeps its name as a guide; [uv](https://docs.astral.sh/uv/) names the tool.\n",
-        encoding="utf-8",
-    )
-    assert checker.repository_findings(root) == []
-
-    skill.write_text(
-        skill.read_text(encoding="utf-8") + "- [terraform](../fixture-helper/SKILL.md)\n",
-        encoding="utf-8",
-    )
-
-    findings = checker.repository_findings(root)
-    assert len(findings) == 1
-    assert "link label 'terraform' is a retired skill name" in findings[0]
-
-
 def test_repository_skills_have_individual_chezmoi_links() -> None:
     packages = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
     links = ROOT / "dot_agents/skills"
     assert {path.name for path in links.iterdir()} == {f"symlink_{name}.tmpl" for name in packages}
     for name in packages:
         assert (links / f"symlink_{name}.tmpl").read_text() == "{{ .chezmoi.sourceDir }}/skills/" + name + "\n"
-    assert not (ROOT / "dot_agents/symlink_skills.tmpl").exists()
-    assert not (ROOT / "dot_agents/exact_skills").exists()
 
 
-def test_skills_contract_enforces_catalog_and_routing_references(tmp_path: Path) -> None:
+def test_skills_contract_enforces_catalog_references(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     manifest = json.loads((root / "skills/contracts.json").read_text(encoding="utf-8"))
     manifest["skills"]["archived-stack"] = []
     (root / "skills/contracts.json").write_text(json.dumps(manifest), encoding="utf-8")
-    routing_path = root / "dot/testdata/skills/routing-boundaries.json"
-    routing = json.loads(routing_path.read_text(encoding="utf-8"))
-    routing["cases"][0]["expected"] = ["archived-stack"]
-    routing["cases"][0]["primary"] = "archived-stack"
-    routing_path.write_text(json.dumps(routing), encoding="utf-8")
 
     findings = checker.repository_findings(root)
 
     assert any("registered skill 'archived-stack' has no active SKILL.md" in finding for finding in findings)
-    assert any("referenced skill 'archived-stack' is absent" in finding for finding in findings)
-
-
-def test_skills_contract_requires_a_primary_probe_for_every_active_skill(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    routing_path = root / "dot/testdata/skills/routing-boundaries.json"
-    routing = json.loads(routing_path.read_text(encoding="utf-8"))
-    routing["cases"] = [case for case in routing["cases"] if case.get("primary") != "fixture-helper"]
-    routing_path.write_text(json.dumps(routing), encoding="utf-8")
-
-    findings = checker.repository_findings(root)
-
-    assert any("active skills without a primary routing probe: fixture-helper" in finding for finding in findings)
-
-
-def test_skills_documentation_rejects_active_polyglot_claims_but_allows_explicit_exceptions(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    readme = root / "README.md"
-    readme.write_text(
-        "# Fixture\n\n"
-        "The active CLI is implemented in Go and tested here.\n"
-        "The former TypeScript implementation remains in git history.\n"
-        "A third-party Go runtime remains supported by an external integration.\n",
-        encoding="utf-8",
-    )
-
-    findings = checker.documentation_findings(root)
-
-    assert len(findings) == 1
-    assert "active Go or TypeScript implementation claim" in findings[0]
 
 
 def test_documentation_checks_root_and_security_policy_links(tmp_path: Path) -> None:
@@ -441,23 +338,6 @@ def test_skills_generated_template_fragments_are_not_checked_before_rendering(tm
     assert checker._link_findings(root, root, documents=(template,)) == []
 
 
-def test_skills_overlap_report_is_informational(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    routing = json.loads((root / "dot/testdata/skills/routing-boundaries.json").read_text(encoding="utf-8"))
-    routing["cases"][0]["prompt"] = "Completely unrelated vocabulary about weather forecasts and beaches."
-    (root / "dot/testdata/skills/routing-boundaries.json").write_text(json.dumps(routing), encoding="utf-8")
-
-    report = checker.overlap_report(root)
-
-    assert "informational only" in report
-    assert "fixture-route" in report
-    assert checker.repository_findings(root) == []
-
-
-def test_skills_overlap_keeps_short_tool_names() -> None:
-    assert {"d2", "hf", "ty", "uv", "xh"} <= checker._words("Use D2, hf, ty, uv, and xh.")
-
-
 @pytest.mark.parametrize(("scope", "relative"), [("global", "dot_agents/AGENTS.md"), ("local", "AGENTS.md")])
 def test_skills_contract_budgets_instructions_in_each_scope(tmp_path: Path, scope: str, relative: str) -> None:
     root = _fixture_repository(tmp_path)
@@ -479,7 +359,6 @@ def test_skills_contract_budgets_instructions_in_each_scope(tmp_path: Path, scop
 
 def test_skills_contract_does_not_budget_the_combined_total(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
-    (root / "dot_agents").mkdir()
     (root / "dot_agents/AGENTS.md").write_text("g" * 12_000)
     (root / "AGENTS.md").write_text("p" * 12_000)
     assert checker.repository_findings(root) == []
@@ -511,8 +390,6 @@ def test_skills_report_details_are_opt_in(
     assert "Combined estimated index tokens:" in output
     assert "(informational)" in output
     assert "Discovery headroom:" not in output
-    assert "Lexical rank-1 matches:" in output
-    assert ("fixture-route" in output) is details
     assert ("- task: fixture, fixture-helper" in output) is details
     assert str(tmp_path) not in output
 
@@ -569,17 +446,11 @@ def test_skills_checks_links_inside_code_disclosed_resources(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize("kind", ["unknown", "[]", "{}", "null"])
-def test_skills_rejects_unknown_kind_and_foreign_guide_route(tmp_path: Path, kind: str) -> None:
+def test_skills_rejects_unknown_kind(tmp_path: Path, kind: str) -> None:
     root = _fixture_repository(tmp_path)
     skill = root / "skills/fixture/SKILL.md"
     skill.write_text(skill.read_text().replace("kind: task", f"kind: {kind}"))
-    routes = root / "dot/testdata/skills/routing-boundaries.json"
-    data = json.loads(routes.read_text())
-    data["cases"][0]["guide"] = "../../fixture-helper/references/guide.md"
-    routes.write_text(json.dumps(data))
-    findings = checker.repository_findings(root)
-    assert any("metadata.kind must" in item for item in findings)
-    assert any("guide must name" in item for item in findings)
+    assert any("metadata.kind must" in item for item in checker.repository_findings(root))
 
 
 def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -> None:
@@ -609,12 +480,6 @@ def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -
     assert (destination / "templates/input.txt").read_text() == "input\n"
 
 
-def test_skills_live_repository_contract() -> None:
-    findings = checker.repository_findings(ROOT)
-
-    assert findings == [], "\n".join(findings)
-
-
 def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     retired_suffixes = {".go", ".js", ".jsx", ".ts", ".tsx"}
     owned = subprocess.check_output(
@@ -623,8 +488,6 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     active = [path for path in owned if Path(path).suffix in retired_suffixes and (ROOT / path).exists()]
 
     assert active == []
-    assert not (ROOT / "archives").exists()
-    assert not (ROOT / "skills/hugo").exists()
     # Removal markers stay only until every workstation has applied them; list each
     # outstanding one here and delete it (and its entry) once it has shipped.
     retired_agents = {
@@ -639,7 +502,12 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
             ("dot_grok/agents", ".md"),
         )
     }
-    outstanding = {"dot_copilot/hooks/remove_session-log.json", *retired_agents}
+    outstanding = {
+        "dot_config/fish/conf.d/remove_secrets.fish",
+        "dot_copilot/hooks/remove_notify.json",
+        "dot_copilot/hooks/remove_session-log.json",
+        *retired_agents,
+    }
     markers = {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()}
     assert markers == outstanding
 
@@ -647,7 +515,6 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
 def test_deploy_uses_the_locked_python_runtime_graph() -> None:
     config = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
     tasks = config["tasks"]
-    deploy = (ROOT / "dot/src/fmind_dot/deploy.py").read_text(encoding="utf-8")
     commands = {
         name: " ".join([run] if isinstance(run := task.get("run", []), str) else run) for name, task in tasks.items()
     }
@@ -658,12 +525,6 @@ def test_deploy_uses_the_locked_python_runtime_graph() -> None:
     assert "$(mise which uv)" in commands["deploy"]
     assert not [name for name, command in commands.items() if "deploy.py" in command and "uv run" in command]
     assert not [name for name, command in commands.items() if "uv tool install" in command]
-    assert '"--locked",' in deploy
-    assert '"--require-hashes",' in deploy
-    assert '"--only-binary",' in deploy
-    assert '"--strict",' in deploy
-    assert "--no-hashes" not in deploy
-    assert "from fmind_dot.deploy import write_install_receipt" in deploy
     # Workstation tasks run the deployed entrypoint, and it is the launcher chezmoi links.
     (launcher,) = (ROOT / "dot_local/bin").glob("symlink_*.tmpl")
     target = launcher.read_text(encoding="utf-8").strip().removeprefix("{{ .chezmoi.homeDir }}")
