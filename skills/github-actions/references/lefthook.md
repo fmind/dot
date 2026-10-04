@@ -10,7 +10,7 @@ Thin git hooks that delegate every command to a `mise run` task so hooks and CI 
 ## Workflow
 
 1. **Install**: Python projects take `lefthook` from the dev dependency group per the [Python stack](../../python-stack/references/foundation/GUIDE.md); other stacks pin it in mise. Use one channel per repository.
-1. **Configure**: create `lefthook.yml` at the repository root from the template below; the complete Python reference lives in [python-stack](../../python-stack/references/foundation/templates/lefthook.yml).
+1. **Configure**: create `lefthook.yml` at the repository root from the stack-neutral template below; Python adds the `format:imports` (priority 10) and `format:ruff` (15) hooks from the [python-stack template](../../python-stack/references/foundation/templates/lefthook.yml).
 1. **Activate**: `lefthook install` (`uv run lefthook install` for Python), wired into `mise run install`.
 
 ## Template
@@ -24,16 +24,6 @@ pre-commit:
       glob: "*.{json,md,toml,yaml,yml}"
       priority: 10
       run: mise run format:dprint {staged_files}
-      stage_fixed: true
-    format:imports:
-      glob: "*.py"
-      priority: 10
-      run: mise run format:imports {staged_files}
-      stage_fixed: true
-    format:ruff:
-      glob: "*.py"
-      priority: 15
-      run: mise run format:ruff {staged_files}
       stage_fixed: true
     check:leaks:staged: # staged secret scan: history-mode gitleaks in `check` cannot see the incoming commit
       priority: 20

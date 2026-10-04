@@ -118,7 +118,8 @@
       "databricks"
     ],
     "delegate-tasks": [
-      "agy"
+      "agy",
+      "python"
     ],
     "diagrams-as-code": [
       "d2",
@@ -218,10 +219,12 @@
     ],
     "github-pull-request": [
       "gh",
-      "git"
+      "git",
+      "gitleaks"
     ],
     "github-repository": [
-      "gh"
+      "gh",
+      "jq"
     ],
     "google-developer": [
       "skills"
