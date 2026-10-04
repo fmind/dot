@@ -99,4 +99,15 @@
 {{- /* Add the managed rules without replacing rules the host added. A trailing *main also
        matches --force-with-lease and any remote. */ -}}
 {{- $_ = set $managedConfig.permissions "deny" (concat $deny (list "Bash(rm -rf /)" "Bash(rm -rf ~)" "Bash(rm -rf ~/)" "Bash(rm -rf $HOME)" "Bash(git push --force *main)" "Bash(git push -f *main)") | uniq) -}}
+{{- /* The brain's session-context hook joins host SessionStart hooks only where the brain is
+       checked out. The entry is decoded from JSON so its integer matches the deployed one and
+       uniq keeps a single copy; removing the brain later leaves the entry for the host to drop. */ -}}
+{{- $sessionContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/session-context.py" -}}
+{{- if stat $sessionContext -}}
+{{-   $sessionStart := dig "hooks" "SessionStart" (list) $current -}}
+{{-   if not (kindIs "slice" $sessionStart) }}{{ fail "hooks.SessionStart must be an array" }}{{ end -}}
+{{-   $command := printf "%s %s" $sessionContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
+{{-   $entry := fromJson (printf `{"hooks": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command)) -}}
+{{-   $_ = set $managedConfig.hooks "SessionStart" (append $sessionStart $entry | uniq) -}}
+{{- end -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

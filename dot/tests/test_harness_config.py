@@ -133,6 +133,85 @@ class HarnessConfigTests(unittest.TestCase):
             )
             assert result.stdout.rstrip("\n") == expected
 
+    def test_personal_checkouts_override_a_work_email(self):
+        self.config.write_text(
+            '[data]\ngit_name = "Ada"\ngit_email = "ada@work.example"\ngithub_user = "ada"\n'
+            'git_personal_email = "ada@personal.example"\n'
+        )
+        (self.home / ".config/git").mkdir(parents=True)
+        (self.home / ".config/git/personal.gitconfig").write_text(
+            self.render("dot_config/git/personal.gitconfig.tmpl", "")
+        )
+        gitconfig = self.home / "gitconfig"
+        gitconfig.write_text(self.render("dot_gitconfig.tmpl", ""))
+        environment = {
+            **os.environ,
+            "HOME": str(self.home),
+            "GIT_CONFIG_GLOBAL": str(gitconfig),
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+        for directory, expected in (
+            ("fmind/project", "ada@personal.example"),
+            ("mlops-courses/course", "ada@personal.example"),
+            ("source", "ada@personal.example"),
+            ("work/project", "ada@work.example"),
+        ):
+            with self.subTest(directory=directory):
+                repository = self.home / directory
+                repository.mkdir(parents=True, exist_ok=True)
+                subprocess.run(["git", "init", "-q", str(repository)], env=environment, timeout=10, check=True)
+                result = subprocess.run(
+                    ["git", "-C", str(repository), "config", "user.email"],
+                    capture_output=True,
+                    text=True,
+                    env=environment,
+                    timeout=10,
+                    check=True,
+                )
+                assert result.stdout.strip() == expected
+
+    def test_personal_email_defaults_before_chezmoi_init_adds_the_prompt(self):
+        self.config.write_text('[data]\ngit_email = "ada@work.example"\n')
+        rendered = self.render("dot_config/git/personal.gitconfig.tmpl", "")
+        assert 'email = "github@fmind.dev"' in rendered
+
+    def _brain_hook(self) -> str:
+        script = self.home / "fmind/brain/settings/hooks/session-context.py"
+        script.parent.mkdir(parents=True)
+        script.write_text("#!/usr/bin/env python3\n")
+        return f"{script} {self.home / 'fmind/brain'}"
+
+    def test_brain_session_hook_needs_the_brain_checkout(self):
+        codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))
+        claude = json.loads(self.render("dot_claude/modify_settings.json", ""))
+        assert "hooks" not in codex
+        assert "SessionStart" not in claude["hooks"]
+
+    def test_codex_registers_brain_session_hook_once_beside_host_hooks(self):
+        command = self._brain_hook()
+        original = (
+            '[[hooks.SessionStart]]\n[[hooks.SessionStart.hooks]]\ntype = "command"\ncommand = "/synthetic/host"\n'
+        )
+        template = "dot_codex/modify_private_config.toml"
+        rendered = self.render(template, original)
+        hooks = tomllib.loads(rendered)["hooks"]["SessionStart"]
+        assert hooks == [
+            {"hooks": [{"type": "command", "command": "/synthetic/host"}]},
+            {"matcher": "startup|resume", "hooks": [{"type": "command", "command": command, "timeout": 30}]},
+        ]
+        assert self.render(template, rendered) == rendered
+
+    def test_claude_registers_brain_session_hook_once_beside_host_hooks(self):
+        command = self._brain_hook()
+        brain = {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
+        host = {"hooks": [{"type": "command", "command": "/synthetic/host"}]}
+        template = "dot_claude/modify_settings.json"
+        for existing in ([], [host], [host, brain]):
+            with self.subTest(existing=len(existing)):
+                rendered = self.render(template, json.dumps({"hooks": {"SessionStart": existing}}))
+                assert json.loads(rendered)["hooks"]["SessionStart"] == [*existing[:1], brain]
+                assert self.render(template, rendered) == rendered
+
     def test_codex_merge_keeps_autonomy_memory_and_native_subagents(self):
         template = "dot_codex/modify_private_config.toml"
         original = """
