@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [9.0.1] - 2026-10-04
+
+### 🐛 Bug Fixes
+
+- _(git)_ Match the chezmoi source include through symlinked paths
+
 ## [9.0.0] - 2026-10-04
 
 ### 🚀 Features
