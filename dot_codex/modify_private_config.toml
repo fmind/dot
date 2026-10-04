@@ -20,17 +20,10 @@ prevent_idle_sleep = true
 [feedback]
 enabled = false
 
-# Retired session-capture events stay managed as empty: the merge never deletes deployed keys.
-[hooks]
-PreCompact = []
-SessionEnd = []
-SubagentStop = []
-# Stop hooks can run before automatic continuation. The TUI owns attention alerts.
-Stop = []
-
 [otel]
 metrics_exporter = "none"
 
+# The TUI owns attention alerts: Stop hooks can run before automatic continuation.
 [tui]
 notifications = true
 vim_mode_default = true

@@ -7,24 +7,22 @@
    mkdir -p .agents/skills .agents/prompts
    ```
    Start `AGENTS.md` from the [project template](../templates/AGENTS.md); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored).
-1. **Bridge Claude Code**: Claude reads `CLAUDE.md` and `.claude/skills`, not `AGENTS.md` and `.agents/skills`. After checking that neither path already exists unmanaged:
+1. **Bridge Claude Code skills**: Claude Code 2.1.277+ loads project `AGENTS.md` when no `CLAUDE.md` exists, so add no `CLAUDE.md`; a present one replaces `AGENTS.md` under the default `instructionFiles` mode. Skills still load only from `.claude/skills`. After checking that the path does not already exist unmanaged:
    ```bash
-   ln -s AGENTS.md CLAUDE.md                          # or a CLAUDE.md containing only `@AGENTS.md`
    mkdir -p .claude && ln -s ../.agents/skills .claude/skills
    ```
-   When `.claude/` or `CLAUDE.md` is gitignored (globally or in the repository), un-ignore both tracked entries so every clone gets them; a directory rule cannot be re-included, so ignore the contents instead:
+   When `.claude/` is gitignored (globally or in the repository), un-ignore the tracked link so every clone gets it; a directory rule cannot be re-included, so ignore the contents instead:
    ```gitignore
    !.claude/
    .claude/*
    !.claude/skills
-   !CLAUDE.md
    ```
 1. **Add host files only when needed**:
    - **Antigravity**: reads `AGENTS.md` and `.agents/skills`; workspace settings and MCP file paths follow its current docs and it respects `.gitignore`.
    - **Claude Code**: `.mcp.json` for project MCP servers (`claude mcp add --scope project`).
    - **Codex**: reads `AGENTS.md` and `.agents/skills`; `.codex/config.toml` holds trusted project overrides and MCP.
    - **Copilot**: reads `AGENTS.md` and `.agents/skills`; `.github/copilot-instructions.md` only for extra repository-wide Copilot instructions.
-   - **Cursor**: reads project `AGENTS.md`, `CLAUDE.md`, and `.agents/skills` directly; add `.cursor/rules` only for Cursor-specific rules. `.cursor/cli.json` owns project permissions and `.cursor/mcp.json` owns project MCP.
+   - **Cursor**: reads project `AGENTS.md` and `.agents/skills` directly; add `.cursor/rules` only for Cursor-specific rules. `.cursor/cli.json` owns project permissions and `.cursor/mcp.json` owns project MCP.
    - **OpenCode**: reads `AGENTS.md` and `.agents/skills`; use `opencode.json` or `.jsonc` for project configuration and MCP. See [opencode](../../agent-harnesses/references/opencode/GUIDE.md) for session operation.
    - **Grok**: reads `AGENTS.md` and `.agents/skills`; project MCP lives in `./.grok/config.toml` via `grok mcp add --scope project`.
 1. **Keep secrets and state out of git**: ignore local credentials, generated agent state, and secret-bearing overrides; commit only portable configuration.
@@ -35,7 +33,6 @@
 ```text
 <repo>/
 ├── AGENTS.md                          # shared project instructions
-├── CLAUDE.md -> AGENTS.md             # Claude bridge (or a file containing @AGENTS.md)
 ├── .agents/
 │   ├── prompts/                       # handover prompts, gitignored
 │   └── skills/<name>/SKILL.md         # project skills

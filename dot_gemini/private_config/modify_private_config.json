@@ -20,9 +20,6 @@
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
 {{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
 {{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
-{{- /* Remove the obsolete managed wildcard from existing targets too; command(*) already
-       covers execution both inside and outside the sandbox. */ -}}
-{{- $allow = without $allow "unsandboxed(*)" -}}
 {{- /* Full autonomy for remote sessions (developer, 2026-10-01): wildcard grants for every action
        (https://antigravity.google/docs/permissions). Added without replacing host-owned allow/ask/deny
        lists; an explicit ask or deny rule still wins. */ -}}

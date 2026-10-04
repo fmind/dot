@@ -7,9 +7,6 @@ AGY:
   model: inherit
   tools: [
     view_file,
-    list_dir,
-    find_by_name,
-    grep_search,
     run_command,
     write_to_file,
     replace_file_content,

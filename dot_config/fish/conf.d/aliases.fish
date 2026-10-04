@@ -5,7 +5,6 @@ if status is-interactive
     abbr -a ac "agy --continue"
     abbr -a ai "agy --prompt-interactive"
     abbr -a ap "agy --print"
-    abbr -a ar "mise run review:agy"
     # b:bat
     abbr -a b bat
     # c:gcloud

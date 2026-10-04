@@ -1,6 +1,7 @@
 """Scoped credential precedence and subprocess behavior with synthetic secrets only."""
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -201,24 +202,15 @@ def test_doctor_does_not_require_ambient_api_keys() -> None:
     assert not any("TOKEN" in name or "API_KEY" in name for name in config.doctor.env_vars.optional)
 
 
-def test_new_shell_does_not_export_secrets(secret_home: Path) -> None:
-    assert Path.home() == secret_home
-    # Source only the migration stub so unrelated user Fish setup cannot affect the result.
-    result = subprocess.run(
-        [
-            "fish",
-            "--no-config",
-            "-c",
-            'source "$argv[1]"; set -q UV_PUBLISH_TOKEN; and exit 1; exit 0',
-            str(ROOT / "dot_config/fish/conf.d/private_secrets.fish"),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=10,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout == result.stderr == ""
+def test_shell_secret_exports_are_retired() -> None:
+    conf = ROOT / "dot_config/fish/conf.d"
+    # chezmoi deletes the legacy exporting file instead of deploying a placeholder.
+    assert (conf / "remove_secrets.fish").read_text() == ""
+    assert not (conf / "private_secrets.fish").exists()
+    # Any `set` that exports (-x, -gx, -g -x, --export) a token-like name is a regression.
+    export = re.compile(r"\bset\s+(?:-{1,2}\w+\s+)*?(?:-\w*x\w*|--export)\s+(?:-{1,2}\w+\s+)*\w*(TOKEN|API_KEY)")
+    for script in (ROOT / "dot_config/fish").rglob("*.fish*"):
+        assert not export.search(script.read_text()), script
 
 
 def test_environment_token_rejects_control_characters(secret_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:

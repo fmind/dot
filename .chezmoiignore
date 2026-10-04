@@ -24,7 +24,6 @@
 .antigravitycli
 AGENTS.md
 CHANGELOG.md
-CLAUDE.md
 LICENSE
 README.md
 dot
@@ -34,8 +33,8 @@ lefthook.yml
 mise.lock
 mise.toml
 ruff.toml
-supagents.yaml
 skills
+supagents.yaml
 trivy.yaml
 
 # Personal dependency graphs are not part of the shared workstation baseline.
