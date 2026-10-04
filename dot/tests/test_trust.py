@@ -163,6 +163,16 @@ def test_grok_trust_replaces_integer_with_boolean(tmp_path: Path) -> None:
     assert trust_folder(Path("/repo"), home=tmp_path) == []
 
 
+def test_trust_reports_when_no_harness_has_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+
+    run_trust(state, str(tmp_path))
+    assert isinstance(state.stdout, io.StringIO)
+    assert state.stdout.getvalue() == "○ No agent harness state found; nothing to trust yet.\n"
+    assert not any(tmp_path.iterdir())
+
+
 def test_trust_skips_missing_harnesses_and_home_for_grok(tmp_path: Path) -> None:
     (tmp_path / ".grok").mkdir()
     (tmp_path / ".copilot").mkdir()
