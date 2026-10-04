@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import IO
 
 import pytest
+import yaml
 
+from dot_tasks import publish
 from dot_tasks.release import (
+    _WAIT_RETRIES,
     _remote_release_tag_objects,
     push_prepared_commit,
     push_release_tag,
     read_release_version,
     run_release,
     validate_release_status,
+    wait_for_release,
 )
 from fmind_dot.errors import DotError
 from fmind_dot.process import RUN_OUTPUT_LIMIT_BYTES, CommandResult, Runner
@@ -806,3 +811,85 @@ def test_release_metadata_rejects_missing_ambiguous_and_invalid_versions(tmp_pat
         read_release_version(tmp_path)
     with pytest.raises(DotError, match="malformed git status record"):
         validate_release_status("bad\0")
+
+
+@pytest.mark.parametrize("outcome", ["success", "failure", "wrong-head", "missing-assets", "draft", "truncated"])
+def test_release_wait_requires_exact_cd_and_public_artifacts(monkeypatch: pytest.MonkeyPatch, outcome: str) -> None:
+    head = "a" * 40
+    monkeypatch.setattr("dot_tasks.release._git_output", lambda *_args: head)
+    ticks = iter([0, 0, 0, 0.5, 1, 2, 3, 4, 5])
+    monkeypatch.setattr("dot_tasks.release.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("dot_tasks.release.sleep", lambda _seconds: None)
+    calls = []
+
+    class ReleaseRunner(Runner):
+        def run_bounded(self, args, **_kwargs):
+            calls.append(args)
+            if args[1:3] == ["run", "list"]:
+                assert args[args.index("--commit") + 1] == head
+                assert args[args.index("--branch") + 1] == "v2.2.0"
+                value = [
+                    {
+                        "headSha": "b" * 40 if outcome == "wrong-head" else head,
+                        "status": "completed",
+                        "conclusion": "failure" if outcome == "failure" else "success",
+                    }
+                ]
+            else:
+                value = {
+                    "tagName": "v2.2.0",
+                    "isDraft": outcome == "draft",
+                    "assets": [{"name": "dot.whl"}, {"name": None if outcome == "missing-assets" else "dot.tar.gz"}],
+                }
+            return CommandResult(json.dumps(value), "", 0, stdout_truncated=outcome == "truncated")
+
+    state = make_state(ReleaseRunner())
+    assert isinstance(state.stdout, io.StringIO)
+    if outcome == "success":
+        assert wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
+        assert "Published" in state.stdout.getvalue()
+    else:
+        with pytest.raises(DotError):
+            wait_for_release(state, "v2.2.0", timeout_seconds=1)
+        assert "Published" not in state.stdout.getvalue()
+    if outcome in {"failure", "wrong-head", "truncated"}:
+        assert len(calls) == 1
+
+
+@pytest.mark.parametrize("failures", [1, 4])
+def test_release_wait_retries_transient_github_failures(monkeypatch: pytest.MonkeyPatch, failures: int) -> None:
+    head = "a" * 40
+    monkeypatch.setattr("dot_tasks.release._git_output", lambda *_args: head)
+    monkeypatch.setattr("dot_tasks.release.monotonic", lambda: 0.0)
+    monkeypatch.setattr("dot_tasks.release.sleep", lambda _seconds: None)
+    responses = [CommandResult("", "HTTP 502", 1) for _ in range(failures)] + [
+        CommandResult(json.dumps([{"headSha": head, "status": "completed", "conclusion": "success"}]), "", 0),
+        CommandResult(
+            json.dumps({"tagName": "v2.2.0", "isDraft": False, "assets": [{"name": "d.whl"}, {"name": "d.tar.gz"}]}),
+            "",
+            0,
+        ),
+    ]
+
+    class FlakyRunner(Runner):
+        def run_bounded(self, args, **kwargs):
+            assert args[0] == "gh"
+            assert kwargs["check"] is False
+            return responses.pop(0)
+
+    state = make_state(FlakyRunner())
+    if failures <= _WAIT_RETRIES:
+        assert wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
+    else:
+        with pytest.raises(DotError, match="GitHub queries kept failing"):
+            wait_for_release(state, "v2.2.0", timeout_seconds=1)
+    assert isinstance(state.stderr, io.StringIO)
+    assert "GitHub query failed; retrying (1/3)" in state.stderr.getvalue()
+    assert "HTTP 502" not in state.stderr.getvalue()
+
+
+def test_publish_job_outlasts_publication_bounds() -> None:
+    # A hung `gh release create` must time out inside the job so the view reconciliation still reports.
+    workflow = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/cd.yml").read_text())
+    budget = workflow["jobs"]["publish"]["timeout-minutes"] * 60
+    assert budget > publish._CREATE_TIMEOUT_SECONDS + publish._VIEW_TIMEOUT_SECONDS  # noqa: SLF001

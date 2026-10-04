@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from dot_tasks import release as maintenance
 from fmind_dot import repository
 from fmind_dot.archive import parsers as agent_parsers
 from fmind_dot.archive.query import SessionQuery, query_session_summaries, show_session
@@ -241,83 +240,6 @@ def test_managed_config_edit_routes_to_source_and_validates(
     assert edited.exit_code != 0
     assert calls == [["chezmoi", "edit", "--apply", "--force", str(config)]]
     assert "valid" not in edited.stdout
-
-
-@pytest.mark.parametrize("outcome", ["success", "failure", "wrong-head", "missing-assets", "draft", "truncated"])
-def test_release_wait_requires_exact_cd_and_public_artifacts(monkeypatch: pytest.MonkeyPatch, outcome: str) -> None:
-    head = "a" * 40
-    monkeypatch.setattr(maintenance, "_git_output", lambda *_args: head)
-    ticks = iter([0, 0, 0, 0.5, 1, 2, 3, 4, 5])
-    monkeypatch.setattr(maintenance, "monotonic", lambda: next(ticks))
-    monkeypatch.setattr(maintenance, "sleep", lambda _seconds: None)
-    calls = []
-
-    class ReleaseRunner(Runner):
-        def run_bounded(self, args, **_kwargs):
-            calls.append(args)
-            if args[1:3] == ["run", "list"]:
-                assert args[args.index("--commit") + 1] == head
-                assert args[args.index("--branch") + 1] == "v2.2.0"
-                value = [
-                    {
-                        "headSha": "b" * 40 if outcome == "wrong-head" else head,
-                        "status": "completed",
-                        "conclusion": "failure" if outcome == "failure" else "success",
-                    }
-                ]
-            else:
-                value = {
-                    "tagName": "v2.2.0",
-                    "isDraft": outcome == "draft",
-                    "assets": [{"name": "dot.whl"}, {"name": None if outcome == "missing-assets" else "dot.tar.gz"}],
-                }
-            return CommandResult(json.dumps(value), "", 0, stdout_truncated=outcome == "truncated")
-
-    state = state_with()
-    state.runner = ReleaseRunner()
-    assert isinstance(state.stdout, io.StringIO)
-    if outcome == "success":
-        assert maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
-        assert "Published" in state.stdout.getvalue()
-    else:
-        with pytest.raises(DotError):
-            maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1)
-        assert "Published" not in state.stdout.getvalue()
-    if outcome in {"failure", "wrong-head", "truncated"}:
-        assert len(calls) == 1
-
-
-@pytest.mark.parametrize("failures", [1, 4])
-def test_release_wait_retries_transient_github_failures(monkeypatch: pytest.MonkeyPatch, failures: int) -> None:
-    head = "a" * 40
-    monkeypatch.setattr(maintenance, "_git_output", lambda *_args: head)
-    monkeypatch.setattr(maintenance, "monotonic", lambda: 0.0)
-    monkeypatch.setattr(maintenance, "sleep", lambda _seconds: None)
-    responses = [CommandResult("", "HTTP 502", 1) for _ in range(failures)] + [
-        CommandResult(json.dumps([{"headSha": head, "status": "completed", "conclusion": "success"}]), "", 0),
-        CommandResult(
-            json.dumps({"tagName": "v2.2.0", "isDraft": False, "assets": [{"name": "d.whl"}, {"name": "d.tar.gz"}]}),
-            "",
-            0,
-        ),
-    ]
-
-    class FlakyRunner(Runner):
-        def run_bounded(self, args, **kwargs):
-            assert args[0] == "gh"
-            assert kwargs["check"] is False
-            return responses.pop(0)
-
-    state = state_with()
-    state.runner = FlakyRunner()
-    if failures <= maintenance._WAIT_RETRIES:  # noqa: SLF001 - the retry budget is the contract under test.
-        assert maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
-    else:
-        with pytest.raises(DotError, match="GitHub queries kept failing"):
-            maintenance.wait_for_release(state, "v2.2.0", timeout_seconds=1)
-    assert isinstance(state.stderr, io.StringIO)
-    assert "GitHub query failed; retrying (1/3)" in state.stderr.getvalue()
-    assert "HTTP 502" not in state.stderr.getvalue()
 
 
 def test_prompt_stats_treat_offsetless_timestamps_as_utc(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
