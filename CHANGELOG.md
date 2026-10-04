@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## [9.0.0] - 2026-10-04
+
+### 🚀 Features
+
+- _(secrets)_ [**breaking**] Retire dot secret publish and the personal PyPI token
+- _(auth)_ Own brain-sensor Workspace scopes and flag plaintext gh tokens
+- _(git)_ Commit personal checkouts with the personal email
+- _(agents)_ Register the brain SessionStart hook for Claude and Codex
+- _(archive)_ Resolve agy workspaces, follow archived Codex rollouts, and prove current transcripts
+
+### 🐛 Bug Fixes
+
+- _(cli)_ Report Cancelled. on interrupted commands and drop dead Copilot doctor branches
+- _(fish)_ Export the fzf theme only once chezmoi fetched it
+
+### 📚 Documentation
+
+- _(skills)_ Correct stale commands, links, and tool contracts
+
+### 🧪 Testing
+
+- _(release)_ Keep release wait tests with the release suite
+
+### ⚙️ Build & CI
+
+- _(cd)_ Gate releases on macOS tests and outlast the publish bounds
+- _(mise)_ Require mise 2026.10.2 and lock template formatters
+
 ## [8.4.0] - 2026-10-04
 
 ### 🚀 Features
