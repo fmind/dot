@@ -411,10 +411,13 @@ def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
     runner = Runner()
     results: list[CommandResult] = []
 
+    # The timeout must outlast interpreter startup on a loaded host, or the child dies
+    # before writing its pid; the bound still rejects the 2-second default grace.
+    timeout = 3.0
     if stop == "timeout":
         started = time.monotonic()
         with pytest.raises(DotError, match="command timed out"):
-            runner.run(command, timeout=0.75)
+            runner.run(command, timeout=timeout)
     else:
         worker = Thread(target=lambda: results.append(runner.run(command, check=False)))
         worker.start()
@@ -427,7 +430,7 @@ def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
         assert not worker.is_alive()
         assert [result.returncode for result in results] == [-process_module.signal.SIGKILL]
 
-    assert time.monotonic() - started < 4
+    assert time.monotonic() - started < (timeout + 1.5 if stop == "timeout" else 4)
     assert not clean.exists()
     with pytest.raises(ProcessLookupError):
         os.kill(int(ready.read_text()), 0)
