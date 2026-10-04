@@ -335,21 +335,15 @@ def test_retained_results_prove_a_current_transcript_only_from_identical_complet
     grown = ingest_session("codex", "session-1", _logs(3), SessionSource(fingerprint="c" * 64), usage=None)
     assert (grown.status, grown.current_transcript, grown.manifest.record_count) == ("retained", True, 3)
     # A malformed capture publishes a partial transcript: never proof of a complete one.
-    partial = ingest_session(
-        "codex", "session-1", _logs(3), SessionSource(fingerprint="d" * 64, malformed=1), usage_failed=True
-    )
+    partial = ingest_session("codex", "session-1", _logs(3), SessionSource(fingerprint="d" * 64, malformed=1))
     assert (partial.status, partial.current_transcript) == ("retained", False)
     # A partial archive (an interrupted write) is replaced by a complete capture of the same records.
-    interrupted = ingest_session(
-        "codex", "session-1", _logs(4), SessionSource(fingerprint="i" * 64, malformed=1), usage_failed=True
-    )
+    interrupted = ingest_session("codex", "session-1", _logs(4), SessionSource(fingerprint="i" * 64, malformed=1))
     assert (interrupted.status, interrupted.manifest.completeness) == ("retained", "partial")
     # Repeating that partial capture rewrites nothing, so its ingestion time and position hold.
     bundle = session_bundle_path("codex", "session-1")
     before = (bundle.stat().st_ino, bundle.stat().st_mtime_ns, bundle.read_bytes())
-    again = ingest_session(
-        "codex", "session-1", _logs(4), SessionSource(fingerprint="i" * 64, malformed=1), usage_failed=True
-    )
+    again = ingest_session("codex", "session-1", _logs(4), SessionSource(fingerprint="i" * 64, malformed=1))
     assert (again.status, again.current_transcript) == ("retained", False)
     assert again.manifest.ingested_at == interrupted.manifest.ingested_at
     assert (bundle.stat().st_ino, bundle.stat().st_mtime_ns, bundle.read_bytes()) == before

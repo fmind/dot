@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Any
+from typing import Any
 
 from fmind_dot.archive.store import (
     SESSION_PARSER_VERSION,
@@ -18,7 +17,6 @@ from fmind_dot.archive.store import (
     read_session_manifest,
 )
 
-SESSION_EXPORT_SCHEMA = "dot.agent.sessions/v2"
 SESSION_STATUSES = ("current", "invalid", "legacy", "partial")
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?"
@@ -181,47 +179,11 @@ def show_session(query: SessionQuery, *, include_content: bool = False) -> Sessi
     return summaries[0]
 
 
-def export_sessions(
-    output: IO[str],
-    query: SessionQuery | None = None,
-    *,
-    format: str = "json",  # noqa: A002 - public CLI contract
-    include_content: bool = False,
-    redact_content: bool = False,
-) -> None:
-    if include_content and redact_content:
-        raise ValueError("--content and --redact-content are mutually exclusive")
-    summaries = query_session_summaries(query, include_content=include_content or redact_content)
-    if redact_content:
-        for summary in summaries:
-            for record in summary.records:
-                record.content = "[redacted]"
-    if format == "json":
-        value = {
-            "schema": SESSION_EXPORT_SCHEMA,
-            "sessions": [summary.to_dict(include_records=include_content or redact_content) for summary in summaries],
-        }
-        json.dump(value, output, ensure_ascii=False, indent=2)
-        output.write("\n")
-        return
-    if format == "ndjson":
-        for summary in summaries:
-            value = {
-                "schema": SESSION_EXPORT_SCHEMA,
-                "session": summary.to_dict(include_records=include_content or redact_content),
-            }
-            output.write(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n")
-        return
-    raise ValueError(f"unsupported export format {format!r}: expected json or ndjson")
-
-
 __all__ = [
-    "SESSION_EXPORT_SCHEMA",
     "SESSION_STATUSES",
     "SessionQuery",
     "SessionSummary",
     "discover_sessions",
-    "export_sessions",
     "query_session_summaries",
     "show_session",
 ]

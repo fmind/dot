@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 MODIFIERS = {
     "modify_dot_bashrc": ("# chezmoi: mise-bash-path", "mise activate bash"),
-    "modify_dot_profile": ("# chezmoi: mise-bash-integration", "mise activate bash"),
+    "modify_dot_profile": ("# chezmoi: mise-bash-integration", "export PATH="),
     "modify_dot_zprofile": ("# chezmoi: mise-zsh-integration", "mise activate zsh"),
 }
 
@@ -60,69 +60,38 @@ def test_modifier_rewrites_stale_block_in_place(tmp_path: Path, modifier: str) -
     assert rewritten.count(end) == 1
 
 
-def test_bashrc_migrates_unterminated_blocks_without_losing_content(tmp_path: Path) -> None:
-    # Blocks deployed up to v8.2.0 have no end marker and lack later comment lines.
-    legacy = (
-        "# chezmoi: mise-bash-path\n"
-        "# Make mise-installed tools available to non-interactive shells.\n"
-        'export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/bin:${PATH}"\n'
-        "\n"
-        "export USER_SETTING=1\n"
-        "\n"
-        "# chezmoi: mise-bash-integration\n"
-        'if [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then\n'
-        '  mise_activation="$(mise activate bash)"\n'
-        '  eval "${mise_activation}"\n'
-        "fi\n"
-        "\n"
-        "# Added by an installer\n"
-        'export PATH="${HOME}/.tool/bin:${PATH}"\n'
-    )
-    migrated = render(tmp_path, "modify_dot_bashrc", legacy)
-    assert migrated == render(tmp_path, "modify_dot_bashrc", migrated)
-    for line in ("export USER_SETTING=1\n", "# Added by an installer\n", 'export PATH="${HOME}/.tool/bin:${PATH}"\n'):
-        assert migrated.count(line) == 1
-    assert "Claude Code snapshots this shell" in migrated
-    assert migrated.count("# chezmoi: end mise-bash-path\n") == 1
-    assert migrated.count("# chezmoi: end mise-bash-integration\n") == 1
-    assert migrated.count("mise/shims") == 1
-
-
 def test_zprofile_is_deployed_only_on_macos() -> None:
     ignore = (ROOT / ".chezmoiignore").read_text(encoding="utf-8")
     assert '{{- if ne .chezmoi.os "darwin" }}\n.zprofile\n{{- end }}' in ignore
 
 
 @pytest.mark.parametrize("shell", ["sh", "bash"])
-@pytest.mark.parametrize("previous_guard", [None, "", '[ -z "${CLAUDECODE:-}" ] && '])
-def test_profile_supports_posix_login_and_migrates_bash_activation(
-    tmp_path: Path, shell: str, previous_guard: str | None
-) -> None:
-    existing = ""
-    if previous_guard is not None:
-        existing = (
-            "# chezmoi: mise-bash-integration\n"
-            'export PATH="${HOME}/.local/bin:${PATH}"\n'
-            f"if {previous_guard}command -v mise >/dev/null 2>&1; then\n"
-            '  mise_activation="$(mise activate bash)"\n'
-            '  eval "${mise_activation}"\n'
-            "fi\n"
-        )
-    profile = render(tmp_path, "modify_dot_profile", existing)
-    assert render(tmp_path, "modify_dot_profile", profile) == profile
-    bin_directory = tmp_path / ".local/bin"
-    bin_directory.mkdir(parents=True)
-    mise = bin_directory / "mise"
-    # A Bash-only activation catches accidental evaluation by POSIX shells.
-    mise.write_text("#!/bin/sh\nprintf '%s\\n' 'mise_activation_array=(activated)'\n", encoding="utf-8")
-    mise.chmod(0o700)
-    environment = {key: value for key, value in os.environ.items() if key not in {"BASH_VERSION", "CLAUDECODE"}}
-    environment.update(HOME=str(tmp_path), PATH=f"{bin_directory}:/usr/bin:/bin")
-    command = profile + '\nprintf "login finished\\n"\n'
-    if shell == "bash":
-        command += 'test "${mise_activation_array[0]}" = activated\n'
+def test_profile_only_exposes_mise_shims(tmp_path: Path, shell: str) -> None:
+    profile = render(tmp_path, "modify_dot_profile", "")
+    assert "mise activate" not in profile
+    environment = {key: value for key, value in os.environ.items() if key != "BASH_VERSION"}
+    environment.update(HOME=str(tmp_path), PATH="/usr/bin:/bin")
+    command = profile + '\nprintf "%s\\n" "$PATH"\n'
     result = subprocess.run(
         [shell, "-c", command], env=environment, capture_output=True, text=True, check=False, timeout=30
     )
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "login finished\n"
+    assert result.stdout.startswith(f"{tmp_path}/.local/share/mise/shims:")
+
+
+def test_profile_keeps_bashrc_activation_ahead_of_shims(tmp_path: Path) -> None:
+    profile = render(tmp_path, "modify_dot_profile", "")
+    # Debian-style .profile sources .bashrc first, whose activation already placed tools before the shims.
+    activated = f"{tmp_path}/.local/share/mise/installs/python/bin:/usr/bin:{tmp_path}/.local/share/mise/shims:/bin"
+    environment = {key: value for key, value in os.environ.items() if key != "BASH_VERSION"}
+    environment.update(HOME=str(tmp_path), PATH=activated)
+    result = subprocess.run(
+        ["sh", "-c", profile + '\nprintf "%s\\n" "$PATH"\n'],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == activated

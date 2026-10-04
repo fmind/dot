@@ -53,12 +53,6 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     assert deployment.index("mise install --locked cosign trivy") < deployment.index("--push")
 
 
-def test_cloud_run_declares_image_tools() -> None:
-    contracts = json.loads((ROOT / "skills/contracts.json").read_text(encoding="utf-8"))
-
-    assert {"cosign", "docker", "gcloud", "trivy"} <= set(contracts["skills"]["cloud-run"])
-
-
 @pytest.mark.parametrize("errexit", [False, True])
 def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path, errexit: bool) -> None:
     shell = ["bash", *(["-e"] if errexit else []), "-o", "pipefail", "-c"]

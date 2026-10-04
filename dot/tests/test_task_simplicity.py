@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -47,33 +46,8 @@ def run(root: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProc
     return subprocess.run(args, cwd=root, env=env, capture_output=True, text=True, check=False, timeout=TIMEOUT_SECONDS)
 
 
-def task_closure(tasks: dict[str, dict[str, object]], name: str) -> set[str]:
-    """Every task reachable through depends or a nested `mise run`, including the task itself."""
-    seen: set[str] = set()
-    pending = [name]
-    while pending:
-        current = pending.pop()
-        if current in seen:
-            continue
-        seen.add(current)
-        task = tasks[current]
-        run = task.get("run", [])
-        commands = [run] if isinstance(run, str) else run
-        assert isinstance(commands, list)
-        nested = [command.split()[2] for command in commands if str(command).startswith("mise run ")]
-        depends = task.get("depends", [])
-        assert isinstance(depends, list)
-        pending.extend([*depends, *nested])
-    return seen
-
-
-def hook_tasks(hook: str) -> list[str]:
-    commands = yaml.safe_load((ROOT / "lefthook.yml").read_text())[hook]["commands"]
-    return [command["run"].split()[2] for command in commands.values()]
-
-
 @pytest.mark.parametrize("starter", STARTERS)
-def test_secret_scopes_before_and_after_first_commit(tmp_path: Path, starter: str) -> None:
+def test_secret_scan_covers_untracked_files(tmp_path: Path, starter: str) -> None:
     env = materialize(tmp_path, starter)
     env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
     assert run(tmp_path, env, "git", "init", "-q").returncode == 0
@@ -83,50 +57,9 @@ def test_secret_scopes_before_and_after_first_commit(tmp_path: Path, starter: st
     assert run(tmp_path, env, "mise", "run", "check:leaks").returncode == 0
     secret = tmp_path / "untracked.txt"
     secret.write_text("fixture-credential-12345\n")
-    assert run(tmp_path, env, "mise", "run", "check:leaks").returncode != 0
-    assert run(tmp_path, env, "mise", "run", "check:leaks:history").returncode == 0
-    assert run(tmp_path, env, "mise", "run", "check:leaks:staged").returncode == 0
-    assert run(tmp_path, env, "git", "add", "untracked.txt").returncode == 0
-    staged = run(tmp_path, env, "mise", "run", "check:leaks:staged")
-    assert staged.returncode != 0
-    assert "fixture-credential-12345" not in staged.stdout + staged.stderr
-    assert (
-        run(
-            tmp_path,
-            env,
-            "git",
-            "-c",
-            "user.name=Fixture",
-            "-c",
-            "user.email=fixture@example.invalid",
-            "commit",
-            "-qm",
-            "fixture",
-        ).returncode
-        == 0
-    )
-    secret.write_text("clean\n")
-    assert run(tmp_path, env, "mise", "run", "check:leaks:tree").returncode == 0
-    assert run(tmp_path, env, "mise", "run", "check:leaks:history", "--no-banner").returncode != 0
-    # A display flag must retain the 100-commit bound.
-    for number in range(100):
-        assert (
-            run(
-                tmp_path,
-                env,
-                "git",
-                "-c",
-                "user.name=Fixture",
-                "-c",
-                "user.email=fixture@example.invalid",
-                "commit",
-                "--allow-empty",
-                "-qm",
-                str(number),
-            ).returncode
-            == 0
-        )
-    assert run(tmp_path, env, "mise", "run", "check:leaks:history", "--no-banner").returncode == 0
+    untracked = run(tmp_path, env, "mise", "run", "check:leaks")
+    assert untracked.returncode != 0
+    assert "fixture-credential-12345" not in untracked.stdout + untracked.stderr
 
 
 def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> None:
@@ -219,59 +152,6 @@ def test_repository_lua_hook_preserves_unselected_files(tmp_path: Path) -> None:
     assert unrelated.read_text() != source
 
 
-def test_hooks_split_offline_and_network_checks_without_weakening_the_gate() -> None:
-    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
-    network = {"check:scan", "check:vuln", "check:vuln:locks"}
-    pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
-    pre_push = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-push")))
-    gate = task_closure(tasks, "all")
-    checks = {name for name in tasks if name.startswith("check:")}
-    # Host-dependent, credentialed, or full-history audits are documented as separate from the gate.
-    outside_gate = {
-        "check:actions:online",
-        "check:completions",
-        "check:leaks:full",
-        "check:leaks:staged",
-        "check:vuln:tools",
-    }
-
-    assert not network & pre_commit
-    assert network <= pre_push
-    assert "test" in pre_push
-    assert checks - outside_gate <= gate
-    assert checks - outside_gate - network <= pre_commit | {"check:network"}
-
-
-def test_trivy_tasks_never_share_the_vulnerability_db_concurrently() -> None:
-    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
-    # A cold DB download remaps the shared cache under a concurrent reader (SIGBUS).
-    assert "check:scan" in tasks["check:vuln:locks"]["wait_for"]
-    assert "check:scan" not in tasks["check:vuln:locks"].get("depends", [])
-
-
-def test_root_uv_commands_name_the_dot_project() -> None:
-    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
-    # The root config exports no UV_PROJECT, so a bare uv project command finds no pyproject.toml.
-    for name, task in tasks.items():
-        run = task.get("run", [])
-        for command in [run] if isinstance(run, str) else run:
-            for match in re.finditer(r"\buv (?:run|lock|audit|build|sync)\b[^\n]*", command):
-                assert re.search(r"--project dot\b|--directory dot\b|uv build dot\b", match[0]), (name, match[0])
-
-
-def test_pre_commit_rejects_a_stale_skill_index_instead_of_regenerating_it() -> None:
-    tasks = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]
-    pre_commit = set().union(*(task_closure(tasks, task) for task in hook_tasks("pre-commit")))
-
-    # stage_fixed restages only staged files, so a generator in this hook would leave
-    # its output out of the commit and CI's clean-tree verification would fail later.
-    assert "format:skills" not in pre_commit
-    assert "check:skills" in pre_commit
-    # The complete formatter still generates indexes before dprint formats them.
-    assert {"format:skills", "format:dprint"} <= task_closure(tasks, "format")
-    assert tasks["format:dprint"]["wait_for"] == ["format:skills"]
-
-
 def test_terraform_formatter_forwards_files_and_failures(tmp_path: Path) -> None:
     env = materialize(tmp_path, "terraform")
     bin_dir = tmp_path / "bin"
@@ -291,28 +171,3 @@ def test_terraform_formatter_forwards_files_and_failures(tmp_path: Path) -> None
     assert json.loads((tmp_path / "args.json").read_text()) == ["fmt", "-recursive"]
     env["TOFU_EXIT"] = "1"
     assert run(tmp_path, env, "mise", "run", "format:tofu", selected).returncode != 0
-
-
-def test_task_examples_do_not_wrap_shells() -> None:
-    paths = [ROOT / "mise.toml", *ROOT.glob("skills/**/*mise.toml"), *ROOT.glob("skills/**/*.md")]
-    for path in paths:
-        content = path.read_text()
-        snippets = [content] if path.suffix == ".toml" else re.findall(r"```toml\n(.*?)```", content, re.DOTALL)
-        for snippet in snippets:
-            assert not re.search(r"\b(?:bash|sh)\s+-[^\s'\"]*c\b", snippet), path
-
-
-def test_workflow_shell_steps_remain_short() -> None:
-    paths = [
-        *ROOT.glob(".github/workflows/*.yml"),
-        *ROOT.glob("skills/github-actions/references/ci-cd/templates/*.yml"),
-        ROOT / "skills/cloud-run/templates/deploy.yml",
-    ]
-    for path in paths:
-        workflow = yaml.safe_load(path.read_text())
-        for job in workflow["jobs"].values():
-            for step in job.get("steps", []):
-                command = step.get("run", "")
-                lines = [line for line in command.splitlines() if line.strip() and not line.lstrip().startswith("#")]
-                assert len(lines) <= 5, (path, step.get("name"))
-                assert not re.search(r"\b(?:bash|sh)\s+-[^\s'\"]*c\b", command), path

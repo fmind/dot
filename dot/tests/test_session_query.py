@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,10 +10,8 @@ from typer.testing import CliRunner
 
 from fmind_dot.archive import query as session_query
 from fmind_dot.archive.query import (
-    SESSION_EXPORT_SCHEMA,
     SessionQuery,
     discover_sessions,
-    export_sessions,
     query_session_summaries,
     show_session,
 )
@@ -142,36 +139,6 @@ def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity(
     )
     with pytest.raises(ValueError, match="session not found"):
         show_session(SessionQuery(identity="missing"))
-
-
-def test_export_json_and_ndjson_keep_content_opt_in(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    _ingest("claude", "historic", content="old secret")
-    _ingest("codex", "current", content="new secret")
-
-    metadata_output = io.StringIO()
-    export_sessions(metadata_output)
-    metadata = json.loads(metadata_output.getvalue())
-    assert metadata["schema"] == SESSION_EXPORT_SCHEMA == "dot.agent.sessions/v2"
-    assert all("records" not in session for session in metadata["sessions"])
-    assert "secret" not in metadata_output.getvalue()
-
-    content_output = io.StringIO()
-    export_sessions(content_output, SessionQuery(agent="codex"), include_content=True)
-    assert json.loads(content_output.getvalue())["sessions"][0]["records"][0]["content"] == "new secret"
-
-    redacted_output = io.StringIO()
-    export_sessions(redacted_output, redact_content=True, format="ndjson")
-    rows = [json.loads(line) for line in redacted_output.getvalue().splitlines()]
-    assert len(rows) == 2
-    assert all(row["schema"] == SESSION_EXPORT_SCHEMA for row in rows)
-    assert {row["session"]["records"][0]["content"] for row in rows} == {"[redacted]"}
-    assert "secret" not in redacted_output.getvalue()
-
-    with pytest.raises(ValueError, match="mutually exclusive"):
-        export_sessions(io.StringIO(), include_content=True, redact_content=True)
-    with pytest.raises(ValueError, match=r"unsupported export format 'csv': expected json or ndjson"):
-        export_sessions(io.StringIO(), format="csv")
 
 
 def test_cli_list_is_text_and_show_is_json_without_default_content(

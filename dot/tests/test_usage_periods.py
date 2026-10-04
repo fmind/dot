@@ -225,22 +225,20 @@ def test_usage_query_rejects_invalid_usage_and_mismatched_identity(
         load_usage_records()
 
 
-def test_recapture_replaces_legacy_parser_accounting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_recapture_replaces_older_parser_accounting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from fmind_dot.archive import store
 
     monkeypatch.setenv("HOME", str(tmp_path))
     original = request("2026-09-01T00:00:00Z", tokens=200)
     source = store.SessionSource(type="fixture", fingerprint=store.fingerprint_bytes(b"same source"))
     with monkeypatch.context() as previous:
-        previous.setattr(store, "SESSION_PARSER_VERSION", "3")
+        previous.setattr(store, "SESSION_PARSER_VERSION", "9")
         ingest_session("codex", "one", [], source, usage=original.to_dict())
-    assert load_usage_records()[0].legacy_accounting
     corrected = session(request("2026-09-01T00:00:00Z", tokens=100))
     ingest_session("codex", "one", [], source, usage=corrected.to_dict())
     records = load_usage_records()
     assert len(records) == 1
     assert records[0].total_tokens == 100
-    assert not records[0].legacy_accounting
     assert [path.name for path in store.discover_session_bundles()] == ["one.jsonl"]
 
 
@@ -345,3 +343,22 @@ def test_codex_rejects_malformed_response_records(tmp_path: Path, payload: dict)
     assert parsed.usage is None
     assert isinstance(parsed.usage_error, ValueError)
     assert "private-invalid" not in str(parsed.usage_error)
+
+
+def test_recapture_replaces_legacy_parser_accounting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fmind_dot.archive import store
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    original = request("2026-09-01T00:00:00Z", tokens=200)
+    source = store.SessionSource(type="fixture", fingerprint=store.fingerprint_bytes(b"same source"))
+    with monkeypatch.context() as previous:
+        previous.setattr(store, "SESSION_PARSER_VERSION", "3")
+        ingest_session("codex", "one", [], source, usage=original.to_dict())
+    assert load_usage_records()[0].legacy_accounting
+    corrected = session(request("2026-09-01T00:00:00Z", tokens=100))
+    ingest_session("codex", "one", [], source, usage=corrected.to_dict())
+    records = load_usage_records()
+    assert len(records) == 1
+    assert records[0].total_tokens == 100
+    assert not records[0].legacy_accounting
+    assert [path.name for path in store.discover_session_bundles()] == ["one.jsonl"]

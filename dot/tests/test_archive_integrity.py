@@ -218,63 +218,48 @@ def test_source_changed_during_parse_is_not_published(tmp_path: Path, monkeypatc
     assert load_usage_records()[0].input_tokens == 20
 
 
-@pytest.mark.parametrize("measured", [False, True], ids=["repair-false-zero", "retain-measured-usage"])
 @pytest.mark.parametrize("known_cost", [False, True], ids=["unknown-cost", "known-cost"])
-def test_parser_upgrade_removes_only_unmeasured_legacy_zero(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, measured: bool, known_cost: bool
+def test_parser_upgrade_retains_an_older_parser_measurement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, known_cost: bool
 ) -> None:
     state = _state(tmp_path, "claude", monkeypatch)
     source = tmp_path / "source/session.jsonl"
     cost = [{"type": "cost-state", "totalCostUSD": 0.25}] if known_cost else []
-    _write(source, [_claude(100 if measured else None), *cost])
+    _write(source, [_claude(100), *cost])
     parsed = parsers.parse_claude_session(source, "session")
-    legacy_usage = UsageRecord(
+    older_usage = UsageRecord(
         harness="claude",
         session_id="session",
         measurement_kind="provider-reported",
-        input_tokens=100 if measured else 0,
+        input_tokens=100,
         cost_known=known_cost,
         cost_usd=0.25 if known_cost else 0.0,
     ).finalize(fallback_timestamp="2026-09-01T10:00:00Z")
-    with monkeypatch.context() as legacy:
-        legacy.setattr(store, "SESSION_PARSER_VERSION", "6")
+    with monkeypatch.context() as older:
+        older.setattr(store, "SESSION_PARSER_VERSION", "9")
         store.ingest_session(
             "claude",
             "session",
             parsed.logs,
             store.SessionSource(type=parsed.source_type, fingerprint=parsed.fingerprint),
-            usage=legacy_usage.to_dict(),
+            usage=older_usage.to_dict(),
         )
     bundle = session_bundle_path("claude", "session")
     before = bundle.read_bytes()
-    if measured:
-        _write(source, [_claude(), *cost])
+    _write(source, [_claude(), *cost])
 
     outcome = sync_sessions(state, agent="claude")
 
-    if measured:
-        # The current parser republishes the transcript but keeps the parser-6 measurement and its accounting.
-        assert outcome.retained == 1
-        manifest = store.read_session_manifest(bundle)
-        assert (manifest.parser_version, manifest.usage_parser_version) == (store.SESSION_PARSER_VERSION, "6")
-        assert manifest.usage == json.loads(before.split(b"\n", 1)[0])["usage"]
-        [record] = load_usage_records()
-        assert (record.input_tokens, record.legacy_accounting) == (100, True)
-        republished = bundle.read_bytes()
-        assert sync_sessions(state, agent="claude").retained == 1
-        assert bundle.read_bytes() == republished
-    else:
-        assert outcome.ingested == 1
-        manifest, _ = read_session_bundle(bundle)
-        assert manifest.parser_version == store.SESSION_PARSER_VERSION
-        if known_cost:
-            assert manifest.usage is not None
-            stats = aggregate_usage(load_usage_records())[0].to_dict()
-            assert stats["cost_usd"] == 0.25
-            assert stats["api_equivalent_usd"] is None
-        else:
-            assert manifest.usage is None
-            assert load_usage_records() == []
+    # The current parser republishes the transcript but keeps the parser-9 measurement.
+    assert outcome.retained == 1
+    manifest = store.read_session_manifest(bundle)
+    assert (manifest.parser_version, manifest.usage_parser_version) == (store.SESSION_PARSER_VERSION, "9")
+    assert manifest.usage == json.loads(before.split(b"\n", 1)[0])["usage"]
+    [record] = load_usage_records()
+    assert (record.input_tokens, record.legacy_accounting) == (100, False)
+    republished = bundle.read_bytes()
+    assert sync_sessions(state, agent="claude").retained == 1
+    assert bundle.read_bytes() == republished
 
 
 @pytest.mark.parametrize("agent", ["codex", "grok"])

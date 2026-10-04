@@ -12,14 +12,13 @@ from typer.testing import CliRunner
 from fmind_dot import repository
 from fmind_dot.archive import parsers as agent_parsers
 from fmind_dot.archive.query import SessionQuery, query_session_summaries, show_session
-from fmind_dot.archive.statistics import prompt_statistics, session_statistics
+from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.store import SessionLog, SessionSource, ingest_session, session_bundle_path
 from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, write_usage_stats
 from fmind_dot.cli import app
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 
 
@@ -56,12 +55,6 @@ def test_recaptured_sessions_and_statistics_do_not_double_count(
     ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64, skipped=4))
     assert len(query_session_summaries()) == 1
     assert show_session(SessionQuery(identity="example"), include_content=True).records == logs
-    archive = session_statistics(SessionQuery())
-    assert archive["schema"] == "dot.agent.sessions.stats/v2"
-    assert archive["sessions"] == 1
-    assert archive["ignored_records"] == 4
-    assert archive["archive_bytes"] == session_bundle_path("codex", "example").stat().st_size
-    assert "generations" not in archive
     prompts = prompt_statistics(
         SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC), until=datetime(2026, 9, 2, tzinfo=UTC))
     )
@@ -164,10 +157,10 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
     )
     state = state_with(Config(pull=PullConfig(directories=[str(checkout)])))
     assert repository.find_git_repositories(state) == [checkout]
-    report = repository.run_status(state, paths=[checkout], as_json=True, stats=True)
+    report = repository.run_status(state, paths=[checkout], as_json=True)
     assert report[0].ahead == 1
     assert isinstance(state.stdout, io.StringIO)
-    assert json.loads(state.stdout.getvalue())["ahead"] == 1
+    assert json.loads(state.stdout.getvalue())["repositories"][0]["ahead"] == 1
     state.stdout = io.StringIO()
     repository.run_pull(state, paths=[checkout], dry_run=True, as_json=True)
     assert json.loads(state.stdout.getvalue())["repositories"] == [str(checkout)]
@@ -205,43 +198,6 @@ def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch
         sync_sessions(state, agent="typo")
 
 
-@pytest.mark.parametrize("alias", ["direct", "parent", "symlink"])
-def test_managed_config_edit_routes_to_source_and_validates(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, alias: str
-) -> None:
-    config = tmp_path / "dot.yaml"
-    config.write_text("{}\n")
-    selected = config
-    if alias == "parent":
-        (tmp_path / "nested").mkdir()
-        selected = tmp_path / "nested/../dot.yaml"
-    elif alias == "symlink":
-        selected = tmp_path / "linked.yaml"
-        selected.symlink_to(config)
-    calls = []
-    monkeypatch.setattr(Runner, "which", lambda _self, name: Path("/tools") / name)
-
-    def inventory(_self, args, **_kwargs):
-        assert args == ["chezmoi", "managed", "--path-style=absolute", "--nul-path-separator"]
-        return CommandResult(str(config) + "\0", "", 0)
-
-    def edit(_self, args, **_kwargs):
-        calls.append(args)
-        config.write_text("unknown_key: true\n")
-        return 0
-
-    monkeypatch.setattr(Runner, "run", inventory)
-    monkeypatch.setattr(Runner, "interactive", edit)
-    cli = CliRunner()
-    initialized = cli.invoke(app, ["--config", str(selected), "config", "init", "--force"])
-    assert initialized.exit_code != 0
-    assert config.read_text() == "{}\n"
-    edited = cli.invoke(app, ["--config", str(selected), "config", "edit"])
-    assert edited.exit_code != 0
-    assert calls == [["chezmoi", "edit", "--apply", "--force", str(config)]]
-    assert "valid" not in edited.stdout
-
-
 def test_prompt_stats_treat_offsetless_timestamps_as_utc(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     ingest_session("codex", "naive-time", [SessionLog("2026-09-02T10:00:00", "codex", "naive-time", "user", "text")])
@@ -263,9 +219,6 @@ def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.Monk
     assert prompt_statistics(inverted)["prompts"] == 0
     rejected = CliRunner().invoke(app, ["agent", "stats", "--since", "2026-09-02", "--until", "2026-09-01"])
     assert rejected.exit_code == 2
-    result = CliRunner().invoke(app, ["agent", "session", "stats", "--json"])
-    assert result.exit_code == 0
-    assert json.loads(result.stdout)["sessions"] == 1
 
 
 def test_prompt_stats_validate_selected_sessions_and_report_corruption(

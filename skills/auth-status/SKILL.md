@@ -44,13 +44,13 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    done
    ```
 
-1. **Report and hand off**: one table of provider, account (no token), status, scopes gap, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login github|google|colab` over native commands. When the user says they logged in, re-run only the failed probes.
+1. **Report and hand off**: one table of provider, account (no token), status, scopes gap, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login all` or `dot login github|workspace|gcp|colab` over native commands. When the user says they logged in, re-run only the failed probes.
 
 ## Gotchas
 
 - **Never print secrets**: no `print-access-token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, or `--show-token` in a transcript; dot's probes capture token output internally.
 - **Exit 0 is not proof**: `gh auth status --json` and Colab can succeed while reporting a failure; read the state and stderr.
-- **Shared ADC**: any other ADC login (`gcloud auth application-default login`, `dot login gcp --force`) replaces the grant and drops the Colab scope; run `dot login colab` again ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
+- **Shared ADC**: a native ADC login (`gcloud auth application-default login`, `gcloud auth login --update-adc`) replaces the grant and drops the Colab scope; `dot login gcp|colab` request `auth.gcp.adc_scopes`, which keeps it. Run `dot login colab` to restore it ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
 - **Authority**: probing is read-only; logging in, switching accounts, adding scopes, or editing `dot` configuration needs the user.
 
 ## Documentation

@@ -2,33 +2,12 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from datetime import UTC, datetime
 from statistics import median
 from typing import Any
 
 from fmind_dot.archive.query import SessionQuery, query_session_summaries
 from fmind_dot.archive.store import read_session_bundle
-
-
-def session_statistics(query: SessionQuery) -> dict[str, Any]:
-    """Count archived sessions from manifests without decoding transcripts."""
-    summaries = query_session_summaries(query)
-    # Subagent transcripts (sidechains) are archived on their own but belong to a parent session.
-    sessions = [item for item in summaries if not item.sidechain]
-    return {
-        "schema": "dot.agent.sessions.stats/v2",
-        "time_basis": "latest ingestion timestamp",
-        "sessions": len(sessions),
-        "sidechain_sessions": len(summaries) - len(sessions),
-        "archive_bytes": sum(item.path.stat().st_size for item in summaries),
-        "conversation_records": sum(item.record_count for item in summaries),
-        "malformed_records": sum(item.malformed_records for item in summaries),
-        "ignored_records": sum(item.skipped_records for item in summaries),
-        "agents": dict(sorted(Counter(item.agent for item in sessions).items())),
-        "statuses": dict(sorted(Counter(status for item in summaries for status in item.status).items())),
-        "content_validated": False,
-    }
 
 
 def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[str, Any]:

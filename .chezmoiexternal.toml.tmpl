@@ -4,7 +4,6 @@
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 {{ $base := "https://raw.githubusercontent.com/fmind/theme/727497c9344a958a91774d256943805fd8e396c0/themes" }}
 
-{{ if or (eq .chezmoi.os "darwin") (eq .chezmoi.os "linux") -}}
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
 ["{{ $fonts }}/GoogleSans"]
@@ -24,7 +23,6 @@
     url = "https://github.com/googlefonts/googlesans-code/releases/download/v7.001/GoogleSansCode-v7.001.zip"
     checksum.sha256 = "eebba2a438882396e8530cad6d6cb80182b0afb6e9e0ad07b7340359a53ba2e9"
     include = ["*.ttf", "OFL.txt"]
-{{ end -}}
 
 [".config/ghostty/themes/fmind"]
     type = "file"
@@ -103,14 +101,8 @@
     checksum.sha256 = "f6b891ea2327b82a32ab8296fd057ff17f660cd58054d850fd7c103341d420ae"
 
 # Install only the Mono family, keeping terminal icons within character cells.
-{{ if eq .chezmoi.os "darwin" -}}
-["Library/Fonts/GoogleSansCode"]
-{{ else if eq .chezmoi.os "linux" -}}
-[".local/share/fonts/GoogleSansCode"]
-{{ end -}}
-{{ if or (eq .chezmoi.os "darwin") (eq .chezmoi.os "linux") -}}
+["{{ $fonts }}/GoogleSansCode"]
     type = "archive"
     url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/GoogleSansCode.tar.xz"
     checksum.sha256 = "b5a2a79b6ac0f021049c63b67bb42a1dcf81d5bc4e447fc6205c79d969605f42"
     include = ["GoogleSansCodeNerdFontMono-*.ttf", "OFL.txt"]
-{{ end -}}

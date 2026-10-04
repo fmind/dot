@@ -1,12 +1,11 @@
 # chezmoi:modify-template
 {{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise
-       .profile can also be sourced by POSIX login shells and desktop sessions. */ -}}
-{{- $activation := `# Bootstrap mise for login shells; activation owns tool-version precedence.
-export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
-# Claude Code snapshots this shell but not the hook state that mise() needs, which
-# makes every mise call exit 127 there; its shells rely on the shims instead.
-if [ -n "${BASH_VERSION:-}" ] && [ -z "${CLAUDECODE:-}" ] && command -v mise >/dev/null 2>&1; then
-  mise_activation="$(mise activate bash)"
-  eval "${mise_activation}"
-fi` -}}
-{{- includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-bash-integration" "body" $activation "position" "bottom" "legacyEnd" "fi") -}}
+       .profile can also be sourced by POSIX login shells and desktop sessions; interactive bash
+       activates mise through .bashrc, so this block only exposes the shims. */ -}}
+{{- $path := `# Make mise-installed tools available to login shells and desktop sessions. Skip when
+# .bashrc already ran: prepending again would put the shims ahead of mise activation.
+case ":${PATH}:" in
+  *":${HOME}/.local/share/mise/shims:"*) ;;
+  *) export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}" ;;
+esac` -}}
+{{- includeTemplate "managed-block.tmpl" (dict "stdin" .chezmoi.stdin "name" "mise-bash-integration" "body" $path "position" "bottom") -}}

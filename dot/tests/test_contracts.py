@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import fnmatch
-import json
 import os
 import shutil
 import subprocess
@@ -49,12 +48,6 @@ def _write_skill(
     return skill
 
 
-def _write_contract_files(root: Path) -> None:
-    contracts = {"version": 1, "skills": {"fixture": ["uv"], "fixture-helper": []}}
-    path = root / "skills" / "contracts.json"
-    path.write_text(json.dumps(contracts), encoding="utf-8")
-
-
 def _fixture_repository(tmp_path: Path) -> Path:
     _write_skill(tmp_path)
     _write_skill(
@@ -62,7 +55,6 @@ def _fixture_repository(tmp_path: Path) -> Path:
         name="fixture-helper",
         description="Support compact fixtures. Use when contract tests need a second route.",
     )
-    _write_contract_files(tmp_path)
     (tmp_path / "README.md").write_text("# Fixture\n\nPython implementation.\n", encoding="utf-8")
     (tmp_path / "dot_agents").mkdir()
     (tmp_path / "dot_agents/AGENTS.md").write_text("# Fixture instructions\n", encoding="utf-8")
@@ -94,8 +86,6 @@ def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, valu
         (lambda text: text.replace("name: fixture", "name: wrong"), "must match its directory"),
         (lambda text: text.replace("# Fixture", "Fixture"), "H1 heading"),
         (lambda text: text.replace("## ", "### "), "H2 section"),
-        (lambda text: text.replace("(references/guide.md)", "(references/missing.md)"), "missing local link"),
-        (lambda text: text.replace("uv executable", "package executable"), "required tool 'uv' is undocumented"),
     ],
 )
 def test_skills_contract_rejects_broken_package(tmp_path: Path, mutation: Callable[[str], str], expected: str) -> None:
@@ -168,86 +158,6 @@ def test_skills_contract_rejects_non_regular_and_symlinked_resources(tmp_path: P
     assert any("non-regular resource" in finding for finding in findings)
 
 
-def test_skills_contract_parses_commonmark_and_html_links(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    skill = root / "skills/fixture/SKILL.md"
-    skill.write_text(
-        skill.read_text(encoding="utf-8")
-        + "\nRead [missing][detail].\n\n[detail]: references/missing.md\n"
-        + '<img src="references/missing.png">\n',
-        encoding="utf-8",
-    )
-
-    findings = checker.repository_findings(root)
-
-    assert any("references/missing.md" in finding for finding in findings)
-    assert any("references/missing.png" in finding for finding in findings)
-
-
-def test_skills_contract_parses_nested_markdown_and_html_srcset_links(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    guide = root / "skills/fixture/references/guide.md"
-    guide.write_text(
-        '# Guide\n\n[Missing](missing.md)\n\n<img srcset="missing-small.png 1x, missing-large.png 2x">\n',
-        encoding="utf-8",
-    )
-
-    findings = checker.repository_findings(root)
-
-    assert any("missing.md" in finding for finding in findings)
-    assert any("missing-small.png" in finding for finding in findings)
-    assert any("missing-large.png" in finding for finding in findings)
-
-
-def test_skills_contract_rejects_skill_root_relative_link_from_nested_document(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    guide = root / "skills/fixture/references/guide.md"
-    guide.write_text("# Guide\n\n[Wrong root-relative link](SKILL.md)\n", encoding="utf-8")
-
-    findings = checker.repository_findings(root)
-
-    assert any("references/guide.md: missing local link 'SKILL.md'" in finding for finding in findings)
-
-
-def test_skills_contract_accepts_html_metadata_and_srcset_url_commas(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    skill = root / "skills/fixture/SKILL.md"
-    skill.write_text(
-        skill.read_text(encoding="utf-8")
-        + '\n<div data="metadata">value</div>\n<img srcset="https://example.com/a,b.png 1x">\n',
-        encoding="utf-8",
-    )
-
-    assert checker.repository_findings(root) == []
-
-
-@pytest.mark.parametrize(
-    "markup",
-    [
-        '<a href="file&#58;///etc/passwd">outside</a>',
-        '<object data="file:///etc/passwd"></object>',
-        '<img srcset="https://example.com/image.png 1x, file:///etc/passwd 2x">',
-    ],
-)
-def test_skills_contract_rejects_unsafe_html_targets(tmp_path: Path, markup: str) -> None:
-    root = _fixture_repository(tmp_path)
-    skill = root / "skills/fixture/SKILL.md"
-    skill.write_text(skill.read_text(encoding="utf-8") + f"\n{markup}\n", encoding="utf-8")
-
-    assert any("unsupported local link" in finding for finding in checker.repository_findings(root))
-
-
-def test_skills_contract_rejects_repository_escape(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    skill = root / "skills/fixture/SKILL.md"
-    skill.write_text(
-        skill.read_text(encoding="utf-8") + "\n[Outside](../../../outside.md)\n",
-        encoding="utf-8",
-    )
-
-    assert any("escapes the repository" in finding for finding in checker.repository_findings(root))
-
-
 def test_skills_contract_rejects_symlinked_skill_root(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     target = root / "outside"
@@ -285,57 +195,6 @@ def test_repository_skills_have_individual_chezmoi_links() -> None:
     assert {path.name for path in links.iterdir()} == {f"symlink_{name}.tmpl" for name in packages}
     for name in packages:
         assert (links / f"symlink_{name}.tmpl").read_text() == "{{ .chezmoi.sourceDir }}/skills/" + name + "\n"
-
-
-def test_skills_contract_enforces_catalog_references(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    manifest = json.loads((root / "skills/contracts.json").read_text(encoding="utf-8"))
-    manifest["skills"]["archived-stack"] = []
-    (root / "skills/contracts.json").write_text(json.dumps(manifest), encoding="utf-8")
-
-    findings = checker.repository_findings(root)
-
-    assert any("registered skill 'archived-stack' has no active SKILL.md" in finding for finding in findings)
-
-
-def test_documentation_checks_root_and_security_policy_links(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    (root / "README.md").write_text("[Configuration](dot_config/dot.yaml)\n")
-    (root / ".github").mkdir(exist_ok=True)
-    (root / ".github/SECURITY.md").write_text("[Retired section](../README.md#missing)\n")
-
-    findings = checker.documentation_findings(root)
-
-    assert any("README.md: missing local link 'dot_config/dot.yaml'" in finding for finding in findings)
-    assert any(".github/SECURITY.md: missing local anchor '../README.md#missing'" in finding for finding in findings)
-
-
-def test_documentation_validates_markdown_fragments(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    readme = root / "README.md"
-    readme.write_text(
-        "# Fixture\n\n"
-        "[Self](#fixture) [Code](guide.md#run-dot) [Unicode](guide.md#caf%C3%A9) "
-        "[Duplicate](guide.md#repeat-1) [HTML](guide.md#explicit) "
-        "[Missing](guide.md#removed) [Missing self](#gone)\n"
-    )
-    (root / "guide.md").write_text(
-        '# Run `dot`\n\n## Café\n\n## Repeat\n\n## Repeat\n\n<a id="explicit"></a>\n```markdown\n# Not an anchor\n```\n'
-    )
-    findings = checker.documentation_findings(root)
-    assert len(findings) == 2
-    assert any("missing local anchor 'guide.md#removed'" in finding for finding in findings)
-    assert any("missing local anchor '#gone'" in finding for finding in findings)
-    readme.write_text("[Code block](guide.md#not-an-anchor)\n")
-    assert "missing local anchor" in checker.documentation_findings(root)[0]
-
-
-def test_skills_generated_template_fragments_are_not_checked_before_rendering(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    template = root / "skills/fixture/templates/README.md"
-    template.parent.mkdir()
-    template.write_text("[Replace when rendered](#generated-section)\n")
-    assert checker._link_findings(root, root, documents=(template,)) == []
 
 
 @pytest.mark.parametrize(("scope", "relative"), [("global", "dot_agents/AGENTS.md"), ("local", "AGENTS.md")])
@@ -453,14 +312,6 @@ def test_skills_reject_nested_entrypoint_even_when_linked(tmp_path: Path) -> Non
     assert any("nested SKILL.md enters host discovery" in item for item in checker.repository_findings(root))
 
 
-def test_skills_checks_links_inside_code_disclosed_resources(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    path = root / "skills/fixture/references/guide.md"
-    path.write_text("Read `details.md` for the exact procedure.\n")
-    (path.parent / "details.md").write_text("[Missing](missing.md)\n")
-    assert any("details.md: missing local link" in item for item in checker.repository_findings(root))
-
-
 @pytest.mark.parametrize("kind", ["unknown", "[]", "{}", "null"])
 def test_skills_rejects_unknown_kind(tmp_path: Path, kind: str) -> None:
     root = _fixture_repository(tmp_path)
@@ -491,7 +342,7 @@ def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -
             "description: Recover a fixture.", "description: Recover a fixture.\nlicense: MIT\nmetadata:\n  kind: task"
         )
     )
-    findings, _ = checker._skill_findings(root, "child", promoted, [])
+    findings, _ = checker._skill_findings(root, "child", promoted)
     assert findings == []
     assert (destination / "templates/input.txt").read_text() == "input\n"
 
@@ -509,6 +360,7 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     outstanding = {
         "dot_config/dot/private_secrets/remove_JULES_API_KEY",
         "dot_config/dot/private_secrets/remove_UV_PUBLISH_TOKEN",
+        "dot_config/fish/completions/remove_acli.fish",
         "dot_config/fish/conf.d/remove_secrets.fish",
         "dot_config/nvim/lua/plugins/remove_prose.lua",
         "dot_copilot/hooks/remove_notify.json",
@@ -538,28 +390,6 @@ def test_fzf_theme_file_is_exported_only_once_fetched(tmp_path: Path, fetched: b
     assert result.stdout.strip() == (str(theme) if fetched else "")
 
 
-def test_deploy_uses_the_locked_python_runtime_graph() -> None:
-    config = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
-    tasks = config["tasks"]
-    commands = {
-        name: " ".join([run] if isinstance(run := task.get("run", []), str) else run) for name, task in tasks.items()
-    }
-
-    # Deployment bootstraps from the mise-selected interpreter in isolated mode; going
-    # through `uv run` would make the installer depend on the environment it replaces.
-    assert '$(mise which python)" -I dot/src/fmind_dot/deploy.py' in commands["deploy"]
-    assert "$(mise which uv)" in commands["deploy"]
-    assert not [name for name, command in commands.items() if "deploy.py" in command and "uv run" in command]
-    assert not [name for name, command in commands.items() if "uv tool install" in command]
-    # Workstation tasks run the deployed entrypoint, and it is the launcher chezmoi links.
-    (launcher,) = (ROOT / "dot_local/bin").glob("symlink_*.tmpl")
-    target = launcher.read_text(encoding="utf-8").strip().removeprefix("{{ .chezmoi.homeDir }}")
-    assert config["env"]["DOT_BIN"] == "{{env.HOME}}" + target
-    assert target.startswith("/.local/share/fmind-dot/current/bin/")
-    for name in ("completions", "verify"):
-        assert commands[name].startswith('"$DOT_BIN" '), name
-
-
 def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
     config = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
     document = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))
@@ -580,24 +410,12 @@ def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
     assert findings == [], "\n".join(findings)
 
 
-# Their registry entries publish no checksum; keep in step with config.toml.tmpl's comment.
+# Their registry entries publish no checksum; keep in step with config.toml's comment.
 UNCHECKSUMMED_GLOBAL_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
 
 
 def test_global_lock_covers_every_configured_native_platform() -> None:
-    rendered = subprocess.check_output(
-        [
-            "chezmoi",
-            "execute-template",
-            "--source",
-            str(ROOT),
-            "--file",
-            str(ROOT / "dot_config/mise/config.toml.tmpl"),
-        ],
-        text=True,
-        timeout=30,
-    )
-    config = tomllib.loads(rendered)
+    config = tomllib.loads((ROOT / "dot_config/mise/config.toml").read_text(encoding="utf-8"))
     document = tomllib.loads((ROOT / "dot_config/mise/mise.lock").read_text(encoding="utf-8"))
     platforms = config["settings"]["lockfile_platforms"]
     assert platforms

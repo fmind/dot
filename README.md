@@ -96,7 +96,7 @@ The [Dot CLI guide](skills/dot-cli/SKILL.md) covers commands, diagnostics, and r
 
 Machine-local settings live in `~/.config/dot.yaml` and merge with [built-in defaults](dot/src/fmind_dot/config.py). Configuration selection is `dot --config <path>` → `DOT_CONFIG_PATH` → the default path. A missing default file is fine; a missing explicitly selected file is an error.
 
-Use `dot config edit` to edit settings and `dot config validate` to check them. Alternate `~/.config/dot.*.yaml` profiles are loaded only when selected; these files stay outside Git and chezmoi management.
+Use `dot config edit` to edit settings; it validates them when the editor exits. Alternate `~/.config/dot.*.yaml` profiles are loaded only when selected; these files stay outside Git and chezmoi management.
 
 ### Usage and subscription settings
 
@@ -150,14 +150,14 @@ Other everyday shortcuts: `/full-review` reviews a whole project and applies ver
 ### Authentication & Logins
 
 ```bash
+dot login all             # Everything below that is not ready yet, opening the browser when needed
 dot login github          # GitHub
 dot login workspace       # Google Workspace
 dot login gcp             # Google Cloud and ADC
 dot login colab           # ADC with Colab scopes, then verify session access
-dot login google          # Workspace, then GCP + ADC
 ```
 
-GitHub pushes use SSH, even for HTTPS clones: register an SSH key in [GitHub settings](https://github.com/settings/keys). Use `dot setup github` to reconcile scopes or `dot setup workspace <project-id>` for Workspace APIs and OAuth setup. Account selection and scope policy live in the [authentication guide](skills/dot-cli/references/authentication.md).
+GitHub pushes use SSH, even for HTTPS clones: register an SSH key in [GitHub settings](https://github.com/settings/keys). `dot login all` also reconciles GitHub scopes and, when `GWS_PROJECT` or `auth.workspace.project` is set, Workspace APIs and OAuth setup; run `dot setup github` or `dot setup workspace <project-id>` for one step alone. Account selection and scope policy live in the [authentication guide](skills/dot-cli/references/authentication.md).
 
 Agent harnesses use their own logins:
 

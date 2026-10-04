@@ -15,9 +15,7 @@ from fmind_dot.archive.usage import (
     UsageStats,
     aggregate_usage,
     list_usage_records,
-    load_usage_records,
     parse_flexible_time,
-    show_usage_record,
     write_usage_stats,
 )
 from fmind_dot.cli import app
@@ -406,13 +404,6 @@ def test_write_usage_stats_names_the_harnesses_with_legacy_accounting() -> None:
     assert "sessions retained from truncated sources keep their archived measurement." in grok
     assert "Claude" not in grok
 
-    both = note(
-        UsageStats(harness="grok", legacy_accounting_sessions=1),
-        UsageStats(harness="claude", legacy_accounting_sessions=1),
-    )
-    assert "Legacy accounting in claude, grok:" in both
-    assert "Old Claude totals may count repeated response blocks." in both
-
     assert "Legacy accounting" not in note(UsageStats(harness="claude"))
 
 
@@ -461,14 +452,11 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
             "--json",
         ],
     )
-    shown = runner.invoke(app, ["agent", "usage", "show", "codex", "new"])
 
     assert listed.exit_code == 0
     assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == ["new"]
     assert stats.exit_code == 0
     assert [(row["model"], row["total_tokens"]) for row in json.loads(stats.stdout)["usage"]] == [("gpt-mini", 3)]
-    assert shown.exit_code == 0
-    assert json.loads(shown.stdout)["record"]["session_id"] == "new"
 
 
 def test_parse_flexible_time_supports_durations_days_and_iso_values() -> None:
@@ -525,16 +513,6 @@ def test_usage_record_rejects_unsupported_formats(field: str, value: str | None)
         document[field] = value
     with pytest.raises(ValueError, match="unsupported usage format"):
         UsageRecord.from_dict(document)
-
-
-def test_usage_show_validates_identity_and_reports_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    for harness, session in [("", "fixture"), ("codex", "")]:
-        with pytest.raises(ValueError, match="usage: dot agent usage show"):
-            show_usage_record(harness, session)
-    with pytest.raises(ValueError, match="usage record not found"):
-        show_usage_record("codex", "missing")
-    assert load_usage_records() == []
 
 
 @pytest.mark.parametrize(

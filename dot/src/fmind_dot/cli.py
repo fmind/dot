@@ -18,9 +18,8 @@ from fmind_dot import __version__, orphan, repository, system, trust, workstatio
 from fmind_dot.agent import agent_app
 from fmind_dot.auth import login_app, setup_app
 from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, FishCompletion, help_group
-from fmind_dot.config import dump_config, load_config, starter_config
+from fmind_dot.config import dump_config, load_config
 from fmind_dot.errors import DotError
-from fmind_dot.private_files import write_atomic_file
 from fmind_dot.secrets import secret_app
 from fmind_dot.state import State, state_from
 
@@ -42,7 +41,7 @@ app = typer.Typer(
     rich_markup_mode=HELP_MARKUP,
     context_settings=_CONTEXT_SETTINGS,
 )
-config_app = help_group("Inspect, scaffold, edit, and validate the dot configuration file")
+config_app = help_group("Inspect and edit the dot configuration file")
 
 
 def _version_option(value: bool) -> None:
@@ -78,51 +77,16 @@ def config_path(context: typer.Context) -> None:
     typer.echo(state_from(context).config_path)
 
 
-@config_app.command("init", help="Write a starter configuration file listing the built-in defaults as comments")
-def config_init(
-    context: typer.Context,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite an existing configuration file")] = False,
-) -> None:
-    state = state_from(context)
-    path = state.config_path
-    if _managed_config(state):
-        raise DotError("configuration is managed by chezmoi; use dot config edit")
-    try:
-        path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
-    except OSError as error:
-        raise DotError(f"failed to create config directory: {error}") from error
-    if not force and (path.is_symlink() or path.exists()):
-        raise DotError(f"config file already exists at {path} (use --force to overwrite)")
-    try:
-        # Write through a symlinked path; atomic replacement never leaves a truncated file.
-        target = path.resolve()
-        mode = target.stat().st_mode & 0o777 if target.exists() else 0o600
-        write_atomic_file(target, starter_config().encode("utf-8"), mode=mode)
-    except OSError as error:
-        raise DotError(f"failed to write config file: {error}") from error
-    typer.echo(f"✓ Wrote starter configuration to {path}")
-
-
-@config_app.command("edit", help="Open the configuration file in $EDITOR (scaffolds it first if missing)")
+@config_app.command("edit", help="Open the configuration file in $EDITOR, then validate it")
 def config_edit(context: typer.Context) -> None:
     state = state_from(context)
-    if managed := _managed_config(state):
-        code = state.runner.interactive(
-            ["chezmoi", "edit", "--apply", "--force", str(managed)],
-            stdin=state.stdin,
-            stdout=state.stdout,
-            stderr=state.stderr,
-        )
-        if code:
-            raise DotError(f"chezmoi editor exited with status {code}")
-        load_config(state.config_argument)
-        typer.echo("✓ Managed configuration is valid.")
-        return
-    if not state.config_path.exists():
-        config_init(context)
     editor = shlex.split(os.environ.get("EDITOR", "")) or ["vi"]
     if state.runner.which(editor[0]) is None:
         raise DotError(f"editor {editor[0]!r} not found in PATH")
+    try:
+        state.config_path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    except OSError as error:
+        raise DotError(f"failed to create config directory: {error}") from error
     code = state.runner.interactive(
         [*editor, str(state.config_path)], stdin=state.stdin, stdout=state.stdout, stderr=state.stderr
     )
@@ -130,32 +94,6 @@ def config_edit(context: typer.Context) -> None:
         raise DotError(f"editor exited with status {code}")
     load_config(state.config_argument)
     typer.echo("✓ Configuration is valid.")
-
-
-def _managed_config(state: State) -> Path | None:
-    """Resolve aliases for protection, but give chezmoi its actual managed target."""
-    if state.runner.which("chezmoi") is None:
-        return None
-    result = state.runner.run(
-        ["chezmoi", "managed", "--path-style=absolute", "--nul-path-separator"],
-        timeout=30,
-    )
-    paths = [Path(path) for path in result.stdout.split("\0") if path]
-    selected = state.config_path.absolute()
-    if selected in paths:
-        return selected
-    resolved = selected.resolve()
-    return next((path for path in paths if path.resolve() == resolved), None)
-
-
-@config_app.command("validate", help="Validate that the configuration file parses (strict, unknown keys rejected)")
-def config_validate(context: typer.Context) -> None:
-    state = state_from(context)
-    if not state.config_path.exists() and state.config_argument is None:
-        typer.echo(f"○ No config file at {state.config_path}; built-in defaults are in effect.")
-        return
-    load_config(state.config_argument)
-    typer.echo(f"✓ Configuration at {state.config_path} is valid.")
 
 
 app.add_typer(config_app, name="config")

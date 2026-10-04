@@ -16,7 +16,7 @@ Use `colab` to inspect existing sessions or run work on an accelerator the works
 
 ## Authentication
 
-Pass the global `--auth adc` or `--auth oauth2` before every subcommand: CLI 0.7.4 defaults to OAuth, so do not rely on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); for user ADC, run `dot login colab`, which requests the fixed Colab scope grant and verifies session access (`--dry-run` previews the native commands; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics). Session state lives under `~/.config/colab-cli/`. Examples assume ADC; substitute `oauth2` for an existing OAuth profile.
+Pass the global `--auth adc` or `--auth oauth2` before every subcommand: CLI 0.7.4 defaults to OAuth, so do not rely on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); for user ADC, run `dot login colab`, which requests the configured ADC grant only when it lacks the Colab scopes and verifies session access (`--dry-run` previews the native commands; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics). Session state lives under `~/.config/colab-cli/`. Examples assume ADC; substitute `oauth2` for an existing OAuth profile.
 
 ## Inspect without allocating
 

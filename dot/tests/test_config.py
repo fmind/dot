@@ -205,7 +205,7 @@ def test_timeouts_accept_positive_numeric_seconds(tmp_path: Path, value: str) ->
         "auth:\n  github:\n    scopes: [repo]\n    remove_scopes: [repo]\n",
         "auth:\n  github:\n    scopes: ['repo,delete_repo']\n",
         "auth:\n  github:\n    scopes: ['--help']\n",
-        "auth:\n  github:\n    host: --invalid\n",
+        "auth:\n  github:\n    host: github.com\n",
         "auth:\n  workspace:\n    scopes: []\n",
         "auth:\n  workspace:\n    project: '--flags-file=oops'\n",
         "auth:\n  workspace:\n    apis: ['--all']\n",

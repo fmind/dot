@@ -1,9 +1,8 @@
 """Command contracts for agent workflows."""
 
-import json
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 import typer
 
@@ -12,12 +11,10 @@ from fmind_dot.archive.parsers import AGENT_ADAPTERS, resolve_cwd
 from fmind_dot.archive.query import (
     SESSION_STATUSES,
     SessionQuery,
-    export_sessions,
     query_session_summaries,
     show_session,
 )
-from fmind_dot.archive.statistics import prompt_statistics, session_statistics
-from fmind_dot.archive.store import ensure_session_store
+from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.sync import bounded_failure, sync_sessions
 from fmind_dot.archive.usage import (
     aggregate_usage,
@@ -25,7 +22,6 @@ from fmind_dot.archive.usage import (
     list_usage_records,
     load_usage_records,
     parse_flexible_time,
-    show_usage_record,
     write_usage_stats,
 )
 from fmind_dot.command_group import JsonOption, help_group
@@ -82,16 +78,13 @@ _SINCE_VALUES = "duration (7d, 24h), UTC date, or timestamp"
 _UNTIL_VALUES = "duration, UTC date (whole day), or timestamp"
 SinceOption = Annotated[str, typer.Option("--since", help=f"Ingested since {_SINCE_VALUES}")]
 UntilOption = Annotated[str, typer.Option("--until", help=f"Ingested until {_UNTIL_VALUES}")]
-ExportFormatOption = Annotated[
-    Literal["json", "ndjson"], typer.Option("--format", help="One JSON document or one session per line")
-]
 
 
-def _known_agent(agent: str, param_hint: str = "--agent") -> str:
+def _known_agent(agent: str) -> str:
     """Reject a misspelled agent before a report syncs, so a typo never becomes an all-agent capture."""
     if agent and agent not in AGENT_ADAPTERS:
         raise typer.BadParameter(
-            f"unknown agent {agent!r}; choose {', '.join(sorted(AGENT_ADAPTERS))}", param_hint=param_hint
+            f"unknown agent {agent!r}; choose {', '.join(sorted(AGENT_ADAPTERS))}", param_hint="--agent"
         )
     return agent
 
@@ -116,7 +109,6 @@ def session_list(
             f"unknown status {min(unknown)!r}; choose {', '.join(SESSION_STATUSES)}", param_hint="--status"
         )
     query = _query(agent, cwd, identity, since, until)
-    ensure_session_store()
     summaries = query_session_summaries(
         query,
         validate_content="invalid" in selected_statuses,
@@ -156,38 +148,9 @@ def session_show(
     if session and identity and session != identity:
         raise typer.BadParameter("conflicts with the identity argument", param_hint="--session")
     query = _query(agent, cwd, session or identity, since, until)
-    ensure_session_store()
     summary = show_session(query, include_content=content)
     write_json(
         state.stdout, {"schema": "dot.agent.session.show/v2", "session": summary.to_dict(include_records=content)}
-    )
-
-
-@session_app.command("export", help="Export archived sessions")
-def session_export(
-    context: typer.Context,
-    agent: AgentOption = "",
-    cwd: ProjectOption = "",
-    session: SessionOption = "",
-    since: SinceOption = "",
-    until: UntilOption = "",
-    format: ExportFormatOption = "json",  # noqa: A002 - CLI flag name
-    content: Annotated[bool, typer.Option("--content", help="Include prompt and response content")] = False,
-    redact_content: Annotated[
-        bool, typer.Option("--redact-content", help="Keep records but replace their content")
-    ] = False,
-) -> None:
-    if content and redact_content:
-        raise typer.BadParameter("cannot be combined with --content", param_hint="--redact-content")
-    state = state_from(context)
-    query = _query(agent, cwd, session, since, until)
-    ensure_session_store()
-    export_sessions(
-        state.stdout,
-        query,
-        format=format,
-        include_content=content,
-        redact_content=redact_content,
     )
 
 
@@ -214,16 +177,6 @@ def session_sync(
     )
 
 
-def _print_statistics(state: State, document: dict[str, Any], *, as_json: bool) -> None:
-    if as_json:
-        write_json(state.stdout, document)
-    else:
-        for key, value in document.items():
-            state.stdout.write(
-                f"{key}: {json.dumps(value, ensure_ascii=False) if isinstance(value, dict | list) else value}\n"
-            )
-
-
 def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
     def write(text: str = "") -> None:
         write_report_line(state.stdout, text)
@@ -248,21 +201,6 @@ def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
             f"Excluded sessions: {document['excluded_sessions']:,} · Invalid timestamps: {document['invalid_timestamps']:,}"
         )
     write(f"Prompt coverage: {'complete' if document['complete'] else 'INCOMPLETE'} within the selected archive.")
-
-
-@session_app.command("stats", help="Count archived sessions, records, archive bytes, and status")
-def session_stats(
-    context: typer.Context,
-    agent: AgentOption = "",
-    cwd: ProjectOption = "",
-    since: SinceOption = "",
-    until: UntilOption = "",
-    as_json: JsonOption = False,
-) -> None:
-    state = state_from(context)
-    query = _query(agent, cwd, "", since, until)
-    ensure_session_store()
-    _print_statistics(state, session_statistics(query), as_json=as_json)
 
 
 @hook_app.command("notify", help="Send a desktop notification for a native agent event")
@@ -311,21 +249,6 @@ def usage_list(
             f"{record.timestamp[:19]}\t{record.harness}\t{record.session_id}\t{record.model or '-'}\t"
             f"{record.total_tokens:,}\t{f'${record.cost_usd:.4f}' if record.cost_known or record.cost_usd else 'unknown'}\n"
         )
-
-
-@usage_app.command("show", help="Sync changed sessions (unless --no-sync), then show usage for one session")
-def usage_show(
-    context: typer.Context,
-    agent: Annotated[str, typer.Argument(help="Agent adapter name")],
-    session_id: Annotated[str, typer.Argument(help="Native session identifier")],
-    no_sync: NoSyncOption = False,
-) -> None:
-    state = state_from(context)
-    _known_agent(agent, "AGENT")
-    if not no_sync:
-        sync_sessions(state, agent=agent, quiet=True)
-    record = show_usage_record(agent, session_id).to_dict()
-    write_json(state.stdout, {"schema": "dot.agent.usage.show/v1", "record": record})
 
 
 @agent_app.command(

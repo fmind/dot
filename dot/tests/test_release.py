@@ -1,39 +1,42 @@
 from __future__ import annotations
 
 import io
-import json
-import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import IO
 
 import pytest
-import yaml
 
-from dot_tasks import publish
-from dot_tasks.release import (
-    _WAIT_RETRIES,
-    _remote_release_tag_objects,
-    push_prepared_commit,
-    push_release_tag,
-    read_release_version,
-    run_release,
-    validate_release_status,
-    wait_for_release,
-)
+from dot_tasks.release import read_release_version, run_release, validate_release_status
 from fmind_dot.errors import DotError
-from fmind_dot.process import RUN_OUTPUT_LIMIT_BYTES, CommandResult, Runner
+from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 
+TAG = "v1.27.0"
+GIT_CLIFF_BUMPED = ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")
+RESTORE = ("git", "restore", "--staged", "--worktree", "--", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock")
+PUSH = ("git", "push", "--atomic", "origin", "HEAD:refs/heads/main", f"refs/tags/{TAG}")
 
-class RecordingRunner(Runner):
-    def __init__(self) -> None:
+
+class ReleaseRunner(Runner):
+    """Record git, git-cliff, and mise while running uv's real version and lock writer offline."""
+
+    def __init__(self, root: Path) -> None:
         super().__init__()
         self.calls: list[tuple[str, ...]] = []
         self.interactive_calls: list[tuple[str, ...]] = []
-        self.responses: dict[tuple[str, ...], CommandResult | Exception | KeyboardInterrupt] = {}
-        self.output_limits: list[int | None] = []
-        self.installed = {"chezmoi", "docker", "dprint", "gh", "git", "git-cliff", "mise", "pip", "uv"}
+        self.installed = {"git", "git-cliff", "mise", "uv"}
+        self.responses: dict[tuple[str, ...], CommandResult | BaseException] = {
+            ("git", "rev-parse", "--show-toplevel"): CommandResult(str(root), "", 0),
+            ("git", "branch", "--show-current"): CommandResult("main", "", 0),
+            ("git", "rev-parse", "HEAD"): CommandResult("b" * 40, "", 0),
+            ("git", "rev-parse", "origin/main"): CommandResult("b" * 40, "", 0),
+            GIT_CLIFF_BUMPED: CommandResult(TAG, "", 0),
+            ("git", "status", "--porcelain=v1", "-z", "--untracked-files=all"): CommandResult(
+                " M CHANGELOG.md\0 M dot/pyproject.toml\0 M dot/uv.lock\0", "", 0
+            ),
+        }
+        self.interactive_codes: dict[tuple[str, ...], int | BaseException] = {}
 
     def which(self, command: str) -> Path | None:
         return Path("/usr/bin") / command if command in self.installed else None
@@ -48,9 +51,11 @@ class RecordingRunner(Runner):
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        del cwd, input_text, env, timeout
+        del input_text
         call = tuple(args)
         self.calls.append(call)
+        if args[0] == "uv":
+            return Runner().run(args, cwd=cwd, env={**(env or {}), "UV_OFFLINE": "1"}, timeout=timeout)
         response = self.responses.get(call, CommandResult("", "", 0))
         if isinstance(response, BaseException):
             raise response
@@ -58,20 +63,6 @@ class RecordingRunner(Runner):
             raise DotError(f"command failed ({response.returncode}): {args[0]}")
         return response
 
-    def run_bounded(
-        self,
-        args: Sequence[str],
-        *,
-        max_output_bytes: int,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        self.output_limits.append(max_output_bytes)
-        return self.run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
-
     def interactive(
         self,
         args: Sequence[str],
@@ -81,815 +72,148 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env
+        del cwd, stdin, stdout, stderr, env, on_stderr_line
         call = tuple(args)
         self.interactive_calls.append(call)
-        response = self.responses.get(call, CommandResult("", "", 0))
-        if isinstance(response, KeyboardInterrupt):
-            raise response
-        if isinstance(response, Exception):
-            return 1
-        if response.returncode == 0 and len(call) == 4 and call[:3] == ("git", "push", "origin"):
-            source, destination = call[3].split(":", 1)
-            prefix = "refs/heads/"
-            if destination.startswith(prefix):
-                branch = destination.removeprefix(prefix)
-                self.responses[("git", "rev-parse", f"origin/{branch}")] = CommandResult(source, "", 0)
-        return response.returncode
-
-
-class RealLockRunner(RecordingRunner):
-    """Keep release side effects fake while exercising uv's real version and lock writer."""
-
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: Mapping[str, str] | None = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        if args[0] == "uv":
-            self.calls.append(tuple(args))
-            command_env = dict(env or {})
-            command_env["UV_OFFLINE"] = "1"
-            # Bypass the recording run_bounded override, which delegates back to run().
-            return Runner.run_bounded(
-                self,
-                args,
-                max_output_bytes=RUN_OUTPUT_LIMIT_BYTES,
-                cwd=cwd,
-                input_text=input_text,
-                env=command_env,
-                timeout=timeout,
-                check=check,
-            )
-        return super().run(
-            args,
-            cwd=cwd,
-            input_text=input_text,
-            env=env,
-            timeout=timeout,
-            check=check,
-        )
-
-
-class VersionRevertingRunner(RealLockRunner):
-    def __init__(self, pyproject: Path, content: str) -> None:
-        super().__init__()
-        self.pyproject = pyproject
-        self.content = content
-
-    def interactive(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        stdin: IO[str] | None = None,
-        stdout: IO[str] | None = None,
-        stderr: IO[str] | None = None,
-        env: Mapping[str, str] | None = None,
-    ) -> int:
-        code = super().interactive(
-            args,
-            cwd=cwd,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-            env=env,
-        )
-        if tuple(args) == ("mise", "run", "test"):
-            self.pyproject.write_text(self.content)
+        code = self.interactive_codes.get(call, 0)
+        if isinstance(code, BaseException):
+            raise code
         return code
 
 
-UV_VERSION = ("uv", "version", "1.27.0", "--project", "dot", "--no-sync")
+def make_state(runner: Runner) -> State:
+    return State(runner=runner, stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO())
 
 
-def make_state(runner: Runner | None = None) -> State:
-    return State(
-        runner=runner or RecordingRunner(),
-        stdin=io.StringIO(),
-        stdout=io.StringIO(),
-        stderr=io.StringIO(),
-    )
-
-
-def copy_release_project(tmp_path: Path) -> tuple[Path, bytes]:
-    project = tmp_path / "dot"
-    project.mkdir()
-    # A dependency-free package keeps the real uv lock rewrite hermetic even
-    # when the test runner starts with an empty package cache.
-    (project / "pyproject.toml").write_text(
+@pytest.fixture
+def project(tmp_path: Path) -> Path:
+    package = tmp_path / "dot"
+    package.mkdir()
+    # A dependency-free package keeps the real uv lock rewrite hermetic.
+    (package / "pyproject.toml").write_text(
         '[project]\nname = "fmind-dot"\nversion = "1.26.2"\nrequires-python = ">=3.14"\ndependencies = []\n'
     )
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n")
-    Runner().run(["uv", "lock", "--project", str(project)], env={"UV_OFFLINE": "1"})
-    return project, (project / "uv.lock").read_bytes()
+    Runner().run(["uv", "lock", "--project", str(package)], env={"UV_OFFLINE": "1"})
+    return tmp_path
 
 
-def release_runner(tmp_path: Path) -> RealLockRunner:
-    commit = "b" * 40
-    tag_object = "c" * 40
-    tag_ref = "refs/tags/v1.27.0"
-    runner = RealLockRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(commit, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(commit, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("feat: migrate", "", 0),
-        ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version"): CommandResult(
-            "v1.27.0", "", 0
-        ),
-        ("git", "describe", "--tags", "--abbrev=0"): CommandResult("v1.26.2", "", 0),
-        ("git", "status", "--porcelain=v1", "-z", "--untracked-files=all"): CommandResult(
-            " M CHANGELOG.md\0 M dot/pyproject.toml\0 M dot/uv.lock\0", "", 0
-        ),
-        ("git", "cat-file", "-t", tag_ref): CommandResult("", "", 1),
-        ("git", "rev-parse", tag_ref): CommandResult(tag_object, "", 0),
-        ("git", "cat-file", "-t", tag_object): CommandResult("tag", "", 0),
-        ("git", "rev-parse", f"{tag_object}^{{}}"): CommandResult(commit, "", 0),
-        ("git", "ls-remote", "--tags", "origin", tag_ref, f"{tag_ref}^{{}}"): CommandResult(
-            f"{tag_object}\t{tag_ref}\n{commit}\t{tag_ref}^{{}}\n", "", 0
-        ),
-    }
-    return runner
-
-
-def test_uncertain_push_requires_remote_exact_head() -> None:
-    commit = "a" * 40
-    runner = RecordingRunner()
-    refspec = f"{commit}:refs/heads/main"
-    runner.responses[("git", "push", "origin", refspec)] = CommandResult("", "", 1)
-    runner.responses[("git", "rev-parse", "origin/main")] = CommandResult(commit, "", 0)
+def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Path) -> None:
+    runner = ReleaseRunner(project)
     state = make_state(runner)
 
-    push_prepared_commit(state, "origin", "main", commit)
-    runner.responses[("git", "rev-parse", "origin/main")] = CommandResult("b" * 40, "", 0)
-    with pytest.raises(DotError, match="failed to push prepared commit"):
-        push_prepared_commit(state, "origin", "main", commit)
+    assert run_release(state, yes=True) == TAG
 
-
-def test_uncertain_push_fails_closed_when_remote_reconciliation_fails() -> None:
-    commit = "a" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "push", "origin", f"{commit}:refs/heads/main"): CommandResult("", "", 1),
-        ("git", "fetch", "origin", "main"): DotError("network unavailable"),
-    }
-
-    with pytest.raises(DotError, match="failed to push prepared commit"):
-        push_prepared_commit(make_state(runner), "origin", "main", commit)
-
-
-def test_remote_tag_resolution_prefers_exact_peeled_commit() -> None:
-    commit = "a" * 40
-    refspec = "refs/tags/v1.2.3"
-    runner = RecordingRunner()
-    runner.responses[("git", "ls-remote", "--tags", "origin", refspec, f"{refspec}^{{}}")] = CommandResult(
-        f"{'b' * 40}\t{refspec}\n{commit}\t{refspec}^{{}}\n", "", 0
+    assert read_release_version(project) == "1.27.0"
+    assert 'version = "1.27.0"' in (project / "dot/uv.lock").read_text()
+    assert runner.interactive_calls == [
+        ("mise", "run", "test:starters"),
+        ("mise", "run", "build"),
+        ("mise", "run", "check:completions"),
+        PUSH,
+    ]
+    git = [call for call in runner.calls if call[0] == "git"]
+    assert git.index(("git", "commit", "-m", f"chore(release): {TAG}")) < git.index(
+        ("git", "tag", "-a", TAG, "-m", TAG)
     )
-
-    assert _remote_release_tag_objects(make_state(runner), "origin", refspec) == ("b" * 40, commit)
-    assert runner.output_limits[-1] == 4096
-
-
-def test_remote_tag_resolution_rejects_truncated_output() -> None:
-    commit = "a" * 40
-    refspec = "refs/tags/v1.2.3"
-    runner = RecordingRunner()
-    runner.responses[("git", "ls-remote", "--tags", "origin", refspec, f"{refspec}^{{}}")] = CommandResult(
-        f"{'b' * 40}\t{refspec}\n{commit}\t{refspec}^{{}}\n",
-        "",
-        0,
-        stdout_truncated=True,
-    )
-
-    with pytest.raises(DotError, match="exceeded 4096 bytes"):
-        _remote_release_tag_objects(make_state(runner), "origin", refspec)
+    assert runner.calls[-1] == ("mise", "run", "--force", "deploy")
+    assert RESTORE not in runner.calls
 
 
-@pytest.mark.parametrize(
-    ("output", "message"),
-    [
-        ("broken\n", "invalid ls-remote record"),
-        (
-            f"{'a' * 40}\trefs/tags/v1.2.3\n{'b' * 40}\trefs/tags/v1.2.3\n",
-            "conflicting remote values",
-        ),
-        (
-            f"{'a' * 40}\trefs/tags/v1.2.3^{{}}\n{'b' * 40}\trefs/tags/v1.2.3^{{}}\n",
-            "conflicting remote values",
-        ),
-        (f"{'a' * 40}\trefs/tags/unexpected\n", "unexpected remote tag ref"),
-        (f"{'a' * 40}\trefs/tags/v1.2.3^{{}}\n", "without its tag object"),
-    ],
-)
-def test_remote_tag_resolution_rejects_ambiguous_records(output: str, message: str) -> None:
-    refspec = "refs/tags/v1.2.3"
-    runner = RecordingRunner()
-    runner.responses[("git", "ls-remote", "--tags", "origin", refspec, f"{refspec}^{{}}")] = CommandResult(
-        output, "", 0
-    )
-
-    with pytest.raises(DotError, match=message):
-        _remote_release_tag_objects(make_state(runner), "origin", refspec)
-
-
-def test_rejected_release_tag_push_accepts_remote_annotated_tag_at_expected_commit() -> None:
-    commit = "a" * 40
-    tag_object = "b" * 40
-    refspec = "refs/tags/v1.2.3"
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "cat-file", "-t", refspec): CommandResult("tag", "", 0),
-        ("git", "rev-parse", refspec): CommandResult(tag_object, "", 0),
-        ("git", "cat-file", "-t", tag_object): CommandResult("tag", "", 0),
-        ("git", "rev-parse", f"{tag_object}^{{}}"): CommandResult(commit, "", 0),
-        ("git", "push", "origin", f"{tag_object}:{refspec}"): CommandResult("", "", 1),
-        ("git", "ls-remote", "--tags", "origin", refspec, f"{refspec}^{{}}"): CommandResult(
-            f"{tag_object}\t{refspec}\n{commit}\t{refspec}^{{}}\n", "", 0
-        ),
-    }
-
-    push_release_tag(make_state(runner), "origin", "v1.2.3", commit)
-
-
-class GitPushRaceRunner(Runner):
-    def __init__(self, mutation: Callable[[], None]) -> None:
-        super().__init__()
-        self.mutation = mutation
-        self.mutated = False
-
-    def interactive(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        stdin: IO[str] | None = None,
-        stdout: IO[str] | None = None,
-        stderr: IO[str] | None = None,
-        env: Mapping[str, str] | None = None,
-    ) -> int:
-        if tuple(args[:2]) == ("git", "push") and not self.mutated:
-            self.mutation()
-            self.mutated = True
-        return super().interactive(
-            args,
-            cwd=cwd,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-            env=env,
-        )
-
-
-def _release_race_repository(tmp_path: Path) -> tuple[Path, Path, str, str]:
-    remote = tmp_path / "remote.git"
-    local = tmp_path / "local"
-    git = Runner()
-    git.run(["git", "init", "--bare", str(remote)])
-    git.run(["git", "init", str(local)])
-    git.run(["git", "config", "user.name", "Release Test"], cwd=local)
-    git.run(["git", "config", "user.email", "release@example.invalid"], cwd=local)
-    tracked = local / "tracked"
-    tracked.write_text("first\n")
-    git.run(["git", "add", "tracked"], cwd=local)
-    git.run(["git", "commit", "-m", "first"], cwd=local)
-    first = git.run(["git", "rev-parse", "HEAD"], cwd=local).stdout.strip()
-    tracked.write_text("second\n")
-    git.run(["git", "commit", "-am", "second"], cwd=local)
-    second = git.run(["git", "rev-parse", "HEAD"], cwd=local).stdout.strip()
-    git.run(["git", "remote", "add", "origin", str(remote)], cwd=local)
-    return remote, local, first, second
-
-
-def test_prepared_commit_push_is_bound_to_validated_object(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    remote, local, prepared, replacement = _release_race_repository(tmp_path)
-    git = Runner()
-    git.run(["git", "reset", "--hard", prepared], cwd=local)
-
-    def switch_head() -> None:
-        git.run(["git", "reset", "--hard", replacement], cwd=local)
-
-    runner = GitPushRaceRunner(switch_head)
-    monkeypatch.chdir(local)
-
-    with (
-        Path(os.devnull).open() as stdin,
-        Path(os.devnull).open("w") as stdout,
-        Path(os.devnull).open("w") as stderr,
-    ):
-        push_prepared_commit(
-            State(runner=runner, stdin=stdin, stdout=stdout, stderr=stderr), "origin", "main", prepared
-        )
-
-    accepted = git.run(["git", "--git-dir", str(remote), "rev-parse", "refs/heads/main"]).stdout.strip()
-    assert runner.mutated
-    assert accepted == prepared
-
-
-def test_release_tag_push_is_bound_to_validated_tag_object(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    remote, local, prepared, replacement = _release_race_repository(tmp_path)
-    git = Runner()
-    tag = "v1.2.3"
-    refspec = f"refs/tags/{tag}"
-    git.run(["git", "tag", "-a", tag, "-m", tag, prepared], cwd=local)
-    tag_object = git.run(["git", "rev-parse", refspec], cwd=local).stdout.strip()
-
-    def retarget() -> None:
-        git.run(["git", "tag", "-f", "-a", tag, "-m", "replacement", replacement], cwd=local)
-
-    runner = GitPushRaceRunner(retarget)
-    monkeypatch.chdir(local)
-    with (
-        Path(os.devnull).open() as stdin,
-        Path(os.devnull).open("w") as stdout,
-        Path(os.devnull).open("w") as stderr,
-    ):
-        push_release_tag(State(runner=runner, stdin=stdin, stdout=stdout, stderr=stderr), "origin", tag, prepared)
-
-    accepted_object = git.run(["git", "--git-dir", str(remote), "rev-parse", refspec]).stdout.strip()
-    accepted_commit = git.run(["git", "--git-dir", str(remote), "rev-parse", f"{refspec}^{{}}"]).stdout.strip()
-    assert runner.mutated
-    assert accepted_object == tag_object
-    assert accepted_commit == prepared
-
-
-def test_rejected_release_tag_push_does_not_accept_remote_lightweight_tag(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    remote = tmp_path / "remote.git"
-    local = tmp_path / "local"
-    git = Runner()
-    git.run(["git", "init", "--bare", str(remote)])
-    git.run(["git", "init", str(local)])
-    git.run(["git", "config", "user.name", "Release Test"], cwd=local)
-    git.run(["git", "config", "user.email", "release@example.invalid"], cwd=local)
-    (local / "tracked").write_text("release\n")
-    git.run(["git", "add", "tracked"], cwd=local)
-    git.run(["git", "commit", "-m", "initial"], cwd=local)
-    commit = git.run(["git", "rev-parse", "HEAD"], cwd=local).stdout.strip()
-    git.run(["git", "remote", "add", "origin", str(remote)], cwd=local)
-    git.run(["git", "tag", "v1.2.3"], cwd=local)
-    git.run(["git", "push", "origin", "refs/tags/v1.2.3"], cwd=local)
-    git.run(["git", "tag", "--delete", "v1.2.3"], cwd=local)
-    monkeypatch.chdir(local)
-
-    with (
-        Path(os.devnull).open() as stdin,
-        Path(os.devnull).open("w") as stdout,
-        Path(os.devnull).open("w") as stderr,
-        pytest.raises(DotError, match=r"failed to push tag v1\.2\.3 to origin"),
-    ):
-        push_release_tag(State(runner=git, stdin=stdin, stdout=stdout, stderr=stderr), "origin", "v1.2.3", commit)
-
-
-def test_local_lightweight_release_tag_is_rejected_before_push(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    remote = tmp_path / "remote.git"
-    local = tmp_path / "local"
-    git = Runner()
-    git.run(["git", "init", "--bare", str(remote)])
-    git.run(["git", "init", str(local)])
-    git.run(["git", "config", "user.name", "Release Test"], cwd=local)
-    git.run(["git", "config", "user.email", "release@example.invalid"], cwd=local)
-    (local / "tracked").write_text("release\n")
-    git.run(["git", "add", "tracked"], cwd=local)
-    git.run(["git", "commit", "-m", "initial"], cwd=local)
-    commit = git.run(["git", "rev-parse", "HEAD"], cwd=local).stdout.strip()
-    git.run(["git", "remote", "add", "origin", str(remote)], cwd=local)
-    git.run(["git", "tag", "v1.2.3"], cwd=local)
-    monkeypatch.chdir(local)
-
-    with (
-        Path(os.devnull).open() as stdin,
-        Path(os.devnull).open("w") as stdout,
-        Path(os.devnull).open("w") as stderr,
-        pytest.raises(DotError, match=r"local tag v1\.2\.3 must be annotated"),
-    ):
-        push_release_tag(State(runner=git, stdin=stdin, stdout=stdout, stderr=stderr), "origin", "v1.2.3", commit)
-
-    assert git.run(["git", "ls-remote", "--tags", "origin", "refs/tags/v1.2.3"], cwd=local).stdout == ""
-
-
-def test_release_regenerates_valid_lock_and_stages_it(tmp_path: Path) -> None:
-    project, original_lock = copy_release_project(tmp_path)
-    runner = release_runner(tmp_path)
-
-    assert run_release(make_state(runner), yes=True) == "v1.27.0"
-
-    lock = (project / "uv.lock").read_bytes()
-    assert lock != original_lock
-    assert b'name = "fmind-dot"\nversion = "1.27.0"' in lock
-    Runner().run(
-        ["uv", "lock", "--project", str(project), "--check"],
-        env={"UV_OFFLINE": "1"},
-    )
-    assert UV_VERSION in runner.calls
-    assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") in runner.calls
-
-
-@pytest.mark.parametrize("task", ["test", "test:starters", "build", "check:completions"])
-def test_release_failure_restores_regenerated_lock(tmp_path: Path, task: str) -> None:
-    project, original_lock = copy_release_project(tmp_path)
-    runner = release_runner(tmp_path)
-    runner.responses[("mise", "run", task)] = CommandResult("", "", 1)
+@pytest.mark.parametrize("task", ["test:starters", "build", "check:completions"])
+def test_gate_failure_restores_generated_files_without_tagging(project: Path, task: str) -> None:
+    runner = ReleaseRunner(project)
+    runner.interactive_codes[("mise", "run", task)] = 1
 
     with pytest.raises(DotError, match=f"project {task} failed"):
         run_release(make_state(runner), yes=True)
 
-    assert read_release_version(tmp_path) == "1.26.2"
-    assert (project / "uv.lock").read_bytes() == original_lock
-    assert UV_VERSION in runner.calls
-    Runner().run(
-        ["uv", "lock", "--project", str(project), "--check"],
-        env={"UV_OFFLINE": "1"},
-    )
+    assert RESTORE in runner.calls
+    assert not any(call[:2] == ("git", "commit") or call[:3] == ("git", "tag", "-a") for call in runner.calls)
+    assert PUSH not in runner.interactive_calls
 
 
-def test_release_validation_failure_restores_pyproject(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    project, original_lock = copy_release_project(tmp_path)
-    original = pyproject.read_text()
-    runner = release_runner(tmp_path)
-    runner.responses[("mise", "run", "test")] = CommandResult("", "", 1)
-
-    with pytest.raises(DotError, match="project test failed"):
-        run_release(make_state(runner), yes=True)
-
-    assert UV_VERSION in runner.calls
-    assert pyproject.read_text() == original
-    assert (project / "uv.lock").read_bytes() == original_lock
-    assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") not in runner.calls
-
-
-def test_release_validation_interrupt_restores_files_and_propagates(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    project, original_lock = copy_release_project(tmp_path)
-    original_project = pyproject.read_text()
-    original_changelog = (tmp_path / "CHANGELOG.md").read_text()
-    runner = release_runner(tmp_path)
-    runner.responses[("mise", "run", "test")] = KeyboardInterrupt()
+def test_interrupt_restores_generated_files_and_propagates(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.interactive_codes[("mise", "run", "build")] = KeyboardInterrupt()
 
     with pytest.raises(KeyboardInterrupt):
         run_release(make_state(runner), yes=True)
 
-    assert pyproject.read_text() == original_project
-    assert (tmp_path / "CHANGELOG.md").read_text() == original_changelog
-    assert (project / "uv.lock").read_bytes() == original_lock
-    assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") not in runner.calls
+    assert RESTORE in runner.calls
 
 
-def test_release_commit_interrupt_restores_files_and_index_then_propagates(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    project, original_lock = copy_release_project(tmp_path)
-    original_project = pyproject.read_text()
-    original_changelog = (tmp_path / "CHANGELOG.md").read_text()
-    runner = release_runner(tmp_path)
-    runner.responses[("git", "commit", "-m", "chore(release): v1.27.0")] = KeyboardInterrupt()
+def test_failed_push_reports_the_local_release_and_skips_deploy(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.interactive_codes[PUSH] = 1
 
-    with pytest.raises(KeyboardInterrupt):
+    with pytest.raises(DotError, match=r"release commit and tag v1\.27\.0 are local"):
         run_release(make_state(runner), yes=True)
 
-    assert ("git", "add", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock") in runner.calls
-    assert pyproject.read_text() == original_project
-    assert (tmp_path / "CHANGELOG.md").read_text() == original_changelog
-    assert (project / "uv.lock").read_bytes() == original_lock
-    assert ("git", "reset", "--mixed", "HEAD") in runner.calls
+    assert ("mise", "run", "--force", "deploy") not in runner.calls
 
 
-def test_release_validation_rejects_reverted_package_version(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    copy_release_project(tmp_path)
-    original_project = pyproject.read_text()
-    runner = VersionRevertingRunner(pyproject, original_project)
-    runner.responses = release_runner(tmp_path).responses
-    runner.responses[("git", "status", "--porcelain=v1", "-z", "--untracked-files=all")] = CommandResult(
-        " M CHANGELOG.md\0", "", 0
-    )
-
-    with pytest.raises(DotError, match="release validation changed the package version"):
+def test_release_preflight_rejects_unsafe_repository_states(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.installed.discard("git-cliff")
+    with pytest.raises(DotError, match="missing release tools: git-cliff"):
         run_release(make_state(runner), yes=True)
 
-    assert UV_VERSION in runner.calls
-    assert pyproject.read_text() == original_project
-
-
-def test_release_rejects_invalid_bumped_version_before_writing(tmp_path: Path) -> None:
-    project, original_lock = copy_release_project(tmp_path)
-    for tag in ("1.2", "v1.2.3-rc.1", "v1.2.3+build.1"):
-        runner = release_runner(tmp_path)
-        runner.responses[("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")] = (
-            CommandResult(tag, "", 0)
-        )
-        with pytest.raises(DotError, match="invalid semantic version tag"):
-            run_release(make_state(runner), yes=True)
-        assert all(call[0] != "uv" for call in runner.calls)
-    assert read_release_version(tmp_path) == "1.26.2"
-    assert (project / "uv.lock").read_bytes() == original_lock
-
-
-def test_prepared_release_refreshes_installed_python_cli(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    pyproject.write_text('[project]\nname = "fmind-dot"\nversion = "1.27.0"\n')
-    commit = "a" * 40
-    tag_object = "c" * 40
-    tag_ref = "refs/tags/v1.27.0"
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(commit, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(commit, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("chore(release): v1.27.0", "", 0),
-        ("git", "cat-file", "-t", tag_ref): CommandResult("tag", "", 0),
-        ("git", "rev-parse", tag_ref): CommandResult(tag_object, "", 0),
-        ("git", "cat-file", "-t", tag_object): CommandResult("tag", "", 0),
-        ("git", "rev-parse", f"{tag_object}^{{}}"): CommandResult(commit, "", 0),
-        ("git", "ls-remote", "--tags", "origin", tag_ref, f"{tag_ref}^{{}}"): CommandResult(
-            f"{tag_object}\t{tag_ref}\n{commit}\t{tag_ref}^{{}}\n", "", 0
-        ),
-    }
-    state = make_state(runner)
-
-    assert run_release(state, yes=True) == "v1.27.0"
-    assert [
-        ("mise", "run", task) for task in ("format", "check", "test", "test:starters", "build", "check:completions")
-    ] == [call for call in runner.interactive_calls if call[:2] == ("mise", "run")]
-    assert ("mise", "run", "--force", "deploy") in runner.calls
-
-
-@pytest.mark.parametrize("task", ["check", "test:starters", "build", "check:completions"])
-def test_prepared_release_gate_failure_blocks_remote_mutation(tmp_path: Path, task: str) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    pyproject.write_text('[project]\nname = "fmind-dot"\nversion = "1.27.0"\n')
-    commit = "a" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(commit, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(commit, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("chore(release): v1.27.0", "", 0),
-        ("mise", "run", task): CommandResult("", "", 1),
-    }
-
-    with pytest.raises(DotError, match=f"project {task} failed"):
+    runner = ReleaseRunner(project)
+    runner.responses[("git", "status", "--porcelain")] = CommandResult(" M README.md", "", 0)
+    with pytest.raises(DotError, match="uncommitted"):
         run_release(make_state(runner), yes=True)
 
-    assert all(call[:2] != ("git", "push") for call in runner.interactive_calls)
-
-
-def test_release_preflight_rejects_missing_tools_and_unsafe_repository_states(tmp_path: Path) -> None:
-    missing_git = RecordingRunner()
-    missing_git.installed.remove("git")
-    with pytest.raises(DotError, match="git is not installed"):
-        run_release(make_state(missing_git), yes=True)
-
-    missing_cliff = RecordingRunner()
-    missing_cliff.installed.remove("git-cliff")
-    with pytest.raises(DotError, match=r"git-cliff is not installed.*mise run tools"):
-        run_release(make_state(missing_cliff), yes=True)
-
-    cases: list[tuple[dict[tuple[str, ...], CommandResult | Exception | KeyboardInterrupt], str]] = [
-        (
-            {("git", "status", "--porcelain"): CommandResult(" M tracked", "", 0)},
-            "working directory has uncommitted",
-        ),
-        (
-            {("git", "rev-parse", "--show-toplevel"): CommandResult("", "", 0)},
-            "empty repository root",
-        ),
-        (
-            {
-                ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-                ("git", "branch", "--show-current"): CommandResult("", "", 0),
-            },
-            "detached HEAD",
-        ),
-        (
-            {
-                ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-                ("git", "branch", "--show-current"): CommandResult("feature", "", 0),
-            },
-            "requires branch 'main'",
-        ),
-    ]
-    for responses, message in cases:
-        runner = RecordingRunner()
-        runner.responses = responses
-        with pytest.raises(DotError, match=message):
-            run_release(make_state(runner), yes=True)
-
-
-def test_release_refuses_divergence_without_a_direct_prepared_commit(tmp_path: Path) -> None:
-    head = "a" * 40
-    upstream = "b" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(head, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(upstream, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("feat: unrelated", "", 0),
-    }
-
-    with pytest.raises(DotError, match="release branch diverged"):
+    runner = ReleaseRunner(project)
+    runner.responses[("git", "branch", "--show-current")] = CommandResult("feature", "", 0)
+    with pytest.raises(DotError, match="requires branch 'main'"):
         run_release(make_state(runner), yes=True)
 
-
-def test_release_refuses_prepared_commit_with_wrong_parent(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    pyproject.write_text('[project]\nname = "fmind-dot"\nversion = "1.27.0"\n')
-    head = "a" * 40
-    upstream = "b" * 40
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(head, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(upstream, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("chore(release): v1.27.0", "", 0),
-        ("git", "rev-parse", "HEAD^"): CommandResult("c" * 40, "", 0),
-    }
-
-    with pytest.raises(DotError, match="not directly ahead"):
+    runner = ReleaseRunner(project)
+    runner.responses[("git", "rev-parse", "origin/main")] = CommandResult("a" * 40, "", 0)
+    with pytest.raises(DotError, match="HEAD must equal origin/main"):
         run_release(make_state(runner), yes=True)
 
+    runner = ReleaseRunner(project)
+    runner.responses[GIT_CLIFF_BUMPED] = CommandResult("v1.27.0-rc.1", "", 0)
+    with pytest.raises(DotError, match="invalid semantic version"):
+        run_release(make_state(runner), yes=True)
 
-def test_release_retry_pushes_a_directly_ahead_prepared_commit(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-    pyproject.write_text('[project]\nname = "fmind-dot"\nversion = "1.27.0"\n')
-    head = "a" * 40
-    upstream = "b" * 40
-    tag_object = "c" * 40
-    tag_ref = "refs/tags/v1.27.0"
-    runner = RecordingRunner()
-    runner.responses = {
-        ("git", "rev-parse", "--show-toplevel"): CommandResult(str(tmp_path), "", 0),
-        ("git", "branch", "--show-current"): CommandResult("main", "", 0),
-        ("git", "rev-parse", "HEAD"): CommandResult(head, "", 0),
-        ("git", "rev-parse", "origin/main"): CommandResult(upstream, "", 0),
-        ("git", "rev-parse", "HEAD^"): CommandResult(upstream, "", 0),
-        ("git", "log", "-1", "--pretty=%s"): CommandResult("chore(release): v1.27.0", "", 0),
-        ("git", "cat-file", "-t", tag_ref): CommandResult("tag", "", 0),
-        ("git", "rev-parse", tag_ref): CommandResult(tag_object, "", 0),
-        ("git", "cat-file", "-t", tag_object): CommandResult("tag", "", 0),
-        ("git", "rev-parse", f"{tag_object}^{{}}"): CommandResult(head, "", 0),
-        ("git", "ls-remote", "--tags", "origin", tag_ref, f"{tag_ref}^{{}}"): CommandResult(
-            f"{tag_object}\t{tag_ref}\n{head}\t{tag_ref}^{{}}\n", "", 0
-        ),
-    }
-
-    assert run_release(make_state(runner), yes=True) == "v1.27.0"
-
-    assert ("git", "push", "origin", f"{head}:refs/heads/main") in runner.interactive_calls
-    assert ("git", "push", "origin", f"{tag_object}:{tag_ref}") in runner.interactive_calls
+    runner = ReleaseRunner(project)
+    runner.responses[("git", "tag", "--list", TAG)] = CommandResult(TAG, "", 0)
+    with pytest.raises(DotError, match=r"tag v1\.27\.0 already exists locally"):
+        run_release(make_state(runner), yes=True)
+    assert not runner.interactive_calls
+    assert read_release_version(project) == "1.26.2"
 
 
-def test_release_no_change_and_cancellation_have_no_side_effects(tmp_path: Path) -> None:
-    no_change_runner = release_runner(tmp_path)
-    no_change_runner.responses[("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")] = (
-        CommandResult("v1.26.2", "", 0)
-    )
-    no_change_state = make_state(no_change_runner)
+def test_no_change_and_cancellation_have_no_side_effects(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.responses[GIT_CLIFF_BUMPED] = CommandResult("v1.26.2", "", 0)
+    assert run_release(make_state(runner), yes=True) is None
 
-    assert run_release(no_change_state, yes=True) is None
-    assert UV_VERSION not in no_change_runner.calls
-    assert isinstance(no_change_state.stdout, io.StringIO)
-    assert "Nothing to release" in no_change_state.stdout.getvalue()
+    runner = ReleaseRunner(project)
+    stdout = io.StringIO()
+    state = State(runner=runner, stdin=io.StringIO("n\n"), stdout=stdout, stderr=io.StringIO())
+    assert run_release(state) is None
+    assert "Release canceled." in stdout.getvalue()
 
-    cancel_runner = release_runner(tmp_path)
-    cancel_state = make_state(cancel_runner)
-    cancel_state.stdin = io.StringIO("no\n")
-    assert run_release(cancel_state) is None
-    assert UV_VERSION not in cancel_runner.calls
-    assert isinstance(cancel_state.stdout, io.StringIO)
-    assert "Release canceled" in cancel_state.stdout.getvalue()
+    assert read_release_version(project) == "1.26.2"
+    assert not runner.interactive_calls
 
 
-def test_release_version_update_is_exact_and_release_status_is_confined(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    copy_release_project(tmp_path)
-    pyproject.write_text(pyproject.read_text() + '\n[tool.demo]\nversion = "9"\n')
-    runner = release_runner(tmp_path)
-
-    assert run_release(make_state(runner), yes=True) == "v1.27.0"
-    assert read_release_version(tmp_path) == "1.27.0"
-    assert 'version = "9"' in pyproject.read_text()
-    validate_release_status(" M CHANGELOG.md\0 M dot/pyproject.toml\0 M dot/uv.lock\0")
-    with pytest.raises(DotError, match="unrelated paths"):
-        validate_release_status("?? unrelated.txt\0")
-    with pytest.raises(DotError, match="renamed or copied"):
-        validate_release_status("R  old -> new\0")
-    with pytest.raises(DotError, match="ordinary worktree modifications"):
-        validate_release_status(" D dot/pyproject.toml\0")
+def test_release_status_is_confined_to_generated_files() -> None:
+    validate_release_status(" M CHANGELOG.md\0 M dot/pyproject.toml\0")
+    with pytest.raises(DotError, match=r"unrelated paths: README\.md"):
+        validate_release_status(" M CHANGELOG.md\0?? README.md\0")
 
 
-def test_release_metadata_rejects_missing_ambiguous_and_invalid_versions(tmp_path: Path) -> None:
-    pyproject = tmp_path / "dot" / "pyproject.toml"
-    pyproject.parent.mkdir()
-
+def test_release_version_rejects_missing_and_dynamic_versions(tmp_path: Path) -> None:
+    (tmp_path / "dot").mkdir()
     with pytest.raises(DotError, match="failed to read"):
         read_release_version(tmp_path)
-
-    for content in ('[tool.demo]\nversion = "1.0.0"\n', "[project]\nversion = 1\n", 'project = "flat"\n'):
-        pyproject.write_text(content)
-        with pytest.raises(DotError, match=r"static string \[project\] version"):
-            read_release_version(tmp_path)
-
-    pyproject.write_text("[project\n")
-    with pytest.raises(DotError, match="failed to read"):
+    (tmp_path / "dot/pyproject.toml").write_text('[project]\ndynamic = ["version"]\n')
+    with pytest.raises(DotError, match="static string"):
         read_release_version(tmp_path)
-    with pytest.raises(DotError, match="malformed git status record"):
-        validate_release_status("bad\0")
-
-
-@pytest.mark.parametrize("outcome", ["success", "failure", "wrong-head", "missing-assets", "draft", "truncated"])
-def test_release_wait_requires_exact_cd_and_public_artifacts(monkeypatch: pytest.MonkeyPatch, outcome: str) -> None:
-    head = "a" * 40
-    monkeypatch.setattr("dot_tasks.release._git_output", lambda *_args: head)
-    ticks = iter([0, 0, 0, 0.5, 1, 2, 3, 4, 5])
-    monkeypatch.setattr("dot_tasks.release.monotonic", lambda: next(ticks))
-    monkeypatch.setattr("dot_tasks.release.sleep", lambda _seconds: None)
-    calls = []
-
-    class ReleaseRunner(Runner):
-        def run_bounded(self, args, **_kwargs):
-            calls.append(args)
-            if args[1:3] == ["run", "list"]:
-                assert args[args.index("--commit") + 1] == head
-                assert args[args.index("--branch") + 1] == "v2.2.0"
-                value = [
-                    {
-                        "headSha": "b" * 40 if outcome == "wrong-head" else head,
-                        "status": "completed",
-                        "conclusion": "failure" if outcome == "failure" else "success",
-                    }
-                ]
-            else:
-                value = {
-                    "tagName": "v2.2.0",
-                    "isDraft": outcome == "draft",
-                    "assets": [{"name": "dot.whl"}, {"name": None if outcome == "missing-assets" else "dot.tar.gz"}],
-                }
-            return CommandResult(json.dumps(value), "", 0, stdout_truncated=outcome == "truncated")
-
-    state = make_state(ReleaseRunner())
-    assert isinstance(state.stdout, io.StringIO)
-    if outcome == "success":
-        assert wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
-        assert "Published" in state.stdout.getvalue()
-    else:
-        with pytest.raises(DotError):
-            wait_for_release(state, "v2.2.0", timeout_seconds=1)
-        assert "Published" not in state.stdout.getvalue()
-    if outcome in {"failure", "wrong-head", "truncated"}:
-        assert len(calls) == 1
-
-
-@pytest.mark.parametrize("failures", [1, 4])
-def test_release_wait_retries_transient_github_failures(monkeypatch: pytest.MonkeyPatch, failures: int) -> None:
-    head = "a" * 40
-    monkeypatch.setattr("dot_tasks.release._git_output", lambda *_args: head)
-    monkeypatch.setattr("dot_tasks.release.monotonic", lambda: 0.0)
-    monkeypatch.setattr("dot_tasks.release.sleep", lambda _seconds: None)
-    responses = [CommandResult("", "HTTP 502", 1) for _ in range(failures)] + [
-        CommandResult(json.dumps([{"headSha": head, "status": "completed", "conclusion": "success"}]), "", 0),
-        CommandResult(
-            json.dumps({"tagName": "v2.2.0", "isDraft": False, "assets": [{"name": "d.whl"}, {"name": "d.tar.gz"}]}),
-            "",
-            0,
-        ),
-    ]
-
-    class FlakyRunner(Runner):
-        def run_bounded(self, args, **kwargs):
-            assert args[0] == "gh"
-            assert kwargs["check"] is False
-            return responses.pop(0)
-
-    state = make_state(FlakyRunner())
-    if failures <= _WAIT_RETRIES:
-        assert wait_for_release(state, "v2.2.0", timeout_seconds=1).endswith("/v2.2.0")
-    else:
-        with pytest.raises(DotError, match="GitHub queries kept failing"):
-            wait_for_release(state, "v2.2.0", timeout_seconds=1)
-    assert isinstance(state.stderr, io.StringIO)
-    assert "GitHub query failed; retrying (1/3)" in state.stderr.getvalue()
-    assert "HTTP 502" not in state.stderr.getvalue()
-
-
-def test_publish_job_outlasts_publication_bounds() -> None:
-    # A hung `gh release create` must time out inside the job so the view reconciliation still reports.
-    workflow = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/cd.yml").read_text())
-    budget = workflow["jobs"]["publish"]["timeout-minutes"] * 60
-    assert budget > publish._CREATE_TIMEOUT_SECONDS + publish._VIEW_TIMEOUT_SECONDS  # noqa: SLF001

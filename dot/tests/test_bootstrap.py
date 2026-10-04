@@ -37,9 +37,7 @@ args = sys.argv[1:]
 with Path(os.environ["BOOTSTRAP_LOG"]).open("a", encoding="utf-8") as stream:
     stream.write(json.dumps({{"tool": tool, "args": args}}) + "\\n")
 
-if tool == "mise" and args == ["--version"]:
-    print(os.environ["FAKE_MISE_VERSION"] + " fixture")
-elif tool == "chezmoi" and "https://github.com/fmind/dot.git" in args:
+if tool == "chezmoi" and "https://github.com/fmind/dot.git" in args:
     source = Path(args[args.index("--source") + 1])
     source.mkdir(parents=True)
 elif tool == "curl" and "FAKE_MISE_STOCK" in os.environ:
@@ -67,7 +65,7 @@ def pinned_mise_version() -> str:
 
 
 class BootstrapFixture:
-    def __init__(self, root: Path, mise_version: str, *, mise_installed: bool = True) -> None:
+    def __init__(self, root: Path, *, mise_installed: bool = True) -> None:
         self.home = root / "home"
         self.bin = root / "bin"
         self.log = root / "calls.jsonl"
@@ -82,7 +80,6 @@ class BootstrapFixture:
         self.environment = {
             "BOOTSTRAP_LOG": str(self.log),
             "CI": "true",
-            "FAKE_MISE_VERSION": mise_version,
             "HOME": str(self.home),
             "LANG": "C.UTF-8",
             "PATH": f"{self.bin}{os.pathsep}/usr/bin{os.pathsep}/bin",
@@ -111,19 +108,9 @@ class BootstrapFixture:
 
 
 class BootstrapTest(unittest.TestCase):
-    def test_unsupported_mise_fails_before_repository_mutation(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), "2026.9.1")
-            result = fixture.run()
-
-            assert result.returncode != 0
-            assert f"mise {pinned_mise_version()} or newer is required" in result.stderr
-            assert fixture.calls() == [{"tool": "mise", "args": ["--version"]}]
-            assert not fixture.source.exists()
-
     def test_first_install_and_rerun_use_the_bounded_task_sequence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), pinned_mise_version())
+            fixture = BootstrapFixture(Path(directory))
             first = fixture.run()
             second = fixture.run()
 
@@ -131,14 +118,12 @@ class BootstrapTest(unittest.TestCase):
             assert second.returncode == 0, second.stdout + second.stderr
             source = str(fixture.source)
             expected = [
-                {"tool": "mise", "args": ["--version"]},
                 {
                     "tool": "chezmoi",
                     "args": ["init", "--force", "https://github.com/fmind/dot.git", "--source", source],
                 },
                 {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
                 {"tool": "mise", "args": ["-C", source, "run", "install"]},
-                {"tool": "mise", "args": ["--version"]},
                 {"tool": "chezmoi", "args": ["init", "--force", "--source", source]},
                 {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
                 {"tool": "mise", "args": ["-C", source, "run", "install"]},
@@ -148,17 +133,17 @@ class BootstrapTest(unittest.TestCase):
 
     def test_missing_mise_is_installed_at_the_tested_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), pinned_mise_version(), mise_installed=False)
+            fixture = BootstrapFixture(Path(directory), mise_installed=False)
             result = fixture.run()
 
             assert result.returncode == 0, result.stdout + result.stderr
             requested = Path(f"{fixture.log}.requested").read_text(encoding="utf-8")
             assert requested == f"v{pinned_mise_version()}"
-            assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "mise"]
+            assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "chezmoi"]
 
     def test_interrupted_mise_download_is_never_executed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), pinned_mise_version(), mise_installed=False)
+            fixture = BootstrapFixture(Path(directory), mise_installed=False)
             fixture.environment["FAKE_MISE_TRUNCATED"] = "1"
             result = fixture.run()
 
@@ -279,7 +264,7 @@ def run_task_bootstrap(
     # tools. The deployment implementation has separate locked-wheel tests.
     lines = ["[settings.task]", "run_auto_install = false", "[task_config]", 'dir = "{{config_root}}"', "[env]"]
     lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["env"].items())
-    for name in ("tools", "full", "install", "apply", "completions"):
+    for name in ("tools", "install", "apply", "completions"):
         lines.append(f"[tasks.{name}]")
         lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["tasks"][name].items())
     for name in ("deploy", "hooks", "vim"):
@@ -343,7 +328,7 @@ def run_task_bootstrap(
     return result, home, log.read_text().splitlines() if log.exists() else []
 
 
-@pytest.mark.parametrize("task", ["tools", "full", "mf", "install"])
+@pytest.mark.parametrize("task", ["tools", "mf", "install"])
 @pytest.mark.parametrize("old_dot", [False, True], ids=["fresh", "older-dot"])
 def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str, old_dot: bool) -> None:
     result, home, events = run_task_bootstrap(tmp_path, task, old_dot=old_dot)

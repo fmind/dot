@@ -21,7 +21,7 @@ The personal GCP Agent Platform authorization key is encrypted in chezmoi and de
 
 ## Personal billing
 
-The personal project allowance is **US$100 per calendar month before credits**, across all services. Its billing account uses EUR, so the project alert budget is **EUR87** (rounded down from USD100 / 1.1463, ECB rate dated 2026-09-22). Recheck the conversion when changing the budget; it is not an automatic USD cap. Exclude all credits, including Ultra promotions, from budget spend; credits must not create an additional USD100 spending allowance. Actual-spend alerts should cover 50%, 80%, 90%, and 100%, with a 100% forecast alert and project-owner notifications.
+The personal project has a fixed monthly USD allowance before credits, across all services; the owner holds the amount privately, so ask for it before creating or changing a budget. The billing account uses EUR, so convert the allowance at a dated ECB rate, round down, and recheck the conversion when changing the budget; an alert budget is not an automatic USD cap. Exclude all credits, including Ultra promotions, from budget spend; credits must not create additional spending allowance. Actual-spend alerts should cover 50%, 80%, 90%, and 100%, with a 100% forecast alert and project-owner notifications.
 
 Alert budgets do not stop usage. Cloud Billing's spend-cap preview supports GCP Agent Platform but currently requires console setup; even a configured cap can overshoot because of reporting latency. Do not claim a hard cap or redeemed Ultra credits without live evidence. Check the linked billing account's Credits page and the Developer Program benefits redemption separately.
 

@@ -16,6 +16,12 @@ from fmind_dot.errors import DotError
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The CLI measures ~/.agents; tests place their global root there."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+
 def skill(root: Path, name: str, *, description: str = "Run a fixture.") -> Path:
     path = root / "skills" / name / "SKILL.md"
     path.parent.mkdir(parents=True)
@@ -24,19 +30,17 @@ def skill(root: Path, name: str, *, description: str = "Run a fixture.") -> Path
 
 
 def test_cli_reports_scopes_and_excludes_on_demand_content(tmp_path: Path) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "global-fixture")
     local = skill(project / ".agents", "local-fixture")
     (local.parent / "references").mkdir()
     (local.parent / "references/large.md").write_text("private reference " * 10_000)
     (global_root / "AGENTS.md").write_text("G" * 16)
     (project / "AGENTS.md").write_text("P" * 8)
-    result = runner.invoke(
-        app, ["agent", "context", "--project", str(project), "--global-root", str(global_root), "--json", "--check"]
-    )
+    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--json", "--check"])
     assert result.exit_code == 0, result.output
     report = json.loads(result.stdout)
-    assert report["schema"] == "dot.agent.context/v4"
+    assert report["schema"] == "dot.agent.context/v5"
     assert report["totals"]["global"]["agents_estimated_tokens"] == 4
     assert report["totals"]["local"]["agents_estimated_tokens"] == 2
     assert report["totals"]["combined"]["skills"] == 2
@@ -63,8 +67,8 @@ def test_source_mode_reads_authored_persona_and_both_catalogs(tmp_path: Path) ->
     assert report["roots"]["global"]["agents"].endswith("dot_agents/AGENTS.md")
 
 
-def test_combined_deduplicates_physical_files_and_exposes_name_collisions(tmp_path: Path) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+def test_combined_deduplicates_physical_files_and_reports_duplicates(tmp_path: Path) -> None:
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     path = skill(global_root, "shared")
     local = project / ".agents/skills"
     local.mkdir(parents=True)
@@ -72,12 +76,11 @@ def test_combined_deduplicates_physical_files_and_exposes_name_collisions(tmp_pa
     report = context_report(project, global_root=global_root)
     assert report["totals"]["global"]["skills"] == report["totals"]["local"]["skills"] == 1
     assert report["totals"]["combined"]["skills"] == 1
-    assert report["collisions"] == []
+    assert report["duplicates"] == []
     (local / "shared").unlink()
     skill(project / ".agents", "shared")
     report = context_report(project, global_root=global_root)
     assert report["totals"]["combined"]["skills"] == 2
-    assert report["collisions"] == ["shared"]
     assert report["duplicates"] == [
         {"name": "shared", "paths": [str(path), str(project / ".agents/skills/shared/SKILL.md")]}
     ]
@@ -85,10 +88,10 @@ def test_combined_deduplicates_physical_files_and_exposes_name_collisions(tmp_pa
 
 
 def test_check_fails_on_cross_scope_duplicate_with_paths_and_guidance(tmp_path: Path) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     global_copy = skill(global_root, "shared")
     local_copy = skill(project / ".agents", "shared")
-    arguments = ["agent", "context", "--project", str(project), "--global-root", str(global_root)]
+    arguments = ["agent", "context", "--project", str(project)]
     plain = runner.invoke(app, arguments)
     assert plain.exit_code == 0
     assert "Duplicate skill names" in plain.stdout
@@ -97,7 +100,8 @@ def test_check_fails_on_cross_scope_duplicate_with_paths_and_guidance(tmp_path: 
     output = strip_ansi(checked.stdout)
     # A failing check keeps the full report: the name, both copies, and how to fix it.
     assert "Duplicate skill names · FAIL" in output
-    assert f"    {global_copy}\n    {local_copy}\n" in output
+    # Text abbreviates the home directory; JSON keeps absolute paths.
+    assert "    ~/.agents/skills/shared/SKILL.md\n    ~/project/.agents/skills/shared/SKILL.md\n" in output
     assert "Hosts resolve duplicate skill names differently" in output
     assert "Rename one skill or remove a copy" in output
     as_json = runner.invoke(app, [*arguments, "--check", "--json"])
@@ -112,20 +116,20 @@ def test_check_fails_on_cross_scope_duplicate_with_paths_and_guidance(tmp_path: 
 
 def test_duplicate_paths_stay_absolute_in_json_under_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "shared")
     skill(project / ".agents", "shared")
-    arguments = ["agent", "context", "--project", str(project), "--global-root", str(global_root)]
+    arguments = ["agent", "context", "--project", str(project)]
     report = json.loads(runner.invoke(app, [*arguments, "--json"]).stdout)
     [duplicate] = report["duplicates"]
     assert duplicate["paths"] == [entry["path"] for entry in report["entries"] if entry["name"] == "shared"]
     # Text output abbreviates for humans only.
     text = strip_ansi(runner.invoke(app, arguments).stdout)
-    assert "    ~/global/skills/shared/SKILL.md\n" in text
+    assert "    ~/.agents/skills/shared/SKILL.md\n" in text
 
 
 def test_nested_same_name_within_one_scope_is_a_duplicate(tmp_path: Path) -> None:
-    global_root = tmp_path / "global"
+    global_root = tmp_path / ".agents"
     top = skill(global_root, "shared")
     package = skill(global_root, "package")
     nested = skill(package.parent, "shared")
@@ -137,22 +141,20 @@ def test_nested_same_name_within_one_scope_is_a_duplicate(tmp_path: Path) -> Non
 
 
 def test_symlinked_skill_root_is_not_a_duplicate(tmp_path: Path) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "shared")
     (project / ".agents").mkdir(parents=True)
     # Bridges such as .claude/skills -> .agents/skills expose the same files, not rival copies.
     (project / ".agents/skills").symlink_to(global_root / "skills", target_is_directory=True)
-    result = runner.invoke(
-        app, ["agent", "context", "--project", str(project), "--global-root", str(global_root), "--check"]
-    )
+    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--check"])
     assert result.exit_code == 0, result.output
     assert result.stdout.startswith("PASS")
     report = context_report(project, global_root=global_root)
-    assert report["duplicates"] == report["collisions"] == []
+    assert report["duplicates"] == []
 
 
 def test_context_ignores_reserved_skill_directories(tmp_path: Path) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "global-fixture")
     skill(project / ".agents", "local-fixture")
     synced = global_root / "skills/synced/remote-bucket/remote-skill"
@@ -164,22 +166,11 @@ def test_context_ignores_reserved_skill_directories(tmp_path: Path) -> None:
     before = context_report(tmp_path / "project", global_root=tmp_path / "missing")["budgets"]["global"]
     report = context_report(project, global_root=global_root)
     assert report["totals"]["global"]["skills"] == 1
-    # Reserved host directories stay outside the gate, yet their exposure is visible.
-    expected = len(
-        "- remote-skill: Remote fixture. (file: ~/.agents/skills/synced/remote-bucket/remote-skill/SKILL.md)\n"
-    )
-    assert report["host_extras"]["global"] == {
-        "skills": 2,
-        "unmeasured": 1,
-        "skill_index_estimated_tokens": (expected + 3) // 4,
-    }
-    assert report["host_extras"]["local"]["skills"] == 0
+    # Reserved host directories stay outside the gate.
     assert (
         report["budgets"]["global"]["estimated_tokens"] - before["estimated_tokens"]
         == (report["totals"]["global"]["skill_index_estimated_tokens"])
     )
-    text = runner.invoke(app, ["agent", "context", "--project", str(project), "--global-root", str(global_root)])
-    assert "Host extras (informational, not budgeted): 2 global" in strip_ansi(text.stdout)
 
 
 @pytest.mark.parametrize("scope", ["global", "local"])
@@ -187,14 +178,14 @@ def test_context_ignores_reserved_skill_directories(tmp_path: Path) -> None:
 def test_check_includes_instructions_and_enforces_each_strict_limit(
     tmp_path: Path, scope: str, tokens: int, passed: bool
 ) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "global-fixture")
     skill(project / ".agents", "local-fixture")
     report = context_report(project, global_root=global_root)
     index_size = report["totals"][scope]["skill_index_characters"]
     instructions = (global_root if scope == "global" else project) / "AGENTS.md"
     instructions.write_text("x" * (tokens * 4 - index_size))
-    arguments = ["agent", "context", "--project", str(project), "--global-root", str(global_root)]
+    arguments = ["agent", "context", "--project", str(project)]
     plain = runner.invoke(app, arguments)
     assert plain.exit_code == 0
     assert ("OVER BUDGET" not in plain.stdout) == passed
@@ -218,14 +209,12 @@ def test_check_includes_instructions_and_enforces_each_strict_limit(
 
 
 def test_combined_total_can_exceed_limit_when_each_scope_fits(tmp_path: Path) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "global-fixture")
     skill(project / ".agents", "local-fixture")
     (global_root / "AGENTS.md").write_text("g" * 12_000)
     (project / "AGENTS.md").write_text("p" * 12_000)
-    result = runner.invoke(
-        app, ["agent", "context", "--project", str(project), "--global-root", str(global_root), "--json", "--check"]
-    )
+    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--json", "--check"])
     assert result.exit_code == 0
     report = json.loads(result.stdout)
     assert report["totals"]["combined"]["startup_estimated_tokens"] > 5_000
@@ -278,33 +267,28 @@ def test_empty_roots_and_default_home_are_explicit(tmp_path: Path, monkeypatch: 
     assert report["roots"]["global"]["skills"] == str(tmp_path / ".agents/skills")
 
 
-def test_invalid_roots_and_conflicting_source_options(tmp_path: Path) -> None:
+def test_invalid_roots_fail_explicitly(tmp_path: Path) -> None:
     with pytest.raises(DotError, match="project directory"):
         context_report(tmp_path / "missing")
     with pytest.raises(DotError, match="invalid dot source"):
         context_report(tmp_path, source=tmp_path)
-    result = runner.invoke(app, ["agent", "context", "--source", str(tmp_path), "--global-root", str(tmp_path)])
-    assert result.exit_code == 2
-    assert "choose --source or --global-root" in strip_ansi(result.output)
 
 
 def test_nonregular_instruction_input_fails_without_opening_it(tmp_path: Path) -> None:
     (tmp_path / "AGENTS.md").mkdir()
     with pytest.raises(DotError, match="not a regular file"):
-        context_report(tmp_path, global_root=tmp_path / "global")
+        context_report(tmp_path, global_root=tmp_path / ".agents")
 
 
 @pytest.mark.parametrize("tokens", [3_499, 3_500, 3_501, 4_500])
 def test_combined_discovery_is_informational_when_each_scope_fits(tmp_path: Path, tokens: int) -> None:
-    global_root, project = tmp_path / "global", tmp_path / "project"
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
     path = skill(global_root, "fixture", description="x")
     skill(project / ".agents", "local-fixture")
     before = context_report(project, global_root=global_root)
     additional = tokens * 4 - before["totals"]["combined"]["skill_index_characters"]
     path.write_text(path.read_text().replace("description: x", "description: " + "x" * (additional + 1)))
-    result = runner.invoke(
-        app, ["agent", "context", "--project", str(project), "--global-root", str(global_root), "--check", "--json"]
-    )
+    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--check", "--json"])
     assert result.exit_code == 0
     report = json.loads(result.stdout)
     assert report["budgets"]["global"]["passed"]

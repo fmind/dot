@@ -1,13 +1,15 @@
 """Public workstation workflows use recorded providers, never real credentials or caches."""
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from io import StringIO
 from pathlib import Path
 from typing import IO, Any
 
 import pytest
 from typer.testing import CliRunner
 
+from fmind_dot import auth
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
@@ -34,22 +36,21 @@ class RecordingRunner(Runner):
         self.action_code = 0
         self.missing: set[str] = set()
         self.envs: list[Mapping[str, str] | None] = []
+        self.relays: list[Callable[[str], None] | None] = []
 
     def which(self, command: str) -> Path | None:
         return None if command in self.missing else Path("/bin") / command
 
-    def run_bounded(
+    def run(
         self,
         args: Sequence[str],
         *,
-        max_output_bytes: int,
         cwd: Path | None = None,
         input_text: str | None = None,
         env: Mapping[str, str] | None = None,
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        assert max_output_bytes == 64 * 1024
         assert timeout is not None
         assert not check
         assert cwd is input_text is env is None
@@ -69,6 +70,7 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
         assert cwd is None
         assert stdin is not None
@@ -77,6 +79,7 @@ class RecordingRunner(Runner):
         self.calls.append(list(args))
         self.actions.append(list(args))
         self.envs.append(env)
+        self.relays.append(on_stderr_line)
         return self.action_code
 
 
@@ -93,6 +96,14 @@ def workspace_status(*, scopes: list[str] | None = None, **kwargs: Any) -> Comma
             **kwargs,
         }
     )
+
+
+PROTOCOL = CommandResult("ssh\n", "", 0)
+TOKEN = CommandResult("private", "", 0)
+SCOPE_GAP = CommandResult("", "ERROR: Invalid value for [--scopes]: Invalid scopes value. private", 1)
+ADC_SCOPES = ",".join(Config().auth.gcp.adc_scopes)
+ADC_PROBE = ["gcloud", "auth", "application-default", "print-access-token", f"--scopes={ADC_SCOPES}"]
+ADC_LOGIN = ["gcloud", "auth", "application-default", "login", f"--scopes={ADC_SCOPES}"]
 
 
 def github_status(*, scopes: list[str] | None = None, **kwargs: Any) -> CommandResult:
@@ -117,12 +128,9 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     fake = RecordingRunner()
     monkeypatch.setenv("HOME", str(tmp_path))
     for name in (
-        "GH_HOST",
         "GWS_PROJECT",
         "GH_TOKEN",
         "GITHUB_TOKEN",
-        "GH_ENTERPRISE_TOKEN",
-        "GITHUB_ENTERPRISE_TOKEN",
         "GOOGLE_WORKSPACE_CLI_TOKEN",
         "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE",
         "GOOGLE_APPLICATION_CREDENTIALS",
@@ -132,7 +140,7 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(Runner, "which", fake.which)
-    monkeypatch.setattr(Runner, "run_bounded", fake.run_bounded)
+    monkeypatch.setattr(Runner, "run", fake.run)
     monkeypatch.setattr(Runner, "interactive", fake.interactive)
     return fake
 
@@ -142,7 +150,7 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     [
         ["login"],
         ["setup"],
-        ["login", "google", "--dry-run"],
+        ["login", "all", "--dry-run"],
         ["login", "colab", "--dry-run"],
         ["login", "github", "--dry-run"],
         ["setup", "github", "--dry-run"],
@@ -187,7 +195,6 @@ def test_workspace_missing_auth_or_scopes_logs_in_and_verifies(
         response({"auth_method": "oauth2"}),
         CommandResult("secret", "secret", 2),
         CommandResult("{", "", 0),
-        CommandResult("{}", "", 0, stdout_truncated=True),
         DotError("command timed out: gws"),
     ],
 )
@@ -250,6 +257,7 @@ def test_github_plaintext_token_warns_after_satisfied_probe(provider: RecordingR
 def test_github_plaintext_token_warns_after_login(provider: RecordingRunner) -> None:
     provider.responses = [
         response({"hosts": {}}),
+        PROTOCOL,
         github_status(tokenSource="/home/user/.config/gh/hosts.yml"),
     ]
     result = CliRunner().invoke(app, ["login", "github"])
@@ -297,11 +305,22 @@ def test_github_setup_already_satisfied_skips_refresh(provider: RecordingRunner)
     assert not provider.actions
 
 
-def test_github_no_accounts_logs_in(provider: RecordingRunner) -> None:
-    provider.responses = [response({"hosts": {}}), github_status()]
+def test_github_no_accounts_logs_in_through_the_web_with_configured_protocol(provider: RecordingRunner) -> None:
+    provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
     result = CliRunner().invoke(app, ["login", "github"])
     assert result.exit_code == 0, result.exception
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
+    assert provider.actions[0][-3:] == ["--web", "--git-protocol", "ssh"]
+    assert provider.calls[1] == ["gh", "config", "get", "git_protocol", "--host", "github.com"]
+
+
+@pytest.mark.parametrize("protocol", [CommandResult("", "private", 1), CommandResult("ftp\n", "", 0)])
+def test_github_unknown_protocol_keeps_the_native_prompt(provider: RecordingRunner, protocol: CommandResult) -> None:
+    provider.responses = [response({"hosts": {}}), protocol, github_status()]
+    result = CliRunner().invoke(app, ["login", "github"])
+    assert result.exit_code == 0, result.exception
+    assert provider.actions[0][-1] == "--web"
+    assert "private" not in result.output
 
 
 @pytest.mark.parametrize(
@@ -314,7 +333,7 @@ def test_github_login_copies_the_device_code_through_x11_on_crostini(
     # Under Sommelier, wl-copy never forks, so gh would wait on it forever after printing nothing.
     monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
     monkeypatch.setenv("DISPLAY", display)
-    provider.responses = [response({"hosts": {}}), github_status()]
+    provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
     result = CliRunner().invoke(app, ["login", "github"])
     assert result.exit_code == 0, result.exception
     assert provider.envs == [expected]
@@ -349,22 +368,33 @@ def test_github_environment_token_requires_external_scope_repair(
     assert "environment token" in str(result.exception)
 
 
-def test_gcp_skip_requires_cli_and_adc(provider: RecordingRunner) -> None:
+def test_gcp_skip_requires_cli_and_scoped_adc(provider: RecordingRunner) -> None:
     provider.responses = [CommandResult("private-cli", "", 0), CommandResult("private-adc", "", 0)]
     result = CliRunner().invoke(app, ["login", "gcp"])
     assert result.exit_code == 0, result.exception
     assert not provider.actions
-    assert len(provider.calls) == 2
+    assert provider.calls == [["gcloud", "auth", "print-access-token"], ADC_PROBE]
     assert "private" not in result.output
 
 
-def test_missing_adc_triggers_login_and_both_postchecks(provider: RecordingRunner) -> None:
-    token = CommandResult("private", "", 0)
-    provider.responses = [token, CommandResult("", "Your default credentials were not found", 1), token, token]
+@pytest.mark.parametrize("adc", [CommandResult("", "Your default credentials were not found", 1), SCOPE_GAP])
+def test_missing_or_narrow_adc_relogs_only_adc_with_configured_scopes(
+    provider: RecordingRunner, adc: CommandResult
+) -> None:
+    # gcloud auth login --update-adc would replace the ADC grant with defaults and drop Colab's scope.
+    provider.responses = [TOKEN, adc, TOKEN, TOKEN]
     result = CliRunner().invoke(app, ["login", "gcp"])
     assert result.exit_code == 0, result.exception
-    assert provider.actions == [["gcloud", "auth", "login", "--update-adc"]]
+    assert provider.actions == [ADC_LOGIN]
+    assert "https://www.googleapis.com/auth/colaboratory" in ADC_SCOPES
     assert "private" not in result.output
+
+
+def test_gcp_force_runs_both_logins_and_verifies(provider: RecordingRunner) -> None:
+    provider.responses = [TOKEN, TOKEN]
+    result = CliRunner().invoke(app, ["login", "gcp", "--force"])
+    assert result.exit_code == 0, result.exception
+    assert provider.actions == [["gcloud", "auth", "login"], ADC_LOGIN]
 
 
 @pytest.mark.parametrize(
@@ -383,11 +413,10 @@ def test_missing_adc_triggers_login_and_both_postchecks(provider: RecordingRunne
     ],
 )
 def test_expired_gcloud_session_triggers_login(provider: RecordingRunner, diagnostic: str) -> None:
-    token = CommandResult("private", "", 0)
-    provider.responses = [CommandResult("", diagnostic, 1), token, token, token]
+    provider.responses = [CommandResult("", diagnostic, 1), TOKEN, TOKEN, TOKEN]
     result = CliRunner().invoke(app, ["login", "gcp"])
     assert result.exit_code == 0, result.exception
-    assert provider.actions == [["gcloud", "auth", "login", "--update-adc"]]
+    assert provider.actions == [["gcloud", "auth", "login"]]
     assert "private" not in result.output
 
 
@@ -400,33 +429,51 @@ def test_gcp_network_failure_does_not_trigger_login(provider: RecordingRunner) -
 
 
 COLAB_LISTING = CommandResult("[colab] No active sessions found on server.\n", "", 0)
-COLAB_LOGIN = [
-    "gcloud",
-    "auth",
-    "application-default",
-    "login",
-    "--scopes=openid,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/colaboratory",
-]
+COLAB_SESSIONS = ["colab", "--auth=adc", "sessions"]
 
 
 @pytest.mark.parametrize(
     "listing",
     [COLAB_LISTING, CommandResult("[private] private | Hardware: T4 | Shape: Standard | Variant: GPU\n", "", 0)],
 )
-def test_colab_always_requests_full_grant_and_keeps_session_details_private(
+def test_colab_scoped_adc_skips_login_and_keeps_session_details_private(
     provider: RecordingRunner, listing: CommandResult
 ) -> None:
-    provider.responses = [listing]
+    provider.responses = [TOKEN, listing]
     result = CliRunner().invoke(app, ["login", "colab"])
     assert result.exit_code == 0, result.exception
-    assert provider.calls == [COLAB_LOGIN, ["colab", "--auth=adc", "sessions"]]
+    assert provider.calls == [ADC_PROBE, COLAB_SESSIONS]
     assert "private" not in result.output
+
+
+def test_colab_missing_scope_requests_the_configured_grant(provider: RecordingRunner) -> None:
+    provider.responses = [SCOPE_GAP, COLAB_LISTING]
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code == 0, result.exception
+    assert provider.calls == [ADC_PROBE, ADC_LOGIN, COLAB_SESSIONS]
+    assert "private" not in result.output
+
+
+def test_colab_force_requests_the_grant_without_probing(provider: RecordingRunner) -> None:
+    provider.responses = [COLAB_LISTING]
+    result = CliRunner().invoke(app, ["login", "colab", "--force"])
+    assert result.exit_code == 0, result.exception
+    assert provider.calls == [ADC_LOGIN, COLAB_SESSIONS]
+
+
+def test_colab_requires_its_scopes_in_the_adc_policy(provider: RecordingRunner, tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("auth:\n  gcp:\n    adc_scopes: [openid]\n")
+    result = CliRunner().invoke(app, ["--config", str(path), "login", "colab", "--dry-run"])
+    assert result.exit_code != 0
+    assert "colaboratory" in str(result.exception)
+    assert not provider.calls
 
 
 def test_colab_preview_includes_scopes_and_session_check(provider: RecordingRunner) -> None:
     result = CliRunner().invoke(app, ["login", "colab", "--dry-run"])
     assert result.exit_code == 0, result.exception
-    assert " ".join(COLAB_LOGIN) in result.stdout
+    assert " ".join(ADC_LOGIN) in result.stdout
     assert "colab --auth=adc sessions" in result.stdout
     assert not provider.calls
 
@@ -441,6 +488,7 @@ def test_colab_missing_tool_fails_before_authentication(provider: RecordingRunne
 
 def test_colab_external_adc_is_not_overwritten(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/private/customer.json")
+    provider.responses = [SCOPE_GAP]
     result = CliRunner().invoke(app, ["login", "colab"])
     assert result.exit_code != 0
     assert not provider.actions
@@ -450,19 +498,29 @@ def test_colab_external_adc_is_not_overwritten(provider: RecordingRunner, monkey
 
 @pytest.mark.parametrize("initial", [CommandResult("", "network private", 1), CommandResult("", "", 0)])
 def test_colab_unknown_postcheck_is_not_success(provider: RecordingRunner, initial: CommandResult) -> None:
-    provider.responses = [initial]
+    provider.responses = [SCOPE_GAP, initial]
     result = CliRunner().invoke(app, ["login", "colab"])
     assert result.exit_code != 0
-    assert provider.actions == [COLAB_LOGIN]
+    assert provider.actions == [ADC_LOGIN]
     assert "inspect colab --auth=adc sessions" in str(result.exception)
     assert "private" not in str(result.exception)
 
 
+def test_colab_unknown_adc_state_does_not_authenticate(provider: RecordingRunner) -> None:
+    provider.responses = [CommandResult("", "network private", 1)]
+    result = CliRunner().invoke(app, ["login", "colab"])
+    assert result.exit_code != 0
+    assert not provider.actions
+    assert "colab authentication state is unknown" in str(result.exception)
+    assert "private" not in str(result.exception)
+
+
 def test_colab_failed_login_stops_before_postcheck(provider: RecordingRunner) -> None:
+    provider.responses = [SCOPE_GAP]
     provider.action_code = 17
     result = CliRunner().invoke(app, ["login", "colab"])
     assert result.exit_code != 0
-    assert provider.calls == [COLAB_LOGIN]
+    assert provider.calls == [ADC_PROBE, ADC_LOGIN]
 
 
 @pytest.mark.parametrize(
@@ -476,45 +534,59 @@ def test_colab_failed_login_stops_before_postcheck(provider: RecordingRunner) ->
     ],
 )
 def test_colab_failed_postcheck_is_not_success(provider: RecordingRunner, listing: CommandResult) -> None:
-    provider.responses = [listing]
+    provider.responses = [SCOPE_GAP, listing]
     result = CliRunner().invoke(app, ["login", "colab"])
     assert result.exit_code != 0
-    assert provider.calls == [COLAB_LOGIN, ["colab", "--auth=adc", "sessions"]]
+    assert provider.calls == [ADC_PROBE, ADC_LOGIN, COLAB_SESSIONS]
     assert "required scopes" in str(result.exception)
     assert "private" not in str(result.exception)
 
 
-def test_login_google_orders_workspace_before_gcp_and_excludes_github(provider: RecordingRunner) -> None:
-    token = CommandResult("private", "", 0)
-    provider.responses = [workspace_status(), token, token]
-    result = CliRunner().invoke(app, ["login", "google", "--force"])
-    assert result.exit_code == 0, result.exception
-    assert [args[:3] for args in provider.actions] == [["gws", "auth", "login"], ["gcloud", "auth", "login"]]
+def client_status(**kwargs: Any) -> CommandResult:
+    return response(
+        {
+            "client_config_exists": True,
+            "project_id": "fixture-project",
+            "enabled_apis": Config().auth.workspace.apis,
+            **kwargs,
+        }
+    )
 
 
-def test_login_google_stops_on_workspace_failure(provider: RecordingRunner) -> None:
-    provider.action_code = 17
-    result = CliRunner().invoke(app, ["login", "google", "--force"])
-    assert result.exit_code != 0
-    assert len(provider.calls) == 1
-    assert provider.calls[0][0] == "gws"
-
-
-def test_setup_workspace_already_configured_does_nothing(provider: RecordingRunner) -> None:
-    provider.responses = [
-        response([{"config": {"name": api}} for api in Config().auth.workspace.apis]),
-        response({"client_config_exists": True, "project_id": "fixture-project"}),
-    ]
+def test_setup_workspace_already_configured_needs_only_gws_status(provider: RecordingRunner) -> None:
+    provider.responses = [client_status()]
     result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
     assert result.exit_code == 0, result.exception
     assert not provider.actions
+    assert provider.calls == [["gws", "auth", "status"]]
+
+
+def test_setup_workspace_enables_apis_missing_from_gws_status(provider: RecordingRunner) -> None:
+    apis = Config().auth.workspace.apis
+    provider.responses = [client_status(enabled_apis=apis[1:]), response([{"config": {"name": api}} for api in apis])]
+    result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
+    assert result.exit_code == 0, result.exception
+    assert provider.actions == [["gcloud", "services", "enable", apis[0], "--project", "fixture-project", "--quiet"]]
+    assert provider.calls[0] == ["gws", "auth", "status"]
+
+
+def test_setup_workspace_other_project_lists_apis_with_gcloud(provider: RecordingRunner) -> None:
+    provider.responses = [
+        client_status(project_id="other-project", enabled_apis=[]),
+        response([{"config": {"name": api}} for api in Config().auth.workspace.apis]),
+        client_status(),
+    ]
+    result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
+    assert result.exit_code == 0, result.exception
+    assert [args[:3] for args in provider.actions] == [["gws", "auth", "setup"]]
+    assert provider.calls[1][:3] == ["gcloud", "services", "list"]
 
 
 def test_workspace_setup_enables_only_missing_apis_and_stops_on_failure(provider: RecordingRunner) -> None:
     apis = Config().auth.workspace.apis
     provider.responses = [
-        response([{"config": {"name": api}} for api in apis[1:]]),
         response({"client_config_exists": False}),
+        response([{"config": {"name": api}} for api in apis[1:]]),
     ]
     provider.action_code = 1
     result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
@@ -531,20 +603,18 @@ def test_workspace_setup_rejects_missing_or_invalid_project_before_probes(
     assert not provider.calls
 
 
-def test_host_project_and_scope_override_precedence(
+def test_project_and_scope_override_precedence(
     provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     path = tmp_path / "dot.yaml"
     path.write_text(
-        "auth:\n  github:\n    host: config.test\n    scopes: [repo]\n  workspace:\n    project: config-project\n    scopes: [openid]\n"
+        "auth:\n  github:\n    scopes: [repo]\n  workspace:\n    project: config-project\n    scopes: [openid]\n"
     )
-    monkeypatch.setenv("GH_HOST", "env.test")
     monkeypatch.setenv("GWS_PROJECT", "env-project")
     runner = CliRunner()
-    assert "env.test" in runner.invoke(app, ["--config", str(path), "login", "github", "--dry-run"]).stdout
-    result = runner.invoke(app, ["--config", str(path), "login", "github", "--host", "cli.test", "--dry-run"])
+    result = runner.invoke(app, ["--config", str(path), "login", "github", "--dry-run"])
     assert result.exit_code == 0, result.exception
-    assert "--hostname cli.test --scopes repo" in result.stdout
+    assert "--hostname github.com --scopes repo" in result.stdout
     result = runner.invoke(app, ["--config", str(path), "setup", "workspace", "cli-project", "--dry-run"])
     assert "--project cli-project" in result.stdout
     result = runner.invoke(app, ["--config", str(path), "login", "workspace", "--dry-run"])
@@ -595,14 +665,12 @@ def test_native_failure_stops_aggregate(provider: RecordingRunner) -> None:
 
 def test_workspace_setup_verifies_changes_and_second_run_is_noop(provider: RecordingRunner) -> None:
     enabled = response([{"config": {"name": api}} for api in Config().auth.workspace.apis])
-    configured = response({"client_config_exists": True, "project_id": "fixture-project"})
     provider.responses = [
-        response([]),
         response({"client_config_exists": False}),
+        response([]),
         enabled,
-        configured,
-        enabled,
-        configured,
+        client_status(),
+        client_status(),
     ]
     runner = CliRunner()
     first = runner.invoke(app, ["setup", "workspace", "fixture-project"])
@@ -615,7 +683,7 @@ def test_workspace_setup_verifies_changes_and_second_run_is_noop(provider: Recor
 
 
 def test_workspace_incomplete_enablement_stops_before_oauth(provider: RecordingRunner) -> None:
-    provider.responses = [response([]), response({"client_config_exists": False}), response([])]
+    provider.responses = [response({"client_config_exists": False}), response([]), response([])]
     result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
     assert result.exit_code != 0
     assert len(provider.actions) == 1
@@ -623,14 +691,18 @@ def test_workspace_incomplete_enablement_stops_before_oauth(provider: RecordingR
 
 
 def test_github_rejected_token_reauthenticates(provider: RecordingRunner) -> None:
-    provider.responses = [github_status(state="error", error="HTTP 401: Bad credentials (HTTP 401)"), github_status()]
+    provider.responses = [
+        github_status(state="error", error="HTTP 401: Bad credentials (HTTP 401)"),
+        PROTOCOL,
+        github_status(),
+    ]
     result = CliRunner().invoke(app, ["login", "github"])
     assert result.exit_code == 0, result.exception
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
 
 
 def test_new_github_setup_logs_in_then_reconciles_old_grants(provider: RecordingRunner) -> None:
-    provider.responses = [response({"hosts": {}}), github_status()]
+    provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
     result = CliRunner().invoke(app, ["setup", "github"])
     assert result.exit_code == 0, result.exception
     assert [args[:3] for args in provider.actions] == [["gh", "auth", "login"], ["gh", "auth", "refresh"]]
@@ -682,3 +754,86 @@ def test_hf_cache_creates_the_native_cache_location(
     assert result.exit_code == 0, result.exception
     assert (tmp_path / target).is_dir()
     assert provider.actions == [["hf", "cache", "ls"]]
+
+
+def test_workspace_login_opens_the_printed_oauth_url_once(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opened: list[str] = []
+    monkeypatch.setenv("BROWSER", "fixture-browser")
+    monkeypatch.setattr(auth.webbrowser, "open", lambda url: opened.append(url) or True)
+    provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
+    result = CliRunner().invoke(app, ["login", "workspace"])
+    assert result.exit_code == 0, result.exception
+    assert provider.relays[0] is not None
+    stderr = StringIO()
+    relay = auth.browser_opener(auth.State(stderr=stderr))
+    relay("Open this URL in your browser to authenticate:\n")
+    relay("  https://accounts.google.com/o/oauth2/auth?a=1\n")
+    relay("  https://accounts.google.com/o/oauth2/auth?a=2\n")
+    assert opened == ["https://accounts.google.com/o/oauth2/auth?a=1"]
+    assert "Opened the sign-in page" in stderr.getvalue()
+
+
+def test_workspace_login_ignores_foreign_urls(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BROWSER", "fixture-browser")
+    monkeypatch.setattr(auth.webbrowser, "open", lambda _url: pytest.fail("only Google OAuth URLs open"))
+    relay = auth.browser_opener(auth.State())
+    relay("  https://example.test/?next=https://accounts.google.com/\n")
+    relay("https://accounts.google.com/o/oauth2/auth trailing words\n")
+
+
+def test_browser_requires_a_graphical_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("BROWSER", "DISPLAY", "WAYLAND_DISPLAY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(auth.sys, "platform", "linux")
+    monkeypatch.setattr(auth.webbrowser, "open", lambda _url: pytest.fail("console browsers would seize the terminal"))
+    assert not auth.open_browser("https://accounts.google.com/o/oauth2/auth")
+
+
+def test_login_all_skips_every_ready_provider(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GWS_PROJECT", "fixture-project")
+    provider.responses = [github_status(), client_status(), workspace_status(), TOKEN, TOKEN]
+    result = CliRunner().invoke(app, ["login", "all"])
+    assert result.exit_code == 0, result.exception
+    assert not provider.actions
+    assert [args[:3] for args in provider.calls] == [
+        ["gh", "auth", "status"],
+        ["gws", "auth", "status"],
+        ["gws", "auth", "status"],
+        ["gcloud", "auth", "print-access-token"],
+        ADC_PROBE[:3],
+    ]
+
+
+def test_login_all_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:
+    provider.responses = [github_status(), workspace_status(), TOKEN, TOKEN]
+    result = CliRunner().invoke(app, ["login", "all"])
+    assert result.exit_code == 0, result.exception
+    assert "Skipping Workspace setup" in result.stderr
+    assert not provider.actions
+
+
+def test_login_all_reconciles_github_first_and_stops_on_failure(provider: RecordingRunner) -> None:
+    provider.responses = [github_status(scopes=[*Config().auth.github.scopes, "delete_repo"])]
+    provider.action_code = 17
+    result = CliRunner().invoke(app, ["login", "all"])
+    assert result.exit_code != 0
+    assert len(provider.actions) == 1
+    assert "--remove-scopes" in provider.actions[0]
+
+
+def test_login_all_preview_lists_every_step(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GWS_PROJECT", "fixture-project")
+    result = CliRunner().invoke(app, ["login", "all", "--dry-run"])
+    assert result.exit_code == 0, result.exception
+    assert not provider.calls
+    for command in (
+        "gh auth login",
+        "--web",
+        "gcloud services enable",
+        "gws auth setup",
+        "gws auth login",
+        " ".join(ADC_LOGIN),
+    ):
+        assert command in result.stdout

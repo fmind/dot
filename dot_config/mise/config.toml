@@ -58,7 +58,7 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 # Hold the audited 11.x line (lodash-es 4.18.1): 12.0.0 still resolves mermaid 12.0.0, whose
 # chevrotain 11.1.2 pins lodash-es 4.17.23 (CVE-2026-4800). mermaid 12.1.0 drops lodash-es but
 # is newer than the npm release-age gate; recheck after 2026-10-09 (reviewed 2026-10-02).
-"npm:@mermaid-js/mermaid-cli" = { version = "11.17.0", allow_builds = ["puppeteer"] } # Allow Puppeteer to install the headless browser used for rendering
+"npm:@mermaid-js/mermaid-cli" = "11.17.0" # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 "npm:skills" = "latest" # Agent Skills CLI manager
@@ -71,8 +71,7 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "pipx:google-colab-cli" = "latest" # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
-"pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client with bundled libpq; no host package needed
-"pipx:pip-audit" = "latest" # Audits installed pipx tool environments for check:vuln:tools; uv-managed projects use `uv audit` for check:vuln
+"pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 actionlint = "latest" # Correctness linter for GitHub Actions workflows
@@ -161,8 +160,6 @@ version = "latest" # Official CLI client for Agent2Agent (A2A) agents
 
 [tools."github:a2aproject/a2a-cli".platforms]
 linux-x64 = { asset_pattern = "*linux_amd64*" }
-linux-arm64 = { asset_pattern = "*linux_arm64*" }
-macos-x64 = { asset_pattern = "*darwin_amd64*" }
 macos-arm64 = { asset_pattern = "*darwin_arm64*" }
 
 [tools."github:atuinsh/atuin"]
@@ -171,8 +168,6 @@ version = "latest" # Magical shell history replacement database
 
 [tools."github:atuinsh/atuin".platforms]
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
-linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl*" }
-macos-x64 = { asset_pattern = "*x86_64-apple-darwin*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
 
 [tools."github:googleworkspace/cli"]
@@ -181,8 +176,6 @@ version = "latest" # Google Workspace CLI (gws)
 
 [tools."github:googleworkspace/cli".platforms]
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
-linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl*" }
-macos-x64 = { asset_pattern = "*x86_64-apple-darwin*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
 
 [tools."github:sxyazi/yazi"]
@@ -191,8 +184,6 @@ version = "latest" # Blazing-fast terminal file manager in Rust
 
 [tools."github:sxyazi/yazi".platforms]
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl.zip" }
-linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl.zip" }
-macos-x64 = { asset_pattern = "*x86_64-apple-darwin.zip" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin.zip" }
 
 [tools."github:tailwindlabs/tailwindcss"]
@@ -202,6 +193,4 @@ version = "latest" # Standalone Tailwind CSS v4 compiler (Python web assets, no 
 
 [tools."github:tailwindlabs/tailwindcss".platforms]
 linux-x64 = { asset_pattern = "tailwindcss-linux-x64" }
-linux-arm64 = { asset_pattern = "tailwindcss-linux-arm64" }
-macos-x64 = { asset_pattern = "tailwindcss-macos-x64" }
 macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }

@@ -23,7 +23,7 @@ Mermaid is the default format for technical documentation because the same edita
 
 ## Gotchas
 
-- **No browser found**: `mmdc` fails with `Could not find chrome-headless-shell` when the Puppeteer download is absent; point it at system Chrome: `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome mmdc -i diagram.mmd -o diagram.svg`.
+- **No browser found**: `mmdc` fails with `Could not find chrome-headless-shell` because the Puppeteer browser download is disabled; interactive Fish exports `PUPPETEER_EXECUTABLE_PATH`, otherwise point it at system Chrome: `PUPPETEER_EXECUTABLE_PATH="$(command -v google-chrome)" mmdc -i diagram.mmd -o diagram.svg` (macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
 - **Clipped labels**: set one renderer-stable font stack through root-level `config.fontFamily`; late-loading web fonts change label measurements after layout and clip inside fixed bounds.
 - **Cryptic labels**: use clear, self-explanatory labels for nodes, edges, and subgraphs instead of cryptic IDs or abbreviations; diagrams must be effortless for humans to read at a glance in documentation.
 - **Deprecated option**: `flowchart.htmlLabels` is deprecated; do not add it to new diagrams.

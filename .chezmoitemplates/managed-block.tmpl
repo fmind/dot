@@ -4,18 +4,12 @@
   deploys without per-version rewrite code; a begin marker without its end marker is an
   unrecognized legacy block and stays untouched rather than duplicated.
 
-  Params: stdin (current content), name (marker id), body (block lines), position (top|bottom),
-  legacyEnd (regexp for the last line of a block deployed before end markers existed).
+  Params: stdin (current content), name (marker id), body (block lines), position (top|bottom).
 */ -}}
 {{- $begin := printf "# chezmoi: %s" .name -}}
 {{- $end := printf "# chezmoi: end %s" .name -}}
 {{- $block := printf "%s\n%s\n%s" $begin .body $end -}}
 {{- $text := .stdin -}}
-{{- /* Blocks deployed up to v8.2.0 lack the end marker and may predate later body lines;
-       replace them through their legacy last line. Drop this once every host has applied. */ -}}
-{{- if and (contains $begin $text) (not (contains $end $text)) -}}
-{{-   $text = regexReplaceAllLiteral (printf "(?m)^%s\n(?s:.*?)\n%s$" (regexQuoteMeta $begin) .legacyEnd) $text $block -}}
-{{- end -}}
 {{- if contains $end $text -}}
 {{-   $text = regexReplaceAllLiteral (printf "(?s)%s\n.*?%s" (regexQuoteMeta $begin) (regexQuoteMeta $end)) $text $block -}}
 {{- else if contains $begin $text -}}

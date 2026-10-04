@@ -37,4 +37,4 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 - Prefer CLIs over MCP. Use `mise` for tool selection and `upgrade-tools` for cross-repository upgrades.
 - Model integrations default to GCP Agent Platform with ADC: personal project `ai-studio-fmind`, `global`, `gemini-3.8-flash`, high thinking. API keys are explicit-only or a last resort after reporting ADC failure; never export auto-discovered Google keys or silently fall back to AI Studio. See `model-providers`.
 - Markdown: language-tagged fences, `1.` numbering, one line per paragraph, and relative or `~`-relative paths in skills/AGENTS.md. Comment-capable configs start with their official docs URL below any schema directive.
-- Linux/macOS configuration lives in `~/.local/share/chezmoi` (`fmind/dot`); inspect tools in `dot_config/mise/config.toml.tmpl` when needed. Edit managed configuration only in its source repository and within scope.
+- Linux/macOS configuration lives in `~/.local/share/chezmoi` (`fmind/dot`); inspect tools in `dot_config/mise/config.toml` when needed. Edit managed configuration only in its source repository and within scope.

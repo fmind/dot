@@ -21,10 +21,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 100
           persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
           version: 2026.10.2
@@ -85,7 +84,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
           version: 2026.10.2
