@@ -18,6 +18,11 @@ CONTEXT_TOKEN_LIMIT = 5_000
 MAX_INPUT_BYTES = 1 << 20
 Scope = Literal["global", "local"]
 _RESERVED_SKILL_DIRECTORIES = frozenset({"synced"})
+# Hosts disagree on same-name skills: some prefer one scope, some list both, some pick arbitrarily.
+DUPLICATE_GUIDANCE = (
+    "Hosts resolve duplicate skill names differently (scope precedence, both listed, or an arbitrary winner). "
+    "Rename one skill or remove a copy so each name is unique across global and local scopes."
+)
 
 
 def estimated_tokens(characters: int) -> int:
@@ -165,6 +170,15 @@ def _totals(entries: list[ContextEntry]) -> dict[str, int]:
     }
 
 
+def _duplicates(entries: list[ContextEntry]) -> list[dict[str, Any]]:
+    """Group distinct resolved files by declared name; callers pass entries already deduplicated by file."""
+    paths: dict[str, list[str]] = {}
+    for entry in entries:
+        if entry.kind == "skill":
+            paths.setdefault(entry.name, []).append(entry.path)
+    return [{"name": name, "paths": found} for name, found in sorted(paths.items()) if len(found) > 1]
+
+
 def context_report(project: Path, *, global_root: Path | None = None, source: Path | None = None) -> dict[str, Any]:
     """Measure explicit shared roots, not a guessed host prompt or recursive workspace; source wins over global_root."""
     project = project.expanduser().resolve()
@@ -188,13 +202,7 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
     for entry in [*global_entries, *local_entries]:
         unique.setdefault(Path(entry.path).resolve(), entry)
     combined = list(unique.values())
-    names: set[str] = set()
-    collisions: set[str] = set()
-    for entry in combined:
-        if entry.kind == "skill":
-            if entry.name in names:
-                collisions.add(entry.name)
-            names.add(entry.name)
+    duplicates = _duplicates(combined)
     totals = {"global": _totals(global_entries), "local": _totals(local_entries), "combined": _totals(combined)}
     budgets = {
         scope: {
@@ -209,16 +217,17 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
         "schema": "dot.agent.context/v4",
         "measurement": "ceil(characters / 4); portable estimate, not host tokenization or billing",
         "coverage": "Shared roots only; excludes host/plugin catalogs, ancestor/nested instructions and references. "
-        "Combined counts identical resolved files once; distinct same-name skills both count.",
+        "Combined counts identical resolved files once; distinct same-name skills both count and fail --check.",
         "roots": roots,
         "totals": totals,
         "budgets": budgets,
-        "passed": all(budget["passed"] for budget in budgets.values()),
+        "passed": all(budget["passed"] for budget in budgets.values()) and not duplicates,
         "host_extras": {
             "global": _host_extras(global_skills, "global"),
             "local": _host_extras(project / ".agents/skills", "local"),
         },
-        "collisions": sorted(collisions),
+        "collisions": [item["name"] for item in duplicates],
+        "duplicates": duplicates,
         "entries": [entry.to_dict() for entry in [*global_entries, *local_entries]],
     }
 
@@ -256,8 +265,13 @@ def _print_report(report: dict[str, Any], *, details: bool) -> None:
             + " in reserved directories other hosts may load."
         )
     typer.echo("Estimated at ~4 characters/token; exact counts vary by model. Totals round independently.")
-    if report["collisions"]:
-        typer.echo("\nName collisions (both counted): " + ", ".join(report["collisions"]))
+    if report["duplicates"]:
+        typer.echo("\nDuplicate skill names · FAIL (both counted)")
+        for item in report["duplicates"]:
+            typer.echo(f"  {item['name']}")
+            for path in item["paths"]:
+                typer.echo(f"    {display_path(path)}")
+        typer.echo(DUPLICATE_GUIDANCE)
     if details:
         typer.echo("\nOn-demand SKILL.md files · estimated tokens, excluded from budget")
         for scope, totals in report["totals"].items():
@@ -279,7 +293,10 @@ def _check_summary(report: dict[str, Any]) -> str:
 def register(agent_app: typer.Typer) -> None:
     """Expose the report under the existing agent command group."""
 
-    @agent_app.command("context", help="Measure global, project, and combined AGENTS.md and skill discovery costs")
+    @agent_app.command(
+        "context",
+        help="Measure global, project, and combined AGENTS.md and skill discovery costs; report duplicate skill names",
+    )
     def context_command(
         project: Annotated[
             Path, typer.Option("--project", "-p", help="Project root (only its own instructions and skills)")
@@ -295,7 +312,8 @@ def register(agent_app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--check",
-                help="Exit 1 at 5000 instruction + discovery tokens in either global or local scope",
+                help="Exit 1 at 5000 instruction + discovery tokens in either global or local scope, "
+                "or on duplicate skill names",
             ),
         ] = False,
         details: Annotated[
@@ -309,6 +327,10 @@ def register(agent_app: typer.Typer) -> None:
         report = context_report(project, global_root=global_root, source=source)
         if as_json:
             write_json(sys.stdout, report)
+            if check and report["duplicates"]:
+                # Keep stdout parseable; the text report already carries this guidance.
+                names = ", ".join(item["name"] for item in report["duplicates"])
+                typer.echo(f"Duplicate skill names: {names}. {DUPLICATE_GUIDANCE}", err=True)
         elif check and report["passed"] and not details:
             # Agents run the gate often; a pass needs one line, a failure keeps the full table.
             typer.echo(_check_summary(report))
