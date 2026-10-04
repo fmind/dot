@@ -83,3 +83,43 @@ def test_theme_pin_rewrites_revision_and_checksums() -> None:
     assert hashlib.sha256(b"theme").hexdigest() in pinned
     with pytest.raises(ValueError, match="pinned revision"):
         theme_pin.pin(template.replace("a" * 40, "main"), "b" * 40, download)
+
+
+def test_copied_theme_registry_covers_every_upstream_copy() -> None:
+    result = subprocess.run(
+        ["git", "grep", "--untracked", "-l", "fmind/theme/blob/main/themes/", "--", ":!dot/"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=True,
+        timeout=15,
+    )
+    assert set(result.stdout.split()) == set(theme_pin.COPIED)
+
+
+def test_stale_copies_detects_changed_and_missing_theme_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = "dot_config/starship.toml"
+    monkeypatch.setattr(theme_pin, "COPIED", {source: ("starship/fmind.toml", (("palette",), ("palettes",)))})
+    local = (ROOT / source).read_text()
+
+    def check(upstream: str) -> list[str]:
+        return theme_pin.stale_copies("b" * 40, lambda _url: upstream.encode(), lambda path: path.read_text())
+
+    assert check(local) == []
+    assert check(local.replace('blue = "#174ea6"', 'blue = "#000000"')) == [
+        f"{source}: palettes differs from themes/starship/fmind.toml"
+    ]
+    assert check(local.replace('palette = "fmind"', "")) == [
+        f"{source}: palette differs from themes/starship/fmind.toml"
+    ]
+
+
+def test_copied_theme_parsers_ignore_comments_and_git_quoting() -> None:
+    jsonc = '{\n  // Source: theme\n  "$schema": "https://example.com/schema.json",\n  "a": 1\n}'
+    assert theme_pin.parse(jsonc, "fastfetch/fmind.json") == {"$schema": "https://example.com/schema.json", "a": 1}
+    assert theme_pin.parse("--hidden\n--colors=path:style:bold\n", "ripgrep/fmind.ripgreprc") == {
+        "colors": ["--colors=path:style:bold"]
+    }
+    upstream = theme_pin.parse('[color "diff"]\n\tmeta = #595d62\n', "git/fmind.gitconfig")
+    local = theme_pin.parse('# Source\n[color "diff"]\n    meta = "#595d62"\n', "git/fmind.gitconfig")
+    assert upstream == local == {'color "diff"': {"meta": "#595d62"}}

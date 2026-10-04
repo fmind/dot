@@ -27,6 +27,11 @@ set -gx COPILOT_ALLOW_ALL 1
 set -gx COREPACK_ENABLE_AUTO_PIN 0
 # Match the skin installed by chezmoi externals.
 set -gx K9S_SKIN theme
+# Layer the fmind/theme external over the managed config; lazygit rejects a missing
+# custom config file, so wait until chezmoi has fetched it.
+if test -r $XDG_CONFIG_HOME/lazygit/theme.yml
+    set -gx LG_CONFIG_FILE $XDG_CONFIG_HOME/lazygit/config.yml,$XDG_CONFIG_HOME/lazygit/theme.yml
+end
 # mermaid-cli (mmdc) renders through puppeteer; point it at the system Chrome so
 # a diagram export never downloads a second browser into ~/.cache/puppeteer.
 if command -q google-chrome
