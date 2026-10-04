@@ -43,7 +43,7 @@ def _ensure_hf_cache_dir() -> None:
     Path(os.path.expandvars(str(selected))).mkdir(parents=True, exist_ok=True)
 
 
-def execute(state: State, args: list[str], *, dry_run: bool = False) -> None:
+def execute(state: State, args: list[str], *, dry_run: bool = False, env: dict[str, str] | None = None) -> None:
     """Preserve caller environment, directory, terminal, and native diagnostics."""
     if dry_run:
         print(shlex.join(args), file=state.stdout)
@@ -51,7 +51,7 @@ def execute(state: State, args: list[str], *, dry_run: bool = False) -> None:
     require_tools(state, [args])
     if args[:2] == ["hf", "cache"]:
         _ensure_hf_cache_dir()
-    code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr)
+    code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env)
     if code != 0:
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 
