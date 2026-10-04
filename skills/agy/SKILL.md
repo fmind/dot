@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agy
   created: "2026-09-09"
-  updated: "2026-10-03"
+  updated: "2026-10-04"
 ---
 
 # Agy
