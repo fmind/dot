@@ -14,7 +14,7 @@ The `chrome-devtools-mcp` package also exposes the experimental `chrome-devtools
 
 ## Gotchas
 
-- **Different defaults**: the CLI starts headless and enables `--memoryDebugging`, unlike a default MCP connection; set the browser mode explicitly when comparing runs.
+- **CLI defaults differ from MCP**: the CLI starts headless and enables `--memoryDebugging`, unlike a default MCP connection; set the browser mode explicitly when comparing runs.
 
 ## Documentation
 

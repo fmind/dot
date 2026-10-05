@@ -37,14 +37,14 @@ run = "gitleaks git --redact=100 --verbose --no-banner"
 1. **Contain confirmed exposure**: treat an exposed credential as compromised even after the commit disappears. Prepare rotation first and execute it only within the established credential and service authority; a scanning request alone does not authorize rotation.
 1. **Remove it from the source**: move the value to an environment variable or an encrypted file per [sops-secrets](../../sops-secrets/SKILL.md).
 1. **Rewrite history only when asked**: rewrites affect every clone; confirm with the user before `git filter-repo`.
-1. **Allowlist true false positives** with an inline `gitleaks:allow` comment or a rule in `.gitleaks.toml`, each with a reason.
+1. **Allowlist true false positives**: use an inline `gitleaks:allow` comment or a rule in `.gitleaks.toml`, each with a reason.
 
 ## Gotchas
 
 - **Policy is part of the evidence**: inspect effective configuration, ignore files, baselines, and inline `gitleaks:allow` comments. For an untrusted candidate, run from a trusted directory with reviewed `--config` and `--gitleaks-ignore-path` files and `--ignore-gitleaks-allow`; do not let the candidate suppress its own findings. Redaction protects output, not scan completeness.
-- **Full-history checkout**: the scheduled `security.yml` job needs `fetch-depth: 0` per [github-actions](../../github-actions/references/ci-cd/GUIDE.md); a shallow clone silently narrows `check:leaks:full`.
-- **Bypassed hooks**: a commit made with `--no-verify` or outside the hooks is caught only by the weekly full-history audit; run `check:leaks:full` after importing foreign history.
-- **`--redact` in shared logs**: never print a found secret in CI output or an uploaded report.
+- **Fetch full history for audits**: the scheduled `security.yml` job needs `fetch-depth: 0` per [github-actions](../../github-actions/references/ci-cd/GUIDE.md); a shallow clone silently narrows `check:leaks:full`.
+- **Rescan after bypassed hooks**: a commit made with `--no-verify` or outside the hooks is caught only by the weekly full-history audit; run `check:leaks:full` after importing foreign history.
+- **Always `--redact` shared logs**: never print a found secret in CI output or an uploaded report.
 
 ## Documentation
 

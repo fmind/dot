@@ -27,7 +27,7 @@ Produce a decision-ready answer whose important claims trace to current, authori
 
 ## Gotchas
 
-- **Side effects**: Use disposable scratch dependencies and local research artifacts when needed for the requested investigation. Preserve project configuration; paid services, implementation, and consequential external changes require authority for their actual effect.
+- **Keep research side effects disposable**: Use disposable scratch dependencies and local research artifacts when needed for the requested investigation. Preserve project configuration; paid services, implementation, and consequential external changes require authority for their actual effect.
 
 ## Documentation
 

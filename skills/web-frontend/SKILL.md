@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Web Frontend
@@ -28,9 +28,9 @@ Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an exis
 
 ## Gotchas
 
-- **Preview status**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
-- **Version refresh**: both commands share one review pin; bump them together only to the latest stable release past npm's `min-release-age` cooldown, after qualifying it, and never disable that policy to pass a freshness check.
-- **Progressive enhancement**: Native dialogs, popovers, and top-layer elements require careful focus and accessibility management; verify keyboard navigation.
+- **Verify preview guidance against MDN**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
+- **Bump both pins together**: both commands share one review pin; bump them together only to the latest stable release past npm's `min-release-age` cooldown, after qualifying it, and never disable that policy to pass a freshness check.
+- **Manage focus for top-layer elements**: Native dialogs, popovers, and top-layer elements require careful focus and accessibility management; verify keyboard navigation.
 
 ## Official Skills
 

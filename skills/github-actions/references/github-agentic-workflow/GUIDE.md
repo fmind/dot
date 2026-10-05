@@ -17,11 +17,11 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 
 ## Gotchas
 
-- **Two Copilot roles**: `gh aw init --engine copilot` configures Copilot as the authoring assistant; `engine: copilot` plus runtime authentication selects it inside the Actions workflow.
-- **Generated lock file**: Markdown body edits load at runtime, but frontmatter edits require recompilation; repository policy may still require compiling every change.
-- **Web search**: the current [engine reference](https://github.github.com/gh-aw/reference/engines/) documents opt-in native Copilot search through `tools.web-search`. Confirm the installed compiler supports it and validate the workflow before use; add an external MCP search service only when the native capability does not meet the task.
-- **Writes and spend**: `gh aw run`, safe outputs without staged mode, `--push`, and `--auto-merge-prs` can mutate GitHub or consume paid resources; require explicit authority for the exact repository and action.
-- **Imported workflows**: Treat their triggers, permissions, tools, network, instructions, safe outputs, and lock files as executable supply-chain input; prefer pinned trusted releases.
+- **Copilot plays two roles**: `gh aw init --engine copilot` configures Copilot as the authoring assistant; `engine: copilot` plus runtime authentication selects it inside the Actions workflow.
+- **Recompile after frontmatter edits**: Markdown body edits load at runtime, but frontmatter edits require recompilation; repository policy may still require compiling every change.
+- **Prefer native Copilot web search**: the current [engine reference](https://github.github.com/gh-aw/reference/engines/) documents opt-in native Copilot search through `tools.web-search`. Confirm the installed compiler supports it and validate the workflow before use; add an external MCP search service only when the native capability does not meet the task.
+- **Writes and spend need explicit authority**: `gh aw run`, safe outputs without staged mode, `--push`, and `--auto-merge-prs` can mutate GitHub or consume paid resources; require explicit authority for the exact repository and action.
+- **Imported workflows are supply-chain input**: Treat their triggers, permissions, tools, network, instructions, safe outputs, and lock files as executable supply-chain input; prefer pinned trusted releases.
 - **Guardrails are boundaries, not proof**: Sandboxing, integrity filtering, threat detection, and safe outputs reduce blast radius; they do not make broad permissions or unreviewed output safe.
 
 ## Official Skills

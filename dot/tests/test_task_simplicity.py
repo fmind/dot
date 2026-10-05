@@ -116,10 +116,8 @@ def test_repository_python_hooks_format_only_staged_files(tmp_path: Path) -> Non
     text = "import os\nx=1\n"
     selected.write_text(text)
     unrelated.write_text(text)
-    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["commands"]
-    formatters = sorted(
-        (hook for hook in hooks.values() if "**/*.py" in hook.get("glob", "")), key=lambda hook: hook["priority"]
-    )
+    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["jobs"]
+    formatters = [hook for hook in hooks if "**/*.py" in hook.get("glob", "")]
     assert formatters
     for hook in formatters:
         assert hook["run"].endswith(" {staged_files}")
@@ -142,8 +140,8 @@ def test_repository_lua_hook_preserves_unselected_files(tmp_path: Path) -> None:
     source = "local x={1,2,3}\n"
     selected.write_text(source)
     unrelated.write_text(source)
-    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["commands"]
-    [hook] = [hook for hook in hooks.values() if hook.get("glob") == "**/*.lua"]
+    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["jobs"]
+    [hook] = [hook for hook in hooks if hook.get("glob") == "**/*.lua"]
     result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], str(selected))
     assert result.returncode == 0, result.stderr
     assert selected.read_text() != source

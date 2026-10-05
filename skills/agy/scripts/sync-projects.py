@@ -30,7 +30,8 @@ def plan(home: Path, registry: Path) -> tuple[list[Path], dict[str, str]]:
     missing = checkouts(home)
     stale = []
     for source in sorted(registry.glob("*.json")):
-        uris = folders(json.loads(source.read_text()))
+        # Non-folder resources keep their entry; a repeated folder counts once.
+        uris = {uri for uri in folders(json.loads(source.read_text())) if uri}
         if not uris:
             continue
         # Keep one entry per checkout; duplicates and anything outside the glob go.

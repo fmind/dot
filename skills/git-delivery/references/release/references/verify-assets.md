@@ -14,7 +14,7 @@ gh release verify-asset "$tag" "$release_dir/$asset" -R "$repo"
 gh attestation verify "$release_dir/$asset" --repo "$repo" --signer-workflow "$signer_workflow" --source-ref "refs/tags/$tag" --source-digest "$release_sha"
 ```
 
-- `gh release verify` and `gh release verify-asset` apply only to immutable releases with release attestations; generated source archives cannot be verified as uploaded assets.
-- Verify the checksum manifest itself before trusting its entries.
-- Run `gh attestation verify` when separate build provenance exists, with the expected signer workflow.
-- Missing assets, checksums, attestations, or signer identity are a failed proof, not permission to regenerate or replace them.
+- **Release verification needs immutable releases**: `gh release verify` and `gh release verify-asset` apply only to immutable releases with release attestations; generated source archives cannot be verified as uploaded assets.
+- **Verify the checksum manifest itself before trusting its entries**.
+- **Verify separate build provenance**: run `gh attestation verify` when separate build provenance exists, with the expected signer workflow.
+- **Treat missing proof as failure**: missing assets, checksums, attestations, or signer identity are a failed proof, not permission to regenerate or replace them.

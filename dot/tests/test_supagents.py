@@ -21,7 +21,7 @@ def test_cross_harness_roles_keep_shared_policy_and_agy_tools(tmp_path: Path) ->
     assert result.plans
     for plan in result.plans:
         assert "~/.agents/AGENTS.md" in plan.source.body
-        assert "Do not delegate further work." in plan.source.body
+        assert "this role adds a focus and defaults, not limits." in plan.source.body
         if plan.target_name == "AGY":
             frontmatter, _ = split_frontmatter(plan.rendered)
             # Antigravity grants no shell or edit tools when `tools` is omitted, and

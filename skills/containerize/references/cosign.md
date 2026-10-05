@@ -36,7 +36,7 @@ Resolve the exact Cosign version from the workstation baseline, add it to the pr
 - **Verification pins identity and issuer**: a valid signature from an unexpected workflow is not provenance; record the expected identity in the release documentation.
 - **Signing writes to the registry**: `sign` and `attest` push signatures next to the image, so a local packaging request does not authorize them.
 - **SBOM first, then attest**: generate the SBOM per [trivy](../../code-security/references/trivy/GUIDE.md) and attach it as an attestation so consumers verify inventory and signature together.
-- **Multi-platform images**: an index signature covers its child descriptors, but a scan or SBOM usually covers one platform. Scan every published child, attach each SBOM to that child's digest, and verify all children before promoting the index.
+- **Scan and attest every platform child**: an index signature covers its child descriptors, but a scan or SBOM usually covers one platform. Scan every published child, attach each SBOM to that child's digest, and verify all children before promoting the index.
 
 ## Documentation
 

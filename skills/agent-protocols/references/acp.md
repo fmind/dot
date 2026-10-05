@@ -9,17 +9,17 @@ Use ACP for integration between an editor or other client and an agent process. 
 
 ## Python implementation
 
-1. Inspect the peers' protocol versions and the installed SDK. Use the official `agentclientprotocol/python-sdk` distribution `agent-client-protocol`; add it with `uv add agent-client-protocol` only when the project needs it.
-1. Start from the SDK's matching client and echo-agent examples. Implement the required role through its async bases and generated `acp.schema` models rather than hand-writing JSON-RPC envelopes.
-1. Negotiate capabilities and establish a session before prompting. Handle streamed session updates, tool calls, permission requests, and cancellation according to the negotiated schema. A client permission response must reflect the user's existing authority; never automatically approve a broader operation.
-1. Keep stdout protocol-only for stdio and diagnostics on stderr. Launch only an approved executable with explicit arguments, working directory, and environment; tear down the process on completion, cancellation, and failure.
-1. Test a local deterministic client/agent exchange: initialization, session creation, prompt completion, streamed updates, denied permissions, cancellation, malformed input, and unexpected subprocess exit. Test only advertised optional capabilities.
+1. **Inspect versions and the SDK**: inspect the peers' protocol versions and the installed SDK. Use the official `agentclientprotocol/python-sdk` distribution `agent-client-protocol`; add it with `uv add agent-client-protocol` only when the project needs it.
+1. **Start from official SDK examples**: start from the SDK's matching client and echo-agent examples. Implement the required role through its async bases and generated `acp.schema` models rather than hand-writing JSON-RPC envelopes.
+1. **Negotiate before prompting**: negotiate capabilities and establish a session before prompting. Handle streamed session updates, tool calls, permission requests, and cancellation according to the negotiated schema. A client permission response must reflect the user's existing authority; never automatically approve a broader operation.
+1. **Keep stdio clean and processes bounded**: keep stdout protocol-only for stdio and diagnostics on stderr. Launch only an approved executable with explicit arguments, working directory, and environment; tear down the process on completion, cancellation, and failure.
+1. **Test a local deterministic client/agent exchange**: initialization, session creation, prompt completion, streamed updates, denied permissions, cancellation, malformed input, and unexpected subprocess exit. Test only advertised optional capabilities.
 
 ## Boundaries
 
-- Start with stdio unless both peers require a documented remote transport. The Python SDK's remote transport extras have their own maturity and security requirements; verify the locked release before exposing a service.
-- ACP sessions are not A2A tasks and do not turn an MCP tool server into an editor agent. Choose an adapter only for a demonstrated interoperability requirement.
-- For official skills, inspect the maintainer's current repository and distribution before installing anything. Contributor `AGENTS.md` is not a consumer skill package; fall back to the official SDK examples and docs when no applicable package is established.
+- **Default to stdio**: start with stdio unless both peers require a documented remote transport. The Python SDK's remote transport extras have their own maturity and security requirements; verify the locked release before exposing a service.
+- **ACP sessions are not A2A tasks**: they do not turn an MCP tool server into an editor agent. Choose an adapter only for a demonstrated interoperability requirement.
+- **Inspect official skills before installing**: inspect the maintainer's current repository and distribution before installing anything. Contributor `AGENTS.md` is not a consumer skill package; fall back to the official SDK examples and docs when no applicable package is established.
 
 ## Documentation
 

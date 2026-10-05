@@ -17,19 +17,19 @@ Create and switch to a `<type>/<slug>` branch from the selected base for the wor
    git status --short          # uncommitted changes
    ```
 
-1. **Derive the name** as `<type>/<slug>`:
+1. **Derive the name as `<type>/<slug>`**:
    - `<type>`: a commit type from [conventional-commit](../../git-delivery/references/conventional-commit.md), usually `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, or `ci`.
    - `<slug>`: lowercase ASCII kebab-case, under 50 characters, no trailing punctuation.
 1. **Reuse a valid name**: when the user's input already is a valid branch name, use it as is.
 1. **Resolve the base**: set `<base-ref>` to the user-specified base, otherwise `HEAD` and state that the new branch starts at the current commit. Ask only if competing branch histories make the intended base unclear.
 1. **Preserve a dirty tree**: record existing changes and let them stay in place when branching from the current commit. Do not stash, reset, or overwrite work to switch bases; resolve a conflicting target with the user.
-1. **Create and switch**; if the branch already exists, stop and report it:
+1. **Create and switch**: if the branch already exists, stop and report it:
 
    ```bash
    git switch -c <branch> <base-ref>
    ```
 
-1. **Report** only these two lines after success:
+1. **Report**: only these two lines after success:
 
    ```text
    Branch: <branch>
@@ -40,7 +40,7 @@ For a separate checkout or qualification of dirty changes, use [git-worktree](..
 
 ## Gotchas
 
-- **No push**: the branch stays local; [github-pull-request](../../github-pull-request/SKILL.md) pushes it with `-u` when the PR is opened.
+- **Leave pushing to the PR flow**: the branch stays local; [github-pull-request](../../github-pull-request/SKILL.md) pushes it with `-u` when the PR is opened.
 
 ## Documentation
 

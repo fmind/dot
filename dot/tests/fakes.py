@@ -18,16 +18,11 @@ class ScriptedRunner(Runner):
         installed: set[str] | None = None,
         *,
         run: RunHandler | None = None,
-        interactive_codes: Mapping[str, int] | None = None,
-        interactive_output: Mapping[str, Sequence[str]] | None = None,
     ) -> None:
         super().__init__()
         self.installed = installed or set()
         self.run_handler = run
-        self.interactive_codes = interactive_codes or {}
-        self.interactive_output = interactive_output or {}
         self.calls: list[list[str]] = []
-        self.interactive_calls: list[list[str]] = []
 
     def which(self, command: str) -> Path | None:
         return Path("/bin") / command if command in self.installed else None
@@ -61,11 +56,6 @@ class ScriptedRunner(Runner):
         env: Mapping[str, str] | None = None,
         on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stderr, env, on_stderr_line
-        command = list(args)
-        self.interactive_calls.append(command)
-        lines = self.interactive_output.get(command[0], ())
-        for line in lines:
-            if stdout is not None:
-                stdout.write(line)
-        return self.interactive_codes.get(command[0], 0)
+        # Never launch a real process from a test.
+        del args, cwd, stdin, stdout, stderr, env, on_stderr_line
+        return 0

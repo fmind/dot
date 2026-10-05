@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Chezmoi Source Standard
@@ -39,13 +39,13 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 ## Gotchas
 
 - **Attribute order is fixed**: `encrypted_` before `private_` before `dot_`; a wrong order yields a literally named file instead of the effect.
-- **Modification conventions**: chezmoi supports `modify_*.tmpl` scripts. This repository instead uses `# chezmoi:modify-template` and `.chezmoi.stdin` for every modifier (shell blocks via `managed-block.tmpl`, JSON/TOML via `json-merge.tmpl`/`toml-merge.tmpl`); preserve that convention unless intentionally changing the execution model.
-- **Literal delimiters**: emit another tool's `{{ ... }}` as ``{{`{{ .Destination }}`}}`` (backticks inside an action); `.chezmoi.toml.tmpl` needs this too.
+- **Keep the modify-template convention**: chezmoi supports `modify_*.tmpl` scripts. This repository instead uses `# chezmoi:modify-template` and `.chezmoi.stdin` for every modifier (shell blocks via `managed-block.tmpl`, JSON/TOML via `json-merge.tmpl`/`toml-merge.tmpl`); preserve that convention unless intentionally changing the execution model.
+- **Escape other tools' template delimiters**: emit another tool's `{{ ... }}` as ``{{`{{ .Destination }}`}}`` (backticks inside an action); `.chezmoi.toml.tmpl` needs this too.
 - **Templates fail closed**: one template error aborts the whole apply; debug with `chezmoi execute-template < file` or `chezmoi apply --dry-run` before committing.
-- **Credential lifecycle**: use `create_encrypted_private_*` for native login seeds so account switches survive apply; scoped keys remain managed under `~/.config/dot/secrets/`. Never restore global shell exports. Follow [secret setup](../../../README.md#secret-management) and [credential precedence](../../../skills/dot-cli/references/authentication.md); preview secret targets with status/metadata, never a plaintext diff.
-- **Secrets**: keep only encrypted `*.age` sources in Git; chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [code-security](../../../skills/code-security/references/code-review/GUIDE.md)).
+- **Seed native logins create-only**: use `create_encrypted_private_*` for native login seeds so account switches survive apply; scoped keys remain managed under `~/.config/dot/secrets/`. Never restore global shell exports. Follow [secret setup](../../../README.md#secret-management) and [credential precedence](../../../skills/dot-cli/references/authentication.md); preview secret targets with status/metadata, never a plaintext diff.
+- **Commit only encrypted `*.age` secrets**: chezmoi decrypts them into intended targets during an authorized apply. Keep plaintext out of previews, logs, and repository files; rotate a leaked secret (see [code-security](../../../skills/code-security/references/code-review/GUIDE.md)).
 - **`.chezmoiignore`** (templated doublestar patterns, not gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`, CI) out of apply and skips key-dependent files without the age key.
-- **Ignore patterns** match target paths; a leading `!` excludes a match from ignoring and takes priority over every other pattern, whatever the order.
+- **Ignore patterns match target paths**: a leading `!` excludes a match from ignoring and takes priority over every other pattern, whatever the order.
 - **`.chezmoi.toml.tmpl`** seeds `~/.config/chezmoi/chezmoi.toml` on `chezmoi init`, prompting per-host data with `promptStringOnce . "key" "question" "default"`.
 - **Config keys**: `encryption = "age"`, the `[age]` identity and recipient, `[add] secrets = "error"` so `chezmoi add` refuses unencrypted files that contain secrets, and `[edit] apply = true` so `chezmoi edit` applies after the editor exits (`--watch` applies on save).
 

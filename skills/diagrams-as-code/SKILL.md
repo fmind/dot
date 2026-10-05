@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diagrams-as-code
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Diagrams as Code

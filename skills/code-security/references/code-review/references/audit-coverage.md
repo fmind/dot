@@ -4,10 +4,10 @@ Use for broad or repeated source audits where findings alone cannot explain what
 
 ## Track coverage
 
-1. Record the revision, relevant dirty changes, in-scope paths and boundaries, exclusions, and any time or execution limits. Reuse the task's authorization; this procedure does not authorize live probes or target-code execution.
-1. Create one unit per meaningful entry point and trust boundary, splitting alternate enforcement paths when they need different checks. Give it a stable ID based on source symbols or route identities, not line numbers, reviewer, status, or severity. Avoid a Cartesian product of every file and attack category.
-1. For each unit retain reviewed paths, checks and their results, evidence references, linked finding IDs, and a status: `planned`, `covered`, `blocked`, `deferred`, or `excluded`. A blocked unit has partial evidence and an exact blocker; deferred work has not been checked; exclusions need a scope reason. A covered unit needs actual checks and no outstanding verification gap. It can contain a confirmed finding: covered means examined, not safe.
-1. Compare previous records against current callers, controls, configuration, and evidence before reuse. Reopen affected units when these change; a matching repository revision alone does not establish unchanged deployed conditions. Keep prior blocked or deferred work visible. Preserve superseded evidence separately with its original revision.
+1. **Record scope and limits**: the revision, relevant dirty changes, in-scope paths and boundaries, exclusions, and any time or execution limits. Reuse the task's authorization; this procedure does not authorize live probes or target-code execution.
+1. **Define stable coverage units**: create one unit per meaningful entry point and trust boundary, splitting alternate enforcement paths when they need different checks. Give it a stable ID based on source symbols or route identities, not line numbers, reviewer, status, or severity. Avoid a Cartesian product of every file and attack category.
+1. **Retain evidence and status per unit**: for each unit retain reviewed paths, checks and their results, evidence references, linked finding IDs, and a status: `planned`, `covered`, `blocked`, `deferred`, or `excluded`. A blocked unit has partial evidence and an exact blocker; deferred work has not been checked; exclusions need a scope reason. A covered unit needs actual checks and no outstanding verification gap. It can contain a confirmed finding: covered means examined, not safe.
+1. **Revalidate records before reuse**: compare previous records against current callers, controls, configuration, and evidence before reuse. Reopen affected units when these change; a matching repository revision alone does not establish unchanged deployed conditions. Keep prior blocked or deferred work visible. Preserve superseded evidence separately with its original revision.
 
 ## Challenge coverage separately
 

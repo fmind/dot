@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Cloud Run Deployment
@@ -27,12 +27,12 @@ Deploy a Python service to Cloud Run through an immutable image digest, private 
 
 ## Gotchas
 
-- **One digest**: build, scan, signature, attestation, deployment, verification, and rollback must refer to the same `@sha256:` image.
+- **Use one digest throughout**: build, scan, signature, attestation, deployment, verification, and rollback must refer to the same `@sha256:` image.
 - **Private by default**: grant `roles/run.invoker` only to intended callers or use an authenticating load balancer. For signed-in users without a load balancer, `gcloud run deploy --iap` enables [IAP on the service](https://docs.cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run).
 - **Listen on `0.0.0.0:$PORT`**: Cloud Run injects the port, normally 8080; a loopback-only listener cannot receive requests. Verify the listener and required runtime settings in the local container before deploying.
-- **Request-scoped CPU**: background work can pause between requests. Use explicit always-on CPU only when its cost is justified, or use a Cloud Run job for batch work.
+- **Expect request-scoped CPU pauses**: background work can pause between requests. Use explicit always-on CPU only when its cost is justified, or use a Cloud Run job for batch work.
 - **Scale deliberately**: keep minimum instances at zero unless measured first-request latency justifies idle cost.
-- **Regional alignment**: keep the service and Artifact Registry repository in one region and project. Workload Identity Federation pools remain global.
+- **Align service and registry regions**: keep the service and Artifact Registry repository in one region and project. Workload Identity Federation pools remain global.
 
 ## Official Skills
 

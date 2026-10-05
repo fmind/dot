@@ -1,6 +1,7 @@
 -- Docs: https://github.com/nvim-treesitter/nvim-treesitter#setup
--- Add the parsers used by the managed shell and project tooling.
--- GCC can spend minutes optimizing generated grammars; preserve an explicit CC.
+-- Add the Zellij KDL parser; LazyVim's util.dot extra already adds fish.
+-- GCC can spend minutes optimizing generated grammars, and nvim-treesitter offers no
+-- build-only environment, so CC applies to every child process; preserve an explicit CC.
 if not vim.env.CC and vim.fn.executable("clang") == 1 then
   vim.env.CC = "clang"
 end
@@ -16,7 +17,7 @@ return {
         opts.ensure_installed = vim.tbl_filter(function(language)
           return not retired[language]
         end, opts.ensure_installed)
-        vim.list_extend(opts.ensure_installed, { "kdl", "fish" })
+        vim.list_extend(opts.ensure_installed, { "kdl" })
       end
       return opts
     end,

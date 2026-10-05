@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-loops
   created: "2026-09-06"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Agent Loops

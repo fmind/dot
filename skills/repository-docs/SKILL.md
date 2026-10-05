@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-docs
   created: "2026-09-07"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Repository Documentation
@@ -25,10 +25,10 @@ Keep human and agent documentation aligned with the implementation, with one can
 
 ## Gotchas
 
-- **Generated documentation**: edit its source and regenerate; never hand-edit generated output or rewrite published history as cleanup.
-- **Honest status**: setup, tests, hosted CI, deployment, and publication are separate claims.
-- **Local authority**: documentation work authorizes relevant reversible edits; committing, publishing, or contacting others follows the current task authority.
-- **Markdown**: preserve repository conventions, public anchors, and the author's voice; never include secrets or transient session state.
+- **Edit generated documentation at its source**: regenerate it; never hand-edit generated output or rewrite published history as cleanup.
+- **Report each status claim separately**: setup, tests, hosted CI, deployment, and publication are separate claims.
+- **Documentation work authorizes relevant reversible edits**: committing, publishing, or contacting others follows the current task authority.
+- **Preserve conventions; exclude secrets**: preserve repository conventions, public anchors, and the author's voice; never include secrets or transient session state.
 
 ## Documentation
 

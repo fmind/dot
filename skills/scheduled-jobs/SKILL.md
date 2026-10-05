@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Scheduled Jobs
@@ -27,10 +27,10 @@ Run an existing bounded command through the native user scheduler and prove its 
 
 ## Gotchas
 
-- **Laptop availability**: sleep, power-off, login state, timezone changes, and DST affect schedules. Choose and document the missed-run behavior instead of promising an always-on service.
-- **Overlap**: a scheduler's single-job protection does not serialize manual invocations or a second scheduler; the application owns its lock.
-- **Visible failures**: keep a bounded, redacted run record with start, finish, exit status, and result identity. Define how stale success or repeated failures become visible; a log file alone is not notification.
-- **User space**: do not enable system services or lingering merely to keep a laptop job alive; explain when the requested availability exceeds a user session.
+- **Document laptop missed-run behavior**: sleep, power-off, login state, timezone changes, and DST affect schedules. Choose and document the missed-run behavior instead of promising an always-on service.
+- **The application owns its lock**: a scheduler's single-job protection does not serialize manual invocations or a second scheduler; the application owns its lock.
+- **Make failures visible**: keep a bounded, redacted run record with start, finish, exit status, and result identity. Define how stale success or repeated failures become visible; a log file alone is not notification.
+- **Stay in user space**: do not enable system services or lingering merely to keep a laptop job alive; explain when the requested availability exceeds a user session.
 
 ## Documentation
 

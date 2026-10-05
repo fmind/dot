@@ -22,11 +22,11 @@ The upstream repository uses [CC-BY-SA-4.0](https://github.com/trailofbits/skill
 
 ## Integration differences
 
-- Upstream context-building, defaults, and variant packages include workflow dispatch or agent orchestration. This catalog keeps procedures usable across harnesses and does not import that runtime.
-- `fp-check` includes prompt-based `Stop` and `SubagentStop` hooks that can reject completion. Those hooks are not imported; verification remains part of the requested review.
-- The supply-chain collector reads registry/advisory metadata and obtains a GitHub token through `gh auth token` for GitHub API requests. It is not run or imported; existing lockfile and installed-environment audits retain their ownership.
-- No new Semgrep, CodeQL, or OpenGrep dependency is introduced. Pattern searches identify candidates; code tracing and tests establish impact.
-- No tool permission, sandbox, release-age, provenance, or workstation migration setting is changed by these incorporation decisions.
+- **Keep procedures harness-neutral**: upstream context-building, defaults, and variant packages include workflow dispatch or agent orchestration. This catalog keeps procedures usable across harnesses and does not import that runtime.
+- **Completion hooks not imported**: `fp-check` includes prompt-based `Stop` and `SubagentStop` hooks that can reject completion. Those hooks are not imported; verification remains part of the requested review.
+- **Supply-chain collector not run**: the supply-chain collector reads registry/advisory metadata and obtains a GitHub token through `gh auth token` for GitHub API requests. It is not run or imported; existing lockfile and installed-environment audits retain their ownership.
+- **No new static-analysis dependency**: no new Semgrep, CodeQL, or OpenGrep dependency is introduced. Pattern searches identify candidates; code tracing and tests establish impact.
+- **No settings changed**: no tool permission, sandbox, release-age, provenance, or workstation migration setting is changed by these incorporation decisions.
 
 ## Defer the remaining selections
 

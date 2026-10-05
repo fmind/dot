@@ -22,8 +22,8 @@ For recurring execution of the finished command, use [scheduled-jobs](../../../s
 
 ## Gotchas
 
-- **Agent scratch scripts** live in `.agents/tmp/`.
-- **One file**: past ~200 lines or a second module, switch to a full project.
+- **Agent scratch scripts live in `.agents/tmp/`.**
+- **Outgrow one file into a project**: past ~200 lines or a second module, switch to a full project.
 
 ## Documentation
 

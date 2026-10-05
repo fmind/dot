@@ -9,21 +9,22 @@ Use Locust for concurrent user behavior and service capacity tests; [command-htt
 
 ## Workflow
 
-1. Establish the authorized target, environment, test accounts, user cap, spawn rate, duration, and stop thresholds. Default fixture examples to loopback; a real load test needs authority for its traffic and writes.
-1. Add `locust` with `uv add --dev locust`. Define an `HttpUser` with `@task` methods and realistic `wait_time`; use `self.client` so requests enter Locust statistics.
-1. Group dynamic URLs with stable request names and check business success using `catch_response=True`. Prepare test data and cleanup so repeated users do not corrupt one another's state.
-1. Start with a tiny local smoke against an already running fixture service:
+1. **Establish the authorized envelope**: establish the authorized target, environment, test accounts, user cap, spawn rate, duration, and stop thresholds. Default fixture examples to loopback; a real load test needs authority for its traffic and writes.
+1. **Add `locust` with `uv add --dev locust`**: define an `HttpUser` with `@task` methods and realistic `wait_time`; use `self.client` so requests enter Locust statistics.
+1. **Name requests and check business success**: group dynamic URLs with stable request names and check business success using `catch_response=True`. Prepare test data and cleanup so repeated users do not corrupt one another's state.
+1. **Start with a tiny local smoke**: run it against an already running fixture service:
    ```bash
    uv run locust -f locustfile.py --headless --host http://127.0.0.1:8000 --users 2 --spawn-rate 1 --run-time 10s --stop-timeout 5 --csv smoke --html smoke.html --exit-code-on-error 1
    ```
-1. Increase load only within the agreed envelope. Observe latency percentiles, throughput, errors, server saturation, and generator CPU/network capacity together.
-1. Encode acceptance thresholds in the run's exit status, including latency and failure ratio; `--exit-code-on-error` alone does not enforce a latency SLO. Verify the gate with an intentionally failing local response.
+1. **Increase load only within the agreed envelope**: observe latency percentiles, throughput, errors, server saturation, and generator CPU/network capacity together.
+1. **Gate the run on acceptance thresholds**: encode acceptance thresholds in the run's exit status, including latency and failure ratio; `--exit-code-on-error` alone does not enforce a latency SLO. Verify the gate with an intentionally failing local response.
 
 ## Gotchas
 
-- Spawn rate is users per second, not requests per second; think time and response latency determine request load.
-- Avoid unbounded runs, accidental production hosts, and real payment/email tasks. Distributed workers multiply the available traffic capacity.
-- Keep user sessions and credentials isolated. A saturated generator understates server capacity and makes results unreliable.
+- **Spawn rate is users per second**: not requests per second; think time and response latency determine request load.
+- **Bound runs and targets**: avoid unbounded runs, accidental production hosts, and real payment/email tasks. Distributed workers multiply the available traffic capacity.
+- **Keep user sessions and credentials isolated.**
+- **Watch generator saturation**: a saturated generator understates server capacity and makes results unreliable.
 
 ## Official Skills
 

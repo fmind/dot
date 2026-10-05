@@ -81,7 +81,7 @@ Add `mkdocstrings-python` with `uv add --dev mkdocstrings-python`; `api-autonav`
 ## Analytics and privacy
 
 - `[project.extra.analytics]` supports Google Analytics and the "Was this page helpful?" feedback widget; pair it with `[project.extra.consent]` and a `<a href="#__consent">` link in `copyright`.
-- Mermaid loads from unpkg, MathJax/KaTeX need explicit `extra_javascript`, and Google Fonts load by default. List these hosts in a privacy review; the upstream `privacy` plugin is planned but not yet available.
+- **List third-party hosts in privacy reviews**: Mermaid loads from unpkg, MathJax/KaTeX need explicit `extra_javascript`, and Google Fonts load by default. List these hosts in a privacy review; the upstream `privacy` plugin is planned but not yet available.
 
 ## Shared and variant content
 

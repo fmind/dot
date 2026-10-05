@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-design-review
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Product Design Review
@@ -29,11 +29,11 @@ Judge whether a real user can understand, trust, and complete the surface's prim
 
 ## Gotchas
 
-- **Brand by habit**: the brief and established product identity win; do not replace the existing palette or tokens with a personal default.
-- **Scope creep**: A critique does not authorize code edits, factual copy changes, or a new visual identity.
-- **Decorative variety**: prefer one justified signature and remove elements that do not encode meaning or help the task. Flag common generated tells unless the brief asks for them: uniform rounded cards with identical shadows, ALL-CAPS eyebrow labels, single-word headline accents, middle-dot meta strings, and body lines over ~80 characters.
-- **Static evidence**: review real content, states, and runtime behavior. A static happy-path screenshot is insufficient.
-- **Polish loop**: bound iteration to one batched desktop and mobile review, one coherent fix pass when authorized, and one confirmation pass.
+- **Preserve the established brand**: the brief and established product identity win; do not replace the existing palette or tokens with a personal default.
+- **Critiques do not authorize edits**: a critique does not authorize code edits, factual copy changes, or a new visual identity.
+- **Prefer one justified signature**: remove elements that do not encode meaning or help the task. Flag common generated tells unless the brief asks for them: uniform rounded cards with identical shadows, ALL-CAPS eyebrow labels, single-word headline accents, middle-dot meta strings, and body lines over ~80 characters.
+- **Review real runtime evidence**: review real content, states, and runtime behavior. A static happy-path screenshot is insufficient.
+- **Bound the polish loop**: bound iteration to one batched desktop and mobile review, one coherent fix pass when authorized, and one confirmation pass.
 
 ## Output
 

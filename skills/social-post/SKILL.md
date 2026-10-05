@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/social-post
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Social Post
@@ -35,7 +35,7 @@ Adapt a source (article, release, announcement, talk) into native copy for Linke
 
 ## Gotchas
 
-- **Slop**: hype openers, "Here's why 🧵", engagement bait, a bold lead on every line, and a summary closing every paragraph read as generated. One strong claim and one real detail beat a list of features.
+- **Cut generated-sounding slop**: hype openers, "Here's why 🧵", engagement bait, a bold lead on every line, and a summary closing every paragraph read as generated. One strong claim and one real detail beat a list of features.
 - **Rendered chat collapses whitespace**: copy from the file or clipboard, not from rendered Markdown, to keep LinkedIn's double empty lines.
 - **Platform rules drift**: recheck the current limits before relying on them: [LinkedIn](https://www.linkedin.com/help/linkedin/answer/a528176), [X counting](https://docs.x.com/resources/fundamentals/counting-characters), [Bluesky posts](https://docs.bsky.app/docs/advanced-guides/posts).
 

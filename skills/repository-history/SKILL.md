@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Repository History
@@ -17,17 +17,17 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
 ## Workflow
 
 1. **Bound the question**: path, symbol, revision range, and the decision the history should inform.
-1. **Trace evidence** with [investigation.md](references/investigation.md): coverage, blame, line history, pickaxe, renames, commit inspection, and exact PR mapping through [gh](../gh/SKILL.md).
+1. **Trace evidence**: follow [investigation.md](references/investigation.md) for coverage, blame, line history, pickaxe, renames, commit inspection, and exact PR mapping through [gh](../gh/SKILL.md).
 1. **Explain the timeline**: connect behavior changes, tests, reverts, and later superseding decisions; treat formatting and co-change as clues rather than causes.
-1. **Report** the investigation's history note, rating confidence with the scale in Gotchas.
+1. **Report**: the investigation's history note, rating confidence with the scale in Gotchas.
 
 ## Gotchas
 
 - **Investigation is read-only**: Preserve the working tree and existing refs. Fetch missing objects into an isolated clone when needed for the requested investigation; use a disposable worktree for bisect experiments. Pulling into the working tree, rewriting history, and contacting authors require authority for those effects.
 - **Current blame is not original authorship**: a committer is not necessarily the designer, and a message can state intent without proving the constraint still holds; redact email addresses from returned evidence.
-- **Confidence**: `High` needs explicit rationale that agrees with the patch, tests, and later history; `Medium` has agreeing lineage and co-change without stated rationale; `Low` rests on blame, one title match, a semantic search, sparse history, or an ancestry break; otherwise say `UNKNOWN`.
-- **Stale rationale**: A revert describes a past decision; downgrade it when later architectural changes contradict the trade-off.
-- **Shallow or incomplete clones**: Never infer that a missing commit or discussion does not exist; state the gap and lower confidence.
+- **Rate confidence by evidence**: `High` needs explicit rationale that agrees with the patch, tests, and later history; `Medium` has agreeing lineage and co-change without stated rationale; `Low` rests on blame, one title match, a semantic search, sparse history, or an ancestry break; otherwise say `UNKNOWN`.
+- **Downgrade stale rationale**: A revert describes a past decision; downgrade it when later architectural changes contradict the trade-off.
+- **Missing history is not absence**: Never infer that a missing commit or discussion does not exist; state the gap and lower confidence.
 
 ## Documentation
 

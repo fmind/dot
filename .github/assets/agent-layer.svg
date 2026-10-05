@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" role="img" aria-labelledby="title desc">
 <title id="title">One agent layer for six harnesses</title>
-<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, dot_agents/supagents/ is one set of specialist roles, and host folders such as dot_claude/ and dot_codex/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; mise run agents compiles the roles into native profiles; host settings are merged in place. Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
+<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, dot_agents/supagents/ is one set of specialist roles, and host folders such as dot_claude/ and dot_codex/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; mise run format:agents compiles the roles into native profiles; host settings are merged in place. Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
 <style>
@@ -34,7 +34,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <g text-anchor="middle">
 <line class="flow" x1="396" y1="94" x2="596" y2="94" marker-end="url(#arrow)"/><text class="code muted" x="496" y="84">~/.agents/AGENTS.md</text>
 <line class="flow" x1="396" y1="168" x2="596" y2="168" marker-end="url(#arrow)"/><text class="code muted" x="496" y="158">~/.agents/skills/</text>
-<line class="flow" x1="396" y1="242" x2="596" y2="242" marker-end="url(#arrow)"/><text class="code muted" x="496" y="232">mise run agents</text><text class="muted" x="496" y="262">native role profiles</text>
+<line class="flow" x1="396" y1="242" x2="596" y2="242" marker-end="url(#arrow)"/><text class="code muted" x="496" y="232">mise run format:agents</text><text class="muted" x="496" y="262">native role profiles</text>
 <line class="flow" x1="396" y1="316" x2="596" y2="316" marker-end="url(#arrow)"/><text class="muted" x="496" y="306">merged in place</text>
 </g>
 

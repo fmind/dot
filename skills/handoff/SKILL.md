@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/handoff
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Handoff
@@ -37,8 +37,8 @@ Treat `/handoff` as "I am about to clear this session or move to another harness
 ## Gotchas
 
 - **Authority does not grow**: a handoff records approvals already given; it never turns a proposal into an authorized action.
-- **Staged selections**: record exactly what is staged; the next session must not restage or commit unrelated work.
-- **Running work**: a background job started by this session may die with it; say whether it must be restarted.
+- **Record staged selections exactly**: the next session must not restage or commit unrelated work.
+- **Flag running work for restart**: a background job started by this session may die with it; say whether it must be restarted.
 
 ## Documentation
 

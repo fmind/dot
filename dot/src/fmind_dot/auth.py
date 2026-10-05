@@ -87,6 +87,8 @@ def probe(state: State, args: list[str]) -> CommandResult:
 
 def probe_json(state: State, args: list[str]) -> object:
     result = probe(state, args)
+    if result.returncode and args[0] == "gcloud" and any(m in result.stderr.lower() for m in GCLOUD_LOGIN_MARKERS):
+        raise DotError("gcloud credentials need a fresh login; run dot login gcp and retry")
     if result.returncode:
         raise DotError(f"{args[0]} status failed (exit {result.returncode}); inspect the provider directly and retry")
     try:
@@ -474,20 +476,21 @@ def colab(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = F
 
 
 @login_app.command(
-    "all", help="Reconcile GitHub, Workspace setup and login, then Google Cloud and ADC; skip what is ready"
+    "all", help="Reconcile GitHub, Google Cloud and ADC, then Workspace setup and login; skip what is ready"
 )
 def login_all(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
     state = state_from(context)
     if not dry_run:
         require_tools(state, [["gh"], ["gws"], ["gcloud"]])
     login_github(state, reconcile=True, force=force, dry_run=dry_run)
+    # Workspace setup lists and enables APIs through gcloud, so its credentials come first.
+    login_gcp(state, force=force, dry_run=dry_run)
     project = os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project
     if project:
         setup_workspace(state, project, dry_run=dry_run)
     else:
         print("Skipping Workspace setup: set GWS_PROJECT or auth.workspace.project.", file=state.stderr)
     login_workspace(state, force=force, dry_run=dry_run)
-    login_gcp(state, force=force, dry_run=dry_run)
 
 
 @setup_app.command("github", help="Ensure requested GitHub scopes and remove configured excluded grants")

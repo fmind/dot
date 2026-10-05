@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Develop a Technical Course
@@ -31,10 +31,10 @@ Read [reference-course.md](references/reference-course.md) only for a course tha
 
 ## Gotchas
 
-- **Prerequisites**: state the required machine or knowledge state, not merely a previous chapter number.
-- **Published routes**: preserve URLs or provide tested redirects/aliases when changing them.
-- **Exercises**: use meaningful local work by default; live models, cloud resources, and destructive cleanup need their declared authority and limits.
-- **Evidence**: a successful site build does not show that a learner can complete the lesson.
+- **Define prerequisites by state**: state the required machine or knowledge state, not merely a previous chapter number.
+- **Never break published routes**: preserve URLs or provide tested redirects/aliases when changing them.
+- **Prefer local exercises**: use meaningful local work by default; live models, cloud resources, and destructive cleanup need their declared authority and limits.
+- **Builds do not prove learning**: a successful site build does not show that a learner can complete the lesson.
 
 ## Documentation
 

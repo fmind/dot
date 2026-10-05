@@ -9,21 +9,21 @@ Use Cookiecutter for existing or explicitly requested Cookiecutter templates; [C
 
 ## Workflow
 
-1. Inspect the template source, immutable revision, `cookiecutter.json`, hooks, extensions, and generated destination names before execution. Templates can execute code.
-1. Define required context and defaults; keep secrets out of context, replay files, and generated examples. Prefer `uvx --from 'cookiecutter==<version>' cookiecutter --help` for an isolated invocation, resolving `<version>` to a reviewed exact release.
-1. Generate into a fresh disposable directory. For an already reviewed local template, adapt:
+1. **Inspect the template before execution**: source, immutable revision, `cookiecutter.json`, hooks, extensions, and generated destination names. Templates can execute code.
+1. **Define required context and defaults**: keep secrets out of context, replay files, and generated examples. Prefer `uvx --from 'cookiecutter==<version>' cookiecutter --help` for an isolated invocation, resolving `<version>` to a reviewed exact release.
+1. **Generate into a fresh disposable directory**: for an already reviewed local template, adapt:
    ```bash
    uvx --from 'cookiecutter==<version>' cookiecutter ./template --no-input --accept-hooks no --output-dir ./generated project_slug=demo
    ```
-1. Permit hooks only after reviewing their commands and effects; a template that needs hooks must be tested with those reviewed hooks too. For remote sources, pass the reviewed commit with `--checkout`.
-1. Verify filenames, rendered content, executable modes, and absence of unresolved template markers. Exercise default and non-default context, invalid input, and generation failure without overwriting existing work.
-1. Run the generated project's native gate. If ongoing template updates are required, generate through Cruft from the start rather than inventing a second tracking file.
+1. **Permit only reviewed hooks**: review their commands and effects first; a template that needs hooks must be tested with those reviewed hooks too. For remote sources, pass the reviewed commit with `--checkout`.
+1. **Verify the generated output**: filenames, rendered content, executable modes, and absence of unresolved template markers. Exercise default and non-default context, invalid input, and generation failure without overwriting existing work.
+1. **Gate it; adopt Cruft for updates**: run the generated project's native gate. If ongoing template updates are required, generate through Cruft from the start rather than inventing a second tracking file.
 
 ## Gotchas
 
-- Disabling hooks alone does not make untrusted templates safe; extensions and template evaluation also need review.
-- `--overwrite-if-exists` can destroy local edits; use a new output directory for review.
-- Replay captures context, not all external dependencies; record the template revision and compatible tool version.
+- **Review more than hooks**: disabling hooks alone does not make untrusted templates safe; extensions and template evaluation also need review.
+- **Avoid `--overwrite-if-exists`**: it can destroy local edits; use a new output directory for review.
+- **Replay is not a full record**: it captures context, not all external dependencies; record the template revision and compatible tool version.
 
 ## Official Skills
 

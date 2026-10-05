@@ -9,13 +9,13 @@ Start a new repository from the package templates; the parent [skill](../SKILL.m
 
 ## Workflow
 
-1. **Information**: define the project `Slug`, GCP `Project ID`, and default `Region`.
-1. **Config files**:
+1. **Define the project inputs**: `Slug`, GCP `Project ID`, and default `Region`.
+1. **Add the config files**:
    - [mise.toml](../templates/mise.toml) and [lefthook.yml](../templates/lefthook.yml); replace the template's `latest` placeholders with exact versions from the workstation baseline and commit the generated `mise.lock` per [mise](../../mise/SKILL.md).
    - `.tflint.hcl` from [tflint.hcl](../templates/tflint.hcl) — pins the terraform preset and the GCP ruleset release.
    - `.terraform-docs.yml` from [terraform-docs.yml](../templates/terraform-docs.yml), plus the `TF_DOCS` markers in `README.md`.
    - `dprint.json` per [dprint](../../dprint/SKILL.md), a reviewed project `trivy.yaml` per [trivy](../../code-security/references/trivy/GUIDE.md); `.gitignore` from [gitignore](../templates/gitignore), `LICENSE` per [project-license](../../project-scaffolding/references/project-license/GUIDE.md).
-1. **Sources** (flat root module; no `modules/` tree until a unit is reused):
+1. **Write flat root-module sources**: no `modules/` tree until a unit is reused.
    - [versions.tf](../templates/versions.tf) — version constraints, provider pins, and the commented GCS backend and encryption blocks.
    - [main.tf](../templates/main.tf), [variables.tf](../templates/variables.tf) (typed, validated inputs), [outputs.tf](../templates/outputs.tf).
    - [terraform.example.tfvars](../templates/terraform.example.tfvars) — non-secret example and static-scan values; replace the project ID before planning.

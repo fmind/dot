@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Full Review
@@ -51,10 +51,10 @@ Number decisions and suggestions so the user can answer "do 2, 3" or "all but 1"
 
 ## Gotchas
 
-- **Findings without fixes** were the most frequent complaint; report-only is opt-in.
-- **Shallow passes**: diff-only or sampled reviews do not satisfy a full review; the inventory proves coverage.
-- **Complexity creep**: a fix that adds a layer, option, or document needs a stronger reason than the finding it solves.
-- **Progress**: post one line at each phase boundary in long runs; silent stalls read as stuck work.
+- **Fix by default**: findings without fixes were the most frequent complaint; report-only is opt-in.
+- **Shallow passes do not count**: diff-only or sampled reviews do not satisfy a full review; the inventory proves coverage.
+- **Avoid complexity creep**: a fix that adds a layer, option, or document needs a stronger reason than the finding it solves.
+- **Report progress at phase boundaries**: post one line at each phase boundary in long runs; silent stalls read as stuck work.
 
 ## Documentation
 

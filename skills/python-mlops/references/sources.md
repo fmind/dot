@@ -13,12 +13,12 @@ Attribution: Médéric Hurier (Fmind) and MLOps Courses. This is an original, co
 
 ## Deliberate adaptations
 
-- Reuse existing Python, testing, CI, container, documentation, and connector owners instead of exposing seven overlapping chapter skills. The course structures learning; this collection routes work.
-- Preserve the project's Python baseline and tested dependencies. Do not impose the snapshots' Python minor, dependency versions, editor, or notebook format. Retain the existing marimo procedure; Jupyter projects may remain Jupyter.
-- Extract the template's foundation separately from the bike example's domain model and job architecture. Schemas, two-month temporal splits, thresholds, and model names are examples requiring project decisions.
-- Validate before starting services, return bounded typed results instead of `locals()`, and keep warnings visible. The reference's blanket `UserWarning` filter is not adopted.
-- Require evaluation of an explicit candidate before promotion. The reference's aggregate project task promotes before evaluation, and its promotion job can choose the latest version. Neither behavior is adopted.
-- Inspect autologging destinations and data capture; retain authorized lineage without uploading input examples by default. Do not claim that lockfiles, seeds, tracking, a rendered template, or a green local gate alone establish reproducibility or production readiness.
-- Keep model-quality monitoring separate from infrastructure telemetry. Data drift and SHAP explanations do not establish concept drift or causation.
+- **Route work to existing owners**: reuse existing Python, testing, CI, container, documentation, and connector owners instead of exposing seven overlapping chapter skills. The course structures learning; this collection routes work.
+- **Keep project versions and formats**: preserve the project's Python baseline and tested dependencies. Do not impose the snapshots' Python minor, dependency versions, editor, or notebook format. Retain the existing marimo procedure; Jupyter projects may remain Jupyter.
+- **Separate template foundation from example**: extract the template's foundation separately from the bike example's domain model and job architecture. Schemas, two-month temporal splits, thresholds, and model names are examples requiring project decisions.
+- **Validate first and keep warnings visible**: validate before starting services, return bounded typed results instead of `locals()`, and keep warnings visible. The reference's blanket `UserWarning` filter is not adopted.
+- **Evaluate explicit candidates before promotion**: require evaluation of an explicit candidate before promotion. The reference's aggregate project task promotes before evaluation, and its promotion job can choose the latest version. Neither behavior is adopted.
+- **Inspect autologging destinations and data capture**: retain authorized lineage without uploading input examples by default. Do not claim that lockfiles, seeds, tracking, a rendered template, or a green local gate alone establish reproducibility or production readiness.
+- **Keep model-quality monitoring separate from infrastructure telemetry**: data drift and SHAP explanations do not establish concept drift or causation.
 
 For upstream refreshes, compare these snapshots with the proposed revision and review only changed guidance and referenced implementations; update this record with the resulting adaptations.

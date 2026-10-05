@@ -2,11 +2,11 @@
 
 Use generated cases when a broad input space or operation sequence makes example-only coverage weak. Keep ordinary examples for the public contract and discovered regressions; do not add Hypothesis to every project by default.
 
-1. State a domain invariant and a plausible implementation error it would detect. Avoid duplicating the algorithm as the test oracle.
-1. Reuse existing Hypothesis configuration; if absent and justified, add it to the project's test dependency group with `uv add --group <test-group> hypothesis`, then run through the existing pytest task. Do not add a global runtime dependency.
-1. Generate valid data by construction using bounded strategies. Use separate invalid-input strategies; excessive filtering hides missing coverage and can trigger health checks.
-1. Exercise the actual parser, codec, migration, or state machine against an independent observable invariant. Introduce a small relevant fault in isolation to verify the property detects it before trusting the test.
-1. Retain the minimized counterexample as an explicit regression when it explains a real defect. Record the Hypothesis/runtime versions and use its failure replay mechanism for investigation; a seed alone is not a permanent cross-version guarantee.
+1. **Start from a domain invariant**: state a domain invariant and a plausible implementation error it would detect. Avoid duplicating the algorithm as the test oracle.
+1. **Keep Hypothesis a test dependency**: reuse existing Hypothesis configuration; if absent and justified, add it to the project's test dependency group with `uv add --group <test-group> hypothesis`, then run through the existing pytest task. Do not add a global runtime dependency.
+1. **Construct data instead of filtering**: generate valid data by construction using bounded strategies. Use separate invalid-input strategies; excessive filtering hides missing coverage and can trigger health checks.
+1. **Prove the property catches a fault**: exercise the actual parser, codec, migration, or state machine against an independent observable invariant. Introduce a small relevant fault in isolation to verify the property detects it before trusting the test.
+1. **Keep real counterexamples as regressions**: retain the minimized counterexample as an explicit regression when it explains a real defect. Record the Hypothesis/runtime versions and use its failure replay mechanism for investigation; a seed alone is not a permanent cross-version guarantee.
 
 | Boundary      | Useful property                                                                             | Additional evidence needed                                                  |
 | ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |

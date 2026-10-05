@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Mise
@@ -41,11 +41,11 @@ Python projects start from [python-stack](../python-stack/references/foundation/
 
 ## Gotchas
 
-- **Dotenv**: `[env]` with `_.file = ".env"` loads dotenv values for tasks; use it only when the project needs that file. `_.source` expects a shell script.
-- **Local builds**: builds and checks must not publish, deploy, or spend by default; expose consequential operations only as explicit on-demand paths.
-- **Dirty trees**: `mise run all` includes formatters that write the whole tree. When unrelated changes are present, use [git-worktree](../git-worktree/SKILL.md) to materialize the current candidate in isolation and check that the tested files match before transferring proof, or fall back to `mise run check` and `mise run test`.
-- **Argument forwarding**: keep shell quoting and tool arguments intact; verify raw argument behavior with a small local example when adding wrapper tasks.
-- **Tool ownership**: distinguish global interactive tools from project pins used by hooks and CI; inspect [provenance pilot](references/provenance-pilot.md) only for that optional provider experiment.
+- **Load `.env` only when needed**: `[env]` with `_.file = ".env"` loads dotenv values for tasks; use it only when the project needs that file. `_.source` expects a shell script.
+- **Keep local builds free of side effects**: builds and checks must not publish, deploy, or spend by default; expose consequential operations only as explicit on-demand paths.
+- **Isolate the full gate on dirty trees**: `mise run all` includes formatters that write the whole tree. When unrelated changes are present, use [git-worktree](../git-worktree/SKILL.md) to materialize the current candidate in isolation and check that the tested files match before transferring proof, or fall back to `mise run check` and `mise run test`.
+- **Preserve argument forwarding**: keep shell quoting and tool arguments intact; verify raw argument behavior with a small local example when adding wrapper tasks.
+- **Separate global tools from project pins**: distinguish global interactive tools from project pins used by hooks and CI; inspect [provenance pilot](references/provenance-pilot.md) only for that optional provider experiment.
 
 ## Documentation
 

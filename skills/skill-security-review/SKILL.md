@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skill-security-review
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Skill Security Review
@@ -45,7 +45,7 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 
 ## Gotchas
 
-- **Snapshot drift**: review the same immutable commit that will be installed; a mutable-branch review is a proof gap, not a review.
+- **Pin the reviewed snapshot**: review the same immutable commit that will be installed; a mutable-branch review is a proof gap, not a review.
 
 ## Task guides
 

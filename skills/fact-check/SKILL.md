@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fact-check
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Fact-Check
@@ -34,10 +34,10 @@ Verify every material claim and link in a draft article, post, talk, or README s
 
 ## Gotchas
 
-- **Quiet failures**: an intention in notes promoted to a present-tense fact, a number found in no source, a pin true when drafted but drifted since, someone else's result stated as the author's, and a "we" that claims a team that does not exist.
-- **Comparisons**: check the baseline, equivalent task, outcome quality, and measurement limits; a token or time reduction alone does not prove productivity or cost.
+- **Watch for quiet failures**: an intention in notes promoted to a present-tense fact, a number found in no source, a pin true when drafted but drifted since, someone else's result stated as the author's, and a "we" that claims a team that does not exist.
+- **Verify comparison conditions**: check the baseline, equivalent task, outcome quality, and measurement limits; a token or time reduction alone does not prove productivity or cost.
 - **Link checkers lie both ways**: bot-blocking sites return 403 or 429 to lychee yet work in a browser, and soft-404 pages return 200. Confirm suspicious results by opening the page; report login walls as unverifiable.
-- **Stale knowledge**: a fact you remember is a hypothesis; a fact you opened today is evidence. Say "unverified" rather than guessing.
+- **Treat remembered facts as hypotheses**: a fact you remember is a hypothesis; a fact you opened today is evidence. Say "unverified" rather than guessing.
 
 ## Documentation
 

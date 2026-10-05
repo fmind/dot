@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Auth Status
@@ -16,14 +16,14 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
 
 ## Workflow
 
-1. **Workstation probes**: `dot doctor --deep --json` checks GitHub, the gcloud CLI, ADC, and Workspace with bounded probes and never prints tokens. Read only the auth group; `condition` distinguishes `unauthenticated` from `broken` (state unknown) and flags `insecure` when gh keeps its token in plaintext `hosts.yml`.
+1. **Run the workstation probes**: `dot doctor --deep --json` checks GitHub, the gcloud CLI, ADC, and Workspace with bounded probes and never prints tokens. Read only the auth group; `condition` distinguishes `unauthenticated` from `broken` (state unknown) and flags `insecure` when gh keeps its token in plaintext `hosts.yml`.
 
    ```bash
    dot doctor --deep --json | jq -c '.checks[] | select(.group == "auth") | {name, status, condition, details}'
    ```
 
-1. **Scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes` and `auth.workspace.scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes.
-1. **Other connectors**, only those the task or user names, each read-only with its exit status checked:
+1. **Check scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes` and `auth.workspace.scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes.
+1. **Probe other named connectors**: only those the task or user names, each read-only with its exit status checked:
 
    | Provider     | Probe                                                                                       | Recovery                                                 |
    | ------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -34,8 +34,8 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    | Databricks   | `databricks auth profiles` (validates each profile)                                         | `databricks auth login --host <url> --profile <profile>` |
    | Atlassian    | `acli auth status`; API-token Jira: `acli jira auth status`                                 | `acli auth login`                                        |
 
-1. **Expiry**: report only what the provider exposes. AWS SSO sessions: `jq -r '.expiresAt // empty' ~/.aws/sso/cache/*.json` (never print the file). Google access tokens refresh hourly; `invalid_grant` or "reauthentication" means the refresh token expired or an organization session policy requires login. Hugging Face tokens do not expire unless revoked. Otherwise write "unknown"; never infer expiry from file dates.
-1. **Overrides**: environment credentials win over stored logins. Report presence only, never values:
+1. **Report only provider-exposed expiry**: AWS SSO sessions: `jq -r '.expiresAt // empty' ~/.aws/sso/cache/*.json` (never print the file). Google access tokens refresh hourly; `invalid_grant` or "reauthentication" means the refresh token expired or an organization session policy requires login. Hugging Face tokens do not expire unless revoked. Otherwise write "unknown"; never infer expiry from file dates.
+1. **Check environment overrides**: environment credentials win over stored logins. Report presence only, never values:
 
    ```bash
    for name in GH_TOKEN GITHUB_TOKEN GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_AUTH_ACCESS_TOKEN_FILE \
@@ -50,8 +50,8 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
 
 - **Never print secrets**: no `print-access-token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, or `--show-token` in a transcript; dot's probes capture token output internally.
 - **Exit 0 is not proof**: `gh auth status --json` and Colab can succeed while reporting a failure; read the state and stderr.
-- **Shared ADC**: a native ADC login (`gcloud auth application-default login`, `gcloud auth login --update-adc`) replaces the grant and drops the Colab scope; `dot login gcp|colab` request `auth.gcp.adc_scopes`, which keeps it. Run `dot login colab` to restore it ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
-- **Authority**: probing is read-only; logging in, switching accounts, adding scopes, or editing `dot` configuration needs the user.
+- **Native ADC logins drop Colab scope**: a native ADC login (`gcloud auth application-default login`, `gcloud auth login --update-adc`) replaces the grant and drops the Colab scope; `dot login gcp|colab` request `auth.gcp.adc_scopes`, which keeps it. Run `dot login colab` to restore it ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
+- **Probing is read-only**: logging in, switching accounts, adding scopes, or editing `dot` configuration needs the user.
 
 ## Documentation
 

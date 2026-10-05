@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-loop
   created: "2026-08-09"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Product Loop
@@ -31,10 +31,10 @@ Move a product bet through discovery, specification, launch, and learning. Enter
 
 ## Gotchas
 
-- **Evidence**: never invent quotes, metrics, demand, customer research, availability, or support capacity; effort and traffic alone do not prove customer value.
-- **Authority**: drafts and local planning artifacts are reviewable work. Customer contact, CRM changes, publication, advertising, and spend require authorization for those effects.
-- **Learning**: retain the original hypothesis, baseline, denominators, segment, thresholds, and uncertainty; explain deviations after observing results.
-- **Scope**: compact changes need compact briefs; preserve material trust boundaries, edge cases, and unresolved risks.
+- **Ground every claim in evidence**: never invent quotes, metrics, demand, customer research, availability, or support capacity; effort and traffic alone do not prove customer value.
+- **Gate external effects on authorization**: drafts and local planning artifacts are reviewable work. Customer contact, CRM changes, publication, advertising, and spend require authorization for those effects.
+- **Preserve the predeclared test design**: retain the original hypothesis, baseline, denominators, segment, thresholds, and uncertainty; explain deviations after observing results.
+- **Scale briefs to the change**: compact changes need compact briefs; preserve material trust boundaries, edge cases, and unresolved risks.
 
 ## Documentation
 

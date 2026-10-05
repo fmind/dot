@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # GitHub Repository
@@ -55,8 +55,8 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 
 ## Gotchas
 
-- **Truncation**: keep the description single-line and under ~140 characters or the GitHub UI truncates it.
-- **Visibility**: never pass `--visibility` or `--accept-visibility-change-consequences` unless the user explicitly asks.
+- **Avoid description truncation**: keep the description single-line and under ~140 characters or the GitHub UI truncates it.
+- **Change visibility only on request**: never pass `--visibility` or `--accept-visibility-change-consequences` unless the user explicitly asks.
 
 ## Documentation
 

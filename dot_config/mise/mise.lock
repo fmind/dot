@@ -314,9 +314,9 @@ checksum = "sha256:b8036adad17ceddcef416790131492fd236d34c64a0b2754934903087fa84
 url = "https://conda.anaconda.org/conda-forge/linux-64/libsndfile-1.2.2-hbc6d301_3.conda"
 checksum = "sha256:3503121a77d76e33f668916b69d4b20cb6a21f62aa4351d1506271ae9d184c61"
 
-[conda-packages.linux-x64."libsqlite-3.53.4-h13e7031_1"]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libsqlite-3.53.4-h13e7031_1.conda"
-checksum = "sha256:f20d70da54e5b31dd4a51fb1efeaafafd5ab6dd8d7ac9d1438eaa2526ac4ed3d"
+[conda-packages.linux-x64."libsqlite-3.53.4-h0737f62_102"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/libsqlite-3.53.4-h0737f62_102.conda"
+checksum = "sha256:0f6e60634de2b55da15772fe65485965fd9b61afcce0d749c1446f625babba30"
 
 [conda-packages.linux-x64."libstdcxx-16.2.0-h934c35e_7"]
 url = "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-16.2.0-h934c35e_7.conda"
@@ -798,9 +798,9 @@ checksum = "sha256:4129c13739e30dfbab8c20594acd8c182de2008f4dfc94d54f52b556eb390
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/librsvg-2.62.4-hc8ac265_0.conda"
 checksum = "sha256:3bd54de0136907782249a0d5797744ecac5bbd77026f5f2712dd62390c5c9f77"
 
-[conda-packages.macos-arm64."libsqlite-3.53.4-hca69786_1"]
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.4-hca69786_1.conda"
-checksum = "sha256:839b31d4830e896b4d315b551d27f2bb08026bc946df04bcc360d8627c3ba2cd"
+[conda-packages.macos-arm64."libsqlite-3.53.4-h34a968b_102"]
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.4-h34a968b_102.conda"
+checksum = "sha256:0343b4f1c1a9f2feb0496bf159d13c5dd894ca750b9016f1282df5a4b82bd80e"
 
 [conda-packages.macos-arm64."libtiff-4.7.2-hf67920b_1"]
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda"
@@ -1239,19 +1239,19 @@ url = "https://github.com/d2lang/d2/releases/download/v0.9.0/d2-v0.9.0-macos-arm
 url_api = "https://api.github.com/repos/d2lang/d2/releases/assets/549449061"
 
 [[tools.delta]]
-version = "0.20.0"
+version = "0.20.1"
 backend = "aqua:dandavison/delta"
 specifiers = ["latest"]
 
 [tools.delta."platforms.linux-x64"]
-checksum = "sha256:d230b86c51e4764f0bc3285859652316c26ff39f2283d44f97a9d54387bcab4e"
-url = "https://github.com/dandavison/delta/releases/download/0.20.0/delta-0.20.0-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/dandavison/delta/releases/assets/610056023"
+checksum = "sha256:50f08c879f84c81ceb220e476491a7f492d2c9c671e79918cc44badf961a6240"
+url = "https://github.com/dandavison/delta/releases/download/0.20.1/delta-0.20.1-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/dandavison/delta/releases/assets/610498121"
 
 [tools.delta."platforms.macos-arm64"]
-checksum = "sha256:e50d88b6b16e15bc9fef9034b2007fe4a217e8bd61061665966058eb82c1eb84"
-url = "https://github.com/dandavison/delta/releases/download/0.20.0/delta-0.20.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/dandavison/delta/releases/assets/610056040"
+checksum = "sha256:bc1839cea69288d4673a24faffbb825d408ca907e0f7d33b1678c9e6cdd5e58e"
+url = "https://github.com/dandavison/delta/releases/download/0.20.1/delta-0.20.1-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/dandavison/delta/releases/assets/610498923"
 
 [[tools.doggo]]
 version = "1.4.0"
@@ -2312,7 +2312,7 @@ uv = { path = "locks/pipx-brain-framework/18.1.4", digest = "sha256:7c3ea5a0c650
 version = "9.18.2"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:faa5277cc5a9741f304f04f873059d207ffd9d49c3a651eba0e1bd014dba73fc" }
+uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:8da0cbf813f7fb7a8b35ff231d4b574af912eb29c957e785403bcd24f6b6c5d8" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.2"
@@ -2324,25 +2324,25 @@ uv = { path = "locks/pipx-fmind/2.0.2", digest = "sha256:5c0723c1a6db182d85221f0
 version = "0.7.4"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:94648a4e173a96be72f5b066ae5ea50de8edea790440944cd012e0cc2c23d5d1" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:ea39e345c792589678c6ab1e7e28c02cbcac391d4a19621b3408e1f912b90c7a" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.1.1"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.1.1", digest = "sha256:f2dd1dfa6fac0597f81b46538192d426cc9dbac85cd6509bdd1a9f699d6d1780" }
+uv = { path = "locks/pipx-huggingface-hub/2.1.1", digest = "sha256:c9adbf9b4835bc69072c5e5ea5e283f4bd06367c28b41958673fe57a0e14bf9b" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.4"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:69d98d38d032dd60d29594961aa51dc279837258ae22b211b9e1cd36cd0ec915" }
+uv = { path = "locks/pipx-kaggle/2.2.4", digest = "sha256:0bcc9867efa029c7754efe2e76cd8f474edb89ac3ee0ba80d6fa43e48ed13a5d" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:13bdee0d1ae683044610ab28521605373859b0c398c9a1ff44861355fa2ef7a5" }
+uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:b39730804e1225430c5912f31efa39f7c671b98213225f14a2243a5e3cf974f8" }
 
 [tools."pipx:pgcli".options]
 with = '["psycopg[binary]"]'
@@ -2351,7 +2351,7 @@ with = '["psycopg[binary]"]'
 version = "3.0.32"
 backend = "pipx:ptpython"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-ptpython/3.0.32", digest = "sha256:6d33cc6b09ec4291acbd8bd69b976966e29990480d95d2af867108af2af80deb" }
+uv = { path = "locks/pipx-ptpython/3.0.32", digest = "sha256:ce8e989460a6f33be3d4f8476f59e698b0a4036a7a0a6665b439ddfdfbe3b110" }
 
 [[tools.python]]
 version = "3.14.8"
@@ -2461,29 +2461,26 @@ specifiers = ["latest"]
 channel = "conda-forge"
 
 [tools.sqlite."platforms.linux-x64"]
-checksum = "sha256:b01812eff4e950a73933cb3dc14647a97ee377c7fab4858495b80a749ebfbf8b"
-url = "https://conda.anaconda.org/conda-forge/linux-64/sqlite-3.53.4-h9ffa6c4_1.conda"
+checksum = "sha256:dd1e71010fbc7d02b8c401144dc8046e813b82a078b6f7686732f1dbdb2dc5b8"
+url = "https://conda.anaconda.org/conda-forge/linux-64/sqlite-3.53.4-h6e79ffa_102.conda"
 conda_deps = [
-    "libsqlite-3.53.4-h13e7031_1",
+    "libsqlite-3.53.4-h0737f62_102",
     "libzlib-1.3.2-h25fd6f3_3",
     "ncurses-6.6-hdb14827_1",
     "readline-8.3-hd6e31c0_1",
-    "icu-78.3-py310h44b86e0_2",
     "libgcc-16.2.0-ha9f2e26_7",
-    "libstdcxx-16.2.0-h934c35e_7",
     "_openmp_mutex-4.5-20_gnu",
     "libgomp-16.2.0-he0feb66_7",
 ]
 
 [tools.sqlite."platforms.macos-arm64"]
-checksum = "sha256:4e0c8704a29b6c265e7bdb6508e1d4180570adcc6e031daf182578d3777fb8b1"
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/sqlite-3.53.4-ha9f7ffe_1.conda"
+checksum = "sha256:476cc78e5c5f3d097a12cba738b22d01c0f6f1747028da8b42bdf8ae5d5cfccf"
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/sqlite-3.53.4-hdb6324b_102.conda"
 conda_deps = [
-    "libsqlite-3.53.4-hca69786_1",
+    "libsqlite-3.53.4-h34a968b_102",
     "libzlib-1.3.2-h8088a28_3",
     "ncurses-6.6-he64c551_1",
     "readline-8.3-h8b90a29_1",
-    "icu-78.3-py310h579977c_2",
 ]
 
 [[tools.starship]]

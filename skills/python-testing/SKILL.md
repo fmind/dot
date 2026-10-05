@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-testing
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Python Testing
@@ -32,11 +32,11 @@ Test-only maintenance follows [pytest mechanics](references/pytest.md) directly 
 ## Gotchas
 
 - **Never weaken an existing test**: do not loosen a type, add a skip, or mock away the defect to manufacture green.
-- **Implementation came first**: Never delete or overwrite user work because it preceded the test; preserve it, add a red-capable test, and disclose the sequence.
-- **Test-first does not fit**: For a spike, generated code, or configuration-only change, say why and define another failing validation signal; do not call tests written afterward TDD.
-- **Test level**: Fast unit or contract tests first; integration, property, concurrency, or browser tests only where the boundary demands them; characterize legacy behavior before changing it.
-- **Real collaborators**: Prefer real parsers, databases, filesystems, and HTTP handlers at lightweight boundaries over mocks of the unit under test; fake only paid, destructive, slow, or unreliable systems behind a narrow owned interface.
-- **Readable failures**: Keep fixtures readable and assertions on outcomes; a little duplicated setup beats hidden intent, and a failure should explain the broken contract without a debugger.
+- **Preserve code written before tests**: Never delete or overwrite user work because it preceded the test; preserve it, add a red-capable test, and disclose the sequence.
+- **Disclose when test-first does not fit**: For a spike, generated code, or configuration-only change, say why and define another failing validation signal; do not call tests written afterward TDD.
+- **Start with fast, narrow tests**: Fast unit or contract tests first; integration, property, concurrency, or browser tests only where the boundary demands them; characterize legacy behavior before changing it.
+- **Prefer real collaborators over mocks**: Prefer real parsers, databases, filesystems, and HTTP handlers at lightweight boundaries over mocks of the unit under test; fake only paid, destructive, slow, or unreliable systems behind a narrow owned interface.
+- **Make failures self-explanatory**: Keep fixtures readable and assertions on outcomes; a little duplicated setup beats hidden intent, and a failure should explain the broken contract without a debugger.
 
 ## References
 

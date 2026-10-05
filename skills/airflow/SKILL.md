@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Apache Airflow with Astronomer CLI
@@ -56,10 +56,10 @@ Docker mode (the default) needs an existing Docker-compatible engine; run `dot d
 
 ## Gotchas
 
-- **Top-level execution**: the scheduler evaluates top-level DAG code every few seconds; avoid database queries, API calls, or heavy computation outside operators.
-- **Ports**: by default a shared reverse proxy serves each project at `http://<project>.localhost:6563` on random backend ports; `astro dev proxy status` lists each project's URL and Postgres port. `--no-proxy` restores fixed ports (`8080` for the API server or webserver, `5432` for Postgres), which can collide with local services.
-- **Stateless task testing**: `astro dev run tasks test` runs a single task without recording state in the Airflow database; upstream task dependencies must be handled or mocked.
-- **Version upgrades**: before moving to a newer Airflow or Astro Runtime (including Airflow 2 to 3), run `astro dev upgrade-test` (optionally `--airflow-version <version>`); it reports dependency changes, DAG import errors, and deprecation lint without modifying the project.
+- **Keep top-level DAG code light**: the scheduler evaluates top-level DAG code every few seconds; avoid database queries, API calls, or heavy computation outside operators.
+- **Proxy URLs replace fixed ports**: by default a shared reverse proxy serves each project at `http://<project>.localhost:6563` on random backend ports; `astro dev proxy status` lists each project's URL and Postgres port. `--no-proxy` restores fixed ports (`8080` for the API server or webserver, `5432` for Postgres), which can collide with local services.
+- **Task tests record no state**: `astro dev run tasks test` runs a single task without recording state in the Airflow database; upstream task dependencies must be handled or mocked.
+- **Run upgrade-test before upgrading**: before moving to a newer Airflow or Astro Runtime (including Airflow 2 to 3), run `astro dev upgrade-test` (optionally `--airflow-version <version>`); it reports dependency changes, DAG import errors, and deprecation lint without modifying the project.
 
 ## Official Skills
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # DuckDB and SQLite
@@ -42,9 +42,9 @@ Use [data-migration](../data-migration/SKILL.md) when changing an application sc
 
 ## Gotchas
 
-- **Do not open a live SQLite database with DuckDB while the app writes to it**: use a consistent SQLite backup or `sqlite3 -readonly` directly. A plain copy of the main file can omit committed WAL data; use SQLite's backup API or `.backup` for a snapshot. `ATTACH ... (TYPE sqlite)` autoinstalls the `sqlite` extension, which needs network the first time.
+- **Keep DuckDB off live SQLite databases**: do not open one while the app writes to it; use a consistent SQLite backup or `sqlite3 -readonly` directly. A plain copy of the main file can omit committed WAL data; use SQLite's backup API or `.backup` for a snapshot. `ATTACH ... (TYPE sqlite)` autoinstalls the `sqlite` extension, which needs network the first time.
 - **Glob paths quote as strings**: `'events/*.parquet'` works, unquoted paths do not.
-- **Memory and spill space**: size the budget from available RAM and disk; start conservatively on a shared machine, for example `SET memory_limit='256MB'` and `SET threads=1`, then measure. Many operators spill to disk, but `memory_limit` is not a process-wide hard limit and some allocations or operators can still exhaust memory. Set a task-owned temporary directory and `max_temp_directory_size` when spill volume matters; preserve the workstation's required disk headroom.
+- **Size memory and spill conservatively**: size the budget from available RAM and disk; start conservatively on a shared machine, for example `SET memory_limit='256MB'` and `SET threads=1`, then measure. Many operators spill to disk, but `memory_limit` is not a process-wide hard limit and some allocations or operators can still exhaust memory. Set a task-owned temporary directory and `max_temp_directory_size` when spill volume matters; preserve the workstation's required disk headroom.
 
 ## Task guides
 

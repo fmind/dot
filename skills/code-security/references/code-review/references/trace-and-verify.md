@@ -4,10 +4,10 @@ Use this procedure while designing a sensitive change, reviewing its implementat
 
 ## Trace the security decision
 
-1. Identify the protected asset, legitimate operation, and attacker capability. Record what authority the actor already has; intentional administrator or autonomous-agent privileges alone do not establish privilege escalation.
-1. Read the entry point, relevant callers, validation, and final operation. Record the concrete values and identities that cross each boundary, including tenant, resource owner, file path, destination, and execution principal.
-1. Locate the enforcing code and effective configuration. Follow error paths, retries, caching, and alternate entry points. A validator's name, type annotation, or prompt instruction does not prove enforcement.
-1. For a changed check, inspect the previous behavior and relevant history. Identify affected callers and whether the same test distinguishes the old and new behavior; avoid assigning severity from diff size or caller count alone.
+1. **Start from the asset and attacker**: identify the protected asset, legitimate operation, and attacker capability. Record what authority the actor already has; intentional administrator or autonomous-agent privileges alone do not establish privilege escalation.
+1. **Trace the path end to end**: read the entry point, relevant callers, validation, and final operation. Record the concrete values and identities that cross each boundary, including tenant, resource owner, file path, destination, and execution principal.
+1. **Find the actual enforcement**: locate the enforcing code and effective configuration. Follow error paths, retries, caching, and alternate entry points. A validator's name, type annotation, or prompt instruction does not prove enforcement.
+1. **Compare changed checks with history**: for a changed check, inspect the previous behavior and relevant history. Identify affected callers and whether the same test distinguishes the old and new behavior; avoid assigning severity from diff size or caller count alone.
 
 | Boundary                    | Questions that change implementation or verification                                                                                                                                                 |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

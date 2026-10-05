@@ -15,8 +15,8 @@ Apply these deltas on top of the [course workflow](../SKILL.md#workflow); the le
 
 ## Conventions
 
-- **Pages grow**: a rewrite that adds a definition pays for it by cutting tease, restatement, and asides.
-- **Prerequisite creep**: `You need` declares machine state as the command that produces it (`mise run install` done), never "Chapter N finished".
-- **Frozen routes**: a published route never changes silently; a route change records the old address in the course's released-URL manifest (`docs/released-urls.json`) or fails the build.
-- **Question headings**: every H2 asks the question its section answers and ends in `?`; never a persona, a clock time, or a riddle.
-- **Optional depth**: keep optional exercises inline with a bold `**Optional exercise:**` label so they stay out of the sidebar; move valuable second-pass detail into `??? note "Deeper: …"` collapsibles.
+- **Pay for additions by cutting**: a rewrite that adds a definition pays for it by cutting tease, restatement, and asides.
+- **Declare prerequisites as machine state**: `You need` declares machine state as the command that produces it (`mise run install` done), never "Chapter N finished".
+- **Record every route change**: a published route never changes silently; a route change records the old address in the course's released-URL manifest (`docs/released-urls.json`) or fails the build.
+- **Use question headings**: every H2 asks the question its section answers and ends in `?`; never a persona, a clock time, or a riddle.
+- **Keep optional depth off the main path**: keep optional exercises inline with a bold `**Optional exercise:**` label so they stay out of the sidebar; move valuable second-pass detail into `??? note "Deeper: …"` collapsibles.

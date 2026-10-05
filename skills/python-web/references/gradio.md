@@ -9,18 +9,18 @@ Build Gradio apps around Python functions and explicit component events. Use [ni
 
 ## Workflow
 
-1. Inspect the project dependency model and installed version with `uv run python -c 'import gradio; print(gradio.__version__)'`. For a new packaged app, use `uv add gradio`; preserve PEP 723 metadata for an existing standalone script.
-1. Consult the official skill below and documentation matching the installed release. Choose `Interface` for a function demo, `ChatInterface` for conversational interaction, or `Blocks` for custom layouts and multiple event flows.
-1. Keep computation independently testable; wire component inputs and outputs explicitly. Use `gr.State` for session state and keep shared model resources separate from user data. Configure queue concurrency around the actual resource, and use generator outputs for streaming work.
-1. Start with themes and layout components. Use `gr.HTML` for bespoke HTML/CSS/JavaScript when the installed version supports the needed template and event APIs; avoid styling through undocumented internal DOM selectors.
-1. Run locally with `uv run python app.py`, using `demo.launch(server_name="127.0.0.1", share=False)` for local development. Public tunnels, Spaces uploads, and remote predictions have their own exposure, data-transfer, and cost scope.
-1. Test successful and invalid inputs, callback failures, and independent sessions where state is used. Exercise the main browser interaction and any streaming or cancellation behavior; an import or HTTP 200 alone does not prove the workflow. Run the project's normal gate.
+1. **Start from the installed release**: inspect the project dependency model and installed version with `uv run python -c 'import gradio; print(gradio.__version__)'`. For a new packaged app, use `uv add gradio`; preserve PEP 723 metadata for an existing standalone script.
+1. **Choose the API from current docs**: consult the official skill below and documentation matching the installed release. Choose `Interface` for a function demo, `ChatInterface` for conversational interaction, or `Blocks` for custom layouts and multiple event flows.
+1. **Separate logic, state, and wiring**: keep computation independently testable; wire component inputs and outputs explicitly. Use `gr.State` for session state and keep shared model resources separate from user data. Configure queue concurrency around the actual resource, and use generator outputs for streaming work.
+1. **Style through supported APIs**: start with themes and layout components. Use `gr.HTML` for bespoke HTML/CSS/JavaScript when the installed version supports the needed template and event APIs; avoid styling through undocumented internal DOM selectors.
+1. **Bind development to loopback**: run locally with `uv run python app.py`, using `demo.launch(server_name="127.0.0.1", share=False)` for local development. Public tunnels, Spaces uploads, and remote predictions have their own exposure, data-transfer, and cost scope.
+1. **Prove the browser workflow**: test successful and invalid inputs, callback failures, and independent sessions where state is used. Exercise the main browser interaction and any streaming or cancellation behavior; an import or HTTP 200 alone does not prove the workflow. Run the project's normal gate.
 
 ## Gotchas
 
-- Upstream skill signatures can track a different release; verify constructor and `launch()` parameters against installed source before copying examples.
-- HTML templates and JavaScript are executable web content. Keep untrusted input escaped or sanitized, and restrict served/downloadable file paths to the intended artifacts.
-- A Gradio interface can expose callable API endpoints. Hiding a component or API listing does not establish authorization.
+- **Verify upstream signatures locally**: upstream skill signatures can track a different release; verify constructor and `launch()` parameters against installed source before copying examples.
+- **Sanitize executable web content**: HTML templates and JavaScript are executable web content. Keep untrusted input escaped or sanitized, and restrict served/downloadable file paths to the intended artifacts.
+- **Hiding endpoints is not authorization**: a Gradio interface can expose callable API endpoints. Hiding a component or API listing does not establish authorization.
 
 ## Official Skills
 

@@ -30,11 +30,11 @@ User-facing documentation explains ideas with hand-authored SVG illustrations: s
 
 ## Gotchas
 
-- **No text wrapping**: SVG `<text>` never wraps; break lines manually and leave about 15% slack inside every box for wider fallback fonts.
-- **Sandboxed images**: GitHub and most sites render SVG through `<img>`, which ignores scripts, external fonts, stylesheets, links, and remote images; avoid `<foreignObject>` and embedded raster or base64 fonts.
-- **Captions on lines**: mask the line behind a caption with a canvas-colored rectangle rather than routing around the text.
-- **Small type**: keep text at 12px or larger at 960px width and contrast at 4.5:1 on its actual fill; the link to the full-size SVG is the mobile fallback.
-- **Drift**: an illustration is documentation; update it with the behavior it shows and delete it when the concept disappears.
+- **SVG `<text>` never wraps**: break lines manually and leave about 15% slack inside every box for wider fallback fonts.
+- **Assume an `<img>` sandbox**: GitHub and most sites render SVG through `<img>`, which ignores scripts, external fonts, stylesheets, links, and remote images; avoid `<foreignObject>` and embedded raster or base64 fonts.
+- **Mask lines behind captions**: use a canvas-colored rectangle rather than routing around the text.
+- **Keep type and contrast legible**: keep text at 12px or larger at 960px width and contrast at 4.5:1 on its actual fill; the link to the full-size SVG is the mobile fallback.
+- **Update illustrations with behavior**: an illustration is documentation; update it with the behavior it shows and delete it when the concept disappears.
 
 ## Documentation
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
   created: "2026-09-03"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Resolve Conflicts
@@ -43,9 +43,9 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 ## Gotchas
 
 - **Show the ancestor**: `git config merge.conflictStyle zdiff3` puts the base version inside the markers so both sides' edits are visible.
-- **Lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
-- **Deleted on one side**: `DU` or `UD` means one side removed the file; find out why before restoring it.
-- **Rebase repeats**: the same hunk can conflict on several commits. Start the rebase with `git -c rerere.enabled=true rebase <base>` and repeat the `-c` on every `--continue`; enabling it only at `--continue` does not record the conflict already stopped on. Either form creates `$(git rev-parse --git-path rr-cache)`, which keeps rerere active while `rerere.enabled` is unset, so remove that directory afterwards if it did not exist before. Persisting rerere through `git config` or that directory changes repository configuration and needs consent.
+- **Regenerate lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
+- **Investigate one-sided deletions first**: `DU` or `UD` means one side removed the file; find out why before restoring it.
+- **Enable rerere from the rebase start**: the same hunk can conflict on several commits. Start the rebase with `git -c rerere.enabled=true rebase <base>` and repeat the `-c` on every `--continue`; enabling it only at `--continue` does not record the conflict already stopped on. Either form creates `$(git rev-parse --git-path rr-cache)`, which keeps rerere active while `rerere.enabled` is unset, so remove that directory afterwards if it did not exist before. Persisting rerere through `git config` or that directory changes repository configuration and needs consent.
 - **Stop when unsure**: if intent cannot be recovered from history, ask the user for the decision; contacting the author requires authorization.
 
 ## Documentation

@@ -65,7 +65,7 @@
 1. **Seed a runtime secret when authorized**: decrypt only into the pipe; do not write plaintext to disk. Pin the version it creates in the next deployment.
 
    ```bash
-   sops -d secrets.enc.yaml | yq -r .api_key | gcloud secrets versions add api-key --data-file=-
+   sops -d secrets.enc.yaml | yq -r .api_key | tr -d '\n' | gcloud secrets versions add api-key --data-file=-
    ```
 
 1. **Expose deployment as an on-demand task**: keep it out of hooks because it mutates a live service and can spend money.

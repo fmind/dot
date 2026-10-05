@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Amazon Web Services CLI
@@ -46,8 +46,8 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 
 ## Gotchas
 
-- **Expired SSO tokens**: SSO tokens expire after their configured duration; refresh via `aws sso login` rather than falling back to static API keys.
-- **`--query` client-side evaluation**: select needed fields and pair with supported server-side filters and `--max-items`; `--page-size` only changes request size, not total results. Preserve `NextToken` in projections, report capped results as partial, and resume deliberately when completeness is required. Use `--no-cli-pager` for agent calls; avoid debug output around credentials.
+- **Refresh expired SSO tokens**: SSO tokens expire after their configured duration; refresh via `aws sso login` rather than falling back to static API keys.
+- **`--query` runs client-side**: select needed fields and pair with supported server-side filters and `--max-items`; `--page-size` only changes request size, not total results. Preserve `NextToken` in projections, report capped results as partial, and resume deliberately when completeness is required. Use `--no-cli-pager` for agent calls; avoid debug output around credentials.
 - **Failures are findings**: report authorization (`AccessDeniedException`) or missing role errors directly; do not attempt permission escalation or modify IAM policies without authorization.
 
 ## Official Skills

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Kaggle CLI
@@ -26,7 +26,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
    ```
 
 1. **Track the timeline**: after accepting rules, list the page names with `kaggle competitions pages list list <slug>`, then read the deadlines with `--page-name timeline` (or `description` when no timeline page exists). Offer, or schedule when requested, Google Calendar reminders with [gws](../gws/SKILL.md): one week before the entry and team merger deadline, and on the final submission day.
-1. **Kernels as code**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout: pushing uploads code and starts remote execution. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
+1. **Inspect kernels before pushing**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout: pushing uploads code and starts remote execution. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
 1. **Submit with authority**: a submission counts against the daily limit and shows on the leaderboard, so confirm the competition, file, and message first, then verify.
 
    ```bash
@@ -38,8 +38,8 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
 
 ## Gotchas
 
-- **Pinned version**: in a project that pins `kaggle`, call `uv run kaggle` so the pinned version runs instead of the global shim.
-- **Scripts**: pass `-W` to silence the out-of-date warning so JSON output stays parseable.
+- **Use `uv run` for pinned versions**: in a project that pins `kaggle`, call `uv run kaggle` so the pinned version runs instead of the global shim.
+- **Silence warnings in scripts**: pass `-W` to silence the out-of-date warning so JSON output stays parseable.
 
 ## Official Skills
 

@@ -11,7 +11,7 @@ import pytest
 
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
-from fmind_dot.secrets import personal_token
+from fmind_dot.secrets import personal_token, secret_app
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -144,13 +144,9 @@ def test_missing_tool_does_not_read_secret(secret_home: Path) -> None:
     assert "required tools are missing" in result.stderr
 
 
-@pytest.mark.parametrize("arguments", [["secret", "publish", "--dry-run"], ["secret", "publish", "dist/x.whl"]])
-def test_personal_pypi_publishing_is_retired(secret_home: Path, arguments: list[str]) -> None:
+def test_personal_pypi_publishing_is_retired() -> None:
     # Packages publish through PyPI Trusted Publishing; no command supplies a personal upload token.
-    result = invoke_process(secret_home, *arguments)
-    assert result.returncode == 2
-    assert result.stdout == ""
-    assert "synthetic-personal" not in result.stderr
+    assert [command.name for command in secret_app.registered_commands] == ["run"]
     assert not (ROOT / "dot_config/dot/private_secrets/encrypted_private_UV_PUBLISH_TOKEN.age").exists()
 
 
@@ -162,9 +158,7 @@ def test_doctor_does_not_require_ambient_api_keys() -> None:
 
 def test_shell_secret_exports_are_retired() -> None:
     conf = ROOT / "dot_config/fish/conf.d"
-    # chezmoi deletes the legacy exporting file instead of deploying a placeholder.
-    assert (conf / "remove_secrets.fish").read_text() == ""
-    assert not (conf / "private_secrets.fish").exists()
+    assert not any((conf / name).exists() for name in ("secrets.fish", "private_secrets.fish"))
     # Any `set` that exports (-x, -gx, -g -x, --export) a token-like name is a regression.
     export = re.compile(r"\bset\s+(?:-{1,2}\w+\s+)*?(?:-\w*x\w*|--export)\s+(?:-{1,2}\w+\s+)*\w*(TOKEN|API_KEY)")
     for script in (ROOT / "dot_config/fish").rglob("*.fish*"):

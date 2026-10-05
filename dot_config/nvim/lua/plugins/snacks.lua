@@ -9,14 +9,12 @@ return {
       image = { enabled = true, force = vim.env.ZELLIJ ~= nil },
       picker = {
         sources = {
-          -- Match file search: include dotfiles while respecting ignore rules.
-          grep = { hidden = true, ignored = false, exclude = { ".git" } },
-          grep_word = { hidden = true, ignored = false, exclude = { ".git" } },
+          -- Include dotfiles while respecting ignore rules; Snacks already skips .git.
+          grep = { hidden = true },
+          grep_word = { hidden = true },
           files = {
             hidden = true,
-            ignored = false,
             exclude = {
-              ".git",
               "*.png",
               "*.webp",
               "*.jpg",

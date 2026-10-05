@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/smoke
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Smoke
@@ -40,10 +40,10 @@ Prove that everything a repository exposes still runs: each task, each CLI comma
 
 ## Gotchas
 
-- **Interactive prompts** hang without a terminal: closed stdin plus `--timeout` turns them into a recorded failure; prefer the tool's `--yes` only when its effect is safe.
+- **Interactive prompts hang without a terminal**: closed stdin plus `--timeout` turns them into a recorded failure; prefer the tool's `--yes` only when its effect is safe.
 - **Dependencies run twice**: `depends` re-runs prerequisites; reuse a passing result when inputs did not change instead of serial re-execution.
-- **Environment**: mise `[env]`, `.env`, and `CI=true` change behavior; run with the repository's defaults and note any variable you set.
-- **Host-only checks**: a task skipped for a missing optional tool is "not run", not "passed".
+- **Run with the repository's default environment**: mise `[env]`, `.env`, and `CI=true` change behavior; run with the repository's defaults and note any variable you set.
+- **Skipped is not passed**: a task skipped for a missing optional tool is "not run", not "passed".
 
 ## Documentation
 

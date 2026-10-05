@@ -9,10 +9,10 @@ Operate the CLI; use [antigravity-sdk](../antigravity-sdk/GUIDE.md) for Python o
 
 ## Workflow
 
-1. Check `agy --version`, `agy --help`, and the relevant subcommand help in the intended workspace. Match CLI, desktop, or IDE documentation to the actual surface.
-1. Read the relevant [feature guide](references/features.md) link and [changelog](https://antigravity.google/changelog) before relying on settings, models, or availability. Prefer installed help and built-in `antigravity-guide` / `agy-customizations` for version-specific discovery; report disagreements with web docs.
-1. Inspect existing settings, `/skills`, `agy plugin list`, and the requested integration before adding configuration. Reuse working discovery paths; do not duplicate the shared catalog or install plugins speculatively. [agent-project](../../../agent-project/SKILL.md) owns discovery; [mcp-setup](../../../mcp-setup/SKILL.md) owns MCP registration.
-1. Use session overrides (`--model`, `--effort`, `--mode`) for task-specific choices; leave saved model and cosmetic preferences to the user. Verify results through artifacts, the native panel, or service status; an allow grant alone does not prove a tool works.
+1. **Start from installed help**: check `agy --version`, `agy --help`, and the relevant subcommand help in the intended workspace. Match CLI, desktop, or IDE documentation to the actual surface.
+1. **Verify features before relying on them**: read the relevant [feature guide](references/features.md) link and [changelog](https://antigravity.google/changelog) before relying on settings, models, or availability. Prefer installed help and built-in `antigravity-guide` / `agy-customizations` for version-specific discovery; report disagreements with web docs.
+1. **Inspect before adding configuration**: existing settings, `/skills`, `agy plugin list`, and the requested integration. Reuse working discovery paths; do not duplicate the shared catalog or install plugins speculatively. [agent-project](../../../agent-project/SKILL.md) owns discovery; [mcp-setup](../../../mcp-setup/SKILL.md) owns MCP registration.
+1. **Override per session; verify results**: use session overrides (`--model`, `--effort`, `--mode`) for task-specific choices; leave saved model and cosmetic preferences to the user. Verify results through artifacts, the native panel, or service status; an allow grant alone does not prove a tool works.
 
 ## Managed setup
 
@@ -36,7 +36,7 @@ agy --agent code-reviewer -i 'Review the working-tree diff. Report verified find
 
 That selects the main agent. To spawn subagents, ask the default parent explicitly: “Delegate correctness review to code-reviewer and credential/permission review to security-reviewer. Give each the relevant paths and constraints, have both report without editing, then reconcile findings.” Subagents start with fresh context; include requirements and evidence in the assignment. Use `/agents` to inspect them; `Enter` opens details and `K` terminates a selected subagent. To message an existing subagent, type `@` followed by a space and select it from autocomplete; this differs from `@path` file mentions. [Agents panel](https://antigravity.google/docs/cli/commands/agents/) and the [changelog](https://antigravity.google/docs/changelog) own current controls.
 
-Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/agents/`; chezmoi deploys them. Run `mise run agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
+Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/agents/`; chezmoi deploys them. Run `mise run format:agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
 
 ## Official Skills
 

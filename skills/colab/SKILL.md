@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Google Colab CLI
@@ -28,7 +28,7 @@ Use `colab --auth adc usage` for compute-unit rate and balance; if it is unavail
 
 Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
 
-1. **Prefer ephemeral runs when outputs are persisted by the script**: `colab run` rents a VM, runs the script, and attempts to release it. Save needed artifacts to an authorized durable destination before the script exits; local VM files disappear on release. Use an explicitly managed session when artifacts must be downloaded afterwards. A shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4` supports single-file execution per [python-script](../python-stack/references/python-script/GUIDE.md).
+1. **Prefer ephemeral runs for self-persisting scripts**: `colab run` rents a VM, runs the script, and attempts to release it. Save needed artifacts to an authorized durable destination before the script exits; local VM files disappear on release. Use an explicitly managed session when artifacts must be downloaded afterwards. A shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4` supports single-file execution per [python-script](../python-stack/references/python-script/GUIDE.md).
 
    ```bash
    colab --auth adc run --gpu T4 --timeout 3600 train.py
@@ -39,10 +39,10 @@ Follow this workflow only when remote execution is in scope; establish the autho
 
 ## Gotchas
 
-- **30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
-- **Kernel client**: google-colab-cli 0.7.4 pins `jupyter-kernel-client==0.9.0`; let Colab select its compatible client instead of adding a conflicting mise `with` override.
-- **Tiers**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
-- **Disposable VM**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
+- **Override the 30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
+- **Let Colab pick the kernel client**: google-colab-cli 0.7.4 pins `jupyter-kernel-client==0.9.0`; let Colab select its compatible client instead of adding a conflicting mise `with` override.
+- **Treat `colab pay` as spend**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
+- **Treat the VM as disposable**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
 
 ## Official Skills
 

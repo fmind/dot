@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # dprint
@@ -37,10 +37,10 @@ run = "dprint check" # non-zero exit on drift
 
 ## Gotchas
 
-- **Plugin references**: prefer the `npm:` form (`npm:@dprint/markdown@<version>`) over `https://plugins.dprint.dev/...wasm` URLs; both resolve, and the npm form makes the current version one `npm view <plugin> version` away.
+- **Prefer `npm:` plugin references**: `npm:@dprint/markdown@<version>` over `https://plugins.dprint.dev/...wasm` URLs; both resolve, and the npm form makes the current version one `npm view <plugin> version` away.
 - **Plugin order is precedence**: the `plugins` array order decides which plugin claims a file; keep specialized plugins before generic ones.
-- **Embedded code blocks**: the Markdown plugin formats fenced JSON, TOML, and YAML only when those plugins are loaded too.
-- **Staged vs whole-tree**: `format:dprint` takes `{staged_files}` from the hook, which restages fixes; `check:format` always runs on the whole tree. Outside a hook, `dprint fmt --staged` or `--dirty` selects the staged or uncommitted files itself.
+- **Load plugins for embedded code**: the Markdown plugin formats fenced JSON, TOML, and YAML only when those plugins are loaded too.
+- **Format staged, check the whole tree**: `format:dprint` takes `{staged_files}` from the hook, which restages fixes; `check:format` always runs on the whole tree. Outside a hook, `dprint fmt --staged` or `--dirty` selects the staged or uncommitted files itself.
 
 ## Documentation
 

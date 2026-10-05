@@ -16,10 +16,10 @@ sqlite3 -init /dev/null -batch -bail -noheader -list -readonly recovery/before.s
 
 The integrity check should return `ok`; the foreign-key check should return no rows. Validate these outcomes explicitly because a command can exit successfully while returning violations. The explicit init/output options keep interactive shell settings from changing the result format. Neither check proves application-level correctness.
 
-1. Restore the snapshot into a disposable location through the same backup mechanism and open it with the old application version. Never replace a live database beneath existing connections.
-1. Run the project's migration engine against a separate rehearsal copy. Verify transaction behavior for the installed driver; do not assume DDL, a helper such as `executescript`, and version bookkeeping share one transaction automatically.
-1. Enable foreign-key enforcement on the connections that require it, inspect indexes/triggers/views, and follow SQLite's documented table-rebuild procedure when direct ALTER operations cannot preserve the schema. Do not use `writable_schema` or leave integrity constraints disabled to bypass a failure.
-1. Compare application records and declared invariants, then exercise rollback or restore and read-back. Include busy writers and an interrupted migration with bounded waits; do not wait forever on a lock.
+1. **Prove the snapshot restores**: restore the snapshot into a disposable location through the same backup mechanism and open it with the old application version. Never replace a live database beneath existing connections.
+1. **Migrate a separate rehearsal copy**: run the project's migration engine against a separate rehearsal copy. Verify transaction behavior for the installed driver; do not assume DDL, a helper such as `executescript`, and version bookkeeping share one transaction automatically.
+1. **Keep integrity constraints enforced**: enable foreign-key enforcement on the connections that require it, inspect indexes/triggers/views, and follow SQLite's documented table-rebuild procedure when direct ALTER operations cannot preserve the schema. Do not use `writable_schema` or leave integrity constraints disabled to bypass a failure.
+1. **Rehearse recovery under contention**: compare application records and declared invariants, then exercise rollback or restore and read-back. Include busy writers and an interrupted migration with bounded waits; do not wait forever on a lock.
 
 Do not restore old data over newer writes without a reconciliation decision. Keep recovery files private and apply the project's encryption and retention policy before off-device storage.
 

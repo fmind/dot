@@ -69,9 +69,9 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
 
 ## Gotchas
 
-- **Secret scanning eligibility**: public repositories are covered; private and internal repositories require an eligible GitHub Secret Protection or Advanced Security entitlement. Capability-detect instead of inferring availability from personal versus organization ownership.
-- **Plan limits**: rulesets and branch protection on a private repository need GitHub Pro or Team; on Free the API answers 403 `Upgrade to GitHub Pro`. Report the gap instead of changing visibility. Private vulnerability reporting applies to public repositories only.
-- **Effective versus owned rules**: `rules/branches/<branch>` merges organization and repository rulesets; edit only the repository ruleset this guide owns, and never a parent organization's.
+- **Detect secret-scanning eligibility**: public repositories are covered; private and internal repositories require an eligible GitHub Secret Protection or Advanced Security entitlement. Capability-detect instead of inferring availability from personal versus organization ownership.
+- **Report plan limits as gaps**: rulesets and branch protection on a private repository need GitHub Pro or Team; on Free the API answers 403 `Upgrade to GitHub Pro`. Report the gap instead of changing visibility. Private vulnerability reporting applies to public repositories only.
+- **Edit only the owned ruleset**: `rules/branches/<branch>` merges organization and repository rulesets; edit only the repository ruleset this guide owns, and never a parent organization's.
 
 ## Documentation
 

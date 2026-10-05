@@ -63,7 +63,7 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
 
 ## Gotchas
 
-- **Immutable action refs**: pin every action to a full commit SHA with a trailing release comment; Dependabot updates both the SHA and comment, so fixes arrive as reviewable PRs without trusting a mutable tag.
+- **Pin actions to commit SHAs**: pin every action to a full commit SHA with a trailing release comment; Dependabot updates both the SHA and comment, so fixes arrive as reviewable PRs without trusting a mutable tag.
 - **Directory is per manifest**: a uv project under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
 - **No tokens needed**: Dependabot is native to GitHub and free for public and private repositories; the config file alone enables it.
 - **No CLI trigger**: forcing an immediate check happens only in the repository's Dependabot tab (Insights, Dependency graph).

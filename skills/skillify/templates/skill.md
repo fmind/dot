@@ -25,7 +25,7 @@ metadata:
 
 ## Gotchas
 
-- **<Trap>**: <why it happens and what to do instead>.
+- **<Rule in 2–6 words>**: <why the trap happens and what to do instead>.
 
 ## Documentation
 

@@ -4,16 +4,16 @@ This is `fmind/dot` — chezmoi + mise dotfiles for AI-CLI-first, Python-first d
 
 ## House rules
 
-- **Chezmoi**: Edit the source tree in this repository, never deployed copies under `$HOME`; automation always runs `chezmoi apply --force`. Naming, templates, and secrets: [chezmoi skill](.agents/skills/chezmoi/SKILL.md).
-- **Validation**: Match checks to the task: read-only reviews need only evidence checks; documentation and instruction edits need relevant formatting, links, and contract checks; behavior changes need focused regression tests and affected static checks. Run `mise run all` for cross-cutting changes, dependencies, packaging, releases, or explicit full qualification. Reuse passing results while relevant inputs remain unchanged.
-- **Secrets**: `*.age` files are encrypted; never modify or commit decrypted versions. Native credentials are create-only seeds; scoped keys use `dot secret run`. Preserve account overrides and keep values out of diff/log output; [Secret Management](README.md#secret-management) owns setup and migration.
-- **No-Sudo**: Stay user-space; install via `mise`.
-- **Tool baseline**: This repository tracks `latest` by default, including Python; `dot_config/mise/config.toml` and `dot_config/mise/mise.lock` own the workstation baseline. Other repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` pin exact versions from it. [Mise](skills/mise/SKILL.md) owns selection and exceptions; [upgrade-tools](skills/upgrade-tools/SKILL.md) owns validated propagation.
-- **Dependency locks**: Use mise lockfile revision 3 for reproducible tool installs. Keep the global lockfile and its referenced native dependency files together; do not edit or format generated files. Preserve the pgcli `with` requirement. `mise run lock` resolves the portable source baseline in isolation and captures its complete bundle; `mise run tools` installs with `--locked`. Python application dependencies remain locked in `dot/uv.lock`.
-- **README Scope**: Keep setup, auth, everyday usage, and a short task reference in `README.md`; keep detailed contributor workflows in skills.
-- **Theme**: [fmind/theme](https://github.com/fmind/theme) owns the palette and native app files. Fetch standalone themes via chezmoi externals pinned to one upstream commit with SHA-256 checksums (`mise run upgrade` advances the pin); when tools require merged styles, copy only the native theme block with an upstream source comment. Terminal tools follow the Ghostty ANSI palette or select terminal-aligned themes.
-- **Fonts**: Terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty.
-- **Vim mode**: Enable in every TUI that supports it.
+- **Edit chezmoi sources, never deployed copies**: change this repository, not files under `$HOME`; automation always runs `chezmoi apply --force`. Naming, templates, and secrets: [chezmoi skill](.agents/skills/chezmoi/SKILL.md).
+- **Match validation to the task**: read-only reviews need only evidence checks; documentation and instruction edits need relevant formatting, links, and contract checks; behavior changes need focused regression tests and affected static checks. Run `mise run all` for cross-cutting changes, dependencies, packaging, releases, or explicit full qualification. Reuse passing results while relevant inputs remain unchanged.
+- **Never commit decrypted secrets**: `*.age` files are encrypted; never modify or commit decrypted versions. Native credentials are create-only seeds; scoped keys use `dot secret run`. Preserve account overrides and keep values out of diff/log output; [Secret Management](README.md#secret-management) owns setup and migration.
+- **Never use sudo**: stay user-space; install via `mise`.
+- **Track `latest` here, pin elsewhere**: this repository tracks `latest` by default, including Python; `dot_config/mise/config.toml` and `dot_config/mise/mise.lock` own the workstation baseline. Other repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` pin exact versions from it. [Mise](skills/mise/SKILL.md) owns selection and exceptions; [upgrade-tools](skills/upgrade-tools/SKILL.md) owns validated propagation.
+- **Lock tools with mise, never edit generated locks**: use mise lockfile revision 3 for reproducible tool installs. Keep the global lockfile and its referenced native dependency files together; do not edit or format generated files. Preserve the pgcli `with` requirement. `mise run lock` resolves the portable source baseline in isolation and captures its complete bundle; `mise run tools` installs with `--locked`. Python application dependencies remain locked in `dot/uv.lock`.
+- **Keep README for users; workflows go in skills**: keep setup, auth, everyday usage, and a short task reference in `README.md`; keep detailed contributor workflows in skills.
+- **Pin themes to fmind/theme**: [fmind/theme](https://github.com/fmind/theme) owns the palette and native app files. Fetch standalone themes via chezmoi externals pinned to one upstream commit with SHA-256 checksums (`mise run upgrade` advances the pin); when tools require merged styles, copy only the native theme block with an upstream source comment. Terminal tools follow the Ghostty ANSI palette or select terminal-aligned themes.
+- **Inherit terminal fonts from Ghostty**: terminal apps inherit GoogleSansCode Nerd Font Mono from Ghostty.
+- **Enable Vim mode in every TUI** that supports it.
 
 ## Workflows
 
@@ -36,7 +36,7 @@ Key routines:
 
 ## Agents
 
-- **Subagents**: `dot_agents/supagents/` owns shared roles; `mise run agents` compiles native files using `supagents.yaml`. Never edit generated profiles directly. `check:agents` rejects drift; see [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+- **Subagents**: `dot_agents/supagents/` owns shared roles; `mise run format:agents` (part of `format`) compiles native files using `supagents.yaml`. Never edit generated profiles directly. `check:agents` rejects drift; see [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 - **Persona**: `dot_agents/AGENTS.md` deploys to `~/.agents/AGENTS.md`, consumed by all agent harnesses.
 - **Skills**: Global packages live in `skills/`; `dot_agents/skills/symlink_<name>.tmpl` links each into the real `~/.agents/skills/` directory. Other packages use the same directory and remain independently managed. Never use `exact_` for the shared catalog.
 

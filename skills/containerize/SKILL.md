@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containerize
   created: "2026-07-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Containerize
@@ -45,13 +45,13 @@ Build a reproducible, minimal non-root uv-managed Python image locally, verify i
 
 ## Gotchas
 
-- **Lock fidelity**: `uv sync --locked` rejects a missing or stale `uv.lock`; `--frozen` skips freshness checks. The template uses `--locked` so manifest drift fails without rewriting the graph.
-- **Non-root runtime**: the template runs as numeric UID/GID 10001 and copies only the locked virtual environment from the build stage. Write temporary data outside the application directory or mount an explicit writable path.
-- **Pinned bases**: both Python and uv use multi-architecture manifest digests. Refresh versions and digests together with [upgrade-tools](../upgrade-tools/SKILL.md).
-- **Small context**: keep virtual environments, caches, logs, local databases, Git state, plaintext environment files, and generated `gha-creds-*.json` Workload Identity Federation credentials out through [.dockerignore](templates/.dockerignore). The Cloud Run authentication action creates its credential file before the Docker build; it must not enter a build layer.
+- **Fail on lock drift with `--locked`**: `uv sync --locked` rejects a missing or stale `uv.lock`; `--frozen` skips freshness checks. The template uses `--locked` so manifest drift fails without rewriting the graph.
+- **Run non-root with explicit writable paths**: the template runs as numeric UID/GID 10001 and copies only the locked virtual environment from the build stage. Write temporary data outside the application directory or mount an explicit writable path.
+- **Refresh pinned bases together**: both Python and uv use multi-architecture manifest digests. Refresh versions and digests together with [upgrade-tools](../upgrade-tools/SKILL.md).
+- **Exclude local state from the context**: keep virtual environments, caches, logs, local databases, Git state, plaintext environment files, and generated `gha-creds-*.json` Workload Identity Federation credentials out through [.dockerignore](templates/.dockerignore). The Cloud Run authentication action creates its credential file before the Docker build; it must not enter a build layer.
 - **Digests over tags**: scans, signatures, attestations, deployment, and rollback all use the same immutable digest reference.
-- **Registry writes**: pushes, signatures, and attestations require explicit authority; local build and scan do not grant it.
-- **Cache ownership**: `--rm` removes a container, not its image, exported archive or build cache. Shared builder cache has no reliable per-agent ownership; reuse it under a reviewed storage budget instead of pruning it at every task end.
+- **Authorize every registry write**: pushes, signatures, and attestations require explicit authority; local build and scan do not grant it.
+- **Reuse shared build cache under budget**: `--rm` removes a container, not its image, exported archive or build cache. Shared builder cache has no reliable per-agent ownership; reuse it under a reviewed storage budget instead of pruning it at every task end.
 
 ## Task guides
 

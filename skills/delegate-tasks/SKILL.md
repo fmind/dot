@@ -8,7 +8,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/delegate-tasks
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Delegate Tasks
@@ -17,11 +17,11 @@ Delegate through the packaged batch runner and read its compact result. Keep wor
 
 ## Invocation and defaults
 
-- Run only after an explicit user request to delegate; ordinary implementation, review, or cost-reduction requests do not activate this workflow. Creating or discussing this skill does not authorize launching workers.
-- Invoke with `/delegate-tasks` in Claude, `$delegate-tasks` in Codex, or an explicit natural-language delegation request where the host supports it. Copilot CLI's built-in `/delegate` is a different feature (cloud agent PR); use this skill's full name. With implicit discovery disabled, use the named invocation if a host does not resolve the natural request.
-- Default to `agy`, model `gemini-3.8-flash-high` (Gemini 3.8 Flash High), effort `high`. User-selected harness, model, effort, and concurrency override these defaults; the Gemini default applies only to agy.
-- Start with one active worker. For an explicit multi-task delegation, run up to two independent tasks concurrently when their workspace ownership is isolated; respect any user-specified limit. Run dependencies in order.
-- Use the harness's native CLI and existing authenticated account. Do not silently switch harnesses, models, API billing, credit fallback, or permission policies when blocked.
+- **Require an explicit delegation request**: ordinary implementation, review, or cost-reduction requests do not activate this workflow. Creating or discussing this skill does not authorize launching workers.
+- **Invoke by name or explicit request**: use `/delegate-tasks` in Claude, `$delegate-tasks` in Codex, or an explicit natural-language delegation request where the host supports it. Copilot CLI's built-in `/delegate` is a different feature (cloud agent PR); use this skill's full name. With implicit discovery disabled, use the named invocation if a host does not resolve the natural request.
+- **Default to `agy`**: model `gemini-3.8-flash-high` (Gemini 3.8 Flash High), effort `high`. User-selected harness, model, effort, and concurrency override these defaults; the Gemini default applies only to agy.
+- **Cap concurrency at two**: for an explicit multi-task delegation, run up to two independent tasks concurrently when their workspace ownership is isolated; respect any user-specified limit. Run dependencies in order.
+- **Keep native CLI, account, and policies**: use the harness's native CLI and existing authenticated account. Do not silently switch harnesses, models, API billing, credit fallback, or permission policies when blocked.
 
 ## Workflow
 
