@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [10.0.0] - 2026-10-05
+
+### ♻️ Refactor
+
+- [**breaking**] Trim unused commands, release publishing, and gates
+- Lead rules with bold summaries and open subagent roles
+
 ## [9.0.3] - 2026-10-04
 
 ### 🐛 Bug Fixes
