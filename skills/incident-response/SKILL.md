@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/incident-response
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Incident Response
@@ -34,7 +34,7 @@ Coordinate diagnosis, containment, recovery, and learning during an active outag
 
 ## Gotchas
 
-- **Authority**: A request for help does not itself authorize production mutation, credential rotation, customer communication, disclosure, or destructive containment; resolve target, blast radius, rollback, and authority before any mutation.
+- **Resolve authority before mutating**: A request for help does not itself authorize production mutation, credential rotation, customer communication, disclosure, or destructive containment; resolve target, blast radius, rollback, and authority before any mutation.
 - **Freeze the rest**: Stop unrelated changes and speculative fixes for the duration of the incident.
 - **Silence is a gap**: Missing telemetry, stale dashboards, and quiet alerts are unknowns, not reassurance.
 

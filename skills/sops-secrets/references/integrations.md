@@ -8,9 +8,9 @@ Jobs wrap commands in `sops exec-env`, and every other secret rides encrypted in
 
 ## Kubernetes (Flux)
 
-1. Commit `*.enc.yaml` manifests encrypted with the `encrypted_regex: ^(data|stringData)$` rule from [sops.yaml](../templates/sops.yaml), so only the secret payload is ciphertext and the manifest stays diffable.
-1. Resolve the intended cluster and authorize transferring the private decryption key before creating the cluster-side secret. Preserve an existing secret; for a new one use `kubectl --context <context> create secret generic sops-age --namespace=flux-system --from-file=age.agekey=<key-file>`. The stored key name must end in `.agekey`; the local key file can retain its existing name and location. Inspect metadata only when verifying the secret, and check Flux reconciliation without printing decrypted values.
-1. Point the Kustomization at it with `spec.decryption: {provider: sops, secretRef: {name: sops-age}}`; Flux decrypts in-cluster.
+1. **Encrypt only the secret payload**: commit `*.enc.yaml` manifests encrypted with the `encrypted_regex: ^(data|stringData)$` rule from [sops.yaml](../templates/sops.yaml), so only the secret payload is ciphertext and the manifest stays diffable.
+1. **Authorize the key transfer first**: resolve the intended cluster and authorize transferring the private decryption key before creating the cluster-side secret. Preserve an existing secret; for a new one use `kubectl --context <context> create secret generic sops-age --namespace=flux-system --from-file=age.agekey=<key-file>`. The stored key name must end in `.agekey`; the local key file can retain its existing name and location. Inspect metadata only when verifying the secret, and check Flux reconciliation without printing decrypted values.
+1. **Point the Kustomization at it**: use `spec.decryption: {provider: sops, secretRef: {name: sops-age}}`; Flux decrypts in-cluster.
 
 ## OpenTofu
 

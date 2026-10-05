@@ -106,14 +106,13 @@ Usage reports distinguish token counts and estimated API value from actual costs
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command               | Purpose                                                              |
-| --------------------- | -------------------------------------------------------------------- |
-| `mise run diff`       | Preview dotfile changes                                              |
-| `mise run apply`      | Apply files and eligible hooks                                       |
-| `mise run full`       | Synchronize files, locked tools, CLI, and completions                |
-| `mise run upgrade`    | Upgrade dependencies, tools, theme, and plugins; apply and reinstall |
-| `mise run all`        | Format, check, test, and build the repository                        |
-| `mise run review:agy` | Ask agy for a structured review of the working-tree diff             |
+| Command            | Purpose                                                              |
+| ------------------ | -------------------------------------------------------------------- |
+| `mise run diff`    | Preview dotfile changes                                              |
+| `mise run apply`   | Apply files and eligible hooks                                       |
+| `mise run full`    | Synchronize files, locked tools, CLI, and completions                |
+| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply and reinstall |
+| `mise run all`     | Format, check, test, and build the repository                        |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
@@ -127,7 +126,7 @@ Run these from the checkout; `mise tasks` lists every task and alias.
   >
 </a>
 
-Shared roles (code, security, and ops reviewers; solution architect; product and course designers; AI evaluator; content editor and presenter; deep researcher; code debugger; project maintainer) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), preview with `mise run agents:diff`, run `mise run agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
+Shared roles (code, security, and ops reviewers; solution architect; product and course designers; AI evaluator; content editor and presenter; deep researcher; code debugger; project maintainer) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), run `mise run format:agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles, and shows their diffs. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
 
 ## Agent skills
 
@@ -150,7 +149,7 @@ Other everyday shortcuts: `/full-review` reviews a whole project and applies ver
 ### Authentication & Logins
 
 ```bash
-dot login all             # Everything below that is not ready yet, opening the browser when needed
+dot login all             # GitHub, GCP and ADC, then Workspace; skips what is ready, opens the browser when needed
 dot login github          # GitHub
 dot login workspace       # Google Workspace
 dot login gcp             # Google Cloud and ADC
@@ -176,7 +175,7 @@ For hooks, notifications, and provider overrides, see [agent harnesses](skills/a
 
 Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode use native credential files, seeded only when absent so later logins survive apply. Use `hf auth login`, `kaggle auth login`, or OpenCode's `/connect` for your own accounts. For customer work, select credentials explicitly using the [account override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
 
-Supply a personal key to one command with `dot secret run`; PyPI packages publish through Trusted Publishing, not a personal token. A `remove_` marker deletes the retired `UV_PUBLISH_TOKEN` seed on apply; revoke that token on pypi.org. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
+Supply a personal key to one command with `dot secret run`; PyPI packages publish through Trusted Publishing, not a personal token. Delete any retired `~/.config/dot/secrets/UV_PUBLISH_TOKEN` seed and revoke that token on pypi.org. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
 
 ```bash
 dot secret run STITCH_ACCESS_TOKEN -- <command>

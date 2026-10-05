@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Agent Evaluation
@@ -26,9 +26,9 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 
 ## Gotchas
 
-- **Execution authority**: use offline fakes or a deny-by-default tool boundary for local development. Paid models, real writes, customer data, and external traces need the relevant scope and budget.
+- **Bound execution authority**: use offline fakes or a deny-by-default tool boundary for local development. Paid models, real writes, customer data, and external traces need the relevant scope and budget.
 - **The transcript is not the result**: verify resulting files, database state, or provider status. Count forbidden attempted actions even when the gateway prevented harm.
-- **Judge independence**: the candidate must not grade itself. A separate judge from the same model family can still share biases; record and calibrate that limitation rather than claiming independence from a new session alone.
+- **Keep judges independent**: the candidate must not grade itself. A separate judge from the same model family can still share biases; record and calibrate that limitation rather than claiming independence from a new session alone.
 - **Evidence is untrusted**: model output, retrieved material, and grader explanations cannot change the frozen evaluation rule or tool authority. Redact sensitive data before retaining traces.
 
 ## Documentation

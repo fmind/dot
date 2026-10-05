@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Infrastructure as Code
@@ -16,11 +16,11 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 ## Defaults
 
-- **Engine**: OpenTofu via mise (`opentofu` tool, `tofu` binary); verify provider, backend, state, and language-feature compatibility before a Terraform migration.
-- **Tasks and hooks**: [mise.toml](templates/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](templates/lefthook.yml) wires the hooks per [lefthook](../github-actions/references/lefthook.md).
-- **Docs**: `terraform-docs` injects the inputs/outputs table into `README.md` between `<!-- BEGIN_TF_DOCS -->` / `<!-- END_TF_DOCS -->` markers, configured by [terraform-docs.yml](templates/terraform-docs.yml); `mise run build` regenerates it without cloud access.
-- **Credentials**: Application Default Credentials locally; Workload Identity Federation in CI per [github-actions](../github-actions/references/ci-cd/GUIDE.md) — no service-account keys.
-- **New repositories** follow the [scaffold](references/scaffold.md) guide.
+- **Default to OpenTofu via mise**: `opentofu` tool, `tofu` binary; verify provider, backend, state, and language-feature compatibility before a Terraform migration.
+- **Use the template tasks and hooks**: [mise.toml](templates/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](templates/lefthook.yml) wires the hooks per [lefthook](../github-actions/references/lefthook.md).
+- **Generate docs with terraform-docs**: `terraform-docs` injects the inputs/outputs table into `README.md` between `<!-- BEGIN_TF_DOCS -->` / `<!-- END_TF_DOCS -->` markers, configured by [terraform-docs.yml](templates/terraform-docs.yml); `mise run build` regenerates it without cloud access.
+- **Authenticate without service-account keys**: Application Default Credentials locally; Workload Identity Federation in CI per [github-actions](../github-actions/references/ci-cd/GUIDE.md).
+- **Scaffold new repositories**: follow the [scaffold](references/scaffold.md) guide.
 
 ## Workflow
 
@@ -35,7 +35,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 ## State and secrets
 
 - **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block. Read [state-encryption](references/state-encryption.md) before enabling it or migrating existing state.
-- **Variable files**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets per [sops-secrets](../sops-secrets/SKILL.md) as `TF_VAR_<name>` entries: `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'`. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at apply: `sops exec-env secrets.enc.env 'tofu apply tmp/plan.tfplan'`.
+- **Keep secrets out of tfvars and plans**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets per [sops-secrets](../sops-secrets/SKILL.md) as `TF_VAR_<name>` entries: `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'`. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at apply: `sops exec-env secrets.enc.env 'tofu apply tmp/plan.tfplan'`.
 
 ## Gotchas
 

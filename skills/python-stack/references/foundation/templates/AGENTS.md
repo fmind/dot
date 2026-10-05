@@ -12,7 +12,7 @@ Context and rules for AI agents working in this repository. Humans should start 
 
 All work goes through `mise` (see `mise.toml`); git hooks and CI call the same tasks.
 
-- Install: `mise run install` — sync the virtualenv (`uv sync`) and install git hooks.
+- Install: `mise run install` — sync the virtualenv (`uv sync --locked`) and install git hooks.
 - Format: `mise run format` — `ruff` (import sort + format) and `dprint`.
 - Check: `mise run check` — `ruff` lint, `ty` types, `uv audit`, `dprint check`, `gitleaks`, `pyproject` validation.
 - Test: `mise run test` — offline `pytest` suite with an 85% branch-coverage gate.
@@ -25,11 +25,11 @@ A change is complete only when, locally, `mise run format` is clean, `mise run c
 
 ## Conventions & idioms
 
-- **Errors with context**: raise specific exceptions and chain with `raise ... from err`; never use a bare `except` or silently swallow errors.
-- **Configuration**: add typed validation when the application needs it; document defaults and override precedence, and never commit secrets.
-- **Typing**: modern annotations (`list[str]`, `X | Y`, `typing.Annotated`); keep `ty check` clean and validate external input at boundaries.
-- **Dependencies**: add only what the project uses; framework, database, and logging choices belong to the selected application profile.
-- **Commits**: Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`); no attribution in commit messages.
+- **Never swallow errors**: raise specific exceptions and chain with `raise ... from err`; never use a bare `except` or silently swallow errors.
+- **Validate and document configuration**: add typed validation when the application needs it; document defaults and override precedence, and never commit secrets.
+- **Use modern type annotations**: `list[str]`, `X | Y`, `typing.Annotated`; keep `ty check` clean and validate external input at boundaries.
+- **Add only dependencies in use**: framework, database, and logging choices belong to the selected application profile.
+- **Use Conventional Commits without attribution**: `feat:`, `fix:`, `refactor:`, `chore:`; no attribution in commit messages.
 
 ## Repository layout
 

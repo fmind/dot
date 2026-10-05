@@ -115,7 +115,7 @@ run = "uv run --locked ruff format --force-exclude"
 [tasks.install]
 alias = "i"
 description = "Install development dependencies"
-run = ["uv sync", "uv run lefthook install"]
+run = ["uv sync --locked", "uv run --frozen lefthook install"]
 
 [tasks.publish]
 alias = "p"

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Trim
@@ -19,7 +19,7 @@ Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a reque
 1. **Measure**: record lines, words, and estimated tokens (characters / 4) before editing; for skill catalogs and instruction files also run `dot agent context --project . --details` (add `--source .` inside the fmind/dot checkout).
 
    ```bash
-   wc -lwc <path>
+   wc -lwm <path>
    ```
 
 1. **Map what must survive**: list each claim, rule, number, command, flag, link, warning, and authority boundary. For configuration, capture the effective result so the trim can prove it changed nothing: `mise cfg` and `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json` for plain data.
@@ -37,7 +37,7 @@ Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a reque
 
 - **Short is not simple**: replacing three explicit lines with a clever one-liner or a dense regular expression makes the file harder to maintain; prefer deleting to compressing.
 - **Defaults drift**: a setting equal to today's default can still be intentional pinning; keep it when a comment or commit explains it.
-- **Shared wording**: phrases reused verbatim across files (triggers, error messages, test fixtures) may be matched by tests or other agents; search before rewording.
+- **Search before rewording shared phrases**: phrases reused verbatim across files (triggers, error messages, test fixtures) may be matched by tests or other agents; search before rewording.
 
 ## Documentation
 

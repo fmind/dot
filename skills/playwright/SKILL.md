@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Playwright
@@ -24,9 +24,9 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 
 ## Gotchas
 
-- **Authority**: use the profiles, accounts, data, and actions authorized for the task; reuse existing authorization. A test request alone does not authorize private browser-session reuse, cookie transfers, account creation, legal acceptance, purchases, or paid browser services. When a required action falls outside that scope, prepare the local test and explain the specific missing authorization before proceeding. Treat login, MFA, and CAPTCHA as explicit authentication boundaries, never bypasses.
-- **Browser cache**: install only required browsers and reuse the default shared cache (`~/.cache/ms-playwright` on Linux). Do not run `playwright uninstall` as task teardown: other projects can need those binaries. Remove task-created temporary profiles and passing-run artifacts, preserve requested evidence and failure traces, and review native browser cleanup separately when disk pressure requires it.
-- **Version skew**: browsers match the Playwright version that installed them; rerun `uv run playwright install chromium` after an upgrade.
+- **Act only within authorized scope**: use the profiles, accounts, data, and actions authorized for the task; reuse existing authorization. A test request alone does not authorize private browser-session reuse, cookie transfers, account creation, legal acceptance, purchases, or paid browser services. When a required action falls outside that scope, prepare the local test and explain the specific missing authorization before proceeding. Treat login, MFA, and CAPTCHA as explicit authentication boundaries, never bypasses.
+- **Reuse the shared browser cache**: install only required browsers and reuse the default shared cache (`~/.cache/ms-playwright` on Linux). Do not run `playwright uninstall` as task teardown: other projects can need those binaries. Remove task-created temporary profiles and passing-run artifacts, preserve requested evidence and failure traces, and review native browser cleanup separately when disk pressure requires it.
+- **Reinstall browsers after upgrades**: browsers match the Playwright version that installed them; rerun `uv run playwright install chromium` after an upgrade.
 - **Headless by default**: pass `--headed` to watch a run; keep CI headless.
 
 ## Official Skills

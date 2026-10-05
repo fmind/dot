@@ -20,7 +20,7 @@ How each host finds the persona, global skills, and workspace skills, and the re
 - Claude Code and Antigravity expose `/skills` in the interactive session only; explicit invocation (`/<skill-name>`) is the fallback proof in Claude.
 - `opencode debug skill` can include skill bodies; inspect needed names locally and keep private instruction content out of reports.
 - `gh skill list` (preview) scans every supported host's project and user directories in one pass; `--agent`, `--scope`, and `--json` narrow it. It proves files are present, not that a host loaded them.
-- A listing proves discovery by that interface; only a captured model input proves prompt inclusion, and neither proves instruction following. Validate behavior against explicit acceptance cases in a disposable, instrumented run.
+- **Listings prove only discovery**: A listing proves discovery by that interface; only a captured model input proves prompt inclusion, and neither proves instruction following. Validate behavior against explicit acceptance cases in a disposable, instrumented run.
 - Cursor also discovers compatibility directories documented in [its skills guide](https://cursor.com/docs/skills). User-level packages remain local unless explicitly distributed to a remote execution environment; use project packages or worker-image installation for Cloud Agents and self-hosted workers.
 
 ## Same-name resolution

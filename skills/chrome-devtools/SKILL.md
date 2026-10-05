@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Chrome DevTools
@@ -43,9 +43,9 @@ The MCP client starts that process over stdio. Use a dedicated browser profile. 
 
 ## Gotchas
 
-- **Tool availability**: inspect the live tool schema or CLI help before calling a capability; optional categories, page routing, and CLI arguments vary by version.
-- **Browser mode**: set headed or headless explicitly for reproducibility; the CLI defaults to headless, which need not match a separately configured MCP connection.
-- **Lab versus field**: a local trace measures this run. CrUX field data and lab measurements describe different populations and time windows.
+- **Check tool availability first**: inspect the live tool schema or CLI help before calling a capability; optional categories, page routing, and CLI arguments vary by version.
+- **Pin the browser mode**: set headed or headless explicitly for reproducibility; the CLI defaults to headless, which need not match a separately configured MCP connection.
+- **Lab and field data differ**: a local trace measures this run. CrUX field data and lab measurements describe different populations and time windows.
 
 ## Official Skills
 

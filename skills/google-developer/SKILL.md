@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Google Developer Catalog
@@ -16,9 +16,9 @@ Route Google product work to the relevant selection in [google/skills](https://g
 
 ## Workflow
 
-1. Identify the product and operation, then inspect the catalog with `skills add google/skills --list`. Choose the product group below; the developer index can locate guidance in sibling repositories.
-1. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) to review the selected immutable snapshot and install only the required project-scoped guidance. A catalog lookup does not authorize executing its results.
-1. Compare the selected guidance with installed tools and current official docs before acting. Use [research-brief](../implementation-plan/references/research-brief.md) when the API contract is uncertain.
+1. **Identify the product and operation**: inspect the catalog with `skills add google/skills --list`. Choose the product group below; the developer index can locate guidance in sibling repositories.
+1. **Review before installing**: follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) to review the selected immutable snapshot and install only the required project-scoped guidance. A catalog lookup does not authorize executing its results.
+1. **Verify guidance before acting**: compare the selected guidance with installed tools and current official docs. Use [research-brief](../implementation-plan/references/research-brief.md) when the API contract is uncertain.
 
 | Task                                           | Catalog group and selection                                                        |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -29,9 +29,9 @@ Route Google product work to the relevant selection in [google/skills](https://g
 
 ## Gotchas
 
-- **Ads**: keep developer tokens and OAuth credentials out of arguments and logs. Use test accounts and `validate_only` before authorized live mutations; campaign changes can affect spend.
-- **Analytics**: API property IDs differ from `G-...` measurement IDs. Bound queries and exports, account for quotas, and keep sensitive reports out of Git.
-- **Installation**: select skills rather than importing an entire host plugin; hooks, MCP servers, and permissions are separate integrations. Cloud defaults and mutation scope remain with the owning workflow.
+- **Protect Ads credentials and spend**: keep developer tokens and OAuth credentials out of arguments and logs. Use test accounts and `validate_only` before authorized live mutations; campaign changes can affect spend.
+- **Distinguish Analytics IDs; bound queries**: API property IDs differ from `G-...` measurement IDs. Bound queries and exports, account for quotas, and keep sensitive reports out of Git.
+- **Select skills, not whole plugins**: select skills rather than importing an entire host plugin; hooks, MCP servers, and permissions are separate integrations. Cloud defaults and mutation scope remain with the owning workflow.
 
 ## Official Skills
 

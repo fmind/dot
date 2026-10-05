@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Atlassian CLI
@@ -23,7 +23,7 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
    acli confluence auth login --site <site>.atlassian.net --email <email> --token < token.txt
    ```
 
-1. **Bounded reads**: JQL with a limit and explicit fields, JSON for anything a tool parses.
+1. **Bound every read**: JQL with a limit and explicit fields, JSON for anything a tool parses.
 
    ```bash
    acli jira workitem search --jql 'project = TEAM AND status != Done' --fields key,summary,status --limit 50 --json
@@ -44,7 +44,7 @@ Use `acli` for Jira and Confluence Cloud from the shell. Atlassian publishes no 
 
 ## Gotchas
 
-- **Bulk flags**: `--jql` and `--filter` on `transition`, `edit`, or `comment` act on every match; on `transition` and `edit`, `--yes` skips the prompt, not the authority rule.
+- **Bulk flags hit every match**: `--jql` and `--filter` on `transition`, `edit`, or `comment` act on every match; on `transition` and `edit`, `--yes` skips the prompt, not the authority rule.
 - **Rovo Dev**: `acli rovodev` is Atlassian's coding agent, not configured here; it reads `.agents/skills` and `~/.agents/skills`, so this catalog is available there without copies.
 - **MCP**: `atlassian/atlassian-mcp-server` publishes skills for the Rovo MCP server (`skills add atlassian/atlassian-mcp-server --list`), configured per [mcp-setup](../mcp-setup/SKILL.md); none covers `acli`.
 

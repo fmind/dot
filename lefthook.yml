@@ -2,52 +2,43 @@
 # Docs: https://lefthook.dev/configuration/
 
 glob_matcher: doublestar
+# Jobs run sequentially in list order: formatters, Python fixes before style, then checks.
 pre-commit:
-  parallel: false
-  commands:
+  jobs:
     # Formatters receive only staged files and restage them. Generated skill indexes
     # are not refreshed here: check:skills fails on a stale one so it cannot be
     # committed unstaged and then break CI's clean-tree verification.
-    format:dprint:
+    - name: format:dprint
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
-      priority: 10
       run: mise run format:dprint {staged_files}
       stage_fixed: true
-    format:lua:files:
+    - name: format:lua:files
       glob: "**/*.lua"
-      priority: 10
       run: mise run format:lua:files {staged_files}
       stage_fixed: true
-    format:python:fix:
+    - name: format:python:fix
       glob: "**/*.py"
       exclude: &python_templates
         - "skills/*/references/**/*.py"
         - ".agents/tmp/**/*.py"
-      priority: 10
       run: mise run format:python:fix {staged_files}
       stage_fixed: true
-    format:python:style:
+    - name: format:python:style
       glob: "**/*.py"
       exclude: *python_templates
-      priority: 15
       run: mise run format:python:style {staged_files}
       stage_fixed: true
-    format:shell:
+    - name: format:shell
       # The task formats exactly these plain scripts; shell templates are lint-only.
       glob: "{install.sh,run_*.sh}"
-      priority: 10
       run: mise run format:shell
       stage_fixed: true
-    check:local:
-      priority: 30
+    - name: check:local
       run: mise run check:local
 pre-push:
-  parallel: false
-  commands:
+  jobs:
     # Vulnerability databases need the network; CI runs the same tasks through `check`.
-    check:network:
-      priority: 10
+    - name: check:network
       run: mise run check:network
-    test:
-      priority: 20
+    - name: test
       run: mise run test

@@ -17,10 +17,10 @@ Prepare or verify a versioned release with Conventional Commits, git-cliff, anno
 
 ## Gotchas
 
-- **Immutable tags**: never move a published tag or silently replace assets to repair failed proof.
-- **Dirty work**: preserve unrelated edits and qualify the exact materialized candidate; do not use a clean HEAD worktree as proof of uncommitted changes.
-- **Authority persists**: an explicit release request authorizes its stated publication steps; verifying an existing release grants no repair or republishing authority.
-- **Semver**: retain the `v` tag prefix and the repository's configured git-cliff behavior; explicit version constants still need inspection.
+- **Keep published tags immutable**: never move a published tag or silently replace assets to repair failed proof.
+- **Qualify the exact candidate**: preserve unrelated edits and qualify the exact materialized candidate; do not use a clean HEAD worktree as proof of uncommitted changes.
+- **Authority follows the request**: an explicit release request authorizes its stated publication steps; verifying an existing release grants no repair or republishing authority.
+- **Keep semver conventions**: retain the `v` tag prefix and the repository's configured git-cliff behavior; explicit version constants still need inspection.
 
 ## Documentation
 

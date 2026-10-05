@@ -2,9 +2,9 @@
 
 Read the publishing project's current identity and editorial instructions, plus the author's draft, before attributing a personal fact, belief, experience, or result. This global skill deliberately keeps no second biography or channel policy.
 
-1. Preserve the author's stance, concrete details, intensity, and humor while improving the prose; raw notes remain untouched.
-1. Resolve the requested register and length through the project's drafting workflow. Avoid imposing the same first-person or provocative style on every piece.
-1. Distinguish supplied personal facts from externally verified background; never invent clients, measurements, quotations, credentials, or approval.
-1. Cut hype, throat-clearing, repeated conclusions, and empty corporate language. Use lists and headings only when they clarify the argument.
-1. Follow the project's immutable-publication rule. Prepare a proposed erratum, follow-up, or dated edition when required; site ownership alone does not authorize rewriting published copy.
-1. Sending, scheduling, publication, and spending require the authority and workflow of the owning project.
+1. **Preserve the author's voice**: keep the author's stance, concrete details, intensity, and humor while improving the prose; raw notes remain untouched.
+1. **Resolve register through the project**: settle the requested register and length through the project's drafting workflow. Avoid imposing the same first-person or provocative style on every piece.
+1. **Never invent facts or approval**: distinguish supplied personal facts from externally verified background; never invent clients, measurements, quotations, credentials, or approval.
+1. **Cut hype and filler**: remove hype, throat-clearing, repeated conclusions, and empty corporate language. Use lists and headings only when they clarify the argument.
+1. **Treat publications as immutable**: Follow the project's immutable-publication rule. Prepare a proposed erratum, follow-up, or dated edition when required; site ownership alone does not authorize rewriting published copy.
+1. **External actions need project authority**: Sending, scheduling, publication, and spending require the authority and workflow of the owning project.

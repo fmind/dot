@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/implementation-plan
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Implementation Plan
@@ -29,8 +29,8 @@ To write a plan, follow the steps below. To challenge an existing plan, read onl
 ## Gotchas
 
 - **Planning is read-only by default**: Do not edit source, create issues, install dependencies, or deploy while planning unless the user explicitly asked.
-- **Deletion test**: An abstraction earns its place only when removing it would spread meaningful complexity or violate a real seam; delay a generalized adapter until a second concrete variation exists.
-- **Deep modules**: Prefer modules that hide decisions over pass-through layers, and put tests and callers across the same real seam.
+- **Apply the deletion test**: An abstraction earns its place only when removing it would spread meaningful complexity or violate a real seam; delay a generalized adapter until a second concrete variation exists.
+- **Prefer deep modules**: Prefer modules that hide decisions over pass-through layers, and put tests and callers across the same real seam.
 
 ## Task guides
 

@@ -11,16 +11,16 @@ Operate Claude Code's harness and session features. Application development with
 
 Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
-- Inspect `claude --version` and `claude --help`; compare installed help with the version-specific CLI reference.
-- Use the documented session, customization, or Remote Control interface. Read setting precedence before changing permissions or hooks.
-- Verify the session result and configuration or skill discovery in Claude Code.
+- **Inspect `claude --version` and `claude --help`**: compare installed help with the version-specific CLI reference.
+- **Use the documented interface**: session, customization, or Remote Control. Read setting precedence before changing permissions or hooks.
+- **Verify in Claude Code**: check the session result and configuration or skill discovery.
 
 ## Official Skills
 
 - [Anthropic skills](https://github.com/anthropics/skills): reusable examples and document skills; inspect each package's license and scope.
 - [Official plugin directory](https://github.com/anthropics/claude-plugins-official): browse maintained integrations alongside the skill examples.
 - [Skill authoring and discovery](https://code.claude.com/docs/en/skills) · [Plugin discovery](https://code.claude.com/docs/en/discover-plugins).
-- Select a needed package through the [vendor-skill policy](../../../agent-project/references/vendor-skills.md); link to upstream guidance instead of maintaining a copied manual here.
+- **Select packages by vendor-skill policy**: select a needed package through the [vendor-skill policy](../../../agent-project/references/vendor-skills.md); link to upstream guidance instead of maintaining a copied manual here.
 
 ## Top Links
 

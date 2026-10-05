@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Production Readiness
@@ -39,8 +39,8 @@ Decide whether the exact candidate can be operated safely. The audit produces a 
 
 ## Gotchas
 
-- **Implicit authority**: Reuse established authority for scoped runtime checks. Name missing authority for production mutation, external coordination, or spend; the presence of credentials alone supplies none.
-- **Borrowed evidence**: A green run, probe, or deployment for a different revision or environment proves nothing about this candidate.
+- **Credentials alone grant no authority**: Reuse established authority for scoped runtime checks. Name missing authority for production mutation, external coordination, or spend; the presence of credentials alone supplies none.
+- **Never borrow another revision's evidence**: A green run, probe, or deployment for a different revision or environment proves nothing about this candidate.
 
 ## Documentation
 

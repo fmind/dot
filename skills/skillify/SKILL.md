@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Skillify
@@ -17,7 +17,7 @@ Capture what this session learned as a skill the next session can run without th
 ## Workflow
 
 1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
-1. **Apply the admission rule** in [package rules](references/package-rules.md): first extend an existing owner or use project scope. A new global entry needs a distinct recurring trigger, demonstrated behavioral value, and space within the discovery and instruction budgets. If only general product knowledge remains, use documentation instead.
+1. **Apply the admission rule**: in [package rules](references/package-rules.md), first extend an existing owner or use project scope. A new global entry needs a distinct recurring trigger, demonstrated behavioral value, and space within the discovery and instruction budgets. If only general product knowledge remains, use documentation instead.
 1. **Check the catalog**: `skills list` and `skills list -g` (preview `gh skill list` also scans every host directory), then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository, whose `dot-skills` skill owns registration (link declaration) and `mise run check:skills`. Installation or tooling changes also need their affected tests.
@@ -34,9 +34,9 @@ Keep durable preferences in the global persona and repository invariants in proj
 ## Gotchas
 
 - **Descriptions route, bodies instruct**: the description decides when the skill loads; the body decides what happens. Do not summarize the workflow in the description.
-- **Dates**: set `created` and `updated` to today; bump `updated` on every later edit.
-- **Third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
-- **Promotion and publication**: promoting a guide to a package, publishing one standalone, or adding `agents/openai.yaml` follows [portability](references/portability.md).
+- **Keep dates current**: set `created` and `updated` to today; bump `updated` on every later edit.
+- **Follow vendor policy for third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
+- **Promote or publish per portability**: promoting a guide to a package, publishing one standalone, or adding `agents/openai.yaml` follows [portability](references/portability.md).
 
 ## Documentation
 

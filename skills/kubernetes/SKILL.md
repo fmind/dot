@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -53,8 +53,8 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
 
 ## Gotchas
 
-- **Context changes**: omitted context flags use mutable kubeconfig defaults. Pass the selected context on each call; change the persistent current context only when that change is requested.
-- **Secret redaction**: avoid running unbounded `kubectl get secret -o yaml`; inspect metadata and annotate keys without printing raw base64 payloads to terminal logs.
+- **Pin the context explicitly**: omitted context flags use mutable kubeconfig defaults. Pass the selected context on each call; change the persistent current context only when that change is requested.
+- **Keep Secret payloads out of logs**: avoid running unbounded `kubectl get secret -o yaml`; inspect metadata and annotate keys without printing raw base64 payloads to terminal logs.
 
 ## Task guides
 

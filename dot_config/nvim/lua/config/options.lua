@@ -16,9 +16,6 @@ opt.linebreak = true
 -- Scroll offset context
 opt.scrolloff = 15
 
--- Substitute options
-opt.gdefault = true
-
 -- Keymap timeouts
 opt.timeoutlen = 400
 

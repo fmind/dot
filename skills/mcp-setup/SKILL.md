@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-setup
   created: "2026-06-23"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # MCP Setup
@@ -20,15 +20,15 @@ Connect only the MCP capability the task needs, using the installed host's nativ
 1. **Review the server**: verify its source, transport, tools, credential flow, and requested permissions before launching it; use [host commands](references/host-commands.md) for the matching setup.
 1. **Configure once**: preserve unmanaged settings, avoid duplicate registrations, and pass secrets through the supported environment or secret manager.
 1. **Verify**: list the configured server, check its tool surface, and exercise a small read-only call; registration alone does not prove authentication or safe writes.
-1. **Google Cloud case**: read [google-cloud-mcp.md](references/google-cloud-mcp.md) only for those product-specific registrations.
+1. **Use the Google Cloud guide for its products**: read [google-cloud-mcp.md](references/google-cloud-mcp.md) only for those product-specific registrations.
 
 ## Gotchas
 
 - **Claude default scope is `local`**: the server lands in `~/.claude.json` for this path only; pass `--scope project` to share it through `.mcp.json`.
-- **Repository trust**: review project MCP files before starting their servers; do not auto-approve every repository-provided server.
-- **Runner resolution**: `uvx` and `docker` must resolve from the agent's environment, not only from your shell.
-- **Tool scope**: enable only the tools a workflow needs (`copilot mcp add --tools`) and enforce the user's granted scope at the tool boundary. Preserve authorized autonomous writes; require confirmation only for effects outside existing authority.
-- **Auth errors**: confirm OAuth, Application Default Credentials, scopes, and IAM before broadening permissions.
+- **Vet repository-provided servers first**: review project MCP files before starting their servers; do not auto-approve every repository-provided server.
+- **Resolve runners in the agent environment**: `uvx` and `docker` must resolve from the agent's environment, not only from your shell.
+- **Scope tools to the workflow**: enable only the tools a workflow needs (`copilot mcp add --tools`) and enforce the user's granted scope at the tool boundary. Preserve authorized autonomous writes; require confirmation only for effects outside existing authority.
+- **Diagnose auth before broadening permissions**: confirm OAuth, Application Default Credentials, scopes, and IAM before broadening permissions.
 
 ## Documentation
 

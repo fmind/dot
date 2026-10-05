@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Dot CLI
@@ -16,9 +16,9 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 
 ## Workflow
 
-1. Run documented commands directly; read the relevant `--help` only for an unfamiliar subcommand or after a usage error. Global options precede subcommands.
-1. Select the guide for the requested operation. Diagnostics and previews do not authorize login, cleanup, publication, or remote writes.
-1. Verify the command result at the requested level; local checks and hosted outcomes are separate evidence.
+1. **Run documented commands directly**: read the relevant `--help` only for an unfamiliar subcommand or after a usage error. Global options precede subcommands.
+1. **Select the operation's guide; previews authorize nothing**: choose the guide for the requested operation; diagnostics and previews do not authorize login, cleanup, publication, or remote writes.
+1. **Verify results at the requested level**: local checks and hosted outcomes are separate evidence.
 
 ## Task guides
 

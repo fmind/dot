@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Observability
@@ -18,10 +18,10 @@ Use one Python telemetry stack for services and agents: `structlog` JSON on stdo
 
 1. **Add only the Python packages in use**: `structlog`, OpenTelemetry API and SDK, the OTLP exporter, and explicit instrumentation packages for the service's HTTP framework and clients; FastAPI 0.142+ instruments itself ([fastapi](../python-web/references/fastapi.md)). Lock them with `uv`; avoid a vendor SDK in application code.
 1. **Emit structured logs**: render one JSON object per line to stdout in production. Use `severity`, `message`, and `time` for Cloud Logging while retaining stable event names and machine-readable fields.
-1. **Configure traces and metrics** through `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and an explicit protocol. Keep local development quiet by disabling export when it is not configured; an SDK's default localhost endpoint does not disable telemetry.
+1. **Configure traces and metrics**: use `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and an explicit protocol. Keep local development quiet by disabling export when it is not configured; an SDK's default localhost endpoint does not disable telemetry.
 1. **Correlate signals**: a `structlog` processor reads `trace.get_current_span().get_span_context()` and adds `trace_id`, `span_id`, `logging.googleapis.com/trace`, and `logging.googleapis.com/spanId` only when the context is valid.
-1. **Describe agent work** with current GenAI semantic conventions: model calls carry `gen_ai.operation.name`, provider and request model, and input/output token usage; agent and tool spans carry their stable agent or tool names. Do not record prompt or completion bodies by default.
-1. **Export on Google Cloud** through the Google-built OpenTelemetry Collector as a Cloud Run sidecar. Match the exporter and receiver: `grpc` with `http://localhost:4317`, or `http/protobuf` with `http://localhost:4318`. For environment-configured instrumentation set `OTEL_EXPORTER_OTLP_PROTOCOL`; FastAPI's automatic export requires `http/protobuf`. For manually constructed Python exporters choose the matching gRPC or HTTP class. Let the collector authenticate with ADC and forward telemetry to Google Cloud.
+1. **Describe agent work**: use current GenAI semantic conventions; model calls carry `gen_ai.operation.name`, provider and request model, and input/output token usage; agent and tool spans carry their stable agent or tool names. Do not record prompt or completion bodies by default.
+1. **Export through a collector sidecar**: on Google Cloud, use the Google-built OpenTelemetry Collector as a Cloud Run sidecar. Match the exporter and receiver: `grpc` with `http://localhost:4317`, or `http/protobuf` with `http://localhost:4318`. For environment-configured instrumentation set `OTEL_EXPORTER_OTLP_PROTOCOL`; FastAPI's automatic export requires `http/protobuf`. For manually constructed Python exporters choose the matching gRPC or HTTP class. Let the collector authenticate with ADC and forward telemetry to Google Cloud.
 1. **Evaluate separately**: operational telemetry detects failures and drift but does not prove response quality. Link a trace ID to Langfuse or MLflow scores when used, and use [agent-evaluation](../agent-evaluation/SKILL.md) for repeated comparisons through the project's existing runner.
 1. **Verify all three signals**: send one request, locate its trace, read the correlated log events, confirm the expected metric, then exercise shutdown to prove buffered telemetry flushes within the platform grace period.
    ```bash

@@ -9,11 +9,11 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 
 ## Workflow
 
-1. For a new service, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; choose database integration only when needed.
-1. Inspect the application with `uv run litestar --app <package>:app info`, `routes`, and `schema openapi`; these need no server and no extra, and autodiscovery does not find `src/<package>/__init__.py`. Read the source for the application factory, dependencies, and test client setup.
-1. Consult the upstream `litestar` references for the actual feature (routing, dependency injection, DTO/OpenAPI, authentication, middleware), `litestar-htmx` for templates and HTMX, and `litestar-testing` for tests.
-1. For template styles, keep the existing asset pipeline; [web-frontend's standalone Tailwind workflow](../../../web-frontend/references/tailwind.md) covers Python templates, class discovery, and production CSS builds.
-1. Keep the existing server and database choices. Run local request tests for success, invalid input, authorization, and lifespan behavior.
+1. **Bootstrap after the Python foundation**: for a new service, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; choose database integration only when needed.
+1. **Use the Litestar CLI and source**: inspect the application with `uv run litestar --app <package>:app info`, `routes`, and `schema openapi`; these need no server and no extra, and autodiscovery does not find `src/<package>/__init__.py`. Read the source for the application factory, dependencies, and test client setup.
+1. **Follow the upstream feature references**: consult the upstream `litestar` references for the actual feature (routing, dependency injection, DTO/OpenAPI, authentication, middleware), `litestar-htmx` for templates and HTMX, and `litestar-testing` for tests.
+1. **Keep the existing template asset pipeline** for template styles; [web-frontend's standalone Tailwind workflow](../../../web-frontend/references/tailwind.md) covers Python templates, class discovery, and production CSS builds.
+1. **Preserve the stack and test requests**: keep the existing server and database choices. Run local request tests for success, invalid input, authorization, and lifespan behavior.
 
 ## Application resources
 
@@ -22,8 +22,8 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 
 ## Gotchas
 
-- The upstream bundle also documents Advanced Alchemy, SQLSpec, msgspec, and Polyfactory. Litestar already depends on msgspec and Polyfactory; declare either as a direct dependency only when application code imports it. Keep Pydantic for request, response, and settings models, which Litestar supports directly, and reach for msgspec `Struct` only in a measured hot path.
-- A skills-only install does not install plugin hooks, reviewer agents, slash commands, or MCP servers; those are separate host integrations.
+- **Keep Pydantic; declare only used packages**: the upstream bundle also documents Advanced Alchemy, SQLSpec, msgspec, and Polyfactory. Litestar already depends on msgspec and Polyfactory; declare either as a direct dependency only when application code imports it. Keep Pydantic for request, response, and settings models, which Litestar supports directly, and reach for msgspec `Struct` only in a measured hot path.
+- **Skills-only installs omit host integrations**: a skills-only install does not install plugin hooks, reviewer agents, slash commands, or MCP servers; those are separate host integrations.
 
 ## Official Skills
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # ast-grep
@@ -38,9 +38,9 @@ ast-grep scan -r rules/no-print.yml --format github                             
 
 - **Meta-variables are uppercase**: `$a` is plain text; `$A`, `$ARGS`, `$_` are meta-variables.
 - **Pattern must be a complete node**: `foo(` does not parse; match `foo($$$)` and narrow with `--selector`.
-- **Rewrite scope**: `-r` replaces the whole matched node, not a substring inside it.
+- **Rewrites replace the whole node**: `-r` replaces the whole matched node, not a substring inside it.
 - **Syntax is not name resolution**: inspect imports, aliases, and shadowed names before rewriting; identical syntax can refer to different functions.
-- **Language id**: pass `-l python` for inline patterns; under `scan`, the `.py` extension selects the grammar.
+- **Pass `-l` for inline patterns**: pass `-l python` for inline patterns; under `scan`, the `.py` extension selects the grammar.
 
 ## Official Skills
 

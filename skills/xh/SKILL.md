@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # xh HTTP Inspection
@@ -34,12 +34,12 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
 
 ## Gotchas
 
-- `--timeout` covers an individual request, including response-body reads in xh 0.26.2, despite its help calling it a connection timeout. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing.
-- A Range request is not a guaranteed transfer limit; the byte cap bounds only displayed output.
-- `--follow` can forward a request to another origin; inspect `Location` first and never follow an untrusted redirect with credentials.
-- `--verify=no` disables TLS verification and is not an acceptable workaround.
-- `--session` persists cookies and credentials; prefer no session, or use `--session-read-only` only with an explicitly approved synthetic fixture.
-- A truncated body is inspection evidence, not proof that the full response is valid.
+- **Supervise hard deadlines externally**: `--timeout` covers an individual request, including response-body reads in xh 0.26.2, despite its help calling it a connection timeout. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing.
+- **Range does not limit transfer**: a Range request is not a guaranteed transfer limit; the byte cap bounds only displayed output.
+- **Inspect redirects before following**: `--follow` can forward a request to another origin; inspect `Location` first and never follow an untrusted redirect with credentials.
+- **Never disable TLS verification**: `--verify=no` disables TLS verification and is not an acceptable workaround.
+- **Avoid persistent sessions**: `--session` persists cookies and credentials; prefer no session, or use `--session-read-only` only with an explicitly approved synthetic fixture.
+- **Treat truncated bodies as partial evidence**: a truncated body is inspection evidence, not proof that the full response is valid.
 
 ## Official Skills
 

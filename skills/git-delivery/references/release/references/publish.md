@@ -9,27 +9,27 @@ Use the repository's release task when it owns versioning, tags, or publication.
    - The proposed tag is absent locally and remotely; stop if either copy exists and never move a published tag.
    - Identify whether publication is triggered by a tag, a branch push, or workflow dispatch. Follow that contract; a workflow-owned release skips the manual `gh release create` step.
 1. **Gate**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas).
-1. **Compute the next version** from the commit types since the last tag: `feat` → minor, `fix` and others → patch, `!` or `BREAKING CHANGE` → major:
+1. **Compute the next version**: from the commit types since the last tag, `feat` → minor, `fix` and others → patch, `!` or `BREAKING CHANGE` → major:
 
    ```bash
    git-cliff --bumped-version
    ```
 
-1. **Bump manifests** that are not VCS-versioned: Python `version` in `pyproject.toml` (unless `hatch-vcs` or similar); inspect OpenTofu projects for explicit version constants; VCS-versioned projects need no separate manifest bump.
-1. **Generate the changelog** for that version:
+1. **Bump non-VCS-versioned manifests**: Python `version` in `pyproject.toml` (unless `hatch-vcs` or similar); inspect OpenTofu projects for explicit version constants; VCS-versioned projects need no separate manifest bump.
+1. **Generate the changelog for that version**:
 
    ```bash
    git-cliff --bump -o CHANGELOG.md
    ```
 
-1. **Commit the release**; the `chore(release)` subject is excluded from the changelog by design:
+1. **Commit the release**: the `chore(release)` subject is excluded from the changelog by design:
 
    ```bash
    git add CHANGELOG.md   # plus the manifest bumped above, if any
    git commit -m "chore(release): vX.Y.Z"
    ```
 
-1. **Tag and push the exact release commit** atomically:
+1. **Tag and push the exact release commit atomically**:
 
    ```bash
    tag=vX.Y.Z
@@ -53,4 +53,4 @@ Use the repository's release task when it owns versioning, tags, or publication.
    gh release edit "$tag" --draft=false
    ```
 
-1. **Verify and report** using [verification](verify.md), then remove only the temporary notes directory created above after preserving any needed failure evidence.
+1. **Verify and report**: use [verification](verify.md), then remove only the temporary notes directory created above after preserving any needed failure evidence.

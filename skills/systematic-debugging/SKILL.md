@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Systematic Debugging
@@ -29,9 +29,9 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 ## Gotchas
 
-- **Authority**: A request to diagnose authorizes investigation, not implementation; observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
-- **Thrashing**: after three failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
-- **Multi-component pipelines**: Instrument every boundary once with presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
+- **Diagnosis does not authorize fixes**: a request to diagnose authorizes investigation, not implementation; observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
+- **Stop stacking failed fixes**: after three failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
+- **Instrument every pipeline boundary once**: record presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
 
 ## References
 

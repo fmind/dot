@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-review
   created: "2026-08-01"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Repository Review
@@ -33,8 +33,8 @@ Review code or a repository read-only and report actionable defects. Select the 
 ## Boundaries
 
 - **Review only**: inspection, bounded validation, and local reports are in scope. Editing code, resolving threads, approving PRs, creating remote issues/comments, deploying, or publishing requires the corresponding authorization.
-- **Evidence limits**: distinguish observed defects from risks. Keep scan timeouts, skipped targets, unavailable dependencies, and other material gaps explicit; partial evidence is not full qualification.
-- **Live evidence**: inspect only authorized targets. Compare CI, tags, releases, or runtime observations with the exact reviewed revision; never transfer a green result across commits or equate local checks with deployed acceptance.
+- **Keep evidence limits explicit**: distinguish observed defects from risks. Keep scan timeouts, skipped targets, unavailable dependencies, and other material gaps explicit; partial evidence is not full qualification.
+- **Tie live evidence to the revision**: inspect only authorized targets. Compare CI, tags, releases, or runtime observations with the exact reviewed revision; never transfer a green result across commits or equate local checks with deployed acceptance.
 
 ## Documentation
 

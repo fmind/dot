@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Upgrade Tools
@@ -18,14 +18,14 @@ Refresh the workstation's latest-stable tool baseline and propagate its exact ve
 
 1. **Inventory the scope**: check `fmind/dot` and Git repositories under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses` by default, following the playbook. A task explicitly restricted to one repository narrows writes; report remaining drift. Cross-repository propagation covers mise tools and necessary compatibility changes, not blanket application-dependency upgrades everywhere.
 1. **Separate audit from upgrade**: a disk-space or version-reuse check compares current declarations, locks, backends and installed versions without resolving new releases or installing tools. Include restored project directories with mise/runtime files even when `.git` is missing; report recovery gaps and validation limits. Record floating selectors, duplicate installations and justified compatibility exceptions separately.
-1. **Baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work through [git-worktree](../git-worktree/SKILL.md); report pre-existing failures separately.
+1. **Start from a green baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work through [git-worktree](../git-worktree/SKILL.md); report pre-existing failures separately.
 1. **mise first**: refresh and validate the `fmind/dot` baseline, then align consuming repositories to its exact lock versions per the [shared tool baseline](../mise/references/tool-versions.md), keeping incompatible pins with evidence.
-1. **Python dependencies next** decide whether the new toolchain builds and tests the project; follow the [playbook](references/playbook.md) for `pyproject.toml` and `uv.lock`, then validate.
+1. **Python dependencies next**: they decide whether the new toolchain builds and tests the project; follow the [playbook](references/playbook.md) for `pyproject.toml` and `uv.lock`, then validate.
 1. **Infrastructure and images after that** (OpenTofu providers, container base images), which consume the language artifacts.
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if adoption cannot be qualified; independent repositories can still progress. A failed baseline update cannot be propagated.
 1. **Verify the final candidate**: run the repository gate; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
-1. **If commits were requested**, commit per ecosystem: `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../git-delivery/references/conventional-commit.md).
+1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../git-delivery/references/conventional-commit.md).
 1. **Report and preview cleanup**: list each repository's adopted versions, retained exceptions, and gate results, then preview cleanup as in the [playbook](references/playbook.md); deleting installations needs separate authorization.
 
 ## Gotchas
@@ -33,7 +33,7 @@ Refresh the workstation's latest-stable tool baseline and propagate its exact ve
 - **Latest stable only**: no RCs, betas, or pre-releases. Document deliberate baseline exceptions; keep application dependency constraints distinct from fixed mise tool versions.
 - **Lockfiles are the record**: retain `mise.lock`, `uv.lock`, and `.terraform.lock.hcl` when present, and execute non-mise dependencies through their lockfile, full action SHA, or image digest; the shared tool baseline owns matching mise tool identity, backend, options, and platform.
 - **Majors are separate changes**: Python upgrades follow declared constraints and `uv lock --upgrade` can cross majors. Inspect the actual version diff and handle breaking upgrades as separate changes.
-- **Held-back pins**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
+- **Justify every held-back pin**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
 
 ## Documentation
 

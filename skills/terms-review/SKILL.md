@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terms-review
   created: "2026-09-15"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Terms Review
@@ -26,10 +26,10 @@ Assess whether a defined use of a product or service fits its applicable terms a
 
 ## Boundaries
 
-- Review authority permits reading and analysis. Accepting terms, purchasing, changing account settings, uploading data, and contacting providers require separate authorization; draft questions locally first.
-- Use current official legislation or regulator guidance for jurisdiction-specific legal claims; if unavailable, state the gap. A terms review alone cannot establish regulatory compliance, enforceability, or the user's actual operational compliance.
-- Inaccessible, undated, archived, or supplied excerpts support only a bounded assessment. Identify missing incorporated documents and do not reconstruct their content from search snippets or memory.
-- Keep private agreement text and business context out of public searches, reports, and repository fixtures; retrieve public documents using product names and public identifiers only.
+- **Review authorizes analysis only**: review authority permits reading and analysis. Accepting terms, purchasing, changing account settings, uploading data, and contacting providers require separate authorization; draft questions locally first.
+- **Ground legal claims in official sources**: use current official legislation or regulator guidance for jurisdiction-specific legal claims; if unavailable, state the gap. A terms review alone cannot establish regulatory compliance, enforceability, or the user's actual operational compliance.
+- **Partial sources bound the assessment**: inaccessible, undated, archived, or supplied excerpts support only a bounded assessment. Identify missing incorporated documents and do not reconstruct their content from search snippets or memory.
+- **Keep private context private**: keep private agreement text and business context out of public searches, reports, and repository fixtures; retrieve public documents using product names and public identifiers only.
 
 ## Companion skills
 

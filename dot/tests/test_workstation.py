@@ -553,6 +553,15 @@ def client_status(**kwargs: Any) -> CommandResult:
     )
 
 
+def test_setup_workspace_names_gcp_login_for_stale_gcloud(provider: RecordingRunner) -> None:
+    reauth = CommandResult("", "Reauthentication failed.\n\n  $ gcloud auth login\n\nto obtain new credentials.", 1)
+    provider.responses = [client_status(enabled_apis=None), reauth]
+    result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
+    assert result.exit_code != 0
+    assert "dot login gcp" in str(result.exception)
+    assert not provider.actions
+
+
 def test_setup_workspace_already_configured_needs_only_gws_status(provider: RecordingRunner) -> None:
     provider.responses = [client_status()]
     result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
@@ -793,21 +802,36 @@ def test_browser_requires_a_graphical_session(monkeypatch: pytest.MonkeyPatch) -
 
 def test_login_all_skips_every_ready_provider(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GWS_PROJECT", "fixture-project")
-    provider.responses = [github_status(), client_status(), workspace_status(), TOKEN, TOKEN]
+    provider.responses = [github_status(), TOKEN, TOKEN, client_status(), workspace_status()]
     result = CliRunner().invoke(app, ["login", "all"])
     assert result.exit_code == 0, result.exception
     assert not provider.actions
     assert [args[:3] for args in provider.calls] == [
         ["gh", "auth", "status"],
-        ["gws", "auth", "status"],
-        ["gws", "auth", "status"],
         ["gcloud", "auth", "print-access-token"],
         ADC_PROBE[:3],
+        ["gws", "auth", "status"],
+        ["gws", "auth", "status"],
     ]
 
 
+def test_login_all_refreshes_gcloud_before_workspace_setup(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # gws omits enabled APIs when its live gcloud query fails, so setup falls back to gcloud itself.
+    monkeypatch.setenv("GWS_PROJECT", "fixture-project")
+    reauth = CommandResult("", "Reauthentication failed.\n\n  $ gcloud auth login\n\nto obtain new credentials.", 1)
+    enabled = response([{"config": {"name": api}} for api in Config().auth.workspace.apis])
+    provider.responses = [github_status(), reauth, TOKEN, TOKEN, TOKEN, client_status(enabled_apis=None), enabled]
+    provider.responses.append(workspace_status())
+    result = CliRunner().invoke(app, ["login", "all"])
+    assert result.exit_code == 0, result.exception
+    assert provider.actions == [["gcloud", "auth", "login"]]
+    assert provider.calls[-2][:3] == ["gcloud", "services", "list"]
+
+
 def test_login_all_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:
-    provider.responses = [github_status(), workspace_status(), TOKEN, TOKEN]
+    provider.responses = [github_status(), TOKEN, TOKEN, workspace_status()]
     result = CliRunner().invoke(app, ["login", "all"])
     assert result.exit_code == 0, result.exception
     assert "Skipping Workspace setup" in result.stderr

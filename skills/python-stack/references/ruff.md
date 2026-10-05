@@ -9,16 +9,16 @@ Use Ruff for Python linting and formatting; [dprint](../../dprint/SKILL.md) owns
 
 ## Workflow
 
-1. Inspect `ruff.toml` or `[tool.ruff]`, the pinned version, and the project's existing formatter ownership.
-1. Use `uv run ruff check <paths>` and `uv run ruff format --check <paths>` to identify the affected changes before writing.
-1. Sort imports with `uv run ruff check --select I --fix <paths>` before `uv run ruff format <paths>`; the formatter never reorders imports. Apply fixes only within the authorized files, inspect the diff, then run the canonical project checks.
+1. **Inspect configuration and ownership**: `ruff.toml` or `[tool.ruff]`, the pinned version, and the project's existing formatter ownership.
+1. **Identify affected changes before writing**: use `uv run ruff check <paths>` and `uv run ruff format --check <paths>`.
+1. **Sort imports before formatting**: run `uv run ruff check --select I --fix <paths>` before `uv run ruff format <paths>`; the formatter never reorders imports. Apply fixes only within the authorized files, inspect the diff, then run the canonical project checks.
 
 ## Gotchas
 
-- Unsafe fixes can alter behavior; inspect the proposed change and test it instead of adding `--unsafe-fixes` to a routine gate.
-- `ruff format` also rewrites Python code blocks inside `*.md` (Ruff's default `include`); pass Python paths or exclude `*.md` where dprint owns Markdown.
-- Suppress with the narrowest `# noqa: CODE`; bare `# noqa` fails `PGH004` and stale ones fail `RUF100`. Never clear a gate with `--add-noqa` or `--add-ignore`.
-- Do not broaden formatting across a dirty repository or weaken lint rules to hide a defect.
+- **Unsafe fixes can alter behavior**: inspect the proposed change and test it instead of adding `--unsafe-fixes` to a routine gate.
+- **Keep `ruff format` off Markdown**: `ruff format` also rewrites Python code blocks inside `*.md` (Ruff's default `include`); pass Python paths or exclude `*.md` where dprint owns Markdown.
+- **Suppress with the narrowest `# noqa: CODE`**: bare `# noqa` fails `PGH004` and stale ones fail `RUF100`. Never clear a gate with `--add-noqa` or `--add-ignore`.
+- **Keep fixes scoped and rules intact**: do not broaden formatting across a dirty repository or weaken lint rules to hide a defect.
 
 ## Official Skills
 

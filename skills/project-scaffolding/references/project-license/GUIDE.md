@@ -16,15 +16,15 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
    - Written course material (lessons, exercises, prose): CC-BY-4.0 as `LICENSE.txt`, fetched verbatim with `curl -fsSL https://creativecommons.org/licenses/by/4.0/legalcode.txt -o LICENSE.txt`; `mlops-courses/mlops-coding-course` is the reference example.
    - Every private repository and every other namespace: proprietary, from [PROPRIETARY](templates/PROPRIETARY); never an open-source license.
 1. **Write the file** at the repository root:
-   - Copyright holder from the namespace: `fmind` and `fmind-ai` use `Médéric Hurier (Fmind)`; `mlops-courses` uses `MLOps Courses`. When unsure, copy the holder from a sibling repository.
+   - Resolve `<holder>` from the namespace: `fmind` and `fmind-ai` use `Médéric Hurier (Fmind)`; `mlops-courses` uses `MLOps Courses`. When unsure, copy the holder from a sibling repository.
    - Resolve `<year>` to the current calendar year (`date +%Y`).
 1. **Declare it in Python projects**: use the PEP 639 SPDX field `license = "MIT"` or `license = "LicenseRef-Proprietary"` plus `license-files = ["LICENSE"]` in `pyproject.toml`; content-only projects keep the license file without inventing a package manifest.
 
 ## Gotchas
 
 - **Namespace is not content type**: `mlops-courses` holds both, MIT for code repositories and CC-BY-4.0 for the written course; inspect what the repository publishes before choosing.
-- **`LICENSE.txt`**: a course repository may carry `LICENSE.txt`; writing `LICENSE` next to it leaves two conflicting licenses.
-- **SPDX only**: plain `"Proprietary"` is not a valid SPDX expression and modern build tools reject it; use `LicenseRef-Proprietary`.
+- **Never duplicate `LICENSE.txt`**: a course repository may carry `LICENSE.txt`; writing `LICENSE` next to it leaves two conflicting licenses.
+- **Use only SPDX expressions**: plain `"Proprietary"` is not a valid SPDX expression and modern build tools reject it; use `LicenseRef-Proprietary`.
 
 ## Documentation
 

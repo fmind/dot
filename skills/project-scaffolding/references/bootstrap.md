@@ -43,7 +43,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 ## Gotchas
 
 - **Keep the composed `AGENTS.md`**: merge the application owner's instructions into the foundation; agent-project's generic template must not overwrite the result.
-- **Private data**: never scaffold with real secrets; `.env.example` documents names only.
+- **Never scaffold real secrets**: `.env.example` documents names only.
 
 ## Documentation
 

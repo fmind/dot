@@ -4,11 +4,11 @@ Use this reference when writing or restructuring pages; [course-development](../
 
 ## Structure
 
-- Separate tutorials, task guides, reference, and explanations by the reader's goal; keep course navigation in prerequisite order. Give each section an `index.md` overview.
-- Use one H1 per page and stable headings; set `description` front matter on every page because search snippets, social cards, and `llms.txt` reuse it.
-- Link to source Markdown (`../guides/install.md#linux`), never to built URLs, so strict builds validate pages and anchors. Escape literal brackets as `\[`.
-- When renaming or moving a published page or heading, add a `redirects` mapping in the same change.
-- Keep admonitions for decisions and warnings; essential steps belong in the normal reading order.
+- **Organize by reader goal**: separate tutorials, task guides, reference, and explanations by the reader's goal; keep course navigation in prerequisite order. Give each section an `index.md` overview.
+- **Structure each page consistently**: use one H1 per page and stable headings; set `description` front matter on every page because search snippets, social cards, and `llms.txt` reuse it.
+- **Link to source Markdown**: use paths like `../guides/install.md#linux`, never to built URLs, so strict builds validate pages and anchors. Escape literal brackets as `\[`.
+- **Redirect moved pages in the same change**: when renaming or moving a published page or heading, add a `redirects` mapping.
+- **Keep admonitions for decisions and warnings**: essential steps belong in the normal reading order.
 
 ## Zensical Markdown
 
@@ -32,8 +32,8 @@ The starter configuration enables every construct below. Bodies of admonitions, 
 
 ## Content practices
 
-- Show commands with their expected output (`console` fences) and verify them; include source through snippets instead of copying code that can drift.
-- Do not make documentation builds execute untrusted code. Run examples in their own bounded test task; enable `markdown-exec` only for trusted repositories.
-- Add Python API documentation only when readers need it (see [configuration](configuration.md#native-plugins)); retain an existing pdoc build instead of replacing it implicitly.
-- Preview the exact output before accepting typography, math, diagrams, images, or responsive tables; a successful build does not establish accessibility. Give every image meaningful alt text and keep contrast for both palettes.
-- Keep `llms.txt` useful for agents: the starter lists every page so each gets the Copy as Markdown button; curate `sections` (and `markdown_description`) when generated pages such as API reference or blog archives add noise, accepting that unlisted pages lose the button.
+- **Show commands with expected output**: use `console` fences and verify them; include source through snippets instead of copying code that can drift.
+- **Builds must not execute untrusted code**: run examples in their own bounded test task; enable `markdown-exec` only for trusted repositories.
+- **Keep API docs need-driven**: add Python API documentation only when readers need it (see [configuration](configuration.md#native-plugins)); retain an existing pdoc build instead of replacing it implicitly.
+- **Preview the exact output**: before accepting typography, math, diagrams, images, or responsive tables; a successful build does not establish accessibility. Give every image meaningful alt text and keep contrast for both palettes.
+- **Keep `llms.txt` useful for agents**: the starter lists every page so each gets the Copy as Markdown button; curate `sections` (and `markdown_description`) when generated pages such as API reference or blog archives add noise, accepting that unlisted pages lose the button.

@@ -19,9 +19,9 @@ Keep this workstation usable without deleting shared resources or historical evi
 
 ## Prevention
 
-- Run this audit weekly and before large local builds or model/dataset downloads. A skill does not run itself: use the installed `scheduled-jobs` skill only when recurring checks are requested. Prefer an alert at 20 GiB available before considering automatic deletion; make missed checks and failures visible.
-- Agents clean up their own disposable resources at task end, including failure. Use the installed `containerize` skill for Docker ownership and teardown; never infer disposability from stopped state or run broad prune commands for one task. Retain shared base images, persistent volumes and requested deliverables.
-- Reuse compatible shared mise installations and uv/browser caches; remove task-only environments, profiles, archives and scratch checkouts once no longer needed. Keep normal project environments isolated and retain failure evidence deliberately.
+- **Audit weekly and before large downloads**: run this audit weekly and before large local builds or model/dataset downloads. A skill does not run itself: use the installed `scheduled-jobs` skill only when recurring checks are requested. Prefer an alert at 20 GiB available before considering automatic deletion; make missed checks and failures visible.
+- **Clean up task resources at the end**: agents clean up their own disposable resources at task end, including failure. Use the installed `containerize` skill for Docker ownership and teardown; never infer disposability from stopped state or run broad prune commands for one task. Retain shared base images, persistent volumes and requested deliverables.
+- **Reuse shared caches, remove task-only environments**: reuse compatible shared mise installations and uv/browser caches; remove task-only environments, profiles, archives and scratch checkouts once no longer needed. Keep normal project environments isolated and retain failure evidence deliberately.
 
 ## Tools and references
 

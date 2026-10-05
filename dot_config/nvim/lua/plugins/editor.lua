@@ -18,11 +18,4 @@ return {
       preset = "classic",
     },
   },
-  -- Fix refactoring.nvim error by ensuring async.nvim dependency is loaded
-  {
-    "ThePrimeagen/refactoring.nvim",
-    dependencies = {
-      "lewis6991/async.nvim",
-    },
-  },
 }

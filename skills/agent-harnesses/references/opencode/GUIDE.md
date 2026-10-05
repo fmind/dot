@@ -32,14 +32,14 @@ Use `opencode mcp add --help` for the installed setup interface and [mcp-setup](
 
 ## Gotchas
 
-- **Provider errors**: distinguish a missing or invalid native login or project credential override, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
+- **Classify provider errors before rotating keys**: distinguish a missing or invalid native login or project credential override, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
 - **Sharing is publication**: `--share` can expose session contents; require explicit sharing authority.
 
 ## Official Skills
 
 - [Skill discovery and permissions](https://opencode.ai/docs/skills/): the official consumer-facing contract.
 - [Upstream repository](https://github.com/anomalyco/opencode): distinguish contributor skills and fixtures from consumer packages; do not install internal examples as a general OpenCode skill.
-- Use the [vendor-skill policy](../../../agent-project/references/vendor-skills.md) for requested third-party packages.
+- **Use the [vendor-skill policy](../../../agent-project/references/vendor-skills.md) for requested third-party packages.**
 
 ## Top Links
 

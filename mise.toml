@@ -33,6 +33,8 @@ PYTHONDONTWRITEBYTECODE = "1"
 [vars]
 # First-party Python outside skill templates; shared by check:python and format:python.
 python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/delegate-tasks/scripts skills/clipboard/scripts skills/diagrams-as-code/references/svg/scripts skills/fmind-visuals/scripts skills/social-post/scripts skills/update-ignores/scripts skills/cloud-run/templates"
+# Shared by format:agents (build) and check:agents (check); --strict rejects source warnings.
+supagents_args = "--strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
@@ -105,6 +107,10 @@ run = ["actionlint", "zizmor --offline --strict-collection .github/"]
 [tasks."check:actions:online"]
 description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
 run = "zizmor --strict-collection .github/"
+
+[tasks."check:agents"]
+description = "Reject warnings and missing, changed, or obsolete native subagent profiles; show their diffs"
+run = "uv run --frozen --project dot supagents check --diff {{vars.supagents_args}}"
 
 [tasks."check:chezmoi"]
 alias = "cc"
@@ -212,7 +218,11 @@ run = "uv run --frozen --project dot coverage report --rcfile=dot/pyproject.toml
 [tasks.format]
 alias = "f"
 description = "Format all active sources and documents"
-depends = ["format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
+depends = ["format:agents", "format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
+
+[tasks."format:agents"]
+description = "Compile shared Supagents roles into native chezmoi sources"
+run = "uv run --frozen --project dot supagents build {{vars.supagents_args}}"
 
 [tasks."format:dprint"]
 alias = "fd"
@@ -394,26 +404,3 @@ run = '"$DOT_BIN" doctor'
 alias = "mv"
 description = "Synchronize Neovim plugins headlessly"
 run = "nvim --headless '+Lazy! restore' '+Lazy! clean' '+lua require(\"config.sync-parsers\")' +qa"
-
-[tasks.agents]
-description = "Compile shared Supagents roles into native chezmoi sources"
-run = "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
-
-[tasks."agents:diff"]
-description = "Preview native profile content changes without writing"
-run = "uv run --frozen --project dot supagents check --strict --diff --project --source-dir dot_agents/supagents --config supagents.yaml"
-
-[tasks."check:agents"]
-description = "Reject warnings and missing, changed, or obsolete native subagent profiles"
-run = "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
-
-[tasks."review:agy"]
-description = "Review this checkout with agy; return structured findings and usage (manual)"
-# Keep the native process status as well as checking its result envelope.
-run = """
-set -o pipefail
-agy --agent code-reviewer --print-timeout 20m --output-format json \\
-  --json-schema '{{config_root}}/skills/agy/references/agy/references/review.schema.json' \\
-  -p 'Review the working-tree diff for verified defects. Do not edit files. Return findings, checks actually run, and unresolved gaps.' |
-  jq -e 'if .status == "SUCCESS" and (.structured_output | type) == "object" then . else error("agy review did not complete successfully") end'
-"""

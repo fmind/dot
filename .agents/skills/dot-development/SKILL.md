@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Develop Dot
@@ -27,7 +27,7 @@ Change the Python CLI while retaining its observable command, archive, and insta
 
 - `cli.py`, `command_group.py`, `state.py`, and `config.py`: command discovery, configuration, and public errors; `test_cli.py` and `test_config.py` exercise the boundary.
 - `private_files.py`: shared private-directory creation and atomic writes; `test_private_files.py` covers permissions, failed publication, and temporary-file cleanup.
-- `secrets.py`: explicit, process-scoped credential loading for `dot secret run` (rejects a personal `UV_PUBLISH_TOKEN`; packages use Trusted Publishing); `test_secrets.py` covers precedence, private files, child I/O, the retired publish command, and native login preservation. Keep fixtures synthetic and never print credential values.
+- `secrets.py`: explicit, process-scoped credential loading for `dot secret run` (rejects a personal `UV_PUBLISH_TOKEN`; packages use Trusted Publishing); `test_secrets.py` covers precedence, private files, child I/O, the retired publish token, and native login preservation. Keep fixtures synthetic and never print credential values.
 - `auth.py` and `workstation.py`: login, setup, cache inspection, and confirmed cleanup; `test_workstation.py` uses synthetic provider probes. Never run real login/setup/prune as a validation gate.
 - `repository.py`, `process.py`, and `system.py`: repository concurrency, subprocess cancellation, completions, and workstation checks; use their matching tests and temporary homes.
 - `archive/parsers.py`, `sync.py`, `store.py`, `usage.py`, `pricing.py`, and `statistics.py`: discovery, incremental capture, the session store, request accounting, subscription periods, and prompt statistics. `test_archive_transaction.py` covers replacement and usage retention; `test_usage_periods.py` covers deduplication, model changes, date boundaries, and legacy recapture; `test_pricing.py` covers cache accounting and unknown rates.

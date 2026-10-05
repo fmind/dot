@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-worktree
   created: "2026-09-09"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Git Worktree
@@ -36,9 +36,9 @@ Choose a branch in the current checkout or an isolated workspace according to th
 ## Gotchas
 
 - **A clean HEAD is a different candidate**: a passing worktree does not validate uncommitted edits in the source.
-- **Shared Git state**: linked worktrees have separate indexes but share objects, refs, and usually repository configuration and hooks. They are not a security sandbox; do not run untrusted code merely because it is in a worktree.
+- **Worktrees share Git state**: linked worktrees have separate indexes but share objects, refs, and usually repository configuration and hooks. They are not a security sandbox; do not run untrusted code merely because it is in a worktree.
 - **No forced reuse**: do not use force, stash, reset, or broad clean commands to make a busy branch or dirty destination available.
-- **External symlinks**: inspect and replace writable links into the source with safe fixture data or stop that test; a copied symlink can defeat isolation.
+- **Neutralize external symlinks**: inspect and replace writable links into the source with safe fixture data or stop that test; a copied symlink can defeat isolation.
 
 ## Documentation
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # GitHub Issues
@@ -41,7 +41,7 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 ## Gotchas
 
 - **Green is not closed**: verify the issue's acceptance criteria and requested delivery boundary before `gh issue close`; local passing code is not delivery.
-- **People and planning fields**: assignments, comment notifications, milestones, and project changes are coordination acts; make them only when the request names them.
+- **Change coordination fields only when named**: assignments, comment notifications, milestones, and project changes are coordination acts; make them only when the request names them.
 
 ## Documentation
 

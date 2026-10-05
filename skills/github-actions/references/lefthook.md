@@ -44,9 +44,9 @@ pre-push:
 
 ## Gotchas
 
-- **Ordering**: with `parallel: false`, commands run by ascending `priority` (`10` imports/config, `15` Python formatting, `30` `check`); commands without a priority run last in unspecified order, so set it on every command.
-- **Partially staged files**: during pre-commit lefthook hides the unstaged hunks of partially staged files and restores them afterwards, so formatters only see what is being committed.
-- **Bypass**: avoid `--no-verify`; fix the failure instead — [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md) heals hook failures.
+- **Set a priority on every command**: with `parallel: false`, commands run by ascending `priority` (`10` imports/config, `15` Python formatting, `30` `check`); commands without a priority run last in unspecified order, so set it on every command.
+- **Formatters see only staged hunks**: during pre-commit lefthook hides the unstaged hunks of partially staged files and restores them afterwards, so formatters only see what is being committed.
+- **Avoid `--no-verify`**: fix the failure instead — [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md) heals hook failures.
 
 ## Documentation
 

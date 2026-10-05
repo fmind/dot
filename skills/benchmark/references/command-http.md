@@ -21,12 +21,11 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 
 ## Gotchas
 
-- **Never load-test a remote service you do not own** or a production system without explicit approval; agree a load bound and stop condition appropriate to the target's capacity.
 - **Localhost numbers exclude the network**: `oha` against `localhost` measures the server, not the user experience.
 - **Correction needs a rate**: oha ignores `--latency-correction` without `-q`; set an authorized request rate and report that rate, concurrency, and achieved throughput together.
 - **Shell startup pollutes short commands**: use `--shell=none` in hyperfine for sub-10 ms commands, or `-N`.
 - **Caches lie**: a second run of a build or query hits caches; use `--prepare` to clear them when the cold path is what matters.
-- **Cloud Run cold starts**: benchmark with `--min-instances` known, and separate first-request latency from steady state per the [cloud-run skill](../../cloud-run/SKILL.md).
+- **Separate Cloud Run cold starts**: benchmark with `--min-instances` known, and separate first-request latency from steady state per the [cloud-run skill](../../cloud-run/SKILL.md).
 
 ## Documentation
 

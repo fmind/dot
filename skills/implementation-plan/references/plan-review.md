@@ -29,9 +29,9 @@ Attack a plan's load-bearing assumptions while course correction is still cheap;
 
 ## Gotchas
 
-- **Review only unless the user explicitly requests revisions or implementation**: Do not rewrite the plan or edit code while reviewing.
+- **Review without editing by default**: Do not rewrite the plan or edit code while reviewing unless the user explicitly requests revisions or implementation.
 - **Do not inflate scope**: The strongest review may recommend a smaller plan, a cheaper test, or no build.
-- **Separate verified conflicts, evidence-backed risks, assumptions, and questions**: never present a hunch as a finding.
+- **Never present hunches as findings**: separate verified conflicts, evidence-backed risks, assumptions, and questions.
 
 ## Documentation
 

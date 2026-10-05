@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-skills
   created: "2026-09-09"
-  updated: "2026-10-04"
+  updated: "2026-10-05"
 ---
 
 # Maintain Dot Skills
@@ -24,14 +24,14 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 
 ## Rename or remove
 
-1. Use `rg` to find the old name and path across both catalogs, docs, host configuration, and `dot/`. For a rename, change the directory, frontmatter name, provenance path, and update date together; preserve needed guidance when consolidating packages.
-1. Update inbound links and the global link declaration together. Preserve historical records, then search again and validate as above.
-1. Apply leaves retired installed links in place. Use the [installed-link recovery guide](references/installed-links.md) for cleanup, collisions, source relocation, or catalog ownership.
+1. **Locate references; rename atomically**: use `rg` to find the old name and path across both catalogs, docs, host configuration, and `dot/`. For a rename, change the directory, frontmatter name, provenance path, and update date together; preserve needed guidance when consolidating packages.
+1. **Repoint all links at once**: update inbound links and the global link declaration together. Preserve historical records, then search again and validate as above.
+1. **Clean retired links via the guide**: apply leaves retired installed links in place. Use the [installed-link recovery guide](references/installed-links.md) for cleanup, collisions, source relocation, or catalog ownership.
 
 ## Boundaries
 
-- Keep `~/.agents/skills/` a real shared directory, never `exact_`. Independently installed packages remain outside this repository; names must be unique.
-- `mise run check:skills` validates both first-party roots; `gh skill publish --dry-run skills` alone covers only the global directory. Sibling references are allowed here; standalone publication needs the package rules' portability check.
+- **Keep `~/.agents/skills/` a real shared directory**: never `exact_`. Independently installed packages remain outside this repository; names must be unique.
+- **Know each check's coverage**: `mise run check:skills` validates both first-party roots; `gh skill publish --dry-run skills` alone covers only the global directory. Sibling references are allowed here; standalone publication needs the package rules' portability check.
 
 ## Documentation
 

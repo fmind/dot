@@ -22,12 +22,12 @@ Reuse these names for their stated concerns instead of inventing synonyms such a
 
 ## Conventions
 
-- **Hooks**: see [lefthook](../../github-actions/references/lefthook.md); each hook command is `mise run <task>` and its name mirrors the task.
-- **Parallel checks**: `check` fans out with `depends = ["check:format", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
-- **Incremental tasks**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
-- **Staged vs whole-tree**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
-- **Argument passthrough**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
-- **Complexity ceiling**: short command arrays and small setup/cleanup sequences are acceptable. Prefer native flags to conditions and explicit tasks to mode detection. Do not wrap commands in `bash -c` or `sh -c`, compress a program onto one line, or relocate a large shell block into TOML. Keep unavoidable branching, retries, and response parsing in maintained source.
+- **Run hooks through mise tasks**: see [lefthook](../../github-actions/references/lefthook.md); each hook command is `mise run <task>` and its name mirrors the task.
+- **Fan checks out in parallel**: `check` fans out with `depends = ["check:format", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
+- **Skip unchanged tasks incrementally**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
+- **Limit staged files to formatters**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
+- **Forward arguments without dispatch wrappers**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
+- **Keep complex logic out of TOML**: short command arrays and small setup/cleanup sequences are acceptable. Prefer native flags to conditions and explicit tasks to mode detection. Do not wrap commands in `bash -c` or `sh -c`, compress a program onto one line, or relocate a large shell block into TOML. Keep unavoidable branching, retries, and response parsing in maintained source.
 
 ## Concise Output
 
@@ -54,7 +54,7 @@ mise upgrade --bump      # explicit independent upgrade, not baseline alignment
 ## Additional task gotchas
 
 - **Dotenv and dirty trees**: the [mise gotchas](../SKILL.md#gotchas) own dotenv loading and the full gate on a tree with unrelated changes.
-- **Trust**: in normal mode `mise run`, `mise install`, `mise exec`, and `mise watch` trust the active config automatically; `mise trust` is only needed for other commands or in paranoid mode.
+- **Run `mise trust` only when needed**: in normal mode `mise run`, `mise install`, `mise exec`, and `mise watch` trust the active config automatically; `mise trust` is only needed for other commands or in paranoid mode.
 - **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
 - **Non-interactive scripts**: pass `-y` (`mise install -y`) in scripts and CI steps that would otherwise prompt.
 - **Keep project config project-local**: never symlink a repository's `mise.toml` into `~/.config/mise/conf.d/`; mise then treats it as global, `mise lock` reports `No tools configured to lock`, and its tasks leak everywhere.

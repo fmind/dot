@@ -2,13 +2,13 @@
 
 Use the project's existing pytest configuration and canonical test task; [python-stack](../../python-stack/references/foundation/GUIDE.md) owns the shared configuration baseline. For test-only maintenance, follow this guide without claiming a test-first implementation cycle.
 
-1. Inspect collection with `uv run pytest --collect-only -q <tests-path>` when discovery is uncertain, then run a focused case with `uv run pytest -q <path>::<test-name>`. Exit code 5 means no tests were collected.
-1. Prefer `-q` for routine runs; keep counts, warnings, failure traces, and required coverage gates. Add `-v` or capture changes only for a concrete diagnostic need. Use [mise output conventions](../../mise/references/task-conventions.md#concise-output) to move per-file coverage into an on-demand report; do not disable coverage or skip required tests to shorten output.
-1. Test public outcomes with small inputs, narrow fixtures, `tmp_path`, and captured streams or logs. Patch the name where the code under test looks it up; keep resource teardown explicit with context managers or `yield`.
-1. Parametrize meaningful input partitions. Keep only the expected failing operation inside `pytest.raises(..., match=...)` so setup errors cannot satisfy the assertion.
-1. Control network, clock, randomness, environment, and filesystem state.
-1. For Hypothesis, follow [property tests](property-tests.md). A function-scoped fixture is not recreated for every generated example; reset mutable state per example and preserve health checks.
-1. Run the relevant suite and native gate. Inspect warnings, skips, and collection counts; unexpected deselection or skips leave behavior unverified. Keep custom markers registered and configuration strict.
+1. **Check collection, then focus**: inspect collection with `uv run pytest --collect-only -q <tests-path>` when discovery is uncertain, then run a focused case with `uv run pytest -q <path>::<test-name>`. Exit code 5 means no tests were collected.
+1. **Keep output quiet but complete**: prefer `-q` for routine runs; keep counts, warnings, failure traces, and required coverage gates. Add `-v` or capture changes only for a concrete diagnostic need. Use [mise output conventions](../../mise/references/task-conventions.md#concise-output) to move per-file coverage into an on-demand report; do not disable coverage or skip required tests to shorten output.
+1. **Assert public outcomes with small fixtures**: test public outcomes with small inputs, narrow fixtures, `tmp_path`, and captured streams or logs. Patch the name where the code under test looks it up; keep resource teardown explicit with context managers or `yield`.
+1. **Parametrize partitions; scope `pytest.raises` tightly**: parametrize meaningful input partitions. Keep only the expected failing operation inside `pytest.raises(..., match=...)` so setup errors cannot satisfy the assertion.
+1. **Control network, clock, randomness, environment, and filesystem state.**
+1. **Reset state per Hypothesis example**: for Hypothesis, follow [property tests](property-tests.md). A function-scoped fixture is not recreated for every generated example; reset mutable state per example and preserve health checks.
+1. **Run the suite and inspect skips**: run the relevant suite and native gate. Inspect warnings, skips, and collection counts; unexpected deselection or skips leave behavior unverified. Keep custom markers registered and configuration strict.
 
 pytest runs no `async def` test on its own. When the project already depends on `anyio` (Litestar, Starlette, FastAPI, HTTPX), set `anyio_mode = "auto"` (anyio 4.11+) and add no test dependency; otherwise add `pytest-asyncio` with `asyncio_mode = "auto"`, whose default `strict` mode requires `@pytest.mark.asyncio` on every async test. Never enable both auto modes; the resulting configuration warning becomes an INTERNALERROR under `filterwarnings = ["error"]`.
 
