@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [10.1.0] - 2026-10-06
+
+### 🚀 Features
+
+- Add cache/trust JSON, doctor discovery, and agent shell defaults
+- _(doctor)_ Report caller-environment checks as non-failing notes
+- Fail fast instead of opening nvim without a terminal
+
+### 🧹 Miscellaneous
+
+- Drop release-age cooldowns from npm, Dependabot, and skills
+- _(deps)_ Upgrade tools, theme pin, and editor plugins
+
 ## [10.0.0] - 2026-10-05
 
 ### ♻️ Refactor
