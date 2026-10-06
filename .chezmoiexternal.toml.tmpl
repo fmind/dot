@@ -2,7 +2,7 @@
 # Theme files are pinned to one fmind/theme commit with checksums because several execute
 # (Fish, Neovim Lua, ptpython, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/727497c9344a958a91774d256943805fd8e396c0/themes" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/a4f6a9f3edc0777111d47c85e99a6b400934c8be/themes" }}
 
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
@@ -57,7 +57,7 @@
 [".config/git/theme.gitconfig"]
     type = "file"
     url = "{{ $base }}/delta/fmind.gitconfig"
-    checksum.sha256 = "6f64d5a9c5ccd59c67ada20229186cc20fc2a60012ee26976dccf57cca298f14"
+    checksum.sha256 = "99c77092ab2b7e515c35a9dcda56bd025f4507e37871204747aec3b8d9d57cb9"
 
 [".config/fzf/theme.conf"]
     type = "file"
@@ -98,7 +98,7 @@
 [".config/yazi/theme.toml"]
     type = "file"
     url = "{{ $base }}/yazi/fmind.toml"
-    checksum.sha256 = "f6b891ea2327b82a32ab8296fd057ff17f660cd58054d850fd7c103341d420ae"
+    checksum.sha256 = "072f322c5e4d42107ccd0ed2dc58d1e9a6792968afe7f17b1f1f48d9c5fb8d03"
 
 # Install only the Mono family, keeping terminal icons within character cells.
 ["{{ $fonts }}/GoogleSansCode"]

@@ -1139,19 +1139,19 @@ url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.0/chezmoi_2.73
 url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/596270971"
 
 [[tools.claude]]
-version = "2.1.289"
+version = "2.1.291"
 backend = "aqua:anthropics/claude-code"
 specifiers = ["latest"]
 
 [tools.claude."platforms.linux-x64"]
-checksum = "sha256:aa184fe26777b16e18230da937ffe369e40f261bc65405520cafd7bd95783bef"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.289/claude-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/608449312"
+checksum = "sha256:aa196be551bf50e484ae662c5ccecd5ef15fe5b169a1325d64802dcc6755f9bb"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.291/claude-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/614361120"
 
 [tools.claude."platforms.macos-arm64"]
-checksum = "sha256:20acfc89a32ed7260b63fd2f3fd71a33de7b2d74b82c724d25941ad73d2e0e96"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.289/claude-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/608449164"
+checksum = "sha256:607c5d79f8f686413b62afce147a3d0ea2fced8ed644b55acfc93a090e3e1f66"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.291/claude-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/614360979"
 
 [[tools.codex]]
 version = "0.160.1"
@@ -2278,7 +2278,7 @@ url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz"
 
 [[tools."npm:@mermaid-js/mermaid-cli"]]
 version = "12.0.0"
-aube = { path = "locks/npm-mermaid-js-mermaid-cli/12.0.0", digest = "sha256:51c04c6338ca06c137bbd318236d60501d6d2e862c30981f446199470acdd1f5" }
+aube = { path = "locks/npm-mermaid-js-mermaid-cli/12.0.0", digest = "sha256:38655c30d58196072ae0618cad5ea5183256ca717d82f40c6f8da6bcec6aadff" }
 backend = "npm:@mermaid-js/mermaid-cli"
 specifiers = [
     "12.0.0",
@@ -2361,10 +2361,10 @@ specifiers = ["latest"]
 uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:8da0cbf813f7fb7a8b35ff231d4b574af912eb29c957e785403bcd24f6b6c5d8" }
 
 [[tools."pipx:fmind"]]
-version = "2.0.2"
+version = "2.0.3"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.2", digest = "sha256:5c0723c1a6db182d85221f0039d6eec5651889f9b877cec689ec5a4776516a76" }
+uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:6d62464adfc89901df1e7d77e822c6f14343353f2c7b964ef779ccc6ab2d16f3" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.4"
