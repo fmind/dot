@@ -5,26 +5,6 @@ description: "Inspect repositories, diagnose workstation health, and manage sess
 
 # Dot Operations
 
-## Commands
-
-`dot --help` summarizes each command; this table routes to the guide that owns its behavior.
-
-| Command          | Guide                                                                           |
-| ---------------- | ------------------------------------------------------------------------------- |
-| `dot agent`      | [Sessions and statistics](daily-workflows.md#sessions-and-statistics)           |
-| `dot cache`      | [Cleanup](daily-workflows.md#cleanup-and-recovery), [disk space](disk-space.md) |
-| `dot login`      | [Authentication](authentication.md)                                             |
-| `dot prune`      | [Cleanup](daily-workflows.md#cleanup-and-recovery)                              |
-| `dot orphan`     | [Orphans](orphans.md)                                                           |
-| `dot setup`      | [Authentication](authentication.md)                                             |
-| `dot secret`     | [Scoped credentials](authentication.md#scoped-credentials)                      |
-| `dot completion` | [Fish completions](daily-workflows.md#fish-completions)                         |
-| `dot config`     | [Contracts](contracts.md)                                                       |
-| `dot doctor`     | [Workflow](#workflow), [disk space](disk-space.md)                              |
-| `dot pull`       | [Repositories](daily-workflows.md#repositories)                                 |
-| `dot status`     | [Repositories](daily-workflows.md#repositories)                                 |
-| `dot trust`      | [Folder trust](daily-workflows.md#folder-trust)                                 |
-
 ## Workflow
 
 1. **Diagnose selectively**: `dot doctor --json` checks local tools, permissions, environment, and installation; `dot doctor --deep --json` also probes authentication. `dot doctor --headroom` checks only disk and memory headroom in one line (`--json` keeps the envelope) and cannot be combined with `--fix` or `--deep`. `dot agent doctor --agent codex` checks one agent's discovery (its deployed persona, skills link, and compiled subagents resolve to the shared sources; OpenCode also needs the Claude-skills opt-out), user-level notify hook events, command types, explicit Claude/Codex disable switches, last sync with its failed and retained counts, and archive readability. This static check does not prove project/policy overrides, Codex hook trust, or desktop delivery; use the harness's native hook inspection for effective session behavior. Diagnostics share the `dot.diagnostics/v1` envelope with scope, passed, and checks.

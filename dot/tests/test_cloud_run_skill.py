@@ -39,17 +39,15 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     setup = steps[setup_index]
     setup_inputs = setup["with"]
     assert isinstance(setup_inputs, dict)
-    tool_versions = {
-        name: version for line in str(setup_inputs["tool_versions"]).splitlines() for name, version in [line.split()]
-    }
 
-    assert setup_index < first_use_index < push_index
-    assert set(tool_versions) == {"cosign", "trivy"}
-    assert all(EXACT_VERSION.fullmatch(version) for version in tool_versions.values())
+    assert setup_index < min(first_use_index, push_index)
+    # One source of truth: the project's mise.toml and lock pin the image tools, not the workflow.
+    assert "tool_versions" not in setup_inputs
 
     deployment = (ROOT / "skills/cloud-run/references/deployment.md").read_text(encoding="utf-8")
-    for name, version in tool_versions.items():
-        assert f'{name} = "{version}"' in deployment
+    pins = dict(re.findall(r'^\s*(cosign|trivy) = "([^"]+)"$', deployment, flags=re.MULTILINE))
+    assert set(pins) == {"cosign", "trivy"}
+    assert all(EXACT_VERSION.fullmatch(version) for version in pins.values())
     assert deployment.index("mise install --locked cosign trivy") < deployment.index("--push")
 
 

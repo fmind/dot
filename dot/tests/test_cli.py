@@ -184,16 +184,6 @@ def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() 
     assert {name for name, child in usage.commands.items() if not child.hidden} == {"list"}
 
 
-def test_dot_cli_skill_documents_every_visible_top_level_command() -> None:
-    command = get_command(app)
-    assert isinstance(command, TyperGroup)
-    visible = {name for name, child in command.commands.items() if not child.hidden}
-    content = (ROOT / "skills/dot-cli/references/operations.md").read_text(encoding="utf-8")
-    documented = set(re.findall(r"^\| `dot ([a-z-]+)`", content, flags=re.MULTILINE))
-
-    assert documented == visible
-
-
 def documented_dot_examples() -> list[str]:
     """Collect `dot ...` lines from fenced examples in the README and every skill."""
     sources = [
