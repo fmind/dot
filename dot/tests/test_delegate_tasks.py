@@ -138,14 +138,11 @@ def test_native_agy_defaults_and_compact_output(tmp_path: Path, monkeypatch: pyt
 def test_native_agy_reaching_print_timeout_needs_review(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # agy reports SUCCESS with partial output when its own print timeout fires.
     executable = tmp_path / "agy"
-    executable.write_text(
-        f"#!{sys.executable}\nimport json,time\ntime.sleep(1.2)\n"
-        "print(json.dumps(dict(status='SUCCESS', response='partial')))\n"
-    )
+    executable.write_text('#!/bin/sh\nsleep 1.1\necho \'{"status": "SUCCESS", "response": "partial"}\'\n')
     executable.chmod(0o700)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
     spec = {"id": "native", "workspace": str(tmp_path), "prompt": "x", "checks": [[sys.executable, "-c", "pass"]]}
-    result, output = invoke(tmp_path, [spec], timeout=2)
+    result, output = invoke(tmp_path, [spec], timeout=6)
     row = output["tasks"][0]
     assert result.returncode == 1
     assert row["state"] == "needs_review"

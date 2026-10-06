@@ -163,7 +163,7 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
         args = [prompt if arg == "{prompt}" else arg for arg in task.get("command", [])]
         # agy must stop before the process timeout kills it; on its own print timeout it
         # still reports SUCCESS with partial output, so reaching it marks the run for review.
-        print_timeout = max(1, spec["timeout"] - max(1, spec["timeout"] // 20))
+        print_timeout = max(1, spec["timeout"] - max(5, spec["timeout"] // 20))
         if not args:
             args = [
                 "agy",

@@ -384,7 +384,7 @@ def _install_results(state: State) -> list[CheckResult]:
 
 def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
     """MemAvailable counts reclaimable cache; sysconf's free pages would under-report."""
-    if sys.platform == "darwin":
+    if sys.platform == "darwin" and meminfo == Path("/proc/meminfo"):
         try:
             return vm_stat_available_bytes(Runner().run(["vm_stat"], timeout=10).stdout)
         except DotError, OSError:
