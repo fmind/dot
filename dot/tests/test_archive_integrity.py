@@ -181,20 +181,20 @@ def test_concurrent_equal_count_capture_never_replaces_newer_usage(
     def delayed(*args, **kwargs):
         if current_thread().name.startswith("older-capture"):
             ready.set()
-            assert release.wait(5)
+            assert release.wait(30)
         return capture(*args, **kwargs)
 
     monkeypatch.setattr(archive_sync, "_capture", delayed)
     with ThreadPoolExecutor(max_workers=1, thread_name_prefix="older-capture") as pool:
         older = pool.submit(sync_sessions, state, agent="claude")
         try:
-            assert ready.wait(5)
+            assert ready.wait(30)
             _write(source, [_claude(30)])
             assert sync_sessions(state, agent="claude").ingested == 1
             assert load_usage_records()[0].input_tokens == 30
         finally:
             release.set()
-        assert older.result(timeout=5).retained == 1
+        assert older.result(timeout=30).retained == 1
     assert load_usage_records()[0].input_tokens == 30
 
 

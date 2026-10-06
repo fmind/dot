@@ -61,9 +61,9 @@ def test_reports_include_whole_until_day_and_exact_timestamp() -> None:
         assert result.exit_code == 0, result.output
         document = json.loads(result.stdout)
         assert document["schema"] == "dot.agent.stats/v2"
-        if document["prompts"] is not None:
+        if "--tokens-only" not in command:
             assert document["prompts"]["prompts"] == 1
-        if document["usage"]:
+        if "--prompts-only" not in command:
             assert document["usage"][0]["total_tokens"] == 10
     result = runner.invoke(app, ["agent", "stats", "--until", "2026-09-15T00:00:00Z", "--json"])
     document = json.loads(result.stdout)
