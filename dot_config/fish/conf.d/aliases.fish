@@ -12,6 +12,10 @@ if status is-interactive
     abbr -a cl "gcloud auth login --update-adc"
     # d:docker
     abbr -a d docker
+    # Display presets (timer, row cap, null glyph, box mode) for people only: ~/.duckdbrc and
+    # ~/.sqliterc would also load in agents' batch calls and corrupt -json/-csv output.
+    alias duckdb="duckdb -init $HOME/.config/duckdb/interactive.sql"
+    alias sqlite3="sqlite3 -init $HOME/.config/sqlite3/interactive.sql"
     # e:lazydocker
     abbr -a e lazydocker
     # f:fd

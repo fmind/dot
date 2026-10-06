@@ -9,3 +9,19 @@
 .venv/
 __pycache__/
 node_modules/
+
+# Keys and credential stores: keep them out of agent searches (defense in depth; direct reads still work).
+**/.claude/.credentials.json
+**/.codex/auth.json
+**/.grok/auth.json
+**/.kaggle/
+**/bf/credentials/
+**/chezmoi/key.txt
+**/dot/secrets/
+**/gcloud/access_tokens.db
+**/gcloud/application_default_credentials.json
+**/gcloud/credentials.db
+**/gcloud/legacy_credentials/
+**/opencode/auth.json
+**/sops/age/
+**/uv/credentials/

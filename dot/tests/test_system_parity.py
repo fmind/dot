@@ -543,7 +543,12 @@ def test_verify_reports_environment_and_secret_edge_cases(monkeypatch: pytest.Mo
     environment = {item["name"]: item for item in results["env_vars"]}
     assert environment["REQUIRED_SET"]["status"] == "pass"
     assert environment["OPTIONAL_SET"]["status"] == "pass"
-    assert environment["OPTIONAL_MISSING"]["status"] == "warn"
+    assert environment["OPTIONAL_MISSING"] == {
+        "name": "OPTIONAL_MISSING",
+        "status": "skip",
+        "condition": "skipped",
+        "details": "unset (optional)",
+    }
     secrets = {item["name"]: item for item in results["secrets"]}
     assert secrets[str(missing)]["status"] == "warn"
     assert secrets[str(insecure)]["status"] == "fail"
@@ -905,6 +910,9 @@ def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path) -
     )
     assert system._generate_completion(state_with(runner, config), "tool") == "complete -c tool -l example\n"  # noqa: SLF001
     assert runner.calls == [["mise", "where", "--", "github:owner/tool"]]
+    (scripts / "tool.fish").write_bytes(b"complete -c tool -d \xff\n")
+    with pytest.raises(DotError, match="bundled Fish completion for tool is not UTF-8"):
+        system._generate_completion(state_with(runner, config), "tool")  # noqa: SLF001
     (package / "tool.fish").write_text("# ambiguous source\n")
     with pytest.raises(DotError, match="expected one bundled Fish completion for tool, found 2"):
         system._generate_completion(state_with(runner, config), "tool")  # noqa: SLF001

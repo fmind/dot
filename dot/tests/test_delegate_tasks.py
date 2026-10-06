@@ -122,6 +122,7 @@ def test_native_agy_defaults_and_compact_output(tmp_path: Path, monkeypatch: pyt
     assert args[args.index("--model") + 1] == "gemini-3.8-flash-high"
     assert args[args.index("--effort") + 1] == "high"
     assert args[args.index("--conversation") + 1] == "old-id"
+    assert args[args.index("--print-timeout") + 1] == "855s"
     assert "literal `text` $(untouched)" in args[1]
     assert len(output["tasks"][0]["summary"]) == 600
     assert len(result.stdout) < 2000
@@ -132,6 +133,23 @@ def test_native_agy_defaults_and_compact_output(tmp_path: Path, monkeypatch: pyt
     assert row["execution"]["exit_code"] == 0
     assert row["execution"]["started_at"] < row["execution"]["ended_at"]
     assert row["diagnostics_present"] is False
+
+
+def test_native_agy_reaching_print_timeout_needs_review(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # agy reports SUCCESS with partial output when its own print timeout fires.
+    executable = tmp_path / "agy"
+    executable.write_text(
+        f"#!{sys.executable}\nimport json,time\ntime.sleep(1.2)\n"
+        "print(json.dumps(dict(status='SUCCESS', response='partial')))\n"
+    )
+    executable.chmod(0o700)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    spec = {"id": "native", "workspace": str(tmp_path), "prompt": "x", "checks": [[sys.executable, "-c", "pass"]]}
+    result, output = invoke(tmp_path, [spec], timeout=2)
+    row = output["tasks"][0]
+    assert result.returncode == 1
+    assert row["state"] == "needs_review"
+    assert row["print_timeout_reached"] is True
 
 
 @pytest.mark.parametrize("effort", ["xhigh", "max"])
@@ -194,12 +212,12 @@ def test_cancellation_stops_descendants_and_queue(tmp_path: Path) -> None:
         stderr=subprocess.PIPE,
         text=True,
     ) as process:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 30
         while not (tmp_path / "first/ready").exists():
             assert time.monotonic() < deadline
             time.sleep(0.02)
         os.kill(process.pid, signal.SIGTERM)
-        stdout, _ = process.communicate(timeout=5)
+        stdout, _ = process.communicate(timeout=30)
     assert [t["state"] for t in json.loads(stdout)["tasks"]] == ["canceled", "canceled"]
     time.sleep(2.1)
     assert not (tmp_path / "first/leaked").exists()

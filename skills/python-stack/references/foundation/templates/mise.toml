@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.10.2"
+min_version = "2026.10.3"
 
 [settings]
 lockfile = true
@@ -15,6 +15,7 @@ quiet = true
 # Scaffold selectors: replace with exact baseline pins and add Python before installation.
 dprint = "latest"
 gitleaks = "latest"
+lefthook = "latest"
 uv = "latest"
 
 [tasks.all]
@@ -31,12 +32,18 @@ run = "uv build"
 alias = "c"
 description = "Run all static checks in parallel"
 depends = [
+  "check:deps",
   "check:format",
   "check:leaks",
   "check:lint",
   "check:types",
   "check:vuln",
 ]
+
+[tasks."check:deps"]
+alias = "cd"
+description = "Find missing, unused, transitive, and misplaced dependencies (deptry)"
+run = "uv run --locked deptry ."
 
 [tasks."check:format"]
 alias = "cf"
@@ -115,7 +122,7 @@ run = "uv run --locked ruff format --force-exclude"
 [tasks.install]
 alias = "i"
 description = "Install development dependencies"
-run = ["uv sync --locked", "uv run --frozen lefthook install"]
+run = ["uv sync --locked", "lefthook install"]
 
 [tasks.publish]
 alias = "p"

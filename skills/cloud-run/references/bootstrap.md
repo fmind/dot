@@ -27,7 +27,7 @@ Use the approved account/configuration and pass `--project=<project>` on each co
      --member="principalSet://iam.googleapis.com/projects/<project_number>/locations/global/workloadIdentityPools/github/attribute.repository_id/<repository_id>"
    ```
 
-   The condition admits only the CD workflow on a `v*` release tag, so anyone who can push such a tag can deploy: protect `v*` with a [tag ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) through [github-repository](../../github-repository/SKILL.md).
+   The condition admits only the CD workflow on a `v*` release tag, so anyone who can push such a tag can deploy: protect `v*` with a [tag ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) targeting `refs/tags/v*` that restricts creation, update, and deletion to release maintainers. The [github-repository](../../github-repository/SKILL.md) baseline protects only the default branch.
 
    Separate bootstrap permissions from routine deployment. Use `roles/run.developer` at the required service/project scope, `roles/artifactregistry.writer` on the image repository when CI pushes, and `roles/iam.serviceAccountUser` on the runtime SA. Changing invocation IAM requires additional permissions; do that through an authorized bootstrap step rather than giving every deployment project-wide administration. Grant the runtime identity Secret Manager access only to the secrets it reads.
 

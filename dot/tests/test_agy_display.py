@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -22,9 +23,12 @@ def state() -> dict[str, object]:
         "cwd": "/private/owner/dot",
         "vcs": {"branch": "main", "dirty": True},
         "agent_state": "working",
-        "context_window": {"used_percentage": 24.3},
+        "context_window": {"used_percentage": 24.3, "context_window_size": 1048576},
         "task_count": 2,
-        "quota": {"weekly": {"remaining_fraction": 0.75}, "other": {"remaining_fraction": 0.6}},
+        "quota": {
+            "weekly": {"remaining_fraction": 0.75, "reset_in_seconds": 60},
+            "other": {"remaining_fraction": 0.6, "reset_in_seconds": 7500},
+        },
         "model": {"display_name": "Flash High"},
         "terminal_width": 140,
         "email": "private@example.test",
@@ -36,9 +40,10 @@ def state() -> dict[str, object]:
 
 def test_state_display_and_title_omit_sensitive_fields() -> None:
     payload = state()
-    assert (
-        render(payload, "statusline")
-        == "dot  main*  working  Flash High  context 24%  2 tasks  quota min 60% left  vim INSERT"
+    assert render(payload, "statusline") == (
+        "\uf07b dot \ue0b1 \ue0a0 main* \ue0b1 \uf110 working \ue0b1 \uf2db Flash High"
+        " \ue0b1 \uf0e4 context 24% · 255k/1M \ue0b1 \uf0ae 2 tasks"
+        " \ue0b1 \uf242 quota min 60% left ↻ 2h05m \ue0b1 \ue62b INSERT"
     )
     assert render(payload, "title") == "dot* — working · 2 tasks"
     payload.update(agent_state="idle")
@@ -79,15 +84,16 @@ def test_untrusted_strings_cannot_emit_terminal_controls() -> None:
         model={"display_name": "Flash\x1b[0m\u202e\x07"},
     )
     text = render(payload, "statusline")
-    assert text.startswith("dot  main*")
+    assert text.startswith("\uf07b dot \ue0b1 \ue0a0 main*")
     assert "private" not in text
-    assert all(c.isprintable() for c in text)
+    # Nerd Font icons are private-use characters; everything else must stay printable.
+    assert all(c.isprintable() or unicodedata.category(c) == "Co" for c in text)
 
 
 @pytest.mark.parametrize("bad", [None, True, "20", -1, float("nan"), float("inf"), 10**1000])
 def test_invalid_metrics_are_omitted(bad: object) -> None:
     payload = {"context_window": {"used_percentage": bad}, "quota": {"weekly": {"remaining_fraction": bad}}}
-    assert render(payload, "statusline") == "agy  starting"
+    assert render(payload, "statusline") == "\uf07b agy \ue0b1 \uf110 starting"
 
 
 @pytest.mark.parametrize(
@@ -146,7 +152,8 @@ def test_colors_are_owned_by_renderer_and_title_stays_plain() -> None:
     payload.update(model={"display_name": "Gemini 3.8 Flash (High)\x1b]52;c;private\x07"}, pending_input_count=1)
     colored = render(payload, "statusline", color=True)
     assert display["ANSI"].sub("", colored) == render(payload, "statusline")
-    assert "\x1b[1;34mdot\x1b[0m" in colored
+    assert "\x1b[1;34m\uf07b dot\x1b[0m" in colored
+    assert "\x1b[90m \ue0b1 \x1b[0m" in colored
     assert "Gemini 3.8 Flash (High)" in colored
     assert "1 queued" in colored
     assert "private" not in colored
@@ -177,7 +184,7 @@ def test_wide_display_preserves_full_labels_and_additional_state() -> None:
     assert "3 artifacts" in text
     assert "context 24%" in text
     assert "quota min 60% left" in text
-    assert "vim INSERT" in text
+    assert "\ue62b INSERT" in text
     payload.update(terminal_width=40, tool_confirmation_pending=True)
     narrow = render(payload, "statusline")
     assert "needs input" in narrow
@@ -197,3 +204,44 @@ def test_plain_terminal_overrides(environment: dict[str, str]) -> None:
         timeout=10,
     )
     assert "\x1b" not in result.stdout
+
+
+def test_location_tokens_reset_and_sandbox_details() -> None:
+    payload = state()
+    payload.update(
+        workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot/skills/agy"},
+        sandbox={"enabled": True, "allow_network": True},
+        terminal_width=400,
+    )
+    text = render(payload, "statusline")
+    assert text.startswith("\uf07b dot/skills/agy ")
+    assert "sandbox +net" in text
+    assert render(payload, "title") == "dot* — working · 2 tasks"
+    payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/elsewhere"})
+    assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
+    payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot/x/../../other"})
+    assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
+
+
+@pytest.mark.parametrize(
+    ("mode", "shade"), [("NORMAL", "34"), ("-- INSERT --", "32"), ("-- V-LINE --", "35"), ("REPLACE", "90")]
+)
+def test_vim_modes_share_colors_by_family(mode: str, shade: str) -> None:
+    payload = state()
+    payload.update(vim={"mode": mode}, terminal_width=400)
+    assert f"\x1b[{shade}m\ue62b {mode}\x1b[0m" in render(payload, "statusline", color=True)
+
+
+@pytest.mark.parametrize(
+    ("count", "expected"),
+    [(0, "0"), (999, "999"), (999.6, "1k"), (48_400, "48k"), (1_048_576, "1M"), (1_500_000, "1.5M")],
+)
+def test_token_counts_stay_compact(count: float, expected: str) -> None:
+    assert display["tokens"](count) == expected
+
+
+@pytest.mark.parametrize(
+    ("seconds", "expected"), [(1, "1m"), (3599, "1h00m"), (7500, "2h05m"), (90_000, "1d1h"), (86_400 * 6, "6d0h")]
+)
+def test_reset_durations_round_up(seconds: float, expected: str) -> None:
+    assert display["duration"](seconds) == expected

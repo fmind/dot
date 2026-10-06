@@ -19,7 +19,6 @@ scan:
     - pnpm:aube-lock\.yaml
   skip-dirs:
     - "**/.cache"
-    - "**/.mypy_cache"
     - "**/.pytest_cache"
     - "**/.ruff_cache"
     - "**/.ty_cache"

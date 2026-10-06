@@ -651,6 +651,7 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
     codex = codex_root / "rollout-2026-01-01T00-00-00-codex-id.jsonl"
     codex.touch()
     (codex_root / "unrecognized.jsonl").touch()
+    (codex_root / "rollout-2026-01-02T00-00-00-dangling-id.jsonl").symlink_to(tmp_path / "missing.jsonl")
 
     grok_root = tmp_path / "grok"
     grok = grok_root / "%2Fwork%2Fgrok/grok-id/updates.jsonl"

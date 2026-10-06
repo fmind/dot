@@ -104,6 +104,21 @@ def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(
     assert query_session_summaries(SessionQuery(agent="claude"), include_content=True)[0].status == ["invalid"]
 
 
+def test_show_content_of_unreadable_bundle_fails_with_recapture_hint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _corrupt_transcript(_ingest("claude", "broken"))
+
+    metadata = CliRunner().invoke(app, ["agent", "session", "show", "broken"])
+    shown = CliRunner().invoke(app, ["agent", "session", "show", "broken", "--content"])
+
+    assert metadata.exit_code == 0, metadata.output
+    assert shown.exit_code == 1
+    assert json.loads(shown.stdout)["session"]["status"] == ["invalid"]
+    assert "dot agent session sync --agent claude --session broken" in str(shown.exception)
+
+
 def test_query_surfaces_partial_unsupported_and_invalid_sessions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

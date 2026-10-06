@@ -35,6 +35,10 @@ lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 # Resolve fuzzy versions such as `latest` without a release-age delay.
 minimum_release_age = "0d"
+# Source an existing uv project's .venv (only when uv.lock is present) so shells and
+# editors launched there run the project's locked ruff, ty, and pytest instead of the
+# global tools; mise never creates the environment.
+python.uv_venv_auto = "source"
 slsa = false
 # Trust is machine-local: use `mise trust` for individual configs or keep
 # trusted_config_paths in unmanaged ~/.config/mise/conf.d/trust.toml.
@@ -54,11 +58,11 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 "conda:file" = "latest" # File type detection required by Yazi; includes its magic database
+# macOS ships both natively (mandoc renders man pages there).
+"conda:groff" = { version = "latest", os = ["linux"] } # Man-page renderer that `aws <command> help` requires
+"conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Neovim plugins (Copilot.lua) and installers
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
-# Hold the audited 11.x line (lodash-es 4.18.1): 12.0.0 still resolves mermaid 12.0.0, whose
-# chevrotain 11.1.2 pins lodash-es 4.17.23 (CVE-2026-4800). mermaid 12.1.0 drops lodash-es but
-# is newer than the npm release-age gate; recheck after 2026-10-09 (reviewed 2026-10-02).
-"npm:@mermaid-js/mermaid-cli" = "11.17.0" # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
+"npm:@mermaid-js/mermaid-cli" = "latest" # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 "npm:skills" = "latest" # Agent Skills CLI manager
@@ -71,6 +75,7 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "pipx:google-colab-cli" = "latest" # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
+# Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
 "pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
 "pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal

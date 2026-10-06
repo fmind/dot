@@ -75,7 +75,9 @@ def check(path: Path, width: float) -> list[str]:
         if attribute:
             match = re.fullmatch(r"\s*([0-9.]+)(px)?\s*", attribute)
             sizes += [float(match.group(1))] if match else []
-        problems += [f"<{tag}> uses font-size {value:g}px, below {MIN_FONT_PX:g}px" for value in sizes if value < MIN_FONT_PX]
+        problems += [
+            f"<{tag}> uses font-size {value:g}px, below {MIN_FONT_PX:g}px" for value in sizes if value < MIN_FONT_PX
+        ]
     return problems
 
 
@@ -116,7 +118,9 @@ def render(path: Path, out: Path) -> list[Path]:
             )
             if completed.returncode or not shot.exists():
                 tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
-                raise RuntimeError(f"{Path(binary).name} failed to render {source.name} (exit {completed.returncode}): {tail}")
+                raise RuntimeError(
+                    f"{Path(binary).name} failed to render {source.name} (exit {completed.returncode}): {tail}"
+                )
             shots.append(shot)
     fallback.unlink()
     return shots

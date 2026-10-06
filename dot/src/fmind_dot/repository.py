@@ -1,7 +1,7 @@
 """Bounded multi-repository synchronization and status."""
 
 import stat
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import monotonic
@@ -184,6 +184,19 @@ def _upstream(state: State, path: Path, deadline: float) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def _upstream_push(git: Callable[[Sequence[str]], str], branch: str) -> list[str]:
+    """Push HEAD to the exact upstream the ahead count used, never a same-named branch or extra tags.
+
+    A bare `git push` follows push.default and push.followTags, so with `current` a branch
+    tracking a differently named upstream would create a new remote branch instead.
+    """
+    target = git(["for-each-ref", "--format=%(upstream:remotename)%00%(upstream:remoteref)", f"refs/heads/{branch}"])
+    remote, _, ref = target.strip().partition("\0")
+    if not remote or not ref.startswith("refs/heads/"):
+        raise DotError(f"cannot resolve the upstream push target for {branch}; push it manually")
+    return ["push", "--no-follow-tags", remote, f"HEAD:{ref}"]
+
+
 def _branch(state: State, path: Path, deadline: float) -> str:
     branch = _git(state, path, ["branch", "--show-current"], deadline).strip()
     return branch or _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
@@ -239,7 +252,7 @@ def _pull_repository(
             dirty = bool(git(_STATUS).strip())
         if push and ahead and not dirty:
             try:
-                git(["push"])
+                git(_upstream_push(git, branch))
                 pushed = True
             except DotError as error:
                 push_error = str(error)

@@ -15,15 +15,16 @@ _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
 _RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, Path("dot/uv.lock"))
 _RELEASE_CLIFF_CONFIG = Path("dot_config/git-cliff/cliff.toml")
 _CD_URL = "https://github.com/fmind/dot/actions/workflows/cd.yml"
-# Only what CI and the pre-push hook do not already run on the same commit. The
-# starter contracts resolve the latest upstream packages, so an upstream break
-# stops preparation here instead of failing CD after the tag consumed the version.
+# Gates for the bumped release commit: the host-only completion check never runs in
+# CI, the build proves the new version packages, and the starter contracts re-resolve
+# the latest upstream packages, so an upstream break since CI stops preparation here
+# instead of failing CD after the tag consumed the version.
 _RELEASE_GATES = ("test:starters", "build", "check:completions")
-# Generous bounds: a hung tool must fail the release instead of blocking it forever.
+# Generous bounds for captured commands: a hung tool must fail the release instead of
+# blocking it forever. Relayed commands (gates, commit hooks, push, deploy) stream their
+# output and stay unbounded, like their CI counterparts.
 _GIT_TIMEOUT_SECONDS = 300
 _TOOL_TIMEOUT_SECONDS = 600
-# Commits run Lefthook checks and deploys rebuild the runtime; both can take minutes.
-_LONG_TIMEOUT_SECONDS = 1800
 # Release versions only: a SemVer pre-release or build suffix normalizes differently
 # in PEP 440 distribution names.
 _SEMVER_TAG = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
@@ -54,6 +55,10 @@ def _git(state: State, *args: str) -> str:
     return state.runner.run(["git", *args], timeout=_GIT_TIMEOUT_SECONDS).stdout.strip()
 
 
+def _interactive(state: State, args: list[str], root: Path) -> int:
+    return state.runner.interactive(args, cwd=root, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr)
+
+
 def _require_tools(state: State, *commands: str) -> None:
     if missing := [command for command in commands if state.runner.which(command) is None]:
         raise DotError(f"missing release tools: {', '.join(missing)}; run 'mise run tools'")
@@ -74,10 +79,8 @@ def _prepare(state: State, root: Path, tag: str) -> None:
     )
     for task in _RELEASE_GATES:
         state.stdout.write(f"Running {task}...\n")
-        code = state.runner.interactive(
-            ["mise", "run", task], cwd=root, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr
-        )
-        if code != 0:
+        state.stdout.flush()
+        if _interactive(state, ["mise", "run", task], root) != 0:
             raise DotError(f"project {task} failed")
     status = ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"]
     validate_release_status(state.runner.run(status, cwd=root, timeout=_GIT_TIMEOUT_SECONDS).stdout)
@@ -110,7 +113,11 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
         raise DotError(f"tag {bumped} already exists locally; delete it with: git tag -d {bumped}")
     state.stdout.write(f"Current version: {current}\nNext version:    {bumped}\n")
     if not yes:
+        # Without a terminal the prompt would read EOF and silently cancel with exit 0.
+        if not state.stdin.isatty():
+            raise DotError("release requires confirmation; rerun in a terminal or pass --yes")
         state.stdout.write(f"Prepare and tag {bumped} for publication? [y/N]: ")
+        state.stdout.flush()
         if state.stdin.readline().strip().lower() not in {"y", "yes"}:
             state.stdout.write("Release canceled.\n")
             return None
@@ -119,7 +126,10 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
         state.runner.run(
             ["git", "add", *(str(path) for path in _RELEASE_GENERATED_FILES)], cwd=root, timeout=_GIT_TIMEOUT_SECONDS
         )
-        state.runner.run(["git", "commit", "-m", f"chore(release): {bumped}"], cwd=root, timeout=_LONG_TIMEOUT_SECONDS)
+        # The commit runs the Lefthook checks; relay their output so a failed hook is diagnosable.
+        commit = ["git", "commit", "-m", f"chore(release): {bumped}"]
+        if _interactive(state, commit, root) != 0:
+            raise DotError("release commit failed; see the hook output above")
     except BaseException:
         # The tree was clean before preparation, so HEAD holds the exact originals.
         generated = [str(path) for path in _RELEASE_GENERATED_FILES]
@@ -127,19 +137,15 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
         raise
     _git(state, "tag", "-a", bumped, "-m", bumped)
     # Atomic: the remote accepts the release commit and its tag together or neither.
-    code = state.runner.interactive(
-        ["git", "push", "--atomic", remote, f"HEAD:refs/heads/{branch}", f"refs/tags/{bumped}"],
-        stdin=state.stdin,
-        stdout=state.stdout,
-        stderr=state.stderr,
-    )
-    if code != 0:
+    push = ["git", "push", "--atomic", remote, f"HEAD:refs/heads/{branch}", f"refs/tags/{bumped}"]
+    if _interactive(state, push, root) != 0:
         raise DotError(
             f"push failed; the release commit and tag {bumped} are local. Retry with: "
             f"git push --atomic {remote} HEAD:refs/heads/{branch} refs/tags/{bumped}"
         )
     # The release commit changes package metadata, so refresh the installed CLI.
-    state.runner.run(["mise", "run", "--force", "deploy"], cwd=root, timeout=_LONG_TIMEOUT_SECONDS)
+    if _interactive(state, ["mise", "run", "--force", "deploy"], root) != 0:
+        raise DotError(f"pushed {bumped}, but refreshing the installed CLI failed; retry: mise run --force deploy")
     state.stdout.write(f"✓ Pushed {bumped}; CD gates and publishes it.\n{_CD_URL}\n")
     return bumped
 

@@ -357,7 +357,12 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     assert active == []
     # Removal markers stay only until every workstation has applied them; list each
     # outstanding one here and delete it (and its entry) once it has shipped.
-    outstanding = {"dot_config/fish/completions/remove_acli.fish"}
+    outstanding = {
+        "dot_config/fish/completions/remove_acli.fish",
+        # The DuckDB and SQLite display presets moved to interactive-only fish aliases.
+        "remove_dot_duckdbrc",
+        "remove_dot_sqliterc",
+    }
     markers = {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()}
     assert markers == outstanding
 

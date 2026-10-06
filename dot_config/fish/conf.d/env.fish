@@ -14,7 +14,8 @@ set -gx LANG en_US.UTF-8
 # Pagers
 set -gx LESS -FRSXMK
 set -gx LESSHISTFILE -
-set -gx MANPAGER "nvim +Man!"
+# Agents inherit this: without a terminal, nvim would wait forever (`aws <command> help`).
+set -gx MANPAGER "sh -c 'test -t 1 && exec nvim +Man! || exec cat'"
 set -gx PAGER "bat --plain"
 
 # Tools
@@ -27,6 +28,9 @@ set -gx COPILOT_ALLOW_ALL 1
 set -gx COREPACK_ENABLE_AUTO_PIN 0
 # Match the skin installed by chezmoi externals.
 set -gx K9S_SKIN theme
+# ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively;
+# loading both resolves each duplicate name nondeterministically.
+set -gx OPENCODE_DISABLE_CLAUDE_CODE_SKILLS 1
 # Layer the fmind/theme external over the managed config; lazygit rejects a missing
 # custom config file, so wait until chezmoi has fetched it.
 if test -r $XDG_CONFIG_HOME/lazygit/theme.yml

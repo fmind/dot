@@ -1,8 +1,10 @@
 """Workstation diagnostics, completions, and installation freshness."""
 
 import os
+import re
 import shutil
 import stat
+import sys
 import tempfile
 import tomllib
 from collections.abc import Callable, Mapping, Sequence
@@ -27,7 +29,7 @@ from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.private_files import write_atomic_file
-from fmind_dot.process import CommandResult, run_parallel
+from fmind_dot.process import CommandResult, Runner, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State, require_tools, state_from
 
@@ -116,7 +118,11 @@ def _generate_completion(state: State, tool: str) -> str:
         matches = list(Path(root).rglob(f"{tool}.fish"))
         if len(matches) != 1:
             raise DotError(f"expected one bundled Fish completion for {tool}, found {len(matches)}")
-        return matches[0].read_text(encoding="utf-8")
+        try:
+            return matches[0].read_text(encoding="utf-8")
+        except UnicodeDecodeError as error:
+            # A per-tool DotError keeps one bad package from aborting the remaining generators.
+            raise DotError(f"bundled Fish completion for {tool} is not UTF-8") from error
     if binary != tool and state.runner.which(binary) is None:
         raise DotError(f"completion generator for {tool} is not installed: {binary}")
     args = custom.args if custom and custom.args else ["completion", "fish"]
@@ -206,8 +212,11 @@ def _environment_results(state: State) -> list[CheckResult]:
         CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "fail", "MISSING (required)")
         for name in state.config.doctor.env_vars.required
     ]
+    # An unset optional variable is a valid choice, reported like an absent optional tool.
     results.extend(
-        CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "warn", "unset (optional)")
+        CheckResult(name, "pass", "set")
+        if os.environ.get(name)
+        else CheckResult(name, "skip", "unset (optional)", condition="skipped")
         for name in state.config.doctor.env_vars.optional
     )
     return results
@@ -375,6 +384,11 @@ def _install_results(state: State) -> list[CheckResult]:
 
 def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
     """MemAvailable counts reclaimable cache; sysconf's free pages would under-report."""
+    if sys.platform == "darwin":
+        try:
+            return vm_stat_available_bytes(Runner().run(["vm_stat"], timeout=10).stdout)
+        except DotError, OSError:
+            return None
     try:
         for line in meminfo.read_text().splitlines():
             if line.startswith("MemAvailable:"):
@@ -382,6 +396,16 @@ def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
     except OSError, ValueError, IndexError:
         return None
     return None
+
+
+def vm_stat_available_bytes(output: str) -> int | None:
+    """Estimate macOS available memory like psutil: non-speculative free plus inactive pages."""
+    page = re.search(r"page size of (\d+) bytes", output)
+    pages = dict(re.findall(r"^Pages (free|inactive|speculative):\s+(\d+)\.$", output, re.MULTILINE))
+    if page is None or not {"free", "inactive"} <= pages.keys():
+        return None
+    free = int(pages["free"]) - int(pages.get("speculative", 0))
+    return (max(free, 0) + int(pages["inactive"])) * int(page.group(1))
 
 
 def headroom_results(paths: list[Path] | None = None, *, memory: int | None = None) -> list[CheckResult]:
@@ -486,7 +510,8 @@ def register(app: typer.Typer) -> None:
             ),
         ] = False,
     ) -> None:
-        state = state_from(context)
+        # Headroom never reads dot.yaml, so a broken config must not block the pre-job check.
+        state = state_from(context, require_config=not headroom)
         if headroom:
             if fix or deep:
                 raise typer.BadParameter("--headroom cannot be combined with --fix or --deep")

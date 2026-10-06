@@ -4,17 +4,16 @@ Per-manifest commands for the [upgrade-tools](../SKILL.md) workflow: bump, re-lo
 
 ## mise (`mise.toml`, `mise.lock`)
 
-Use the [shared tool baseline](../../mise/references/tool-versions.md). `fmind/dot` tracks `latest` by default, including Python. Every other owned repository records exact mise versions; running `mise upgrade --bump` independently everywhere defeats alignment.
+Each repository owns its pins per the [tool version rules](../../mise/references/tool-versions.md). `fmind/dot` tracks `latest`, including Python, for this workstation only; never change another repository because it upgraded.
 
-1. **Discover repositories** under `~/fmind`, `~/fmind-ai`, and `~/mlops-courses`, plus the `fmind/dot` source. Inspect Git roots and instructions; include nested independent repositories, but exclude ignored vendor/build directories, disposable candidates, and archived snapshots. Canonicalize paths and identify linked worktrees so the same project is not upgraded twice. Report absent roots and excluded checkouts instead of silently claiming complete coverage.
-1. **Record current state**: inspect each repository's status, staged and unstaged changes, mise declarations, lockfiles, and gate. `mise ls --all-sources --json` supplements filesystem discovery with references that retain installed versions; it does not replace discovery of repositories mise has never loaded. Include environment and task-specific declarations, backend aliases, and project runtime files in the comparison.
-1. **Refresh the baseline** through the source-managed workflow in `fmind/dot`. Preserve uncommitted changes, resolve `latest` to stable releases, and capture the resulting managed lockfile. Validate its candidate before propagation; do not claim an untested source edit or the current shell's selection is an approved baseline. Keep referenced interpreters available while their virtual environments are being migrated. The repository's native upgrade task affects this workstation only; this skill performs the cross-repository work.
-1. **Align each consumer** in a separate candidate where necessary. For shared tools, use the exact matching baseline resolution; for project-only tools, retain their exact lock resolution unless their upgrade was requested. Replace floating selectors with concrete versions, preserve tool options, and regenerate each project's own locks. Investigate newer consumer pins before proposing a downgrade. Do not add unrelated global tools to applications.
-1. **Keep runtime files coherent**: align `.python-version` and relevant CI/runtime pins with the selected mise versions, preserving intentional compatibility matrices. Recreate affected environments through the project's native package workflow; do not point an existing environment's interpreter symlink at a different Python minor version. Update application dependencies only where required by the accepted migration, and preserve declared support unless a change is justified.
-1. **Qualify adoption** with the repository's complete gate and relevant runtime smoke checks. Verify the tested candidate matches the transferred source and preserve staged selections. If a repository cannot adopt the baseline, leave its prior exact pin, document the incompatibility and failed check, and continue independent repositories. Repositories with pre-existing red gates remain unqualified until those failures are resolved.
-1. **Finish with evidence**: report old and new tool versions, gate results, exceptions, unvisited repositories, and remaining duplicate installations. Commit, push, deploy, and delete installations only within the user's authorization. Do not have routine project builds read the personal baseline or rewrite sibling repositories.
+1. **Confirm scope**: upgrade the repository the user named. For an explicit multi-repository request, treat each repository as an independent upgrade with its own candidate, gate, and report; canonicalize paths and linked worktrees so none is upgraded twice.
+1. **Record current state**: inspect the repository's status, staged and unstaged changes, mise declarations (root, nested, environment, and task-level), backend aliases, lockfiles, runtime files, and gate.
+1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`. Replace floating selectors with exact versions, preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
+1. **Keep runtime files coherent**: align `.python-version` and relevant CI/runtime pins with the selected mise versions, preserving intentional compatibility matrices. Recreate affected environments through the project's native package workflow; do not point an existing environment's interpreter symlink at a different Python minor version. Preserve declared support unless a change is justified.
+1. **Qualify the upgrade** with the repository's complete gate and relevant runtime smoke checks. Verify the tested candidate matches the source and preserve staged selections. If the upgrade cannot be qualified, keep the prior exact pin and document the incompatibility and failed check. A pre-existing red gate leaves the repository unqualified until it is resolved.
+1. **Finish with evidence**: report old and new tool versions, gate results, and exceptions. Commit, push, deploy, and delete installations only within the user's authorization. Do not have project builds read the personal workstation configuration.
 
-For a selected consumer version, use native commands after inspecting its configuration (replace placeholders with the baseline's actual identity and version):
+For a selected version, use native commands after inspecting the configuration (replace placeholders with the tool's actual identity and version):
 
 ```bash
 mise use --path mise.toml --pin <tool>@<exact-version>
@@ -22,7 +21,7 @@ mise lock
 mise run all
 ```
 
-After all possible consumers have adopted the baseline, preview cleanup:
+After upgrading, preview cleanup of versions no configuration references:
 
 ```bash
 mise ls --all-sources

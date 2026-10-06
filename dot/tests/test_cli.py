@@ -79,7 +79,8 @@ def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expec
         },
         capture_output=True,
         text=True,
-        timeout=15,
+        # Returns as soon as the CLI exits; a fresh interpreter can take seconds under load.
+        timeout=60,
         check=False,
     )
     assert result.returncode == 0, result.stderr
@@ -248,6 +249,23 @@ def test_explicit_missing_config_fails_before_non_config_command(tmp_path: Path)
     assert isinstance(result.exception, FileNotFoundError)
     assert "failed to read config file" in str(result.exception)
     assert result.stdout == ""
+
+
+def test_main_reports_invalid_config_with_path_and_repair_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    invalid = tmp_path / "invalid.yaml"
+    invalid.write_text("pull:\n  concurrency: lots\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["dot", "--config", str(invalid), "doctor"])
+
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 1
+    assert f"dot: invalid config file at {invalid} (1 validation error(s)): pull.concurrency:" in captured.err
+    assert "fix it with: dot config edit" in captured.err
+    assert "lots" not in captured.err
 
 
 def test_main_reports_malformed_explicit_yaml_without_traceback(

@@ -32,7 +32,9 @@
 
 [core]
     autocrlf = input
-    editor = nvim
+    # Open nvim only on a terminal: agent shells have none, so a commit without -m or a
+    # merge/rebase --continue keeps git's prepared message instead of hanging on nvim.
+    editor = "f() { if [ -t 0 ] && [ -t 1 ]; then exec nvim \"$@\"; fi; }; f"
     pager = delta --paging=never
 
 [delta]
@@ -61,7 +63,8 @@
     user = {{ .github_user | quote }}
 
 [help]
-    autocorrect = prompt
+    # Suggest only: `prompt` waits for y/N on a pseudo-terminal that agent harnesses never answer.
+    autocorrect = 0
 
 [init]
     defaultBranch = main

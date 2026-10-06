@@ -30,7 +30,7 @@ jobs:
         with:
           cache: false
           # Match the tested bootstrap baseline and revision-3 lockfile reader.
-          version: 2026.10.2
+          version: 2026.10.3
       - name: Run canonical gate
         run: mise run all
       - name: Verify clean tree

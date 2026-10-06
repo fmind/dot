@@ -25,14 +25,14 @@ Change the Python CLI while retaining its observable command, archive, and insta
 
 ## Source and test map
 
-- `cli.py`, `command_group.py`, `state.py`, and `config.py`: command discovery, configuration, and public errors; `test_cli.py` and `test_config.py` exercise the boundary.
-- `private_files.py`: shared private-directory creation and atomic writes; `test_private_files.py` covers permissions, failed publication, and temporary-file cleanup.
-- `secrets.py`: explicit, process-scoped credential loading for `dot secret run` (rejects a personal `UV_PUBLISH_TOKEN`; packages use Trusted Publishing); `test_secrets.py` covers precedence, private files, child I/O, the retired publish token, and native login preservation. Keep fixtures synthetic and never print credential values.
-- `auth.py` and `workstation.py`: login, setup, cache inspection, and confirmed cleanup; `test_workstation.py` uses synthetic provider probes. Never run real login/setup/prune as a validation gate.
-- `repository.py`, `process.py`, and `system.py`: repository concurrency, subprocess cancellation, completions, and workstation checks; use their matching tests and temporary homes.
-- `archive/parsers.py`, `sync.py`, `store.py`, `usage.py`, `pricing.py`, and `statistics.py`: discovery, incremental capture, the session store, request accounting, subscription periods, and prompt statistics. `test_archive_transaction.py` covers replacement and usage retention; `test_usage_periods.py` covers deduplication, model changes, date boundaries, and legacy recapture; `test_pricing.py` covers cache accounting and unknown rates.
-- `trust.py`, `orphan.py`, `context_budget.py`, and `deploy.py`: harness folder trust, retired-target reports, agent context budgets, and locked installation; `test_trust.py`, `test_orphan.py`, `test_context_budget.py`, and `test_deploy.py` exercise them.
-- `agent_doctor.py` and `hooks.py`: per-agent notify hooks, sync, and archive checks, plus notification payloads; `test_agent_doctor.py` and `test_agent_hooks.py` exercise them.
+Modules live in `dot/src/fmind_dot/` and tests in `dot/tests/`; a module's tests are `test_<module>.py` unless listed here, and `rg -l <symbol> dot/tests` finds the rest.
+
+- `cli.py`, `command_group.py`, and `state.py`: `test_cli.py`; exercise configuration errors through the public CLI.
+- `auth.py` and `workstation.py`: `test_workstation.py` with synthetic provider probes. Never run real login/setup/prune as a validation gate.
+- `secrets.py`: `test_secrets.py` (it rejects a personal `UV_PUBLISH_TOKEN`; packages use Trusted Publishing). Keep fixtures synthetic and never print credential values.
+- `hooks.py`: `test_agent_hooks.py`.
+- `agent.py` (`dot agent` commands): `test_agent_workflows.py`, `test_usage.py`, and `test_session_query.py`.
+- `archive/`: `parsers.py` → `test_agent_parsers.py`, `store.py` → `test_session_store.py`, `query.py` → `test_session_query.py`, `sync.py` and `statistics.py` → `test_agent_workflows.py`; `test_archive_transaction.py` covers replacement and usage retention, `test_usage_periods.py` covers deduplication, model changes, date boundaries, and legacy recapture.
 
 ## Documentation
 

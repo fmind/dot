@@ -1,6 +1,6 @@
 ---
 name: python-mlops
-description: "Build Python ML pipelines: Pandera, scikit-learn, MLflow, monitoring, marimo notebooks."
+description: "Build Python ML pipelines: Polars, Pandera, scikit-learn, MLflow, monitoring, marimo notebooks."
 license: MIT
 metadata:
   kind: collection
@@ -29,7 +29,8 @@ For ML work, establish the prediction target, available data and labels, split p
 - [ml-jobs](references/ml-jobs.md): Turn notebook experiments into typed, configurable ML jobs; select the MLOps template or reference architecture.
 - [model-delivery](references/model-delivery.md): Evaluate exact model versions, manage MLflow registry aliases, and verify batch inference and rollback.
 - [monitoring](references/monitoring.md): Monitor ML data quality, drift, labeled performance, lineage, and bounded model explanations.
-- [training](references/training.md): Validate pandas data with Pandera, prevent leakage, and train, tune, and evaluate scikit-learn pipelines.
+- [polars](references/polars.md): Transform tabular data with Polars lazy queries and expressions; hand frames to Pandera, scikit-learn, and DuckDB.
+- [training](references/training.md): Validate Polars or pandas data with Pandera, prevent leakage, and train, tune, and evaluate scikit-learn pipelines.
 
 <!-- guides:end -->
 

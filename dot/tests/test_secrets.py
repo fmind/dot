@@ -39,7 +39,8 @@ def invoke_process(home: Path, *args: str) -> subprocess.CompletedProcess[str]:
         env={**os.environ, "PYTHONPATH": str(ROOT / "dot/src")},
         capture_output=True,
         text=True,
-        timeout=15,
+        # Generous: returns as soon as the CLI exits; interpreter startup is slow under xdist load.
+        timeout=60,
         check=False,
     )
 

@@ -71,7 +71,7 @@ class SessionSummary:
             path=path,
         )
 
-    def to_dict(self, *, include_records: bool | None = None) -> dict[str, Any]:
+    def to_dict(self, *, include_records: bool = True) -> dict[str, Any]:
         result: dict[str, Any] = {"agent": self.agent, "session_id": self.session_id}
         if self.cwd:
             result["cwd"] = self.cwd
@@ -85,7 +85,7 @@ class SessionSummary:
         if self.high_water_mark:
             result["high_water_mark"] = self.high_water_mark
         result["completeness"] = self.completeness
-        if self.records and (include_records if include_records is not None else True):
+        if self.records and include_records:
             result["records"] = [record.to_dict() for record in self.records]
         result.update(
             {

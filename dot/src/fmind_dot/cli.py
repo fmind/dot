@@ -18,10 +18,10 @@ from fmind_dot import __version__, orphan, repository, system, trust, workstatio
 from fmind_dot.agent import agent_app
 from fmind_dot.auth import login_app, setup_app
 from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, FishCompletion, help_group
-from fmind_dot.config import dump_config, load_config
+from fmind_dot.config import dump_config
 from fmind_dot.errors import DotError
 from fmind_dot.secrets import secret_app
-from fmind_dot.state import State, state_from
+from fmind_dot.state import State, state_from, validated_config
 
 # Plain help (non-TTY) wraps at 80 columns and truncates command summaries; Rich ignores these.
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "terminal_width": 160, "max_content_width": 160}
@@ -92,7 +92,7 @@ def config_edit(context: typer.Context) -> None:
     )
     if code != 0:
         raise DotError(f"editor exited with status {code}")
-    load_config(state.config_argument)
+    validated_config(state.config_argument)
     typer.echo("✓ Configuration is valid.")
 
 

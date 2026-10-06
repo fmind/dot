@@ -378,6 +378,10 @@ checksum = "sha256:8415001414f488c85b72b9d8cc2071dfb3981a47bc3c8eb56ef91a57d12ea
 url = "https://conda.anaconda.org/conda-forge/linux-64/libxcb-1.17.0-hb83e432_2.conda"
 checksum = "sha256:7b49e6fd2a584b7f072943e6adf4149677af5121246975278804782d37752837"
 
+[conda-packages.linux-x64."libxcrypt-4.4.38-h280c20c_0"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.38-h280c20c_0.conda"
+checksum = "sha256:f7e9292dd219a6435bbb1223da9586c3e70d66d169c5a92f08db3f2127df04e9"
+
 [conda-packages.linux-x64."libxkbcommon-1.13.2-h51789e4_1"]
 url = "https://conda.anaconda.org/conda-forge/linux-64/libxkbcommon-1.13.2-h51789e4_1.conda"
 checksum = "sha256:d44878d396713ccf3b355df617f61c40a1442fffcf134392bc6ce0e6c2219369"
@@ -425,6 +429,10 @@ checksum = "sha256:47c3d25a0bdb0ae50627f9ef2a10345fabfabe0e6620cbcff04e589a64454
 [conda-packages.linux-x64."pcre2-10.47-h8b3dc9c_1"]
 url = "https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-h8b3dc9c_1.conda"
 checksum = "sha256:9ebb10a4eb3be51ae67d85c679f5a7a50cb040ed25c783e6331a225ea09991d4"
+
+[conda-packages.linux-x64."perl-5.32.1-10_h7cc23a3_perl5"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/perl-5.32.1-10_h7cc23a3_perl5.conda"
+checksum = "sha256:6ab2c89273347c20144c20691f98c3721e930af38e801ec16c737d2e24406010"
 
 [conda-packages.linux-x64."pixman-0.46.4-h54a6638_3"]
 url = "https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda"
@@ -862,6 +870,10 @@ checksum = "sha256:9ba23103198cffa523488ff583b184ad37eb6d90985d330a683a1039dc917
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/pcre2-10.47-he63d830_1.conda"
 checksum = "sha256:f8c415329b542e1fca1ff2917b80e687c18302dfa0353530668b90cb225b494f"
 
+[conda-packages.macos-arm64."perl-5.32.1-10_hb001647_perl5"]
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/perl-5.32.1-10_hb001647_perl5.conda"
+checksum = "sha256:657cd963e25925bbb71dca27c01b47fef76be97e8a8517b8fcfc420233730614"
+
 [conda-packages.macos-arm64."pixman-0.46.4-h784d473_3"]
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda"
 checksum = "sha256:4779cd57231ce2e96fac643fcbdd4a6f51a57986264545445574e9c4acf526d3"
@@ -971,19 +983,19 @@ url = "https://github.com/dlvhdr/gh-dash/releases/download/v4.26.0/gh-dash_v4.26
 url_api = "https://api.github.com/repos/dlvhdr/gh-dash/releases/assets/579134246"
 
 [[tools."aqua:github/copilot-cli"]]
-version = "1.0.91"
+version = "1.0.92"
 backend = "aqua:github/copilot-cli"
 specifiers = ["latest"]
 
 [tools."aqua:github/copilot-cli"."platforms.linux-x64"]
-checksum = "sha256:0e7a0e85290228afecce4d4eed42fda80c0f5b9c86f433deb246cde1d5eec8e5"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.91/copilot-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/603757663"
+checksum = "sha256:1d8daedb9cdb200061471cabe9f924f80293689cb9c42489344864c044f33ea9"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.92/copilot-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/613497504"
 
 [tools."aqua:github/copilot-cli"."platforms.macos-arm64"]
-checksum = "sha256:b29e3a9e4176f2e6417504916714328d030f04ac934ff1a2a6ddcad9235c847b"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.91/copilot-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/603757338"
+checksum = "sha256:6aa2af1d0436b23c92810f11ea35a3d1c2b36b716d3e6d7c44299d199f905c5b"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.92/copilot-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/613497303"
 
 [[tools.ast-grep]]
 version = "0.45.3"
@@ -1142,19 +1154,19 @@ url = "https://github.com/anthropics/claude-code/releases/download/v2.1.289/clau
 url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/608449164"
 
 [[tools.codex]]
-version = "0.160.0"
+version = "0.160.1"
 backend = "aqua:openai/codex"
 specifiers = ["latest"]
 
 [tools.codex."platforms.linux-x64"]
-checksum = "sha256:4fcc47ab57f52ff75363951a8761146cd10c8288bd86fed45487dbb204a16b71"
-url = "https://github.com/openai/codex/releases/download/rust-v0.160.0/codex-package-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/openai/codex/releases/assets/604048102"
+checksum = "sha256:340801565906a7028f6baaa9ab6853addaef221f0016a1417a7c1ffdd96c21f0"
+url = "https://github.com/openai/codex/releases/download/rust-v0.160.1/codex-package-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/613336480"
 
 [tools.codex."platforms.macos-arm64"]
-checksum = "sha256:007df41b607dbbc8d204b9746ce7fed2d4ce6c813f44c32ceee54175ca796525"
-url = "https://github.com/openai/codex/releases/download/rust-v0.160.0/codex-package-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/openai/codex/releases/assets/604060802"
+checksum = "sha256:f73527ee09c6db869acbb37b709866b339ea74ef91d2de255e9c74ec960c6314"
+url = "https://github.com/openai/codex/releases/download/rust-v0.160.1/codex-package-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/613351437"
 
 [[tools."conda:file"]]
 version = "5.48"
@@ -1182,6 +1194,57 @@ conda_deps = [
     "libmagic-5.48-h132b30e_1",
     "libzlib-1.3.2-h8088a28_3",
 ]
+
+[[tools."conda:groff"]]
+version = "1.24.2"
+backend = "conda:groff"
+specifiers = ["latest"]
+
+[tools."conda:groff".options]
+channel = "conda-forge"
+
+[tools."conda:groff"."platforms.linux-x64"]
+checksum = "sha256:98c488215167d766d2c0715b837c384ed315c032ef88d1bedb692d9e72e5ee5e"
+url = "https://conda.anaconda.org/conda-forge/linux-64/groff-1.24.2-pl5321hd2095e1_0.conda"
+conda_deps = [
+    "libgcc-16.2.0-ha9f2e26_7",
+    "libstdcxx-16.2.0-h934c35e_7",
+    "perl-5.32.1-10_h7cc23a3_perl5",
+    "libxcrypt-4.4.38-h280c20c_0",
+    "_openmp_mutex-4.5-20_gnu",
+    "libgomp-16.2.0-he0feb66_7",
+]
+
+[tools."conda:groff"."platforms.macos-arm64"]
+checksum = "sha256:e39ebfcca634c50078de1688bf4ef6b20f7f0833c94d7094138b2b465755c67b"
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/groff-1.24.2-pl5321hae62183_0.conda"
+conda_deps = [
+    "libcxx-23.1.2-h55c6f16_0",
+    "libiconv-1.18-he4c29f2_3",
+    "perl-5.32.1-10_hb001647_perl5",
+]
+
+[[tools."conda:unzip"]]
+version = "6.0"
+backend = "conda:unzip"
+specifiers = ["latest"]
+
+[tools."conda:unzip".options]
+channel = "conda-forge"
+
+[tools."conda:unzip"."platforms.linux-x64"]
+checksum = "sha256:489ee14dcc1080e45d07531e89b1c690a8df68ca6a817ade536e6ef4cdc77b9e"
+url = "https://conda.anaconda.org/conda-forge/linux-64/unzip-6.0-hb03c661_4.conda"
+conda_deps = [
+    "libgcc-16.2.0-ha9f2e26_7",
+    "_openmp_mutex-4.5-20_gnu",
+    "libgomp-16.2.0-he0feb66_7",
+]
+
+[tools."conda:unzip"."platforms.macos-arm64"]
+checksum = "sha256:47cdb8893a679d2122e8eec28a4cf26010bdb177e694d1ab1fcd66b9ea0c3de6"
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/unzip-6.0-h6caf38d_4.conda"
+conda_deps = []
 
 [[tools.cosign]]
 version = "3.1.3"
@@ -1958,39 +2021,19 @@ checksum = "sha256:d3870437e1e95b67f8edbde964156c84a26503f560821d40c542441658934
 url = "https://get.helm.sh/helm-v4.3.0-darwin-arm64.tar.gz"
 
 [[tools.hyperfine]]
-version = "1.20.0"
+version = "1.21.0"
 backend = "aqua:sharkdp/hyperfine"
 specifiers = ["latest"]
 
-[tools.hyperfine."platforms.linux-arm64"]
-checksum = "sha256:90875cb1db7a1d797c311174d061728361e58fc70e3b62262a00635ac3b1997c"
-url = "https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine-v1.20.0-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/317832112"
-
 [tools.hyperfine."platforms.linux-x64"]
-checksum = "sha256:63ad53934062118f5b0be11785e0bb1603d4b91667d1921f2fd8df9a8712040a"
-url = "https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine-v1.20.0-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/317831911"
-
-[tools.hyperfine."platforms.linux-x64-musl"]
-checksum = "sha256:3285ec7959285288137043dd81dce0dde056227018a8277532d9a364b4f03c2b"
-url = "https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine-v1.20.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/317832008"
+checksum = "sha256:60b70eb01e1a4dce1bf56a38393e1e2c2e79ed95a4ba711feb5c993f382604ab"
+url = "https://github.com/sharkdp/hyperfine/releases/download/v1.21.0/hyperfine-v1.21.0-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/612761017"
 
 [tools.hyperfine."platforms.macos-arm64"]
-checksum = "sha256:f58d0b90993fadfa122a351428c469ce24afef3865f027f0e6e86f0830d088f1"
-url = "https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine-v1.20.0-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/317832526"
-
-[tools.hyperfine."platforms.macos-x64"]
-checksum = "sha256:f58d0b90993fadfa122a351428c469ce24afef3865f027f0e6e86f0830d088f1"
-url = "https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine-v1.20.0-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/317832526"
-
-[tools.hyperfine."platforms.windows-x64"]
-checksum = "sha256:2508c549b049b1d4342d08edc1cb42bfac169082b6e3069431b5bab9822dbb32"
-url = "https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine-v1.20.0-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/317832313"
+checksum = "sha256:60ad42427f09647ea2f301186282c083d75a2f1c5d82e7b9d89f7524f1b9fd57"
+url = "https://github.com/sharkdp/hyperfine/releases/download/v1.21.0/hyperfine-v1.21.0-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/hyperfine/releases/assets/612764711"
 
 [[tools.jq]]
 version = "1.8.2"
@@ -2121,34 +2164,34 @@ url = "https://github.com/jesseduffield/lazydocker/releases/download/v0.25.2/laz
 url_api = "https://api.github.com/repos/jesseduffield/lazydocker/releases/assets/399711571"
 
 [[tools.lazygit]]
-version = "0.65.1"
+version = "0.66.0"
 backend = "aqua:jesseduffield/lazygit"
 specifiers = ["latest"]
 
 [tools.lazygit."platforms.linux-x64"]
-checksum = "sha256:02beacbcda0fa342e50ae3480ba8147307353af3fb28e1d5f790e02329c201a6"
-url = "https://github.com/jesseduffield/lazygit/releases/download/v0.65.1/lazygit_0.65.1_linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/560658266"
+checksum = "sha256:5b45541155d20bd32bf2cc5ab5b7e3d91c2eebf0fb1242281350edc27d59d2b7"
+url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.0/lazygit_0.66.0_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/613198391"
 
 [tools.lazygit."platforms.macos-arm64"]
-checksum = "sha256:65a367c6ea9a88efebaaf7998a6835eedb987e04916cef677264ff9b31b1b13e"
-url = "https://github.com/jesseduffield/lazygit/releases/download/v0.65.1/lazygit_0.65.1_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/560658243"
+checksum = "sha256:e9fe2fe1f1bbc1b4c3214b33e8e0d57a4d6e3c2276aa9aa713f9bcbdc223e65c"
+url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.0/lazygit_0.66.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/613198499"
 
 [[tools.lefthook]]
-version = "2.1.16"
+version = "2.1.17"
 backend = "aqua:evilmartians/lefthook"
 specifiers = ["latest"]
 
 [tools.lefthook."platforms.linux-x64"]
-checksum = "sha256:bcf67d241ebb062a4fe9053ef0d7fde6692f846e504843ed33ab39b08334f299"
-url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.16/lefthook_2.1.16_Linux_x86_64.gz"
-url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/603767179"
+checksum = "sha256:e3c6e271b6a77a8fac527d7cc21c1036f7605afcb6653aabe4b166913322f900"
+url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.17/lefthook_2.1.17_Linux_x86_64.gz"
+url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/611880017"
 
 [tools.lefthook."platforms.macos-arm64"]
-checksum = "sha256:3deee257054b3cd3d3288bef65436e17239d49ebb738af939e4a92f573865151"
-url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.16/lefthook_2.1.16_MacOS_arm64.gz"
-url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/603767184"
+checksum = "sha256:aabf434ea7049af9854eb5205520bc16fc52d3d55459c2332a3711cdd6743d34"
+url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.17/lefthook_2.1.17_MacOS_arm64.gz"
+url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/611879927"
 
 [[tools.lsd]]
 version = "1.2.0"
@@ -2234,10 +2277,13 @@ checksum = "sha256:bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6
 url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz"
 
 [[tools."npm:@mermaid-js/mermaid-cli"]]
-version = "11.17.0"
-aube = { path = "locks/npm-mermaid-js-mermaid-cli/11.17.0", digest = "sha256:50b7aad5a7ea77e381719844f10be9f43785b7bf6f8e00bf272f90631088477d" }
+version = "12.0.0"
+aube = { path = "locks/npm-mermaid-js-mermaid-cli/12.0.0", digest = "sha256:51c04c6338ca06c137bbd318236d60501d6d2e862c30981f446199470acdd1f5" }
 backend = "npm:@mermaid-js/mermaid-cli"
-specifiers = ["11.17.0"]
+specifiers = [
+    "12.0.0",
+    "latest",
+]
 
 [[tools."npm:cf"]]
 version = "1.0.0-beta.12"
@@ -2324,13 +2370,13 @@ uv = { path = "locks/pipx-fmind/2.0.2", digest = "sha256:5c0723c1a6db182d85221f0
 version = "0.7.4"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:ea39e345c792589678c6ab1e7e28c02cbcac391d4a19621b3408e1f912b90c7a" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.4", digest = "sha256:25408679b9d0b5e6c44c3b6e5766e6e4ebd5149342820563b03467c67fd8fa07" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.1.1"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.1.1", digest = "sha256:c9adbf9b4835bc69072c5e5ea5e283f4bd06367c28b41958673fe57a0e14bf9b" }
+uv = { path = "locks/pipx-huggingface-hub/2.1.1", digest = "sha256:78e93c76a0f8f377d4e344df80c3320150349e35e7d72239c0781492e190b61f" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.4"

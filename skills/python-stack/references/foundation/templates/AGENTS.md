@@ -14,7 +14,7 @@ All work goes through `mise` (see `mise.toml`); git hooks and CI call the same t
 
 - Install: `mise run install` — sync the virtualenv (`uv sync --locked`) and install git hooks.
 - Format: `mise run format` — `ruff` (import sort + format) and `dprint`.
-- Check: `mise run check` — `ruff` lint, `ty` types, `uv audit`, `dprint check`, `gitleaks`, `pyproject` validation.
+- Check: `mise run check` — `ruff` lint, `ty` types, `deptry` dependencies, `uv audit`, `dprint check`, `gitleaks`, `pyproject` validation.
 - Test: `mise run test` — offline `pytest` suite with an 85% branch-coverage gate.
 - Build: `mise run build` — `uv build` (wheel + sdist).
 - Watch: `mise run watch` — re-run offline tests on source changes; application profiles may supply their development command.

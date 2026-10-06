@@ -117,7 +117,10 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         _write(tmp_path, "src/starter_py/__main__.py", 'from . import main\n\nif __name__ == "__main__":\n    main()\n')
         for name in ("test_web.py", "test_integration.py"):
             _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="python-web"))
-        _write(tmp_path, "conftest.py", _render("conftest.py", replacements, owner="python-web"))
+        _write(tmp_path, "tests/conftest.py", _render("conftest.py", replacements, owner="python-web"))
+        # SQLAlchemy loads asyncpg from the URL scheme, so the guide declares it for deptry.
+        with (tmp_path / "pyproject.toml").open("a", encoding="utf-8") as stream:
+            stream.write('\n[tool.deptry.per_rule_ignores]\nDEP002 = ["asyncpg"]\n')
         _write(tmp_path, ".env", _render("env.example", replacements, owner="python-web"))
 
     _run(tmp_path, "uv", "lock")
@@ -128,6 +131,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(tmp_path, "uv", "run", "--frozen", "ruff", "check")
     _run(tmp_path, "uv", "run", "--frozen", "ruff", "format", "--check")
     _run(tmp_path, "uv", "run", "--frozen", "ty", "check")
+    _run(tmp_path, "uv", "run", "--frozen", "deptry", ".")
     _run(tmp_path, "uv", "run", "--frozen", "pytest", "-m", "not integration", "--cov", "--cov-fail-under=85")
     _run(tmp_path, "uv", "build", "--out-dir", "dist")
 

@@ -41,7 +41,7 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-c
 xcode-select --install
 ```
 
-The installer requires mise 2026.10.2 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
+The installer requires mise 2026.10.3 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
 
 ## Installation
 

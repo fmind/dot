@@ -217,6 +217,9 @@ class Runner:
         if on_stderr_line is None:
             streams.append((stderr, sys.stderr))
         detached = not any(_is_terminal(stream, default) for stream, default in streams)
+        # The child writes to the same descriptors, so pending buffered text must land first.
+        for stream in (stdout or sys.stdout, stderr or sys.stderr):
+            stream.flush()
         with nullcontext() if detached else _deferred_interrupts():
             process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
                 list(args),
