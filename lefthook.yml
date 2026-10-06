@@ -27,7 +27,7 @@ pre-commit:
       stage_fixed: true
     - name: format:shell
       # The task formats exactly these plain scripts; shell templates are lint-only.
-      glob: "{install.sh,run_*.sh}"
+      glob: "{install.sh,run_*.sh,dot_local/bin/executable_*}"
       run: mise run format:shell
       stage_fixed: true
     - name: check:local
