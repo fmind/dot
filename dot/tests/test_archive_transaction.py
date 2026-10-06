@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import time
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,7 +25,7 @@ from fmind_dot.archive.usage import load_usage_records
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
 
-# A correct lock always exhausts this window, so it bounds the test's cost as well.
+# Once the second writer waits on the lock, a correct lock always exhausts this window.
 _RACE_WINDOW_SECONDS = 0.2
 
 
@@ -392,19 +393,32 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
     longer = adapter.parser(source, "fixture-id", "")
     assert shorter.usage is not None
     assert longer.usage is not None
-    short_ready, long_written = Event(), Event()
+    short_ready, long_waiting, long_written = Event(), Event(), Event()
     write = session_store.write_private_file
+    flock = session_store.fcntl.flock
+
+    def observed_flock(stream: IO[bytes], operation: int) -> None:
+        # While the shorter writer holds the lock, any exclusive request is the longer writer's.
+        if operation == session_store.fcntl.LOCK_EX and short_ready.is_set():
+            long_waiting.set()
+        flock(stream, operation)
 
     def delayed_write(path: Path, content: bytes) -> None:
         count = json.loads(content.split(b"\n", 1)[0])["record_count"]
         if count == 3:
             short_ready.set()
+            # Hold the lock until the longer writer contends for it (or, with a broken lock, writes),
+            # so a loaded host cannot let the test pass without exercising the lock.
+            deadline = time.monotonic() + 30
+            while not (long_waiting.is_set() or long_written.is_set()) and time.monotonic() < deadline:
+                time.sleep(0.005)
             long_written.wait(timeout=_RACE_WINDOW_SECONDS)
         write(path, content)
         if count == 4:
             long_written.set()
 
     monkeypatch.setattr(session_store, "write_private_file", delayed_write)
+    monkeypatch.setattr(session_store.fcntl, "flock", observed_flock)
     with ThreadPoolExecutor(max_workers=2) as pool:
         pending = pool.submit(
             session_store.ingest_session, "claude", "fixture-id", shorter.logs, usage=shorter.usage.to_dict()
@@ -413,8 +427,9 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
         latest = pool.submit(
             session_store.ingest_session, "claude", "fixture-id", longer.logs, usage=longer.usage.to_dict()
         )
-        pending.result(timeout=5)
-        latest.result(timeout=5)
+        pending.result(timeout=30)
+        latest.result(timeout=30)
+    assert long_waiting.is_set()
     assert read_session_manifest(session_bundle_path("claude", "fixture-id")).record_count == 4
 
 

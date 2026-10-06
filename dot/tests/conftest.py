@@ -29,13 +29,19 @@ def native_chezmoi() -> Iterator[None]:
     """Resolve a mise shim before synthetic homes change its tool/trust lookup."""
     chezmoi = shutil.which("chezmoi")
     mise = shutil.which("mise")
+    executable = None
     if chezmoi and mise and Path(chezmoi).resolve() == Path(mise).resolve():
-        result = subprocess.run([mise, "which", "chezmoi"], capture_output=True, text=True, check=True, timeout=10)
-        executable = Path(result.stdout.strip())
-        if not executable.is_absolute() or not executable.is_file():
-            raise RuntimeError("mise did not resolve an installed chezmoi executable")
-        with pytest.MonkeyPatch.context() as patch:
-            patch.setenv("PATH", str(executable.parent) + os.pathsep + os.environ["PATH"])
-            yield
-    else:
+        # A slow or failing mise must not error every test; only the chezmoi tests need the binary.
+        try:
+            result = subprocess.run([mise, "which", "chezmoi"], capture_output=True, text=True, check=True, timeout=30)
+        except subprocess.CalledProcessError, subprocess.TimeoutExpired:
+            result = None
+        candidate = Path(result.stdout.strip()) if result else None
+        if candidate and candidate.is_absolute() and candidate.is_file():
+            executable = candidate
+    if executable is None:
+        yield
+        return
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("PATH", str(executable.parent) + os.pathsep + os.environ["PATH"])
         yield
