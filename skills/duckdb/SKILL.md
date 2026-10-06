@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # DuckDB and SQLite
@@ -27,7 +27,7 @@ sqlite3 -init /dev/null -batch -bail -readonly app.sqlite '.schema'
 sqlite3 -init /dev/null -batch -bail -noheader -list -readonly app.sqlite 'PRAGMA integrity_check'
 ```
 
-Both interactive and batch invocations can load `~/.duckdbrc` or `~/.sqliterc`, including executable SQL and dot commands; this workstation keeps its display presets in interactive fish aliases instead, but other machines and projects may not. For reproducible scripts, skip those files with `-init /dev/null`, stop on errors with `-batch -bail`, and select output explicitly with `-json`, `-csv`, or `-markdown`; an output-mode flag alone does not suppress initialization. SQLite integrity checks return rows: require `ok`, because a successful process exit alone does not establish integrity.
+Both interactive and batch invocations can load `~/.duckdbrc` or `~/.sqliterc`, including executable SQL and dot commands; this workstation ships neither, but other machines may. For reproducible scripts, skip those files with `-init /dev/null`, stop on errors with `-batch -bail`, and select output explicitly with `-json`, `-csv`, or `-markdown`; an output-mode flag alone does not suppress initialization. SQLite integrity checks return rows: require `ok`, because a successful process exit alone does not establish integrity.
 
 ## Workflow
 

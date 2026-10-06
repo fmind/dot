@@ -12,10 +12,6 @@ if status is-interactive
     abbr -a cl "gcloud auth login --update-adc"
     # d:docker
     abbr -a d docker
-    # Display presets (timer, row cap, null glyph, box mode) for people only: ~/.duckdbrc and
-    # ~/.sqliterc would also load in agents' batch calls and corrupt -json/-csv output.
-    alias duckdb="duckdb -init $HOME/.config/duckdb/interactive.sql"
-    alias sqlite3="sqlite3 -init $HOME/.config/sqlite3/interactive.sql"
     # e:lazydocker
     abbr -a e lazydocker
     # f:fd
@@ -68,14 +64,12 @@ if status is-interactive
     abbr -a uf "uv run --frozen"
     abbr -a ur "uv run"
     abbr -a ux uvx
-    # v:nvim
+    # v:nvim (piped stdin opens as a buffer: `cat a.txt | v`)
     abbr -a v nvim
     abbr -a vd "nvim -d"
     abbr -a vi nvim
-    abbr -a vs "nvim -"
     # w:zellij
     abbr -a w zellij
-    abbr -a wa "zellij run --close-on-exit -- agy"
     # x:xh
     abbr -a x xh
     # y:yazi

@@ -18,9 +18,9 @@ encryption = "age"
 [cd]
     command = "fish"
 
+# The editor comes from $VISUAL/$EDITOR (nvim-tty, set in fish).
 [edit]
     apply = true
-    command = {{ joinPath .chezmoi.homeDir ".local/bin/nvim-tty" | quote }}
 
 [diff]
     # Diffs land in agent transcripts and logs; `chezmoi status` still flags encrypted drift.

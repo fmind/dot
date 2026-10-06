@@ -15,8 +15,8 @@ set -gx LANG en_US.UTF-8
 # Pagers
 set -gx LESS -FRSXMK
 set -gx LESSHISTFILE -
-# Agents inherit this: without a terminal, nvim would wait forever (`aws <command> help`).
-set -gx MANPAGER "sh -c 'test -t 1 && exec nvim +Man! || exec cat'"
+# Agents inherit this (`aws <command> help`); less prints like cat without a terminal.
+set -gx MANPAGER less
 set -gx PAGER "bat --plain"
 
 # Tools

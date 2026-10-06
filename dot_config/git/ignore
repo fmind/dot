@@ -1,21 +1,10 @@
 # Docs: https://git-scm.com/docs/gitignore
 
 # Machine-local OS and agent state; project code and tooling rules belong in .gitignore.
+# List known local files only, so shareable agent config (settings, hooks, agents) stays visible.
 .DS_Store
-# Shareable project config stays visible (see the agent-project skill's host setup).
 .agents/prompts/
 .agents/tmp/
-.claude/*
-!.claude/agents/
-!.claude/settings.json
-!.claude/skills
-.codex/*
-!.codex/agents/
-!.codex/config.toml
-.gemini/*
-!.gemini/config.yaml
-!.gemini/styleguide.md
-.grok/*
-!.grok/agents/
-!.grok/config.toml
-skills/local-*
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/worktrees/
