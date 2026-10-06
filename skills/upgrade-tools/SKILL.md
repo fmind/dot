@@ -12,11 +12,11 @@ metadata:
 
 # Upgrade Tools
 
-Upgrade one repository's tools and dependencies to their latest stable releases, validating each ecosystem. Each repository owns its pins: never change one because the workstation or a sibling upgraded. The [playbook](references/playbook.md) owns the ecosystem commands; [mise](../mise/SKILL.md) owns exact pins.
+Upgrade one repository's tools and dependencies to their latest stable releases, validating each ecosystem. The [playbook](references/playbook.md) owns the ecosystem commands; [mise](../mise/SKILL.md) owns exact pins.
 
 ## Workflow
 
-1. **Scope to the requested repository**: upgrade only the repository the user named, by default the current one. Never bump other repositories because `fmind/dot` or a sibling changed; a multi-repository upgrade needs the user's explicit list, and each repository is then upgraded on its own merits with its own gate and report.
+1. **Scope to the requested repository**: upgrade only the repository the user named, by default the current one. Each repository owns its pins: never bump another because `fmind/dot` or a sibling changed. A multi-repository upgrade needs the user's explicit list; upgrade each on its own merits with its own candidate, gate, and report, canonicalizing paths and linked worktrees so none is upgraded twice.
 1. **Separate audit from upgrade**: a disk-space or version-reuse check compares current declarations, locks, backends and installed versions without resolving new releases or installing tools. Include restored project directories with mise/runtime files even when `.git` is missing; report recovery gaps and validation limits. Record floating selectors, duplicate installations and justified compatibility exceptions separately.
 1. **Start from a green baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work through [git-worktree](../git-worktree/SKILL.md); report pre-existing failures separately.
 1. **mise first**: in `fmind/dot` run `mise run upgrade`; elsewhere resolve the latest stable releases of the project's own tools and pin them exactly per the [tool version rules](../mise/references/tool-versions.md), keeping incompatible pins with evidence.

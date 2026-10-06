@@ -1,6 +1,6 @@
 # Tool Versions
 
-Keep every project independently pinned and installable. [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades; this reference owns selection for new and existing projects.
+[upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades; this reference owns version selection for new and existing projects.
 
 ## Workstation and projects
 
@@ -12,8 +12,8 @@ Keep every project independently pinned and installable. [upgrade-tools](../../u
 
 ## Select exact versions
 
-1. **Seed new projects from installed versions**: when creating a project, prefer the workstation's locked version of each required tool so installations are reused. Read lock data with TOML tooling; do not execute the template or infer versions from `latest` or the active shell. The seed is a starting point, not a binding: the project owns the pins afterwards.
-1. **Upgrade existing projects on their own request**: resolve the current stable release of the project's own tools during that project's upgrade. Do not align it with the workstation or sibling repositories; a newer project pin is never downgraded to match them.
+1. **Seed new projects from installed versions**: when creating a project, prefer the workstation's locked version of each required tool so installations are reused. Read lock data with TOML tooling; do not execute the template or infer versions from `latest` or the active shell. The seed is a starting point, not a binding.
+1. **Upgrade existing projects on their own request**: resolve the current stable release of the project's own tools during that project's upgrade; never downgrade a newer project pin to match the workstation or a sibling.
 1. **Match full installation identity**: tool, backend, install options, and target platform. Normalize equivalent aliases deliberately when they would create duplicate installations; preserve required options and verify the selected backend. Matching version strings alone does not establish identical installations.
 1. **Cover every project declaration**: check root, nested, environment-specific, and task-level tool declarations that belong to the project, along with relevant CI and runtime version files. Preserve intentional test matrices and platform-specific requirements. A genuine incompatibility stays as an exact pin with a concise reason and the failed validation evidence.
 

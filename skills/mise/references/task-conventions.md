@@ -39,11 +39,10 @@ Validate success and intentional failure cases before adopting quieter defaults,
 
 ## Tool Management
 
-Follow the [tool version rules](tool-versions.md). `fmind/dot` uses `latest` by default; other repositories record exact versions before installation and own them afterwards. [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades, one repository at a time.
+The [tool version rules](tool-versions.md#select-exact-versions) own selecting and recording exact pins; [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades.
 
 ```bash
 mise registry <name>     # discover the tool's backend id
-mise use --pin <tool>@<exact-version> # record the selected exact version and install
 mise install             # install everything pinned
 mise lock                # refresh metadata for the locked versions
 mise lock --bump         # advance lock selectors without installing

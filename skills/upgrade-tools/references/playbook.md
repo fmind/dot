@@ -4,22 +4,11 @@ Per-manifest commands for the [upgrade-tools](../SKILL.md) workflow: bump, re-lo
 
 ## mise (`mise.toml`, `mise.lock`)
 
-Each repository owns its pins per the [tool version rules](../../mise/references/tool-versions.md). `fmind/dot` tracks `latest`, including Python, for this workstation only; never change another repository because it upgraded.
-
-1. **Confirm scope**: upgrade the repository the user named. For an explicit multi-repository request, treat each repository as an independent upgrade with its own candidate, gate, and report; canonicalize paths and linked worktrees so none is upgraded twice.
 1. **Record current state**: inspect the repository's status, staged and unstaged changes, mise declarations (root, nested, environment, and task-level), backend aliases, lockfiles, runtime files, and gate.
-1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`. Replace floating selectors with exact versions, preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
+1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`. Replace floating selectors with exact versions using the [exact-pin commands](../../mise/references/tool-versions.md#select-exact-versions), preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
 1. **Keep runtime files coherent**: align `.python-version` and relevant CI/runtime pins with the selected mise versions, preserving intentional compatibility matrices. Recreate affected environments through the project's native package workflow; do not point an existing environment's interpreter symlink at a different Python minor version. Preserve declared support unless a change is justified.
 1. **Qualify the upgrade** with the repository's complete gate and relevant runtime smoke checks. Verify the tested candidate matches the source and preserve staged selections. If the upgrade cannot be qualified, keep the prior exact pin and document the incompatibility and failed check. A pre-existing red gate leaves the repository unqualified until it is resolved.
 1. **Finish with evidence**: report old and new tool versions, gate results, and exceptions. Commit, push, deploy, and delete installations only within the user's authorization. Do not have project builds read the personal workstation configuration.
-
-For a selected version, use native commands after inspecting the configuration (replace placeholders with the tool's actual identity and version):
-
-```bash
-mise use --path mise.toml --pin <tool>@<exact-version>
-mise lock
-mise run all
-```
 
 After upgrading, preview cleanup of versions no configuration references:
 
