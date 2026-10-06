@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/api-client
   created: "2026-09-09"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # API Client
@@ -27,7 +27,7 @@ Integrate the needed API operation with a small, testable boundary. Prefer an ex
 
 ## Gotchas
 
-- **Transport retries skip status codes**: HTTPX transport retries cover connection errors/timeouts; they do not implement status-code retries or safe replay of an uncertain write.
+- **Transport retries skip status codes**: HTTPX transport retries cover only failed connects (`ConnectError`, `ConnectTimeout`); they do not implement status-code retries or safe replay of an uncertain write.
 - **Bound streams while reading**: enforce byte limits while reading and always close responses and clients, including cancellation paths. Checking size after buffering is not a memory bound.
 - **Route credentials deliberately**: keep TLS verification enabled and make proxy/environment behavior deliberate. Validate base URLs at the configuration boundary; log only redacted endpoint identities.
 - **Never disguise errors as empty**: an empty list must mean no records, not a swallowed 403, exhausted page budget, or failed parse. Preserve the original exception cause without including secrets.

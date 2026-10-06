@@ -6,8 +6,8 @@
 
 Set `GOOGLE_CLOUD_PROJECT` for the authorized ADC identity, then run
 `uv run orchestrator.py <workspace>`; optional `ANTIGRAVITY_MODEL` and
-`GOOGLE_CLOUD_LOCATION` override the model and location defaults.
-every knob below is the orchestration contract, so change it here rather than in the prompt.
+`GOOGLE_CLOUD_LOCATION` override the model and location defaults. Every knob below
+is the orchestration contract, so change it here rather than in the prompt.
 """
 
 import asyncio

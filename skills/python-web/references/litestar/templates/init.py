@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     database_url: SecretStr
     cors_origins: list[str] = Field(default_factory=list)
-    environment: Literal["development", "test", "production"] = "development"
+    environment: Literal["development", "test", "production"] = "production"
     host: str = "127.0.0.1"
     port: int = 8000
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Code Security

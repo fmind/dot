@@ -28,6 +28,11 @@ alias = "b"
 description = "Build Python distribution artifacts"
 run = "uv build"
 
+[tasks."build:docs"]
+alias = "d"
+description = "Generate HTML docs (pdoc)"
+run = "uv run --locked pdoc -o .cache/docs <package>"
+
 [tasks.check]
 alias = "c"
 description = "Run all static checks in parallel"
@@ -92,11 +97,6 @@ run = "uv run --locked coverage html"
 [tasks."report:coverage"]
 description = "Show per-file coverage from the last test run without rerunning tests"
 run = "uv run --locked coverage report"
-
-[tasks.docs]
-alias = "d"
-description = "Generate HTML docs (pdoc)"
-run = "uv run --locked pdoc -o .cache/docs <package>"
 
 [tasks.format]
 alias = "f"

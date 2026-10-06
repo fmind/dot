@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skill-security-review
   created: "2026-08-08"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Skill Security Review

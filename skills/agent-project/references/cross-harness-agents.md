@@ -58,6 +58,6 @@ Roles act. Antigravity is the exception to host defaults: omitting `tools` leave
 
 ## Compiler maintenance
 
-The dot development dependency pins [Supagents 1.4.0 from PyPI](https://pypi.org/project/supagents/1.4.0/). `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen --project dot supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout. Upstream [compatibility evidence](https://github.com/fmind/agent-supagents/blob/main/docs/compatibility.md) distinguishes generated syntax, native discovery, and runtime permissions.
+The dot development dependency pins [Supagents from PyPI](https://pypi.org/project/supagents/) exactly in `dot/pyproject.toml`. `dot/uv.lock` records the registry artifacts and their hashes; `uv run --frozen --project dot supagents` uses that locked package. CI and fresh checkouts need no vendored wheel or sibling checkout. Upstream [compatibility evidence](https://github.com/fmind/agent-supagents/blob/main/docs/compatibility.md) distinguishes generated syntax, native discovery, and runtime permissions.
 
 To update it, verify the upstream release and PyPI provenance, change the version pin in `dot/pyproject.toml`, then run `uv lock --project dot --refresh-package supagents` from the dotfiles root. Run `mise run format:agents` and the full repository gate on an isolated candidate when unrelated changes are present. Publishing Supagents and adopting its release remain separate delivery steps.
