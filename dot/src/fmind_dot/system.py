@@ -1,5 +1,6 @@
 """Workstation diagnostics, completions, and installation freshness."""
 
+import importlib.metadata
 import os
 import re
 import shutil
@@ -15,7 +16,6 @@ from typing import Annotated, Any
 import typer
 from typer.completion import get_completion_script
 
-from fmind_dot import deploy
 from fmind_dot.auth import (
     GCLOUD_CLI_TOKEN,
     GITHUB_KEYRING_REMEDY,
@@ -345,6 +345,34 @@ def _docker_results(state: State) -> list[CheckResult]:
     ]
 
 
+# The running package: deployed by uv tool install, or the src-layout checkout under `uv run`.
+PACKAGE_DIRECTORY = Path(__file__).resolve().parent
+
+
+def _installed_version() -> str:
+    return importlib.metadata.version("fmind-dot")
+
+
+def _package_files(directory: Path) -> dict[str, bytes]:
+    # Bundled rate cards affect runtime behavior just as Python modules do.
+    return {
+        path.relative_to(directory).as_posix(): path.read_bytes()
+        for path in directory.rglob("*")
+        if path.is_file() and path.suffix in {".py", ".yaml"}
+    }
+
+
+def _install_staleness(source: Path) -> str:
+    """Return why the installed package is stale against a source checkout, or "" when it matches."""
+    with (source / "dot/pyproject.toml").open("rb") as stream:
+        version = tomllib.load(stream).get("project", {}).get("version")
+    if version != _installed_version():
+        return "installed version differs from source"
+    if _package_files(source / "dot/src/fmind_dot") != _package_files(PACKAGE_DIRECTORY):
+        return "installed Python package differs from source"
+    return ""
+
+
 def _install_results(state: State) -> list[CheckResult]:
     name = "dot"
     chezmoi = state.runner.which("chezmoi")
@@ -359,12 +387,9 @@ def _install_results(state: State) -> list[CheckResult]:
     project = source / "dot/pyproject.toml"
     if not source_package.is_dir() or not project.is_file():
         return [CheckResult(name, "skip", "chezmoi source is not a Python dot checkout", condition="skipped")]
-    installed_path = str(deploy.PACKAGE_DIRECTORY)
-    # `uv run --project dot dot doctor` imports a src-layout checkout, which has no deployed receipt.
-    if (
-        deploy.PACKAGE_DIRECTORY.parent.name == "src"
-        and (deploy.PACKAGE_DIRECTORY.parents[1] / "pyproject.toml").is_file()
-    ):
+    installed_path = str(PACKAGE_DIRECTORY)
+    # `uv run --project dot dot doctor` imports the src-layout checkout, which trivially matches itself.
+    if PACKAGE_DIRECTORY.parent.name == "src" and (PACKAGE_DIRECTORY.parents[1] / "pyproject.toml").is_file():
         return [
             CheckResult(
                 name,
@@ -375,8 +400,8 @@ def _install_results(state: State) -> list[CheckResult]:
             )
         ]
     try:
-        stale = deploy.install_staleness(source)
-    except OSError, tomllib.TOMLDecodeError:
+        stale = _install_staleness(source)
+    except OSError, tomllib.TOMLDecodeError, importlib.metadata.PackageNotFoundError:
         return [CheckResult(name, "fail", "could not verify installed Python package", condition="broken")]
     if stale:
         return [CheckResult(name, "fail", f"STALE: {stale}", installed_path, "stale")]

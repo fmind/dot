@@ -25,7 +25,8 @@ dir = "{{config_root}}"
 # Tasks pass `--project dot` and set COVERAGE_FILE themselves instead of exporting
 # UV_PROJECT here: agent shells snapshot this environment and keep it after leaving
 # the checkout, so uv in another repository would silently resolve the dot project.
-DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
+# uv installs the dot entry point here; the absolute path avoids Graphviz's dot on PATH.
+DOT_BIN = "{{env.HOME}}/.local/bin/dot"
 # Chezmoi traverses the source tree during parallel checks. Python's temporary
 # bytecode files can disappear between its directory listing and lstat calls.
 PYTHONDONTWRITEBYTECODE = "1"
@@ -317,8 +318,13 @@ run = "uv run --frozen --project dot dot completion --check"
 
 [tasks.deploy]
 alias = "me"
-description = "Build and install the dot Python CLI from its locked runtime graph"
-run = "\"$(mise which python)\" -I dot/src/fmind_dot/deploy.py \"$PWD\" \"$(mise which uv)\""
+description = "Install the dot CLI from this checkout with its locked dependency versions"
+# uv tool install ignores uv.lock, so the exported lock constrains it (uv skips constraint
+# hashes). --reinstall rebuilds unversioned source edits; --force replaces another ~/.local/bin/dot.
+run = [
+  "uv export --project dot --frozen --no-dev --no-emit-project --no-hashes --quiet --output-file dot/dist/constraints.txt",
+  "uv tool install --reinstall --force --python 3.14 --constraints dot/dist/constraints.txt ./dot",
+]
 
 [tasks.diff]
 alias = "md"

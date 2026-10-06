@@ -49,9 +49,6 @@ extend = "../ruff.toml"
 "tests/test_contracts.py" = [
   "SLF001", # access internal contract helpers under test
 ]
-"tests/test_deploy.py" = [
-  "SLF001", # access private deployment functions under test
-]
 
 # No blanket [tool.ty.rules] ignores. Fix diagnostics at their source and use
 # only an evidenced, narrow line-level suppression for an upstream typing defect.

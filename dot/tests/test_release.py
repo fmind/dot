@@ -17,7 +17,7 @@ GIT_CLIFF_BUMPED = ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", 
 RESTORE = ("git", "restore", "--staged", "--worktree", "--", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock")
 PUSH = ("git", "push", "--atomic", "origin", "HEAD:refs/heads/main", f"refs/tags/{TAG}")
 COMMIT = ("git", "commit", "-m", f"chore(release): {TAG}")
-DEPLOY = ("mise", "run", "--force", "deploy")
+DEPLOY = ("mise", "run", "deploy")
 
 
 class ReleaseRunner(Runner):
