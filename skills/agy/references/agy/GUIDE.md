@@ -26,7 +26,7 @@ Shell completions: after upgrades, compare native help with the deployed `~/.con
 
 ## Managed custom agents
 
-Shared roles, such as `code-reviewer`, `security-reviewer`, and `solution-architect`, inherit the session model, support main-agent and subagent use, and carry the explicit tool allowlist that [permission limits](../../../agent-project/references/cross-harness-agents.md#permission-limits) owns (agy always adds `send_message` and `manage_task`). The headless `init.tools` list shows the global registry, not a role's effective tools. Markdown agents inherit ambient skills, rules, and subagents unless `excludeDefaultComponents: true`. Their instructions, not the allowlist, bound actions.
+Shared roles, such as `code-reviewer` and `security-reviewer`, inherit the session model, support main-agent and subagent use, and carry the explicit tool allowlist that [permission limits](../../../agent-project/references/cross-harness-agents.md#permission-limits) owns (agy always adds `send_message` and `manage_task`). The headless `init.tools` list shows the global registry, not a role's effective tools. Markdown agents inherit ambient skills, rules, and subagents unless `excludeDefaultComponents: true`. Their instructions, not the allowlist, bound actions.
 
 Select with `agy --agent <role>` or `/agents`. For delegation, give the parent the role, scope, acceptance criteria, and relevant diff or evidence paths. Use `agy agents` to verify discovery after applying `~/.gemini/config/agents/` (project roles live in `.agents/agents/`); reopen the panel or start a fresh session to pick up changes.
 
@@ -36,7 +36,7 @@ agy --agent code-reviewer -i 'Review the working-tree diff. Report verified find
 
 That selects the main agent. To spawn subagents, ask the default parent explicitly: “Delegate correctness review to code-reviewer and credential/permission review to security-reviewer. Give each the relevant paths and constraints, have both report without editing, then reconcile findings.” Subagents start with fresh context; include requirements and evidence in the assignment. Use `/agents` to inspect them; `Enter` opens details and `K` terminates a selected subagent. To message an existing subagent, type `@` followed by a space and select it from autocomplete; this differs from `@path` file mentions. [Agents panel](https://antigravity.google/docs/cli/commands/agents/) and the [changelog](https://antigravity.google/docs/changelog) own current controls.
 
-Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/agents/`; chezmoi deploys them. Run `mise run format:agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
+Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/exact_agents/`; chezmoi deploys them. Run `mise run format:agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
 
 ## Official Skills
 

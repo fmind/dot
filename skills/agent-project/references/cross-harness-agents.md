@@ -18,26 +18,18 @@ mise run check:agents
 chezmoi diff --force ~/.claude/agents ~/.codex/agents ~/.copilot/agents ~/.gemini/config/agents ~/.grok/agents ~/.config/opencode/agents
 ```
 
-`supagents.yaml` maps outputs into chezmoi source paths and stays repository-only. Generated files are tracked and excluded from dprint; edit the canonical source instead. `check:agents` uses Supagents' native strict check to reject warnings and changed, missing, or obsolete generated profiles, and prints content diffs for any drift without writing. `format:agents` runs with `format` and rejects warnings before writing. Preview, then apply only affected targets with `chezmoi apply --force --exclude scripts` so unrelated hooks do not run.
+`supagents.yaml` maps outputs into chezmoi `exact_agents/` source directories and stays repository-only, so apply removes retired roles and any hand-added profile from those six home directories; keep personal roles in project agent directories. Generated files are tracked and excluded from dprint; edit the canonical source instead. `check:agents` uses Supagents' native strict check to reject warnings and changed, missing, or obsolete generated profiles, and prints content diffs for any drift without writing. `format:agents` runs with `format` and rejects warnings before writing. Preview, then apply only affected targets with `chezmoi apply --force --exclude scripts` so unrelated hooks do not run.
 
 ## Roles and invocation
 
-Each role adds a persona and a starting skill bundle to the main agent's capabilities, keeps lengthy work out of the coordinator's context, or provides an independent second opinion; it never narrows the skill catalog or the main agent's working tools (Antigravity gets them through an explicit allowlist; see [permission limits](#permission-limits)). Implementation that depends on the conversation stays in the coordinator, which loads skills on demand. Every role uses two-part names.
+Roles exist for the two delegations that pay off: read-heavy work that would flood the coordinator's context (search, research) and clean-context second opinions (reviews), which avoid the self-preference of reviewing one's own work. Implementation and decisions stay in the coordinator: parallel writers make conflicting implicit choices, and a subagent's summary is lossy, so the coordinator verifies load-bearing claims against the cited evidence before acting ([Anthropic](https://www.anthropic.com/engineering/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)). A role adds a starting skill bundle but never narrows the skill catalog or the main agent's working tools (Antigravity gets them through an explicit allowlist; see [permission limits](#permission-limits)). Every role uses two-part names; add one only after repeated delegations show it pays off.
 
-| Role                 | Purpose                                                              | Claude preloads                          |
-| -------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
-| `code-reviewer`      | Correctness, regressions, and data loss in changes                   | repository-review                        |
-| `security-reviewer`  | Vulnerabilities, secrets, supply chain, agent integrations           | code-security, threat-model              |
-| `solution-architect` | Options, trade-offs, failure modes, and diagrams                     | implementation-plan, threat-model        |
-| `product-designer`   | Journeys, copy, hierarchy, accessibility, responsive states          | product-design-review, product-loop      |
-| `ops-reviewer`       | Rollout, recovery, observability, infrastructure, containers         | production-readiness, observability      |
-| `ai-evaluator`       | Repeated-trial evaluation of prompt, model, and agent changes        | agent-evaluation, prompt-design          |
-| `content-editor`     | Accuracy, clarity, and structure while preserving the author's voice | technical-publishing, repository-docs    |
-| `deep-researcher`    | Dated, cited briefs from primary sources                             | google-developer                         |
-| `code-debugger`      | Reproduction, root cause, fix, and regression test                   | systematic-debugging, repository-history |
-| `content-presenter`  | Fmind-branded slides, diagrams, and terminal demos                   | fmind-visuals, diagrams-as-code          |
-| `course-designer`    | Lessons and executable labs with acceptance criteria                 | course-development, documentation-site   |
-| `project-maintainer` | Upkeep, upgrades, dead code, and documentation consistency           | repository-maintenance, upgrade-tools    |
+| Role                | Purpose                                                              | Claude preloads                       |
+| ------------------- | -------------------------------------------------------------------- | ------------------------------------- |
+| `code-reviewer`     | Correctness, regressions, and data loss in changes                   | repository-review                     |
+| `security-reviewer` | Vulnerabilities, secrets, supply chain, agent integrations           | code-security, threat-model           |
+| `content-editor`    | Accuracy, clarity, and structure while preserving the author's voice | technical-publishing, repository-docs |
+| `deep-researcher`   | Dated, cited briefs from primary sources                             | google-developer                      |
 
 Claude's `skills` field injects those skills when a parent delegates to the role, not when `claude --agent <role>` runs it as the main session; every body also names its starting bundle by path for the other hosts and may load any other catalog skill. Role procedures and output formats are defaults: the task overrides scope, depth, procedure, and format, and blocked steps yield partial results instead of stalls. Reviewers report first and fix only when the task asks; other roles act on the task directly. All roles read the shared persona and applicable repository instructions, may delegate where the host allows nesting, isolate only mutating checks when unrelated edits are present, and inherit model selection where the host supports it. Always pass task context explicitly; discovery does not imply transcript inheritance or automatic delegation.
 
