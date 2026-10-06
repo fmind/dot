@@ -19,7 +19,7 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
    | `*.tf` (Terraform)           | `terraform`         |
    | `*.tf` (OpenTofu)            | `opentofu`          |
 
-1. **Write the config**: weekly schedule, a 7-day cooldown, `chore(deps)` commit prefix, and one group per ecosystem for `minor` and `patch` updates so majors arrive alone:
+1. **Write the config**: weekly schedule, `chore(deps)` commit prefix, and one group per ecosystem for `minor` and `patch` updates so majors arrive alone:
 
    ```yaml
    version: 2
@@ -29,8 +29,6 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
        schedule:
          interval: weekly
          day: monday
-       cooldown:
-         default-days: 7
        commit-message:
          prefix: "chore(deps)"
        groups:
@@ -42,8 +40,6 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
        schedule:
          interval: weekly
          day: monday
-       cooldown:
-         default-days: 7
        commit-message:
          prefix: "chore(deps)"
        groups:
@@ -64,6 +60,7 @@ Keep GitHub Actions and dependencies current with one `.github/dependabot.yml`; 
 ## Gotchas
 
 - **Pin actions to commit SHAs**: pin every action to a full commit SHA with a trailing release comment; Dependabot updates both the SHA and comment, so fixes arrive as reviewable PRs without trusting a mutable tag.
+- **Skip release-age cooldowns**: updates arrive as soon as they are published; disable zizmor's `dependabot-cooldown` audit in `.github/zizmor.yml` (`rules: {dependabot-cooldown: {disable: true}}`) instead of adding `cooldown` blocks.
 - **Directory is per manifest**: a uv project under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
 - **No tokens needed**: Dependabot is native to GitHub and free for public and private repositories; the config file alone enables it.
 - **No CLI trigger**: forcing an immediate check happens only in the repository's Dependabot tab (Insights, Dependency graph).

@@ -1,0 +1,5 @@
+# Docs: https://docs.zizmor.sh/configuration/
+rules:
+  # Owner policy: take the latest releases immediately, without a release-age cooldown.
+  dependabot-cooldown:
+    disable: true
