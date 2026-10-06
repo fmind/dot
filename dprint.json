@@ -6,12 +6,12 @@
     "dot_config/mise/locks/**",
     "**/modify_*.json",
     "**/modify_*.toml",
-    "dot_claude/agents/**",
-    "dot_codex/agents/**",
-    "dot_copilot/agents/**",
-    "dot_gemini/private_config/agents/**",
-    "dot_grok/agents/**",
-    "dot_config/opencode/agents/**"
+    "dot_claude/exact_agents/**",
+    "dot_codex/exact_agents/**",
+    "dot_copilot/exact_agents/**",
+    "dot_gemini/private_config/exact_agents/**",
+    "dot_grok/exact_agents/**",
+    "dot_config/opencode/exact_agents/**"
   ],
   "markdown": {
     "textWrap": "never"
