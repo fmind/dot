@@ -13,7 +13,6 @@ from typer.core import TyperGroup, TyperOption
 from typer.main import get_command
 from typer.testing import CliRunner
 
-import fmind_dot.deploy as deploy
 import fmind_dot.hooks as hooks
 import fmind_dot.system as system
 from fmind_dot.config import Config, SecretConfig, ToolConfig
@@ -21,8 +20,6 @@ from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 from tests.fakes import ScriptedRunner
-
-_WHEEL_SHA256 = "a" * 64
 
 
 def state_with(
@@ -589,14 +586,10 @@ def test_verify_compares_installed_python_package_with_source(
     source_package.mkdir(parents=True)
     installed_package.mkdir(parents=True)
     (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
-    (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
-    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
     for package in (source_package, installed_package):
         (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
-    receipt = deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
-    assert stat.S_IMODE(receipt.stat().st_mode) == 0o600
+    monkeypatch.setattr(system, "PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(system, "_installed_version", lambda: "1.26.2")
     config = _minimal_verify_config()
 
     def source_path(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
@@ -610,119 +603,7 @@ def test_verify_compares_installed_python_package_with_source(
     (installed_package / changed_file).write_text("VALUE = 0\n", encoding="utf-8")
     stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
     assert stale["install"][0]["status"] == "fail"
-    assert "STALE" in stale["install"][0]["details"]
-
-
-def test_install_receipt_rejects_stale_package_and_binds_wheel_digest(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    source = tmp_path / "source"
-    source_package = source / "dot/src/fmind_dot"
-    installed_package = tmp_path / "installed/fmind_dot"
-    source_package.mkdir(parents=True)
-    installed_package.mkdir(parents=True)
-    (source_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (installed_package / "module.py").write_text("VALUE = 0\n", encoding="utf-8")
-    project = source / "dot/pyproject.toml"
-    project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
-    (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
-    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
-    wheel_digest = _WHEEL_SHA256
-
-    with pytest.raises(RuntimeError, match="installed Python package differs from source"):
-        deploy.write_install_receipt(source, wheel_digest, deploy._install_basis_digest(source))  # noqa: SLF001
-    assert not (installed_package / deploy.INSTALL_RECEIPT_NAME).exists()
-
-    (installed_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    receipt = deploy.write_install_receipt(
-        source,
-        wheel_digest,
-        deploy._install_basis_digest(source),  # noqa: SLF001
-    )
-    assert json.loads(receipt.read_text(encoding="utf-8")) == {
-        "basis_sha256": deploy._install_basis_digest(source),  # noqa: SLF001
-        "installed_version": "1.26.2",
-        "schema_version": 2,
-        "source_root": str(source),
-        "wheel_sha256": wheel_digest,
-    }
-    payload = json.loads(receipt.read_text(encoding="utf-8"))
-    payload["wheel_sha256"] = "not-a-digest"
-    receipt.write_text(json.dumps(payload), encoding="utf-8")
-    assert deploy.install_receipt_matches(source) is False
-
-    project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.3"\n', encoding="utf-8")
-    with pytest.raises(RuntimeError, match="installed version differs from source project"):
-        deploy.write_install_receipt(source, wheel_digest, deploy._install_basis_digest(source))  # noqa: SLF001
-
-
-def test_install_receipt_rejects_source_basis_changed_since_export(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    source = tmp_path / "source"
-    source_package = source / "dot/src/fmind_dot"
-    installed_package = tmp_path / "installed/fmind_dot"
-    source_package.mkdir(parents=True)
-    installed_package.mkdir(parents=True)
-    for package in (source_package, installed_package):
-        (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
-    lock = source / "dot/uv.lock"
-    lock.write_text("version = 1\n", encoding="utf-8")
-    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
-    expected_basis = deploy._install_basis_digest(source)  # noqa: SLF001
-    lock.write_text("version = 2\n", encoding="utf-8")
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
-
-    with pytest.raises(RuntimeError, match="source changed during deployment"):
-        deploy.write_install_receipt(source, _WHEEL_SHA256, expected_basis)
-    assert not (installed_package / deploy.INSTALL_RECEIPT_NAME).exists()
-
-
-def test_verify_receipt_binds_project_metadata_and_lock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    source = tmp_path / "source"
-    source_package = source / "dot/src/fmind_dot"
-    installed_package = tmp_path / "installed/fmind_dot"
-    source_package.mkdir(parents=True)
-    installed_package.mkdir(parents=True)
-    project = source / "dot/pyproject.toml"
-    lock = source / "dot/uv.lock"
-    project.write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
-    lock.write_text("version = 1\n", encoding="utf-8")
-    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
-    for package in (source_package, installed_package):
-        (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
-    deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
-    config = _minimal_verify_config()
-
-    def source_path(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
-        del cwd, input_text, check
-        return CommandResult(f"{source}\n", "", 0) if args == ["chezmoi", "source-path"] else CommandResult("ok", "", 0)
-
-    runner = ScriptedRunner({"chezmoi", "docker"}, run=source_path)
-    project.write_text(
-        '[project]\nname = "fmind-dot"\nversion = "1.26.2"\n[project.scripts]\ndot = "changed:main"\n',
-        encoding="utf-8",
-    )
-    metadata_stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert metadata_stale["install"][0]["details"] == "STALE: install receipt differs from source"
-
-    deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
-    lock.write_text("version = 2\n", encoding="utf-8")
-    lock_stale = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert lock_stale["install"][0]["details"] == "STALE: install receipt differs from source"
-
-    receipt = deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
-    receipt.chmod(0o644)
-    exposed_receipt = system.run_doctor(state_with(runner, config), fix=False, deep=True)
-    assert exposed_receipt["install"][0]["details"] == "STALE: install receipt differs from source"
+    assert stale["install"][0]["details"] == "STALE: installed Python package differs from source"
 
 
 def test_install_verification_classifies_source_resolution_and_checkout_failures(
@@ -763,7 +644,7 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
     (installed_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     project = source / "dot/pyproject.toml"
     project.write_text("not = [valid", encoding="utf-8")
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", installed_package)
+    monkeypatch.setattr(system, "PACKAGE_DIRECTORY", installed_package)
     runner = ScriptedRunner(
         {"chezmoi"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{source}\n", "", 0),
@@ -777,13 +658,13 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
 
 
 def test_doctor_from_a_source_checkout_skips_install_freshness(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    # `uv run --project dot dot doctor` imports the checkout itself, which never carries a receipt.
+    # `uv run --project dot dot doctor` imports the checkout itself, which trivially matches its source.
     source = tmp_path / "checkout"
     package = source / "dot/src/fmind_dot"
     package.mkdir(parents=True)
     (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "0.0.0"\n', encoding="utf-8")
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", package)
+    monkeypatch.setattr(system, "PACKAGE_DIRECTORY", package)
     runner = ScriptedRunner(
         {"chezmoi"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{source}\n", "", 0),
@@ -794,52 +675,6 @@ def test_doctor_from_a_source_checkout_skips_install_freshness(monkeypatch: pyte
     assert (result.status, result.condition) == ("skip", "skipped")
     assert "source checkout" in result.details
     assert "STALE" not in result.details
-
-
-def test_install_receipt_fails_closed_for_symlinked_package_and_atomic_publish_error(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setattr(deploy, "_installed_version", lambda: "1.26.2")
-    source = tmp_path / "source"
-    source_package = source / "dot/src/fmind_dot"
-    source_package.mkdir(parents=True)
-    (source_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (source / "dot/pyproject.toml").write_text('[project]\nname = "fmind-dot"\nversion = "1.26.2"\n', encoding="utf-8")
-    (source / "dot/uv.lock").write_text("version = 1\n", encoding="utf-8")
-    (source / "dot/LICENSE").write_text("Fixture license\n", encoding="utf-8")
-    real_package = tmp_path / "installed"
-    real_package.mkdir()
-    package_link = tmp_path / "installed-link"
-    package_link.symlink_to(real_package, target_is_directory=True)
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", package_link)
-    with pytest.raises(RuntimeError, match="must be a real directory"):
-        deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
-
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", real_package)
-    (real_package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    original_replace = Path.replace
-
-    def fail_receipt_replace(path: Path, target: Path) -> Path:
-        if path.name.startswith(f".{deploy.INSTALL_RECEIPT_NAME}."):
-            raise OSError("publish denied")
-        return original_replace(path, target)
-
-    monkeypatch.setattr(Path, "replace", fail_receipt_replace)
-    with pytest.raises(OSError, match="publish denied"):
-        deploy.write_install_receipt(source, _WHEEL_SHA256, deploy._install_basis_digest(source))  # noqa: SLF001
-    assert [path.name for path in real_package.iterdir()] == ["module.py"]
-
-
-def test_malformed_install_receipt_is_never_accepted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    package = tmp_path / "installed"
-    package.mkdir()
-    receipt = package / deploy.INSTALL_RECEIPT_NAME
-    receipt.write_text("{malformed", encoding="utf-8")
-    receipt.chmod(0o600)
-    monkeypatch.setattr(deploy, "PACKAGE_DIRECTORY", package)
-
-    assert deploy.install_receipt_matches(tmp_path) is False
 
 
 def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest.MonkeyPatch) -> None:

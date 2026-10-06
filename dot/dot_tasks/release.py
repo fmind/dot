@@ -144,8 +144,8 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
             f"git push --atomic {remote} HEAD:refs/heads/{branch} refs/tags/{bumped}"
         )
     # The release commit changes package metadata, so refresh the installed CLI.
-    if _interactive(state, ["mise", "run", "--force", "deploy"], root) != 0:
-        raise DotError(f"pushed {bumped}, but refreshing the installed CLI failed; retry: mise run --force deploy")
+    if _interactive(state, ["mise", "run", "deploy"], root) != 0:
+        raise DotError(f"pushed {bumped}, but refreshing the installed CLI failed; retry: mise run deploy")
     state.stdout.write(f"✓ Pushed {bumped}; CD gates and publishes it.\n{_CD_URL}\n")
     return bumped
 

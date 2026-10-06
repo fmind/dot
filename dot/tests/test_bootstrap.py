@@ -237,7 +237,7 @@ elif args == ["deploy"]:
     record("deploy")
     if os.environ.get("FAIL_STEP") == "deploy":
         raise SystemExit(42)
-    dot = home / ".local/share/fmind-dot/current/bin/dot"
+    dot = home / ".local/bin/dot"
     dot.parent.mkdir(parents=True, exist_ok=True)
     dot.unlink(missing_ok=True)
     dot.symlink_to(__file__)
@@ -261,7 +261,7 @@ def run_task_bootstrap(
         (bin_directory / name).symlink_to(tool)
     config = tomllib.loads((ROOT / "mise.toml").read_text())
     # Keep task bodies and environment from the repository, but install no real
-    # tools. The deployment implementation has separate locked-wheel tests.
+    # tools; the deploy fixture stands in for uv tool install.
     lines = ["[settings.task]", "run_auto_install = false", "[task_config]", 'dir = "{{config_root}}"', "[env]"]
     lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["env"].items())
     for name in ("tools", "install", "apply", "completions"):
@@ -277,17 +277,13 @@ def run_task_bootstrap(
     (source / "dot_codex/config.toml").write_text('model = "fixture"\n')
     (source / "dot_config/bat/themes").mkdir(parents=True)
     (source / "dot_config/bat/themes/fmind.tmTheme").write_text("fixture theme\n")
-    (source / "dot_local/bin").mkdir(parents=True)
-    shutil.copyfile(ROOT / "dot_local/bin/symlink_dot.tmpl", source / "dot_local/bin/symlink_dot.tmpl")
     for name in ("run_after_dot-trust.sh.tmpl", "run_after_bat-theme.sh.tmpl"):
         shutil.copyfile(ROOT / name, source / name)
     if old_dot:
-        installed = home / ".local/share/fmind-dot/current/bin/dot"
+        installed = home / ".local/bin/dot"
         installed.parent.mkdir(parents=True)
         installed.write_text('#!/bin/sh\necho "old dot has no trust command" >&2\nexit 99\n')
         installed.chmod(0o755)
-        (home / ".local/bin").mkdir(parents=True)
-        (home / ".local/bin/dot").symlink_to(installed)
     chezmoi_config = root / "chezmoi.toml"
     chezmoi_config.write_text("")
     real_mise, real_chezmoi = shutil.which("mise"), shutil.which("chezmoi")

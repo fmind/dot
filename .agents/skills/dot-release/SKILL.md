@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Dot Release
@@ -21,7 +21,7 @@ Use the checkout's release task as the single owner of preparation and publicati
 1. **Commit the candidate**: group verified work into logical [Conventional Commits](../../../skills/git-delivery/references/conventional-commit.md) (the changelog is generated from them), then `git fetch` and push `main` so HEAD equals upstream; pre-push hooks rerun the network checks and tests. If upstream moved, integrate it without rewriting history only when its commits do not overlap the candidate; otherwise stop.
 1. **Know the preconditions**: the task stops before writing unless `git`, `git-cliff`, `mise`, and `uv` exist, the tree is clean on `--branch` (default `main`), HEAD equals the fetched `--remote` (default `origin`), and the next tag is absent locally; without new Conventional Commits it releases nothing. Preserve unrelated work when a precondition fails.
 1. **Run the owner**: use the commands below from the repository; the task runs from source (`uv run --frozen --directory dot python -m dot_tasks.release`), not the possibly stale installed CLI.
-1. **Read the result**: the task bumps `dot/pyproject.toml`, `CHANGELOG.md`, and `dot/uv.lock` (only those files may change), gates the bumped commit (`test:starters`, which re-resolves unlocked upstream packages since CI ran, `build`, and the host-only `check:completions`), then commits with the Lefthook output visible, tags, pushes both with `git push --atomic`, and runs `mise run --force deploy`.
+1. **Read the result**: the task bumps `dot/pyproject.toml`, `CHANGELOG.md`, and `dot/uv.lock` (only those files may change), gates the bumped commit (`test:starters`, which re-resolves unlocked upstream packages since CI ran, `build`, and the host-only `check:completions`), then commits with the Lefthook output visible, tags, pushes both with `git push --atomic`, and runs `mise run deploy`.
 1. **Verify delivery**: the tag triggers [cd.yml](../../../.github/workflows/cd.yml): a read-only `gate` job reruns `mise run all` and extracts the git-cliff notes; a `publish` job holding only `contents: write`, with no checkout, creates the GitHub release. Confirm with `gh run list --workflow cd.yml --branch <tag>` and `gh release view <tag>`. Local command success does not prove CD completion.
 
 ```bash
@@ -38,7 +38,7 @@ Inspect `git status --short`, the release commit, local tag, and remote state be
 | Before the release commit                  | The command restores the version, changelog, and lockfile from HEAD with `git restore`. Fix the original failure, then rerun.                                  |
 | Local tag already exists                   | Preflight stops before writing files. Delete the leftover tag with `git tag -d <tag>` after confirming it never reached the remote, then rerun.                |
 | Commit and tag created, atomic push failed | Nothing reached the remote. Retry the push the error prints; if upstream moved, delete the local tag, reset the release commit, integrate upstream, and rerun. |
-| Push accepted, installation refresh failed | Verify the remote commit, tag, and CD independently, then retry `mise run --force deploy`. An installation error does not undo publication.                    |
+| Push accepted, installation refresh failed | Verify the remote commit, tag, and CD independently, then retry `mise run deploy`. An installation error does not undo publication.                            |
 | CD gate failed on the tag                  | No release was created. Fix forward on `main` and release the next version; do not move published tags or rewrite history as an automatic repair.              |
 
 ## Documentation
