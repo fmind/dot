@@ -20,7 +20,7 @@ encryption = "age"
 
 [edit]
     apply = true
-    command = "nvim"
+    command = {{ joinPath .chezmoi.homeDir ".local/bin/nvim-tty" | quote }}
 
 [diff]
     # Diffs land in agent transcripts and logs; `chezmoi status` still flags encrypted drift.
@@ -28,7 +28,7 @@ encryption = "age"
     pager = "delta --paging=never"
 
 [merge]
-    command = "nvim"
+    command = {{ joinPath .chezmoi.homeDir ".local/bin/nvim-tty" | quote }}
     args = [
         "-d",
         "{{`{{ .Destination }}`}}",
