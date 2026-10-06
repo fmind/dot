@@ -199,9 +199,10 @@ def test_invalid_batch_does_not_launch(tmp_path: Path, mutation: str) -> None:
 def test_cancellation_stops_descendants_and_queue(tmp_path: Path, ignore_term: bool) -> None:
     first, second = task(tmp_path, "first"), task(tmp_path, "second")
     # A worker that ignores SIGTERM outlasts the grace period; it must still end canceled, not failed.
+    # SIG_IGN is inherited, so the grandchild survives until SIGKILL: its delay must exceed the 2s grace.
     first["command"][2] = ("import signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); " if ignore_term else "") + (
         "import subprocess,sys,time,pathlib; "
-        "p=subprocess.Popen([sys.executable,'-c',\"import time,pathlib; time.sleep(2); pathlib.Path('leaked').touch()\"]); "
+        "p=subprocess.Popen([sys.executable,'-c',\"import time,pathlib; time.sleep(4); pathlib.Path('leaked').touch()\"]); "
         "pathlib.Path('ready').touch(); time.sleep(30)"
     )
     manifest = tmp_path / "batch.json"
@@ -219,7 +220,7 @@ def test_cancellation_stops_descendants_and_queue(tmp_path: Path, ignore_term: b
         os.kill(process.pid, signal.SIGTERM)
         stdout, _ = process.communicate(timeout=30)
     assert [t["state"] for t in json.loads(stdout)["tasks"]] == ["canceled", "canceled"]
-    time.sleep(2.1)
+    time.sleep(4)
     assert not (tmp_path / "first/leaked").exists()
     assert not (tmp_path / "second/artifact").exists()
 
