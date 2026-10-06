@@ -1,6 +1,7 @@
 # Docs: https://git-scm.com/docs/gitignore
 
-# Machine-local agent state; project code and tooling rules belong in .gitignore.
+# Machine-local OS and agent state; project code and tooling rules belong in .gitignore.
+.DS_Store
 # Shareable project config stays visible (see the agent-project skill's host setup).
 .agents/prompts/
 .agents/tmp/
