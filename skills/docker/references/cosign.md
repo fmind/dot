@@ -5,7 +5,7 @@ description: "Image signatures, identity verification, and attestations."
 
 # Cosign
 
-Keyless signing with Sigstore: an OIDC identity (a GitHub Actions workflow or a developer's browser login) signs the image digest and anyone verifies it without managing keys; [containerize](../SKILL.md) builds the image and [github-actions](../../github-actions/references/ci-cd/GUIDE.md) wires the CD job.
+Keyless signing with Sigstore: an OIDC identity (a GitHub Actions workflow or a developer's browser login) signs the image digest and anyone verifies it without managing keys; [containerize](containerize/GUIDE.md) builds the image and [github-actions](../../github-actions/references/ci-cd/GUIDE.md) wires the CD job.
 
 ## Commands
 
@@ -42,4 +42,4 @@ Seed the exact Cosign version from the workstation lock, add it to the project t
 
 - [cosign](https://docs.sigstore.dev/cosign/) · [transparency and identity](https://docs.sigstore.dev/cosign/signing/overview/)
 - Releases: [cosign](https://github.com/sigstore/cosign/releases) · [changelog](https://github.com/sigstore/cosign/blob/main/CHANGELOG.md)
-- Companion skills: [containerize](../SKILL.md) (builds the image), [github-actions](../../github-actions/references/ci-cd/GUIDE.md) (CD job), [code-security](../../code-security/references/code-review/GUIDE.md).
+- Companion skills: [containerize](containerize/GUIDE.md) (builds the image), [github-actions](../../github-actions/references/ci-cd/GUIDE.md) (CD job), [code-security](../../code-security/references/code-review/GUIDE.md).

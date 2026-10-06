@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Full Review
@@ -27,7 +27,7 @@ Parse the request into one line and state it before starting: scope (paths, othe
    - **Works**: every task and CLI entry point runs clean with no warnings ([smoke](../smoke/SKILL.md)); production or deployed endpoints are probed read-only when they exist.
    - **Current**: tools, dependencies, actions, and runtimes against their latest releases ([upgrade-tools](../upgrade-tools/SKILL.md)); report drift and upgrade when the request says so.
    - **Simple**: dead code, legacy paths, orphan files, stale config, unearned abstractions, and verbose docs ([trim](../trim/SKILL.md)); prefer deletion and consolidation, never a heavier mechanism.
-   - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; ignore files fit the stack ([update-ignores](../update-ignores/SKILL.md)).
+   - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; ignore files fit the stack ([update-ignores](../repository-maintenance/references/update-ignores/GUIDE.md)).
    - **Secure and private**: secrets, permissions, dependencies, and agent tools ([code-security](../code-security/SKILL.md)); private repositories stay private and public ones disclose nothing sensitive.
    - **Documented**: `README.md`, `AGENTS.md`, skills, and `*.md` match behavior, stay concise, and convince their audience ([repository-docs](../repository-docs/SKILL.md)).
    - **Fast**: slow tasks, tests, CI, or pages with a measured cause ([benchmark](../benchmark/SKILL.md)).

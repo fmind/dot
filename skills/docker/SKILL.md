@@ -1,18 +1,18 @@
 ---
 name: docker
-description: "Run and inspect Docker containers, Compose stacks, and Colima."
+description: "Run Docker, Compose, and Colima; build, scan, sign, and verify Python images."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Docker and Container Runtime Management
 
-Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. [containerize](../containerize/SKILL.md) builds and signs images; [trivy](../code-security/references/trivy/GUIDE.md) scans them for vulnerabilities.
+Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. The [containerize](references/containerize/GUIDE.md) guide builds, publishes, and signs Python images; [trivy](../code-security/references/trivy/GUIDE.md) scans them for vulnerabilities.
 
 Docker, Compose, and Colima are host prerequisites; workstation tools do not install or start them. Inspect `docker context ls` before choosing a runtime and pass `docker --context <context>` on consequential commands; do not change the persistent default just to run a task. Container runs execute project code; reuse authority for the requested workload and resolve missing scope before running untrusted images or consequential workloads. Preserve existing volumes and containers.
 
@@ -47,7 +47,7 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
    docker logs --since 15m --tail 100 <container-id>
    ```
 
-1. **Clean up task resources**: use `docker run --rm <existing-image-or-approved-digest> <command>` for ephemeral runs, and follow [resource cleanup](../containerize/references/resource-cleanup.md) for task-created volumes, networks, images, and builders.
+1. **Clean up task resources**: use `docker run --rm <existing-image-or-approved-digest> <command>` for ephemeral runs, and follow [resource cleanup](references/resource-cleanup.md) for task-created volumes, networks, images, and builders.
 
 ## Gotchas
 
@@ -58,6 +58,8 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
 <!-- guides:start -->
 
 - [colima](references/colima.md): Run Docker on macOS through Colima: VM start, socket, memory limits, and mounts.
+- [containerize](references/containerize/GUIDE.md): Build, scan, sign, and verify Python container images with Trivy and Cosign.
+- [cosign](references/cosign.md): Image signatures, identity verification, and attestations.
 
 <!-- guides:end -->
 
@@ -66,4 +68,4 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
 - [Docker Documentation](https://docs.docker.com/) · [Docker Compose Reference](https://docs.docker.com/compose/)
 - [Lazydocker](https://github.com/jesseduffield/lazydocker)
 - Releases: [Docker Engine](https://docs.docker.com/engine/release-notes/)
-- Companion skills: [containerize](../containerize/SKILL.md) (image authoring), [trivy](../code-security/references/trivy/GUIDE.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).
+- Companion skills: [cloud-run](../cloud-run/SKILL.md) (deployment), [trivy](../code-security/references/trivy/GUIDE.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).
