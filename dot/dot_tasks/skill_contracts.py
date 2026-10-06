@@ -292,7 +292,10 @@ def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
         if path.relative_to(skill.parent).as_posix() not in _document_targets(body):
             findings.append(f"{_relative(root, path)}: guide needs a direct link from SKILL.md")
     if (guides or GUIDE_START in body or "## Task guides" in body) and _guide_index(skill.parent, root) not in body:
-        findings.append(f"{_relative(root, skill)}: stale guide index; run mise run format:skills")
+        if GUIDE_START in body and GUIDE_END in body:
+            findings.append(f"{_relative(root, skill)}: stale guide index; run mise run format:skills")
+        else:
+            findings.append(f"{_relative(root, skill)}: add {GUIDE_START} and {GUIDE_END} markers for the guide index")
     return findings
 
 

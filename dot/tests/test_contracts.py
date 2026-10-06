@@ -288,6 +288,9 @@ def test_skills_guide_metadata_drives_index_and_detects_stale_description(tmp_pa
     assert checker.repository_findings(root) == []
     guide.write_text(guide.read_text().replace("Diagnose a fixture failure.", "Recover a fixture after interruption."))
     assert any("stale guide index" in item for item in checker.repository_findings(root))
+    # Without markers, format:skills cannot rewrite the index, so the finding names the markers.
+    path.write_text(path.read_text().replace(checker.GUIDE_START, "").replace(checker.GUIDE_END, ""))
+    assert any("add <!-- guides:start -->" in item for item in checker.repository_findings(root))
 
 
 def test_skills_nested_resources_are_reachable_but_disconnected_cycles_are_not(tmp_path: Path) -> None:
