@@ -44,7 +44,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "18.1.4"
+version = "18.1.5"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -54,9 +54,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cc/e0/8187f2180d2787b9e81b5748f8c630efcc1e01cdd05a980932325da1ea62/brain_framework-18.1.4.tar.gz", hash = "sha256:499489db565c46d86f4d175adf9d8314cae8de12181f95512b09fff694e4250e", size = 252103, upload-time = "2026-10-04T14:37:22.489Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/52/f40210e2376c76f18b33c79c2f4e685b9541e828b6399b6a899b8d33e978/brain_framework-18.1.5.tar.gz", hash = "sha256:de60164af8ae510e3d09f5c111d2161b6fc9a1363b03101647c3ee192b4db5d7", size = 252122, upload-time = "2026-10-06T12:10:51.017Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/aa/fce23f1f496852afecd1f0a77e1db02121d987ab65c08653ba99c238a0f0/brain_framework-18.1.4-py3-none-any.whl", hash = "sha256:1cdbb73ef99ee7f5192dc440b6710e2508eef057a6deaece893eb72d7b0e8071", size = 281770, upload-time = "2026-10-04T14:37:20.92Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/f7/a3fe940859ab21b17690b33da2b8dae62b8b0d86caac3ee4621f285d2ad2/brain_framework-18.1.5-py3-none-any.whl", hash = "sha256:0170af56234451081dc2ada8d435784906e5322197bc942b493f6dd399bbe22f", size = 281772, upload-time = "2026-10-06T12:10:49.283Z" },
 ]
 
 [[package]]
@@ -350,18 +350,18 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==18.1.4" }]
+requires-dist = [{ name = "brain-framework", specifier = "==18.1.5" }]
 
 [[package]]
 name = "opentelemetry-api"
-version = "1.45.0"
+version = "1.45.1"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/dc/e12c1fe1ed8a7b7149777127b1a0e12ce5bd5a81d97408bedc2128c260f5/opentelemetry_api-1.45.0.tar.gz", hash = "sha256:711ede81773c8025c2c03dac0450bc89f3d30aea6eabcc815c570d4e35a963f7", size = 72115, upload-time = "2026-09-25T12:32:28.399Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/02/6e0ae9cc61bd3169d401077b507b3ebc344745171e1051ab430be012dcd9/opentelemetry_api-1.45.1.tar.gz", hash = "sha256:aa38ed19bcc084ba42782a73255b3582283eced7ad6dddbd6695189e69adfb75", size = 72804, upload-time = "2026-10-06T17:32:58.133Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/b9/040d1a1c7836922828e6480cd2366bb8fe0ebf75b413d2bb51a9b0e7f78f/opentelemetry_api-1.45.0-py3-none-any.whl", hash = "sha256:80e068aba7cd56c8b58512d6a36f8d25cb1dfaa0c0a4cc1c938ccf9f362d9cb3", size = 60020, upload-time = "2026-09-25T12:32:03.192Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/41/f7dcf80b81ee8e71c1a2b59f14208bc723edbd89ed027a73b175abf6348e/opentelemetry_api-1.45.1-py3-none-any.whl", hash = "sha256:b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb", size = 60256, upload-time = "2026-10-06T17:32:33.506Z" },
 ]
 
 [[package]]
@@ -637,7 +637,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.27.2"
+version = "0.27.3"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "annotated-doc" },
@@ -645,9 +645,9 @@ dependencies = [
     { name = "rich" },
     { name = "shellingham" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/f7/57713ba479fd405eb76de31404b2c744c289e336b2d999511ebf51e496f7/typer-0.27.2.tar.gz", hash = "sha256:269b7eb9d3c202ca84b4bc9618cb04ebb43d3d4d1e567e4c768607232c05f945", size = 204045, upload-time = "2026-08-28T10:26:55.046Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/51/d33db42cc72ffd8c30777547b42d01f0cbf9d95a770457698d0174b3ed71/typer-0.27.3.tar.gz", hash = "sha256:d0396f770a560ab1b0a8504e13b5f254b728cedb05c61cf0359e944e50ce8901", size = 205303, upload-time = "2026-10-06T17:24:16.61Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/bf/205d0004930ede8f542fb58f601526fccf4ae7626075ca1e6c4de5d3d652/typer-0.27.2-py3-none-any.whl", hash = "sha256:b3a5fc4342d5fc8fda8fc3010b1cf117e9249aab7fae800c2eff62fd3842d97d", size = 123130, upload-time = "2026-08-28T10:26:53.752Z" },
+    { url = "https://files.pythonhosted.org/packages/07/ea/2e31b67051e91a133189e9c000c222502ddc6969856416de0d095de4c0b0/typer-0.27.3-py3-none-any.whl", hash = "sha256:e50022f28b82a86313e54501317a1db64bf8f8d036ff8cfe5ca7e47675454aff", size = 123312, upload-time = "2026-10-06T17:24:15.054Z" },
 ]
 
 [[package]]
