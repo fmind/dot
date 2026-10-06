@@ -1,7 +1,5 @@
 # Loop Topology
 
-Keep a layer only when it closes a distinct feedback horizon; merge roles that merely rename another layer.
-
 | Loop   | Decision horizon                 | Owns                                                                                   | Exit contract                                      |
 | ------ | -------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | Inner  | One hypothesis or work item      | Controls, one bounded action, observation, verdict, and item checkpoint                | Return after one evidence-producing action         |

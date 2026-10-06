@@ -1,6 +1,6 @@
 # Demand Tests
 
-Two bounded protocols for the Discover and Launch phases of [product-loop](../SKILL.md). Planning either is read-only: contacting or recording a person, retaining identifiable notes, publishing a quote, sending outreach, mutating a CRM or account, or changing a price requires explicit authorization for the exact action and scope, applicable consent, and a stated data-retention boundary.
+Two bounded protocols for the Discover and Launch phases of [product-loop](../SKILL.md). Planning either is read-only; drafting targets, scripts, pricing, and a CRM schema is allowed. Contacting or recording a person, retaining identifiable notes, sending outreach or messages, publishing (including a quote), advertising, mutating a CRM or account, contracts, payments, discounts, price changes, and spend require explicit authorization for the exact action and scope, applicable consent, and a stated data-retention boundary.
 
 ## Customer Interview Protocol
 
@@ -21,4 +21,3 @@ Use a bounded commercial experiment when the launch job is to validate a segment
 1. **Design the progression**: separate discovery, qualification, solution fit, commercial proposal, and next commitment; track time to first value, objections, lost reasons, no-decisions, stakeholder changes, and the exact commitment that advances or ends an opportunity.
 1. **Form the pricing hypothesis**: value metric, packaging, price or range, trial or paid-pilot structure, discount guardrail, contract assumptions, and why the customer captures more value than the price; price-sensitivity surveys and competitive anchors are inputs, not proof of buying behavior.
 1. **Predeclare evidence**: account count or exposure, observation window, qualified-conversation rate, next-commitment or payment signal, activation and retention guardrails, support cost, success threshold, and kill threshold; never reinterpret free interest as willingness to pay.
-1. **Protect authority**: drafting targets, scripts, pricing, and a CRM schema is allowed; outreach, message sending, CRM or account mutation, contracts, payment or production price changes, publication, advertising, discounts, and spend require explicit authorization.
