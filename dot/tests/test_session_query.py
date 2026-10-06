@@ -117,6 +117,8 @@ def test_show_content_of_unreadable_bundle_fails_with_recapture_hint(
     assert shown.exit_code == 1
     assert json.loads(shown.stdout)["session"]["status"] == ["invalid"]
     assert "dot agent session sync --agent claude --session broken" in str(shown.exception)
+    # Sync skips an unchanged source, so the hint must move the corrupt bundle aside first.
+    assert "claude/broken.jsonl aside" in str(shown.exception)
 
 
 def test_query_surfaces_partial_unsupported_and_invalid_sessions(
