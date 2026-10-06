@@ -65,9 +65,39 @@ def _configure_hooks(home: Path, binary: str = "dot") -> None:
     _write(home / ".copilot/settings.json", json.dumps({"notifications": True}))
 
 
+def _configure_discovery(home: Path) -> None:
+    """Lay out the shared persona, skills, and per-host links and profiles as chezmoi deploys them."""
+    _write(home / ".agents/AGENTS.md", "# Persona\n")
+    _write(home / ".agents/skills/sample/SKILL.md", "---\nname: sample\n---\n")
+    for persona in (
+        ".gemini/GEMINI.md",
+        ".claude/CLAUDE.md",
+        ".codex/AGENTS.md",
+        ".grok/AGENTS.md",
+        ".copilot/copilot-instructions.md",
+        ".config/opencode/AGENTS.md",
+    ):
+        (home / persona).parent.mkdir(parents=True, exist_ok=True)
+        (home / persona).symlink_to(home / ".agents/AGENTS.md")
+    for link in (".gemini/config/skills", ".claude/skills", ".grok/skills"):
+        (home / link).parent.mkdir(parents=True, exist_ok=True)
+        (home / link).symlink_to(home / ".agents/skills", target_is_directory=True)
+    for profile in (
+        ".gemini/config/agents/reviewer.md",
+        ".claude/agents/reviewer.md",
+        ".codex/agents/reviewer.toml",
+        ".grok/agents/reviewer.md",
+        ".copilot/agents/reviewer.agent.md",
+        ".config/opencode/agents/reviewer.md",
+    ):
+        _write(home / profile, "reviewer\n")
+
+
 def _state(monkeypatch: pytest.MonkeyPatch, home: Path) -> State:
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "1")
     _configure_hooks(home)
+    _configure_discovery(home)
     state = State(stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO())
     for agent in state.config.agent.sources:
         state.config.agent.sources[agent] = str(home / "sources" / agent)
@@ -461,3 +491,33 @@ def test_doctor_requires_a_complete_pass_despite_windowed_syncs(
 
     assert (result.last_sync, result.healthy) == ("stale" if complete else "never", False)
     assert result.next == "dot agent session sync --agent grok"
+
+
+def test_doctor_reports_broken_discovery_per_host(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    state = _state(monkeypatch, tmp_path)
+    (tmp_path / ".grok/skills").unlink()
+    (tmp_path / ".grok/skills").mkdir()
+    (tmp_path / ".codex/AGENTS.md").unlink()
+    (tmp_path / ".copilot/agents/reviewer.agent.md").unlink()
+
+    with pytest.raises(DotError, match="unhealthy"):
+        run_agent_doctor(state)
+
+    results = {result.agent: result for result in gather_agent_doctor(state)}
+    assert results["grok"].discovery == "broken:skills"
+    assert results["codex"].discovery == "broken:persona"
+    assert results["copilot"].discovery == "broken:agents"
+    assert results["claude"].discovery == "ok"
+    assert "chezmoi apply --force" in results["grok"].next
+
+
+def test_doctor_flags_opencode_duplicate_skills_without_the_opt_out(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    monkeypatch.delenv("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS")
+
+    result = gather_agent_doctor(state, agent="opencode")[0]
+
+    assert (result.discovery, result.healthy) == ("broken:duplicate-skills", False)
+    assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in result.next

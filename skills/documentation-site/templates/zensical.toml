@@ -1,6 +1,6 @@
 # Docs: https://zensical.org/docs/setup/basics/
 # Starter for new Zensical sites; replace every <placeholder> and delete unused sections.
-# Every key below was validated with `zensical build --clean --strict` on Zensical 0.0.67.
+# Every key below was validated with `zensical build --clean --strict` on Zensical 0.0.68.
 
 [project]
 site_name = "<Project>"

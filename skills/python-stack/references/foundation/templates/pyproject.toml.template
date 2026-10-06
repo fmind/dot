@@ -13,7 +13,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-  "lefthook>=2.1.10",
+  "deptry>=0.25.1",
   "pdoc>=16.0.0",
   "pytest-cov>=7.1.0",
   "pytest-watcher>=0.6.3",

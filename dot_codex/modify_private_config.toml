@@ -23,6 +23,12 @@ enabled = false
 [otel]
 metrics_exporter = "none"
 
+# Codex runs commands in a pseudo-terminal, so git credential and gcloud prompts would wait
+# on input no agent answers; fail or take the default instead (Claude sets the same pair).
+[shell_environment_policy.set]
+CLOUDSDK_CORE_DISABLE_PROMPTS = "1"
+GIT_TERMINAL_PROMPT = "0"
+
 # The TUI owns attention alerts: Stop hooks can run before automatic continuation.
 [tui]
 notifications = true

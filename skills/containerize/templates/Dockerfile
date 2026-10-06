@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Docs: https://docs.docker.com/reference/dockerfile/
-FROM python:3.14.8-slim@sha256:89fb7d3da20043c370643435258bdd7ab755d326d359001d02988ed15ae5219e AS build
+FROM python:3.14.8-slim@sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151 AS build
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 # Use the base image Python in both stages; a managed download breaks the copied .venv.
@@ -15,7 +15,7 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
   uv sync --locked --no-dev --no-editable
 
-FROM python:3.14.8-slim@sha256:89fb7d3da20043c370643435258bdd7ab755d326d359001d02988ed15ae5219e
+FROM python:3.14.8-slim@sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app

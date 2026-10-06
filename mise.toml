@@ -3,7 +3,7 @@
 
 # Fail before running tasks on a mise that predates the GITHUB_TOKEN trust fixes and
 # lockfile revision 3; keep equal to install.sh and the workflow pins.
-min_version = "2026.10.2"
+min_version = "2026.10.3"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
@@ -31,8 +31,6 @@ DOT_BIN = "{{env.HOME}}/.local/share/fmind-dot/current/bin/dot"
 PYTHONDONTWRITEBYTECODE = "1"
 
 [vars]
-# First-party Python outside skill templates; shared by check:python and format:python.
-python_sources = "dot dot_config/ptpython/config.py skills/gws/scripts skills/agy/scripts skills/delegate-tasks/scripts skills/clipboard/scripts skills/diagrams-as-code/references/svg/scripts skills/fmind-visuals/scripts skills/social-post/scripts skills/update-ignores/scripts skills/cloud-run/templates"
 # Shared by format:agents (build) and check:agents (check); --strict rejects source warnings.
 supagents_args = "--strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
@@ -156,10 +154,11 @@ run = "stylua --check dot_config/nvim"
 [tasks."check:python"]
 alias = "cp"
 description = "Lint, format-check, type-check, and validate Python packaging"
+# ruff.toml scopes Ruff. ty skips dot_config/ptpython, whose prompt_toolkit import is outside the dot environment.
 run = [
-  "uv run --frozen --project dot ruff check {{vars.python_sources}}",
-  "uv run --frozen --project dot ruff format --check {{vars.python_sources}}",
-  "uv run --frozen --directory dot ty check src dot_tasks tests ../skills/gws/scripts ../skills/agy/scripts ../skills/delegate-tasks/scripts ../skills/clipboard/scripts ../skills/diagrams-as-code/references/svg/scripts ../skills/fmind-visuals/scripts ../skills/social-post/scripts ../skills/update-ignores/scripts ../skills/cloud-run/templates",
+  "uv run --frozen --project dot ruff check .",
+  "uv run --frozen --project dot ruff format --check .",
+  "uv run --frozen --project dot ty check --project dot dot skills --exclude 'skills/*/references/*/templates'",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
   "uv lock --check --project dot",
 ]
@@ -172,15 +171,15 @@ run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/ter
 [tasks."check:shell"]
 alias = "cs"
 description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh and plain run scripts"
-# shellcheck cannot parse {{ }} actions, so templates are rendered with prompt defaults
-# first. Modify templates render their managed block against an empty target. shfmt
-# skips templates: it cannot rewrite a template from its rendered copy.
+# shellcheck cannot parse {{ }} actions, so templates are rendered first; they use only
+# built-in .chezmoi data, so no init is needed. Modify templates render their managed
+# block against an empty target. shfmt skips templates: it cannot rewrite a template
+# from its rendered copy.
 run = """
 rendered="$(mktemp -d)"
 trap 'rm -rf "$rendered"' EXIT
-chezmoi init --source "$PWD" --config-path "$rendered/chezmoi.toml" --persistent-state "$rendered/state.boltdb" --promptDefaults
 for template in run_*.sh.tmpl modify_dot_*; do
-  chezmoi execute-template --source "$PWD" --config "$rendered/chezmoi.toml" --persistent-state "$rendered/state.boltdb" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
+  chezmoi execute-template --source "$PWD" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
 shellcheck --rcfile dot_config/shellcheckrc install.sh run_*.sh "$rendered"/*.bash
 shfmt -d -i 2 -s install.sh run_*.sh
@@ -250,8 +249,8 @@ run = "stylua"
 alias = "fp"
 description = "Apply safe lint fixes and format Python sources"
 run = [
-  "mise run format:python:fix {{vars.python_sources}}",
-  "mise run format:python:style {{vars.python_sources}}",
+  "mise run format:python:fix .",
+  "mise run format:python:style .",
 ]
 
 [tasks."format:python:fix"]
@@ -324,7 +323,7 @@ run = "\"$(mise which python)\" -I dot/src/fmind_dot/deploy.py \"$PWD\" \"$(mise
 [tasks.diff]
 alias = "md"
 description = "Show the pending chezmoi diff"
-run = "chezmoi diff --force"
+run = "chezmoi diff --force --no-pager --exclude encrypted"
 
 [tasks.doctor]
 alias = "mo"
@@ -339,14 +338,14 @@ run = "lefthook install"
 
 [tasks.lock]
 alias = "mk"
-description = "Refresh Python, repo, home, and Neovim lockfiles"
+description = "Refresh Python, repo, and home lockfiles"
+# The Neovim lockfile is captured only by upgrade, after it applies and updates plugins:
+# re-adding here would copy an older deployed lock over a newer pulled source.
 run = [
   "uv lock --project dot",
   "mise lock --yes",
   # Resolve the portable source baseline, without machine-local tool overrides.
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
-  # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
-  'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 
 [tasks.release]
@@ -359,10 +358,7 @@ alias = ["mt", "full", "mf"]
 description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
-  '''
-global_config="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}"
-MISE_IGNORED_CONFIG_PATHS="$global_config${MISE_GLOBAL_CONFIG_FILE:+:$MISE_GLOBAL_CONFIG_FILE}${MISE_IGNORED_CONFIG_PATHS:+:$MISE_IGNORED_CONFIG_PATHS}" mise --locked install -y
-''',
+  'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise --locked install -y',
   # Seed tool configuration without invoking missing or outdated hook executables.
   "chezmoi apply --force --exclude scripts",
   "mise -C \"$HOME\" --locked install -y",
@@ -392,6 +388,7 @@ run = [
   "dprint config update --yes",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",
+  # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
 

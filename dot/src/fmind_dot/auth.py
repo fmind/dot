@@ -482,10 +482,16 @@ def login_all(context: typer.Context, force: ForceLogin = False, dry_run: DryRun
     state = state_from(context)
     if not dry_run:
         require_tools(state, [["gh"], ["gws"], ["gcloud"]])
+    project = os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project
+    # Validate before the browser logins so a bad project ID cannot fail the run at its last step.
+    if project:
+        try:
+            TypeAdapter(Project).validate_python(project)
+        except ValidationError as error:
+            raise DotError("invalid Workspace project ID; fix GWS_PROJECT or auth.workspace.project") from error
     login_github(state, reconcile=True, force=force, dry_run=dry_run)
     # Workspace setup lists and enables APIs through gcloud, so its credentials come first.
     login_gcp(state, force=force, dry_run=dry_run)
-    project = os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project
     if project:
         setup_workspace(state, project, dry_run=dry_run)
     else:

@@ -13,7 +13,6 @@
 *.py[co]
 .cache/
 .coverage*
-.mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .ty_cache/
@@ -32,5 +31,4 @@ dot_config/dot.yaml
 dot_config/dot.*.yaml
 
 # Machine-specific Git configuration stays local.
-dot_config/git/config.local
 dot_config/git/config.*

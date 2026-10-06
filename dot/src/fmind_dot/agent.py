@@ -152,6 +152,12 @@ def session_show(
     write_json(
         state.stdout, {"schema": "dot.agent.session.show/v2", "session": summary.to_dict(include_records=content)}
     )
+    # The metadata above stays useful, but requested content that cannot be read is a failure.
+    if content and "invalid" in summary.status:
+        raise DotError(
+            f"archived transcript for {summary.agent} session {summary.session_id} is unreadable; "
+            f"recapture it with: dot agent session sync --agent {summary.agent} --session {summary.session_id}"
+        )
 
 
 @session_app.command("sync", help="Capture new and changed sessions from configured agent sources")
@@ -324,7 +330,7 @@ def agent_stats(
         raise DotError("prompt statistics are incomplete; inspect excluded sessions and partial counts")
 
 
-@agent_app.command("doctor", help="Check notify hooks, session sync, and archive readability per agent")
+@agent_app.command("doctor", help="Check discovery, notify hooks, session sync, and archive readability per agent")
 def agent_doctor(
     context: typer.Context,
     agent: Annotated[str, typer.Option("--agent", "--harness", "-a", help="Inspect only one agent")] = "",

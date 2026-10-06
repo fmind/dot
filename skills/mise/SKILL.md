@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Mise
@@ -17,7 +17,7 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 ## Workflow
 
 1. **Inspect** the repository's existing tasks, lockfile, tool providers, hooks, and CI before changing the contract.
-1. **Select and reuse versions** per the [shared tool baseline](references/tool-versions.md) before installing copied scaffold selectors: `fmind/dot` tracks `latest`, including Python; other owned repositories pin exact baseline versions. Compare `mise ls --installed --json` with the baseline to reuse installations; never run independent upgrades or copy tool binaries into projects.
+1. **Select versions** per the [tool version rules](references/tool-versions.md) before installing copied scaffold selectors: `fmind/dot` tracks `latest`, including Python; every other repository owns exact pins and changes them only during its own requested upgrade. Seed a new project from installed versions (`mise ls --installed --json`) to reuse installations; never copy tool binaries into projects.
 1. **Keep tasks simple**: prefer direct commands, short sequential `run` arrays, and declarative dependencies. A short multiline sequence for setup and cleanup is acceptable; avoid explicit `bash -c`/`sh -c`, nested conditions, argument-dispatch wrappers, and large shell programs. Use native tool options or explicit task names first; put necessary procedural logic in a small maintained script, preferably Python.
 1. **Keep the shared vocabulary** below; read [task conventions](references/task-conventions.md) for subtask names, concise output, argument forwarding, dependency order, and tool updates.
 1. **Pin and install** the project toolchain, then validate task definitions with `mise tasks validate`; use `mise run <task>` in automation.
@@ -49,7 +49,7 @@ Python projects start from [python-stack](../python-stack/references/foundation/
 
 ## Documentation
 
-- [upgrade-tools](../upgrade-tools/SKILL.md) for cross-repository alignment
+- [upgrade-tools](../upgrade-tools/SKILL.md) for per-repository upgrades
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
 - Companion skills: [lefthook](../github-actions/references/lefthook.md) (hooks call these tasks), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI installs the toolchain with `mise-action` and runs `mise run all`).

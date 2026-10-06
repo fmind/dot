@@ -39,16 +39,16 @@ Validate success and intentional failure cases before adopting quieter defaults,
 
 ## Tool Management
 
-Follow the [shared tool baseline](tool-versions.md). `fmind/dot` uses `latest` by default; consuming repositories record the selected exact versions before installation. [upgrade-tools](../../upgrade-tools/SKILL.md) owns propagation across the local repository roots.
+Follow the [tool version rules](tool-versions.md). `fmind/dot` uses `latest` by default; other repositories record exact versions before installation and own them afterwards. [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades, one repository at a time.
 
 ```bash
 mise registry <name>     # discover the tool's backend id
-mise use --pin <tool>@<exact-version> # record the selected baseline version and install
+mise use --pin <tool>@<exact-version> # record the selected exact version and install
 mise install             # install everything pinned
 mise lock                # refresh metadata for the locked versions
-mise lock --bump         # advance baseline selectors without installing
+mise lock --bump         # advance lock selectors without installing
 mise lock --upgrade      # migrate legacy locks; retain and validate generated dependency files
-mise upgrade --bump      # explicit independent upgrade, not baseline alignment
+mise upgrade --bump      # explicit upgrade of this project's pins
 ```
 
 ## Additional task gotchas

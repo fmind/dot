@@ -315,8 +315,7 @@ sessions = false
         assert data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] == "1"
         assert data["env"]["CUSTOM_SETTING"] == "preserved"
         assert data["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
-        assert data["permissions"]["deny"][:2] == ["Read(./private)", "Bash(rm -rf /)"]
-        assert "Bash(git push --force *main)" in data["permissions"]["deny"]
+        assert data["permissions"]["deny"] == ["Read(./private)"]
         assert data["env"]["DISABLE_UPDATES"] == "1"
         assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
@@ -344,6 +343,9 @@ sessions = false
             self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
         with pytest.raises(RuntimeError, match="deny must be an array"):
             self.render(template, '{"permissions": {"deny": "Bash(rm *)"}}')
+        # Deployed files drop the retired managed rules but keep the host's own.
+        retired = {"permissions": {"deny": ["Bash(rm -rf /)", "Bash(git push -f *main)", "Bash(npm publish)"]}}
+        assert json.loads(self.render(template, json.dumps(retired)))["permissions"]["deny"] == ["Bash(npm publish)"]
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"

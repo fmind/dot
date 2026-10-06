@@ -161,6 +161,9 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
         )
         (folder / "brief.md").write_text(prompt)
         args = [prompt if arg == "{prompt}" else arg for arg in task.get("command", [])]
+        # agy must stop before the process timeout kills it; on its own print timeout it
+        # still reports SUCCESS with partial output, so reaching it marks the run for review.
+        print_timeout = max(1, spec["timeout"] - max(1, spec["timeout"] // 20))
         if not args:
             args = [
                 "agy",
@@ -174,7 +177,7 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
                 "json",
                 "--disable-slash-commands",
                 "--print-timeout",
-                f"{spec['timeout']}s",
+                f"{print_timeout}s",
             ]
             for directory in task["add_dirs"]:
                 args.extend(["--add-dir", directory])
@@ -185,9 +188,12 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
             if "command" not in task:
                 row.update(model=task["model"], effort=task["effort"])
             row["process"] = {}
+            started = asyncio.get_running_loop().time()
             code = await execute(args, task["workspace"], folder / "worker", spec["timeout"], row["process"], save)
             if code:
                 raise ValueError("Worker exited nonzero; inspect worker.stderr and worker.stdout.")
+            if "command" not in task and asyncio.get_running_loop().time() - started >= print_timeout:
+                row["print_timeout_reached"] = True
             output = folder / "worker.stdout"
             if output.stat().st_size > 8 * 1024 * 1024:
                 raise ValueError("Worker result exceeds 8 MiB; inspect the saved output.")
@@ -213,7 +219,8 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
                 row["checks"].append(record)
                 if await execute(check, task["workspace"], folder / f"check-{index}", spec["timeout"], record, save):
                     raise ValueError(f"Acceptance check {index} failed; inspect check-{index}.stderr/stdout.")
-            row["state"] = "verified" if task["checks"] and not row["diagnostics_present"] else "needs_review"
+            reviewable = row["diagnostics_present"] or row.get("print_timeout_reached")
+            row["state"] = "verified" if task["checks"] and not reviewable else "needs_review"
         except asyncio.CancelledError:
             row["state"] = "canceled"
             raise
@@ -298,6 +305,7 @@ async def batch(spec: dict[str, Any], root: Path) -> dict[str, Any]:
                         "provider_status",
                         "conversation_id",
                         "diagnostics_present",
+                        "print_timeout_reached",
                     }
                 },
                 "execution": {

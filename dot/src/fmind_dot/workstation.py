@@ -1,16 +1,18 @@
 """Native workstation commands with one Python-owned CLI and configuration."""
 
+import json
 import os
 import select
 import shlex
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import IO, Annotated, Literal
+from typing import IO, Annotated, Any, Literal
 
 import typer
 
-from fmind_dot.command_group import help_group
-from fmind_dot.errors import DotError
+from fmind_dot.command_group import JsonOption, help_group
+from fmind_dot.errors import CommandTimeoutError, DotError
+from fmind_dot.reporting import write_json
 from fmind_dot.state import State, require_tools, state_from
 
 CACHE_COMMANDS = {
@@ -18,6 +20,13 @@ CACHE_COMMANDS = {
     "hf": ["hf", "cache", "ls"],
     "uv": ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
 }
+# Machine-readable variants for --json: Docker emits JSON lines, hf a JSON array, uv a byte count.
+CACHE_JSON_COMMANDS = {
+    "docker": ["docker", "system", "df", "--format", "json"],
+    "hf": ["hf", "cache", "ls", "--format", "json"],
+    "uv": ["uv", "cache", "size", "--preview-features", "cache-size"],
+}
+_CACHE_TIMEOUT_SECONDS = 120
 PRUNE_COMMANDS = {
     "docker": ["docker", "builder", "prune", "--force"],
     "dprint": ["dprint", "clear-cache"],
@@ -66,6 +75,42 @@ def execute(
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 
 
+def _cache_report(state: State, name: str, args: list[str]) -> dict[str, Any]:
+    """Capture one provider's native report; stderr stays out because it can carry provider payloads."""
+    if name == "hf":
+        _ensure_hf_cache_dir()
+    entry: dict[str, Any] = {"name": name, "command": shlex.join(args)}
+    try:
+        result = state.runner.run(args, timeout=_CACHE_TIMEOUT_SECONDS, check=False)
+    except CommandTimeoutError:
+        # One slow provider must not discard the other providers' reports.
+        return entry | {"error": f"timed out after {_CACHE_TIMEOUT_SECONDS}s; run {shlex.join(args)} directly"}
+    if result.returncode != 0:
+        return entry | {"error": f"exit {result.returncode}; run {shlex.join(args)} for the native diagnostic"}
+    try:
+        if name == "docker":
+            report: Any = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+        elif name == "uv":
+            report = {"bytes": int(result.stdout.strip())}
+        else:
+            report = json.loads(result.stdout)
+    except ValueError:
+        return entry | {"error": "unparseable native output"}
+    return entry | {"report": report}
+
+
+def run_cache_json(state: State, names: Sequence[str], *, dry_run: bool = False) -> None:
+    commands = [CACHE_JSON_COMMANDS[name] for name in names]
+    if dry_run:
+        providers = [{"name": name, "command": shlex.join(args)} for name, args in zip(names, commands, strict=True)]
+    else:
+        require_tools(state, commands)
+        providers = [_cache_report(state, name, args) for name, args in zip(names, commands, strict=True)]
+    write_json(state.stdout, {"schema": "dot.cache/v1", "dry_run": dry_run, "providers": providers})
+    if failed := [entry["name"] for entry in providers if "error" in entry]:
+        raise DotError(f"cache inspection failed for {', '.join(failed)}")
+
+
 def _wait_for_line(stream: IO[str]) -> None:
     # A SIGINT that lands after Python's last signal check but before read() blocks
     # never interrupts that read, and the terminal discards the typed ^C. Polling
@@ -104,9 +149,13 @@ def register(app: typer.Typer) -> None:
             typer.Argument(help="all, docker, hf, or uv; all uses cache.providers", metavar="provider"),
         ] = "all",
         dry_run: DryRun = False,
+        json_output: JsonOption = False,
     ) -> None:
         state = state_from(context)
         names = list(dict.fromkeys(state.config.cache.providers if provider == "all" else [provider]))
+        if json_output:
+            run_cache_json(state, names, dry_run=dry_run)
+            return
         commands = [CACHE_COMMANDS[name] for name in names]
         if not dry_run:
             require_tools(state, commands)

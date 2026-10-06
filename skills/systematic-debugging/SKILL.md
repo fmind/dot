@@ -37,7 +37,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 - [Dependency resolution](references/dependency-resolution.md): read for package resolver, lockfile, wheel, or build-backend failures before changing any constraint.
 - [Network troubleshooting](references/network.md): isolate DNS, connection, TLS, HTTP, proxy, and authentication failures with `doggo`, Python, and `xh` before changing configuration.
-- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument and Memray captures; use `uv` to run the project Python.
+- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument, Memray, and py-spy captures; use `uv` to run the project Python.
 
 ## Documentation
 

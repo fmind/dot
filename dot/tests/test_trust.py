@@ -349,3 +349,33 @@ def test_trust_stops_when_a_host_keeps_writing(tmp_path: Path, monkeypatch: pyte
     with pytest.raises(DotError, match="kept changing"):
         trust_folder(tmp_path / "repo", home=tmp_path)
     assert "/repo" not in (tmp_path / ".claude.json").read_text()
+
+
+def test_trust_dry_run_json_reports_changes_without_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home, folder = tmp_path / "home", tmp_path / "work"
+    home.mkdir()
+    folder.mkdir()
+    harness_home(home)
+    monkeypatch.setenv("HOME", str(home))
+    before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}
+    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+
+    run_trust(state, str(folder), dry_run=True, as_json=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    document = json.loads(state.stdout.getvalue())
+    assert (document["schema"], document["dry_run"], document["skipped"]) == ("dot.trust/v1", True, [])
+    assert document["folders"][0]["path"] == str(folder)
+    assert set(document["folders"][0]["changed"]) == set(document["harnesses"])
+    assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before
+
+
+def test_trust_json_without_harness_state_lists_no_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+
+    run_trust(state, str(tmp_path), as_json=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    document = json.loads(state.stdout.getvalue())
+    assert (document["harnesses"], document["folders"][0]["changed"]) == ([], [])

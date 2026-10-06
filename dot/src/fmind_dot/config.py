@@ -265,31 +265,40 @@ class GitHubConfig(StrictModel):
 class WorkspaceConfig(StrictModel):
     project: Project | None = None
     # gws replaces its whole grant on login, so this list is the single owner of every scope
-    # borrowed from it, including the read-only analytics, Search Console, and YouTube scopes
-    # that brain sensors use; dropping one breaks those consumers on the next login.
+    # borrowed from it, including the read-only analytics, Search Console, YouTube, Workspace
+    # and audit scopes that brain sensors narrow their tokens to; dropping one breaks those
+    # consumers on the next login.
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/admin.reports.audit.readonly",
             "https://www.googleapis.com/auth/analytics.readonly",
             "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/calendar.readonly",
             "https://www.googleapis.com/auth/chat.memberships",
             "https://www.googleapis.com/auth/chat.messages",
             "https://www.googleapis.com/auth/chat.messages.reactions",
             "https://www.googleapis.com/auth/chat.messages.reactions.readonly",
+            "https://www.googleapis.com/auth/chat.messages.readonly",
             "https://www.googleapis.com/auth/chat.spaces",
+            "https://www.googleapis.com/auth/chat.spaces.readonly",
             "https://www.googleapis.com/auth/chat.users.readstate",
             "https://www.googleapis.com/auth/cloudsupport",
             "https://www.googleapis.com/auth/contacts",
             "https://www.googleapis.com/auth/contacts.other.readonly",
+            "https://www.googleapis.com/auth/contacts.readonly",
             "https://www.googleapis.com/auth/directory.readonly",
             "https://www.googleapis.com/auth/documents",
+            "https://www.googleapis.com/auth/documents.readonly",
             "https://www.googleapis.com/auth/drive",
             "https://www.googleapis.com/auth/drive.activity.readonly",
+            "https://www.googleapis.com/auth/drive.readonly",
             "https://www.googleapis.com/auth/forms.body",
             "https://www.googleapis.com/auth/forms.responses.readonly",
             "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.settings.basic",
             "https://www.googleapis.com/auth/meetings.conference.media.readonly",
             "https://www.googleapis.com/auth/meetings.space.created",
@@ -301,6 +310,7 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/script.projects",
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/tasks",
+            "https://www.googleapis.com/auth/tasks.readonly",
             "https://www.googleapis.com/auth/webmasters.readonly",
             "https://www.googleapis.com/auth/youtube.readonly",
             "https://www.googleapis.com/auth/yt-analytics.readonly",
@@ -309,6 +319,7 @@ class WorkspaceConfig(StrictModel):
     )
     apis: list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*\.googleapis\.com$")]] = Field(
         default_factory=lambda: [
+            "admin.googleapis.com",
             "analyticsadmin.googleapis.com",
             "analyticsdata.googleapis.com",
             "calendar-json.googleapis.com",
@@ -335,7 +346,8 @@ class WorkspaceConfig(StrictModel):
 
 class GcpConfig(StrictModel):
     # ADC login replaces its whole grant, so this list owns every ADC consumer's scope: gcloud's
-    # default ADC scopes plus Colab's. `dot login colab` requires the Colab scopes to stay listed.
+    # default ADC scopes plus Colab's and the BigQuery read-only scope the brain's analytics sensor
+    # narrows its token to. `dot login colab` requires the Colab scopes to stay listed.
     adc_scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
@@ -343,6 +355,7 @@ class GcpConfig(StrictModel):
             "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/sqlservice.login",
             "https://www.googleapis.com/auth/colaboratory",
+            "https://www.googleapis.com/auth/bigquery.readonly",
         ],
         min_length=1,
     )

@@ -6,7 +6,6 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 
 - **Decide routine, reversible choices yourself**: ask only when missing information affects scope, cost, correctness, or reversibility; state assumptions, reuse authorization, and keep independent work moving.
 - **Challenge complexity and weak assumptions**: for consequential architecture/tooling choices, give numbered options, recommend one, and explain the trade-off.
-- **Complete the requested scope**: suggest unrelated improvements separately. Reviews lead with ranked findings; implement when requested.
 - **Keep my voice and invent nothing**: preserve my stance and tone; never invent experience, beliefs, quotes, or results.
 - **Lead with results**: give the data-driven result and observations, then reasons, validation, and limits; avoid filler, flattery, and routine tool narration.
 
@@ -38,7 +37,7 @@ Defaults for Médéric Hurier (Fmind), Lead AI Architect focused on AI agents, M
 
 - **Check context budgets after instruction edits**: after editing AGENTS.md or skill metadata, run `dot agent context --check` from the project root; each scope (AGENTS.md + skill discovery) stays below 5,000 estimated tokens.
 - **Let skills own procedures**: use the host catalog or `~/.agents/skills/<name>/SKILL.md`. Keep connectors separate; use task skills or domain collections with on-demand guides. Never nest `SKILL.md`; follow the parent’s generated guide links. Jump directly to known guides and load only relevant resources.
-- **Prefer CLIs over MCP**: use `mise` for tool selection and `upgrade-tools` for cross-repository upgrades.
+- **Prefer CLIs over MCP**: use `mise` for tool selection and `upgrade-tools` for upgrades; upgrade each repository independently, never because another changed.
 - **Default models to GCP Agent Platform with ADC**: personal project `ai-studio-fmind`, `global`, `gemini-3.8-flash`, high thinking. API keys are explicit-only or a last resort after reporting ADC failure; never export auto-discovered Google keys or silently fall back to AI Studio. See `model-providers`.
 - **Write portable Markdown**: language-tagged fences, `1.` numbering, one line per paragraph, and relative or `~`-relative paths in skills/AGENTS.md. Comment-capable configs start with their official docs URL below any schema directive.
 - **Open each skill or AGENTS.md rule with a bold summary**: write `**<2–6 word rule>**: <detail>` so reading only the bold conveys every rule; state the rule, not its topic. Reference entries (workflows, paths, fields) may lead with their name; link lists need none.

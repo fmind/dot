@@ -240,7 +240,7 @@ def test_pull_fast_forwards_but_does_not_push_a_dirty_repository(tmp_path: Path)
     assert results[0].commits == 2
     assert results[0].ahead == 1
     assert results[0].dirty
-    assert not any(call[0] == ("git", "push") for call in runner.calls)
+    assert not any(call[0][:2] == ("git", "push") for call in runner.calls)
 
 
 def test_pull_rechecks_worktree_after_fetch_before_push(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -466,21 +466,24 @@ def test_pull_with_no_repositories_reports_a_clean_noop(tmp_path: Path) -> None:
     assert state.stdout.getvalue() == "No git repositories found in configured pull directories.\n"
 
 
-def test_pull_pushes_clean_detached_repository_that_is_ahead(tmp_path: Path) -> None:
+_FOR_EACH_UPSTREAM = ("git", "for-each-ref", "--format=%(upstream:remotename)%00%(upstream:remoteref)")
+
+
+def test_pull_pushes_ahead_branch_to_its_exact_upstream(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
     runner = RecordingRunner(
         {
-            ("git", "branch", "--show-current"): [result()],
-            ("git", "rev-parse", "--short", "HEAD"): [result("abc123\n")],
+            ("git", "branch", "--show-current"): [result("feature\n")],
             ("git", "--no-optional-locks", "status", "--porcelain"): [result(), result()],
             ("git", "fetch", "--prune"): [result()],
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main\n")],
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("0\n")],
             ("git", "merge", "--ff-only", "@{u}"): [result()],
             ("git", "rev-list", "--count", "@{u}..HEAD"): [result("2\n")],
-            ("git", "push"): [result()],
+            (*_FOR_EACH_UPSTREAM, "refs/heads/feature"): [result("origin\0refs/heads/main\n")],
+            ("git", "push", "--no-follow-tags", "origin", "HEAD:refs/heads/main"): [result()],
         },
         {"git"},
     )
@@ -489,7 +492,7 @@ def test_pull_pushes_clean_detached_repository_that_is_ahead(tmp_path: Path) -> 
 
     results = run_pull(state, push=True)
 
-    assert results[0].branch == "abc123"
+    assert results[0].branch == "feature"
     assert results[0].pushed
     assert isinstance(state.stdout, io.StringIO)
     assert "↑ pushed 2 commit(s)" in state.stdout.getvalue()
@@ -508,7 +511,8 @@ def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path)
             ("git", "rev-list", "--count", "HEAD..@{u}"): [result("1\n")],
             ("git", "merge", "--ff-only", "@{u}"): [result()],
             ("git", "rev-list", "--count", "@{u}..HEAD"): [result("1\n")],
-            ("git", "push"): [result(returncode=1)],
+            (*_FOR_EACH_UPSTREAM, "refs/heads/main"): [result("origin\0refs/heads/main\n")],
+            ("git", "push", "--no-follow-tags", "origin", "HEAD:refs/heads/main"): [result(returncode=1)],
         },
         {"git"},
     )

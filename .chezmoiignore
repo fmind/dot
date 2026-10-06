@@ -35,7 +35,6 @@ trivy.yaml
 .config/dot.*.yaml
 
 # Machine-specific Git configuration stays local.
-.config/git/config.local
 .config/git/config.*
 
 # zsh is the macOS default login shell; Linux logins use .profile and .bashrc.
@@ -49,6 +48,7 @@ trivy.yaml
 {{- end }}
 
 {{- if ne .chezmoi.os "linux" }}
+.config/systemd/user/antigravity-cli-daemon.service.d
 .local/share/applications/com.mitchellh.ghostty.desktop
 {{- end }}
 

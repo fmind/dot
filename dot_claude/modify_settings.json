@@ -6,10 +6,13 @@
        DISABLE_UPDATES blocks the auto-updater and `claude update`/`claude install`, leaving
        the version to mise, which installs latest; DISABLE_ERROR_REPORTING keeps error reports
        local.
+       GIT_TERMINAL_PROMPT and CLOUDSDK_CORE_DISABLE_PROMPTS make git credential and gcloud
+       prompts fail or take their default instead of waiting on a terminal no agent answers;
+       Codex sets the same pair, other hosts expose no shell-environment setting.
        CLAUDE_CODE_FORCE_SESSION_PERSISTENCE keeps transcripts and resume entries when
        a terminal or launcher inherits CLAUDE_CODE_CHILD_SESSION from an earlier session.
-       permissions.deny blocks the usual spelling of a few irreversible commands, even in
-       bypass mode; it is a guardrail, not a boundary: other spellings still run.
+       permissions.deny carries no managed rules, matching the other harnesses: a spelling
+       list was a guardrail, not a boundary. Grok reads this file's rules too.
        theme: light-ansi paints the TUI from the terminal's own sixteen slots,
        which is how fmind/theme reaches a tool that takes no theme file.
        enableAllProjectMcpServers is managed as false, not removed: the merge never
@@ -40,8 +43,10 @@
     "BASH_MAX_TIMEOUT_MS": "1800000",
     "CLAUDE_AUTO_BACKGROUND_TASKS": "1",
     "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE": "1",
+    "CLOUDSDK_CORE_DISABLE_PROMPTS": "1",
     "DISABLE_ERROR_REPORTING": "1",
-    "DISABLE_UPDATES": "1"
+    "DISABLE_UPDATES": "1",
+    "GIT_TERMINAL_PROMPT": "0"
   },
   "fallbackModel": [
     "sonnet"
@@ -96,9 +101,11 @@
 {{- $_ := set $managedConfig.permissions "additionalDirectories" (concat $directories (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) | uniq) -}}
 {{- $deny := dig "permissions" "deny" (list) $current -}}
 {{- if not (kindIs "slice" $deny) }}{{ fail "permissions.deny must be an array" }}{{ end -}}
-{{- /* Add the managed rules without replacing rules the host added. A trailing *main also
-       matches --force-with-lease and any remote. */ -}}
-{{- $_ = set $managedConfig.permissions "deny" (concat $deny (list "Bash(rm -rf /)" "Bash(rm -rf ~)" "Bash(rm -rf ~/)" "Bash(rm -rf $HOME)" "Bash(git push --force *main)" "Bash(git push -f *main)") | uniq) -}}
+{{- /* Drop the retired managed rules from deployed files; keep rules the host added. */ -}}
+{{- $retired := list "Bash(rm -rf /)" "Bash(rm -rf ~)" "Bash(rm -rf ~/)" "Bash(rm -rf $HOME)" "Bash(git push --force *main)" "Bash(git push --force-with-lease *main)" "Bash(git push -f *main)" -}}
+{{- $kept := list -}}
+{{- range $deny }}{{ if not (has . $retired) }}{{ $kept = append $kept . }}{{ end }}{{ end -}}
+{{- $_ = set $managedConfig.permissions "deny" $kept -}}
 {{- /* The brain's session-context hook joins host SessionStart hooks only where the brain is
        checked out. The entry is decoded from JSON so its integer matches the deployed one and
        uniq keeps a single copy; removing the brain later leaves the entry for the host to drop. */ -}}

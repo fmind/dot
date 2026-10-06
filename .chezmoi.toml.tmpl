@@ -23,6 +23,8 @@ encryption = "age"
     command = "nvim"
 
 [diff]
+    # Diffs land in agent transcripts and logs; `chezmoi status` still flags encrypted drift.
+    exclude = ["encrypted"]
     pager = "delta --paging=never"
 
 [merge]

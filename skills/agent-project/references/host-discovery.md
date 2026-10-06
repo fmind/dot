@@ -36,7 +36,7 @@ Hosts disagree when two skills, or a skill and a command, share a name (checked 
 | Grok        | Local > repo > user                           | Built-in keeps `/name`; skill reachable as `/<scope>:name` (e.g. `/local:name`, `/user:name`) |
 | OpenCode    | Nondeterministic; logs `duplicate skill name` | Built-in, custom, and MCP commands keep the name                                              |
 
-A symlinked `.claude/skills` -> `.agents/skills` layout exposes the same files twice, which is harmless. Otherwise keep skill names unique across global and project scopes and distinct from host built-in commands; `dot agent context --check` fails on duplicates between `~/.agents/skills` and the project's `.agents/skills`; other host directories are not checked.
+A symlinked `.claude/skills` -> `.agents/skills` layout exposes the same files twice; OpenCode then picks one path per name at random and logs `duplicate skill name`, so fish exports `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` to keep it on `.agents/skills`. Otherwise keep skill names unique across global and project scopes and distinct from host built-in commands; `dot agent context --check` fails on duplicates between `~/.agents/skills` and the project's `.agents/skills`; other host directories are not checked.
 
 ## Native plugin catalogs
 

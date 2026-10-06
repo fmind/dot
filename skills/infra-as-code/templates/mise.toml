@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.10.2"
+min_version = "2026.10.3"
 
 [settings.task]
 run_auto_install = false

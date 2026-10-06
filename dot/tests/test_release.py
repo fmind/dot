@@ -16,6 +16,8 @@ TAG = "v1.27.0"
 GIT_CLIFF_BUMPED = ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")
 RESTORE = ("git", "restore", "--staged", "--worktree", "--", "CHANGELOG.md", "dot/pyproject.toml", "dot/uv.lock")
 PUSH = ("git", "push", "--atomic", "origin", "HEAD:refs/heads/main", f"refs/tags/{TAG}")
+COMMIT = ("git", "commit", "-m", f"chore(release): {TAG}")
+DEPLOY = ("mise", "run", "--force", "deploy")
 
 
 class ReleaseRunner(Runner):
@@ -112,13 +114,11 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
         ("mise", "run", "test:starters"),
         ("mise", "run", "build"),
         ("mise", "run", "check:completions"),
+        COMMIT,
         PUSH,
+        DEPLOY,
     ]
-    git = [call for call in runner.calls if call[0] == "git"]
-    assert git.index(("git", "commit", "-m", f"chore(release): {TAG}")) < git.index(
-        ("git", "tag", "-a", TAG, "-m", TAG)
-    )
-    assert runner.calls[-1] == ("mise", "run", "--force", "deploy")
+    assert runner.calls[-1] == ("git", "tag", "-a", TAG, "-m", TAG)
     assert RESTORE not in runner.calls
 
 
@@ -131,7 +131,20 @@ def test_gate_failure_restores_generated_files_without_tagging(project: Path, ta
         run_release(make_state(runner), yes=True)
 
     assert RESTORE in runner.calls
-    assert not any(call[:2] == ("git", "commit") or call[:3] == ("git", "tag", "-a") for call in runner.calls)
+    assert COMMIT not in runner.interactive_calls
+    assert not any(call[:3] == ("git", "tag", "-a") for call in runner.calls)
+    assert PUSH not in runner.interactive_calls
+
+
+def test_failed_commit_hook_restores_generated_files_without_tagging(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.interactive_codes[COMMIT] = 1
+
+    with pytest.raises(DotError, match="release commit failed; see the hook output above"):
+        run_release(make_state(runner), yes=True)
+
+    assert RESTORE in runner.calls
+    assert not any(call[:3] == ("git", "tag", "-a") for call in runner.calls)
     assert PUSH not in runner.interactive_calls
 
 
@@ -152,7 +165,17 @@ def test_failed_push_reports_the_local_release_and_skips_deploy(project: Path) -
     with pytest.raises(DotError, match=r"release commit and tag v1\.27\.0 are local"):
         run_release(make_state(runner), yes=True)
 
-    assert ("mise", "run", "--force", "deploy") not in runner.calls
+    assert DEPLOY not in runner.interactive_calls
+
+
+def test_failed_deploy_after_push_reports_the_published_release(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.interactive_codes[DEPLOY] = 1
+
+    with pytest.raises(DotError, match=r"pushed v1\.27\.0, but refreshing the installed CLI failed"):
+        run_release(make_state(runner), yes=True)
+
+    assert RESTORE not in runner.calls
 
 
 def test_release_preflight_rejects_unsafe_repository_states(project: Path) -> None:
@@ -189,6 +212,11 @@ def test_release_preflight_rejects_unsafe_repository_states(project: Path) -> No
     assert read_release_version(project) == "1.26.2"
 
 
+class _TerminalInput(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
 def test_no_change_and_cancellation_have_no_side_effects(project: Path) -> None:
     runner = ReleaseRunner(project)
     runner.responses[GIT_CLIFF_BUMPED] = CommandResult("v1.26.2", "", 0)
@@ -196,9 +224,13 @@ def test_no_change_and_cancellation_have_no_side_effects(project: Path) -> None:
 
     runner = ReleaseRunner(project)
     stdout = io.StringIO()
-    state = State(runner=runner, stdin=io.StringIO("n\n"), stdout=stdout, stderr=io.StringIO())
+    state = State(runner=runner, stdin=_TerminalInput("n\n"), stdout=stdout, stderr=io.StringIO())
     assert run_release(state) is None
     assert "Release canceled." in stdout.getvalue()
+
+    runner = ReleaseRunner(project)
+    with pytest.raises(DotError, match="pass --yes"):
+        run_release(State(runner=runner, stdin=io.StringIO("y\n"), stdout=io.StringIO(), stderr=io.StringIO()))
 
     assert read_release_version(project) == "1.26.2"
     assert not runner.interactive_calls

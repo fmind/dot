@@ -2,11 +2,11 @@
 line-length = 120
 # Scripts outside dot/ carry no requires-python to infer the target from.
 target-version = "py314"
-# skills/*/references hold scaffold templates with <placeholder> tokens that are
+# Guide templates under skills/*/references hold scaffolds with <placeholder> tokens that are
 # not valid Python; every other skill script is linted like first-party code.
 # dprint owns Markdown, including the Python blocks inside it.
 extend-exclude = [
-  "skills/*/references",
+  "skills/*/references/*/templates",
   ".agents",
   "*.md",
 ]

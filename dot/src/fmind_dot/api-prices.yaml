@@ -219,3 +219,9 @@ models:
     output: 6
     cache_read: 0.5
     cache_write: null
+  # Grok Build names its billed turns grok-4.6-build; xAI lists only grok-4.6, which the harness serves.
+  grok-4.6-build:
+    input: 2
+    output: 6
+    cache_read: 0.5
+    cache_write: null

@@ -83,10 +83,12 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         text=True,
     )
     try:
-        deadline = time.monotonic() + 5
+        # Two interpreter startups plus CLI imports can exceed 5s under xdist load; the
+        # wait ends as soon as the child is ready, so a generous deadline costs nothing.
+        deadline = time.monotonic() + 30
         while not started.exists() and process.poll() is None and time.monotonic() < deadline:
             time.sleep(0.01)
-        assert started.exists(), "child did not become ready before the startup deadline"
+        assert started.exists(), f"child did not become ready (launcher exit: {process.poll()})"
 
         process.send_signal(process_module.signal.SIGTERM)
         stdout, stderr = process.communicate(timeout=5)
@@ -250,7 +252,8 @@ _TERM_CHILD = (
 
 
 def _wait_for(path: Path) -> None:
-    deadline = time.monotonic() + 5
+    # Readiness waits end as soon as the child is up, so a load-tolerant deadline costs nothing.
+    deadline = time.monotonic() + 30
     while not path.exists() and time.monotonic() < deadline:
         time.sleep(0.01)
     assert path.exists(), "child did not become ready before the startup deadline"
@@ -462,13 +465,13 @@ def test_sigterm_stops_descendants_of_a_child_without_a_terminal(tmp_path: Path)
         stderr=subprocess.DEVNULL,
     )
     try:
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + 30
         while not (pid_file.exists() and pid_file.read_text().strip()):
             assert time.monotonic() < deadline, "the child never started"
             time.sleep(0.02)
         descendant = int(pid_file.read_text())
         dot.terminate()
-        assert dot.wait(timeout=10) == 130
+        assert dot.wait(timeout=30) == 130
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             try:

@@ -28,7 +28,7 @@ cosign verify-attestation --type cyclonedx \
 
 Pin `cosign` in `mise.toml` `[tools]` so `mise-action` installs it with the rest of the toolchain; the signing job needs `permissions: id-token: write` plus `packages: write` (or the registry's equivalent), `cache: false` on `mise-action`, and signs the digest the build step recorded (`containerimage.digest` from Buildx metadata or the build-push action's `digest` output). The [github-actions](../../github-actions/references/ci-cd/GUIDE.md) `cd.yml` template implements this wiring.
 
-Resolve the exact Cosign version from the workstation baseline, add it to the project toolchain, and lock it before publishing; [upgrade-tools](../../upgrade-tools/SKILL.md) owns later upgrades.
+Seed the exact Cosign version from the workstation lock, add it to the project toolchain, and lock it before publishing; [upgrade-tools](../../upgrade-tools/SKILL.md) owns later upgrades.
 
 ## Gotchas
 

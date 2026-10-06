@@ -150,10 +150,17 @@ def stale_copies(revision: str, download: Fetch, read: Callable[[Path], str] = r
     return stale
 
 
+def _commit(value: str) -> str:
+    # A branch or tag would pin a moving ref that the next run cannot parse back.
+    if not re.fullmatch(r"[0-9a-f]{40}", value):
+        raise argparse.ArgumentTypeError("expected a full 40-character lowercase commit SHA")
+    return value
+
+
 def main() -> int:
     """Advance the theme pin to upstream main, or verify a given revision."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--revision", help="commit to pin instead of upstream main")
+    parser.add_argument("--revision", type=_commit, help="commit SHA to pin instead of upstream main")
     arguments = parser.parse_args()
     path = Path(__file__).resolve().parents[2] / ".chezmoiexternal.toml.tmpl"
     try:

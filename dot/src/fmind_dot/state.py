@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import IO
 
 import typer
+from pydantic import ValidationError
 
 from fmind_dot.config import Config, config_file_path, load_config
 from fmind_dot.errors import DotError
@@ -34,8 +35,24 @@ class State:
     @property
     def config(self) -> Config:
         if self._config is None:
-            self._config = load_config(self.config_argument)
+            self._config = validated_config(self.config_argument)
         return self._config
+
+
+def validated_config(path: Path | None) -> Config:
+    """Load configuration, naming the file and the repair command when validation fails."""
+    try:
+        return load_config(path)
+    except ValidationError as error:
+        # Locations and messages only: input values could hold credentials.
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in item['loc']) or '<root>'}: {item['msg']}"
+            for item in error.errors(include_url=False, include_input=False, include_context=False)
+        )
+        raise DotError(
+            f"invalid config file at {config_file_path(path)[0]} ({error.error_count()} validation error(s)): "
+            f"{problems}; fix it with: dot config edit"
+        ) from error
 
 
 def state_from(context: typer.Context, *, require_config: bool = True) -> State:

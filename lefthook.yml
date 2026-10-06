@@ -16,16 +16,13 @@ pre-commit:
       glob: "**/*.lua"
       run: mise run format:lua:files {staged_files}
       stage_fixed: true
+    # ruff.toml's extend-exclude (applied via --force-exclude) owns the template exclusions.
     - name: format:python:fix
       glob: "**/*.py"
-      exclude: &python_templates
-        - "skills/*/references/**/*.py"
-        - ".agents/tmp/**/*.py"
       run: mise run format:python:fix {staged_files}
       stage_fixed: true
     - name: format:python:style
       glob: "**/*.py"
-      exclude: *python_templates
       run: mise run format:python:style {staged_files}
       stage_fixed: true
     - name: format:shell

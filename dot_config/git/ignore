@@ -1,11 +1,20 @@
 # Docs: https://git-scm.com/docs/gitignore
 
 # Machine-local agent state; project code and tooling rules belong in .gitignore.
+# Shareable project config stays visible (see the agent-project skill's host setup).
 .agents/prompts/
 .agents/tmp/
 .claude/*
+!.claude/agents/
+!.claude/settings.json
 !.claude/skills
-.codex/
-.gemini/
-.grok/
+.codex/*
+!.codex/agents/
+!.codex/config.toml
+.gemini/*
+!.gemini/config.yaml
+!.gemini/styleguide.md
+.grok/*
+!.grok/agents/
+!.grok/config.toml
 skills/local-*

@@ -10,9 +10,11 @@ import tomlkit
 import typer
 from tomlkit.exceptions import TOMLKitError
 
+from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
+from fmind_dot.reporting import write_json
 from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State, state_from
 
@@ -226,13 +228,24 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
     return sorted(trusted), skipped
 
 
-def run_trust(state: State, target: str = ".", *, dry_run: bool = False) -> None:
+def run_trust(state: State, target: str = ".", *, dry_run: bool = False, as_json: bool = False) -> None:
     folders, skipped = _target_folders(state, target)
-    if not installed_harnesses():
+    harnesses = installed_harnesses()
+    changes = trust_folders(folders, dry_run=dry_run) if harnesses else {}
+    if as_json:
+        document = {
+            "schema": "dot.trust/v1",
+            "dry_run": dry_run,
+            "harnesses": harnesses,
+            "folders": [{"path": str(folder), "changed": changes.get(folder, [])} for folder in folders],
+            "skipped": [str(folder) for folder in skipped],
+        }
+        write_json(state.stdout, document)
+        return
+    if not harnesses:
         # Apply runs this hook before any harness has started; that is not a failure.
         state.stdout.write("○ No agent harness state found; nothing to trust yet.\n")
         return
-    changes = trust_folders(folders, dry_run=dry_run)
     for folder in folders:
         changed = changes[folder]
         verb = "would trust" if dry_run else "trusted"
@@ -262,5 +275,6 @@ def register(app: typer.Typer) -> None:
         dry_run: Annotated[
             bool, typer.Option("--dry-run", help="Report trust changes without writing harness files")
         ] = False,
+        json_output: JsonOption = False,
     ) -> None:
-        run_trust(state_from(context), target, dry_run=dry_run)
+        run_trust(state_from(context), target, dry_run=dry_run, as_json=json_output)

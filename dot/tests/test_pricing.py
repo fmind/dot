@@ -54,7 +54,7 @@ def test_grok_without_rates_stays_unpriced_rather_than_free() -> None:
     usage = UsageRecord(
         harness="grok",
         session_id="one",
-        model="grok-4.6-build",
+        model="grok-unlisted",
         measurement_kind="provider-reported",
         input_tokens=1_000,
         output_tokens=10,
@@ -251,7 +251,13 @@ def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
 
 
 @pytest.mark.parametrize(
-    ("harness", "model"), [("codex", "gpt-6.1-sol"), ("claude", "claude-sonnet-5-5"), ("grok", "grok-4.6")]
+    ("harness", "model"),
+    [
+        ("codex", "gpt-6.1-sol"),
+        ("claude", "claude-sonnet-5-5"),
+        ("grok", "grok-4.6"),
+        ("grok", "grok-4.6-build"),
+    ],
 )
 def test_rate_card_prices_current_models(harness: str, model: str) -> None:
     usage = UsageRecord(
@@ -266,7 +272,9 @@ def test_rate_card_prices_current_models(harness: str, model: str) -> None:
     cost, reason = api_equivalent(usage, default_pricing())
 
     assert reason == ""
-    assert cost == pytest.approx({"gpt-6.1-sol": 12, "claude-sonnet-5-5": 12, "grok-4.6": 8}[model])
+    assert cost == pytest.approx(
+        {"gpt-6.1-sol": 12, "claude-sonnet-5-5": 12, "grok-4.6": 8, "grok-4.6-build": 8}[model]
+    )
 
 
 @pytest.mark.parametrize("sampled", [False, True], ids=["session-measurement", "request-measurement"])

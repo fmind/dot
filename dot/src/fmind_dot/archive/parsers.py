@@ -1116,7 +1116,8 @@ def _session_files(root: Path, names: tuple[str, ...]) -> list[Path]:
         directory / name
         for directory, _, files in root.walk(on_error=_raise_walk_error)
         for name in files
-        if any(fnmatchcase(name, pattern) for pattern in names)
+        # A dangling symlink is no session; parsing it would fail every sync with a bare ENOENT.
+        if any(fnmatchcase(name, pattern) for pattern in names) and (directory / name).exists()
     )
 
 

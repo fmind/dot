@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from fmind_dot import auth
 from fmind_dot.cli import app
 from fmind_dot.config import Config
-from fmind_dot.errors import DotError
+from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 
 
@@ -230,10 +230,34 @@ def test_workspace_override_does_not_prove_stored_credentials(
 def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
     # gws replaces its whole grant on login: dropping a borrowed scope breaks its consumers.
     workspace = Config().auth.workspace
-    for scope in ("analytics.readonly", "webmasters.readonly", "youtube.readonly", "yt-analytics.readonly"):
+    borrowed = (
+        "analytics.readonly",
+        "webmasters.readonly",
+        "youtube.readonly",
+        "yt-analytics.readonly",
+        # Read-only scopes the brain's gws collectors narrow their tokens to, and the audit-log reader.
+        "admin.reports.audit.readonly",
+        "calendar.readonly",
+        "chat.messages.readonly",
+        "chat.spaces.readonly",
+        "contacts.other.readonly",
+        "contacts.readonly",
+        "documents.readonly",
+        "drive.readonly",
+        "forms.responses.readonly",
+        "gmail.readonly",
+        "meetings.space.readonly",
+        "tasks.readonly",
+    )
+    for scope in borrowed:
         assert f"https://www.googleapis.com/auth/{scope}" in workspace.scopes
-    for api in ("analyticsadmin", "analyticsdata", "searchconsole", "youtube", "youtubeanalytics"):
+    for api in ("admin", "analyticsadmin", "analyticsdata", "searchconsole", "youtube", "youtubeanalytics"):
         assert f"{api}.googleapis.com" in workspace.apis
+
+
+def test_adc_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
+    # ADC login replaces its whole grant: the brain's analytics sensor narrows its token to BigQuery read-only.
+    assert "https://www.googleapis.com/auth/bigquery.readonly" in Config().auth.gcp.adc_scopes
 
 
 def test_workspace_grant_missing_borrowed_scope_logs_in(provider: RecordingRunner) -> None:
@@ -642,6 +666,57 @@ def test_cache_default_inspects_all_and_preserves_native_output(provider: Record
     assert [line for line in result.output.splitlines() if line.startswith("[")] == ["[docker]", "[hf]", "[uv]"]
 
 
+def test_cache_json_parses_native_reports_without_stderr(provider: RecordingRunner) -> None:
+    provider.responses = [
+        CommandResult('{"Type":"Images","Size":"1GB"}\n{"Type":"Containers","Size":"0B"}\n', "", 0),
+        CommandResult('[{"repo_id":"org/model"}]', "", 0),
+        CommandResult("1024\n", "SECRET-DIAGNOSTIC", 0),
+    ]
+    result = CliRunner().invoke(app, ["cache", "--json"])
+    assert result.exit_code == 0, result.exception
+    document = json.loads(result.stdout)
+    assert document["schema"] == "dot.cache/v1"
+    reports = {entry["name"]: entry["report"] for entry in document["providers"]}
+    assert reports == {
+        "docker": [{"Type": "Images", "Size": "1GB"}, {"Type": "Containers", "Size": "0B"}],
+        "hf": [{"repo_id": "org/model"}],
+        "uv": {"bytes": 1024},
+    }
+    assert "SECRET-DIAGNOSTIC" not in result.output
+    assert not provider.actions
+
+
+def test_cache_json_reports_a_failed_provider_and_exits_nonzero(provider: RecordingRunner) -> None:
+    provider.responses = [CommandResult("", "boom", 3)]
+    result = CliRunner().invoke(app, ["cache", "uv", "--json"])
+    assert result.exit_code == 1
+    entry = json.loads(result.stdout)["providers"][0]
+    assert entry["error"].startswith("exit 3; run uv cache size")
+    assert "boom" not in result.output
+
+
+def test_cache_json_keeps_other_providers_when_one_times_out(provider: RecordingRunner) -> None:
+    provider.responses = [
+        CommandTimeoutError("command timed out: docker"),
+        CommandResult("[]", "", 0),
+        CommandResult("1024\n", "", 0),
+    ]
+    result = CliRunner().invoke(app, ["cache", "--json"])
+    assert result.exit_code == 1
+    entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
+    assert entries["docker"]["error"].startswith("timed out after 120s")
+    assert entries["uv"]["report"] == {"bytes": 1024}
+
+
+def test_cache_json_dry_run_lists_commands_without_probes(provider: RecordingRunner) -> None:
+    result = CliRunner().invoke(app, ["cache", "--json", "--dry-run"])
+    assert result.exit_code == 0, result.exception
+    document = json.loads(result.stdout)
+    assert document["dry_run"] is True
+    assert document["providers"][0]["command"] == "docker system df --format json"
+    assert not provider.calls
+
+
 def test_prune_requires_confirmation_and_default_excludes_docker(provider: RecordingRunner) -> None:
     result = CliRunner().invoke(app, ["prune", "all"])
     assert result.exit_code != 0
@@ -828,6 +903,17 @@ def test_login_all_refreshes_gcloud_before_workspace_setup(
     assert result.exit_code == 0, result.exception
     assert provider.actions == [["gcloud", "auth", "login"]]
     assert provider.calls[-2][:3] == ["gcloud", "services", "list"]
+
+
+def test_login_all_rejects_invalid_project_before_any_login(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GWS_PROJECT", "Not A Project")
+    result = CliRunner().invoke(app, ["login", "all", "--dry-run"])
+    assert result.exit_code == 1
+    assert "fix GWS_PROJECT or auth.workspace.project" in str(result.exception)
+    assert not provider.calls
+    assert result.stdout == ""
 
 
 def test_login_all_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:

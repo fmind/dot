@@ -55,8 +55,9 @@ dot agent stats --tokens-only --agent claude                             # filte
 dot agent stats --tokens-only --since 24h --json                           # emit a versioned JSON object for scripting
 dot agent usage list -n 20                                         # list recent session records
 dot agent session sync                                            # capture/backfill transcript and usage together
-(umask 077; dot agent usage list --limit 0 --json > usage.json)
-duckdb -init /dev/null -batch -bail -json -c "SELECT record.harness, record.measurement_kind, count(*), sum(record.total_tokens) FROM (SELECT unnest(records) AS record FROM read_json_auto('usage.json')) GROUP BY record.harness, record.measurement_kind"
+# One record per line: the full archive exceeds DuckDB's 16 MiB maximum_object_size as a single JSON object.
+(umask 077; dot agent usage list --limit 0 --json | jq -c '.records[]' > usage.jsonl)
+duckdb -init /dev/null -batch -bail -json -c "SELECT harness, measurement_kind, count(*), sum(total_tokens) FROM read_json_auto('usage.jsonl') GROUP BY ALL"
 ```
 
 Missing costs serialize as `null`. A partial group reports its known subtotal and completeness counts; it does not estimate missing usage. `--since` and inclusive `--until` filter request timestamps when reliable samples exist, otherwise whole-session timestamps. A date-only `--since` begins at midnight UTC; a date-only `--until` includes the whole UTC day. Explicit timestamps remain exact. Provider session cost is reported only when the complete session belongs to one selected group; it cannot be apportioned across dates or models.

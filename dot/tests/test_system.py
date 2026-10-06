@@ -161,6 +161,16 @@ def test_headroom_prints_one_line_and_fails_below_limits(
     assert ("limits:" in result.stdout) == (verdict != "PASS")
 
 
+def test_headroom_ignores_malformed_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    malformed = tmp_path / "malformed.yaml"
+    malformed.write_text("prune: [\n", encoding="utf-8")
+    monkeypatch.setattr(system.shutil, "disk_usage", _disk(30))
+    monkeypatch.setattr(system, "available_memory_bytes", lambda: 4 * 1024**3)
+    result = CliRunner().invoke(app, ["--config", str(malformed), "doctor", "--headroom"])
+    assert result.exit_code == 0, result.output
+    assert result.stdout.startswith("PASS · headroom: ")
+
+
 def test_headroom_rejects_mutating_or_probing_flags() -> None:
     result = CliRunner().invoke(app, ["doctor", "--headroom", "--deep"])
     assert result.exit_code == 2
@@ -174,7 +184,31 @@ def test_headroom_groups_paths_by_filesystem_and_parses_available_memory(tmp_pat
     meminfo.write_text("MemTotal: 8000000 kB\nMemAvailable: 2097152 kB\n")
     assert system.available_memory_bytes(meminfo) == 2 * 1024**3
     assert system.available_memory_bytes(tmp_path / "missing") is None
+    vm_stat = (
+        "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n"
+        "Pages free:                               70000.\n"
+        "Pages active:                            400000.\n"
+        "Pages inactive:                           70000.\n"
+        "Pages speculative:                         5536.\n"
+    )
+    assert system.vm_stat_available_bytes(vm_stat) == (70000 - 5536 + 70000) * 16384
+    assert system.vm_stat_available_bytes("Pages free: 1.\n") is None
     results = system.headroom_results([first, second, first, tmp_path / "absent"], memory=None)
     disks = [result for result in results if result.name == "disk"]
     assert len(disks) == 1
     assert disks[0].path == f"{first}, {second}"
+
+
+def test_macos_memory_reads_vm_stat_and_degrades_to_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    output = "Mach Virtual Memory Statistics: (page size of 4096 bytes)\nPages free: 10.\nPages inactive: 6.\n"
+
+    class VmStat:
+        def run(self, args: list[str], **_kwargs: object) -> CommandResult:
+            assert args == ["vm_stat"]
+            return CommandResult(output, "", 0)
+
+    monkeypatch.setattr(system.sys, "platform", "darwin")
+    monkeypatch.setattr(system, "Runner", VmStat)
+    assert system.available_memory_bytes() == 16 * 4096
+    output = "unexpected"
+    assert system.available_memory_bytes() is None

@@ -22,7 +22,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    dot doctor --deep --json | jq -c '.checks[] | select(.group == "auth") | {name, status, condition, details}'
    ```
 
-1. **Check scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes` and `auth.workspace.scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes.
+1. **Check scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes`, `auth.workspace.scopes`, and `auth.gcp.adc_scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes.
 1. **Probe other named connectors**: only those the task or user names, each read-only with its exit status checked:
 
    | Provider     | Probe                                                                                       | Recovery                                                 |
@@ -39,7 +39,8 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
 
    ```bash
    for name in GH_TOKEN GITHUB_TOKEN GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_AUTH_ACCESS_TOKEN_FILE \
-     GOOGLE_WORKSPACE_CLI_TOKEN HF_TOKEN KAGGLE_API_TOKEN AWS_PROFILE DATABRICKS_TOKEN; do
+     GOOGLE_WORKSPACE_CLI_TOKEN GEMINI_API_KEY GOOGLE_API_KEY HF_TOKEN KAGGLE_API_TOKEN \
+     AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SESSION_TOKEN DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_CLIENT_SECRET; do
      [ -n "$(printenv "$name")" ] && echo "$name is set"
    done
    ```
@@ -50,7 +51,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
 
 - **Never print secrets**: no `print-access-token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, or `--show-token` in a transcript; dot's probes capture token output internally.
 - **Exit 0 is not proof**: `gh auth status --json` and Colab can succeed while reporting a failure; read the state and stderr.
-- **Native ADC logins drop Colab scope**: a native ADC login (`gcloud auth application-default login`, `gcloud auth login --update-adc`) replaces the grant and drops the Colab scope; `dot login gcp|colab` request `auth.gcp.adc_scopes`, which keeps it. Run `dot login colab` to restore it ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
+- **Native ADC logins drop configured scopes**: a native ADC login (`gcloud auth application-default login`, `gcloud auth login --update-adc`) replaces the grant and drops the Colab and BigQuery read-only scopes; `dot login gcp|colab` request `auth.gcp.adc_scopes`, which keeps them. Run `dot login colab` to restore them ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
 - **Probing is read-only**: logging in, switching accounts, adding scopes, or editing `dot` configuration needs the user.
 
 ## Documentation

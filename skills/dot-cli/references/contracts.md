@@ -23,9 +23,11 @@ Check the exit status: a failure before report construction may produce no JSON,
 | `dot agent session sync --json` | `dot.agent.session.sync/v2` | Counts `selected`, `ingested`, `unchanged`, `retained`, `retained_current_transcripts`, `skipped`, `failed`. |
 | `dot agent usage list --json`   | `dot.agent.usage.list/v1`   | `.records[]`                                                                                                 |
 | `dot orphan --json`             | `dot.orphan/v1`             | `.targets[]`                                                                                                 |
+| `dot cache --json`              | `dot.cache/v1`              | `.providers[]` with `name`, `command`, and native `report` or `error`; `--dry-run` lists commands only.      |
+| `dot trust --json`              | `dot.trust/v1`              | `.folders[]` with `path` and `changed` harnesses, `.skipped[]`, `.harnesses`; combine with `--dry-run`.      |
 | `dot agent stats --json`        | `dot.agent.stats/v2`        | `.prompts` (`null` when token-only) and `.usage[]` (empty when prompt-only).                                 |
 
-Diagnostics use the `dot.diagnostics/v1` envelope; agent doctor details carry `agent`, `hooks`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, and `next`. Native cache/provider output keeps its native format.
+Diagnostics use the `dot.diagnostics/v1` envelope; agent doctor details carry `agent`, `hooks`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, `next`, and `discovery` (`ok`, or `broken:` with `persona`, `skills`, or `agents` when the deployed host files miss the shared persona, skills catalog, or compiled subagents, and `duplicate-skills` when the caller's environment lacks `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`, so an OpenCode launched from it loads the catalog twice). Native cache/provider output keeps its native format.
 
 ## Session archive
 

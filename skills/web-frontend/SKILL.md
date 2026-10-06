@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Web Frontend
@@ -18,8 +18,8 @@ Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an exis
 
 1. **Retrieve guidance**: search curated web platform recipes, then fetch a guide's implementation details and browser baselines by identifier:
    ```bash
-   npx --yes modern-web-guidance@0.0.190 search "<topic or api>"
-   npx --yes modern-web-guidance@0.0.190 retrieve "<guide-id>"
+   npx --yes modern-web-guidance@0.0.191 search "<topic or api>"
+   npx --yes modern-web-guidance@0.0.191 retrieve "<guide-id>"
    ```
 1. **Prefer web platform primitives**: Prioritize native elements (`<dialog>`, `<details>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
 1. **Verify baseline compatibility**: Check baseline availability and browser support before adopting newly standardized APIs; fall back progressively without blocking core experiences.

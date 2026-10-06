@@ -1,6 +1,7 @@
-"""Read-only agent checks: notify hooks, last sync state, and archive readability; nothing is captured or rewritten."""
+"""Read-only agent checks: discovery, notify hooks, last sync state, and archive readability; nothing is captured or rewritten."""
 
 import json
+import os
 import shlex
 import tomllib
 from collections.abc import Iterator, Mapping
@@ -45,6 +46,27 @@ _DOCTOR_INTEGRATIONS = {
 
 
 @dataclass(frozen=True)
+class DoctorDiscovery:
+    persona: str
+    # Host link to the shared skills; empty when the host reads ~/.agents/skills natively.
+    skills: str
+    agents: str
+
+
+_SHARED_PERSONA = "~/.agents/AGENTS.md"
+_SHARED_SKILLS = "~/.agents/skills"
+# Paths the chezmoi source deploys per host; compiled subagent profiles match the glob.
+_DOCTOR_DISCOVERY = {
+    "agy": DoctorDiscovery("~/.gemini/GEMINI.md", "~/.gemini/config/skills", "~/.gemini/config/agents/*.md"),
+    "claude": DoctorDiscovery("~/.claude/CLAUDE.md", "~/.claude/skills", "~/.claude/agents/*.md"),
+    "codex": DoctorDiscovery("~/.codex/AGENTS.md", "", "~/.codex/agents/*.toml"),
+    "grok": DoctorDiscovery("~/.grok/AGENTS.md", "~/.grok/skills", "~/.grok/agents/*.md"),
+    "copilot": DoctorDiscovery("~/.copilot/copilot-instructions.md", "", "~/.copilot/agents/*.agent.md"),
+    "opencode": DoctorDiscovery("~/.config/opencode/AGENTS.md", "", "~/.config/opencode/agents/*.md"),
+}
+
+
+@dataclass(frozen=True)
 class AgentDoctorResult:
     agent: str
     hooks: str
@@ -56,6 +78,7 @@ class AgentDoctorResult:
     sessions: int
     healthy: bool
     next: str = ""
+    discovery: str = "ok"
 
 
 def _command_hooks(config: Mapping[str, object], agent: str) -> Iterator[tuple[str, tuple[str, ...]]]:
@@ -133,6 +156,37 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         not in configured
     ]
     return f"missing:{','.join(missing)}" if missing else "configured"
+
+
+def _same_file(path: Path, target: Path) -> bool:
+    try:
+        return path.samefile(target)
+    except OSError:
+        return False
+
+
+def _check_discovery(agent: str) -> str:
+    """Confirm the host reaches the shared persona, skills, and compiled subagents from the files alone."""
+    definition = _DOCTOR_DISCOVERY[agent]
+    shared_skills = expand_path(_SHARED_SKILLS)
+    problems = []
+    if not _same_file(expand_path(definition.persona), expand_path(_SHARED_PERSONA)):
+        problems.append("persona")
+    skills = expand_path(definition.skills or _SHARED_SKILLS)
+    if not (_same_file(skills, shared_skills) and any(shared_skills.glob("*/SKILL.md"))):
+        problems.append("skills")
+    agents = expand_path(definition.agents)
+    if not any(agents.parent.glob(agents.name)):
+        problems.append("agents")
+    # OpenCode also scans ~/.claude/skills, the same catalog through a link, and then picks
+    # one copy per name at random; fish exports the opt-out for every launch.
+    if (
+        agent == "opencode"
+        and os.environ.get("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS") != "1"
+        and _same_file(expand_path("~/.claude/skills"), shared_skills)
+    ):
+        problems.append("duplicate-skills")
+    return f"broken:{','.join(problems)}" if problems else "ok"
 
 
 def _count(value: object) -> int | None:
@@ -217,10 +271,15 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
             continue
         definition = _DOCTOR_INTEGRATIONS[name]
         hooks = _check_hooks(definition) if definition.notify_events else "not-required"
+        discovery = _check_discovery(name)
         source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
         synced = last_sync != "unreadable" and (last_sync not in {"never", "stale"} or source == "missing")
-        if hooks == "disabled":
+        if discovery == "broken:duplicate-skills":
+            hint = "launch opencode from fish, or export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1"
+        elif discovery != "ok":
+            hint = "chezmoi status to find the undeployed host files, then chezmoi apply --force"
+        elif hooks == "disabled":
             setting = {"claude": "disableAllHooks", "codex": "tui.notifications"}.get(name, "notifications")
             hint = f"review {setting} in the chezmoi source for {definition.config_path}"
         elif hooks not in {"configured", "not-required"}:
@@ -243,6 +302,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
                 sessions=sessions,
                 healthy=not hint,
                 next=hint,
+                discovery=discovery,
             )
         )
     return results
@@ -263,7 +323,8 @@ def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") ->
             state.stdout.write(
                 f"{mark} {result.agent}: hooks={result.hooks} source={result.source} "
                 f"last_sync={result.last_sync} sync_failures={result.sync_failures} "
-                f"sync_retained={result.sync_retained} archive={result.archive} sessions={result.sessions}\n"
+                f"sync_retained={result.sync_retained} archive={result.archive} sessions={result.sessions} "
+                f"discovery={result.discovery}\n"
             )
             if result.next:
                 state.stdout.write(f"  next: {result.next}\n")
