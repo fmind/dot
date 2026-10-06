@@ -44,7 +44,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "18.1.5"
+version = "18.2.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -54,9 +54,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fe/52/f40210e2376c76f18b33c79c2f4e685b9541e828b6399b6a899b8d33e978/brain_framework-18.1.5.tar.gz", hash = "sha256:de60164af8ae510e3d09f5c111d2161b6fc9a1363b03101647c3ee192b4db5d7", size = 252122, upload-time = "2026-10-06T12:10:51.017Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/ca/5ea06a80a21145de5e66833dba81989c3ba208b9d4cc6fff4199264fbef2/brain_framework-18.2.0.tar.gz", hash = "sha256:54a73dc5c4ec8fea5096f66c590b1e1d8a30d4d44ba24c8150daa05449e29070", size = 254631, upload-time = "2026-10-06T20:08:00.648Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/f7/a3fe940859ab21b17690b33da2b8dae62b8b0d86caac3ee4621f285d2ad2/brain_framework-18.1.5-py3-none-any.whl", hash = "sha256:0170af56234451081dc2ada8d435784906e5322197bc942b493f6dd399bbe22f", size = 281772, upload-time = "2026-10-06T12:10:49.283Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/b8/cabd06ee0999a52038546400f08aba875e55aedaff8607e057b49168ed4b/brain_framework-18.2.0-py3-none-any.whl", hash = "sha256:6500d576acaf3dd4e590075f330e16db28478cd889f419f21948aa1fb9a221fe", size = 284700, upload-time = "2026-10-06T20:07:59.214Z" },
 ]
 
 [[package]]
@@ -350,7 +350,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==18.1.5" }]
+requires-dist = [{ name = "brain-framework", specifier = "==18.2.0" }]
 
 [[package]]
 name = "opentelemetry-api"
