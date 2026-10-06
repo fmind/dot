@@ -291,7 +291,8 @@ def _tool_results(state: State) -> list[CheckResult]:
 
 
 def _auth_results(state: State) -> list[CheckResult]:
-    """Report the same readiness that dot login checks, without authenticating."""
+    """Report authentication without authenticating: GitHub only confirms a login, since environment and
+    fine-grained tokens report no OAuth scopes; Google probes check the scopes dot login requests."""
 
     def github() -> CheckResult | bool:
         entry = github_status(state)

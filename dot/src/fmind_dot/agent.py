@@ -15,6 +15,7 @@ from fmind_dot.archive.query import (
     show_session,
 )
 from fmind_dot.archive.statistics import prompt_statistics
+from fmind_dot.archive.store import session_bundle_path
 from fmind_dot.archive.sync import bounded_failure, sync_sessions
 from fmind_dot.archive.usage import (
     aggregate_usage,
@@ -156,7 +157,8 @@ def session_show(
     if content and "invalid" in summary.status:
         raise DotError(
             f"archived transcript for {summary.agent} session {summary.session_id} is unreadable; "
-            f"recapture it with: dot agent session sync --agent {summary.agent} --session {summary.session_id}"
+            f"move {session_bundle_path(summary.agent, summary.session_id)} aside (sync skips an unchanged source), "
+            f"then recapture it with: dot agent session sync --agent {summary.agent} --session {summary.session_id}"
         )
 
 
