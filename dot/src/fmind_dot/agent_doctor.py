@@ -79,6 +79,8 @@ class AgentDoctorResult:
     healthy: bool
     next: str = ""
     discovery: str = "ok"
+    # Advisory about the caller's environment; it never affects `healthy`.
+    note: str = ""
 
 
 def _command_hooks(config: Mapping[str, object], agent: str) -> Iterator[tuple[str, tuple[str, ...]]]:
@@ -178,15 +180,25 @@ def _check_discovery(agent: str) -> str:
     agents = expand_path(definition.agents)
     if not any(agents.parent.glob(agents.name)):
         problems.append("agents")
+    return f"broken:{','.join(problems)}" if problems else "ok"
+
+
+def _discovery_note(agent: str) -> str:
+    """Warn when an OpenCode launched from the caller's environment would load the skills twice."""
     # OpenCode also scans ~/.claude/skills, the same catalog through a link, and then picks
-    # one copy per name at random; fish exports the opt-out for every launch.
+    # one copy per name at random; fish exports the opt-out for every launch. The doctor sees
+    # only its own environment, so this stays a note: a shell started before the export would
+    # otherwise fail a healthy deployment.
     if (
         agent == "opencode"
         and os.environ.get("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS") != "1"
-        and _same_file(expand_path("~/.claude/skills"), shared_skills)
+        and _same_file(expand_path("~/.claude/skills"), expand_path(_SHARED_SKILLS))
     ):
-        problems.append("duplicate-skills")
-    return f"broken:{','.join(problems)}" if problems else "ok"
+        return (
+            "this environment lacks OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1, so OpenCode launched from it "
+            "loads the skills catalog twice; launch it from fish or export the variable"
+        )
+    return ""
 
 
 def _count(value: object) -> int | None:
@@ -275,9 +287,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
         synced = last_sync != "unreadable" and (last_sync not in {"never", "stale"} or source == "missing")
-        if discovery == "broken:duplicate-skills":
-            hint = "launch opencode from fish, or export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1"
-        elif discovery != "ok":
+        if discovery != "ok":
             hint = "chezmoi status to find the undeployed host files, then chezmoi apply --force"
         elif hooks == "disabled":
             setting = {"claude": "disableAllHooks", "codex": "tui.notifications"}.get(name, "notifications")
@@ -303,6 +313,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
                 healthy=not hint,
                 next=hint,
                 discovery=discovery,
+                note=_discovery_note(name),
             )
         )
     return results
@@ -328,6 +339,8 @@ def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") ->
             )
             if result.next:
                 state.stdout.write(f"  next: {result.next}\n")
+            if result.note:
+                state.stdout.write(f"  note: {result.note}\n")
             if result.sync_retained:
                 # Informational: truncated sources are retained by design; a measurement that
                 # a new parse would lose points at a parser gap. Sync reports one line per
