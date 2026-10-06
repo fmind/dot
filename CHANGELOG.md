@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [10.1.1] - 2026-10-06
+
+### 🐛 Bug Fixes
+
+- Support custom meminfo on darwin and deflake agy test timeout
+- _(security)_ Keep SSH, gws, and cloud credentials out of searches
+- _(agy)_ Merge user hooks and reload systemd drop-ins on change
+- _(config)_ Ignore .DS_Store globally and let gh use nvim-tty
+- _(hooks)_ Format the editor wrapper on commit
+- _(delegate-tasks)_ Keep the canceled state when a worker ignores SIGTERM
+- _(dot)_ Name the move-aside step for unreadable transcripts
+- _(skills)_ Name missing guide markers instead of a no-op fix
+- _(skills)_ Correct stale commands, policies, and template defaults
+
+### 📚 Documentation
+
+- _(skills)_ Trim duplicated archive and pin guidance
+
+### 🧪 Testing
+
+- Deflake timing-bound tests and drop dead fixtures
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade usage, a neovim plugin, and template pins
+
 ## [10.1.0] - 2026-10-06
 
 ### 🚀 Features
