@@ -511,7 +511,7 @@ def test_doctor_reports_broken_discovery_per_host(monkeypatch: pytest.MonkeyPatc
     assert "chezmoi apply --force" in results["grok"].next
 
 
-def test_doctor_flags_opencode_duplicate_skills_without_the_opt_out(
+def test_doctor_notes_opencode_duplicate_skills_without_failing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     state = _state(monkeypatch, tmp_path)
@@ -519,5 +519,8 @@ def test_doctor_flags_opencode_duplicate_skills_without_the_opt_out(
 
     result = gather_agent_doctor(state, agent="opencode")[0]
 
-    assert (result.discovery, result.healthy) == ("broken:duplicate-skills", False)
-    assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in result.next
+    # The caller's environment is not OpenCode's, so the opt-out is advisory only.
+    assert (result.discovery, result.healthy, result.next) == ("ok", True, "")
+    assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in result.note
+    run_agent_doctor(state, agent="opencode")
+    assert "  note: this environment lacks OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in _text(state.stdout)
