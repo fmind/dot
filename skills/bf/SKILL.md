@@ -9,7 +9,7 @@ metadata:
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Use Brain Framework
@@ -30,7 +30,7 @@ A brain keeps OKF project, concept and action notes plus collected source record
 1. **Read the refs you rely on**: excerpts are previews. A section read also states its note's `title`, `type`, `status` and `date`: never present a `deprecated` note as current. A note above 32 KiB opens with its `outline`, graph context and, when headings divide it, only its first 4 KiB: read the section you need by its ref. A flagged note's `newer` lists linked evidence newer than its last edit: read it before relying on the note. Notes state a `date` as written; records state a `time` with its local offset. Follow the [retrieval guide](references/retrieval.md).
 1. **Answer with the conclusion, supporting refs and material uncertainty**.
 1. **Act and save only when asked**: start or resume an action only when the user asks ([actions guide](references/actions.md)). When the user asks to save an outcome, or the task authorizes it, update the owning note and run `bf validate` ([learning guide](references/learning.md)); never edit `memories/`.
-1. **Defer to packaged brain skills**: when the brain's `skills/` holds the packaged `bf-use`, `bf-maintain` or `bf-setup` skills (installed with `bf skills`), they take precedence over this global `bf` connector inside that brain: follow them and their helpers, which match its pinned release.
+1. **Defer to packaged brain skills**: when the brain's `skills/` holds the packaged `bf-use`, `bf-action`, `bf-maintain` or `bf-setup` skills (installed with `bf skills`), they take precedence over this global `bf` connector inside that brain: follow them and their helpers, which match its pinned release.
 
 ## Task guides
 
@@ -55,4 +55,4 @@ For diagnosis only; repairs belong to the brain's `bf-maintain` skill and the us
 ## Documentation
 
 - [Brain Framework repository](https://github.com/fmind/brain-framework) · [documentation](https://fmind.github.io/brain-framework/) · [releases](https://github.com/fmind/brain-framework/releases)
-- The guides mirror the upstream v18 packaged `bf-use` skill; change them there first. See [brain selection](https://fmind.github.io/brain-framework/docs/configuration/#select-a-brain) and [team brains](https://fmind.github.io/brain-framework/docs/team/).
+- The guides mirror the upstream v18 packaged `bf-use` and `bf-action` skills; change them there first. See [brain selection](https://fmind.github.io/brain-framework/docs/configuration/#select-a-brain) and [team brains](https://fmind.github.io/brain-framework/docs/team/).
