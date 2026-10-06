@@ -11,10 +11,18 @@ __pycache__/
 node_modules/
 
 # Keys and credential stores: keep them out of agent searches (defense in depth; direct reads still work).
+**/.aws/cli/cache/
+**/.aws/credentials
+**/.aws/sso/cache/
 **/.claude/.credentials.json
 **/.codex/auth.json
+**/.docker/config.json
 **/.grok/auth.json
 **/.kaggle/
+**/.kube/config
+**/.netrc
+**/.ssh/
+**/Bitwarden CLI/
 **/bf/credentials/
 **/chezmoi/key.txt
 **/dot/secrets/
@@ -22,6 +30,9 @@ node_modules/
 **/gcloud/application_default_credentials.json
 **/gcloud/credentials.db
 **/gcloud/legacy_credentials/
+**/gws/client_secret*
+**/gws/credentials*
+**/gws/token_cache.json
 **/opencode/auth.json
 **/sops/age/
 **/uv/credentials/
