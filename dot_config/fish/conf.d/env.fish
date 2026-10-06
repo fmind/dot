@@ -5,7 +5,8 @@ set -q XDG_CONFIG_HOME; or set -gx XDG_CONFIG_HOME $HOME/.config
 set -gx PTPYTHON_CONFIG_HOME $XDG_CONFIG_HOME/ptpython
 
 # Editors
-set -gx EDITOR nvim
+# Opens nvim on a terminal and fails fast without one (agent shells).
+set -gx EDITOR $HOME/.local/bin/nvim-tty
 set -gx VISUAL $EDITOR
 
 # Locales

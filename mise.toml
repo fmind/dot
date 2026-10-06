@@ -181,8 +181,8 @@ trap 'rm -rf "$rendered"' EXIT
 for template in run_*.sh.tmpl modify_dot_*; do
   chezmoi execute-template --source "$PWD" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
-shellcheck --rcfile dot_config/shellcheckrc install.sh run_*.sh "$rendered"/*.bash
-shfmt -d -i 2 -s install.sh run_*.sh
+shellcheck --rcfile dot_config/shellcheckrc install.sh run_*.sh dot_local/bin/executable_* "$rendered"/*.bash
+shfmt -d -i 2 -s install.sh run_*.sh dot_local/bin/executable_*
 """
 
 [tasks."check:skills"]
@@ -264,7 +264,7 @@ run = "uv run --frozen --project dot ruff format --force-exclude"
 [tasks."format:shell"]
 alias = "fs"
 description = "Format shell scripts"
-run = "shfmt -w -i 2 -s install.sh run_*.sh"
+run = "shfmt -w -i 2 -s install.sh run_*.sh dot_local/bin/executable_*"
 
 [tasks.install]
 alias = "i"

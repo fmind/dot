@@ -1,0 +1,9 @@
+#!/bin/sh
+# Editor for $EDITOR, $VISUAL, and chezmoi edit/merge: agent shells have no terminal, where
+# nvim would wait forever, so fail fast instead. Git keeps its own editor function, which
+# preserves prepared messages without a terminal.
+if [ -t 0 ] && [ -t 1 ]; then
+  exec nvim "$@"
+fi
+echo "nvim-tty: no terminal; not opening $*" >&2
+exit 1
