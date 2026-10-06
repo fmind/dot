@@ -712,8 +712,18 @@ sessions = false
         assert grok["Notification"][0]["matcher"] == "^(permission_prompt|elicitation_dialog)$"
         assert grok["Notification"][1]["matcher"] == "^idle_prompt$"
 
-        agy = json.loads(self.render("dot_gemini/private_config/private_hooks.json.tmpl", ""))
+        agy = json.loads(self.render("dot_gemini/private_config/modify_private_hooks.json", ""))
         assert set(agy) == {"notify"}
+        # agy's /hooks writes named hooks to the same file; apply keeps them and enforces notify.
+        user_hook = {"type": "command", "command": "echo user", "timeout": 5}
+        merged = json.loads(
+            self.render(
+                "dot_gemini/private_config/modify_private_hooks.json",
+                json.dumps({"custom": {"Stop": [user_hook]}, "notify": {"Stop": []}}),
+            )
+        )
+        assert merged["custom"] == {"Stop": [user_hook]}
+        assert merged["notify"] == agy["notify"]
 
         # Every hook notifies and names the CLI absolutely; none relies on PATH order.
         commands = [
@@ -728,7 +738,7 @@ sessions = false
         for template in [
             "dot_claude/modify_settings.json",
             "dot_grok/hooks/hooks.json.tmpl",
-            "dot_gemini/private_config/private_hooks.json.tmpl",
+            "dot_gemini/private_config/modify_private_hooks.json",
         ]:
             with self.subTest(template=template), pytest.raises(RuntimeError, match="not shell-safe"):
                 self.render(template, "")

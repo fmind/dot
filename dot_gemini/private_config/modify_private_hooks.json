@@ -1,0 +1,19 @@
+# chezmoi:modify-template
+{{- /* Docs: https://antigravity.google/docs/hooks/
+       agy's /hooks command writes this shared file and each top-level key is an independent
+       named hook, so apply merges: hooks added there survive and the managed notify hook wins. */ -}}
+{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
+{{- $managedConfig := fromJson (replace "@dot@" $dot `
+{
+  "notify": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "@dot@ agent hook notify agy stop",
+        "timeout": 30
+      }
+    ]
+  }
+}
+`) -}}
+{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

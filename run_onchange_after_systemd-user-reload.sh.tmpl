@@ -1,0 +1,13 @@
+#!/bin/sh
+# Docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#daemon-reload
+# systemd reads unit drop-ins only on daemon-reload; these hashes rerun this hook when one changes.
+# antigravity-cli-daemon: {{ include "dot_config/systemd/user/antigravity-cli-daemon.service.d/path.conf" | sha256sum }}
+# cros-garcon: {{ include "dot_config/systemd/user/cros-garcon.service.d/oom-policy.conf" | sha256sum }}
+set -eu
+command -v systemctl >/dev/null 2>&1 || exit 0
+# No user manager (containers, CI, SSH without lingering): the next login loads the drop-ins.
+systemctl --user daemon-reload 2>/dev/null || exit 0
+# Never restart from apply: the agy daemon hosts remote-control sessions, possibly this one.
+if systemctl --user is-active --quiet antigravity-cli-daemon.service; then
+  echo "systemd drop-ins reloaded; restart agy's daemon to apply them: systemctl --user restart antigravity-cli-daemon.service"
+fi
