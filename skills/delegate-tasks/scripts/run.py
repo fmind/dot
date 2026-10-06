@@ -133,7 +133,9 @@ async def execute(args: list[str], cwd: str, prefix: Path, seconds: int, record:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(process.pid, signal.SIGTERM)
             try:
-                await asyncio.wait_for(process.wait(), 2)
+                # A grace timeout must not replace the original outcome (a cancellation especially).
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(process.wait(), 2)
             finally:
                 with contextlib.suppress(ProcessLookupError):
                     os.killpg(process.pid, signal.SIGKILL)
