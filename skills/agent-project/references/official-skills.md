@@ -2,7 +2,7 @@
 
 Baseline checked 2026-09-06 against the managed mise tools, the dot Python dependencies, and the Python, agent, web, data, and telemetry skill references. Sources below are maintainer repositories, not marketplace rankings. Repository trees and selected skill bodies were inspected; discovery was exercised with `skills add ... --list` for the new Python routes. Recheck before installing because bundles and SDK APIs change independently.
 
-The marimo authoring and pairing sources were added and checked on 2026-09-08. The Google ADK (v2.11.0), Pydantic, Litestar, and FastAPI (0.142.2) pins were advanced on 2026-10-04; Litestar now consolidates its core guidance into the `litestar` skill. Other versioned rows retain their original qualification date.
+The marimo authoring and pairing sources were added and checked on 2026-09-08. The Google ADK, Pydantic, Litestar, and FastAPI pins were advanced on 2026-10-04 to reviewed default-branch commits, not release tags (the releases then current were ADK v2.11.0 and FastAPI 0.142.2); Litestar now consolidates its core guidance into the `litestar` skill. Other versioned rows retain their original qualification date.
 
 ## Python and documentation
 

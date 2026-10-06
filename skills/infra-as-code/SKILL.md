@@ -41,6 +41,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 - **Apply-mode tests create resources**: `command = apply` creates real (then destroyed) resources; reserve it for behavior a plan cannot prove, with approved project access and cost.
 - **tflint rulesets are downloaded**: `tflint --init` (in `install:lint`) fetches the plugins pinned in [tflint.hcl](templates/tflint.hcl); export `GITHUB_TOKEN` in CI to avoid API rate limits.
+- **Initialize before the CI gate**: the shared [ci.yml](../github-actions/references/ci-cd/templates/ci.yml) runs only `mise run all`, so add a step with `tofu init -backend=false` and `tflint --init` before it; validation, linting, and `tofu test` need the providers and rulesets.
 - **terraform-docs needs markers**: `inject` mode only rewrites between the `TF_DOCS` markers; add them to `README.md` once at scaffold time.
 - **Provider majors move fast**: [versions.tf](templates/versions.tf) pins the google provider to one major with `~>`; bump majors deliberately with [upgrade-tools](../upgrade-tools/SKILL.md) and read the upgrade guide, because resources rename across majors.
 - **One state per concern**: several small root modules (one per GCS `prefix`) beat one monolithic state — smaller blast radius, faster plans.

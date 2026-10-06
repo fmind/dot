@@ -14,7 +14,7 @@ Stage, commit, and push the authorized change, preserving existing work and repa
 1. **Commit once**: write the subject with the [conventional-commit](conventional-commit.md) rules, then run `git commit -m "<subject>"` once.
 1. **Heal pre-commit**: read the failure, fix its cause, and rerun the affected check or case. Format only the intended paths; use an isolated candidate for a whole-tree formatter when unrelated work exists. Review and restage only the authorized fixes before retrying.
 1. **Push the candidate**: verify the destination, then `git push -u origin "$(git branch --show-current)"`. A push to another repository or branch needs its own scope.
-1. **Heal pre-push**: reproduce the failing `mise run test` case and fix the cause without weakening assertions. Amend only the unpublished commit created by this flow when the authorized commit scope includes those fixes; otherwise make a separate authorized correction. Reconcile remote state before retrying an uncertain push.
+1. **Heal pre-push**: reproduce the failing pre-push check (tests, network checks) and fix the cause without weakening assertions. Amend only the unpublished commit created by this flow when the authorized commit scope includes those fixes; otherwise make a separate authorized correction. Reconcile remote state before retrying an uncertain push.
 1. **Verify and report**: compare the remote branch SHA with the committed SHA, then report subject, commit, and destination. CI for that commit is a separate result.
 
 ## Gotchas
