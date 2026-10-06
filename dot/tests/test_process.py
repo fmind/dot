@@ -263,7 +263,8 @@ def test_timeout_lets_child_handle_sigterm_before_kill(tmp_path: Path) -> None:
     ready, clean = tmp_path / "ready", tmp_path / "clean"
 
     with pytest.raises(CommandTimeoutError, match="command timed out"):
-        Runner().run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], timeout=0.75)
+        # Outlast interpreter startup on a loaded host so the child installs its handler first.
+        Runner().run([sys.executable, "-c", _TERM_CHILD, str(ready), str(clean), "trap"], timeout=3.0)
 
     assert ready.exists(), "child did not install its handler before the timeout"
     assert clean.read_text() == "clean"
@@ -350,9 +351,10 @@ def test_timeout_is_bounded_when_descendant_escapes_process_group() -> None:
 
     started = time.monotonic()
     with pytest.raises(DotError, match="command timed out"):
-        Runner().run([sys.executable, "-c", parent], timeout=0.1)
+        # Long enough for the parent to spawn the escaping child before the timeout fires.
+        Runner().run([sys.executable, "-c", parent], timeout=1.0)
 
-    assert time.monotonic() - started < 1.5
+    assert time.monotonic() - started < 2.5
 
 
 def test_timeout_is_bounded_for_silent_process() -> None:

@@ -172,7 +172,8 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
     assert not (checkout / ".git/FETCH_HEAD").exists()
 
 
-def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
     status = [repository.RepositoryStatus("repo", "work", error="inspection failed")]
     monkeypatch.setattr(repository, "gather_status", lambda *_args: status)
     result = CliRunner().invoke(app, ["status", "--json"])

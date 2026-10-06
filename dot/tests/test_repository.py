@@ -27,16 +27,11 @@ class RecordingRunner(Runner):
         self,
         responses: dict[tuple[str, ...], list[CommandResult]],
         tools: set[str],
-        *,
-        interactive_status: int = 0,
     ) -> None:
         super().__init__()
         self.responses = responses
         self.tools = tools
-        self.interactive_status = interactive_status
         self.calls: list[tuple[tuple[str, ...], Path | None, str | None]] = []
-        self.interactive_calls: list[tuple[str, ...]] = []
-        self.interactive_payloads: list[str] = []
 
     def which(self, command: str) -> Path | None:
         return Path(f"/tools/{command}") if command in self.tools else None
@@ -58,13 +53,6 @@ class RecordingRunner(Runner):
         if check and result.returncode:
             raise DotError(f"command failed ({result.returncode}): {args[0]}")
         return result
-
-    def interactive(self, args: Sequence[str], **_: object) -> int:
-        self.interactive_calls.append(tuple(args))
-        if "--body-file" in args:
-            path = Path(args[args.index("--body-file") + 1])
-            self.interactive_payloads.append(path.read_text(encoding="utf-8"))
-        return self.interactive_status
 
 
 class ConcurrentPullRunner(RecordingRunner):
@@ -202,6 +190,7 @@ def test_pull_fast_forwards_a_local_remote_and_rejects_divergence(
     assert git(checkout, "status", "--porcelain") == ""
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads every file")
 @pytest.mark.parametrize("blocked", ["root", "entry"])
 def test_repository_discovery_reports_unreadable_paths(tmp_path: Path, blocked: str) -> None:
     workspace = tmp_path / "workspace"

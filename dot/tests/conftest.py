@@ -18,6 +18,12 @@ def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
             monkeypatch.delenv(key)
 
 
+@pytest.fixture(autouse=True)
+def isolated_dot_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CLI invocations without --config must not read the configuration the caller selected."""
+    monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def native_chezmoi() -> Iterator[None]:
     """Resolve a mise shim before synthetic homes change its tool/trust lookup."""

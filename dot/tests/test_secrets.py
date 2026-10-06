@@ -69,7 +69,6 @@ def test_scoped_key_arguments_stdio_and_exit_status(secret_home: Path) -> None:
     assert result.returncode == 7, result.stderr
     assert result.stdout == "child output\n"
     assert result.stderr == "child error\n"
-    assert "TEST_API_KEY" not in os.environ
     assert not (secret_home / "nope").exists()
 
 

@@ -49,7 +49,7 @@ def _stderr(state: State) -> str:
     return state.stderr.getvalue()
 
 
-def _create_copilot_database(path: Path, *, complete_schema: bool = True) -> None:
+def _create_copilot_database(path: Path) -> None:
     path.parent.mkdir(mode=0o700, parents=True)
     with closing(sqlite3.connect(path)) as connection:
         connection.executescript(
@@ -78,31 +78,27 @@ def _create_copilot_database(path: Path, *, complete_schema: bool = True) -> Non
             );
             """
         )
-        if complete_schema:
-            connection.executescript(
-                """
-                CREATE TABLE assistant_usage_events (
-                    session_id TEXT,
-                    model TEXT,
-                    input_tokens INTEGER,
-                    output_tokens INTEGER,
-                    cache_read_tokens INTEGER,
-                    cache_write_tokens INTEGER,
-                    reasoning_tokens INTEGER
-                );
-                INSERT INTO assistant_usage_events VALUES (
-                    'copilot-live', 'gpt-test', 10, 4, 2, 1, 3
-                );
-                """
-            )
+        connection.executescript(
+            """
+            CREATE TABLE assistant_usage_events (
+                session_id TEXT,
+                model TEXT,
+                input_tokens INTEGER,
+                output_tokens INTEGER,
+                cache_read_tokens INTEGER,
+                cache_write_tokens INTEGER,
+                reasoning_tokens INTEGER
+            );
+            INSERT INTO assistant_usage_events VALUES (
+                'copilot-live', 'gpt-test', 10, 4, 2, 1, 3
+            );
+            """
+        )
 
 
-def _write_jsonl(path: Path, *records: object, malformed: bool = False) -> None:
+def _write_jsonl(path: Path, *records: object) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    lines = [json.dumps(record) for record in records]
-    if malformed:
-        lines.append("{")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
 
 
 def _fixture_adapter(

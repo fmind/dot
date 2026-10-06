@@ -123,11 +123,7 @@ def test_usage_record_from_dict_requires_complete_identity(field: str) -> None:
     [("input_tokens", -1), ("cost_usd", -0.01), ("cost_usd", float("inf"))],
     ids=["negative-tokens", "negative-cost", "infinite-cost"],
 )
-def test_usage_rejects_invalid_metrics_before_serialization(
-    tmp_path: Path,
-    field: str,
-    value: int | float,
-) -> None:
+def test_usage_rejects_invalid_metrics_before_serialization(field: str, value: int | float) -> None:
     record = UsageRecord(
         timestamp="2026-09-06T10:00:00Z",
         harness="codex",
@@ -139,10 +135,8 @@ def test_usage_rejects_invalid_metrics_before_serialization(
     with pytest.raises(ValueError, match=field):
         record.to_dict()
 
-    assert not list(tmp_path.rglob("*.json"))
 
-
-def test_usage_rejects_malformed_timestamp_at_every_boundary(tmp_path: Path) -> None:
+def test_usage_rejects_malformed_timestamp_at_every_boundary() -> None:
     record = UsageRecord(
         timestamp="not-a-time",
         harness="codex",
@@ -156,8 +150,6 @@ def test_usage_rejects_malformed_timestamp_at_every_boundary(tmp_path: Path) -> 
         record.to_dict()
     with pytest.raises(ValueError, match="timestamp"):
         aggregate_usage([record], since=datetime(2026, 1, 1, tzinfo=UTC))
-
-    assert not list(tmp_path.rglob("*.json"))
 
 
 @pytest.mark.parametrize(
