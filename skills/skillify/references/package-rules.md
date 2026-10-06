@@ -13,7 +13,7 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 
 ## Naming and ownership
 
-- **Name capabilities, not aspirational umbrellas**: a Cloud Run deployment procedure is `cloud-run`, and public username reconnaissance is `username-recon`. A collection needs several distinct workflows that justify its broader domain name.
+- **Name capabilities, not aspirational umbrellas**: a Cloud Run deployment procedure is `cloud-run`. A collection needs several distinct workflows that justify its broader domain name.
 - **Name skills by kind**: keep established CLI or provider names for connectors (`gh`, `gws`, `acli`, `hf`). Name task skills for a recognizable outcome or artifact, and collections for a coherent domain. Add a qualifier when it separates real neighbors; do not enforce grammatical uniformity through cosmetic renames.
 - **Rename only for concrete benefit**: preserve deliberate user spellings, upstream identities, and established consumer contracts unless their migration has a concrete benefit. Before a rename, inspect project instruction consumers as well as this catalog. Keep historical records and immutable third-party source references unchanged.
 - **Lead descriptions with the work**: a description starts with the work the skill performs, retains distinctive tools, and distinguishes its closest neighbor when needed. Avoid vague claims such as modern, comprehensive, or best. Describe a guide's own decision branch; never copy the entire parent's description into it.

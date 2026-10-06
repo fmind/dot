@@ -7,18 +7,18 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-06"
 ---
 
 # Cloud Run Deployment
 
-Deploy a Python service to Cloud Run through an immutable image digest, private invocation, keyless CI, and a dedicated runtime identity. [containerize](../containerize/SKILL.md) owns the image; [gcloud](../gcloud/SKILL.md) owns account, project, and region context.
+Deploy a Python service to Cloud Run through an immutable image digest, private invocation, keyless CI, and a dedicated runtime identity. [containerize](../docker/references/containerize/GUIDE.md) owns the image; [gcloud](../gcloud/SKILL.md) owns account, project, and region context.
 
 ## Workflow
 
 1. **Resolve target and authority**: verify the gcloud account, project, region, service, Artifact Registry image repository, runtime permissions, and approved mutation scope. Registry pushes, signing, IAM changes, infrastructure apply, deployment, and traffic changes each require authority for the named target.
 1. **Configure identities once**: read [bootstrap.md](references/bootstrap.md) for APIs, registry, runtime service account, deployer service account, and Workload Identity Federation. Keep deployer and runtime identities distinct.
-1. **Validate locally**: pin, lock, and install Trivy and Cosign before any image scan or registry push, then build the pinned non-root Python image and run its tests and `check:image` scan; follow [deployment.md](references/deployment.md) steps 1-2 and [containerize](../containerize/SKILL.md).
+1. **Validate locally**: pin, lock, and install Trivy and Cosign before any image scan or registry push, then build the pinned non-root Python image and run its tests and `check:image` scan; follow [deployment.md](references/deployment.md) steps 1-2 and [containerize](../docker/references/containerize/GUIDE.md).
 1. **Publish and prove provenance**: after push authority is explicit, follow [deployment.md](references/deployment.md): take one digest (the build action's output in CI, BuildKit metadata locally), then scan, SBOM, sign, verify the expected identity and issuer, and attest it before deployment.
 1. **Deploy privately**: pass the digest reference and dedicated `--service-account`; keep `--invoker-iam-check --no-allow-unauthenticated` and verify both access controls after deployment. Use [service.yaml](templates/service.yaml) when settings warrant a declarative service specification; a successful update does not prove private IAM.
 1. **Use infrastructure as code when needed**: manage repeatable services, IAM, registries, and fleet-level infrastructure per [infra-as-code](../infra-as-code/SKILL.md); review the plan before apply.
@@ -42,4 +42,4 @@ Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google
 
 - [Cloud Run](https://docs.cloud.google.com/run/docs) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs) · [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation)
 - Releases: [Cloud Run](https://docs.cloud.google.com/run/docs/release-notes) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs/release-notes)
-- Companion skills: [containerize](../containerize/SKILL.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [sops-secrets](../sops-secrets/SKILL.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), and [code-security](../code-security/references/code-review/GUIDE.md).
+- Companion skills: [containerize](../docker/references/containerize/GUIDE.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [sops-secrets](../sops-secrets/SKILL.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), and [code-security](../code-security/references/code-review/GUIDE.md).

@@ -40,7 +40,7 @@ Validate with `tofu validate`, `tflint`, and `trivy config`. See [infra-as-code]
 
 ## Container images (`Dockerfile`)
 
-Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with the project's image task, and scan the resulting local archive with `trivy --config trivy.yaml image --skip-dirs '' --input <image.tar>` or the published immutable `<registry>/<slug>@<digest>`. An image scan requires one of those targets. See [containerize](../../containerize/SKILL.md).
+Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with the project's image task, and scan the resulting local archive with `trivy --config trivy.yaml image --skip-dirs '' --input <image.tar>` or the published immutable `<registry>/<slug>@<digest>`. An image scan requires one of those targets. See [containerize](../../docker/references/containerize/GUIDE.md).
 
 ## GitHub Actions (`.github/workflows/*.yml`)
 

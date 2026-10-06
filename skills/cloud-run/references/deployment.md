@@ -39,7 +39,7 @@
    printf '%s\n' "$IMAGE" >tmp/image-ref.txt
    ```
 
-1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Public Sigstore discloses permanent signing identity and digest metadata even for a private image; include this in publication authority per [Cosign](../../containerize/references/cosign.md). Replace the certificate identity with the authorized workflow or developer identity.
+1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Public Sigstore discloses permanent signing identity and digest metadata even for a private image; include this in publication authority per [Cosign](../../docker/references/cosign.md). Replace the certificate identity with the authorized workflow or developer identity.
 
    ```bash
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 "$IMAGE"

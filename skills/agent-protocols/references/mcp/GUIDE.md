@@ -29,7 +29,7 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
    ```
 1. **Secure HTTP before exposure**: validate `Origin`, bind local development to `127.0.0.1`, require OAuth or workload identity remotely, and authorize each tool against the caller and requested resource.
 1. **Consume an existing server**: use `async with Client(<approved-url-or-stdio-parameters>) as client`, inspect advertised schemas, and call only requested tools/resources. Bound call duration and output; test an unknown tool, invalid arguments, cancellation, and transport failure. A client-only project can install plain `mcp` without the CLI extra.
-1. **Ship and verify**: containerize a hosted server with [containerize](../../../containerize/SKILL.md), deploy with [cloud-run](../../../cloud-run/SKILL.md), register it through [mcp-setup](../../../mcp-setup/SKILL.md), then make one real tool call end to end.
+1. **Ship and verify**: containerize a hosted server with [containerize](../../../docker/references/containerize/GUIDE.md), deploy with [cloud-run](../../../cloud-run/SKILL.md), register it through [mcp-setup](../../../mcp-setup/SKILL.md), then make one real tool call end to end.
 
 ## Gotchas
 
@@ -46,4 +46,4 @@ Upstream: `anthropics/skills`, an official Anthropic bundle with MCP builder gui
 
 - [MCP specification](https://modelcontextprotocol.io/specification/latest) · [Python SDK](https://github.com/modelcontextprotocol/python-sdk) · [Python SDK docs](https://py.sdk.modelcontextprotocol.io/)
 - Releases: [Python SDK](https://github.com/modelcontextprotocol/python-sdk/releases) · [specification changelog](https://modelcontextprotocol.io/specification/latest/changelog)
-- Companion skills: [mcp-setup](../../../mcp-setup/SKILL.md) (host registration), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../containerize/SKILL.md), [cloud-run](../../../cloud-run/SKILL.md).
+- Companion skills: [mcp-setup](../../../mcp-setup/SKILL.md) (host registration), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [cloud-run](../../../cloud-run/SKILL.md).

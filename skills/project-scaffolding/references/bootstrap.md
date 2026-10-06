@@ -20,7 +20,7 @@ Bootstrap a repository by composing the selected foundation and application owne
    - Documentation or course site: [documentation-site](../../documentation-site/SKILL.md), with [course-development](../../course-development/SKILL.md) for lessons; infrastructure: [infra-as-code](../../infra-as-code/SKILL.md)
 1. **Add the shared layer**, skipping what the foundation or application owner already produced:
    - `LICENSE` and manifest field: [project-license](project-license/GUIDE.md)
-   - `.ignore` for Neovim search (fixtures, snapshots, generated data, minified assets) without altering Git tracking: [update-ignores](../../update-ignores/SKILL.md)
+   - `.ignore` for Neovim search (fixtures, snapshots, generated data, minified assets) without altering Git tracking: [update-ignores](../../repository-maintenance/references/update-ignores/GUIDE.md)
    - `dprint.json`: [dprint](../../dprint/SKILL.md); hooks installed: [lefthook](../../github-actions/references/lefthook.md)
    - `trivy.yaml` plus the `check:*` scan tasks: [code-security](../../code-security/references/code-review/GUIDE.md)
    - `.github/workflows/ci.yml` and `security.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md)
