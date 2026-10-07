@@ -21,6 +21,8 @@ _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
 USAGE_EXTRACTOR_VERSION = "2"
 _USAGE_IDENTITY_FIELDS = ("timestamp", "harness", "agent", "session_id")
+# Harnesses whose turn_count counts model requests; agy counts prompts and Grok completed turns.
+REQUEST_COUNTING_HARNESSES = frozenset({"claude", "codex", "copilot", "opencode"})
 _USAGE_INTEGER_FIELDS = (
     "input_tokens",
     "output_tokens",
@@ -94,6 +96,8 @@ class UsageRecord:
     # (sidechain) is measured on its own but belongs to its parent's session.
     sidechain: StrictBool = False
     parent_session_id: StrictStr = ""
+    # Manifest context too: the usage was kept from an earlier, smaller capture of a source that grew.
+    retained: StrictBool = False
     # Compact request measurements: timestamp, model, and token counters only.
     samples: Annotated[list[UsageSample], Field(strict=True)] = field(default_factory=list)
 
@@ -152,7 +156,9 @@ class UsageRecord:
             "parent_session_id",
         }
         result = _USAGE_ADAPTER.dump_python(
-            self, exclude={name for name in optional if not getattr(self, name)} | {"legacy_accounting", "samples"}
+            self,
+            exclude={name for name in optional if not getattr(self, name)}
+            | {"legacy_accounting", "retained", "samples"},
         )
         result["cost_usd"] = self.cost_usd if self.cost_known or self.cost_usd > 0 else None
         result["cost_known"] = self.cost_known or self.cost_usd > 0
@@ -219,6 +225,7 @@ def _sample_record(record: UsageRecord, sample: UsageSample) -> UsageRecord:
         cwd=record.cwd,
         measurement_kind=record.measurement_kind,
         legacy_accounting=record.legacy_accounting,
+        retained=record.retained,
         **sample,
     )
 
@@ -230,6 +237,7 @@ class _SessionEvidence:
     priced: bool = True
     session_timestamp: bool = False
     legacy: bool = False
+    retained: bool = False
 
 
 @dataclass
@@ -245,7 +253,8 @@ class UsageStats:
     total_tokens: int = 0
     cost_usd: float = 0.0
     sessions: int = 0
-    turns: int = 0
+    # Model requests; None once a harness without request counts contributes to the row.
+    requests: int | None = 0
     measurement_kind: str = "unknown"
     cwd: str = ""
     cost_known_sessions: int = 0
@@ -261,6 +270,7 @@ class UsageStats:
     period_end: str = ""
     subscription_usd: float | None = None
     legacy_accounting_sessions: int = 0
+    retained_usage_sessions: int = 0
     session_timestamp_sessions: int = 0
     measurements: int = 0
     priced_measurements: int = 0
@@ -280,7 +290,9 @@ class UsageStats:
                 "total_tokens": self.total_tokens,
                 "cost_usd": self.cost_usd if self.cost_known_sessions else None,
                 "cost_known_sessions": self.cost_known_sessions,
-                "cost_complete": self.cost_known_sessions == self.sessions,
+                # Usage kept from an earlier capture undercounts a source that has grown since.
+                "cost_complete": self.cost_known_sessions == self.sessions and not self.retained_usage_sessions,
+                "usage_complete": not self.retained_usage_sessions,
                 "measurement_kind": self.measurement_kind,
                 "cwd": self.cwd,
                 "time_basis": "request timestamps where available; otherwise whole session at recorded timestamp",
@@ -294,6 +306,7 @@ class UsageStats:
                 else None,
                 "session_timestamp_sessions": self.session_timestamp_sessions,
                 "legacy_accounting_sessions": self.legacy_accounting_sessions,
+                "retained_usage_sessions": self.retained_usage_sessions,
                 "measurements": self.measurements,
                 "priced_measurements": self.priced_measurements,
                 "api_equivalent_usd": self.api_equivalent_usd if self.priced_measurements else None,
@@ -304,7 +317,7 @@ class UsageStats:
                 "pricing_basis": self.pricing_basis,
                 "pricing_sources": self.pricing_sources,
                 "sessions": self.sessions,
-                "turns": self.turns,
+                "requests": self.requests,
             }
         )
         return result
@@ -329,6 +342,7 @@ def iter_usage_records() -> Iterator[UsageRecord]:
             record.harness == "grok" and measured_by == "7"
         )
         record.sidechain, record.parent_session_id = manifest.sidechain, manifest.parent_session_id
+        record.retained = bool(manifest.usage_parser_version)
         yield record
 
 
@@ -446,13 +460,17 @@ def aggregate_usage(
             for name in _USAGE_INTEGER_FIELDS:
                 if name != "turn_count":
                     setattr(row, name, getattr(row, name) + getattr(sample, name))
-            row.turns += sample.turn_count
+            if row.requests is not None:
+                row.requests = (
+                    row.requests + sample.turn_count if record.harness in REQUEST_COUNTING_HARNESSES else None
+                )
         for key, included in selected.items():
             row = grouped[key]
             evidence = sessions.setdefault(key, {}).setdefault(session, _SessionEvidence())
             evidence.priced = evidence.priced and all(included)
             evidence.session_timestamp = evidence.session_timestamp or not record.samples
             evidence.legacy = evidence.legacy or record.legacy_accounting
+            evidence.retained = evidence.retained or record.retained
             # A provider's session cost cannot be apportioned between dates/models. Claude's
             # session cost already includes its subagents, so a sidechain never adds cost.
             if not record.sidechain and len(selected) == 1 and len(included) == len(samples):
@@ -480,11 +498,31 @@ def aggregate_usage(
         row.priced_sessions = sum(item.priced for item in evidence.values())
         row.session_timestamp_sessions = sum(item.session_timestamp for item in evidence.values())
         row.legacy_accounting_sessions = sum(item.legacy for item in evidence.values())
+        row.retained_usage_sessions = sum(item.retained for item in evidence.values())
     return [grouped[key] for key in sorted(grouped)]
 
 
-def list_usage_records(records: list[UsageRecord], *, harness: str = "", limit: int = 50) -> list[UsageRecord]:
-    filtered = [record for record in records if not harness or harness in {record.harness, record.agent}]
+def list_usage_records(
+    records: Iterable[UsageRecord],
+    *,
+    harness: str = "",
+    limit: int = 50,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    cwd: str = "",
+) -> list[UsageRecord]:
+    """Newest sessions first; the date filters use each session's last measured activity."""
+
+    def selected(record: UsageRecord) -> bool:
+        timestamp = _parse_usage_timestamp(record.timestamp)
+        return (
+            (not harness or harness in {record.harness, record.agent})
+            and (not cwd or record.cwd == cwd)
+            and not (since and timestamp < since)
+            and not (until and timestamp > until)
+        )
+
+    filtered = [record for record in records if selected(record)]
     filtered.sort(key=lambda record: _parse_usage_timestamp(record.timestamp), reverse=True)
     return filtered[:limit] if limit > 0 else filtered
 
@@ -547,6 +585,11 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
         if "claude" in flagged:
             note += " Old Claude totals may count repeated response blocks."
         write(note)
+    if retained := sum(row.retained_usage_sessions for row in rows):
+        write(
+            f"{retained:,} session(s) keep usage from an earlier capture of a source that has grown; "
+            "their tokens and cost are incomplete until the source measures again."
+        )
     if any(row.session_timestamp_sessions for row in rows):
         write("Some usage has only a session timestamp; its monthly allocation is approximate.")
     if periods:

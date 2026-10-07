@@ -121,3 +121,45 @@ def test_opencode_deeply_nested_part_is_rejected_without_a_crash(tmp_path) -> No
         db.execute("UPDATE part SET data = ? WHERE id = '0'", ("[" * 1_000_000 + "]" * 1_000_000,))
     with pytest.raises(ValueError, match="OpenCode part"):
         parse_opencode_session(path, "ses_test")
+
+
+def test_opencode_usage_measures_each_assistant_step(tmp_path: Path) -> None:
+    path = tmp_path / "opencode.db"
+    database(path)
+    step = {
+        "role": "assistant",
+        "modelID": "claude-sonnet-4-5",
+        "cost": 0.25,
+        "tokens": {"input": 100, "output": 10, "reasoning": 5, "total": 115, "cache": {"read": 50, "write": 20}},
+        "time": {"created": 1780000000100, "completed": 1780000001000},
+    }
+    summary = step | {"summary": True, "cost": 0.5, "time": {"created": 1780000002000}}
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute("UPDATE message SET data = ? WHERE id = 'msg_1'", (json.dumps(step),))
+        db.execute("INSERT INTO message VALUES ('msg_2', 'ses_test', 1780000002000, ?)", (json.dumps(summary),))
+
+    parsed = parse_opencode_session(path, "ses_test")
+
+    assert parsed.usage_error is None
+    assert parsed.usage is not None
+    usage = parsed.usage.to_dict()
+    # Reasoning joins output; the summary is a model call outside the transcript.
+    assert (usage["input_tokens"], usage["output_tokens"], usage["reasoning_tokens"]) == (200, 30, 10)
+    assert (usage["cached_tokens"], usage["cache_write_tokens"], usage["total_tokens"]) == (100, 40, 370)
+    assert (usage["cost_usd"], usage["turn_count"], usage["model"]) == (0.75, 2, "claude-sonnet-4-5")
+    assert usage["timestamp"] == "2026-05-28T20:26:42+00:00"
+    assert [log.content for log in parsed.logs] == ["owner request", "assistant reply"]
+
+
+def test_opencode_usage_without_counters_stays_unknown_and_bad_counters_fail(tmp_path: Path) -> None:
+    path = tmp_path / "opencode.db"
+    database(path)
+    assert parse_opencode_session(path, "ses_test").usage is None
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE message SET data = ? WHERE id = 'msg_1'",
+            (json.dumps({"role": "assistant", "tokens": {"input": -1}}),),
+        )
+    parsed = parse_opencode_session(path, "ses_test")
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)

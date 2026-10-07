@@ -268,9 +268,11 @@ def test_aggregate_usage_filters_and_sums_every_metric() -> None:
             "total_tokens": 15,
             "cost_usd": 0.25,
             "sessions": 1,
-            "turns": 2,
+            "requests": 2,
             "cost_known_sessions": 1,
             "cost_complete": True,
+            "usage_complete": True,
+            "retained_usage_sessions": 0,
             "measurement_kind": "unknown",
             "cwd": "",
             "time_basis": "request timestamps where available; otherwise whole session at recorded timestamp",
@@ -340,7 +342,7 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
             cost_usd=0.5,
             cost_known_sessions=1,
             sessions=1,
-            turns=2,
+            requests=2,
         ),
         UsageStats(
             harness="codex",
@@ -352,7 +354,7 @@ def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
             cost_usd=0.125,
             cost_known_sessions=2,
             sessions=2,
-            turns=3,
+            requests=3,
         ),
     ]
 
@@ -429,7 +431,8 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
         )
 
     runner = CliRunner()
-    listed = runner.invoke(app, ["agent", "usage", "list", "--harness", "codex", "--limit", "1", "--json"])
+    listed = runner.invoke(app, ["agent", "stats", "--sessions", "--harness", "codex", "--limit", "1", "--json"])
+    windowed = runner.invoke(app, ["agent", "stats", "--sessions", "--until", "2026-09-06T09:30:00Z", "--json"])
     stats = runner.invoke(
         app,
         [
@@ -446,7 +449,9 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
     )
 
     assert listed.exit_code == 0
+    assert json.loads(listed.stdout)["schema"] == "dot.agent.stats.sessions/v1"
     assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == ["new"]
+    assert [record["session_id"] for record in json.loads(windowed.stdout)["records"]] == ["old"]
     assert stats.exit_code == 0
     assert [(row["model"], row["total_tokens"]) for row in json.loads(stats.stdout)["usage"]] == [("gpt-mini", 3)]
 
@@ -578,3 +583,30 @@ def test_sidechains_join_their_parent_session_and_project() -> None:
     ]
     # Without an archived parent, each parent (or unknown-parent sidechain) still counts once.
     assert (orphans.sessions, orphans.input_tokens, orphans.to_dict()["cost_complete"]) == (2, 200, False)
+
+
+def test_requests_are_unknown_for_harnesses_that_count_prompts_or_turns() -> None:
+    records = [
+        UsageRecord(timestamp="2026-09-06T10:00:00Z", harness=harness, session_id=harness, turn_count=3).finalize()
+        for harness in ("claude", "agy")
+    ]
+    rows = {row.harness: row.to_dict() for row in aggregate_usage(records)}
+    assert rows["claude"]["requests"] == 3
+    assert rows["agy"]["requests"] is None
+
+
+def test_retained_usage_marks_cost_and_usage_incomplete() -> None:
+    record = UsageRecord(
+        timestamp="2026-09-06T10:00:00Z",
+        harness="grok",
+        session_id="kept",
+        total_tokens=5,
+        cost_usd=0.1,
+        cost_known=True,
+    ).finalize()
+    record.retained = True
+    row = aggregate_usage([record])[0].to_dict()
+    assert (row["retained_usage_sessions"], row["usage_complete"], row["cost_complete"]) == (1, False, False)
+    output = StringIO()
+    write_usage_stats(output, aggregate_usage([record]), by_model=False)
+    assert "keep usage from an earlier capture" in output.getvalue()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -54,22 +54,9 @@ class SessionSummary:
 
     @classmethod
     def from_manifest(cls, path: Path, manifest: SessionManifest) -> SessionSummary:
-        return cls(
-            agent=manifest.agent,
-            session_id=manifest.session_id,
-            parser_version=manifest.parser_version,
-            source_type=manifest.source_type,
-            ingested_at=manifest.ingested_at,
-            completeness=manifest.completeness,
-            record_count=manifest.record_count,
-            malformed_records=manifest.malformed_records,
-            skipped_records=manifest.skipped_records,
-            high_water_mark=manifest.high_water_mark,
-            cwd=manifest.cwd,
-            sidechain=manifest.sidechain,
-            parent_session_id=manifest.parent_session_id,
-            path=path,
-        )
+        # Summary metadata fields share the manifest's names; records, status and path are query state.
+        copied = {item.name: getattr(manifest, item.name) for item in fields(cls) if hasattr(manifest, item.name)}
+        return cls(**copied, path=path)
 
     def to_dict(self, *, include_records: bool = True) -> dict[str, Any]:
         result: dict[str, Any] = {"agent": self.agent, "session_id": self.session_id}

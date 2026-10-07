@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
-from fmind_dot.archive.parsers import resolve_cwd
+from fmind_dot.archive.parsers import AGENT_ADAPTERS, resolve_cwd
 from fmind_dot.errors import DotError
 from fmind_dot.process import Runner
 from fmind_dot.state import State
@@ -18,13 +18,6 @@ _NOTIFY_EVENTS = {
     "stop": ("✅", "Your turn"),
     "ready": ("✅", "Your turn"),
     "needs-input": ("⏳", "Needs your input"),
-}
-_NOTIFY_AGENTS = {
-    "agy": "Antigravity",
-    "claude": "Claude Code",
-    "codex": "Codex",
-    "copilot": "Copilot",
-    "grok": "Grok Build",
 }
 _NOTIFY_EXPIRE_MS = "10000"
 
@@ -91,7 +84,8 @@ def build_notification(
     except KeyError as error:
         choices = ", ".join(sorted(_NOTIFY_EVENTS))
         raise DotError(f"unknown agent notify event {event!r} (want one of: {choices})") from error
-    label = _NOTIFY_AGENTS.get(agent, agent)
+    adapter = AGENT_ADAPTERS.get(agent)
+    label = adapter.notify_label if adapter else agent
     summary = f"{icon} {label}"
     project = ""
     if cwd is not None:

@@ -33,6 +33,7 @@ _AGY_SUMMARIES_LIMIT = 100_000
 # Codex moves archived rollouts here, beside its sessions root.
 CODEX_ARCHIVED_NAME = "archived_sessions"
 GROK_TRANSCRIPT_NAME = "updates.jsonl"
+GROK_SIGNALS_NAME = "signals.json"
 # xAI reports exact integer cost ticks; its headless-mode guide defines 1 USD = 10^10 ticks.
 _GROK_TICKS_PER_USD = 10**10
 _GROK_TOKEN_FIELDS = (
@@ -60,16 +61,26 @@ class ParsedSession:
 
 
 SessionParser = Callable[[Path, str, str], ParsedSession]
+# Session id, CWD known before parsing (empty when the transcript holds it), and source path.
+SessionCandidate = tuple[str, str, Path]
+SessionEnumerator = Callable[[Path], list[SessionCandidate]]
 
 
 @dataclass(frozen=True)
 class AgentAdapter:
+    """Everything dot knows about one agent's native store; adding an agent starts here."""
+
     name: str
     label: str
     database: bool
     parser: SessionParser
+    enumerate: SessionEnumerator
+    # Desktop notification title; hosts brand themselves differently from their CLI name.
+    notify_label: str = ""
     # The CWD comes from metadata outside the transcript file, so it joins the source signature.
     external_cwd: bool = False
+    # Files beside the source whose change can change the parse (Grok keeps usage in signals.json).
+    companions: tuple[str, ...] = ()
 
 
 def resolve_cwd(value: str) -> str:
@@ -720,8 +731,8 @@ def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSess
     timed = True
     # Both provider files participate in the generation identity. Read each once
     # so an updated measurement cannot be hidden by an unchanged transcript.
-    transcript = b"" if path.name == "signals.json" else path.read_bytes()
-    signals_path = path.parent / "signals.json"
+    transcript = b"" if path.name == GROK_SIGNALS_NAME else path.read_bytes()
+    signals_path = path.parent / GROK_SIGNALS_NAME
     try:
         signals = signals_path.read_bytes()
     except FileNotFoundError:
@@ -988,11 +999,42 @@ def _extract_copilot_usage(
     return record.finalize(fallback_timestamp=fallback_timestamp)
 
 
-def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
-    """Read text turns from OpenCode's SQLite store; tools, synthetic parts and summaries are excluded.
+_OPENCODE_TOKEN_FIELDS = (
+    ("input", "input_tokens"),
+    ("output", "output_tokens"),
+    ("reasoning", "reasoning_tokens"),
+)
 
-    This adapter projects transcripts only. Usage remains unavailable rather than inventing zeros.
-    The observed message/part schema stores provider JSON in `data` and millisecond times in columns.
+
+def _opencode_time(value: object) -> str:
+    if type(value) is not int or not 0 <= value <= 253402300799000:
+        raise ValueError("invalid OpenCode message time")
+    return datetime.fromtimestamp(value / 1000, UTC).isoformat()
+
+
+def _opencode_request(message: dict[str, Any], created: int, session_id: str, cwd: str) -> UsageRecord:
+    """Measure one assistant message: OpenCode records each model step as its own message."""
+    tokens = _usage_mapping(message.get("tokens"), "tokens", optional=False)
+    sample = UsageRecord(harness="opencode", session_id=session_id, cwd=cwd, turn_count=1)
+    _apply_counters(sample, tokens, _OPENCODE_TOKEN_FIELDS)
+    cache = _usage_mapping(tokens.get("cache"), "cache")
+    _apply_counters(sample, cache, (("read", "cached_tokens"), ("write", "cache_write_tokens")))
+    # OpenCode reports reasoning beside output; the archive treats it as a subset of output.
+    sample.output_tokens += sample.reasoning_tokens
+    sample.total_tokens = sample.input_tokens + sample.output_tokens + sample.cached_tokens + sample.cache_write_tokens
+    model = message.get("modelID")
+    sample.model = model if isinstance(model, str) else ""
+    completed = _mapping(message.get("time")).get("completed")
+    sample.timestamp = _opencode_time(completed if completed is not None else created)
+    return sample.finalize()
+
+
+def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
+    """Read text turns and per-step usage from OpenCode's SQLite store.
+
+    Tools, synthetic parts and summaries are excluded from the transcript. The observed message/part
+    schema stores provider JSON in `data` and millisecond times in columns; assistant messages carry
+    `tokens` (input, output, reasoning, cache read/write), OpenCode's computed `cost`, and `modelID`.
     """
     if not is_valid_session_id(session_id):
         raise ValueError("invalid OpenCode session id")
@@ -1033,36 +1075,56 @@ def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> Parsed
                 raise ValueError("invalid OpenCode text")
             content.setdefault(message_id, []).append(part["text"])
     logs = []
+    requests: list[UsageRecord] = []
+    costs: list[float | None] = []
+    usage_error: Exception | None = None
+    # One assistant message without counters (an older release) makes the session's usage unknown.
+    measured = True
     for message_id, created, raw in messages:
         message = _json_document(raw, "OpenCode message")
         if not isinstance(message, dict):
             raise ValueError("invalid OpenCode message")
         role = message.get("role")
+        if role == "assistant" and message.get("tokens") is None:
+            measured = False
+        elif role == "assistant" and usage_error is None:
+            # Summaries are model calls too, so they count toward usage but not the transcript.
+            try:
+                requests.append(_opencode_request(message, created, session_id, cwd))
+                costs.append(_usage_cost(message.get("cost")))
+            except ValueError as error:
+                usage_error = error
         if role not in {"user", "assistant"} or message.get("summary") is True:
             continue
-        if type(created) is not int or not 0 <= created <= 253402300799000:
-            raise ValueError("invalid OpenCode message time")
-        timestamp = datetime.fromtimestamp(created / 1000, UTC).isoformat()
+        timestamp = _opencode_time(created)
         body = "\n".join(content.get(message_id, []))
         if body.strip():
             logs.append(SessionLog(timestamp, "opencode", session_id, role, body, cwd))
+    usage = None
+    if requests and measured and usage_error is None:
+        usage = UsageRecord(
+            harness="opencode",
+            agent="opencode",
+            session_id=session_id,
+            cwd=cwd,
+            measurement_kind="provider-reported",
+            source_bytes=sum(len(row[2]) for row in messages),
+        )
+        usage.set_samples(requests)
+        usage.timestamp = max(request.timestamp for request in requests)
+        if all(cost is not None for cost in costs):
+            usage.cost_usd = sum(cost for cost in costs if cost is not None)
+            usage.cost_known = True
+        usage, usage_error = _finalize_parsed_usage(usage, None, usage.timestamp)
     return ParsedSession(
         logs,
         fingerprint_json(
             {"cwd": cwd, "messages": [tuple(row) for row in messages], "parts": [tuple(row) for row in parts]}
         ),
         "opencode-db",
+        usage=usage,
+        usage_error=usage_error,
     )
-
-
-AGENT_ADAPTERS: dict[str, AgentAdapter] = {
-    "agy": AgentAdapter("agy", "agy", False, parse_agy_session, external_cwd=True),
-    "claude": AgentAdapter("claude", "Claude", False, parse_claude_session),
-    "codex": AgentAdapter("codex", "Codex", False, parse_codex_session),
-    "grok": AgentAdapter("grok", "Grok", False, parse_grok_session),
-    "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session),
-    "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session),
-}
 
 
 def _file_uri_path(value: object) -> str:
@@ -1121,80 +1183,120 @@ def _session_files(root: Path, names: tuple[str, ...]) -> list[Path]:
     )
 
 
-def enumerate_sessions(root: Path, agent: str) -> list[tuple[str, str, Path]]:
-    """Return session id, CWD, and source path for one verified adapter."""
-    candidates: list[tuple[str, str, Path]] = []
-    if agent == "agy":
-        workspaces = agy_workspaces(root)
-        for directory in sorted(root.iterdir()):
-            if not stat.S_ISDIR(directory.lstat().st_mode):
+def _enumerate_agy(root: Path) -> list[SessionCandidate]:
+    candidates: list[SessionCandidate] = []
+    workspaces = agy_workspaces(root)
+    for directory in sorted(root.iterdir()):
+        if not stat.S_ISDIR(directory.lstat().st_mode):
+            continue
+        for name in AGY_TRANSCRIPT_NAMES:
+            path = directory / ".system_generated" / "logs" / name
+            try:
+                mode = path.stat().st_mode
+            except FileNotFoundError:
                 continue
-            for name in AGY_TRANSCRIPT_NAMES:
-                path = directory / ".system_generated" / "logs" / name
-                try:
-                    mode = path.stat().st_mode
-                except FileNotFoundError:
-                    continue
-                if stat.S_ISREG(mode):
-                    candidates.append((directory.name, workspaces.get(directory.name, ""), path))
-                    break
-    elif agent == "claude":
-        for path in _session_files(root, ("*.jsonl",)):
-            session_id = claude_session_id(path)
-            if is_valid_session_id(session_id):
-                candidates.append((session_id, "", path))
-    elif agent == "codex":
-        # Archived rollouts can still grow after the move; the live copy wins a duplicate id.
-        live: set[str] = set()
-        for path in _session_files(root, ("*.jsonl",)):
-            session_id = codex_session_id(path)
-            if is_valid_session_id(session_id):
-                live.add(session_id)
-                candidates.append((session_id, "", path))
-        archived = root.parent / CODEX_ARCHIVED_NAME
-        try:
-            archived_mode = archived.lstat().st_mode
-        except FileNotFoundError:
-            archived_mode = 0
-        if stat.S_ISDIR(archived_mode):
-            for path in _session_files(archived, ("*.jsonl",)):
-                session_id = codex_session_id(path)
-                if is_valid_session_id(session_id) and session_id not in live:
-                    candidates.append((session_id, "", path))
-    elif agent == "grok":
-        directories = {path.parent for path in _session_files(root, (GROK_TRANSCRIPT_NAME, "signals.json"))}
-        for directory in sorted(directories):
-            path = directory / GROK_TRANSCRIPT_NAME
-            if not path.is_file():
-                path = directory / "signals.json"
-            session_id = path.parent.name
-            if is_valid_session_id(session_id):
-                candidates.append((session_id, grok_cwd_from_path(root, path), path))
-    elif agent == "copilot":
-        with closing(_connect_read_only(root)) as connection:
-            candidates.extend(
-                (row[0], row[1] or "", root)
-                for row in connection.execute("SELECT id, cwd FROM sessions")  # nosemgrep: formatted-sql-query
-                if is_valid_session_id(row[0])
-            )
-    elif agent == "opencode":
-        with closing(_connect_read_only(root)) as connection:
-            rows = connection.execute("SELECT id, directory FROM session ORDER BY id LIMIT 20001").fetchall()
-            if len(rows) > 20000:
-                raise ValueError("OpenCode exceeds 20000 sessions")
-            for identifier, directory in rows:
-                if not isinstance(identifier, str) or not is_valid_session_id(identifier):
-                    raise ValueError("invalid OpenCode session identity")
-                candidates.append((identifier, directory or "", root))
-    else:
-        raise ValueError(f"agent {agent!r} has no verified session parser")
+            if stat.S_ISREG(mode):
+                candidates.append((directory.name, workspaces.get(directory.name, ""), path))
+                break
     return candidates
+
+
+def _enumerate_claude(root: Path) -> list[SessionCandidate]:
+    return [
+        (session_id, "", path)
+        for path in _session_files(root, ("*.jsonl",))
+        if is_valid_session_id(session_id := claude_session_id(path))
+    ]
+
+
+def _enumerate_codex(root: Path) -> list[SessionCandidate]:
+    # Archived rollouts can still grow after the move; the live copy wins a duplicate id.
+    candidates: list[SessionCandidate] = []
+    live: set[str] = set()
+    for path in _session_files(root, ("*.jsonl",)):
+        session_id = codex_session_id(path)
+        if is_valid_session_id(session_id):
+            live.add(session_id)
+            candidates.append((session_id, "", path))
+    archived = root.parent / CODEX_ARCHIVED_NAME
+    try:
+        archived_mode = archived.lstat().st_mode
+    except FileNotFoundError:
+        archived_mode = 0
+    if stat.S_ISDIR(archived_mode):
+        for path in _session_files(archived, ("*.jsonl",)):
+            session_id = codex_session_id(path)
+            if is_valid_session_id(session_id) and session_id not in live:
+                candidates.append((session_id, "", path))
+    return candidates
+
+
+def _enumerate_grok(root: Path) -> list[SessionCandidate]:
+    candidates: list[SessionCandidate] = []
+    directories = {path.parent for path in _session_files(root, (GROK_TRANSCRIPT_NAME, GROK_SIGNALS_NAME))}
+    for directory in sorted(directories):
+        path = directory / GROK_TRANSCRIPT_NAME
+        if not path.is_file():
+            path = directory / GROK_SIGNALS_NAME
+        session_id = path.parent.name
+        if is_valid_session_id(session_id):
+            candidates.append((session_id, grok_cwd_from_path(root, path), path))
+    return candidates
+
+
+def _enumerate_copilot(root: Path) -> list[SessionCandidate]:
+    with closing(_connect_read_only(root)) as connection:
+        return [
+            (row[0], row[1] or "", root)
+            for row in connection.execute("SELECT id, cwd FROM sessions")  # nosemgrep: formatted-sql-query
+            if is_valid_session_id(row[0])
+        ]
+
+
+def _enumerate_opencode(root: Path) -> list[SessionCandidate]:
+    with closing(_connect_read_only(root)) as connection:
+        rows = connection.execute("SELECT id, directory FROM session ORDER BY id LIMIT 20001").fetchall()
+    if len(rows) > 20000:
+        raise ValueError("OpenCode exceeds 20000 sessions")
+    candidates: list[SessionCandidate] = []
+    for identifier, directory in rows:
+        if not isinstance(identifier, str) or not is_valid_session_id(identifier):
+            raise ValueError("invalid OpenCode session identity")
+        candidates.append((identifier, directory or "", root))
+    return candidates
+
+
+AGENT_ADAPTERS: dict[str, AgentAdapter] = {
+    "agy": AgentAdapter("agy", "agy", False, parse_agy_session, _enumerate_agy, "Antigravity", external_cwd=True),
+    "claude": AgentAdapter("claude", "Claude", False, parse_claude_session, _enumerate_claude, "Claude Code"),
+    "codex": AgentAdapter("codex", "Codex", False, parse_codex_session, _enumerate_codex, "Codex"),
+    "grok": AgentAdapter(
+        "grok",
+        "Grok",
+        False,
+        parse_grok_session,
+        _enumerate_grok,
+        "Grok Build",
+        companions=(GROK_TRANSCRIPT_NAME, GROK_SIGNALS_NAME),
+    ),
+    "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session, _enumerate_copilot, "Copilot"),
+    "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session, _enumerate_opencode, "OpenCode"),
+}
+
+
+def enumerate_sessions(root: Path, agent: str) -> list[SessionCandidate]:
+    """Return session id, CWD, and source path for one verified adapter."""
+    adapter = AGENT_ADAPTERS.get(agent)
+    if adapter is None:
+        raise ValueError(f"agent {agent!r} has no verified session parser")
+    return adapter.enumerate(root)
 
 
 __all__ = [
     "AGENT_ADAPTERS",
     "AGY_SUMMARIES_NAME",
     "AGY_TRANSCRIPT_NAMES",
+    "GROK_SIGNALS_NAME",
     "GROK_TRANSCRIPT_NAME",
     "AgentAdapter",
     "ParsedSession",
