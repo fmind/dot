@@ -1,7 +1,9 @@
 """Exercise interactive aliases without loading private shell configuration."""
 
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -27,6 +29,31 @@ def test_fish_aliases_load_without_errors() -> None:
     # Fish can return success after an invalid abbr option in a sourced file.
     assert result.stderr == "", result.stderr
     assert result.returncode == 0, result.stdout
+
+
+def test_fish_paths_precedence_on_darwin() -> None:
+    if sys.platform != "darwin":
+        pytest.skip("macOS path precedence check")
+    fish = shutil.which("fish")
+    if fish is None:
+        pytest.skip("fish is not installed")
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [fish, "-c", "source dot_config/fish/conf.d/paths.fish; string join ':' $PATH"],
+        cwd=root,
+        env={
+            "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin",
+            "HOME": os.environ.get("HOME", ""),
+        },
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    paths = result.stdout.strip().split(":")
+    if "/opt/homebrew/bin" in paths and "/usr/local/bin" in paths:
+        assert paths.index("/opt/homebrew/bin") < paths.index("/usr/local/bin")
 
 
 @pytest.mark.parametrize("exit_status", [0, 1])
