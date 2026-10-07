@@ -27,42 +27,69 @@ _CLI_NAME = "dot"
 
 
 @dataclass(frozen=True)
-class DoctorIntegration:
-    agent: str
+class HostDeployment:
+    """What the chezmoi source deploys for one agent host: notify hooks and discovery links."""
+
     config_path: str
     config_format: str
     notify_events: tuple[str, ...]
-
-
-_DOCTOR_INTEGRATIONS = {
-    "agy": DoctorIntegration("agy", "~/.gemini/config/hooks.json", "json", ("stop",)),
-    "claude": DoctorIntegration("claude", "~/.claude/settings.json", "json", ("needs-input", "ready")),
-    "codex": DoctorIntegration("codex", "~/.codex/config.toml", "toml", ("native",)),
-    "grok": DoctorIntegration("grok", "~/.grok/hooks/hooks.json", "json", ("needs-input", "ready")),
-    "copilot": DoctorIntegration("copilot", "~/.copilot/settings.json", "json", ("native",)),
-    # OpenCode collection is database-based; this integration does not install notification hooks.
-    "opencode": DoctorIntegration("opencode", "", "", ()),
-}
-
-
-@dataclass(frozen=True)
-class DoctorDiscovery:
     persona: str
     # Host link to the shared skills; empty when the host reads ~/.agents/skills natively.
     skills: str
+    # Compiled subagent profiles match this glob.
     agents: str
+    # The native switch that silences notifications, named in the repair hint.
+    notify_switch: str = "notifications"
 
 
 _SHARED_PERSONA = "~/.agents/AGENTS.md"
 _SHARED_SKILLS = "~/.agents/skills"
-# Paths the chezmoi source deploys per host; compiled subagent profiles match the glob.
-_DOCTOR_DISCOVERY = {
-    "agy": DoctorDiscovery("~/.gemini/GEMINI.md", "~/.gemini/config/skills", "~/.gemini/config/agents/*.md"),
-    "claude": DoctorDiscovery("~/.claude/CLAUDE.md", "~/.claude/skills", "~/.claude/agents/*.md"),
-    "codex": DoctorDiscovery("~/.codex/AGENTS.md", "", "~/.codex/agents/*.toml"),
-    "grok": DoctorDiscovery("~/.grok/AGENTS.md", "~/.grok/skills", "~/.grok/agents/*.md"),
-    "copilot": DoctorDiscovery("~/.copilot/copilot-instructions.md", "", "~/.copilot/agents/*.agent.md"),
-    "opencode": DoctorDiscovery("~/.config/opencode/AGENTS.md", "", "~/.config/opencode/agents/*.md"),
+# One row per AGENT_ADAPTERS entry; test_agent_doctor checks they stay aligned.
+HOSTS = {
+    "agy": HostDeployment(
+        "~/.gemini/config/hooks.json",
+        "json",
+        ("stop",),
+        "~/.gemini/GEMINI.md",
+        "~/.gemini/config/skills",
+        "~/.gemini/config/agents/*.md",
+    ),
+    "claude": HostDeployment(
+        "~/.claude/settings.json",
+        "json",
+        ("needs-input", "ready"),
+        "~/.claude/CLAUDE.md",
+        "~/.claude/skills",
+        "~/.claude/agents/*.md",
+        "disableAllHooks",
+    ),
+    "codex": HostDeployment(
+        "~/.codex/config.toml",
+        "toml",
+        ("native",),
+        "~/.codex/AGENTS.md",
+        "",
+        "~/.codex/agents/*.toml",
+        "tui.notifications",
+    ),
+    "grok": HostDeployment(
+        "~/.grok/hooks/hooks.json",
+        "json",
+        ("needs-input", "ready"),
+        "~/.grok/AGENTS.md",
+        "~/.grok/skills",
+        "~/.grok/agents/*.md",
+    ),
+    "copilot": HostDeployment(
+        "~/.copilot/settings.json",
+        "json",
+        ("native",),
+        "~/.copilot/copilot-instructions.md",
+        "",
+        "~/.copilot/agents/*.agent.md",
+    ),
+    # OpenCode collection is database-based; this integration does not install notification hooks.
+    "opencode": HostDeployment("", "", (), "~/.config/opencode/AGENTS.md", "", "~/.config/opencode/agents/*.md"),
 }
 
 
@@ -118,7 +145,7 @@ def _dot_arguments(command: str) -> tuple[str, ...] | None:
     return tuple(fields[1:])
 
 
-def _check_hooks(definition: DoctorIntegration) -> str:
+def _check_hooks(agent: str, definition: HostDeployment) -> str:
     path = expand_path(definition.config_path)
     try:
         content = path.read_bytes()
@@ -132,28 +159,28 @@ def _check_hooks(definition: DoctorIntegration) -> str:
         return "malformed"
     if not isinstance(config, dict):
         return "malformed"
-    if definition.agent == "claude" and config.get("disableAllHooks") is True:
+    if agent == "claude" and config.get("disableAllHooks") is True:
         return "disabled"
     if definition.notify_events == ("native",):
-        settings = config.get("tui", {}) if definition.agent == "codex" else config
+        settings = config.get("tui", {}) if agent == "codex" else config
         if not isinstance(settings, dict):
             return "malformed"
         notifications = settings.get("notifications")
         # Codex also accepts the list of notification types to deliver.
         enabled = notifications is True or (
-            definition.agent == "codex"
+            agent == "codex"
             and isinstance(notifications, list)
             and bool(notifications)
             and all(isinstance(item, str) for item in notifications)
         )
         return "configured" if enabled else "disabled"
-    configured = set(_command_hooks(config, definition.agent))
+    configured = set(_command_hooks(config, agent))
     missing = [
         event
         for event in definition.notify_events
         if (
             "Notification" if event in {"needs-input", "ready"} else "Stop",
-            ("agent", "hook", "notify", definition.agent, event),
+            ("agent", "hook", "notify", agent, event),
         )
         not in configured
     ]
@@ -169,7 +196,7 @@ def _same_file(path: Path, target: Path) -> bool:
 
 def _check_discovery(agent: str) -> str:
     """Confirm the host reaches the shared persona, skills, and compiled subagents from the files alone."""
-    definition = _DOCTOR_DISCOVERY[agent]
+    definition = HOSTS[agent]
     shared_skills = expand_path(_SHARED_SKILLS)
     problems = []
     if not _same_file(expand_path(definition.persona), expand_path(_SHARED_PERSONA)):
@@ -281,8 +308,8 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
     for name in AGENT_ADAPTERS:
         if agent and name != agent:
             continue
-        definition = _DOCTOR_INTEGRATIONS[name]
-        hooks = _check_hooks(definition) if definition.notify_events else "not-required"
+        definition = HOSTS[name]
+        hooks = _check_hooks(name, definition) if definition.notify_events else "not-required"
         discovery = _check_discovery(name)
         source, last_sync, failures, retained = _check_sync(state, root, name)
         archive, sessions = _check_archive(root, name)
@@ -290,8 +317,7 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
         if discovery != "ok":
             hint = "chezmoi status to find the undeployed host files, then chezmoi apply --force"
         elif hooks == "disabled":
-            setting = {"claude": "disableAllHooks", "codex": "tui.notifications"}.get(name, "notifications")
-            hint = f"review {setting} in the chezmoi source for {definition.config_path}"
+            hint = f"review {definition.notify_switch} in the chezmoi source for {definition.config_path}"
         elif hooks not in {"configured", "not-required"}:
             hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
         elif archive not in {"readable", "empty"}:

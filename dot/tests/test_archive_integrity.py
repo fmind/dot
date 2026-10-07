@@ -218,6 +218,30 @@ def test_source_changed_during_parse_is_not_published(tmp_path: Path, monkeypatc
     assert load_usage_records()[0].input_tokens == 20
 
 
+def test_source_written_once_during_parse_is_captured_on_retry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _state(tmp_path, "claude", monkeypatch)
+    source = tmp_path / "source/session.jsonl"
+    _write(source, [_claude(10)])
+    adapter = parsers.AGENT_ADAPTERS["claude"]
+    calls = 0
+
+    def appending_once(path: Path, identity: str, cwd: str) -> parsers.ParsedSession:
+        nonlocal calls
+        calls += 1
+        parsed = adapter.parser(path, identity, cwd)
+        if calls == 1:
+            _write(path, [_claude(20)])
+        return parsed
+
+    with monkeypatch.context() as changed:
+        changed.setitem(parsers.AGENT_ADAPTERS, "claude", replace(adapter, parser=appending_once))
+        assert sync_sessions(state, agent="claude").ingested == 1
+    assert calls == 2
+    assert load_usage_records()[0].input_tokens == 20
+    # The retry recorded the stable source's signature, so the next pass skips it.
+    assert sync_sessions(state, agent="claude").unchanged == 1
+
+
 @pytest.mark.parametrize("known_cost", [False, True], ids=["unknown-cost", "known-cost"])
 def test_parser_upgrade_retains_an_older_parser_measurement(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, known_cost: bool

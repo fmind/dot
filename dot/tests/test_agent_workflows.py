@@ -104,9 +104,14 @@ def _write_jsonl(path: Path, *records: object) -> None:
 def _fixture_adapter(
     monkeypatch: pytest.MonkeyPatch, state: State, tmp_path: Path, parser: object, session_id: str = "fixture-id"
 ) -> None:
-    adapter = AgentAdapter("fixture", "Fixture", False, parser)  # ty: ignore[invalid-argument-type]
+    adapter = AgentAdapter(
+        "fixture",
+        "Fixture",
+        False,
+        parser,  # ty: ignore[invalid-argument-type]
+        lambda _root: [(session_id, "", tmp_path)],
+    )
     monkeypatch.setattr(archive_sync_module, "AGENT_ADAPTERS", {"fixture": adapter})
-    monkeypatch.setattr(archive_sync_module, "enumerate_sessions", lambda *_args: [(session_id, "", tmp_path)])
     state.config.agent.sources["fixture"] = str(tmp_path)
 
 
@@ -371,11 +376,11 @@ def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
 
-    first = CliRunner().invoke(app, ["agent", "usage", "list", "--agent", "copilot", "--json"])
+    first = CliRunner().invoke(app, ["agent", "stats", "--sessions", "--agent", "copilot", "--json"])
     with closing(sqlite3.connect(database)) as connection:
         connection.execute("UPDATE assistant_usage_events SET input_tokens = 20 WHERE session_id = 'copilot-live'")
         connection.commit()
-    second = CliRunner().invoke(app, ["agent", "usage", "list", "--agent", "copilot", "--json"])
+    second = CliRunner().invoke(app, ["agent", "stats", "--sessions", "--agent", "copilot", "--json"])
 
     assert first.exit_code == second.exit_code == 0
     assert json.loads(first.stdout)["records"][0]["total_tokens"] == 17
@@ -511,7 +516,7 @@ def test_reports_sync_first_and_warn_without_blocking_on_failures(
     broken.write_text("not a directory")
 
     stats = CliRunner().invoke(app, ["agent", "stats", "--tokens-only", "--json"])
-    listed = CliRunner().invoke(app, ["agent", "usage", "list"])
+    listed = CliRunner().invoke(app, ["agent", "stats", "--sessions"])
 
     assert stats.exit_code == 0
     assert [row["harness"] for row in json.loads(stats.stdout)["usage"]] == ["claude"]
@@ -544,7 +549,7 @@ def test_session_and_usage_cli_surfaces_report_ingested_evidence(
 
     listed = CliRunner().invoke(app, ["agent", "session", "list", "--agent", "claude"])
     shown = CliRunner().invoke(app, ["agent", "session", "show", session_id, "--content"])
-    usage_list = CliRunner().invoke(app, ["agent", "usage", "list", "--json"])
+    usage_list = CliRunner().invoke(app, ["agent", "stats", "--sessions", "--json"])
     usage_stats = CliRunner().invoke(app, ["agent", "stats", "--tokens-only", "--json", "--by-model"])
 
     assert listed.exit_code == 0
@@ -622,10 +627,11 @@ def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
         sync_sessions(state)
     assert "agent-session: failed to capture session for Fixture: bad session <session>\n" in _stderr(state)
 
-    def scan_failure(_root: Path, _agent: str) -> list[tuple[str, str, Path]]:
+    def scan_failure(_root: Path) -> list[tuple[str, str, Path]]:
         raise sqlite3.OperationalError(f"scan exposed {session_id}")
 
-    monkeypatch.setattr(archive_sync_module, "enumerate_sessions", scan_failure)
+    adapter = archive_sync_module.AGENT_ADAPTERS["fixture"]
+    monkeypatch.setitem(archive_sync_module.AGENT_ADAPTERS, "fixture", replace(adapter, enumerate=scan_failure))
     with pytest.raises(DotError, match=r"session sync recorded 1 failure"):
         sync_sessions(state)
     assert "agent-session: failed to scan sessions for Fixture: scan exposed <session>\n" in _stderr(state)
@@ -689,13 +695,13 @@ def test_sync_rejects_unknown_agents() -> None:
 def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    usage = CliRunner().invoke(app, ["agent", "usage", "list"])
+    usage = CliRunner().invoke(app, ["agent", "stats", "--sessions"])
     shown = CliRunner().invoke(app, ["agent", "session", "show"])
 
     assert usage.exit_code == 0
     assert usage.stdout == "No usage records found.\n"
     assert shown.exit_code == 2
-    assert "show requires a session identity" in shown.stderr
+    assert "Missing argument 'identity'" in shown.stderr
     for removed in (["compact", "--apply"], ["ingest", "claude", "session-id"], ["show", "x", "--latest"]):
         assert CliRunner().invoke(app, ["agent", "session", *removed]).exit_code == 2
 
@@ -704,7 +710,7 @@ def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, 
     "arguments",
     [
         ["agent", "stats", "--agent", "claud"],
-        ["agent", "usage", "list", "--agent", "claud"],
+        ["agent", "stats", "--sessions", "--agent", "claud"],
         ["agent", "session", "list", "--agent", "claud"],
         ["agent", "session", "show", "session-id", "--agent", "claud"],
         ["agent", "session", "sync", "--agent", "claud"],
@@ -722,7 +728,7 @@ def test_reports_reject_unknown_agents_before_any_sync(
     monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
     result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 2, arguments
-    assert "unknown agent 'claud'" in _click.utils.strip_ansi(result.stderr)
+    assert "'claud' is not one of" in _click.utils.strip_ansi(result.stderr)
     assert not (tmp_path / ".agents").exists()
 
 
@@ -749,7 +755,7 @@ def test_reports_with_no_sync_read_the_archive_as_stored(monkeypatch: pytest.Mon
 
     monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
     stats = CliRunner().invoke(app, ["agent", "stats", "--no-sync", "--tokens-only", "--json"])
-    listed = CliRunner().invoke(app, ["agent", "usage", "list", "--no-sync", "--json"])
+    listed = CliRunner().invoke(app, ["agent", "stats", "--sessions", "--no-sync", "--json"])
 
     assert stats.exit_code == 0
     assert "without a sync" in json.loads(stats.stdout)["coverage"]

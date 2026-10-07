@@ -13,7 +13,8 @@ from typer.core import TyperGroup
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from fmind_dot.agent_doctor import gather_agent_doctor, run_agent_doctor
+from fmind_dot.agent_doctor import HOSTS, gather_agent_doctor, run_agent_doctor
+from fmind_dot.archive.parsers import AGENT_ADAPTERS
 from fmind_dot.archive.store import SESSION_PARSER_VERSION, SessionLog, ingest_session, session_store_root
 from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.cli import app
@@ -295,7 +296,7 @@ def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.Monkey
         assert CliRunner().invoke(app, ["agent", "doctor", removed]).exit_code == 2
     unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "unsupported"])
     assert unknown.exit_code == 2
-    assert "unknown agent 'unsupported'" in unknown.stderr
+    assert "'unsupported' is not one of" in unknown.stderr
 
 
 def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -524,3 +525,8 @@ def test_doctor_notes_opencode_duplicate_skills_without_failing(
     assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in result.note
     run_agent_doctor(state, agent="opencode")
     assert "  note: this environment lacks OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in _text(state.stdout)
+
+
+def test_every_agent_adapter_has_one_host_deployment_and_notification_label() -> None:
+    assert list(HOSTS) == list(AGENT_ADAPTERS)
+    assert all(adapter.notify_label for adapter in AGENT_ADAPTERS.values())

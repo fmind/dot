@@ -329,3 +329,22 @@ def test_unexpandable_project_is_a_usage_error(
     # GitHub Actions forces Typer to colorize usage errors.
     assert "--project" in _click.utils.strip_ansi(result.stderr)
     assert not isinstance(result.exception, RuntimeError)
+
+
+def test_session_show_bounds_content_by_role_and_tail(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    logs = [
+        SessionLog(f"2026-09-06T10:00:0{index}Z", "claude", "bounded", role, f"message {index}")
+        for index, role in enumerate(["user", "assistant", "user", "assistant", "user"])
+    ]
+    ingest_session("claude", "bounded", logs)
+    runner = CliRunner()
+
+    shown = runner.invoke(app, ["agent", "session", "show", "bounded", "--content", "--role", "user", "--tail", "2"])
+    assert shown.exit_code == 0, shown.output
+    records = json.loads(shown.stdout)["session"]["records"]
+    assert [record["content"] for record in records] == ["message 2", "message 4"]
+    assert json.loads(shown.stdout)["session"]["record_count"] == 5
+
+    unbounded = runner.invoke(app, ["agent", "session", "show", "bounded", "--tail", "2"])
+    assert unbounded.exit_code == 2

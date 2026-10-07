@@ -8,14 +8,7 @@ from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fmind_dot.archive.parsers import (
-    AGENT_ADAPTERS,
-    GROK_TRANSCRIPT_NAME,
-    AgentAdapter,
-    ParsedSession,
-    enumerate_sessions,
-    resolve_cwd,
-)
+from fmind_dot.archive.parsers import AGENT_ADAPTERS, AgentAdapter, ParsedSession, resolve_cwd
 from fmind_dot.archive.store import (
     SESSION_PARSER_VERSION,
     SessionIngestionResult,
@@ -87,8 +80,8 @@ def _validated_source_root(state: State, adapter: AgentAdapter) -> Path | None:
 
 def _source_files(adapter: AgentAdapter, path: Path) -> list[Path]:
     """Name every file whose change can change the parse."""
-    if adapter.name == "grok":
-        return [path.parent / GROK_TRANSCRIPT_NAME, path.parent / "signals.json"]
+    if adapter.companions:
+        return [path.parent / name for name in adapter.companions]
     if adapter.database:
         # SQLite write-ahead logging can commit rows without touching the main file.
         return [path, path.with_name(f"{path.name}-wal")]
@@ -159,6 +152,24 @@ def _capture(
     if result.manifest.usage is not None:
         return result, DotError(f"{cause}; kept the archived usage")
     return result, DotError(f"{cause}; archived the transcript without usage")
+
+
+def _stable_parse(
+    adapter: AgentAdapter, path: Path, session_id: str, cwd: str, signature: str
+) -> tuple[ParsedSession, str]:
+    """Parse a source that stayed unchanged throughout, returning it with that source signature.
+
+    A file source starts from the signature its skip decision used; an agent still writing gets one retry.
+    """
+    for attempt in range(2):
+        # SQLite has a shared checkpoint, but each parse needs its own stable snapshot.
+        observed = (
+            signature if not (adapter.database or attempt) else _source_signature(_source_files(adapter, path))[0]
+        )
+        parsed = adapter.parser(path, session_id, cwd)
+        if _source_signature(_source_files(adapter, path))[0] == observed:
+            return parsed, observed
+    raise DotError("session source changed during capture; retry sync")
 
 
 def _database_checkpoint(root: Path, agent: str) -> str:
@@ -251,7 +262,7 @@ def sync_sessions(
                 signature, modified = _source_signature(_source_files(adapter, source))
                 database_signature = f"{source.resolve()}:{signature}"
                 checkpoint = _database_checkpoint(root, adapter.name)
-            candidates = enumerate_sessions(source, adapter.name)
+            candidates = adapter.enumerate(source)
         except _SESSION_ERRORS as error:
             # One unreadable store must not block the adapters after it.
             fail(adapter, "scan sessions", error)
@@ -285,11 +296,10 @@ def sync_sessions(
                     if not cwd or previous.cwd == cwd:
                         counts.unchanged += 1
                     continue
-                # SQLite has a shared checkpoint, but each parse needs its own stable snapshot.
-                observed = _source_signature(_source_files(adapter, path))[0] if adapter.database else signature
-                parsed = adapter.parser(path, session_id, source_cwd)
-                if _source_signature(_source_files(adapter, path))[0] != observed:
-                    raise DotError("session source changed during capture; retry sync")
+                parsed, observed = _stable_parse(adapter, path, session_id, source_cwd, signature)
+                if not adapter.database and observed != signature:
+                    # The retry parsed a newer stable source; record that file evidence instead.
+                    stored_signature = observed + stored_signature[len(signature) :]
                 parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), source_cwd)
                 if cwd and resolve_cwd(parsed_cwd) != cwd:
                     continue
