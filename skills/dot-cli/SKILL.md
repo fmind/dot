@@ -1,13 +1,13 @@
 ---
 name: dot-cli
-description: "Run dot workstation commands: doctor, login, setup, cleanup, disk space, orphans, context budgets, archives."
+description: "Run dot: doctor, login/setup, repo status/pull, trust, secret run, cache/prune, disk space, orphans, context budgets, archives."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Dot CLI

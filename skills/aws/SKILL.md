@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Amazon Web Services CLI
@@ -41,8 +41,7 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
    aws ecs list-clusters --profile <profile> --region <region> --max-items 20 --output json --no-cli-pager
    ```
 
-1. **Plan mutations and confirm**: state the target ARN, expected before and after states, and rollback steps; resource creation, security group changes, policy updates, and deletions require user authorization; reuse existing authority rather than asking again.
-1. **Apply and verify**: execute the mutation, then re-read the resource status to confirm the state change.
+1. **Authorize mutations**: resource creation, security group changes, policy updates, and deletions require user authorization; reuse existing authority rather than asking again.
 
 ## Gotchas
 

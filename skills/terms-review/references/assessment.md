@@ -7,7 +7,6 @@ Use the relevant checklist items and verdict contract when mapping clauses and w
 - **Rights and restrictions**: commercial use, seats and affiliates, automation/API access, scraping, benchmarking and publication, security testing, reverse engineering, prohibited sectors or activities, geography, and export restrictions.
 - **Software, models, and content**: copying, modification, redistribution, network use, attribution/notices, source disclosure, copyleft compatibility, patents, trademarks, and separate rights for code, weights, datasets, inputs, and outputs. Read the actual license; a repository label or scanner result is only a discovery aid.
 - **Data and AI use**: confidentiality, provider access, training and improvement rights, opt-outs and their scope, retention/deletion including logs and backups, residency/transfers, subprocessors, personal or regulated data restrictions, and required agreements. Verify operational controls separately from contractual promises.
-- **Commercial and exit conditions**: metering, overages, quotas, renewals/cancellation, price changes, suspension/termination, data export/deletion, survival clauses, warranties, liability limits, indemnities, audit rights, governing law, and dispute terms against the user's acceptance criteria.
 
 ## Output contract
 

@@ -11,8 +11,7 @@ Operate Codex's harness, sessions, and customization. Use a host-provided OpenAI
 
 Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
-- **Inspect `codex --version` and `codex --help`**: identify CLI, app, or cloud context. App features are not automatically CLI commands.
-- **Resolve precedence and permissions first**: resolve configuration precedence and permission mode before changing execution behavior.
+- **Identify CLI, app, or cloud context**: app features are not automatically CLI commands.
 - **Do not freeze model lists or release details in this skill.**
 
 ## Official Skills

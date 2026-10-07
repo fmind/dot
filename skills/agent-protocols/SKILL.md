@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-protocols
   created: "2026-09-16"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Agent Protocols
@@ -16,9 +16,7 @@ Connect agents and tools through the protocol required by the peers. A2A exchang
 
 ## Workflow
 
-1. **Identify the protocol contract**: identify the protocol, peer role, transport, supported version, and authentication contract. Inspect the locked Python SDK before using examples or generated schemas.
 1. **Read only the needed guide**: read only the A2A, MCP, or ACP guide needed below. Use [mcp-setup](../mcp-setup/SKILL.md) for registering an existing MCP server in a host; registration is separate from implementing a client or server.
-1. **Exercise local protocol behavior**: exercise a deterministic local client/server round trip, invalid input, unsupported capabilities, cancellation, and transport failure. Verify task/session ownership and recovery where persistence is advertised.
 1. **Vet vendor skills through policy**: take vendor skills only from each guide's official-skill guidance, reviewed through the [vendor policy](../agent-project/references/vendor-skills.md) and installed project-scoped. A protocol capability named skill is not an installable Agent Skill.
 
 ## Task guides

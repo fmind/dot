@@ -1,13 +1,13 @@
 ---
 name: observability
-description: "Instrument Python services and agents with structured logs, traces, and metrics."
+description: "Instrument Python services and agents: structlog logs, OpenTelemetry traces and metrics."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/observability
   created: "2026-09-03"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Observability
@@ -30,7 +30,6 @@ Use one Python telemetry stack for services and agents: `structlog` JSON on stdo
 
 ## Gotchas
 
-- **Bound investigation output**: select incident time and correlation IDs before loading logs; include custom event fields when needed for diagnosis. A limit is a partial view, not proof of absence. Keep complete authorized captures as local artifacts and expand the query when the cause falls outside the initial window.
 - **Cloud Logging keys are exact**: plain `level` and `msg` are not promoted to severity and message fields.
 - **Sampling follows the parent**: use `parentbased_traceidratio` with a measured production ratio; keep 100% sampling for bounded development only.
 - **Cardinality is a budget**: do not put user IDs, raw URL IDs, prompts, errors, or tool arguments in metric labels.

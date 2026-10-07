@@ -10,13 +10,11 @@ Apply [systematic-debugging](../SKILL.md) at the failing network boundary. Use t
 1. **TLS**: preserve the original hostname for SNI and verification. With Python, wrap the connected socket using `ssl.create_default_context().wrap_socket(connection, server_hostname=host)` and inspect certificate validation and negotiated protocol. Keep both sockets in context managers. An IP URL can change certificate and virtual-host behavior.
 1. **HTTP**: begin with `xh --ignore-stdin --check-status --timeout 5 HEAD https://example.com/`. Follow [xh](../../xh/SKILL.md) for bounded bodies and credentials. A 405 may mean HEAD is unsupported; use a bounded GET when appropriate. Inspect redirects before following them and distinguish HTTP errors from connection failures.
 1. **Proxy and authentication**: compare the application's effective proxy, trust store, and identity with the working client. Test direct versus proxied access only where network policy permits it. Separate 401, 403, 407, and 429; use [gcloud](../../gcloud/SKILL.md) or the provider owner for account, scopes, IAM, and quota diagnostics.
-1. **Change one variable, then retest**: record the first boundary that differs, state one falsifiable cause, then change only that variable in a disposable fixture. Repeat the original application operation after the fix; a successful DNS lookup or HTTP 200 alone is insufficient.
+1. **Retest the original operation**: after a fix, repeat the original application operation; a successful DNS lookup or HTTP 200 alone is insufficient.
 
 ## Bounds and failure cases
 
 Use a Python `subprocess.run([...], timeout=15, check=False)` supervisor when a hard process deadline is required. Resolver/connect timeouts do not bound a complete multi-address or HTTP operation. Bound retained output too, and terminate only probes started for this task.
-
-Exercise the method with a loopback fixture that returns a redirect, 401, and 503, plus a closed local port. A local TLS fixture should distinguish a trusted certificate from an untrusted or wrong-host certificate. Verify that diagnostics classify each failure without exposing headers, tokens, proxy passwords, or response bodies.
 
 Keep certificate and hostname verification enabled. Replacing a trust store, disabling verification, broadening IAM, or changing a machine's resolver is a configuration change, not a diagnosis.
 

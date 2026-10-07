@@ -9,8 +9,7 @@ Operate the CLI; use [antigravity-sdk](../antigravity-sdk/GUIDE.md) for Python o
 
 ## Workflow
 
-1. **Start from installed help**: check `agy --version`, `agy --help`, and the relevant subcommand help in the intended workspace. Match CLI, desktop, or IDE documentation to the actual surface.
-1. **Verify features before relying on them**: read the relevant [feature guide](references/features.md) link and [changelog](https://antigravity.google/changelog) before relying on settings, models, or availability. Prefer installed help and built-in `antigravity-guide` / `agy-customizations` for version-specific discovery; report disagreements with web docs.
+1. **Verify features before relying on them**: read the relevant [feature guide](references/features.md) link and `agy changelog` (matches the installed CLI) before relying on settings, models, or availability; the [web changelog](https://antigravity.google/docs/changelog) mixes desktop and SDK releases. Prefer installed help and built-in `antigravity-guide` / `agy-customizations` for version-specific discovery; report disagreements with web docs.
 1. **Inspect before adding configuration**: existing settings, `/skills`, `agy plugin list`, and the requested integration. Reuse working discovery paths; do not duplicate the shared catalog or install plugins speculatively. [agent-project](../../../agent-project/SKILL.md) owns discovery; [mcp-setup](../../../mcp-setup/SKILL.md) owns MCP registration.
 1. **Override per session; verify results**: use session overrides (`--model`, `--effort`, `--mode`) for task-specific choices; leave saved model and cosmetic preferences to the user. Verify results through artifacts, the native panel, or service status; an allow grant alone does not prove a tool works.
 
@@ -18,7 +17,7 @@ Operate the CLI; use [antigravity-sdk](../antigravity-sdk/GUIDE.md) for Python o
 
 Edit fmind/dot's chezmoi sources, then preview and apply only affected targets with `chezmoi apply --force`. CLI preferences live in `~/.gemini/antigravity-cli/settings.json`; Remote Control uses `~/.gemini/config/config.json` under `userSettings` with a different protobuf JSON schema. Preserve account fields, trust choices, explicit ask/deny grants, and native model state; never patch `antigravity_state.pbtxt`.
 
-The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants allow every action without prompts: `read_file(*)`, `write_file(*)`, `command(*)`, `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. `autoContinueOnMaxGeneratorInvocations` (undocumented, verified in agy 1.2.16) skips the continue prompt after the step budget. `unsandboxed(...)` rules are deprecated on macOS and Linux (current docs keep them for Windows only, and the CLI warns at startup); `command(*)` covers execution inside and outside the sandbox. Keep hooks small: synchronous hooks add latency to the agent loop.
+The managed baseline enables Vim with insert-first, notifications, non-workspace access, and Always Proceed. Remote grants allow every action without prompts: `read_file(*)`, `write_file(*)`, `command(*)`, `read_url(*)`, `execute_url(*)`, and `mcp(*)`; explicit ask/deny rules still take precedence. `autoContinueOnMaxGeneratorInvocations` (undocumented, verified in agy 1.2.16) skips the continue prompt after the step budget. `unsandboxed(...)` rules are deprecated on macOS and Linux (current docs keep them for Windows only, and the CLI warns at startup); `command(*)` covers execution inside and outside the sandbox.
 
 The CLI signs in with the Google account and its plan quota by default; keep it there. Two explicit-only alternatives exist: `"modelProvider": "gemini"` plus an exported `GEMINI_API_KEY` (the only variable read; `.env` files and `GOOGLE_API_KEY` are ignored), or `AGY_ADC_AUTH=true` for ADC against an entitled Google Cloud project. Both bill outside the subscription; never enable either from an ambient key. See [installation and auth](https://antigravity.google/docs/cli/install/) and [enterprise](https://antigravity.google/docs/enterprise/).
 
@@ -45,5 +44,5 @@ Use the installed built-in harness guides when available. For product-specific p
 ## Top Links
 
 - [CLI overview](https://antigravity.google/docs/cli/overview/) · [Reference](https://antigravity.google/docs/cli/reference/) · [Feature guide](references/features.md)
-- Releases: [Antigravity changelog](https://antigravity.google/changelog)
+- Releases: `agy changelog` · [Antigravity changelog](https://antigravity.google/docs/changelog)
 - [Settings](https://antigravity.google/docs/cli/settings/) · [Permissions](https://antigravity.google/docs/cli/permissions/) · [Troubleshooting](https://antigravity.google/docs/cli/troubleshooting/)

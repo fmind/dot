@@ -1,48 +1,11 @@
 # Python Profiling
 
-Use profiling to locate a measured slowdown; [benchmark](../../benchmark/SKILL.md) owns uninstrumented before/after comparisons. Start with the installed Python standard library, run through `uv`, and use a representative, bounded workload in an isolated workspace.
+Locate a measured slowdown with a representative, bounded workload run through `uv`; [benchmark](../../benchmark/SKILL.md) owns uninstrumented before/after comparisons. Add a profiler as a development dependency only for a concrete need; keep captures private (they reveal paths and workload details) and read only trusted profile files.
 
-1. **Separate waiting from computation**: compare elapsed and CPU time for the same work. High elapsed time with little CPU suggests waiting; high CPU suggests computation, but process totals can include other threads and exclude child processes.
-1. **Profile CPU with cProfile**: substitute the real script and arguments below. Create the scratch output directory first and keep input, revision, runtime, and cache state with the result.
+- **Separate waiting from computation first**: compare elapsed and CPU time for the same work before choosing a tool.
+- **Default to Pyinstrument for time**: `uv run pyinstrument -r html -o profile.html workload.py` (or `-m package.module`) gives sampled elapsed-time trees, waits included; choose async attribution deliberately. `python -m cProfile` remains the zero-install fallback, but its timings are biased and miss worker threads.
+- **Default to Memray for memory**: `uv run memray run -o capture.bin workload.py`, then `uv run memray stats capture.bin` and `uv run memray flamegraph -o memory.html capture.bin`; add `--native` at capture time when extension allocations matter. Allocation volume is not a leak, and RSS includes allocator arenas and mapped memory; if RSS grows without tracked allocation growth, look at native buffers, mapped files, and child processes.
+- **Launch hung processes under py-spy**: attaching with `py-spy dump --pid` needs ptrace, which Yama `ptrace_scope` 1 denies without elevation (out of scope). Launch instead with `uv run --with py-spy py-spy record -o profile.svg --subprocesses -- python workload.py`, or pre-arm `faulthandler.register(signal.SIGUSR1)` to dump stacks on a signal.
+- **Change one cause, then remeasure**: rerun the same uninstrumented workload plus correctness tests, and remove temporary instrumentation unless it has an owner.
 
-   ```bash
-   uv run python -m cProfile -o .agents/tmp/workload.prof workload.py
-   uv run python -c 'import pstats; pstats.Stats(".agents/tmp/workload.prof").strip_dirs().sort_stats("cumulative").print_stats(20)'
-   ```
-
-1. **Interpret profiles cautiously**: read cumulative time to find expensive call paths, then self time and call counts to distinguish expensive work from repeated small work. Do not treat profiler timing as an unbiased benchmark or assume the main-thread profile covers workers or async task causality.
-1. **Trace allocation growth with snapshots**: start tracing before the workload, warm it up, take a baseline snapshot, execute a bounded repeated batch, then compare snapshots and current/peak traced memory. Release expected temporary state before deciding something leaks.
-
-   ```python
-   import tracemalloc
-
-   tracemalloc.start(10)
-   # Warm up the actual workload before this baseline.
-   before = tracemalloc.take_snapshot()
-   # Run a bounded batch here, then release expected temporary state.
-   after = tracemalloc.take_snapshot()
-   for change in after.compare_to(before, "lineno")[:10]:
-       print(change)
-   print(tracemalloc.get_traced_memory())
-   tracemalloc.stop()
-   ```
-
-1. **Look beyond `tracemalloc` for native growth**: if process memory grows without traced allocation growth, investigate native buffers, mapped files, child processes, and allocator retention. `tracemalloc` is not a complete process-memory measurement.
-1. **Time blocked I/O at its boundaries**: record elapsed spans around the actual file/network/lock boundaries with redacted inputs and bounded timeouts. Use stack snapshots in a disposable reproduction when necessary; never infer the cause solely from a high cumulative-time parent function.
-1. **Change one cause, then remeasure**: state one bottleneck hypothesis, change only that cause when authorized, and rerun the same uninstrumented workload plus correctness tests. Remove temporary instrumentation unless it has an ongoing owner.
-
-Profiles can reveal source paths and workload details. Keep them private by default and read only trusted profile files; profiler artifacts are not a safe interchange format for untrusted uploads.
-
-Sources: [Python profiling](https://docs.python.org/3/library/profile.html), [tracemalloc](https://docs.python.org/3/library/tracemalloc.html), and [time clocks](https://docs.python.org/3/library/time.html).
-
-## Optional profilers
-
-Use the project environment and installed help; add a development dependency only for a concrete diagnostic need. Keep captures private and use fresh output paths.
-
-- **Pyinstrument**: for sampled elapsed-time call trees, including waits, run `uv run pyinstrument -r html -o profile.html workload.py` (or `-m package.module`). Choose async attribution deliberately; inspect hidden frames when aggregation obscures the caller. Sampling is not an exact call counter, and short workloads can be dominated by sampling variance.
-- **Memray**: for allocation stacks, run `uv run memray run -o capture.bin workload.py`, then `uv run memray stats capture.bin` and `uv run memray flamegraph -o memory.html capture.bin`. Add `--native` at capture time when native extension allocations matter; first check platform support. Distinguish allocation volume, peak live memory, and retained allocations; high allocation volume alone is not a leak. RSS also includes allocator arenas and mapped memory.
-- **py-spy**: for a hung or slow process without code changes, `uvx py-spy dump --pid <pid>` prints every thread's stack and `uvx py-spy record -o profile.svg --pid <pid>` samples it with low overhead. Attaching needs ptrace permission: with Yama `ptrace_scope` 1 (common on Linux) it is denied without elevation, which is out of scope here, so launch the workload under the profiler instead (`uv run --with py-spy py-spy record -o profile.svg --subprocesses -- python workload.py`) or pre-arm `faulthandler.register(signal.SIGUSR1)` to dump stacks on a signal.
-
-For any of these tools, preserve the workload and lifecycle boundaries, verify correctness after the change, and confirm improvement with an unprofiled measurement through [benchmark](../../benchmark/SKILL.md).
-
-Sources: [Pyinstrument](https://pyinstrument.readthedocs.io/en/latest/guide.html), [Memray](https://bloomberg.github.io/memray/), and [py-spy](https://github.com/benfred/py-spy).
+Sources: [Pyinstrument](https://pyinstrument.readthedocs.io/), [Memray](https://bloomberg.github.io/memray/), [py-spy](https://github.com/benfred/py-spy), [Python profiling](https://docs.python.org/3/library/profile.html).

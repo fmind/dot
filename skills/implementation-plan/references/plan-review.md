@@ -10,13 +10,9 @@ Attack a plan's load-bearing assumptions while course correction is still cheap;
 ## Workflow
 
 1. **Reconstruct intent**: Read the full plan and its source requirements, never a summary; state the desired outcome, non-goals, constraints, evidence, and proof required for completion.
-1. **Steelman first**: State the strongest case for the intended outcome before criticizing the approach.
 1. **Inspect current reality**: Verify the source paths, interfaces, dependencies, runtime assumptions, and existing mechanisms the plan replaces or duplicates.
 1. **Map claims**: Extract the decisions and assumptions the plan depends on; flag any requirement without a task, task without a requirement, or success claim without proof.
-1. **Choose lenses**: Name which lenses were applied.
-   - **Engineering**: architecture, data flow, interfaces, invariants, failure handling, security, privacy, performance, compatibility, and maintainability.
-   - **Delivery**: dependency order, vertical slices, test seams, migrations, observability, rollout, rollback, operational ownership, and authority boundaries.
-   - **Founder and product**: use the discovery and specification lenses of [product-loop](../../product-loop/SKILL.md).
+1. **Choose lenses**: Name which lenses were applied: engineering (architecture, interfaces, invariants, failure handling, security, performance, compatibility), delivery (dependency order, vertical slices, test seams, migrations, rollout, rollback, ownership), or founder and product (the Discover and Specify checks of [product-loop](../../product-loop/references/briefs.md#phase-checks)).
 1. **Challenge the premise**: Ask whether the problem is real, the scope is the smallest useful wedge, and a no-build or manual alternative could learn more cheaply.
 1. **Attack failure modes**: Imagine the plan failed through missing value, integration breakage, data loss, abuse, operational burden, migration, adoption, or rollback; trace concrete chains, not categories.
 1. **Test intended versus planned**: Compare documented permissions, journeys, data rules, and operational promises with the actual tasks and verification steps.

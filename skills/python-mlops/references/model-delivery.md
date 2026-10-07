@@ -5,18 +5,15 @@ description: "Evaluate exact model versions, manage MLflow registry aliases, and
 
 # Evaluate and Deliver Models
 
-Use this guide for registry versions and inference contracts. Preserve existing authorization for the named destination; preparing a model does not by itself authorize changing a production alias or deploying a service.
+Preparing a model does not authorize changing a production alias or deploying a service; preserve existing authorization for the named destination.
 
-1. **Resolve identity**: select an explicit registered model and version, its source run/artifact, input schema, and evaluation data revision. MLflow `models:/<name>/<version>` identifies a version; `models:/<name>@<alias>` follows a mutable alias. Resolve an alias once and record the version for evaluation and reproducible batches. Do not silently select the newest version.
-1. **Evaluate that candidate**: use the agreed held-out data, metric direction, absolute thresholds, baseline comparison, and relevant slices. Verify feature/target alignment and exercise the reloaded artifact. Check the installed evaluation API: calculating metrics and enforcing thresholds may be separate calls. Missing metrics, non-finite results, unavailable evaluation evidence, or failed thresholds stop promotion.
-1. **Prepare promotion**: bind the passing evaluation to the exact candidate version, data revision, and policy. Read the current alias and retain the prior version for rollback. If another writer changes the alias before the update, re-evaluate the intended operation; serialize promotion through the project's supported mechanism where races matter. A read followed by a write is not an atomic compare-and-set.
-1. **Apply within scope**: only after the required evaluation passes, set the intended alias to the evaluated version and read it back. An uncertain write must be reconciled by reading current state before retrying. Do not delete older versions or artifacts as part of promotion. Record the resulting version and rollback target; changing an alias alone does not prove serving processes loaded the model.
-1. **Verify inference**: load the complete model with its preprocessing and declared environment. Validate input schema, missing/extra columns, unseen categories, empty batches, and feature order. Preserve row identity/cardinality in prediction outputs; never silently align frames by an unrelated index. Bound batch size and use safe output replacement or resumable partitions where needed. Read back the written predictions and compare against the local loaded artifact within the stated tolerance.
-1. **Prove delivery at its actual boundary**: for a batch, verify output data plus recorded model version; for a service, verify the running revision's model identity and a representative request. Use [python-web](../../python-web/SKILL.md), [containerize](../../docker/references/containerize/GUIDE.md), and [cloud-run](../../cloud-run/SKILL.md) only when those delivery targets are in scope.
+- **Evaluate an explicit version**: resolve `models:/<name>@<alias>` once and record the version; never silently select the newest version. The reference project's promote-before-evaluate and latest-version selection are rejected ([sources](sources.md)).
+- **Fail closed on evaluation**: missing or non-finite metrics, unavailable evidence, or a failed threshold stops promotion. Check the installed MLflow API: computing metrics and enforcing thresholds can be separate calls.
+- **Promote with a rollback target**: read the current alias and record it, set the alias to the evaluated version, then read it back. A read-then-write is not compare-and-set: reconcile an uncertain or raced write by reading state before retrying. Never delete older versions or artifacts during promotion.
+- **Prove delivery at its boundary**: an alias change does not prove serving reloaded the model. For batch, verify written predictions, row identity, and the recorded version; for a service, the running revision's model identity and a representative request.
+- **Test the no-alias-on-failure path**: in a disposable registry or injected client, a failing candidate must leave the previous alias intact and call no alias setter.
 
-## Failure check
-
-In a disposable registry or injected client, make a candidate fail evaluation and assert no alias setter is called and the previous alias remains intact. Then exercise a passing explicit version, read-back mismatch, and rollback to the recorded prior version. These checks qualify the promotion boundary; repeat the relevant integration check before claiming a real registry or serving deployment works.
+Service targets: [python-web](../../python-web/SKILL.md), [containerize](../../docker/references/containerize/GUIDE.md), [cloud-run](../../cloud-run/SKILL.md).
 
 ## Documentation
 

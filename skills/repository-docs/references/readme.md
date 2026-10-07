@@ -5,7 +5,6 @@ Help a new reader answer three questions: **Is this for me? What will I get? How
 ## Workflow
 
 1. **Inspect before writing**: read project rules, the existing README, entry points, manifests, supported platforms, installation paths, examples, and docs. Preserve the author's voice, established identity, and public anchors. Separate current behavior from plans.
-1. **Choose one reader and one outcome**: identify the primary audience, the task they struggle with, and the result the project delivers. Use concrete verbs and nouns; let a short tagline add personality after the purpose is clear.
 1. **Build the reader journey** below; adapt the [starter](../templates/README.md) for a new project. Omit irrelevant sections. When creating or changing a logo, illustration, or badge, follow [README assets](readme-assets.md). Default to a few minutes of reading, with detailed manuals behind links; word counts are an editing aid, not a gate.
 1. **Verify the first result**: run the recommended installation and smallest useful workflow in a disposable environment, using synthetic data. Record actual output or capture the actual UI; state external prerequisites and anything not exercised.
 1. **Review the rendered page** using the acceptance checks below. Report remaining gaps without claiming publication, hosted CI, or adoption from local checks.
@@ -41,8 +40,6 @@ The result and quickstart may be one section for a small CLI or library. A short
 1. **Back every badge and claim**: badges resolve to the correct repository, workflow, branch, package, and license. Claims distinguish current behavior, examples, plans, and measured results.
 1. **Inspect the rendered page**: inspect the rendered Markdown, SVG, images, and code blocks in light/dark themes at desktop and narrow widths. Check useful alt text, readable contrast, and asset payloads. When republishing to a registry or docs site, check that surface too.
 1. **Leave no broken destinations**: the [Verify step](../SKILL.md#workflow) passes, external destinations are checked within access boundaries, established anchors are preserved or deliberately migrated, and no unresolved placeholders or unavailable destinations remain.
-
-This is an editorial standard, not evidence that a README increases adoption. Measure actual onboarding outcomes when available: successful first runs, time to first useful result, and recurring setup questions, with denominators and observation periods.
 
 ## Reference patterns
 

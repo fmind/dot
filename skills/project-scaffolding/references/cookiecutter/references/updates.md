@@ -5,7 +5,7 @@ Use Cruft when a generated project must receive template changes; [cookiecutter]
 ## Workflow
 
 1. **Inspect state before rendering**: Git status, `.cruft.json`, the recorded template URL/commit/context, and skip rules. Review template hooks and extensions before rendering either revision.
-1. **Pin the Cruft invocation**: run Cruft as `uvx --from 'cruft==<version>' cruft`, resolving `<version>` to a reviewed exact release; the `cruft` commands below use that pinned invocation. Inspect `cruft --help` and the selected subcommand help. For a new project use `cruft create <template-url> --checkout <reviewed-commit>` into a new destination.
+1. **Pin the Cruft invocation**: run Cruft as `uvx --from 'cruft==<version>' cruft`, resolving `<version>` to a reviewed exact release; the `cruft` commands below use that pinned invocation. For a new project use `cruft create <template-url> --checkout <reviewed-commit>` into a new destination.
 1. **Link only verified provenance**: for an existing generated project, identify its actual template revision and context before `cruft link <template-url>`; linking guessed provenance can create an invalid update baseline.
 1. **Check drift from trusted sources**: run `cruft check` to detect drift and inspect `cruft diff` when investigating differences. These operations may fetch or render template content; they require a trusted source.
 1. **Update in an isolated candidate**: apply `cruft update` in a clean isolated candidate. Review template changes, project modifications, conflicts or reject files, and the `.cruft.json` revision together; never auto-skip a conflict.

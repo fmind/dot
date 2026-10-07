@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-10-04"
+  updated: "2026-10-07"
 ---
 
 # Google Cloud CLI
@@ -31,9 +31,8 @@ Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless
    ```
 
 1. **Pin every consequential call**: pass `--configuration`, `--account`, `--project`, and `--billing-project` (plus `--impersonate-service-account` for an approved chain) so terminal defaults cannot redirect the operation.
-1. **Start read-only**: inspect the resources needed for the question, bounded by project, resource, and time window. Use supported `--filter` and `--limit` on listings and selected fields in `--format`; for logs, constrain time and resource before projecting message fields. Keep full IAM policies or configuration when required for the review; a limited listing is not an exhaustive audit. `--quiet` controls prompts, not output volume.
-1. **Plan the mutation**: state the resource, before and after state, permissions, cost or quota impact, rollback, and verification command; API enablement, IAM, billing, deletion, and production changes need explicit authority.
-1. **Apply minimally and verify**: change only the named resource, then re-read it and its operation or audit status; separate local configuration, accepted request, completed operation, and user-visible outcome.
+1. **Start read-only and bounded**: use supported `--filter` and `--limit` on listings and selected fields in `--format`; for logs, constrain time and resource before projecting message fields. Keep full IAM policies or configuration when required for the review; a limited listing is not an exhaustive audit. `--quiet` controls prompts, not output volume.
+1. **Authorize mutations**: API enablement, IAM, billing, deletion, and production changes need explicit authority.
 
 ## Gotchas
 

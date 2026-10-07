@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-design-review
   created: "2026-08-08"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Product Design Review
@@ -19,11 +19,7 @@ Judge whether a real user can understand, trust, and complete the surface's prim
 1. **Recover product truth**: read the brief, existing product or design artifacts, tokens, components, user research, and representative content; name missing evidence, then classify the task as **preserve**, **refine**, or **redesign**.
 1. **Map the journey**: entry points, primary action, decisions, exits, failure recovery, and time to first value.
 1. **Inspect the live surface**: when a runnable app exists, use [playwright](../playwright/SKILL.md) to capture desktop and mobile states, DOM semantics, console and network errors, keyboard behavior, focus, reduced motion, and screenshots. Otherwise start from committed visual-regression goldens or screenshot fixtures, checked for freshness against current tokens and CSS.
-1. **Review comprehension**: information architecture, hierarchy, labels, vocabulary, affordances, progressive disclosure, cognitive load, and whether the next action is obvious.
-1. **Review every state**: first run, loading, empty, partial, success, validation, permission, error, offline, destructive confirmation, and recovery.
-1. **Review craft**: typography, spacing, alignment, color, contrast, density, imagery, motion, and consistency; flag generic defaults only when they weaken the brief.
-1. **Review inclusion**: semantic structure, keyboard access, focus visibility and restoration, touch targets, zoom and reflow, screen-reader names, contrast, motion preferences, localization, and plain-language copy.
-1. **Review constraints**: performance, browser, device, content-length, data-density, privacy, and implementation constraints that change the recommendation.
+1. **Review the surface**: comprehension, every state (including first run, empty, error, permission, and destructive confirmation), craft, accessibility, and the constraints that change the recommendation; flag generic defaults only when they weaken the brief.
 1. **Prioritize**: rank findings `P0`–`P3` (see [repository-review](../repository-review/SKILL.md)) by blocked task, trust or accessibility harm, frequency, and effort; recommend the smallest coherent improvement before aesthetic extras.
 1. **Verify authorized changes**: re-run the same representative states at desktop and mobile sizes and record the evidence.
 

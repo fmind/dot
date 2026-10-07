@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-testing
   created: "2026-08-08"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Python Testing
@@ -18,7 +18,6 @@ Test-only maintenance follows [pytest mechanics](references/pytest.md) directly 
 
 ## Workflow
 
-1. **Discover the harness**: Read repository instructions, existing tests, task definitions, and nearby patterns; find the smallest command that exercises the target behavior.
 1. **State the contract**: Name the production change that would make the test pass and a plausible regression that would make it fail.
 1. **RED**: Write one minimal test for one observable behavior; run it and confirm it fails for the missing behavior, not for a syntax, fixture, environment, or setup error.
 1. **GREEN**: Implement only enough production code to satisfy that test; run the focused test and read the full output.
@@ -34,9 +33,7 @@ Test-only maintenance follows [pytest mechanics](references/pytest.md) directly 
 - **Never weaken an existing test**: do not loosen a type, add a skip, or mock away the defect to manufacture green.
 - **Preserve code written before tests**: Never delete or overwrite user work because it preceded the test; preserve it, add a red-capable test, and disclose the sequence.
 - **Disclose when test-first does not fit**: For a spike, generated code, or configuration-only change, say why and define another failing validation signal; do not call tests written afterward TDD.
-- **Start with fast, narrow tests**: Fast unit or contract tests first; integration, property, concurrency, or browser tests only where the boundary demands them; characterize legacy behavior before changing it.
 - **Prefer real collaborators over mocks**: Prefer real parsers, databases, filesystems, and HTTP handlers at lightweight boundaries over mocks of the unit under test; fake only paid, destructive, slow, or unreliable systems behind a narrow owned interface.
-- **Make failures self-explanatory**: Keep fixtures readable and assertions on outcomes; a little duplicated setup beats hidden intent, and a failure should explain the broken contract without a debugger.
 
 ## References
 

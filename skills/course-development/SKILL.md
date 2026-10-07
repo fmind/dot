@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Develop a Technical Course
@@ -21,7 +21,6 @@ Build a course learners can understand, execute, and finish. Use [documentation-
 1. **Ground examples**: derive code and counts from shipped source or generated evidence; explain the reason beside a command and distinguish captured output from illustration.
 1. **Record terminal examples when useful**: follow the [VHS workflow](../fmind-visuals/references/recording.md) for reproducible demos with synthetic inputs; retain the command transcript and a static equivalent for accessibility.
 1. **Make practice executable**: state the goal, starting state, a prediction, ordered work, verification, and what remains afterward; label temporary changes and external access/cost.
-1. **Review the learner surface**: navigation, reading order, keyboard use, contrast, alt text, mobile layout, copy/paste, and diagrams explained in prose.
 1. **Validate progressively**: run the changed lesson's checks and examples, then the repository's learner gate from a clean environment; record unexercised platforms or live services.
 1. **Prepare acceptance**: connect outcomes to evidence, known limitations, and a correction path; publication follows the user's authorized scope.
 
@@ -34,7 +33,6 @@ Read [reference-course.md](references/reference-course.md) only for a course tha
 - **Define prerequisites by state**: state the required machine or knowledge state, not merely a previous chapter number.
 - **Never break published routes**: preserve URLs or provide tested redirects/aliases when changing them.
 - **Prefer local exercises**: use meaningful local work by default; live models, cloud resources, and destructive cleanup need their declared authority and limits.
-- **Builds do not prove learning**: a successful site build does not show that a learner can complete the lesson.
 
 ## Documentation
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Docker and Container Runtime Management
@@ -41,7 +41,7 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
 
 1. **Leave interactive debugging to the user**: `lazydocker` and `docker exec -it <container-id> sh` need a TTY; suggest them for user-driven sessions and use bounded non-interactive `docker exec <container-id> <command>` otherwise.
 
-1. **Read container logs boundedly**: select the container and incident window; widen the window when needed, and keep streaming opt-in. Use `inspect --format` for specific state fields instead of dumping environment and mount details.
+1. **Read container logs boundedly**: keep streaming opt-in. Use `inspect --format` for specific state fields instead of dumping environment and mount details.
 
    ```bash
    docker logs --since 15m --tail 100 <container-id>
@@ -59,7 +59,7 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
 
 - [colima](references/colima.md): Run Docker on macOS through Colima: VM start, socket, memory limits, and mounts.
 - [containerize](references/containerize/GUIDE.md): Build, scan, sign, and verify Python container images with Trivy and Cosign.
-- [cosign](references/cosign.md): Image signatures, identity verification, and attestations.
+- [cosign](references/cosign.md): Sign, verify, and attest image digests with keyless Sigstore.
 
 <!-- guides:end -->
 

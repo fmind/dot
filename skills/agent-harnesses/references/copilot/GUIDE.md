@@ -11,10 +11,7 @@ Operate the Copilot CLI harness. Use [github-agentic-workflow](../../../github-a
 
 Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
-- **Inspect `copilot --version` and `copilot --help`**: identify whether the request concerns CLI, IDE, or cloud agent behavior.
-- **Read the CLI release notes**: before using new flags, settings, or account-dependent features; avoid embedding version tables or model lists here.
-- **Check tool permission scope**: before enabling autonomous execution; extensions can add executable integrations.
-- **Verify discovery in the installed CLI**: use its skill or plugin listing.
+- **Identify CLI, IDE, or cloud agent scope**: their behavior and settings differ.
 
 ## Official Skills
 

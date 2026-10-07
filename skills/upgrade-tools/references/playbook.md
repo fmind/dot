@@ -5,7 +5,7 @@ Per-manifest commands for the [upgrade-tools](../SKILL.md) workflow: bump, re-lo
 ## mise (`mise.toml`, `mise.lock`)
 
 1. **Record current state**: inspect the repository's status, staged and unstaged changes, mise declarations (root, nested, environment, and task-level), backend aliases, lockfiles, runtime files, and gate.
-1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`. Replace floating selectors with exact versions using the [exact-pin commands](../../mise/references/tool-versions.md#select-exact-versions), preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
+1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`, elsewhere preview with `mise outdated --bump --local`, then `mise upgrade --bump --local` (never without `--local`, which also upgrades global tools). Replace floating selectors with exact versions using the [exact-pin commands](../../mise/references/tool-versions.md#select-exact-versions), preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
 1. **Keep runtime files coherent**: align `.python-version` and relevant CI/runtime pins with the selected mise versions, preserving intentional compatibility matrices. Recreate affected environments through the project's native package workflow; do not point an existing environment's interpreter symlink at a different Python minor version. Preserve declared support unless a change is justified.
 1. **Qualify the upgrade** with the repository's complete gate and relevant runtime smoke checks. Verify the tested candidate matches the source and preserve staged selections. If the upgrade cannot be qualified, keep the prior exact pin and document the incompatibility and failed check. A pre-existing red gate leaves the repository unqualified until it is resolved.
 1. **Finish with evidence**: report old and new tool versions, gate results, and exceptions. Commit, push, deploy, and delete installations only within the user's authorization. Do not have project builds read the personal workstation configuration.
@@ -46,15 +46,15 @@ Update the tag or digest of every `FROM` line to the latest stable from the imag
 
 Resolve every action release to its full commit SHA and keep the human-readable version in a trailing comment (`owner/action@<sha> # vN.N.N`). Let [dependabot](../../github-actions/references/dependabot.md) propose SHA updates, verify the referenced tag before accepting them, and validate with `actionlint` plus `zizmor --offline`. See [github-actions](../../github-actions/references/ci-cd/GUIDE.md).
 
-Dependabot cannot raise a `jdx/mise-action` `version:` input, and `mise run upgrade` never updates mise itself. In `fmind/dot`, update mise deliberately: `mise self-update <version>` on the workstation, then raise the workflow `version:` pins (including the shipped github-actions and cloud-run templates), `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml` and the python-stack and infra-as-code templates, and the README minimum together; a bootstrap test enforces that they agree. Read the release notes between versions for security fixes and lockfile changes first.
+Dependabot cannot raise a `jdx/mise-action` `version:` input, and `mise run upgrade` never updates mise itself. In `fmind/dot`, update mise deliberately: `mise self-update <version>` on the workstation, then raise the workflow `version:` pins (including the shipped github-actions, cloud-run, and documentation-site templates), `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml` and the python-stack and infra-as-code templates, and the README minimum together; a bootstrap test enforces that they agree. Read the release notes between versions for security fixes and lockfile changes first.
 
 ## dprint (`dprint.json`)
 
 ```sh
-dprint config update --yes   # update reviewed plugins without interactive prompts
+dprint config update --yes --recursive   # update root and nested configs without prompts
 ```
 
-Run it for each config (root and nested `extends`); validate with `dprint check`. See [dprint](../../dprint/SKILL.md).
+Validate with `dprint check`. See [dprint](../../dprint/SKILL.md).
 
 ## Agent skills
 

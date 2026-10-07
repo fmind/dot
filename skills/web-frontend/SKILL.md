@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Web Frontend
@@ -22,7 +22,6 @@ Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an exis
    npx --yes modern-web-guidance@0.0.191 retrieve "<guide-id>"
    ```
 1. **Prefer web platform primitives**: Prioritize native elements (`<dialog>`, `<details>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
-1. **Verify baseline compatibility**: Check baseline availability and browser support before adopting newly standardized APIs; fall back progressively without blocking core experiences.
 1. **Compile Tailwind**: use the [standalone Tailwind workflow](references/tailwind.md) when the project selects Tailwind; preserve an existing asset pipeline. `tailwindcss` owns CSS compilation, while `npx` runs only the guidance CLI above.
 1. **Audit with DevTools**: Validate rendering, performance, and accessibility against live browser sessions using [chrome-devtools](../chrome-devtools/SKILL.md) and [quality-assurance](../quality-assurance/SKILL.md).
 
@@ -30,7 +29,6 @@ Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an exis
 
 - **Verify preview guidance against MDN**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
 - **Bump both pins together**: both commands share one review pin; bump them together to the latest stable release after qualifying it.
-- **Manage focus for top-layer elements**: Native dialogs, popovers, and top-layer elements require careful focus and accessibility management; verify keyboard navigation.
 
 ## Official Skills
 

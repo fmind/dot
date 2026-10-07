@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from importlib.metadata import version
 from typing import Annotated
 
 import typer
 
-__version__ = "0.1.0"
+__version__ = version("<slug>")
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,

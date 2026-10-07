@@ -1,0 +1,22 @@
+# Docs: https://zensical.org/docs/setup/basics/
+# Minimal API documentation for a package; grow it into a full site with the documentation-site starter.
+
+[project]
+site_name = "<slug>"
+site_description = "<description>"
+nav = [{ "Home" = "index.md" }]
+
+[project.theme]
+variant = "modern"
+
+[project.theme.font]
+text = "Google Sans"
+code = "Google Sans Code"
+
+# Renders docstrings from source without importing the package.
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+# Appends one "API Reference" page per module to the nav.
+[project.plugins.api-autonav]
+modules = ["src/<package>"]

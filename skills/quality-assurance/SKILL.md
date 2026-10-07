@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Quality Assurance
@@ -17,10 +17,10 @@ Run a risk-based test campaign over the actual feature journey. Keep one-diff re
 ## Workflow
 
 1. **Resolve the candidate**: record the requirement or spec, base and head or working-tree identity, users, critical journeys, supported environments, versions, acceptance criteria, and existing proof.
-1. **Build the risk matrix**: start from requirements, changed behavior, user journeys, and known failure modes; rank by impact, likelihood, detectability, reversibility, and change exposure, and cover the highest risk first. Reuse existing evidence only when identity and scope match.
-1. **Choose the lightest layer**: unit tests for logic, property or fuzz tests for wide input spaces, contract tests for interfaces, integration tests for owned boundaries, end-to-end tests for critical journeys; add accessibility, resilience, or manual checks only where a risk needs them.
+1. **Build the risk matrix**: cover the highest risk first; reuse existing evidence only when identity and scope match.
+1. **Choose the lightest layer**: test each risk at the cheapest layer that proves it; add accessibility, resilience, or manual checks only where a risk needs them.
 1. **Prepare controlled state**: use deterministic fixtures, isolated data, and local fakes by default, with explicit setup and teardown; confirm the test cannot mutate user or external state beyond the authorized scope, and declare real-service access, cost, and cleanup before crossing those boundaries.
-1. **Exercise changed behavior first**: run the repository's `mise` test tasks, then the success path, unhappy paths, boundaries, permissions, cancellation, retries, concurrency, recovery, and platform variants the requirements promise; preserve failures and useful artifacts.
+1. **Exercise changed behavior first**: run the repository's `mise` test tasks, then the paths and variants the requirements promise; preserve failures and useful artifacts.
 1. **Test real presentation**: prefer direct HTTP or API evidence; use a browser only for rendering, interaction, session state, or accessibility, driving it with [playwright](../playwright/SKILL.md) through roles and labels and verifying state after every action.
 1. **Test non-functional risk**: measure latency, load, resource use, resilience, security boundaries, and observability only where the matrix or spec requires; set the baseline and threshold first with [benchmark](../benchmark/SKILL.md).
 1. **Run regression proof**: execute the relevant package or subsystem suite; run the full gate (`mise run all`) only for release qualification, repository requirements, or cross-cutting risk, applying the [dirty-tree rule](../mise/SKILL.md#gotchas) when unrelated changes are present.

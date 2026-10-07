@@ -5,17 +5,14 @@ description: "Monitor ML data quality, drift, labeled performance, lineage, and 
 
 # Monitor Model Quality
 
-Monitor the deployed model against a versioned reference window. [observability](../../observability/SKILL.md) owns service logs, traces, latency, errors, and resource metrics; this guide owns changes in data and predictive behavior.
+This guide owns data and predictive-behavior changes against a versioned reference window; [observability](../../observability/SKILL.md) owns service logs, traces, latency, and errors.
 
-1. **Define the monitored population**: model version, prediction time, feature availability, reference/current windows, join keys, important slices, and label arrival delay. Retain enough lineage to associate predictions with inputs and eventual outcomes without copying raw private data into telemetry.
-1. **Separate signals**: schema violations, null rates, unknown categories, and distribution changes describe inputs; labeled loss or task metrics describe performance. Input drift alone does not prove accuracy degradation or concept drift. Without labels, report the missing evidence and monitor proxies with their limitations.
-1. **Use meaningful comparisons**: control for seasonality, sample size, changing cohorts, and delayed labels. Fix metric definitions and windows before comparing results; account for many feature/slice tests when choosing alert thresholds. Do not infer a quality improvement from a changed dataset or an aggregate that hides a failing slice.
-1. **Explain when needed**: when an explanation is requested or a concrete finding needs investigation, load the exact model version and use an appropriate method, such as SHAP, on a representative permitted sample with a documented background. Record preprocessing and feature names. Attributions describe model behavior under their assumptions; they are not causal evidence. Preserve negative and uncertain findings.
-1. **Make alerts actionable**: define signal, threshold, minimum sample, owner, investigation link, and recovery criterion. Persist reports locally when only an assessment is requested; configure notifications or automated retraining only within scope. A drift report must not directly promote a replacement model.
-1. **Verify the monitor**: run a stable reference/current fixture and a deliberately shifted or invalid fixture; check emitted metrics, severity, and recovery. Add delayed-label and empty-window cases when applicable. Verify the actual scheduler and delivery channel separately before claiming continuous monitoring.
+- **Never equate drift with degradation**: input drift alone does not prove accuracy loss or concept drift; without labels, report the missing evidence and the proxies' limits.
+- **Treat SHAP as descriptive**: explain only on request or for a concrete finding, with the exact model version and a documented background sample; attributions are not causal evidence.
+- **Keep telemetry free of raw data**: retain lineage to join predictions and outcomes without copying private rows into telemetry.
+- **Never let drift promote a model**: notifications and automated retraining are configured only within scope; replacements still go through [model-delivery](model-delivery.md).
+- **Prove the monitor fires**: run a stable and a deliberately shifted fixture and check emitted severity and recovery; verify the real scheduler ([scheduled-jobs](../../scheduled-jobs/SKILL.md)) separately before claiming continuous monitoring.
 
 ## Documentation
 
-- [MLflow evaluation](https://mlflow.org/docs/latest/ml/evaluation/) · [MLflow releases](https://github.com/mlflow/mlflow/releases).
-- [SHAP documentation](https://shap.readthedocs.io/en/latest/) · [SHAP releases](https://github.com/shap/shap/releases).
-- [model-delivery](model-delivery.md) owns evaluation before promotion; [scheduled-jobs](../../scheduled-jobs/SKILL.md) owns workstation scheduling.
+- [MLflow evaluation](https://mlflow.org/docs/latest/ml/evaluation/) · [SHAP](https://shap.readthedocs.io/en/latest/) · [SHAP releases](https://github.com/shap/shap/releases).

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Fmind Visual Communication
@@ -24,8 +24,7 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind ide
 
 ## Gotchas
 
-- **Remove decorative nodes, gradients, and generic AI imagery.**
-- **Make visuals accessible**: diagrams need a prose equivalent or alt text, and text must retain readable contrast and size.
+- **Cut decoration**: remove decorative nodes, gradients, and generic AI imagery.
 
 ## Task guides
 

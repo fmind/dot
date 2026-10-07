@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Code Security
@@ -23,7 +23,7 @@ Read only the matching guide and its required resources. Use a known guide direc
 <!-- guides:start -->
 
 - [code-review](references/code-review/GUIDE.md): Assess code and repository security; verify findings and repairs.
-- [gitleaks](references/gitleaks.md): Secret scanning and verified exposure handling.
-- [trivy](references/trivy/GUIDE.md): Dependency, configuration, image, license, and SBOM scanning.
+- [gitleaks](references/gitleaks.md): Scan the working tree and history for secrets; handle confirmed exposure.
+- [trivy](references/trivy/GUIDE.md): Scan dependencies, IaC, images, and licenses; generate SBOMs.
 
 <!-- guides:end -->

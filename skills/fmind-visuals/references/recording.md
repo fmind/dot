@@ -4,7 +4,7 @@ Use VHS for executable terminal demonstrations; [fmind-visuals](../SKILL.md) own
 
 ## Workflow
 
-1. **Define and pretest one capability**: define one capability the viewer should learn, the command, its expected output, and the final frame. Use synthetic inputs and a disposable working directory. Test the command and its exit status before recording; VHS typing a command does not assert that it succeeded.
+1. **Pretest with synthetic inputs**: use synthetic inputs and a disposable working directory. Test the command and its exit status before recording; VHS typing a command does not assert that it succeeded.
 1. **Preflight tools and fonts**: preflight `vhs --version`, `ttyd --version`, `ffmpeg -version`, the demonstrated executable, and the selected font. Install missing user-space tools through mise where supported. The dot toolchain supplies `ttyd` on Linux; upstream has no macOS release asset, so qualify a supported local build or a reviewed container before recording there. A successful `vhs validate` does not prove these runtime dependencies or the browser are available.
 1. **Copy [demo.tape](../templates/demo.tape) into the disposable directory**: set dimensions, font, typing speed, and short holds deliberately. Keep waits bounded; use `Wait` for observable output when timing varies, with a process deadline as the outer bound.
 1. **Prepare `theme.tape` as described below**: Fmind terminal recordings use the selected [fmind/theme](https://github.com/fmind/theme) palette; published article/deck colors remain a separate identity in [fmind-theme.md](fmind-theme.md). The template sources generated theme data rather than maintaining another palette here.

@@ -5,21 +5,17 @@ description: "Validate Polars or pandas data with Pandera, prevent leakage, and 
 
 # Data and Model Training
 
-Use this guide for tabular prediction and reproducible model comparisons. Preserve an explicitly chosen framework; scikit-learn is the starting point for a conventional tabular baseline.
+Tabular prediction defaults: [polars](polars.md) frames, Pandera schemas, and a scikit-learn `Pipeline` baseline; preserve a framework the project already chose.
 
-1. **Define the prediction contract**: target, unit of observation, prediction time, available features, metric direction, baseline, and cost of errors. Exclude features unavailable at prediction time, including future aggregates and target proxies.
-1. **Validate incoming data**: use the project's dataframe library ([polars](polars.md) for new code) with Pandera schemas for required columns, types, nullability, ranges, and domain constraints. For pandas, install `uv add 'pandera[pandas]'` and import `pandera.pandas as pa`: the top-level `pandera` pandas API emits a `FutureWarning`, which fails strict warning filters. Make coercion and extra-column policy deliberate. Verify input/target row identity, uniqueness, order, and join cardinality; independently valid frames can still pair the wrong rows. Report bounded diagnostics without private samples.
-1. **Split before learning transformations**: reserve a final holdout and choose random, stratified, temporal, or group splits from the deployment question. Use the same row indices for features, labels, and groups. Time splits require sorted timestamps and a gap when feature/label windows overlap; repeated entities need group separation. Do not apply the reference bike dataset's two-month split to unrelated data.
-1. **Fit the whole pipeline within each training fold**: place learned imputation, scaling, encoding, feature selection, and the estimator in a scikit-learn `Pipeline` with `ColumnTransformer` when appropriate. Fit on training rows; transform or predict on validation/holdout rows. Fit preprocessing again inside each cross-validation fold. Deterministic row-local transformations may precede splitting when they use only information available at prediction time.
-1. **Bound tuning**: define search space, trials/folds, concurrency, memory, timeout, and random-state policy. Compare a simple baseline on identical folds. Tune using validation results; use the final holdout only for the agreed final assessment. Preserve uncertainty across folds/seeds instead of claiming a seed guarantees reproducibility.
-1. **Verify the delivered predictor**: reload the saved preprocessing plus model artifact in the intended environment, predict a small held-out sample, and compare shape, row identity, dtypes, and values within an explicit tolerance. Exercise missing/extra columns and unseen categories according to the declared inference contract. For tracking use [experiments](experiments.md); for registry evaluation and promotion use [model-delivery](model-delivery.md).
+- **Import `pandera.pandas` for pandas**: install `uv add 'pandera[pandas]'` and `import pandera.pandas as pa`; the top-level pandas API emits a `FutureWarning` that fails strict warning filters.
+- **Check row identity, not just schemas**: verify input/target alignment, uniqueness, and join cardinality; independently valid frames can still pair the wrong rows.
+- **Never reuse the reference split blindly**: the bike example's two-month temporal split, schemas, and thresholds are examples; derive the split from the deployment question.
+- **Keep the final holdout final**: tune on validation folds against a simple baseline on identical folds; touch the holdout once for the agreed assessment and report fold/seed spread, not a single seed.
+- **Prove the reloaded artifact**: reload the saved preprocessing plus model in the target environment and compare predictions on a held-out sample within an explicit tolerance. A high score is not evidence that leakage checks passed.
 
-## Validation evidence
-
-Record data revision/digest, split boundaries or indices, pipeline parameters, environment lock, metrics with direction and comparison, and the reload result. Check that train/test groups or times obey the declared separation and that invalid schemas fail before fitting. A high score is not evidence that leakage checks passed.
+Tracking belongs to [experiments](experiments.md); registry evaluation and promotion to [model-delivery](model-delivery.md).
 
 ## Documentation
 
-- [scikit-learn pitfalls](https://scikit-learn.org/stable/common_pitfalls.html) · [model selection](https://scikit-learn.org/stable/model_selection.html) · [releases](https://scikit-learn.org/stable/whats_new.html).
-- [Pandera dataframe models](https://pandera.readthedocs.io/en/stable/dataframe_models.html) · [releases](https://github.com/unionai-oss/pandera/releases).
-- [pandas user guide](https://pandas.pydata.org/docs/user_guide/index.html) · [releases](https://pandas.pydata.org/docs/whatsnew/index.html).
+- [scikit-learn pitfalls](https://scikit-learn.org/stable/common_pitfalls.html) · [releases](https://scikit-learn.org/stable/whats_new.html).
+- [Pandera dataframe models](https://pandera.readthedocs.io/en/stable/dataframe_models.html) · [releases](https://github.com/pandera-dev/pandera/releases).

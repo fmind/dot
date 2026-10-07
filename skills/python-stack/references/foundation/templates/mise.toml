@@ -20,8 +20,8 @@ uv = "latest"
 
 [tasks.all]
 alias = "a"
-description = "Format, check, test, and build the project"
-run = ["mise run format", "mise run check", "mise run test", "mise run build"]
+description = "Format, check, test, and build the project and its docs"
+run = ["mise run format", "mise run check", "mise run test", "mise run build", "mise run build:docs"]
 
 [tasks.build]
 alias = "b"
@@ -30,8 +30,13 @@ run = "uv build"
 
 [tasks."build:docs"]
 alias = "d"
-description = "Generate HTML docs (pdoc)"
-run = "uv run --locked pdoc -o .cache/docs <package>"
+# Strict: broken links, anchors, and docstring cross-references fail the build.
+description = "Build the documentation site with its API reference (Zensical)"
+run = "uv run --locked zensical build --clean --strict"
+
+[tasks."serve:docs"]
+description = "Preview the documentation site"
+run = "uv run --locked zensical serve"
 
 [tasks.check]
 alias = "c"

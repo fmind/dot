@@ -25,7 +25,6 @@
    - **Cursor**: reads project `AGENTS.md` and `.agents/skills` directly; add `.cursor/rules` only for Cursor-specific rules. `.cursor/cli.json` owns project permissions and `.cursor/mcp.json` owns project MCP.
    - **OpenCode**: reads `AGENTS.md` and `.agents/skills`; use `opencode.json` or `.jsonc` for project configuration and MCP. See [opencode](../../agent-harnesses/references/opencode/GUIDE.md) for session operation.
    - **Grok**: reads `AGENTS.md` and `.agents/skills`; project MCP lives in `./.grok/config.toml` via `grok mcp add --scope project`.
-1. **Keep secrets and state out of git**: ignore local credentials, generated agent state, and secret-bearing overrides; commit only portable configuration.
 1. **Verify each installed CLI**: start it from the repository root and confirm instructions, skills, and configured MCP servers load, using the listing commands in [host discovery](host-discovery.md).
 
 ## Layout
@@ -45,7 +44,7 @@
 
 ## Custom agents
 
-Native agent definitions differ by host. Share role instructions with [Supagents](cross-harness-agents.md), compile explicit native settings, and verify each host. Give delegated agents bounded tasks and let the parent integrate and validate.
+Native agent definitions differ by host. Share role instructions with [Supagents](cross-harness-agents.md), compile explicit native settings, and verify each host.
 
 | Host        | Project location                 |
 | ----------- | -------------------------------- |

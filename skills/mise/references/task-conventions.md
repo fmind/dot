@@ -10,6 +10,7 @@ Split a task into `<task>:<x>` when one piece must run alone; each family keys `
 
 | Task            | Concern                          | Tool                                                               |
 | --------------- | -------------------------------- | ------------------------------------------------------------------ |
+| `check:deps`    | missing or unused dependencies   | `deptry`                                                           |
 | `check:format`  | formatting drift                 | `dprint check` plus the stack formatter's check mode               |
 | `check:lint`    | lint rules                       | `ruff check`                                                       |
 | `check:types`   | static types                     | `ty check`                                                         |
@@ -23,7 +24,7 @@ Reuse these names for their stated concerns instead of inventing synonyms such a
 ## Conventions
 
 - **Run hooks through mise tasks**: see [lefthook](../../github-actions/references/lefthook.md); each hook command is `mise run <task>` and its name mirrors the task.
-- **Fan checks out in parallel**: `check` fans out with `depends = ["check:format", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
+- **Fan checks out in parallel**: `check` fans out with `depends = ["check:deps", "check:format", "check:leaks", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
 - **Skip unchanged tasks incrementally**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Limit staged files to formatters**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
 - **Forward arguments without dispatch wrappers**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
@@ -47,7 +48,7 @@ mise install             # install everything pinned
 mise lock                # refresh metadata for the locked versions
 mise lock --bump         # advance lock selectors without installing
 mise lock --upgrade      # migrate legacy locks; retain and validate generated dependency files
-mise upgrade --bump      # explicit upgrade of this project's pins
+mise upgrade --bump --local  # rewrite this project's pins only; without --local it also upgrades global tools
 ```
 
 ## Additional task gotchas

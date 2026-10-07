@@ -13,7 +13,6 @@ Produce a decision-ready answer whose important claims trace to current, authori
 1. **Record the local baseline**: exact versions and platform constraints from manifests, lockfiles, configuration, and the installed dependency source.
 1. **Plan the evidence**: list the smallest set of primary sources (official docs, source repositories, specifications, advisories, vendor status pages) and local experiments that answer the question; use secondary sources only to discover or contrast primary ones.
 1. **Test cheaply**: when documentation leaves ambiguity, run the smallest reversible experiment in an isolated temporary directory and record commands, inputs, outputs, version, and limitations.
-1. **Compare consistently**: evaluate alternatives on the same dimensions, such as fit, complexity, maintenance, security, portability, cost, reversibility, and migration risk.
 1. **Challenge the favorite**: name the strongest counterargument, hidden operational burden, and simplest adequate alternative.
 1. **Synthesize**: recommend one path, explain why it wins for the stated constraints, and state confidence, freshness, unresolved gaps, and the next verification step.
 

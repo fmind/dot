@@ -9,9 +9,9 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
 
 ## Workflow
 
-1. **Install only the Python CLI**: inspect its current contract before scaffolding. Keep the compatible release pin aligned with the upstream skills you review. Its usage telemetry (1.8.0) is an opt-in experiment, off by default; do not enable it unless requested.
+1. **Install only the Python CLI**: inspect its current contract before scaffolding. Keep the compatible release pin aligned with the upstream skills you review. Since 1.9.0 its usage telemetry is on by default (command metadata goes to the GCP project and Google); the workstation mise environment sets `AGENTS_CLI_TELEMETRY=0`, so keep it off elsewhere too unless the user opts in. `agents-cli info` shows the state.
    ```bash
-   uv tool install "google-agents-cli~=1.8.0"
+   uv tool install "google-agents-cli~=1.9.0"
    agents-cli --version
    agents-cli --help
    ```
@@ -40,14 +40,13 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
    # Explicitly authorized provider smoke test:
    agents-cli run "hello"
    ```
-1. **Evaluate behavior**: keep a versioned dataset with expected responses, tool trajectories, and safety cases; run `agents-cli eval run`, compare the candidate with its immutable baseline, and record cost, repetitions, and uncertainty.
+1. **Evaluate behavior**: run `agents-cli eval run` on a versioned dataset and compare the candidate with its immutable baseline.
 1. **Instrument the candidate**: use OpenTelemetry traces and structured logs per [observability](../../../observability/SKILL.md). Exclude prompt, completion, secret, and personal data bodies unless a reviewed policy explicitly permits them. Export from `agents-cli run` or `playground` only when authorized, with `--otel-to-cloud`; 1.7.0 removed `--trace-to-cloud`.
-1. **Review deployment first**: from the intended project's directory, preview a target with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run`, inspect generated infrastructure and IAM (its Terraform requires 1.11 or later), then run `agents-cli deploy` only with explicit deployment approval. Verify the deployed agent through `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
+1. **Review deployment first**: from the intended project's directory, preview a target with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run`, inspect generated infrastructure and IAM (its Terraform requires 1.11 or later), check an Agent Runtime target with the read-only `agents-cli deploy --dry-run` (APIs, IAM, `actAs`, secrets), then run `agents-cli deploy` only with explicit deployment approval. Verify the deployed agent through `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
 
 ## Gotchas
 
 - **Do not run `agents-cli setup`**: it installs skills globally by default. Use `uv tool install` for the Python CLI and the reviewed `skills` commands above for project-scoped skill installation.
-- **Smoke tests are not evaluations**: `pytest` checks deterministic code, `agents-cli run` checks wiring once, and repeated eval cases measure agent behavior.
 - **Fix scaffold quality gaps**: replace dummy tests, remove blanket type ignores, and inspect prerelease observability dependencies before accepting the generated lock; follow the [generated Python profile](references/python-profile.md).
 - **Preserve scaffold choices**: do not silently change its model, deployment target, session service, or generated layout while implementing a feature.
 - **Full means selected features**: `--deployment-target` accepts `agent_runtime`, `cloud_run`, `gke`, or `none`; `--session-type` belongs to the `cloud_run` and `gke` container targets, and through 1.8.0 Agent Runtime warns and discards it; Agent Runtime selects managed sessions from its runtime environment.

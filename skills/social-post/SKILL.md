@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/social-post
   created: "2026-10-04"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Social Post
@@ -18,7 +18,7 @@ Adapt a source (article, release, announcement, talk) into native copy for Linke
 
 1. **Read the source and the voice**: the full source, the author's notes, and the project's identity or voice file when present. Extract the thesis, one concrete detail or result, its boundary, and the single best link. Never add a personal story, metric, or client the source does not carry.
 1. **Write each channel natively**, one file or block per channel, never the same opening twice:
-   - **LinkedIn**: a self-contained note worth reading without clicking. The first line carries the tension or sharpest finding and stays under about 200 characters (the feed fold). Up to 3000 characters, at most 3 precise hashtags, at most one link in the body (never "link in first comment"). Separate paragraphs with two empty lines: LinkedIn paste can collapse single ones.
+   - **LinkedIn**: a self-contained note worth reading without clicking. The first line carries the tension or sharpest finding and stays under about 200 characters (the feed fold). Up to 3000 characters, at most 3 precise hashtags. An article adaptation carries no link (it must stand alone); an announcement or episode at most one, in the body (never "link in first comment"). Separate paragraphs with two empty lines: LinkedIn paste can collapse single ones.
    - **X**: one post or a real thread; split blocks with a line containing only `---`, each useful alone and at most 280 weighted characters (URLs count 23, emoji and CJK count 2). At most 2 hashtags.
    - **Bluesky**: a conversational note, not a trimmed X post; at most 300 characters per block and 3 hashtags.
 1. **Write plain text**: no Markdown bold, headings, or `[text](url)` links, since none render; write bare URLs and `-` or numbered lines for lists. Avoid Unicode "bold" letters: screen readers and search treat them as symbols. No em-dashes; use periods, commas, or colons. Tag `fmind.dev` article links with `?utm_source=<channel>`.

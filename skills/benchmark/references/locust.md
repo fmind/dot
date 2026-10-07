@@ -23,8 +23,6 @@ Use Locust for concurrent user behavior and service capacity tests; [command-htt
 
 - **Spawn rate is users per second**: not requests per second; think time and response latency determine request load.
 - **Bound runs and targets**: avoid unbounded runs, accidental production hosts, and real payment/email tasks. Distributed workers multiply the available traffic capacity.
-- **Keep user sessions and credentials isolated.**
-- **Watch generator saturation**: a saturated generator understates server capacity and makes results unreliable.
 
 ## Official Skills
 

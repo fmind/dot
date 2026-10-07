@@ -30,7 +30,6 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
 
 - **Source paths are relative to the stylesheet**: default discovery otherwise starts at the process working directory. Explicit roots make repository-root and CI builds agree.
 - **Register sources Tailwind cannot infer**: Tailwind scans text, not Python or Jinja semantics. Ignored files and dependencies require deliberate source registration.
-- **Separate source CSS from generated output**: watch loops and stale checked-in output can hide an incomplete production build.
 - **Respect the site's established identity**: resolve design tokens before editing colors; [fmind-visuals](../../fmind-visuals/SKILL.md) owns published Fmind artifacts.
 
 ## Documentation

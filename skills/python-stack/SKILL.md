@@ -1,13 +1,13 @@
 ---
 name: python-stack
-description: "Develop Python projects and PEP 723 scripts with uv, Ruff, ty, Pydantic, async, LangExtract; fix lint/types."
+description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, async, LangExtract; fix lint/types."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Python Stack

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Task and Continuation Prompts
@@ -17,7 +17,6 @@ Prepare instructions the receiving agent can use without this conversation. [pro
 ## Workflow
 
 1. **Choose the mode**: fresh task, or continuation of work already underway; resolve the requested outcome, latest corrections, scope, and acceptance criteria.
-1. **Ground the prompt**: inspect relevant repository instructions, source, tests, and installed dependencies; verify paths and commands and label assumptions.
 1. **Record continuation state**: check `git status --short --branch`, record completed proof, the exact stopping point, outstanding work, failed approaches, and reasons for material decisions. Before `/clear` or a harness switch, use [handoff](../handoff/SKILL.md), which also copies the result to the clipboard.
 1. **Draft** from [prompt-template.md](references/prompt-template.md); omit empty sections and add ordered slices only when execution needs them.
 1. **Write and check**: resolve the root with `git rev-parse --show-toplevel`; save `.agents/prompts/<file>.md`, defaulting to `<YYYY-MM-DD>-<slug>.md`, or `~/.agents/prompts/` outside a repository. Verify the receiver can act without hidden context, then report the path.

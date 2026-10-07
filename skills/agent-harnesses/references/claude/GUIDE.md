@@ -7,13 +7,7 @@ description: "Claude Code sessions and customization."
 
 Operate Claude Code's harness and session features. Application development with the Anthropic API is a separate workflow.
 
-## Workflow
-
-Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
-
-- **Inspect `claude --version` and `claude --help`**: compare installed help with the version-specific CLI reference.
-- **Use the documented interface**: session, customization, or Remote Control. Read setting precedence before changing permissions or hooks.
-- **Verify in Claude Code**: check the session result and configuration or skill discovery.
+Follow the shared [workflow](../../SKILL.md#workflow).
 
 ## Official Skills
 

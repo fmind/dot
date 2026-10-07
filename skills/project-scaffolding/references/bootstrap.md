@@ -38,7 +38,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 1. **Done when**:
    - `mise run all` is green locally; check CI for the resulting commit when a first push was authorized.
    - `README.md` passes the README standard's acceptance review: recognizable identity, clear purpose, visible result, reproducible quickstart, honest limits, and working navigation; `AGENTS.md` says how agents work in it.
-   - No scaffold placeholder (`<slug>`, `TODO`) remains in the delivered files; report pending publication separately.
+   - No scaffold placeholder (`<slug>`, `<year>`, `<holder>`, `TODO`) remains in the delivered files; report pending publication separately.
 
 ## Gotchas
 

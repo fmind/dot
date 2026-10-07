@@ -20,7 +20,6 @@ Use the official `a2aproject/a2a-python` distribution `a2a-sdk` and the `a2aproj
 
 - **SDK 1.x differs from older examples**: SDK 1.x uses protobuf message types and route builders; older Pydantic models and `A2AStarletteApplication` examples target a different API. Match the `A2A-Version` request header to the peer's supported protocol version and test a mismatch.
 - **`AgentSkill` is not an Agent Skill**: an Agent Card's `AgentSkill` advertises a protocol capability; it is not an Agent Skills `SKILL.md` package or proof of authorization.
-- **Advertise only tested capabilities**: do not advertise streaming, push notifications, or cancellation until the server implements and tests them.
 - **In-memory task storage is a local fixture**: it does not prove restart recovery or support multiple server processes.
 
 ## Official Skills

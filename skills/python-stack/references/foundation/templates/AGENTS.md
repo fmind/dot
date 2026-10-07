@@ -17,6 +17,7 @@ All work goes through `mise` (see `mise.toml`); git hooks and CI call the same t
 - Check: `mise run check` — `ruff` lint, `ty` types, `deptry` dependencies, `uv audit`, `dprint check`, `gitleaks`, `pyproject` validation.
 - Test: `mise run test` — offline `pytest` suite with an 85% branch-coverage gate.
 - Build: `mise run build` — `uv build` (wheel + sdist).
+- Docs: `mise run build:docs` — strict Zensical build with the generated API reference; `mise run serve:docs` previews it.
 - Watch: `mise run watch` — re-run offline tests on source changes; application profiles may supply their development command.
 
 ## Definition of done

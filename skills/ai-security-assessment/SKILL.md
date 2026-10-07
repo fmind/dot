@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ai-security-assessment
   created: "2026-09-11"
-  updated: "2026-10-04"
+  updated: "2026-10-07"
 ---
 
 # AI Security Assessment
@@ -22,7 +22,7 @@ Turn a concrete AI attack path into a reproducible assessment and remediation te
 1. **Prepare PyRIT**: follow [PyRIT execution](references/pyrit.md) for the released API, target adapter, scenario selection, local smoke, and evidence storage. Freeze package, prompt, dataset, converter, scorer, and application identities before comparative runs.
 1. **Validate the case**: prove the intended input reaches the target and that the outcome check detects a deliberately broken control in a fixture. Test a legitimate operation and a rejected operation. Keep target failures, evaluator failures, and actual security failures separate.
 1. **Run the campaign**: start with a narrow single-turn case, then add multi-turn or converted cases when the attack path requires them. Declare case count, repeats, concurrency, turn/retry/time/cost limits, cleanup, and stop conditions; retain every attempted trial and its outcome.
-1. **Verify findings**: reproduce suspicious results against the application, inspect enforcement and artifacts, and challenge alternative explanations. Label confirmed, refuted, and unresolved cases; a model's claim that it accessed a secret is insufficient evidence.
+1. **Verify findings**: reproduce suspicious results against the application and label confirmed, refuted, and unresolved cases; a model's claim that it accessed a secret is insufficient evidence.
 1. **Remediate and retest**: when implementation is authorized, fix the failed runtime control and add a deterministic regression. Repeat the original attack, nearby variants, and legitimate tasks under comparable conditions. Report the remaining uncertainty and the exact tested boundary.
 
 ## Gotchas

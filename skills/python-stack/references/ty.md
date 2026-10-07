@@ -5,19 +5,16 @@ description: "Type diagnostics and environment resolution."
 
 # ty
 
-Use ty for Python static typing; [python-stack](foundation/GUIDE.md) owns the common project configuration.
+Use ty for Python static typing; [foundation](foundation/GUIDE.md) owns the common project configuration.
 
 ## Workflow
 
-1. **Inspect version and configuration**: the pinned ty version, Python version, dependency environment, and `[tool.ty]` or `ty.toml` configuration.
 1. **Add ty only when missing**: use `uv add --dev ty`. Run `uv run ty check` through the project environment; narrow a diagnostic with `uv run ty check <path>` before changing code.
 1. **Check the environment before annotations**: for unresolved imports, verify the interpreter, installed dependencies, source roots, and type stubs before changing annotations.
-1. **Fix the cause, then rerun tests**: fix the annotation, parser, or environment causing the error, then rerun typing and behavior tests for the affected code.
 
 ## Gotchas
 
 - **Know ty's configuration precedence**: ty takes the Python version from `[tool.ty.environment].python-version` (`major.minor` only), else the minimum of `project.requires-python`; a `ty.toml` replaces the whole `[tool.ty]` section.
-- **Check docs against the locked tool**: a latest-branch skill can describe configuration unsupported by the locked tool; check local help and current official docs.
 - **Suppress with `# ty: ignore[rule-name]`**: place it on the offending line; never clear a gate with `ty check --add-ignore`, which writes those comments and then prints `All checks passed!`.
 - **Standalone skill installation does not install Astral's Claude LSP configuration.**
 
