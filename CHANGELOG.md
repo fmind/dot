@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.0.1] - 2026-10-07
+
+### 🐛 Bug Fixes
+
+- _(fish)_ Preserve Darwin Homebrew path precedence over /usr/local/bin (#103)
+
+### 📚 Documentation
+
+- _(skills)_ Align bf with Brain Framework 18.3.0
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 18.3.0
+
 ## [11.0.0] - 2026-10-07
 
 ### 🚀 Features
