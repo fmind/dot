@@ -15,7 +15,7 @@ set -gx LANG en_US.UTF-8
 # Pagers
 set -gx LESS -FRSXMK
 set -gx LESSHISTFILE -
-# Agents inherit this (`aws <command> help`); less prints like cat without a terminal.
+# Agents inherit this; less prints like cat without a terminal.
 set -gx MANPAGER less
 set -gx PAGER "bat --plain"
 

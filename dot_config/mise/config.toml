@@ -49,6 +49,8 @@ fish = "aqua:fish-shell/fish-shell"
 neovim = "aqua:neovim/neovim"
 
 [env]
+# agents-cli 1.9.0 turned usage telemetry on by default.
+AGENTS_CLI_TELEMETRY = "0"
 ASTRO_TELEMETRY_DISABLED = "1"
 # The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
 # vendor skills go through the vendor-skill policy instead.
@@ -60,7 +62,7 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "conda:file" = "latest" # File type detection required by Yazi; includes its magic database
 # macOS ships both natively (mandoc renders man pages there).
 "conda:groff" = { version = "latest", os = ["linux"] } # Man-page renderer that `aws <command> help` requires
-"conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Neovim plugins (Copilot.lua) and installers
+"conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
 "npm:@mermaid-js/mermaid-cli" = "latest" # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
