@@ -12,7 +12,7 @@ metadata:
 
 # Scheduled Jobs
 
-Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-stack/references/python-script/GUIDE.md) owns program code, [mise](../mise/SKILL.md) owns task commands, and [agent-loops](../agent-loops/SKILL.md) owns agent continuation and decisions.
+Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-stack/references/python-script/GUIDE.md) owns program code, and [mise](../mise/SKILL.md) owns task commands.
 
 ## Workflow
 

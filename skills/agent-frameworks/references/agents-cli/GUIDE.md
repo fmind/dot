@@ -63,4 +63,4 @@ Upstream: `google/agents-cli`, with separate workflow, scaffold, ADK code, evalu
 
 - [ADK](https://adk.dev/) · [google/agents-cli](https://github.com/google/agents-cli) · [Agent Runtime](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale)
 - Releases: [agents-cli](https://github.com/google/agents-cli/releases)
-- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [quality-assurance](../../../quality-assurance/SKILL.md), [observability](../../../observability/SKILL.md), [cloud-run](../../../cloud-run/SKILL.md), [Google catalog](../../../google-developer/SKILL.md), [prompt-design](../../../prompt-design/SKILL.md).
+- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [quality-assurance](../../../quality-assurance/SKILL.md), [observability](../../../observability/SKILL.md), [cloud-run](../../../cloud-run/SKILL.md), [Google catalog](../../../google-developer/SKILL.md), [system-prompts](../../../system-prompts/SKILL.md).

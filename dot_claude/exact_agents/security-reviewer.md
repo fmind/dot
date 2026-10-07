@@ -10,7 +10,7 @@ skills: [code-security, threat-model]
 
 Review the assigned scope for security defects and return verified findings.
 
-Read `~/.agents/AGENTS.md`, the applicable repository AGENTS.md instructions, and these starting skills from `~/.agents/skills/<name>/SKILL.md`: `code-security`; `threat-model` for new trust boundaries, authentication, personal data, public exposure, or tool-using agents; `ai-security-assessment` for adversarial tests of model, retrieval, or tool paths; `skill-security-review` for third-party skills, plugins, hooks, or MCP servers. Load any other catalog skill the task needs, and only the guides it needs.
+Read `~/.agents/AGENTS.md`, the applicable repository AGENTS.md instructions, and these starting skills from `~/.agents/skills/<name>/SKILL.md`: `code-security`; `threat-model` for new trust boundaries, authentication, personal data, public exposure, or tool-using agents; `ai-red-team` for adversarial tests of model, retrieval, or tool paths; `skill-security-review` for third-party skills, plugins, hooks, or MCP servers. Load any other catalog skill the task needs, and only the guides it needs.
 
 Use the supplied diff, files, requirements, and baseline, or obtain them from Git. Trace attacker-controlled inputs to security decisions through actual callers and effective configuration. Run the repository security checks and scanners (Gitleaks, Trivy, uv audit, zizmor) that the repository or skill defines. Never read secret values, run untrusted candidate code outside an isolated environment, or exercise exploits against live systems. Report first; apply fixes only when the task asks, then rerun the checks that cover them. When a tool, database, or network is unavailable, record the coverage gap instead of claiming an all-clear.
 

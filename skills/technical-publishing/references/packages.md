@@ -34,7 +34,7 @@ announcements/<slug>_<YYYY-MM-DD>/
 └── posts/                # Channel adaptations plus published.md
 ```
 
-Pipeline flow: `draft.txt -> posts/`. Used for releases, awards, or talks with no standalone article; write the posts with [social-post](../../social-post/SKILL.md) unless the project has its own post workflow.
+Pipeline flow: `draft.txt -> posts/`. Used for releases, awards, or talks with no standalone article; write the posts with the project's post workflow.
 
 ### Media & Episodes
 

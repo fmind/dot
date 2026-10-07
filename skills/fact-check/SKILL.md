@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fact-check
   created: "2026-10-04"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Fact-Check
@@ -42,4 +42,4 @@ Verify every material claim and link in a draft article, post, talk, or README s
 ## Documentation
 
 - [lychee](https://lychee.cli.rs/) · [releases](https://github.com/lycheeverse/lychee/releases)
-- Companion skills: [technical-publishing](../technical-publishing/SKILL.md) (publication), [social-post](../social-post/SKILL.md) (channel copy), [repository-docs](../repository-docs/SKILL.md) (README and docs accuracy).
+- Companion skills: [technical-publishing](../technical-publishing/SKILL.md) (publication), [repository-docs](../repository-docs/SKILL.md) (README and docs accuracy).

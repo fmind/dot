@@ -12,7 +12,7 @@ metadata:
 
 # Agent Evaluation
 
-Decide whether a stochastic candidate improves observable outcomes under comparable conditions. [prompt-design](../prompt-design/SKILL.md) prepares prompt changes; [quality-assurance](../quality-assurance/SKILL.md) owns deterministic software proof. Keep datasets and execution commands in the project or provider's existing evaluation workflow.
+Decide whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../system-prompts/SKILL.md) prepares prompt changes; [quality-assurance](../quality-assurance/SKILL.md) owns deterministic software proof. Keep datasets and execution commands in the project or provider's existing evaluation workflow.
 
 ## Workflow
 
@@ -35,4 +35,4 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 - Upstream: `mlflow/skills` ships a same-name, MLflow-specific `agent-evaluation`; preview it, never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 - [Anthropic agent evaluation](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
 - Companion skills: [agents-cli](../agent-frameworks/references/agents-cli/GUIDE.md) (Google evaluation execution), [observability](../observability/SKILL.md) (runtime signals), [skillify](../skillify/SKILL.md) (skill adoption checks).
-- [AI security assessment](../ai-security-assessment/SKILL.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.
+- [AI red team](../ai-red-team/SKILL.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.

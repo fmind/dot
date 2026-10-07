@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Trim
@@ -41,4 +41,4 @@ Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a reque
 
 ## Documentation
 
-- Companion skills: [repository-docs](../repository-docs/SKILL.md) (documentation ownership), [skillify](../skillify/SKILL.md) (skill size rules), [prompt-design](../prompt-design/SKILL.md) (application prompts).
+- Companion skills: [repository-docs](../repository-docs/SKILL.md) (documentation ownership), [skillify](../skillify/SKILL.md) (skill size rules), [system-prompts](../system-prompts/SKILL.md) (application prompts).

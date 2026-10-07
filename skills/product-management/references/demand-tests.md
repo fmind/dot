@@ -1,6 +1,6 @@
 # Demand Tests
 
-Two bounded protocols for the Discover and Launch phases of [product-loop](../SKILL.md). Planning either is read-only; drafting targets, scripts, pricing, and a CRM schema is allowed. Contacting or recording a person, retaining identifiable notes, sending outreach or messages, publishing (including a quote), advertising, mutating a CRM or account, contracts, payments, discounts, price changes, and spend require explicit authorization for the exact action and scope, applicable consent, and a stated data-retention boundary.
+Two bounded protocols for the Discover and Launch phases of [product-management](../SKILL.md). Planning either is read-only; drafting targets, scripts, pricing, and a CRM schema is allowed. Contacting or recording a person, retaining identifiable notes, sending outreach or messages, publishing (including a quote), advertising, mutating a CRM or account, contracts, payments, discounts, price changes, and spend require explicit authorization for the exact action and scope, applicable consent, and a stated data-retention boundary.
 
 ## Customer Interview Protocol
 
