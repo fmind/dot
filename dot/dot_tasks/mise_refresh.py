@@ -12,25 +12,45 @@ from pathlib import Path
 
 from dot_tasks.mise_locks import bundle, capture
 
+# Their registry entries publish no checksum; keep in step with config.toml's comment.
+UNCHECKSUMMED_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
+_CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
+
 
 def validate(configuration: Path) -> None:
-    """Reject incomplete generation before replacing the portable baseline."""
+    """Reject an incomplete or unverifiable lock before it replaces the portable baseline."""
     config = tomllib.loads((configuration / "config.toml").read_text(encoding="utf-8"))
     lock = tomllib.loads((configuration / "mise.lock").read_text(encoding="utf-8"))
+    findings: list[str] = []
     for name, settings in config["tools"].items():
         entries = lock["tools"].get(name, [])
         if not entries or any(not entry.get("version") for entry in entries):
-            raise ValueError(f"Missing locked version for {name}")
+            findings.append(f"{name}: missing locked version")
+            continue
         if name.startswith(("npm:", "pipx:")):
+            # Native dependency graphs are verified by bundle() below.
             if any(not {"aube", "uv"}.intersection(entry) for entry in entries):
-                raise ValueError(f"Missing dependency graph for {name}")
+                findings.append(f"{name}: missing dependency graph")
             continue
         allowed_os = settings.get("os") if isinstance(settings, dict) else None
         for platform in config["settings"]["lockfile_platforms"]:
             if allowed_os and platform.split("-")[0] not in allowed_os:
                 continue
-            if not any(entry.get(f"platforms.{platform}", {}).get("url") for entry in entries):
-                raise ValueError(f"Missing locked download for {name} on {platform}")
+            # Platform-specific asset options produce separate lock entries, so each
+            # supported platform needs one complete artifact across them.
+            artifacts = [entry.get(f"platforms.{platform}", {}) for entry in entries]
+            if not any(artifact.get("url") for artifact in artifacts):
+                findings.append(f"{name} {platform}: missing locked download")
+            # Every tool must be verifiable from the lockfile alone: relock an unverifiable
+            # tool on a checksummed backend (aqua, core, github) instead of exempting it.
+            checksummed = any(
+                str(artifact.get("checksum", "")).startswith(_CHECKSUM_PREFIXES) for artifact in artifacts
+            )
+            if checksummed == (name in UNCHECKSUMMED_TOOLS):
+                state = "now available; drop the exemption" if checksummed else "missing"
+                findings.append(f"{name} {platform}: checksum {state}")
+    if findings:
+        raise ValueError("Incomplete mise lock: " + "; ".join(findings))
     bundle(configuration / "mise.lock")
 
 

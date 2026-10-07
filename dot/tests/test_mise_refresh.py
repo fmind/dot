@@ -30,10 +30,10 @@ def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
         'lockfile_version = 3\n[[tools."pipx:example"]]\nversion = "1.0"\n'
         f'uv = {{path = "locks/example/1.0", digest = "sha256:{hashlib.sha256(content).hexdigest()}"}}\n'
         '[[tools.native]]\nversion = "2.0"\n'
-        '[tools.native."platforms.linux-x64"]\nurl = "https://example.org/linux"\n'
-        '[tools.native."platforms.macos-arm64"]\nurl = "https://example.org/macos"\n'
+        '[tools.native."platforms.linux-x64"]\nurl = "https://example.org/linux"\nchecksum = "sha256:linux"\n'
+        '[tools.native."platforms.macos-arm64"]\nurl = "https://example.org/macos"\nchecksum = "sha256:macos"\n'
         '[[tools.linux_only]]\nversion = "1.0"\n'
-        '[tools.linux_only."platforms.linux-x64"]\nurl = "https://example.org/linux-only"\n'
+        '[tools.linux_only."platforms.linux-x64"]\nurl = "https://example.org/linux-only"\nchecksum = "sha256:linux-only"\n'
     )
 
 
@@ -151,3 +151,11 @@ def test_refresh_failure_preserves_the_managed_bundle(
         mise_refresh.refresh(tmp_path)
     assert bundle(source / "mise.lock") == before
     assert all(not path.exists() for path in staging)
+
+
+def test_validate_reports_every_unverifiable_platform_artifact(tmp_path: Path) -> None:
+    write_bundle(tmp_path)
+    lock = tmp_path / "mise.lock"
+    lock.write_text(lock.read_text().replace('checksum = "sha256:macos"\n', ""))
+    with pytest.raises(ValueError, match="native macos-arm64: checksum missing"):
+        mise_refresh.validate(tmp_path)

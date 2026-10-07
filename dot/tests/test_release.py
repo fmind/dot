@@ -27,7 +27,7 @@ class ReleaseRunner(Runner):
         super().__init__()
         self.calls: list[tuple[str, ...]] = []
         self.interactive_calls: list[tuple[str, ...]] = []
-        self.installed = {"git", "git-cliff", "mise", "uv"}
+        self.installed = {"dprint", "git", "git-cliff", "mise", "uv"}
         self.responses: dict[tuple[str, ...], CommandResult | BaseException] = {
             ("git", "rev-parse", "--show-toplevel"): CommandResult(str(root), "", 0),
             ("git", "branch", "--show-current"): CommandResult("main", "", 0),
@@ -110,7 +110,9 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
 
     assert read_release_version(project) == "1.27.0"
     assert 'version = "1.27.0"' in (project / "dot/uv.lock").read_text()
+    assert ("dprint", "fmt", "CHANGELOG.md") in runner.calls
     assert runner.interactive_calls == [
+        ("mise", "run", "check:network"),
         ("mise", "run", "test:starters"),
         ("mise", "run", "build"),
         ("mise", "run", "check:completions"),
@@ -122,7 +124,7 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
     assert RESTORE not in runner.calls
 
 
-@pytest.mark.parametrize("task", ["test:starters", "build", "check:completions"])
+@pytest.mark.parametrize("task", ["check:network", "test:starters", "build", "check:completions"])
 def test_gate_failure_restores_generated_files_without_tagging(project: Path, task: str) -> None:
     runner = ReleaseRunner(project)
     runner.interactive_codes[("mise", "run", task)] = 1
