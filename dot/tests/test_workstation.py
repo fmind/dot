@@ -4,16 +4,17 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from io import StringIO
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, get_args
 
 import pytest
 from typer.testing import CliRunner
 
 from fmind_dot import auth
 from fmind_dot.cli import app
-from fmind_dot.config import Config
+from fmind_dot.config import CacheProvider, Config, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
+from fmind_dot.workstation import CACHE_TOOLS
 
 
 @pytest.mark.parametrize("command", ["login", "setup"])
@@ -708,6 +709,38 @@ def test_cache_json_keeps_other_providers_when_one_times_out(provider: Recording
     assert entries["uv"]["report"] == {"bytes": 1024}
 
 
+def test_cache_text_continues_past_a_failed_provider_and_exits_nonzero(provider: RecordingRunner) -> None:
+    provider.action_code = 1
+    result = CliRunner().invoke(app, ["cache"])
+    assert result.exit_code == 1
+    assert [args[0] for args in provider.actions] == ["docker", "hf", "uv"]
+    assert "cache inspection failed for docker, hf, uv" in str(result.exception)
+
+
+def test_cache_all_skips_missing_tools_but_an_explicit_provider_requires_it(provider: RecordingRunner) -> None:
+    provider.missing.add("docker")
+    provider.responses = [CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
+    result = CliRunner().invoke(app, ["cache", "--json"])
+    assert result.exit_code == 0, result.exception
+    entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
+    assert entries["docker"]["skipped"] == "docker not installed"
+    text = CliRunner().invoke(app, ["cache"])
+    assert "[docker] skipped: docker not installed" in text.output
+    explicit = CliRunner().invoke(app, ["cache", "docker"])
+    assert explicit.exit_code != 0
+
+
+def test_cache_rejects_unknown_providers(provider: RecordingRunner) -> None:
+    result = CliRunner().invoke(app, ["cache", "npm"])
+    assert result.exit_code == 2
+    assert not provider.calls
+
+
+def test_cache_registry_covers_every_configurable_provider() -> None:
+    assert set(get_args(PruneProvider)) == set(CACHE_TOOLS)
+    assert all(CACHE_TOOLS[name].inspect and CACHE_TOOLS[name].inspect_json for name in get_args(CacheProvider))
+
+
 def test_cache_json_dry_run_lists_commands_without_probes(provider: RecordingRunner) -> None:
     result = CliRunner().invoke(app, ["cache", "--json", "--dry-run"])
     assert result.exit_code == 0, result.exception
@@ -947,3 +980,31 @@ def test_login_all_preview_lists_every_step(provider: RecordingRunner, monkeypat
         " ".join(ADC_LOGIN),
     ):
         assert command in result.stdout
+
+
+def test_login_check_reports_readiness_without_authenticating(provider: RecordingRunner) -> None:
+    provider.responses = [github_status()]
+    ready = CliRunner().invoke(app, ["login", "github", "--check"])
+    assert ready.exit_code == 0, ready.exception
+    assert ready.stdout == "github: ready\n"
+    assert not provider.actions
+
+
+def test_login_all_check_exits_one_and_names_each_provider(provider: RecordingRunner) -> None:
+    provider.responses = [github_status(scopes=["repo"]), TOKEN, SCOPE_GAP, workspace_status()]
+    result = CliRunner().invoke(app, ["login", "all", "--check"])
+    assert result.exit_code == 1
+    assert result.stdout.splitlines() == ["github: login needed", "gcp: login needed", "workspace: ready"]
+    assert "Run dot login all" in result.stderr
+    assert "private" not in result.output
+    assert not provider.actions
+
+
+def test_login_check_reports_unknown_state_and_rejects_conflicting_flags(provider: RecordingRunner) -> None:
+    provider.responses = [response({"unexpected": True})]
+    unknown = CliRunner().invoke(app, ["login", "workspace", "--check"])
+    assert unknown.exit_code == 1
+    assert unknown.stdout.startswith("workspace: unknown (")
+    conflict = CliRunner().invoke(app, ["login", "gcp", "--check", "--force"])
+    assert conflict.exit_code == 2
+    assert not provider.actions

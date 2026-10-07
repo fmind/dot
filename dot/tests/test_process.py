@@ -13,7 +13,7 @@ import pytest
 
 from fmind_dot import process as process_module
 from fmind_dot.errors import CommandTimeoutError, DotError
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import CommandResult, Runner, diagnostic_line
 
 
 @pytest.mark.parametrize("mode", ["captured", "interactive", "pull-worker", "status-worker", "doctor-worker"])
@@ -49,7 +49,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         "  repository.run_pull(State(runner=runner))\n"
         " elif os.environ['DOT_MODE']=='status-worker':\n"
         "  repository.find_git_repositories=lambda *_args: [Path('.')]\n"
-        "  repository._repository_status=lambda *_args: runner.run(command)\n"
+        "  repository._repository_status=lambda *_args,**_kwargs: runner.run(command)\n"
         "  repository.gather_status(State(runner=runner))\n"
         " elif os.environ['DOT_MODE']=='doctor-worker':\n"
         "  runner.which=lambda _tool: Path(sys.executable)\n"
@@ -187,6 +187,28 @@ def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: 
             [sys.executable, "-c", script], cwd=tmp_path, input_text="payload", env={"DOT_PROCESS_TEST": "present"}
         )
     assert "provider-secret" not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("token ghp_0123456789abcdefghijklmnopqrstuvwxyz", "token <redacted>"),
+        ("signature " + "A1b2C3d4" * 5, "signature <redacted>"),
+        (
+            "fatal: /home/user/projects/a-very-long-name/src/module: x",
+            "fatal: /home/user/projects/a-very-long-name/src/module: x",
+        ),
+        ("open ~/projects/another-very-long-name/subdirectory", "open ~/projects/another-very-long-name/subdirectory"),
+        (
+            "fatal: cannot open '/home/u/.local/share/chezmoi/dot/src/fmind_dot/process.py'",
+            "fatal: cannot open '/home/u/.local/share/chezmoi/dot/src/fmind_dot/process.py'",
+        ),
+        ("read /tmp/ghp_0123456789abcdefghijklmnopqrstuvwxyz/x", "read /tmp/<redacted>"),
+        ("https://host/" + "A1b2C3d4" * 5, "https:<redacted>"),
+    ],
+)
+def test_diagnostic_line_redacts_tokens_but_keeps_paths(text: str, expected: str) -> None:
+    assert diagnostic_line(text) == expected
 
 
 def test_interactive_preserves_cwd_and_environment(tmp_path: Path) -> None:

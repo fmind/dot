@@ -134,3 +134,28 @@ def test_orphan_skips_a_target_removed_while_scanning(tmp_path: Path, monkeypatc
     monkeypatch.setattr("fmind_dot.orphan._sha256", vanished)
 
     assert run_orphan(state) == []
+
+
+def test_orphan_text_collapses_targets_inside_an_orphaned_directory(tmp_path: Path) -> None:
+    locks = tmp_path / "locks" / "1.0"
+    locks.mkdir(parents=True)
+    (locks / "a.lock").write_bytes(b"a")
+    (locks / "b.lock").write_bytes(b"edited")
+    (locks / "nested").mkdir()
+    sibling = tmp_path / "locks" / "1.0-rc"
+    sibling.write_bytes(b"s")
+    entries = {
+        str(locks): {"type": "dir"},
+        str(locks / "a.lock"): {"type": "file", "contentsSHA256": _sha(b"a")},
+        str(locks / "b.lock"): {"type": "file", "contentsSHA256": _sha(b"b")},
+        str(locks / "nested"): {"type": "dir"},
+        str(sibling): {"type": "file", "contentsSHA256": _sha(b"s")},
+    }
+    state, output = _state(ChezmoiRunner(entries, []))
+
+    assert len(run_orphan(state)) == 5
+
+    lines = [line for line in output.getvalue().splitlines() if line.startswith("  ")]
+    assert len(lines) == 3
+    assert lines[0].endswith("1.0 (+3 orphaned inside, 1 changed)")
+    assert lines[1].endswith("1.0-rc")
