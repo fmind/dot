@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.0.0] - 2026-10-07
+
+### 🚀 Features
+
+- _(nvim)_ Switch to native Copilot, live Markdown preview, and git base keymaps
+- _(git)_ Add a dt alias for Neovim's directory difftool
+- _(cli)_ [**breaking**] Add login --check, status --fetch, and agent-facing help contracts
+- _(agent)_ [**breaking**] Count OpenCode steps and model requests with parser 11 and a shared host registry
+
+### ♻️ Refactor
+
+- _(system)_ Unify the cache and prune registry and group nested orphans
+
+### 📚 Documentation
+
+- _(skills)_ Tighten the catalog and refresh tool guidance
+
+### 🧪 Testing
+
+- _(delegate-tasks)_ Outlast the kill grace in the leaked-grandchild check
+
+### ⚙️ Build & CI
+
+- _(tasks)_ Gate releases on network scans and verify every lock entry
+
+### 🧹 Miscellaneous
+
+- _(security)_ Accept the cf lock's sharp advisory until miniflare upgrades
+- Format the v10.1.2 changelog
+- _(deps)_ Upgrade mise tools and Python dependencies
+- _(mise)_ Disable agents-cli usage telemetry
+
 ## [10.1.2] - 2026-10-06
 
 ### ♻️ Refactor
