@@ -31,6 +31,33 @@ local function bdelete_next()
 end
 map("n", "<leader>bd", bdelete_next, { desc = "Delete Buffer (next)" })
 
+-- Review a whole branch: point gitsigns at the merge-base with the default branch so
+-- ]h/[h and hunk previews cover every change since the branch started, not only unstaged ones.
+local branch_base
+map("n", "<leader>gm", function()
+  local gitsigns = require("gitsigns")
+  if branch_base then
+    branch_base = nil
+    gitsigns.reset_base(true)
+    Snacks.notify.info("Comparing with the index", { title = "Git Base" })
+    return
+  end
+  local root = LazyVim.root.git()
+  local function git(...)
+    local result = vim.system({ "git", ... }, { cwd = root, text = true }):wait()
+    return result.code == 0 and vim.trim(result.stdout) or nil
+  end
+  local default = git("rev-parse", "--abbrev-ref", "origin/HEAD") or "main"
+  local base = git("merge-base", "HEAD", default)
+  if not base then
+    Snacks.notify.warn("No merge-base with " .. default, { title = "Git Base" })
+    return
+  end
+  branch_base = base
+  gitsigns.change_base(base, true)
+  Snacks.notify.info(("Comparing with %s (%s)"):format(default, base:sub(1, 7)), { title = "Git Base" })
+end, { desc = "Toggle Branch Review Base" })
+
 -- Display full path in a floating notification and copy to clipboards.
 map("n", "<leader>fh", function()
   local path = vim.fn.expand("%:p")

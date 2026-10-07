@@ -34,6 +34,8 @@ return {
       end
     end,
   },
+  -- ty discovers the project .venv itself, and dap-python resolves it per file above.
+  { "linux-cultist/venv-selector.nvim", enabled = false },
   {
     "jay-babu/mason-nvim-dap.nvim",
     optional = true,

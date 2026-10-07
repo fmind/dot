@@ -2,7 +2,7 @@
 -- Select the Python analyzer through LazyVim so only ty and Ruff are enabled.
 vim.g.lazyvim_python_lsp = "ty"
 
--- No plugin uses a remote-plugin host; copilot.lua runs the node binary directly.
+-- No plugin uses a remote-plugin host; Copilot runs as a language server.
 for _, provider in ipairs({ "node", "perl", "python3", "ruby" }) do
   vim.g["loaded_" .. provider .. "_provider"] = 0
 end

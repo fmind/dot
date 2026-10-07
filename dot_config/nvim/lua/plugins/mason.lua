@@ -6,9 +6,10 @@ return {
       -- Keep mise/project tools ahead of Mason, including previously installed copies.
       opts.PATH = "append"
       if type(opts.ensure_installed) == "table" then
+        -- dprint replaces the Markdown formatters (formatting.lua) and linters (linting.lua).
+        local unused = { ["markdownlint-cli2"] = true, ["markdown-toc"] = true }
         opts.ensure_installed = vim.tbl_filter(function(tool)
-          -- linting.lua disables the Markdown linters, so its formatter condition never fires.
-          return tool ~= "markdownlint-cli2" and vim.fn.executable(tool) == 0
+          return not unused[tool] and vim.fn.executable(tool) == 0
         end, opts.ensure_installed)
       end
       return opts
