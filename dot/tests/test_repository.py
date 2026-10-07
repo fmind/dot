@@ -381,7 +381,8 @@ def test_pull_classifies_nonzero_upstream_probe_as_no_upstream(tmp_path: Path) -
             ("git", "branch", "--show-current"): [result("main\n")],
             ("git", "--no-optional-locks", "status", "--porcelain"): [result("")],
             ("git", "fetch", "--prune"): [result()],
-            ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result(returncode=128)],
+            # Git prints the literal `@{u}` when the tracked upstream branch was deleted.
+            ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("@{u}\n", returncode=128)],
         },
         {"git"},
     )
@@ -440,8 +441,71 @@ def test_status_omits_empty_optional_json_fields(tmp_path: Path) -> None:
         "schema": "dot.status/v1",
         "repositories": [],
         "complete": True,
+        "needs_attention": False,
         "remote_state": "cached",
     }
+
+
+def _clean_status_responses(repository: Path) -> dict[tuple[str, ...], list[CommandResult]]:
+    return {
+        ("git", "branch", "--show-current"): [result("main\n")],
+        ("git", "--no-optional-locks", "status", "--porcelain"): [result("")],
+        ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [result("origin/main")],
+        ("git", "rev-list", "--left-right", "--count", "HEAD...@{u}"): [result("0\t2")],
+        ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
+    }
+
+
+def test_status_fetch_refreshes_remote_refs_without_merging(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "sample"
+    (repository / ".git").mkdir(parents=True)
+    runner = RecordingRunner(
+        {("git", "fetch", "--prune"): [result()], **_clean_status_responses(repository)},
+        {"git"},
+    )
+    state = state_with(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    run_status(state, as_json=True, fetch=True)
+
+    commands = [call[0] for call in runner.calls]
+    assert commands[0] == ("git", "fetch", "--prune")
+    assert not any("merge" in command for command in commands)
+    assert isinstance(state.stdout, io.StringIO)
+    document = json.loads(state.stdout.getvalue())
+    assert document["remote_state"] == "fetched"
+    assert document["needs_attention"] is True
+    assert document["repositories"][0]["behind"] == 2
+    assert document["repositories"][0]["needs_attention"] is True
+
+
+def test_status_fetch_failure_marks_inspection_incomplete(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    (workspace / "sample" / ".git").mkdir(parents=True)
+    runner = RecordingRunner({("git", "fetch", "--prune"): [result(returncode=128)]}, {"git"})
+    state = state_with(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    with pytest.raises(DotError, match="repository inspection is incomplete"):
+        run_status(state, fetch=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    assert "failed to fetch repository" in state.stdout.getvalue()
+
+
+def test_status_needs_attention_confirms_an_all_clear_workspace(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "sample"
+    (repository / ".git").mkdir(parents=True)
+    responses = _clean_status_responses(repository)
+    responses[("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")] = [result("0\t0")]
+    state = state_with(RecordingRunner(responses, {"git"}), Config(pull=PullConfig(directories=[str(workspace)])))
+
+    run_status(state, needs_attention=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    output = state.stdout.getvalue()
+    assert "All 1 repositories are clean and in sync." in output
+    assert "▶" not in output
 
 
 def test_pull_with_no_repositories_reports_a_clean_noop(tmp_path: Path) -> None:
@@ -665,11 +729,19 @@ def test_status_human_output_reports_empty_workspace(tmp_path: Path) -> None:
             "error: https://user:ghp_0123456789abcdefghijklmnopqrstuvwxyz@host/r odd\nsecond line\n",
             "git fetch failed (128): error: https://<redacted>@host/r odd",
         ),
+        (
+            "To github.com:o/r.git\n ! [remote rejected] main -> main (protected branch hook declined)\n",
+            "git push failed (1): push rejected by remote",
+        ),
+        (
+            "From github.com:o/r\nfatal: /home/user/projects/a-very-long-repository-name/sub: not found\n",
+            "git fetch failed (128): fatal: /home/user/projects/a-very-long-repository-name/sub: not found",
+        ),
         ("", "git fetch failed (128)"),
     ],
 )
 def test_git_failures_name_a_secret_free_cause(stderr: str, expected: str) -> None:
-    subcommand = "push" if "rejected" in stderr else "fetch"
+    subcommand = "push" if "rejected" in stderr else "fetch"  # covers "[remote rejected]" too
     code = 1 if subcommand == "push" else 128
     message = git_failure(["--no-optional-locks", subcommand], CommandResult("", stderr, code))
     assert message == expected

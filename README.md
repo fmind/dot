@@ -71,6 +71,7 @@ dot doctor                # Check workstation health
 dot doctor --headroom     # One-line disk and memory check before large work
 dot config show           # Inspect effective settings
 dot agent stats           # Review agent usage and prompt statistics
+dot status --fetch        # Refresh remotes, then show repository status
 dot orphan                # List files no longer managed by chezmoi
 ```
 
@@ -134,6 +135,7 @@ Other everyday shortcuts: `/full-review` reviews a whole project and applies ver
 
 ```bash
 dot login all             # GitHub, GCP and ADC, then Workspace; skips what is ready, opens the browser when needed
+dot login all --check     # Only report which providers need a login (exit 1 if any)
 dot login github          # GitHub
 dot login workspace       # Google Workspace
 dot login gcp             # Google Cloud and ADC

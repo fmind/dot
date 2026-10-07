@@ -10,6 +10,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = ROOT / "skills/cli-development/references/typer/templates"
 SCRIPT = ROOT / "skills/python-stack/references/python-script/templates/script.py"
+# The packaged template reads its version from installed metadata; unpackaged runs borrow pytest's.
+INSTALLED_DISTRIBUTION = "pytest"
 
 
 def _invoke(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -37,7 +39,7 @@ def test_cli_template_information_without_inputs(tmp_path: Path, template: str, 
         else SCRIPT.read_text()
     )
     script = tmp_path / "cli.py"
-    script.write_text(source.replace("<description>", "Fixture CLI").replace("<slug>", "fixture-cli"))
+    script.write_text(source.replace("<description>", "Fixture CLI").replace("<slug>", INSTALLED_DISTRIBUTION))
     result = _invoke(script, flag)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip()
@@ -46,7 +48,7 @@ def test_cli_template_information_without_inputs(tmp_path: Path, template: str, 
 
 
 def test_packaged_command_survives_a_second_command(tmp_path: Path) -> None:
-    source = (TEMPLATES / "init-cli.py").read_text()
+    source = (TEMPLATES / "init-cli.py").read_text().replace("<slug>", INSTALLED_DISTRIBUTION)
     script = tmp_path / "cli.py"
     script.write_text(source + '\nif __name__ == "__main__":\n    main()\n')
     before = _invoke(script, "greet", "--name", "Ada")

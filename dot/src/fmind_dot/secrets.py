@@ -41,7 +41,12 @@ def personal_token(name: str) -> str:
     return value
 
 
-@secret_app.command("run", help="Supply NAME to COMMAND; an existing environment value wins")
+@secret_app.command(
+    "run",
+    help="Supply NAME to COMMAND; an existing environment value wins",
+    epilog="Example: dot secret run VERTEX_API_KEY -- python app.py. "
+    "Exits with COMMAND's status; the value is never printed or exported to the shell.",
+)
 def run(
     context: typer.Context,
     name: Annotated[str, typer.Argument(help="Variable stored in ~/.config/dot/secrets/NAME")],
