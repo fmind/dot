@@ -31,29 +31,27 @@ def test_fish_aliases_load_without_errors() -> None:
     assert result.returncode == 0, result.stdout
 
 
-def test_fish_paths_precedence_on_darwin() -> None:
-    if sys.platform != "darwin":
-        pytest.skip("macOS path precedence check")
-    fish = shutil.which("fish")
-    if fish is None:
-        pytest.skip("fish is not installed")
+@pytest.mark.skipif(sys.platform != "darwin", reason="Homebrew paths exist only on macOS")
+def test_fish_paths_keep_homebrew_ahead_of_usr_local(tmp_path: Path) -> None:
+    homebrew, usr_local = "/opt/homebrew/bin", "/usr/local/bin"
+    if not (Path(homebrew).is_dir() and Path(usr_local).is_dir()):
+        pytest.skip("both Homebrew and /usr/local bin directories are required")
+    # Resolve fish before the test replaces PATH with the system directories under test.
+    fish = shutil.which("fish") or "fish"
     root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        [fish, "-c", "source dot_config/fish/conf.d/paths.fish; string join ':' $PATH"],
+        # Fish rebuilds PATH from fish_user_paths in its shared config, so isolate only user configuration.
+        [fish, "--command", "source dot_config/fish/conf.d/paths.fish; string join \\n -- $PATH"],
         cwd=root,
-        env={
-            "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin",
-            "HOME": os.environ.get("HOME", ""),
-        },
+        env={**os.environ, "PATH": f"{usr_local}:/usr/bin:/bin:{homebrew}", "XDG_CONFIG_HOME": str(tmp_path)},
         capture_output=True,
         text=True,
         timeout=10,
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    paths = result.stdout.strip().split(":")
-    if "/opt/homebrew/bin" in paths and "/usr/local/bin" in paths:
-        assert paths.index("/opt/homebrew/bin") < paths.index("/usr/local/bin")
+    paths = result.stdout.splitlines()
+    assert paths.index(homebrew) < paths.index(usr_local), paths
 
 
 @pytest.mark.parametrize("exit_status", [0, 1])
