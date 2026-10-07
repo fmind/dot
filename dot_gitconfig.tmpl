@@ -6,6 +6,7 @@
     co = checkout
     cp = cherry-pick
     d = diff
+    dt = difftool --dir-diff
     f = fetch
     l = log --oneline --graph --all
     m = merge
@@ -53,6 +54,17 @@
     colorMoved = zebra
     colorMovedWS = allow-indentation-change
     mnemonicPrefix = true
+    tool = nvim
+
+[difftool]
+    prompt = false
+
+# Neovim 0.12's built-in difftool: `git dt [<rev>]` opens every changed file side by side with
+# a quickfix list. It opens the directories explicitly because with `-d` Snacks Explorer claims
+# the directory buffers first. Git sets LOCAL and REMOTE as shell variables only, so the prefix
+# exports them and the paths never word-split. nvim-tty fails fast in agent shells without a terminal.
+[difftool "nvim"]
+    cmd = LOCAL=\"$LOCAL\" REMOTE=\"$REMOTE\" {{ joinPath .chezmoi.homeDir ".local/bin/nvim-tty" }} -c \"packadd nvim.difftool\" -c \"lua require('difftool').open(vim.env.LOCAL, vim.env.REMOTE)\"
 
 [fetch]
     all = true
