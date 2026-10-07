@@ -42,5 +42,5 @@ Judge whether a real user can understand, trust, and complete the surface's prim
 
 ## Documentation
 
-- Companion skills: [product-loop](../product-loop/SKILL.md) (what the surface must achieve).
+- Companion skills: [product-management](../product-management/SKILL.md) (what the surface must achieve).
 - Adapted from [Anthropic frontend-design](https://github.com/anthropics/skills/blob/41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f/skills/frontend-design/SKILL.md), [Impeccable](https://github.com/pbakaus/impeccable/blob/508d7e8955de3b3caf2d8676e85206723d41a887/.agents/skills/impeccable/SKILL.md), [gstack design-review](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/design-review/SKILL.md).

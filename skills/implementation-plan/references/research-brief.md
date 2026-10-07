@@ -30,5 +30,5 @@ Produce a decision-ready answer whose important claims trace to current, authori
 
 ## Documentation
 
-- Companion skills: [product-loop](../../product-loop/SKILL.md) (product decisions), [systematic-debugging](../../systematic-debugging/SKILL.md) (unknown-cause failures).
+- Companion skills: [product-management](../../product-management/SKILL.md) (product decisions), [systematic-debugging](../../systematic-debugging/SKILL.md) (unknown-cause failures).
 - Adapted from [agent-skills source-driven development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/source-driven-development/SKILL.md), [ECC research-ops](https://github.com/affaan-m/ECC/blob/59a99d669f5466d99d5be8b6fce8c5f2677766d0/skills/research-ops/SKILL.md).

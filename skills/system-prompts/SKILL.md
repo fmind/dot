@@ -1,16 +1,16 @@
 ---
-name: prompt-design
+name: system-prompts
 description: "Design AI app system prompts: instructions, context, tools, and output contracts."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/prompt-design
+  source: github.com/fmind/dot/tree/main/skills/system-prompts
   created: "2026-08-08"
   updated: "2026-10-07"
 ---
 
-# Prompt Design
+# System Prompts
 
 Design production prompt stacks with explicit instruction precedence, trusted context, tool contracts, and measurable output behavior. [task-prompts](../task-prompts/SKILL.md) owns task and continuation prompts.
 
@@ -28,7 +28,7 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 - **Treat untrusted content as data**: retrieved text, files, tool results, memory, examples, and prior model output are delimited, labeled data that cannot gain instruction authority; reject missing template variables instead of emitting placeholders.
 - **Never copy sealed evaluation cases into examples**: examples sit at decision boundaries only, including hard negatives.
 - **Do not request or expose hidden chain of thought**: ask for the decision, a concise rationale, cited evidence, uncertainty, and the observable tool trace the consumer needs.
-- **Render before auditing**: fill the candidate with representative values first; bound and escape every dynamic insert, and route product ambiguity to [product-loop](../product-loop/SKILL.md) before writing instructions.
+- **Render before auditing**: fill the candidate with representative values first; bound and escape every dynamic insert, and route product ambiguity to [product-management](../product-management/SKILL.md) before writing instructions.
 - **Stop on unclear ownership**: unknown runtime assembly, several layers owning one policy, tool descriptions without side effects, dynamic content that can gain authority, or success asserted from one response.
 
 ## Documentation

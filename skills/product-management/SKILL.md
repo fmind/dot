@@ -1,16 +1,16 @@
 ---
-name: product-loop
+name: product-management
 description: "Run product discovery, PRDs, launches, and learning; decide build or stop."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/product-loop
+  source: github.com/fmind/dot/tree/main/skills/product-management
   created: "2026-08-09"
   updated: "2026-10-07"
 ---
 
-# Product Loop
+# Product Management
 
 Move a product bet through discovery, specification, launch, and learning. Enter at the phase supported by the evidence and make the next decision; [implementation-plan](../implementation-plan/SKILL.md) owns repository execution planning.
 

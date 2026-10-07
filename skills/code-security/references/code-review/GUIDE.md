@@ -22,7 +22,7 @@ For a broad or repeated audit, use [coverage and finding records](references/aud
 1. **Scan, sign, and attest images**: when the project ships a container, build the pinned non-root image per [containerize](../../../docker/references/containerize/GUIDE.md). Scan the exact digest, generate an SBOM, then sign, verify, and attest it per [cosign](../../../docker/references/cosign.md) within the authorized delivery scope.
 1. **Harden runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../../../cloud-run/SKILL.md). Review declarative infrastructure with [infra-as-code](../../../infra-as-code/SKILL.md).
 1. **Threat-model sensitive boundaries**: run [threat-model](../../../threat-model/SKILL.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
-1. **Test AI systems adversarially**: use [ai-security-assessment](../../../ai-security-assessment/SKILL.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
+1. **Test AI systems adversarially**: use [ai-red-team](../../../ai-red-team/SKILL.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
 
 ## Gate
 

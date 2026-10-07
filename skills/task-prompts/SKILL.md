@@ -12,7 +12,7 @@ metadata:
 
 # Task and Continuation Prompts
 
-Prepare instructions the receiving agent can use without this conversation. [prompt-design](../prompt-design/SKILL.md) owns prompts embedded in applications; native resume or compaction is preferable when it already preserves the needed state.
+Prepare instructions the receiving agent can use without this conversation. [system-prompts](../system-prompts/SKILL.md) owns prompts embedded in applications; native resume or compaction is preferable when it already preserves the needed state.
 
 ## Workflow
 
