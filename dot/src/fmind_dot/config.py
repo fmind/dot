@@ -99,9 +99,15 @@ ToolName = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")]
 
 class CompletionConfig(StrictModel):
     path: str = "~/.config/fish/completions"
-    custom_commands: dict[str, ToolConfig] = Field(default_factory=_default_custom_completions)
-    tools: list[ToolName] = Field(default_factory=lambda: sorted(_default_custom_completions()))
+    custom_commands: dict[ToolName, ToolConfig] = Field(default_factory=_default_custom_completions)
+    # None selects every custom_commands entry, so adding one never also needs a tools edit;
+    # an explicit list narrows the selection or adds tools using `<tool> completion fish`.
+    tools: list[ToolName] | None = None
     timeout_seconds: Seconds = 60.0
+
+    @property
+    def selected_tools(self) -> list[str]:
+        return list(dict.fromkeys(self.tools if self.tools is not None else sorted(self.custom_commands)))
 
 
 class PullConfig(StrictModel):

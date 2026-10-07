@@ -8,10 +8,10 @@ import stat
 import sys
 import tempfile
 import tomllib
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 from typer.completion import get_completion_script
@@ -52,18 +52,12 @@ class CheckResult:
     details: str
     path: str = ""
     condition: str = ""
+    group: str = ""
 
-
-def _check_result_payload(result: CheckResult) -> dict[str, str]:
-    payload = {"name": result.name, "status": result.status}
-    # Preserve the sparse Go v1 wire format instead of exposing empty implementation defaults.
-    if result.condition:
-        payload["condition"] = result.condition
-    if result.path:
-        payload["path"] = result.path
-    if result.details:
-        payload["details"] = result.details
-    return payload
+    def payload(self) -> dict[str, str]:
+        """Sparse dot.diagnostics/v1 entry: empty optional fields are omitted."""
+        fields = {"condition": self.condition, "path": self.path, "details": self.details, "group": self.group}
+        return {"name": self.name, "status": self.status} | {key: value for key, value in fields.items() if value}
 
 
 def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
@@ -142,15 +136,16 @@ def run_completion(state: State, *, check_only: bool = False) -> None:
         with tempfile.TemporaryDirectory(prefix="dot-completion-check-") as temporary:
             root = Path(temporary)
             failures = _run_completion(state, root / "completions", root / "cache")
-        if failures:
-            raise DotError("completion generation failed: " + "; ".join(failures))
-        typer.echo("Completion check passed; installed scripts were not changed.", file=state.stdout)
-        return
-    directory = expand_path(state.config.completions.path)
-    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
-    # Generator failures are reported above and leave previous scripts intact; setup continues.
-    if not _run_completion(state, directory, cache):
-        typer.echo(f"\n✓ Completions updated in {directory}", file=state.stdout)
+        success = "Completion check passed; installed scripts were not changed."
+    else:
+        directory = expand_path(state.config.completions.path)
+        cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
+        # A failed generator keeps its previous script; the others still install before the exit 1.
+        failures = _run_completion(state, directory, cache)
+        success = f"\n✓ Completions updated in {directory}"
+    if failures:
+        raise DotError("completion generation failed: " + "; ".join(failures))
+    typer.echo(success, file=state.stdout)
 
 
 def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
@@ -160,10 +155,10 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         raise DotError("failed to create completions directory") from error
     failures: list[str] = []
     typer.echo(
-        f"=> Generating Fish autocompletions for {len(state.config.completions.tools)} tools in {directory}...\n",
+        f"=> Generating Fish autocompletions for {len(state.config.completions.selected_tools)} tools in {directory}...\n",
         file=state.stdout,
     )
-    for tool in dict.fromkeys(state.config.completions.tools):
+    for tool in state.config.completions.selected_tools:
         try:
             content = _generate_completion(state, tool)
             _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
@@ -192,7 +187,9 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
                     continue
                 # Native scripts must win over Carapace's generic completers;
                 # in particular its "dot" completer is for Graphviz, not this CLI.
-                excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(state.config.completions.tools)
+                excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(
+                    state.config.completions.selected_tools
+                )
                 environment = {"CARAPACE_EXCLUDES": ",".join(sorted(excludes - {""}))} if tool == "carapace" else None
                 result = state.runner.run(
                     [tool, *args], timeout=state.config.completions.timeout_seconds, env=environment
@@ -202,8 +199,6 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
             except (DotError, OSError) as error:
                 failures.append(f"{filename}: {error}")
                 typer.echo(f"  ✗ Failed to generate {filename}", file=state.stdout)
-    if failures:
-        typer.echo("\nCompletion generation finished with failures: " + "; ".join(failures), file=state.stdout)
     return failures
 
 
@@ -475,7 +470,18 @@ def _headroom_line(results: list[CheckResult]) -> str:
     return line
 
 
-def run_doctor(state: State, *, fix: bool, deep: bool = False) -> dict[str, Any]:
+# Report order and headings; each key is the `group` of its checks in --json output.
+_DOCTOR_GROUPS = {
+    "env_vars": "Environment Variables",
+    "auth": "CLI Authentication",
+    "secrets": "Secrets & Encryption",
+    "docker": "System Services",
+    "tools": "CLI Tools",
+    "install": "Install Freshness",
+}
+
+
+def run_doctor(state: State, *, fix: bool, deep: bool = False) -> list[CheckResult]:
     sections = {
         "env_vars": _environment_results(state),
         "auth": _auth_results(state)
@@ -486,33 +492,24 @@ def run_doctor(state: State, *, fix: bool, deep: bool = False) -> dict[str, Any]
         "tools": _tool_results(state),
         "install": _install_results(state),
     }
-    passed = all(item.status != "fail" for items in sections.values() for item in items)
-    return {key: [_check_result_payload(item) for item in items] for key, items in sections.items()} | {
-        "passed": passed
-    }
+    return [replace(item, group=group) for group, items in sections.items() for item in items]
 
 
-def _print_doctor(state: State, results: Mapping[str, Any]) -> None:
-    labels = {
-        "env_vars": "Environment Variables",
-        "auth": "CLI Authentication",
-        "secrets": "Secrets & Encryption",
-        "docker": "System Services",
-        "tools": "CLI Tools",
-        "install": "Install Freshness",
-    }
+def _print_doctor(state: State, results: Sequence[CheckResult]) -> None:
     icons = {"pass": "✓", "fail": "✗", "warn": "!", "skip": "○"}
-    for key, label in labels.items():
+    for group, label in _DOCTOR_GROUPS.items():
         typer.echo(f"\n{label}", file=state.stdout)
-        for item in results[key]:
-            typer.echo(
-                f"  {icons[item['status']]} {item['name']:<20} {item.get('details', '')}",
-                file=state.stdout,
-            )
+        for item in results:
+            if item.group == group:
+                typer.echo(f"  {icons[item.status]} {item.name:<20} {item.details}", file=state.stdout)
 
 
 def register(app: typer.Typer) -> None:
-    @app.command("completion", help="Generate and validate Fish completions")
+    @app.command(
+        "completion",
+        help="Generate and validate Fish completions",
+        epilog="Exit 1 when any generator fails; the scripts that succeeded are still installed.",
+    )
     def completion(
         context: typer.Context,
         check_only: Annotated[
@@ -522,7 +519,12 @@ def register(app: typer.Typer) -> None:
     ) -> None:
         run_completion(state_from(context), check_only=check_only)
 
-    @app.command("doctor", help="Check local workstation health; --deep also probes authentication")
+    @app.command(
+        "doctor",
+        help="Check local workstation health; --deep also probes authentication",
+        epilog=f"Exit 1 on any failed check. --headroom fails below {_DISK_FAIL_GIB} GiB free disk "
+        f"(warns below {_DISK_WARN_GIB}) or {_MEMORY_FAIL_GIB} GiB available memory.",
+    )
     def doctor(
         context: typer.Context,
         json_output: JsonOption = False,
@@ -532,7 +534,8 @@ def register(app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--headroom",
-                help="Only check disk and memory headroom before large operations; prints one line",
+                help=f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom "
+                "before large downloads or builds; prints one line",
             ),
         ] = False,
     ) -> None:
@@ -543,7 +546,7 @@ def register(app: typer.Typer) -> None:
                 raise typer.BadParameter("--headroom cannot be combined with --fix or --deep")
             checks = headroom_results()
             if json_output:
-                payload = [dict(_check_result_payload(item), group="resources") for item in checks]
+                payload = [replace(item, group="resources").payload() for item in checks]
                 write_json(state.stdout, diagnostic_report("headroom", payload))
             else:
                 typer.echo(_headroom_line(checks), file=state.stdout)
@@ -552,11 +555,8 @@ def register(app: typer.Typer) -> None:
             return
         results = run_doctor(state, fix=fix, deep=deep)
         if json_output:
-            checks = [
-                dict(item, group=group) for group, items in results.items() if group != "passed" for item in items
-            ]
-            write_json(state.stdout, diagnostic_report("workstation", checks))
+            write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in results]))
         else:
             _print_doctor(state, results)
-        if not results["passed"]:
+        if any(item.status == "fail" for item in results):
             raise typer.Exit(1)

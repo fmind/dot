@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
+from fmind_dot.system import CheckResult
 
 RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
 
@@ -59,3 +60,13 @@ class ScriptedRunner(Runner):
         # Never launch a real process from a test.
         del args, cwd, stdin, stdout, stderr, env, on_stderr_line
         return 0
+
+
+def doctor_sections(results: Sequence[CheckResult]) -> dict[str, Any]:
+    """Group doctor checks by section, as the text report renders them, plus the overall verdict."""
+    sections: dict[str, Any] = {}
+    for item in results:
+        sections.setdefault(item.group, []).append(
+            {key: value for key, value in item.payload().items() if key != "group"}
+        )
+    return sections | {"passed": all(item.status != "fail" for item in results)}

@@ -11,7 +11,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Generator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, nullcontext, suppress
 from dataclasses import dataclass
@@ -36,14 +36,27 @@ class CommandResult:
 
 _CREDENTIAL_URL = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]+@")
 # Provider token prefixes, plus any long opaque run that could be a credential or signature.
-_OPAQUE_TOKEN = re.compile(r"\b(?:gh[opsur]_|github_pat_|glpat-)?[A-Za-z0-9_+/=-]{32,}")
+_PREFIXED_TOKEN = re.compile(r"\b(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_+/=-]{20,}")
+_OPAQUE_TOKEN = re.compile(rf"{_PREFIXED_TOKEN.pattern}|(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{{32,}}")
+# An absolute or home path is the diagnostic's most useful part: keep it whole (dot-directories
+# included), redacting only provider-prefixed tokens inside it. URL paths follow ":", so they stay checked.
+_PATH = re.compile(r"(?<![^\s'\"(=])[~/][^\s'\"]*")
+
+
+def _redact(text: str) -> str:
+    redacted, position = [], 0
+    for path in _PATH.finditer(text):
+        redacted += [_OPAQUE_TOKEN.sub("<redacted>", text[position : path.start()])]
+        redacted += [_PREFIXED_TOKEN.sub("<redacted>", path.group())]
+        position = path.end()
+    return "".join([*redacted, _OPAQUE_TOKEN.sub("<redacted>", text[position:])])
 
 
 def diagnostic_line(text: str, limit: int = 160) -> str:
     """Return the first non-empty output line without credentials, control characters, or excess length."""
     line = next((item.strip() for item in text.splitlines() if item.strip()), "")
     line = "".join(character for character in line if character.isprintable())
-    line = _OPAQUE_TOKEN.sub("<redacted>", _CREDENTIAL_URL.sub(r"\1<redacted>@", line))
+    line = _redact(_CREDENTIAL_URL.sub(r"\1<redacted>@", line))
     return line if len(line) <= limit else line[: limit - 1].rstrip() + "…"
 
 
@@ -87,7 +100,7 @@ def _terminate(process: subprocess.Popen[str], *, group: bool = True) -> None:
 
 
 @contextmanager
-def _deferred_interrupts() -> Iterator[None]:
+def _deferred_interrupts() -> Generator[None]:
     """Leave Ctrl+C to an interactive child, which shares dot's foreground process group."""
     if threading.current_thread() is not threading.main_thread():
         yield

@@ -37,7 +37,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     config = Config()
     retired = {"cursor-agent", "jules", "marimo", "pyrit"}
     assert not retired.intersection(config.doctor.tools)
-    assert not retired.intersection(config.completions.tools)
+    assert not retired.intersection(config.completions.selected_tools)
     assert not retired.intersection(config.completions.custom_commands)
     assert "JULES_API_KEY" not in config.doctor.env_vars.required
 
@@ -45,7 +45,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
 def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
     config = Config()
     expected = {"astro", "aws-sso-util", "cf", "databricks", "k3d", "stern"}
-    assert expected <= set(config.completions.tools)
+    assert expected <= set(config.completions.selected_tools)
     assert expected <= set(config.completions.custom_commands)
     assert config.completions.custom_commands["aws-sso-util"].binary == "env"
     assert config.completions.custom_commands["cf"].args == ["complete", "fish"]
@@ -130,6 +130,32 @@ def test_removed_configuration_fields_are_rejected(tmp_path: Path, document: str
     path.write_text(document, encoding="utf-8")
 
     with pytest.raises(ValidationError):
+        load_config(path)
+
+
+def test_custom_completion_commands_join_the_default_selection(tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("completions:\n  custom_commands:\n    foo:\n      args: [completions, fish]\n", encoding="utf-8")
+
+    config = load_config(path)
+
+    assert config.completions.tools is None
+    assert "foo" in config.completions.selected_tools
+    assert "uv" in config.completions.selected_tools
+
+
+def test_explicit_completion_tools_narrow_the_selection(tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("completions:\n  tools: [uv, extra, uv]\n", encoding="utf-8")
+
+    assert load_config(path).completions.selected_tools == ["uv", "extra"]
+
+
+def test_custom_completion_command_names_must_be_safe_file_names(tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("completions:\n  custom_commands:\n    ../escape: {}\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"completions\.custom_commands"):
         load_config(path)
 
 

@@ -96,6 +96,20 @@ def find_orphans(state: State) -> list[Orphan]:
     return orphans
 
 
+def _collapse(orphans: list[Orphan]) -> list[tuple[Orphan, list[Orphan]]]:
+    """Group targets under their outermost orphaned directory; --json keeps every entry."""
+    directories = {Path(orphan.path) for orphan in orphans if orphan.type == "dir"}
+    groups: dict[str, tuple[Orphan, list[Orphan]]] = {}
+    for orphan in orphans:
+        path = Path(orphan.path)
+        outer = next((parent for parent in reversed(path.parents) if parent in directories), None)
+        if outer is None:
+            groups[orphan.path] = (orphan, [])
+        else:
+            groups[str(outer)][1].append(orphan)
+    return list(groups.values())
+
+
 def run_orphan(state: State, *, as_json: bool = False) -> list[Orphan]:
     orphans = find_orphans(state)
     if as_json:
@@ -106,8 +120,13 @@ def run_orphan(state: State, *, as_json: bool = False) -> list[Orphan]:
         state.stdout.write("✓ No orphaned chezmoi targets.\n")
         return orphans
     state.stdout.write(f"{len(orphans)} target(s) chezmoi wrote but no longer manages:\n")
-    for orphan in orphans:
-        state.stdout.write(f"  {orphan.status:<10} {orphan.type:<8} {display_path(orphan.path)}\n")
+    for orphan, nested in _collapse(orphans):
+        line = f"  {orphan.status:<10} {orphan.type:<8} {display_path(orphan.path)}"
+        if nested:
+            # Directories report emptiness, not change; only content that differs from chezmoi's write counts.
+            changed = sum(item.status in {"modified", "replaced", "unreadable"} for item in nested)
+            line += f" (+{len(nested)} orphaned inside" + (f", {changed} changed" if changed else "") + ")"
+        state.stdout.write(line + "\n")
     state.stdout.write(
         "unchanged: still chezmoi's last write; modified/replaced: changed since, possibly by a new owner.\n"
         "Nothing was deleted. Remove a leftover, or forget a kept path with:\n"
