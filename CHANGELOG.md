@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.0.2] - 2026-10-07
+
+### ♻️ Refactor
+
+- _(skills)_ Drop social-post and agent-loops, rename three skills
+
 ## [11.0.1] - 2026-10-07
 
 ### 🐛 Bug Fixes
