@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-mlops
   created: "2026-09-16"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Python MLOps
@@ -18,7 +18,7 @@ Develop machine learning workflows from exploration to evaluated delivery, groun
 
 Read only the matching guide. For notebook authoring or reactivity, go directly to marimo; experiment tracking and model delivery are separate tasks. Preserve the project's libraries and notebook format. The reference package illustrates boundaries, not a mandatory architecture.
 
-For ML work, establish the prediction target, available data and labels, split policy, success metric, and permitted compute/artifact destinations before running jobs. Training, tracking, registry writes, and promotion have different effects; inspect the selected task's dependencies before execution.
+For ML work, establish permitted compute and artifact destinations before running jobs. Training, tracking, registry writes, and promotion have different effects; inspect the selected task's dependencies before execution.
 
 ## Task guides
 

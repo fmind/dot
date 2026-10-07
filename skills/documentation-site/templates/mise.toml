@@ -4,6 +4,11 @@
 # Keep build warnings and errors; MISE_TASK_QUIET=false restores command echoes.
 quiet = true
 
+[tools]
+# Scaffold selectors: replace with exact pins; CI installs only what this table declares.
+dprint = "latest"
+uv = "latest"
+
 [tasks.install]
 run = "uv sync --locked"
 

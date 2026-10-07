@@ -11,7 +11,6 @@ Use Typer for Python CLIs; [cli-contracts](../cli-contracts.md) owns command beh
 
 1. **Bootstrap new CLIs**: for a new CLI, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; it owns the application additions and qualification.
 1. **Start from the locked version**: inspect the locked Typer version and current entry point; add `typer` with `uv add typer` for a new CLI. Apply the [CLI defaults](../cli-contracts.md#defaults-for-new-clis) to new interfaces.
-1. **Implement from official guidance**: load the official guidance, then implement the accepted arguments, options, output streams, and exit statuses.
 1. **Cover help, streams, and completions**: test help aliases, eager version output, successful execution, invalid arguments, separate streams, and failure output using the project test harness. Generate shell completions in fresh subprocesses so prior Typer initialization cannot hide failures; include the installed entry point when packaging changes. Add JSON, non-TTY prompts, and broken-configuration cases when those features exist.
 
 ## CLI resources

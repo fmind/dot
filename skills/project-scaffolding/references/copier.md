@@ -9,7 +9,7 @@ Copier is the default for new project templates we maintain. Keep existing Cooki
 
 ## Workflow
 
-1. **Review before running**: inspect `copier --help` and the relevant subcommand help. Review the template at an immutable Git revision, including `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions before running it. Keep `--trust` off unless those executable features have been reviewed and their effects are authorized.
+1. **Review before running**: review the template at an immutable Git revision, including `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions before running it. Keep `--trust` off unless those executable features have been reviewed and their effects are authorized.
 1. **Author questions and defaults in `copier.yml`**: add explicit types and validators where needed. Keep templates deterministic and use `.jinja` for rendered files. Include `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` so generated projects record their answers and template provenance. Keep secrets out of stored answers and generated examples.
 1. **Generate into a fresh disposable directory**: use explicit answers and a reviewed revision:
 

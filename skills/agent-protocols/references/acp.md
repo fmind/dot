@@ -13,7 +13,7 @@ Use ACP for integration between an editor or other client and an agent process. 
 1. **Start from official SDK examples**: start from the SDK's matching client and echo-agent examples. Implement the required role through its async bases and generated `acp.schema` models rather than hand-writing JSON-RPC envelopes.
 1. **Negotiate before prompting**: negotiate capabilities and establish a session before prompting. Handle streamed session updates, tool calls, permission requests, and cancellation according to the negotiated schema. A client permission response must reflect the user's existing authority; never automatically approve a broader operation.
 1. **Keep stdio clean and processes bounded**: keep stdout protocol-only for stdio and diagnostics on stderr. Launch only an approved executable with explicit arguments, working directory, and environment; tear down the process on completion, cancellation, and failure.
-1. **Test a local deterministic client/agent exchange**: initialization, session creation, prompt completion, streamed updates, denied permissions, cancellation, malformed input, and unexpected subprocess exit. Test only advertised optional capabilities.
+1. **Test a local deterministic client/agent exchange**: include denied permissions, cancellation, and unexpected subprocess exit. Test only advertised optional capabilities.
 
 ## Boundaries
 

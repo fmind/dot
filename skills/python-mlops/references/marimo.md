@@ -13,7 +13,6 @@ Use marimo for reactive Python notebooks and apps; configure agent pairing and h
 1. **Edit with disk reload**: `marimo edit --watch notebook.py` lets the running notebook reload agent edits. Keep the default loopback host and token authentication; cell execution can access local files, network services, and credentials.
 1. **Respect reactivity**: each global name belongs to one cell; use `_name` for cell-local intermediates. Preserve `@app.cell` structure and make side effects deliberate because dependent cells can rerun after upstream edits.
 1. **Check before fixing**: `marimo check --strict notebook.py` reports notebook diagnostics and fails on warnings. Apply `marimo check --fix notebook.py` only to the intended file, review the diff, then rerun the strict check. Fixes do not automatically repair every dependency or syntax problem; `--unsafe-fixes` can change behavior.
-1. **Exercise behavior**: run representative inputs and inspect outputs and exceptions in the notebook. Lint success alone does not prove cell execution, data correctness, or app behavior.
 1. **Convert or export**: use the commands below, review conversion diagnostics, and validate the result. HTML export executes the notebook unless an installed option says otherwise; outputs and source may contain private data. `marimo run` hides editing controls but still executes Python on the server.
 
 ## Commands

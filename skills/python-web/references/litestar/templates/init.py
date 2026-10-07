@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from importlib.metadata import version
 from typing import Literal
@@ -69,12 +69,12 @@ def create_app(config: Settings) -> Litestar:
     engine = create_async_engine(config.database_url.get_secret_value())
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    async def provide_db_session() -> AsyncIterator[AsyncSession]:
+    async def provide_db_session() -> AsyncGenerator[AsyncSession]:
         async with session_factory() as session:
             yield session
 
     @asynccontextmanager
-    async def database_lifespan(_: Litestar) -> AsyncIterator[None]:
+    async def database_lifespan(_: Litestar) -> AsyncGenerator[None]:
         try:
             yield
         finally:

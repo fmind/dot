@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Secrets with sops and age
@@ -17,7 +17,6 @@ Encrypted secrets live in git next to their configuration. Use environment varia
 ## Model
 
 - **age** provides the key pair: one private key per machine or human, public recipients everywhere; prefer it for solo use. Choose cloud KMS when centrally managed access is required; adding a KMS recipient alongside age does not revoke the independent age decryption path.
-- **sops** encrypts the values of YAML, JSON, and ENV files; keys stay readable, so diffs review cleanly and `git log` tells which secret changed, never what it is.
 - **Name encrypted files `*.enc.*`**: encrypted files are committed as `*.enc.yaml`, `*.enc.json`, or `*.enc.env`; [sops.yaml](templates/sops.yaml) keys its rules off that suffix and plaintext siblings stay gitignored.
 - **Declare encryption policy in `.sops.yaml`**: `.sops.yaml` at the repo root ([sops.yaml](templates/sops.yaml)) declares which paths get encrypted and for which recipients, so no ad-hoc flags are needed.
 

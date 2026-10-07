@@ -17,7 +17,6 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
    uv add --dev pytest
    ```
 1. **Define the surface** with `MCPServer` from `mcp.server`. Give each decorated function complete type hints and a useful docstring so its JSON Schema and purpose come from the implementation.
-1. **Keep tools narrow**: parse external input at the function boundary, return structured values, apply time and size limits, and expose only the files, hosts, and operations named by the tool.
 1. **Choose the transport**: stdio for a local host-launched process; Streamable HTTP at `/mcp` for a service. Keep stdout protocol-only under stdio and send logs to stderr.
    ```bash
    uv run mcp run server.py

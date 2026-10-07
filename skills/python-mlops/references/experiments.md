@@ -5,20 +5,14 @@ description: "Track reproducible MLflow experiments, data lineage, metrics, mode
 
 # Track ML Experiments
 
-Tracking is a write to the selected backend and artifact destination. Reuse the project's tracker and current authorization; a local notebook does not imply permission to upload its data or register models.
+Tracking writes to a backend and artifact store: reuse the project's tracker and its current authorization; a local notebook does not authorize uploading data or registering models.
 
-1. **Inspect the installed version and destinations**: read project dependencies, tracking and registry URIs, artifact storage, and task configuration. For a new local MLflow store, prefer an explicit SQL backend such as `sqlite:///mlflow.db` and a task-owned artifact directory. Keep both out of Git. An existing tracker migration is a separate data-migration task; never replace it as incidental setup.
-1. **Record run identity**: code revision plus relevant dirty-state evidence, environment lock, resolved non-secret configuration, data version/digest, split policy, random states, and metric definitions. A path or seed alone does not make a run reproducible. Pin immutable input versions when replay matters; record remaining hardware/nondeterminism limits.
-1. **Control logging**: prefer explicit logging for small workflows. Before enabling framework autologging, inspect the installed API and disable unnecessary dataset/input-example capture, model logging, or registration. Select only authorized metrics and artifacts. Do not log raw rows, complete resolved configs, environment dumps, or entire output directories by default; parameters and lineage URIs can also reveal private data.
-1. **Track meaningful comparisons**: give each trial an identity, preserve parent/child runs when tuning, and label metric direction, split, and baseline. Compare compatible datasets and evaluation protocols. Mark failed or cancelled runs as such and preserve their sanitized cause; do not reuse a successful run ID for unrelated output.
-1. **Package an inference contract when requested**: log the complete preprocessing/model artifact, signature, dependency environment, and a synthetic or permitted input example. Validate schema and predict after reload. Logging an artifact, registering a model version, and changing a deployment alias are separate effects; use [model-delivery](model-delivery.md) for the latter steps.
-1. **Read back**: query the selected run and verify its status, parameters, metrics, and expected artifact references. Confirm persisted artifacts can be loaded where they will be consumed. A healthy tracking UI or success message does not establish stored data or replay parity.
-
-## Local verification
-
-Use a fresh disposable SQLite store and local artifact directory for tracker integration tests. Where migration setup is expensive, initialize a test template once, close its connections, and copy it per test; never copy a live production database. Keep concurrent tests isolated and verify failed runs as well as successful read-back.
+- **Default to a local SQL store**: for a new local MLflow store use `sqlite:///mlflow.db` plus a task-owned artifact directory, both Git-ignored. Migrating an existing tracker is a [data-migration](../../data-migration/SKILL.md) task, never incidental setup.
+- **Log deliberately, not everything**: prefer explicit logging; before enabling autologging, disable input-example, dataset, model logging, and registration capture you do not need. Never log raw rows, full resolved configs, environment dumps, or whole output directories; parameters and lineage URIs can leak private data too.
+- **Record what makes a run replayable**: code revision and dirty state, environment lock, data digest, split policy, and seeds; a path or seed alone is not reproducibility.
+- **Keep effects separate**: logging an artifact, registering a version, and moving an alias are distinct writes; the last two belong to [model-delivery](model-delivery.md).
+- **Read back the run**: query its status, metrics, and artifacts; a success message or healthy UI does not prove stored data. Integration tests use a fresh disposable SQLite store, never a copy of a live database.
 
 ## Documentation
 
-- [MLflow tracking](https://mlflow.org/docs/latest/ml/tracking/) · [backend stores](https://mlflow.org/docs/latest/self-hosting/architecture/backend-store/) · [model signatures](https://mlflow.org/docs/latest/ml/model/signatures/) · [releases](https://github.com/mlflow/mlflow/releases).
-- [observability](../../observability/SKILL.md) owns application logs/traces; [data-migration](../../data-migration/SKILL.md) owns persisted-store changes.
+- [MLflow tracking](https://mlflow.org/docs/latest/ml/tracking/) · [releases](https://github.com/mlflow/mlflow/releases).

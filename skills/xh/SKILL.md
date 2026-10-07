@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # xh HTTP Inspection
@@ -29,7 +29,7 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
    ```
 
 1. **Protect credentials**: pass synthetic or environment-sourced authorization only to the intended origin. Use `--print=h` or `--body`; never `--verbose`, `--debug`, `--curl`, sessions, or request-header printing around secrets.
-1. **Interpret honestly**: in Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success. Record status, relevant response headers, truncation, and any untested redirect or authentication boundary.
+1. **Interpret honestly**: in Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success.
 1. **Require authority for writes**: POST, PUT, PATCH, DELETE, uploads, and state-changing form or JSON bodies need explicit authorization for the exact target and effect.
 
 ## Gotchas
@@ -39,7 +39,6 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
 - **Inspect redirects before following**: `--follow` can forward a request to another origin; inspect `Location` first and never follow an untrusted redirect with credentials.
 - **Never disable TLS verification**: `--verify=no` disables TLS verification and is not an acceptable workaround.
 - **Avoid persistent sessions**: `--session` persists cookies and credentials; prefer no session, or use `--session-read-only` only with an explicitly approved synthetic fixture.
-- **Treat truncated bodies as partial evidence**: a truncated body is inspection evidence, not proof that the full response is valid.
 
 ## Official Skills
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Production Readiness
@@ -19,12 +19,11 @@ Decide whether the exact candidate can be operated safely. The audit produces a 
 1. **Resolve the candidate**: record repository state, revision, artifact or image digest, configuration set, environment, dependency and schema versions, and the proposed rollout window; preserve dirty worktrees and never infer exact-head CI from another revision.
 1. **Define working**: state critical user journeys, availability and correctness expectations, latency or capacity thresholds, data-loss tolerance, compliance constraints, owners, and explicit stop conditions.
 1. **Inspect the release delta**: review code, dependency, configuration, infrastructure, identity, data, and operational changes; identify one-way doors, coupled releases, hidden manual steps, and compatibility windows.
-1. **Audit security and identity**: check least privilege, authentication and authorization, tenant isolation, secret lifecycle, supply chain, abuse controls, and safe defaults; use [threat-model](../threat-model/SKILL.md) for design risk and [code-security](../code-security/references/code-review/GUIDE.md) for repository evidence.
+1. **Audit security and identity**: use [threat-model](../threat-model/SKILL.md) for design risk and [code-security](../code-security/references/code-review/GUIDE.md) for repository evidence.
 1. **Audit data and migrations**: verify forward and backward compatibility, rehearsal evidence, lock and duration risk, backup and restore, rollback semantics, data validation, and ownership of irreversible transitions. [data-migration](../data-migration/SKILL.md) owns implementation and rehearsal; this skill assesses its evidence.
-1. **Audit observability**: map each critical journey and failure mode to logs, metrics, traces, dashboards, and actionable alerts, each with an owner, a justified threshold, and a tested runbook.
-1. **Audit capacity and cost**: compare measured demand and headroom with explicit thresholds across saturation, rate limits, concurrency, timeouts, retries, quotas, degraded modes, and cost guardrails, without inventing traffic evidence.
+1. **Audit capacity and cost**: compare measured demand and headroom with explicit thresholds and cost guardrails, without inventing traffic evidence.
 1. **Audit rollout and recovery**: prefer the smallest reversible exposure; define preflight checks, canary or staged progression, health windows, stop signals (including SLO error-budget remaining and burn rate where an SLO exists), the rollback owner and mechanism (see [cloud-run](../cloud-run/SKILL.md) for revision rollback), and post-rollback verification.
-1. **Audit operations**: confirm service ownership, support and escalation paths, dependency contacts, access, runbooks, maintenance burden, disaster recovery, and the first-hours monitoring plan.
+1. **Audit observability and operations**: each critical journey and failure mode has an actionable alert, an owner, a tested runbook, and an escalation path.
 1. **Gate the candidate**: run the repository's full gate (`mise run all` where defined) against the materialized candidate; when the tree carries unrelated changes, apply the [dirty-tree rule](../mise/SKILL.md#gotchas).
 1. **Verify proportionally**: run only the authorized runtime or staging checks. Failed, stale, unavailable, or differently scoped evidence remains a gap.
 1. **Place the candidate on the proof ladder**: never collapse these states; a candidate may be ready at one rung and blocked at the next, and every claim records artifact identity, environment, command or observation, timestamp, and source.

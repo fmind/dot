@@ -1,13 +1,13 @@
 ---
 name: upgrade-tools
-description: "Upgrade a repository's tools and dependencies to latest stable, one repository at a time."
+description: "Upgrade one repo's mise tools, uv deps, Actions, and images to latest stable."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Upgrade Tools
@@ -25,7 +25,7 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if the upgrade cannot be qualified.
 1. **Verify the final candidate**: run the repository gate; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
-1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile, per [conventional-commit](../git-delivery/references/conventional-commit.md).
+1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile (`mise run upgrade` spans several ecosystems at once, so split its commits by lockfile), per [conventional-commit](../git-delivery/references/conventional-commit.md).
 1. **Report and preview cleanup**: list the adopted versions, retained exceptions, and gate results, then preview cleanup as in the [playbook](references/playbook.md); deleting installations needs separate authorization.
 
 ## Gotchas

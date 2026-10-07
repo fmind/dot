@@ -14,13 +14,14 @@ dependencies = []
 [dependency-groups]
 dev = [
   "deptry>=0.25.1",
-  "pdoc>=16.0.0",
+  "mkdocstrings-python>=2.0.9",
   "pytest-cov>=7.1.0",
   "pytest-watcher>=0.6.3",
   "pytest>=9.1.1",
   "ruff>=0.16.10",
   "ty>=0.0.84,<0.1",  # pre-1.0: pin a compatible range until it stabilizes
   "validate-pyproject>=0.26",
+  "zensical>=0.0.68,<0.1",  # pre-1.0: pin a compatible range until it stabilizes
 ]
 
 [build-system]

@@ -6,6 +6,7 @@ Use the repository's release task when it owns versioning, tags, or publication.
 
 1. **Check the preconditions**:
    - `main` synced with `origin`; unrelated edits stay unstaged and out of the release commit (gate them per the dirty-tree rule).
+   - Hosted CI for the commit being released is completed and green for every workflow and matrix job (`gh run list --commit "$(git rev-parse HEAD)" --json workflowName,status,conclusion`); a green local gate or CD job does not cover other platforms.
    - The proposed tag is absent locally and remotely; stop if either copy exists and never move a published tag.
    - Identify whether publication is triggered by a tag, a branch push, or workflow dispatch. Follow that contract; a workflow-owned release skips the manual `gh release create` step.
 1. **Gate**: Run the full gate (`mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas).

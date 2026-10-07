@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terms-review
   created: "2026-09-15"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Terms Review
@@ -16,7 +16,7 @@ Assess whether a defined use of a product or service fits its applicable terms a
 
 ## Workflow
 
-1. **Define the context**: identify the product, provider, version, plan, contracting entity, jurisdictions, and intended activities: purpose (personal, educational, research, or commercial), audience (internal, customers, redistribution, resale, or embedding), users and scale, and data categories, ownership, and destinations. Ask only for missing facts that could change the decision, keep gathering sources meanwhile, and record assumptions.
+1. **Define the context**: identify the product, provider, version, plan, contracting entity, jurisdictions, intended activities, audience, scale, and data flows. Ask only for missing facts that could change the decision, keep gathering sources meanwhile, and record assumptions.
 1. **Set acceptance criteria**: turn the user's constraints into checkable requirements, including internal policy and applicable regulatory obligations when requested. Separate contractual permission, legal requirements, and operational evidence. Do not infer compliance from a certification badge or a vendor's marketing claim.
 1. **Collect authoritative evidence**: browse current official sources and inspect the applicable signed agreement when available. Follow incorporated documents: terms of service, license/EULA, order form, service-specific terms, acceptable-use policy, privacy notice, data processing agreement (DPA), subprocessors, and relevant model, dataset, or dependency licenses. Record each document's title, URL or private reference, version/effective date, retrieval date, scope, and clause identifiers. Verify the license of the exact release or artifact being used.
 1. **Resolve applicability**: distinguish consumer, business, API, free, paid, trial, and preview terms. Check incorporation, stated precedence, amendments, renewal, and change-notice provisions; establish which version governs the planned use instead of assuming the latest public page controls an existing contract. If an agreement is unavailable or documents conflict without clear precedence, mark the affected conclusions unresolved.

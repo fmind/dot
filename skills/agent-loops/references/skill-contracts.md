@@ -4,10 +4,8 @@ Read this while writing the repository-local skills for an inner, middle, and ou
 
 ## Shared shape
 
-- **Keep skills single-purpose**: give each one a description that states its capability and realistic trigger.
 - **Resume from the smallest checkpoint**: start from the smallest durable checkpoint, refresh volatile state, and distinguish observations from inference.
 - **Make action and return explicit**: make the authorized action, evidence record, next checkpoint, and return target explicit.
-- **Link rather than copy**: put domain-heavy rules in one-level references and link sibling loops instead of copying their instructions.
 - **Enforce safety in trusted code**: keep permissions and safety controls in trusted code when a prompt cannot enforce them.
 
 ## Inner loop

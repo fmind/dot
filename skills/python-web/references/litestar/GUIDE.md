@@ -11,9 +11,8 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 
 1. **Bootstrap after the Python foundation**: for a new service, follow [bootstrap](references/bootstrap.md) after the shared Python foundation; choose database integration only when needed.
 1. **Use the Litestar CLI and source**: inspect the application with `uv run litestar --app <package>:app info`, `routes`, and `schema openapi`; these need no server and no extra, and autodiscovery does not find `src/<package>/__init__.py`. Read the source for the application factory, dependencies, and test client setup.
-1. **Follow the upstream feature references**: consult the upstream `litestar` references for the actual feature (routing, dependency injection, DTO/OpenAPI, authentication, middleware), `litestar-htmx` for templates and HTMX, and `litestar-testing` for tests.
+1. **Follow the upstream feature references**: when the project installed them, consult the upstream `litestar` references for the actual feature (routing, dependency injection, DTO/OpenAPI, authentication, middleware), `litestar-htmx` for templates and HTMX, and `litestar-testing` for tests; otherwise read the installed package source and current docs.
 1. **Keep the existing template asset pipeline** for template styles; [web-frontend's standalone Tailwind workflow](../../../web-frontend/references/tailwind.md) covers Python templates, class discovery, and production CSS builds.
-1. **Preserve the stack and test requests**: keep the existing server and database choices. Run local request tests for success, invalid input, authorization, and lifespan behavior.
 
 ## Application resources
 

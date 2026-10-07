@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # GitHub CLI
@@ -17,7 +17,7 @@ Use `gh` for authenticated GitHub input and output. This connector owns account 
 ## Workflow
 
 1. **Resolve the intended host and repository**: from the request and Git remotes, using `gh repo view --json nameWithOwner`; never print raw remote URLs, which can contain credentials. Pass `-R <owner>/<repo>` to repository commands and `--hostname <host>` to API calls when needed; do not silently use an unrelated current checkout.
-1. **Check help and authentication**: check relevant `--help` for unfamiliar flags; run `gh auth status --active --hostname <host>` when authentication is uncertain. Environment credentials can override stored accounts; never print token values or use `--show-token`. Account changes and additional OAuth scopes need authority; [dot-cli](../dot-cli/SKILL.md) owns configured workstation login policy.
+1. **Check authentication**: run `gh auth status --active --hostname <host>` when authentication is uncertain. Environment credentials can override stored accounts; never print token values or use `--show-token`. Account changes and additional OAuth scopes need authority; [dot-cli](../dot-cli/SKILL.md) owns configured workstation login policy.
 1. **Prefer bounded native commands**: prefer the native command with an explicit `--limit` and selected `--json` fields. For missing capabilities, use `gh api --method GET <endpoint>` with bounded `per_page` and `page` fields. Adding `--field` or `--raw-field` otherwise changes the default method to POST.
 1. **Inspect status before retrieving bodies or logs**: for Actions failures, use `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed`; save large logs locally and read relevant sections. Expand to successful steps when needed to explain the failure; a capped search is not proof that no other matches exist.
 1. **Read and resolve identifiers before a write**: use `--body-file` for multiline issue/PR text and `gh api --input <file>` for a prepared JSON body. Pass arguments as data; do not interpolate retrieved text into shell commands.

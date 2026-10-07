@@ -2,6 +2,13 @@
 
 Output templates for each phase of [product-loop](../SKILL.md). Scale each brief to the change: a compact, low-risk decision should not acquire empty sections merely to satisfy a template, but never omit a section because its content exposes unresolved risk.
 
+## Phase Checks
+
+- **Discover**: test founder logic (unique insight, distribution, defensibility, unfair access) and rank value, usability, viability, feasibility, distribution, and trust assumptions.
+- **Specify**: prioritize journeys P1/P2/P3, give requirements stable identifiers, tie every must-have to a Given/When/Then scenario, and remove contradictions, vague adjectives, and hidden scope.
+- **Launch**: stage exposure (internal, design partners, alpha, beta, GA) with positioning and a rehearsed preflight before each step.
+- **Learn**: check the measurement (event meaning, denominators, contamination, novelty, selection bias, seasonality) before weighing competing explanations and second-order effects.
+
 ## Discovery Brief
 
 - **Decision** with a one-sentence rationale

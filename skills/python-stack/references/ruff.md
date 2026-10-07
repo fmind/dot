@@ -9,7 +9,6 @@ Use Ruff for Python linting and formatting; [dprint](../../dprint/SKILL.md) owns
 
 ## Workflow
 
-1. **Inspect configuration and ownership**: `ruff.toml` or `[tool.ruff]`, the pinned version, and the project's existing formatter ownership.
 1. **Identify affected changes before writing**: use `uv run ruff check <paths>` and `uv run ruff format --check <paths>`.
 1. **Sort imports before formatting**: run `uv run ruff check --select I --fix <paths>` before `uv run ruff format <paths>`; the formatter never reorders imports. Apply fixes only within the authorized files, inspect the diff, then run the canonical project checks.
 

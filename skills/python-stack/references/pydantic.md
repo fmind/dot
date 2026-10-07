@@ -5,20 +5,17 @@ description: "Typed validation, serialization, and settings boundaries."
 
 # Pydantic
 
-Use Pydantic for typed input boundaries and serialization; use [python-stack](foundation/GUIDE.md) for shared project defaults and the selected application skill for scaffolding.
+Use Pydantic for typed input boundaries and serialization; use [foundation](foundation/GUIDE.md) for shared project defaults and the selected application skill for scaffolding.
 
 ## Workflow
 
 1. **Inspect version and model configuration**: check the locked Pydantic version and existing model configuration; add `pydantic` with `uv add pydantic` only when missing.
-1. **Express constraints in types**: select the upstream `pydantic` skill. Use `BaseModel` for structured objects and `TypeAdapter` for other annotated types; express constraints in types before writing custom validators.
-1. **Set validation policy explicitly**: choose coercion versus strict validation and the policy for unknown fields. Use `model_validate` or `model_validate_json` at ingestion and `model_dump` or `model_dump_json` for output; Python and JSON representations can differ.
-1. **Cover valid and invalid input**: test accepted values, rejected input, nested errors, aliases, defaults, and serialization with [Python testing](../../python-testing/SKILL.md). Check validators' ordering and error behavior against the locked API.
+1. **Express constraints in types**: use the upstream `pydantic` skill if the project installed it, otherwise the installed package source. Use `BaseModel` for structured objects and `TypeAdapter` for other annotated types; express constraints in types before writing custom validators.
 1. **Handle settings separately**: for environment configuration, inspect `pydantic-settings` separately; install it only when needed and keep secrets out of validation output.
 
 ## Gotchas
 
 - **Pydantic AI and Logfire are separate products**: both ship in the same bundle. Choose their skills only for agent or telemetry work; [observability](../../observability/SKILL.md) owns the latter.
-- **Match examples to the installed version**: read the installed version before copying upstream examples; a skill fetched from the default branch can target newer APIs.
 
 ## Official Skills
 

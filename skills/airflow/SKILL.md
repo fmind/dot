@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Apache Airflow with Astronomer CLI
@@ -17,8 +17,6 @@ Use `astro` for local Apache Airflow development, DAG authoring, task testing, a
 Docker mode (the default) needs an existing Docker-compatible engine; run `dot doctor --headroom` before the first image pull or build. `--standalone` runs Airflow on the host without Docker. Workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing service flags (`--api-server` and `--dag-processor` for Airflow 3; `--webserver` for Airflow 2).
 
 ## Workflow
-
-1. **Inspect project layout**: confirm existing `dags/`, `Dockerfile`, `requirements.txt`, and `airflow_settings.yaml`.
 
 1. **Start local environment**: `--no-browser` keeps the UI from opening.
 
@@ -39,7 +37,7 @@ Docker mode (the default) needs an existing Docker-compatible engine; run `dot d
    astro dev run tasks test <dag_id> <task_id>
    ```
 
-1. **Inspect service and task logs**: select the relevant component and keep `--follow` opt-in. Save large output to a private local artifact, check the command's exit status, then search for the DAG/run ID and error context instead of loading every line.
+1. **Inspect service and task logs**: select the relevant component and keep `--follow` opt-in.
 
    ```bash
    astro dev logs --scheduler
@@ -56,7 +54,7 @@ Docker mode (the default) needs an existing Docker-compatible engine; run `dot d
 
 ## Gotchas
 
-- **Keep top-level DAG code light**: the scheduler evaluates top-level DAG code every few seconds; avoid database queries, API calls, or heavy computation outside operators.
+- **Author Airflow 3 DAGs with `airflow.sdk`**: import `dag`, `task`, and `DAG` from `airflow.sdk`; `ruff check --select AIR3` flags removed and deprecated Airflow 2 imports before `astro dev upgrade-test`.
 - **Proxy URLs replace fixed ports**: by default a shared reverse proxy serves each project at `http://<project>.localhost:6563` on random backend ports; `astro dev proxy status` lists each project's URL and Postgres port. `--no-proxy` restores fixed ports (`8080` for the API server or webserver, `5432` for Postgres), which can collide with local services.
 - **Task tests record no state**: `astro dev run tasks test` runs a single task without recording state in the Airflow database; upstream task dependencies must be handled or mocked.
 - **Run upgrade-test before upgrading**: before moving to a newer Airflow or Astro Runtime (including Airflow 2 to 3), run `astro dev upgrade-test` (optionally `--airflow-version <version>`); it reports dependency changes, DAG import errors, and deprecation lint without modifying the project.

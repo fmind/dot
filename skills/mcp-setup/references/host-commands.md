@@ -6,7 +6,7 @@ One Python stdio example per host. For a remote server replace the trailing comm
 
 ```bash
 agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                 # Antigravity CLI; flags before <name>
-claude mcp add --scope project -e KEY=value <name> -- uvx --from '<package>==<version>' <command> # default scope is local, not project
+claude mcp add --scope project <name> -e KEY=value -- uvx --from '<package>==<version>' <command> # -e is variadic: name first; default scope is local
 codex mcp add <name> --env KEY=value -- uvx --from '<package>==<version>' <command>               # no scope flag: writes ~/.codex/config.toml
 copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>             # user configuration
 grok mcp add --scope project -e KEY=value <name> -- uvx --from '<package>==<version>' <command>   # --scope user is the default

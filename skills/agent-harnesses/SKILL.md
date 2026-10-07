@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # Agent Harnesses
@@ -18,9 +18,8 @@ Operate the selected coding-agent host without conflating its configuration, per
 
 Every host follows these steps; read only the matching guide for its specifics and required resources.
 
-1. **Inspect the installed contract when it matters**: run the host's `--version` and `--help` for unfamiliar or version-sensitive features; identify the surface (CLI, app, IDE, or cloud), workspace, configuration scope, and the session to start or resume.
-1. **Refresh evolving details**: read the relevant official page and changelog before relying on flags, settings, models, or feature availability. Compare with installed help, which can omit supported flags; report version gaps before applying a newer recipe, and keep release-specific details upstream.
-1. **Use the documented interface** for the session, configuration, or extension. Resolve configuration precedence and permission scope before changing execution behavior; hooks and extensions execute code.
+1. **Check official docs for version-sensitive features**: read the relevant official page and changelog before relying on flags, settings, models, or feature availability; installed help can omit supported flags. Report version gaps before applying a newer recipe, and keep release-specific details upstream.
+1. **Resolve precedence and permission scope first**: before changing execution behavior; hooks and extensions execute code.
 1. **Verify** the result, resulting artifacts, and the host's own instruction or skill discovery. Use [agent-project](../agent-project/SKILL.md) for shared instruction layout and [mcp-setup](../mcp-setup/SKILL.md) for MCP registration.
 
 ## Task guides
@@ -35,3 +34,7 @@ Every host follows these steps; read only the matching guide for its specifics a
 - [opencode](references/opencode/GUIDE.md): OpenCode sessions and provider configuration.
 
 <!-- guides:end -->
+
+## Gotchas
+
+- **Edit managed host keys in fmind/dot**: on this workstation, Claude, Codex, Copilot, Grok, and OpenCode settings are merged from `modify_*` chezmoi templates in `~/.local/share/chezmoi`. A direct edit to a managed key (including through `/config` or a host's settings skill) reverts on `chezmoi apply --force`; unmanaged keys survive. Change the source, preview with `chezmoi diff`, then apply.

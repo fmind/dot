@@ -1,6 +1,6 @@
 ---
 name: gitleaks
-description: "Secret scanning and verified exposure handling."
+description: "Scan the working tree and history for secrets; handle confirmed exposure."
 ---
 
 # Gitleaks

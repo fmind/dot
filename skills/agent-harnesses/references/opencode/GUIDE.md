@@ -9,7 +9,7 @@ Operate OpenCode with the project's provider, permissions, and Python tooling. P
 
 ## Workflow
 
-Follow the shared [workflow](../../SKILL.md#workflow) using `opencode --version`, `opencode run --help`, and project instructions; host specifics:
+Follow the shared [workflow](../../SKILL.md#workflow) and project instructions; host specifics:
 
 1. **Resolve the provider** through [model-providers](../../../model-providers/SKILL.md). This workstation explicitly uses OpenRouter through its native `/connect` login; its model IDs start with `openrouter/`. Preserve that choice even though new application integrations default to GCP Agent Platform. Check credentials without dumping resolved configuration.
 1. **Run the requested task** with the configured model, or an explicitly selected available `provider/model`. `--auto` approves permissions that are not explicitly denied; it preserves denials and does not expand the user's task authority.

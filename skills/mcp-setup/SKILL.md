@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-setup
   created: "2026-06-23"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # MCP Setup
@@ -16,9 +16,7 @@ Connect only the MCP capability the task needs, using the installed host's nativ
 
 ## Workflow
 
-1. **Identify host and scope**: inspect the installed `agy`, `claude`, `codex`, `copilot`, `grok`, or `opencode` interface and choose project versus user configuration.
 1. **Review the server**: verify its source, transport, tools, credential flow, and requested permissions before launching it; use [host commands](references/host-commands.md) for the matching setup.
-1. **Configure once**: preserve unmanaged settings, avoid duplicate registrations, and pass secrets through the supported environment or secret manager.
 1. **Verify**: list the configured server, check its tool surface, and exercise a small read-only call; registration alone does not prove authentication or safe writes.
 1. **Use the Google Cloud guide for its products**: read [google-cloud-mcp.md](references/google-cloud-mcp.md) only for those product-specific registrations.
 

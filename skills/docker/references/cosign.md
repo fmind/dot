@@ -1,6 +1,6 @@
 ---
 name: cosign
-description: "Image signatures, identity verification, and attestations."
+description: "Sign, verify, and attest image digests with keyless Sigstore."
 ---
 
 # Cosign

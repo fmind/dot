@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/technical-publishing
   created: "2026-08-30"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Publish Technical Articles
@@ -29,7 +29,7 @@ mise run pub -- publish <package> --site <site-directory> --dry-run # preview pu
 1. **Record demos with VHS**: use the shared [VHS workflow](../fmind-visuals/references/recording.md), retain the tape and synthetic inputs beside the export, and provide a transcript or static alternative; recording does not publish the asset.
 1. **Fact-check**: verify claims and links with [fact-check](../fact-check/SKILL.md) before review and after late edits.
 1. **Publish only when authorized**: for the package, follow the project's publishing skill before omitting `--dry-run`: the command exports, opens and merges a site PR, verifies the live article, records publication, and retires the temporary `article.md`. Prepare corrections through the site's explicit erratum or edition workflow; ownership does not authorize rewriting published text.
-1. **Prepare channel copy for hand-posting**: use the session's channel selection, otherwise the project's defaults: article SEO, LinkedIn, and X. Prepare selected adaptations in `posts/`; Medium imports the live canonical URL and needs no duplicate `medium.md`. Channels are posted by hand, never automated or scheduled. When the project has no post workflow of its own, write and check the copy for article and announcement packages with [social-post](../social-post/SKILL.md); this skill keeps the package, channel selection, and publication log.
+1. **Prepare channel copy for hand-posting**: use the session's channel selection, otherwise the project's defaults (in Pub: articles need only `seo.txt`; announcements and episodes default to LinkedIn and X). Prepare selected adaptations in `posts/`; Medium is retired, so create no Medium copy. Channels are posted by hand, never automated or scheduled. When the project has no post workflow of its own, write and check the copy for article and announcement packages with [social-post](../social-post/SKILL.md); this skill keeps the package, channel selection, and publication log.
 
 ## Documentation
 

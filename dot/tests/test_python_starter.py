@@ -134,6 +134,11 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(tmp_path, "uv", "run", "--frozen", "deptry", ".")
     _run(tmp_path, "uv", "run", "--frozen", "pytest", "-m", "not integration", "--cov", "--cov-fail-under=85")
     _run(tmp_path, "uv", "build", "--out-dir", "dist")
+    # The strict docs build renders every module's API page and fails on broken cross-references.
+    _write(tmp_path, "zensical.toml", _render("zensical.toml", replacements))
+    _write(tmp_path, "docs/index.md", _render("docs-index.md", replacements))
+    _run(tmp_path, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
+    assert (tmp_path / "site/reference/starter_py/index.html").is_file()
 
     runtime = tmp_path / "runtime"
     _run(tmp_path, "uv", "venv", str(runtime))

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/data-migration
   created: "2026-09-09"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Data Migration
@@ -16,8 +16,7 @@ Change persisted data while preserving its declared meaning and recovery path. [
 
 ## Workflow
 
-1. **Inventory the boundary**: identify source and target versions, authoritative data versus rebuildable caches, all readers and writers, active locks, scale, and compatibility requirements. Inspect actual stored versions rather than inferring them from current code.
-1. **Define invariants**: specify identity, counts, relationships, ordering, encoding, null semantics, and fields intentionally changed or discarded. Reject unsupported versions and malformed input with a recoverable error; do not silently reinterpret them.
+1. **Inspect stored versions, reject unknown ones**: inspect actual stored versions rather than inferring them from current code. Reject unsupported versions and malformed input with a recoverable error; do not silently reinterpret them.
 1. **Choose the transition**: use the project's migration engine for databases. For mixed deployed readers, expand compatibility, backfill, switch readers, then contract only after old readers are retired. For files or immutable archives, write a new versioned generation and retain the old one.
 1. **Prepare recovery**: take a consistent snapshot and prove it can be restored and read in isolation. Record disk needs, lock duration, the rollback cutoff, and treatment of writes after that cutoff. A schema downgrade is not necessarily data recovery.
 1. **Implement resumably**: use transactional units or atomic generation publication. Commit progress with the corresponding data, use stable identities, and make retries skip verified completed units. Bind checkpoints to input identity and migration version; reject a resume against changed input.

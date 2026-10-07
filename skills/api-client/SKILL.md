@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/api-client
   created: "2026-09-09"
-  updated: "2026-10-06"
+  updated: "2026-10-07"
 ---
 
 # API Client
@@ -16,10 +16,8 @@ Integrate the needed API operation with a small, testable boundary. Prefer an ex
 
 ## Workflow
 
-1. **Verify the provider contract**: inspect current primary docs and installed SDK source for API version, authentication scopes, pagination, rate limits, idempotency, error bodies, and asynchronous completion. Record unknown semantics before designing retries.
 1. **Choose the seam**: reuse the project's client and sync/async model. Otherwise use HTTPX through `uv` with one owned client lifetime, explicit timeouts and pool limits, and typed request/response boundaries. Avoid a generic SDK framework for one endpoint.
 1. **Bound the operation**: cap pages, records, response bytes, concurrency, attempts, and elapsed time according to configuration. HTTPX read timeouts bound inactivity, not the total duration; enforce the operation's overall deadline separately.
-1. **Validate responses**: check HTTP status, expected content type, schema, and domain invariants before returning data. Preserve status/request identifiers and causes in typed errors while redacting tokens, sensitive query parameters, and bodies.
 1. **Control traversal**: stop on terminal or repeated cursors, and report partial results explicitly when a limit is reached. Validate provider-returned next URLs before following them; do not send credentials to a new origin or follow redirects implicitly.
 1. **Retry by meaning**: retry only documented transient failures within the total deadline. Honor valid `Retry-After`; if waiting would exceed the remaining deadline, report exhaustion instead of retrying early. Otherwise use bounded backoff with jitter. Keep authentication, permission, validation, and malformed-success failures visible.
 1. **Reconcile writes**: reuse a stable provider-supported idempotency key for the same logical write. After a timeout or lost response, read authoritative operation state before retrying; without safe reconciliation or documented idempotency, return an explicit unknown outcome.

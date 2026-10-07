@@ -11,7 +11,7 @@ Operate the Grok Build coding harness. The Grok chat product and model API have 
 
 Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
-- **Inspect `grok --version` and `grok --help`**: read the Build documentation and Build changelog, not the chat product's.
+- **Read Build docs, not chat docs**: use the Build documentation and Build changelog, not the chat product's.
 - **Inspect before changing configuration**: use `grok inspect` locally to check discovered configuration, instructions, and extensions before changing them. Its output can contain private context; report only the fields needed for the task.
 
 ## Official Skills

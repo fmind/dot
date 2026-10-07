@@ -25,14 +25,9 @@ Apply these defaults where the feature exists; a small utility does not need con
 
 ## Workflow
 
-1. **Name the jobs**: one purpose per command, a predictable noun-verb hierarchy, and aliases only when they cannot trigger a different class of action.
 1. **Specify inputs**: positional arguments, flags, environment variables, config precedence, defaults, validation, and mutual exclusions. Avoid secrets in command arguments because shell history and process listings can expose them; use a credential store, protected file, hidden interactive prompt, or explicit stdin input appropriate to the command.
 1. **Apply the defaults** above for help, streams, terminal output, interaction, and errors; enforce the consent and redaction rules even when preserving an existing contract.
-1. **Specify machine output**: choose one JSON document or an explicitly documented record stream; define stdout and stderr for empty results, partial results, and failures, including failures before command execution. Specify whether failures leave stdout empty or emit structured errors, how partial data is marked, and how consumers identify breaking schema changes.
 1. **Bound result volume**: for large listings, support focused filters, field selection, and explicit limits where useful; retain counts, continuation tokens, and incomplete-result status. Make detail opt-in and provide file export for large reports. Compact JSON alone does not reduce the number of records; quiet modes must retain actionable errors and exit codes.
-1. **Define outcomes**: map success, usage errors, authentication failures, remote failures, partial results, and cancellation to documented exit codes; never turn an error into an empty success.
-1. **Handle process behavior**: respect signals, cancellation, timeouts, piping, broken pipes, and cleanup.
-1. **Preserve compatibility deliberately**: command names, flags, JSON fields, exit codes, and script-consumed stdout are public API; prefer deprecation and migration guidance over silent changes.
 1. **Test the contract**: cover parsing, validation, streams, exit codes, JSON schema, cancellation, and representative success and failure paths. Include help with broken configuration and no credentials, non-TTY missing inputs, `--no-input` without consent, redirected and color-disabled output, and empty, partial, and failed JSON results; then run `mise run check` and `mise run test`.
 1. **Exercise the installed binary**: from a clean shell, piped and non-TTY; direct function tests alone do not prove the contract.
 

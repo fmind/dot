@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/handoff
   created: "2026-10-04"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Handoff
 
-Treat `/handoff` as "I am about to clear this session or move to another harness; let the next one continue without me re-explaining." It writes a continuation in the [task-prompts](../task-prompts/SKILL.md) format, saves it, and copies it with [clipboard](../clipboard/SKILL.md). Arguments can name a focus, a receiving harness, or `pointer` to copy only the file reference. Native resume (`claude --resume`, `codex resume`, or `codex fork` to branch) is better when the same harness continues with the full history.
+Treat `/handoff` as "I am about to clear this session or move to another harness; let the next one continue without me re-explaining." It writes a continuation in the [task-prompts](../task-prompts/SKILL.md) format, saves it, and copies it with [clipboard](../clipboard/SKILL.md). Arguments can name a focus, a receiving harness, or `pointer` to copy only the file reference. Native resume (`claude --resume`, `codex resume` or `codex fork` to branch, `agy -c` or `agy --conversation <id>`) is better when the same harness continues with the full history.
 
 ## Workflow
 
@@ -42,5 +42,5 @@ Treat `/handoff` as "I am about to clear this session or move to another harness
 
 ## Documentation
 
-- [Claude Code sessions](https://code.claude.com/docs/en/common-workflows#resume-previous-conversations) · [Codex resume](https://developers.openai.com/codex/cli/reference)
+- [Claude Code sessions](https://code.claude.com/docs/en/common-workflows#resume-previous-conversations) · [Codex resume](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
 - Companion skills: [task-prompts](../task-prompts/SKILL.md) (prompt grammar and delegation), [clipboard](../clipboard/SKILL.md) (verified copy), [git-worktree](../git-worktree/SKILL.md) (isolated continuation).

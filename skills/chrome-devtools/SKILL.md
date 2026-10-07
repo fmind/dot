@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Chrome DevTools
@@ -39,13 +39,11 @@ The MCP client starts that process over stdio. Use a dedicated browser profile. 
 1. **Measure performance**: record a bounded trace of the same action before and after a change; preserve CPU/network throttling, cache conditions, viewport, and tool versions. Stop traces you started and save artifacts in the authorized workspace.
 1. **Check accessibility**: inspect roles, names, focus order, keyboard operation, and visible contrast. Run `lighthouse_audit` for the one-shot accessibility, SEO, and best-practice report; it reloads the page unless `mode` is `snapshot`, and it excludes performance, which needs a trace. Combine automated checks with manual interaction; an accessibility tree or Lighthouse score alone does not establish WCAG conformance.
 1. **Investigate memory and cookies**: compare repeated lifecycle actions and heap snapshots; `take_heapsnapshot` is on by default, while `compare_heapsnapshots` and the other analysis tools need `--memoryDebugging` on the MCP server; inspect `HttpOnly`, `Secure`, `SameSite`, and partitioning in the request's actual context. A single heap size or cookie attribute is not a diagnosis.
-1. **Verify the fix**: repeat the reproduction and relevant measurements, then add a regression test through the owning project workflow. Close task-owned pages.
+1. **Close task-owned pages**: after verifying the fix.
 
 ## Gotchas
 
-- **Check tool availability first**: inspect the live tool schema or CLI help before calling a capability; optional categories, page routing, and CLI arguments vary by version.
 - **Pin the browser mode**: set headed or headless explicitly for reproducibility; the CLI defaults to headless, which need not match a separately configured MCP connection.
-- **Lab and field data differ**: a local trace measures this run. CrUX field data and lab measurements describe different populations and time windows.
 
 ## Official Skills
 

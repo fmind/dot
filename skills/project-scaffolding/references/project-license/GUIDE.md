@@ -16,7 +16,7 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
    - Written course material (lessons, exercises, prose): CC-BY-4.0 as `LICENSE.txt`, fetched verbatim with `curl -fsSL https://creativecommons.org/licenses/by/4.0/legalcode.txt -o LICENSE.txt`; `mlops-courses/mlops-coding-course` is the reference example.
    - Every private repository and every other namespace: proprietary, from [PROPRIETARY](templates/PROPRIETARY); never an open-source license.
 1. **Write the file** at the repository root:
-   - Resolve `<holder>` from the namespace: `fmind` and `fmind-ai` use `Médéric Hurier (Fmind)`; `mlops-courses` uses `MLOps Courses`. When unsure, copy the holder from a sibling repository.
+   - Set `<holder>` to `Médéric Hurier (Fmind)` in every namespace, including `mlops-courses`.
    - Resolve `<year>` to the current calendar year (`date +%Y`).
 1. **Declare it in Python projects**: use the PEP 639 SPDX field `license = "MIT"` or `license = "LicenseRef-Proprietary"` plus `license-files = ["LICENSE"]` in `pyproject.toml`; content-only projects keep the license file without inventing a package manifest.
 

@@ -5,11 +5,10 @@ description: "Dependency resolution, environments, packaging, and lockfiles."
 
 # uv
 
-Use uv for Python dependency and environment operations; [python-stack](foundation/GUIDE.md) owns project defaults and [python-script](python-script/GUIDE.md) owns PEP 723 scripts.
+Use uv for Python dependency and environment operations; [foundation](foundation/GUIDE.md) owns project defaults and [python-script](python-script/GUIDE.md) owns PEP 723 scripts.
 
 ## Workflow
 
-1. **Choose the mode after inspection**: inspect `pyproject.toml`, `uv.lock`, Python constraints, and the current uv help before choosing project, script, or tool mode.
 1. **Manage dependencies through uv**: use `uv add` for project dependencies and `uv sync --locked` to reproduce the existing graph; keep tool installations separate from application dependencies.
 1. **Validate lock consistency**: run `uv lock --check`, then run the project's normal checks after any dependency change.
 1. **Qualify builds outside the source tree**: use `uv export --locked --no-dev --no-emit-project -o requirements.txt`, which emits hashes, then `uv venv`, `uv pip sync --require-hashes requirements.txt`, and `uv pip install <wheel>`.

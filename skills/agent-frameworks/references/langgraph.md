@@ -9,7 +9,7 @@ Own the topology when the workflow is more than "loop until done": classificatio
 
 ## Workflow
 
-1. **Scope the graph first**: confirm `create_agent` plus middleware does not already cover it, then write down state fields, node inputs and outputs, stop conditions, and every side effect before `uv add langgraph`.
+1. **Scope the graph first**: confirm `create_agent` plus middleware does not already cover it before `uv add langgraph`.
 1. **Build explicitly**: a `StateGraph` with typed state, small nodes, and edges from `START` to `END`. Define reducers only for fields that combine concurrent updates; unreduced concurrent writes raise `INVALID_CONCURRENT_GRAPH_UPDATE`.
 1. **Run it deterministically**: compile and execute with no provider, asserting final state, routing, and error paths. Bound the run with `graph.invoke({...}, {"recursion_limit": N})` before adding model nodes.
 1. **Choose persistence deliberately**: `InMemorySaver` (`langgraph.checkpoint.memory`) is for tests only; `langgraph-checkpoint-sqlite`, `-postgres`, and `-mongodb` install separately (`uv add langgraph-checkpoint-postgres`). Follow the selected backend's setup contract: Postgres requires `.setup()` to create or migrate its schema; this is not a method on every checkpointer. Keep `thread_id` stable, respect the backend's length limit (under 255 characters for Postgres), isolate threads per user, and prove resume across a real process restart.

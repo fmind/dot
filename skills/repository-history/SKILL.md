@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Repository History
@@ -16,9 +16,8 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
 
 ## Workflow
 
-1. **Bound the question**: path, symbol, revision range, and the decision the history should inform.
+1. **Bound the question**: path, symbol, revision range, and the decision the history should inform; keep it small enough that every cited commit can be inspected.
 1. **Trace evidence**: follow [investigation.md](references/investigation.md) for coverage, blame, line history, pickaxe, renames, commit inspection, and exact PR mapping through [gh](../gh/SKILL.md).
-1. **Explain the timeline**: connect behavior changes, tests, reverts, and later superseding decisions; treat formatting and co-change as clues rather than causes.
 1. **Report**: the investigation's history note, rating confidence with the scale in Gotchas.
 
 ## Gotchas

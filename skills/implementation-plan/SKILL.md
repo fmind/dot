@@ -1,13 +1,13 @@
 ---
 name: implementation-plan
-description: "Plan implementation from requirements, or challenge a plan's assumptions."
+description: "Plan implementation, research an API or architecture choice, or challenge a plan."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/implementation-plan
   created: "2026-08-08"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Implementation Plan

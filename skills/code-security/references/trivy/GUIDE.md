@@ -1,6 +1,6 @@
 ---
 name: trivy
-description: "Dependency, configuration, image, license, and SBOM scanning."
+description: "Scan dependencies, IaC, images, and licenses; generate SBOMs."
 ---
 
 # Trivy
@@ -34,8 +34,6 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 
 ## Triage
 
-1. **Group findings by severity, then split fixable from `unfixed`**.
-1. **Fix with the minimal upgrade**: prefer the minimal upgrade of the affected dependency or base image; re-run the scan to prove the fix.
 1. **Ignore findings, not the severity bar**: record an accepted risk in `.trivyignore` (one finding ID per line, with a `#` reason) instead of lowering the global severity bar. Use `.trivyignore.yaml` with explicit `--ignorefile` for path-scoped findings, expiry, or license ignores; see [filtering](https://trivy.dev/docs/latest/configuration/filtering/).
 1. **Route secret findings to gitleaks**: handle secret findings, including from a project that still enables Trivy's `secret` scanner, per [gitleaks](../gitleaks.md): verify exposure, then coordinate authorized rotation; history rewrites require explicit authority.
 

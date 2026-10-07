@@ -21,10 +21,6 @@ Local k3d clusters need an existing Docker-compatible engine (see [docker](../..
    k3d cluster delete <task-cluster>
    ```
 
-## Gotchas
-
-- **Idle clusters waste resources**: k3d nodes consume significant CPU and RAM inside Docker or Colima; stop clusters when inactive.
-
 ## Documentation
 
 - [k3d](https://k3d.io/) · Releases: [k3d](https://github.com/k3d-io/k3d/releases)

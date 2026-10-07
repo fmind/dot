@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Databricks CLI
@@ -21,7 +21,7 @@ Resolve the workspace, profile, and bundle target before mutations; deployments 
 1. **Verify workspace and authentication**: list configured profile names without printing credentials and confirm caller identity.
 
    ```bash
-   databricks auth profiles
+   databricks auth profiles --skip-validate
    databricks current-user me --profile <profile>
    ```
 

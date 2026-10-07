@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Scheduled Jobs
@@ -16,7 +16,6 @@ Run an existing bounded command through the native user scheduler and prove its 
 
 ## Workflow
 
-1. **Resolve the job**: identify the command, account, working directory, frequency, timezone, maximum duration, expected result, side effects, and stop condition. Inspect any existing schedule before creating another owner.
 1. **Prove one invocation**: run the authorized command with explicit arguments and the scheduler's minimal environment. Use an existing dry-run mode when exercising real effects is outside scope; dry-run success does not prove a real run.
 1. **Choose the native owner**: use [Linux user timers](references/linux.md) or [macOS LaunchAgents](references/macos.md). Keep an existing project scheduler unless migration is requested. Harness-native agent schedules remain with the matching host skill.
 1. **Make execution bounded**: use an absolute executable path, explicit working directory, locked dependencies, bounded I/O and runtime, and one writer lock for all entry points. Decide whether a missed occurrence is skipped, coalesced, or replayed; replay requires an idempotent operation.
@@ -28,8 +27,6 @@ Run an existing bounded command through the native user scheduler and prove its 
 ## Gotchas
 
 - **Document laptop missed-run behavior**: sleep, power-off, login state, timezone changes, and DST affect schedules. Choose and document the missed-run behavior instead of promising an always-on service.
-- **The application owns its lock**: a scheduler's single-job protection does not serialize manual invocations or a second scheduler; the application owns its lock.
-- **Make failures visible**: keep a bounded, redacted run record with start, finish, exit status, and result identity. Define how stale success or repeated failures become visible; a log file alone is not notification.
 - **Stay in user space**: do not enable system services or lingering merely to keep a laptop job alive; explain when the requested availability exceeds a user session.
 
 ## Documentation

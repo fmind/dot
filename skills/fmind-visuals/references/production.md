@@ -4,7 +4,6 @@
 
 1. **Start from the local template**: copy [deck.typ](../templates/deck.typ) into the deliverable. It uses native Typst only and compiles without downloading a package.
 1. **Apply the release fonts**: copy Google Sans and Google Sans Code TTF files into `fonts/` and pass `--font-path fonts`. Confirm both families load before exporting; do not silently ship fallback fonts.
-1. **Keep one idea per slide**: use one claim, mechanism, decision, or artifact; split dense content instead of shrinking type.
 1. **Embed diagrams as exports**: render Mermaid or D2 to SVG, keep the source beside it, and use `#image("diagram.svg", alt: "...")` in the deck.
 1. **Format, compile, and watch**:
 

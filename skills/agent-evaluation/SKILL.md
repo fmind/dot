@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-10-05"
+  updated: "2026-10-07"
 ---
 
 # Agent Evaluation
@@ -16,13 +16,12 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 
 ## Workflow
 
-1. **Declare the decision**: identify the behavior, baseline, candidate, success criteria, regressions that block adoption, trial budget, and stopping rule in an [evaluation brief](references/evaluation-brief.md). Scale rigor to the decision; a small development probe supports iteration, not broad reliability claims.
-1. **Freeze identity**: record code, prompt, tools, retrieval snapshot, model/version, runtime settings, retries, and grader versions. Change one factor when attributing an improvement to it; label unpinned provider behavior as a reproducibility limit.
-1. **Choose representative cases**: include ordinary successes, known failures, hard negatives, tool errors, and relevant trust boundaries. Keep development cases separate from held-out decision cases; do not tune on the latter and still call them unseen.
-1. **Grade outcomes first**: use executable tests, schema checks, state inspection, and attempted tool actions where possible. For semantic grading, calibrate against labeled examples, blind candidate identity and vary presentation order; use independent human judgment for consequential disagreements.
-1. **Run paired repeated trials**: use the same cases and budgets, fresh isolated state, and recorded ordering. Seeds help reproducibility but do not guarantee deterministic providers. Retain failures, timeouts, refusals, and missing traces; do not cherry-pick retries.
-1. **Analyze uncertainty**: aggregate locally and report per-case and per-segment outcomes, reliability, latency, tokens, and cost separately; keep complete traces as artifacts and inspect failures by case ID. Apply the uncertainty method fixed in the brief; distinguish repeated trials of one case from independent coverage of many tasks.
-1. **Decide and preserve evidence**: return adopt, iterate, reject, or inconclusive against the declared criteria. Record deviations, exposed holdouts, unresolved regressions, and the cheapest next evidence; adoption does not itself authorize production changes.
+1. **Declare the decision first**: baseline, candidate, success criteria, blocking regressions, trial budget, and stopping rule in an [evaluation brief](references/evaluation-brief.md); a small probe supports iteration, not reliability claims.
+1. **Change one factor at a time**: freeze code, prompt, tools, retrieval snapshot, model version, settings, and grader versions; label unpinned provider behavior as a reproducibility limit.
+1. **Keep held-out cases sealed**: never tune on decision cases and still call them unseen.
+1. **Grade outcomes, not prose**: prefer executable checks and inspected state; calibrate semantic judges against labeled examples, blind candidate identity, and escalate consequential disagreements to a human.
+1. **Report every trial**: paired repeated trials on the same cases with fresh state; keep failures, timeouts, and refusals, never cherry-pick retries; report per-case outcomes, cost, and latency with the uncertainty method fixed in the brief.
+1. **Decide against the declared criteria**: adopt, iterate, reject, or inconclusive; adoption does not authorize production changes.
 
 ## Gotchas
 
