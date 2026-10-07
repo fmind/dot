@@ -78,6 +78,7 @@ _GIT_FAILURE_CAUSES = (
             "invalid username or password",
         ),
     ),
+    ("push rejected by remote", ("[remote rejected]", "declined", "protected branch")),
     ("remote repository not found", ("repository not found", "does not appear to be a git repository")),
     (
         "network unavailable",
@@ -96,13 +97,16 @@ _GIT_FAILURE_CAUSES = (
 
 
 def git_failure(arguments: Sequence[str], result: CommandResult) -> str:
-    """Describe a failed git command by a classified cause, else its sanitized first stderr line."""
+    """Describe a failed git command by a classified cause, else its sanitized first error line."""
     subcommand = next((argument for argument in arguments if not argument.startswith("-")), "command")
     diagnostic = f"{result.stderr}\n{result.stdout}".lower()
+    # Push and fetch lead with progress such as "To github.com:o/r.git"; the cause follows.
+    lines = [line.strip() for line in result.stderr.splitlines() if line.strip()]
+    first_error = next((line for line in lines if line.startswith(("error:", "fatal:", "!"))), "")
     cause = next(
         (label for label, markers in _GIT_FAILURE_CAUSES if any(marker in diagnostic for marker in markers)),
         "",
-    ) or diagnostic_line(result.stderr)
+    ) or diagnostic_line(first_error or result.stderr)
     return f"git {subcommand} failed ({result.returncode})" + (f": {cause}" if cause else "")
 
 
@@ -174,6 +178,8 @@ def _remaining_timeout(deadline: float) -> float:
 
 def _upstream(state: State, path: Path, deadline: float) -> str:
     """Return the configured upstream ref, or an empty string when the branch tracks none."""
+    # Timeouts and launch errors still raise. Git exits 128 without an upstream, and still prints
+    # the literal `@{u}` when the configured upstream ref is gone, so only success yields a ref.
     result = state.runner.run(
         ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
         cwd=path,
@@ -202,6 +208,17 @@ def _branch(state: State, path: Path, deadline: float) -> str:
     return branch or _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
 
 
+def _dirty(state: State, path: Path, deadline: float) -> bool:
+    return bool(_git(state, path, _STATUS, deadline).strip())
+
+
+def _fetch(state: State, path: Path, deadline: float) -> None:
+    try:
+        _git(state, path, ["fetch", "--prune"], deadline)
+    except DotError as error:
+        raise DotError(f"failed to fetch repository: {error}") from error
+
+
 def _count(value: str, label: str) -> int:
     try:
         return int(value.strip())
@@ -226,13 +243,10 @@ def _pull_repository(
 
     try:
         branch = _branch(state, path, deadline)
-        dirty = bool(git(_STATUS).strip())
+        dirty = _dirty(state, path, deadline)
         if dirty and dirty_policy == "skip":
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
-        try:
-            git(["fetch", "--prune"])
-        except DotError as fetch_error:
-            raise DotError(f"failed to fetch repository: {fetch_error}") from fetch_error
+        _fetch(state, path, deadline)
         try:
             upstream = _upstream(state, path, deadline)
         except DotError as upstream_error:
@@ -249,7 +263,7 @@ def _pull_repository(
         # Fetch/merge can take long enough for an editor or another process to
         # change the worktree. Never authorize a push using the pre-fetch check.
         if push and ahead and not dirty:
-            dirty = bool(git(_STATUS).strip())
+            dirty = _dirty(state, path, deadline)
         if push and ahead and not dirty:
             try:
                 git(_upstream_push(git, branch))
@@ -348,11 +362,14 @@ def run_pull(
     return results
 
 
-def _repository_status(state: State, path: Path) -> RepositoryStatus:
-    deadline = monotonic() + _STATUS_TIMEOUT_SECONDS
+def _repository_status(state: State, path: Path, *, fetch: bool = False) -> RepositoryStatus:
+    # Fetching contacts the remote, so it gets the network allowance that pull uses.
+    deadline = monotonic() + (state.config.pull.timeout_seconds if fetch else _STATUS_TIMEOUT_SECONDS)
     try:
+        if fetch:
+            _fetch(state, path, deadline)
         branch = _branch(state, path, deadline)
-        dirty = bool(_git(state, path, _STATUS, deadline).strip())
+        dirty = _dirty(state, path, deadline)
         upstream = _upstream(state, path, deadline)
         ahead = behind = 0
         if upstream:
@@ -393,12 +410,15 @@ def _repository_status(state: State, path: Path) -> RepositoryStatus:
         return RepositoryStatus(path.name, path.parent.name, error=str(error), path=str(path))
 
 
-def gather_status(state: State, paths: Sequence[Path] = ()) -> list[RepositoryStatus]:
-    """Collect repository status concurrently."""
+def gather_status(state: State, paths: Sequence[Path] = (), *, fetch: bool = False) -> list[RepositoryStatus]:
+    """Collect repository status concurrently, optionally fetching (never merging) first."""
     require_tools(state, [["git"]])
     repositories = find_git_repositories(state, paths)
     return run_parallel(
-        state.runner, lambda path: _repository_status(state, path), repositories, state.config.pull.concurrency
+        state.runner,
+        lambda path: _repository_status(state, path, fetch=fetch),
+        repositories,
+        state.config.pull.concurrency,
     )
 
 
@@ -408,21 +428,25 @@ def run_status(
     as_json: bool = False,
     paths: Sequence[Path] = (),
     needs_attention: bool = False,
+    fetch: bool = False,
 ) -> list[RepositoryStatus]:
     """Render repository status for humans or scripts."""
-    status = gather_status(state, paths)
+    status = gather_status(state, paths, fetch=fetch)
     failed = any(item.error for item in status)
     visible = [item for item in status if not needs_attention or item.needs_attention]
     if as_json:
         # Healthy entries omit the empty error field.
         repositories = [
-            {key: value for key, value in asdict(item).items() if key != "error" or value} for item in visible
+            {key: value for key, value in asdict(item).items() if key != "error" or value}
+            | {"needs_attention": item.needs_attention}
+            for item in visible
         ]
         document = {
             "schema": "dot.status/v1",
             "repositories": repositories,
             "complete": not failed,
-            "remote_state": "cached",
+            "needs_attention": any(item.needs_attention for item in status),
+            "remote_state": "fetched" if fetch else "cached",
         }
         write_json(state.stdout, document)
         if failed:
@@ -431,7 +455,10 @@ def run_status(
     state.stdout.write("Git Repositories\n")
     if not status:
         state.stdout.write("  No repositories found in configured pull directories.\n")
-    state.stdout.write("  Upstream counts use cached refs; fetch explicitly to refresh.\n")
+    elif needs_attention and not visible:
+        state.stdout.write(f"  ✓ All {len(status)} repositories are clean and in sync.\n")
+    if not fetch:
+        state.stdout.write("  Upstream counts use cached refs; pass --fetch to refresh.\n")
     for item in visible:
         dirty = " [dirty]" if item.dirty else ""
         tracking = f" ahead={item.ahead} behind={item.behind}" if item.upstream else " [no upstream]"
@@ -469,12 +496,23 @@ def status_command(
     ] = None,
     as_json: JsonOption = False,
     needs_attention: Annotated[
-        bool, typer.Option("--needs-attention", help="Only show repositories requiring attention")
+        bool,
+        typer.Option(
+            "--needs-attention",
+            help="Only show repositories that are dirty, diverged, untracked, mid-operation, or failed",
+        ),
+    ] = False,
+    fetch: Annotated[
+        bool, typer.Option("--fetch", "-f", help="Fetch each remote first (never merges) so ahead/behind are current")
     ] = False,
 ) -> None:
-    run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention)
+    run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention, fetch=fetch)
 
 
 def register(parent: typer.Typer) -> None:
     parent.command("pull", help="Update configured repositories with bounded concurrency")(pull_command)
-    parent.command("status", help="Show repository status using cached upstream refs")(status_command)
+    parent.command(
+        "status",
+        help="Show repository status using cached upstream refs (--fetch refreshes them)",
+        epilog="Exit 1 when any repository cannot be inspected; --json still prints every result.",
+    )(status_command)

@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import webbrowser
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import PurePath
 from typing import Annotated, Any
 
@@ -455,31 +455,106 @@ def setup_workspace(state: State, project: str | None, *, dry_run: bool = False)
     )
 
 
-@login_app.command("workspace", help="Authenticate Workspace only when credentials or requested scopes are missing")
-def workspace(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
-    login_workspace(state_from(context), force=force, dry_run=dry_run)
+CheckLogin = Annotated[
+    bool,
+    typer.Option("--check", help="Only probe readiness and exit 1 when a login is needed; never opens a login flow"),
+]
+_LOGIN_EPILOG = "Exit 0 when ready. With --check, exit 1 when a login is needed or the state is unknown."
 
 
-@login_app.command("github", help="Ensure GitHub OAuth authentication and requested scopes")
-def github(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
-    login_github(state_from(context), force=force, dry_run=dry_run)
+def check_logins(
+    state: State, checks: Mapping[str, Callable[[], bool]], remedy: str, *, force: bool, dry_run: bool
+) -> None:
+    """Print one readiness line per provider without authenticating; any provider not ready exits 1."""
+    if force or dry_run:
+        raise typer.BadParameter("--check cannot be combined with --force or --dry-run", param_hint="--check")
+    ready = True
+    for provider, check in checks.items():
+        try:
+            verdict = "ready" if check() else "login needed"
+        except DotError as error:
+            verdict = f"unknown ({error})"
+        ready = ready and verdict == "ready"
+        print(f"{provider}: {verdict}", file=state.stdout)
+    if not ready:
+        print(f"Run {remedy} in a terminal to authenticate.", file=state.stderr)
+        raise typer.Exit(1)
 
 
-@login_app.command("gcp", help="Ensure Google Cloud and ADC both have usable credentials")
-def gcp(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
-    login_gcp(state_from(context), force=force, dry_run=dry_run)
+def _github_check(state: State, *, reconcile: bool = False) -> Callable[[], bool]:
+    return lambda: github_ready(state, github_status(state), reconcile=reconcile)
 
 
-@login_app.command("colab", help="Ensure ADC grants the Colab scopes and verify session access")
-def colab(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
-    login_colab(state_from(context), force=force, dry_run=dry_run)
+def _gcp_check(state: State) -> Callable[[], bool]:
+    return lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN) and adc_ready(state)
 
 
 @login_app.command(
-    "all", help="Reconcile GitHub, Google Cloud and ADC, then Workspace setup and login; skip what is ready"
+    "workspace",
+    help="Authenticate Workspace only when credentials or requested scopes are missing",
+    epilog=_LOGIN_EPILOG,
 )
-def login_all(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
+def workspace(
+    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
+) -> None:
     state = state_from(context)
+    if check:
+        check_logins(
+            state, {"workspace": lambda: workspace_ready(state)}, "dot login workspace", force=force, dry_run=dry_run
+        )
+        return
+    login_workspace(state, force=force, dry_run=dry_run)
+
+
+@login_app.command("github", help="Ensure GitHub OAuth authentication and requested scopes", epilog=_LOGIN_EPILOG)
+def github(
+    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
+) -> None:
+    state = state_from(context)
+    if check:
+        check_logins(state, {"github": _github_check(state)}, "dot login github", force=force, dry_run=dry_run)
+        return
+    login_github(state, force=force, dry_run=dry_run)
+
+
+@login_app.command("gcp", help="Ensure Google Cloud and ADC both have usable credentials", epilog=_LOGIN_EPILOG)
+def gcp(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False) -> None:
+    state = state_from(context)
+    if check:
+        check_logins(state, {"gcp": _gcp_check(state)}, "dot login gcp", force=force, dry_run=dry_run)
+        return
+    login_gcp(state, force=force, dry_run=dry_run)
+
+
+@login_app.command("colab", help="Ensure ADC grants the Colab scopes and verify session access", epilog=_LOGIN_EPILOG)
+def colab(
+    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
+) -> None:
+    state = state_from(context)
+    if check:
+        checks = {"colab": lambda: adc_ready(state, "colab") and colab_ready(state)}
+        check_logins(state, checks, "dot login colab", force=force, dry_run=dry_run)
+        return
+    login_colab(state, force=force, dry_run=dry_run)
+
+
+@login_app.command(
+    "all",
+    help="Reconcile GitHub, Google Cloud and ADC, then Workspace setup and login; skip what is ready",
+    epilog=_LOGIN_EPILOG + " --check covers GitHub (including removed grants), Google Cloud, and Workspace.",
+)
+def login_all(
+    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
+) -> None:
+    state = state_from(context)
+    if check:
+        checks = {
+            "github": _github_check(state, reconcile=True),
+            "gcp": _gcp_check(state),
+            "workspace": lambda: workspace_ready(state),
+        }
+        check_logins(state, checks, "dot login all", force=force, dry_run=dry_run)
+        return
     if not dry_run:
         require_tools(state, [["gh"], ["gws"], ["gcloud"]])
     project = os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project

@@ -143,9 +143,8 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
             ],
         ),
         (["config"], ["edit", "path", "show"]),
-        (["agent"], ["context", "doctor", "session", "stats", "usage"]),
+        (["agent"], ["context", "doctor", "session", "stats"]),
         (["agent", "session"], ["list", "show", "sync"]),
-        (["agent", "usage"], ["list"]),
         (["agent", "hook"], ["notify"]),
     ],
 )
@@ -168,7 +167,6 @@ def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() 
         "context",
         "doctor",
         "session",
-        "usage",
         "stats",
     }
     assert agent.commands["hook"].hidden
@@ -179,9 +177,6 @@ def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() 
     session = agent.commands["session"]
     assert isinstance(session, TyperGroup)
     assert set(session.commands) == {"list", "show", "sync"}
-    usage = agent.commands["usage"]
-    assert isinstance(usage, TyperGroup)
-    assert {name for name, child in usage.commands.items() if not child.hidden} == {"list"}
 
 
 def documented_dot_examples() -> list[str]:
@@ -220,7 +215,7 @@ def test_bare_invocation_exits_successfully_with_help(tmp_path: Path, monkeypatc
     assert "Usage: dot [OPTIONS] COMMAND [ARGS]..." in _click.utils.strip_ansi(result.stdout)
 
 
-@pytest.mark.parametrize("arguments", [["--version"], ["-v"]])
+@pytest.mark.parametrize("arguments", [["--version"], ["-V"]])
 def test_version_matches_distribution(arguments: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     result = runner.invoke(app, arguments)
@@ -536,7 +531,6 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
         ["config"],
         ["agent"],
         ["agent", "session"],
-        ["agent", "usage"],
         ["login"],
         ["setup"],
         ["prune"],

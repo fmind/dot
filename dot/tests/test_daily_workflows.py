@@ -175,7 +175,7 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
 def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     status = [repository.RepositoryStatus("repo", "work", error="inspection failed")]
-    monkeypatch.setattr(repository, "gather_status", lambda *_args: status)
+    monkeypatch.setattr(repository, "gather_status", lambda *_args, **_kwargs: status)
     result = CliRunner().invoke(app, ["status", "--json"])
     assert result.exit_code != 0
     assert json.loads(result.stdout)["complete"] is False

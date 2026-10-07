@@ -33,7 +33,7 @@ def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> N
         ["agent", "session", "show"],
         ["agent", "stats", "--since", "invalid"],
         ["agent", "stats", "--since", "2026-09-16", "--until", "2026-09-15"],
-        ["agent", "usage", "list", "--limit", "-1"],
+        ["agent", "stats", "--sessions", "--limit", "-1"],
         ["agent", "session", "list", "--limit", "-1"],
         ["agent", "stats", "--tokens-only", "--prompts-only"],
         ["agent", "stats", "--monthly", "--billing"],
@@ -60,7 +60,7 @@ def test_reports_include_whole_until_day_and_exact_timestamp() -> None:
         result = runner.invoke(app, [*command, "--since", "2026-09-15", "--until", "2026-09-15", "--json"])
         assert result.exit_code == 0, result.output
         document = json.loads(result.stdout)
-        assert document["schema"] == "dot.agent.stats/v2"
+        assert document["schema"] == "dot.agent.stats/v3"
         if "--tokens-only" not in command:
             assert document["prompts"]["prompts"] == 1
         if "--prompts-only" not in command:
@@ -103,7 +103,7 @@ def test_agent_filter_aliases_select_the_same_usage(flag: str) -> None:
             timestamp="2026-09-15T12:00:00Z", harness=agent, session_id=agent, input_tokens=10
         ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
         ingest_session(agent, agent, [], usage=record.to_dict())
-    result = CliRunner().invoke(app, ["agent", "usage", "list", flag, "codex", "--limit", "0", "--json"])
+    result = CliRunner().invoke(app, ["agent", "stats", "--sessions", flag, "codex", "--limit", "0", "--json"])
     assert result.exit_code == 0
     assert [record["harness"] for record in json.loads(result.stdout)["records"]] == ["codex"]
 
@@ -119,7 +119,11 @@ def test_invalid_config_still_blocks_archive_reads(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("command", "key"),
-    [(["agent", "session", "list"], "sessions"), (["agent", "usage", "list"], "records"), (["pull"], "repositories")],
+    [
+        (["agent", "session", "list"], "sessions"),
+        (["agent", "stats", "--sessions"], "records"),
+        (["pull"], "repositories"),
+    ],
 )
 def test_empty_json_has_versioned_envelope(command: list[str], key: str) -> None:
     result = CliRunner().invoke(app, [*command, "--json"])
@@ -157,7 +161,7 @@ def test_stats_are_readable_in_a_narrow_terminal_and_preserve_json(monkeypatch: 
     assert "\t" not in human.stdout
     assert max(map(len, human.stdout.splitlines())) <= 60
     document = json.loads(runner.invoke(app, ["agent", "stats", "--by-model", "--json"]).stdout)
-    assert document["schema"] == "dot.agent.stats/v2"
+    assert document["schema"] == "dot.agent.stats/v3"
     assert document["usage"][0]["total_tokens"] == 1234567
     assert document["usage"][0]["api_equivalent_usd"] is None
     assert document["prompts"]["prompts"] == 1

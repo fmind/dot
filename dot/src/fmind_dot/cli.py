@@ -25,6 +25,14 @@ from fmind_dot.state import State, state_from, validated_config
 
 # Plain help (non-TTY) wraps at 80 columns and truncates command summaries; Rich ignores these.
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "terminal_width": 160, "max_content_width": 160}
+# The shared contract agents need before running any command; each command's --help adds its own.
+_EPILOG = (
+    "Exit codes: 0 success; 1 failure or unhealthy result; 2 usage error; 130 cancelled. "
+    "Reports go to stdout; prompts and errors go to stderr.\n\n"
+    "Reports accept --json (-j) and print one JSON document with a versioned schema field. "
+    "Commands that change state accept --dry-run, login also --check; prune needs --yes without a terminal. "
+    "Run dot COMMAND --help for examples."
+)
 
 
 # Preserve the shell protocol used by `dot completion` without Typer's duplicate flags.
@@ -34,6 +42,7 @@ app = typer.Typer(
     cls=AlphabeticalGroup,
     name="dot",
     help="Manage workstation tools, repositories, and agent archives",
+    epilog=_EPILOG,
     invoke_without_command=True,
     no_args_is_help=False,
     add_completion=False,
@@ -58,7 +67,7 @@ def root(
     ] = None,
     version: Annotated[
         bool,
-        typer.Option("--version", "-v", callback=_version_option, is_eager=True, help="Print the version and exit"),
+        typer.Option("--version", "-V", callback=_version_option, is_eager=True, help="Print the version and exit"),
     ] = False,
 ) -> None:
     del version
