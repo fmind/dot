@@ -39,16 +39,10 @@ require("lazy").setup({
   rocks = {
     enabled = false,
   },
-  git = {
-    -- copilot.lua vendors its cross-platform LSP runtime, so a cold filtered
-    -- checkout can exceed Lazy's two-minute default on ordinary connections.
-    timeout = 600,
-  },
   install = { colorscheme = { require("config.theme") } },
-  checker = {
-    enabled = true,
-    notify = false,
-  },
+  -- `mise run upgrade` owns plugin updates and captures the lockfile into chezmoi;
+  -- in-editor updates would drift from the source and be reverted on apply.
+  checker = { enabled = false },
   performance = {
     rtp = {
       disabled_plugins = {

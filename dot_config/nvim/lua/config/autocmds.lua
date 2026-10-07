@@ -7,3 +7,14 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.opt_local.formatoptions:remove("t")
   end,
 })
+
+-- Reload files changed by agents in other panes. LazyVim only checks on FocusGained and
+-- terminal exit, which never fire while Neovim keeps focus. Insert mode is left alone.
+vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
+  group = vim.api.nvim_create_augroup("checktime_idle", { clear = true }),
+  callback = function()
+    if vim.bo.buftype == "" and vim.fn.getcmdwintype() == "" then
+      vim.cmd.checktime()
+    end
+  end,
+})
