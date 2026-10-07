@@ -48,7 +48,8 @@ FRONTMATTER_FIELDS = {
 }
 RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
 CACHE_NAMES = {".DS_Store", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
-HTML_LINK_ATTRIBUTES = {"action", "background", "cite", "data", "formaction", "href", "poster", "src", "xlink:href"}
+# Skills and root documentation link only through <a href> and <img src>; add attributes when they appear.
+HTML_LINK_ATTRIBUTES = {"href", "src"}
 MARKDOWN = MarkdownIt("commonmark")
 
 
@@ -64,49 +65,10 @@ class _HTMLTargetParser(HTMLParser):
         self._collect(tag, attrs)
 
     def _collect(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        tag = tag.lower()
-        for name, value in attrs:
-            if value is None:
-                continue
-            name = name.lower()
-            if name == "data" and tag != "object":
-                continue
-            if name in HTML_LINK_ATTRIBUTES:
-                self.targets.append(value)
-            elif name == "srcset":
-                self.targets.extend(_srcset_targets(value))
-
-
-def _srcset_targets(value: str) -> list[str]:
-    targets: list[str] = []
-    index = 0
-    while index < len(value):
-        while index < len(value) and (value[index].isspace() or value[index] == ","):
-            index += 1
-        start = index
-        while index < len(value) and not value[index].isspace():
-            index += 1
-        if start == index:
-            break
-        target = value[start:index]
-        if target.endswith(","):
-            target = target.rstrip(",")
-            if target:
-                targets.append(target)
-            continue
-        targets.append(target)
-
-        parentheses = 0
-        while index < len(value):
-            if value[index] == "(":
-                parentheses += 1
-            elif value[index] == ")" and parentheses:
-                parentheses -= 1
-            elif value[index] == "," and not parentheses:
-                index += 1
-                break
-            index += 1
-    return targets
+        del tag
+        self.targets.extend(
+            value for name, value in attrs if value is not None and name.lower() in HTML_LINK_ATTRIBUTES
+        )
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -475,16 +437,11 @@ def catalog_report(root: Path, *, details: bool = True) -> str:
     """Report reproducible discovery cost without claiming provider token counts."""
     root = root.resolve()
     discovered, _ = _discover_skills(root)
-    descriptions = {
-        name: description
-        for name, description in _descriptions(root).items()
-        if discovered[name].parent.parent == root / "skills"
-    }
+    every = _descriptions(root)
+    descriptions = {name: text for name, text in every.items() if discovered[name].parent.parent == root / "skills"}
     index_size = len(_render_global_index(descriptions))
     local_descriptions = {
-        name: description
-        for name, description in _descriptions(root).items()
-        if discovered[name].parent.parent == root / ".agents/skills"
+        name: text for name, text in every.items() if discovered[name].parent.parent == root / ".agents/skills"
     }
     local_size = sum(
         len(skill_index_entry(name, description, "local")) for name, description in local_descriptions.items()

@@ -15,11 +15,12 @@ _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
 _RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, Path("dot/uv.lock"))
 _RELEASE_CLIFF_CONFIG = Path("dot_config/git-cliff/cliff.toml")
 _CD_URL = "https://github.com/fmind/dot/actions/workflows/cd.yml"
-# Gates for the bumped release commit: the host-only completion check never runs in
-# CI, the build proves the new version packages, and the starter contracts re-resolve
-# the latest upstream packages, so an upstream break since CI stops preparation here
-# instead of failing CD after the tag consumed the version.
-_RELEASE_GATES = ("test:starters", "build", "check:completions")
+# Gates for the bumped release commit: the network scans refresh vulnerability data
+# that CD rechecks, the host-only completion check never runs in CI, the build proves
+# the new version packages, and the starter contracts re-resolve the latest upstream
+# packages, so an upstream break since CI stops preparation here instead of failing
+# CD after the tag consumed the version. None of them may depend on Git hooks.
+_RELEASE_GATES = ("check:network", "test:starters", "build", "check:completions")
 # Generous bounds for captured commands: a hung tool must fail the release instead of
 # blocking it forever. Relayed commands (gates, commit hooks, push, deploy) stream their
 # output and stay unbounded, like their CI counterparts.
@@ -77,6 +78,9 @@ def _prepare(state: State, root: Path, tag: str) -> None:
         cwd=root,
         timeout=_TOOL_TIMEOUT_SECONDS,
     )
+    # git-cliff output differs from dprint style and CD rejects a tree its formatter changes;
+    # format here rather than relying on a pre-commit hook that may not be installed.
+    state.runner.run(["dprint", "fmt", str(_RELEASE_CHANGELOG_FILE)], cwd=root, timeout=_TOOL_TIMEOUT_SECONDS)
     for task in _RELEASE_GATES:
         state.stdout.write(f"Running {task}...\n")
         state.stdout.flush()
@@ -88,7 +92,7 @@ def _prepare(state: State, root: Path, tag: str) -> None:
 
 def run_release(state: State, *, yes: bool = False, remote: str = "origin", branch: str = "main") -> str | None:
     """Prepare, validate, commit, tag, and atomically push one release."""
-    _require_tools(state, "git", "git-cliff", "mise", "uv")
+    _require_tools(state, "dprint", "git", "git-cliff", "mise", "uv")
     if _git(state, "status", "--porcelain"):
         raise DotError("working directory has uncommitted or staged changes; commit or stash them first")
     root = Path(_git(state, "rev-parse", "--show-toplevel")).absolute()

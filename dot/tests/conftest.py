@@ -19,6 +19,19 @@ def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def isolated_home(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """Point HOME at a fresh directory so no test can read or write the real archive, config, or secrets.
+
+    Tests that need their own layout still set HOME themselves. Only `real_home` tests, which run
+    repository tasks through mise shims that resolve tools from the real HOME, keep it.
+    """
+    if request.node.get_closest_marker("real_home") is None:
+        monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("home")))
+
+
+@pytest.fixture(autouse=True)
 def isolated_dot_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """CLI invocations without --config must not read the configuration the caller selected."""
     monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)

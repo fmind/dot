@@ -56,6 +56,7 @@ extend = "../ruff.toml"
 [tool.pytest]
 addopts = ["-ra"]
 filterwarnings = ["error"]
+markers = ["real_home: keep the real HOME for tests that run repository tasks through mise shims"]
 pythonpath = ["."]
 # Umbrella for strict_config, strict_markers, strict_xfail, and strict_parametrization_ids.
 strict = true

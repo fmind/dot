@@ -11,6 +11,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+# These tests run repository hooks through mise shims, which resolve tools from the real HOME.
+pytestmark = pytest.mark.real_home
+
 ROOT = Path(__file__).resolve().parents[2]
 STARTERS = {
     "python-stack": "skills/python-stack/references/foundation/templates/mise.toml",

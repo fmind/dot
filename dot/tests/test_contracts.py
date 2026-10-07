@@ -12,6 +12,7 @@ import pytest
 
 from dot_tasks import skill_contracts as checker
 from dot_tasks.mise_locks import LOCK_REVISION, bundle
+from dot_tasks.mise_refresh import validate
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -406,48 +407,13 @@ def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
     assert findings == [], "\n".join(findings)
 
 
-# Their registry entries publish no checksum; keep in step with config.toml's comment.
-UNCHECKSUMMED_GLOBAL_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
-
-
 def test_global_lock_covers_every_configured_native_platform() -> None:
-    config = tomllib.loads((ROOT / "dot_config/mise/config.toml").read_text(encoding="utf-8"))
-    document = tomllib.loads((ROOT / "dot_config/mise/mise.lock").read_text(encoding="utf-8"))
-    platforms = config["settings"]["lockfile_platforms"]
-    assert platforms
-    findings: list[str] = []
-    for name, settings in config["tools"].items():
-        version = settings.get("version", "") if isinstance(settings, dict) else settings
-        if isinstance(version, str) and version.startswith("path:"):
-            continue  # Machine-local runtime overrides do not belong in the shared lock.
-        if not document["tools"].get(name):
-            findings.append(f"{name}: not locked")
-        if name.startswith(("npm:", "pipx:")):
-            continue  # Native dependency graphs are validated by bundle() below.
-        entries = document["tools"].get(name, [])
-        allowed_os = settings.get("os") if isinstance(settings, dict) else None
-        for platform in platforms:
-            if allowed_os and platform.split("-")[0] not in allowed_os:
-                continue
-            # Platform-specific asset options produce separate lock entries, so
-            # each supported platform needs one complete artifact across them.
-            artifacts = [entry.get(f"platforms.{platform}", {}) for entry in entries]
-            if not any(artifact.get("url") for artifact in artifacts):
-                findings.append(f"{name} {platform}: no url")
-            checksummed = any(
-                str(artifact.get("checksum", "")).startswith(("sha256:", "sha512:", "blake3:"))
-                for artifact in artifacts
-            )
-            if checksummed == (name in UNCHECKSUMMED_GLOBAL_TOOLS):
-                findings.append(
-                    f"{name} {platform}: checksum {'now available; drop the exemption' if checksummed else 'missing'}"
-                )
-    assert findings == [], "\n".join(findings)
+    # The refresh task's own gate: versions, downloads, checksums, and dependency graphs.
+    validate(ROOT / "dot_config/mise")
 
 
-@pytest.mark.parametrize("relative", ["mise.lock", "dot_config/mise/mise.lock"])
-def test_mise_locks_include_valid_dependency_files(relative: str) -> None:
-    lock = ROOT / relative
+def test_repository_mise_lock_includes_valid_dependency_files() -> None:
+    lock = ROOT / "mise.lock"
     document = tomllib.loads(lock.read_text())
     assert document["lockfile_version"] == LOCK_REVISION
     files = bundle(lock)
