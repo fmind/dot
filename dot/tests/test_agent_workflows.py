@@ -368,6 +368,13 @@ def test_agy_workspace_discovered_later_recaptures_an_unchanged_transcript(
     assert (pruned.ingested, pruned.unchanged) == (0, 1)
     assert read_session_bundle(session_bundle_path("agy", "agy-cwd"))[0].cwd == "/work/project"
 
+    # A transcript that grows after the row is pruned still keeps its workspace.
+    with (store / "brain/agy-cwd/.system_generated/logs/transcript.jsonl").open("a") as handle:
+        handle.write(json.dumps({**record, "created_at": "2026-09-06T08:01:00Z", "content": "again"}) + "\n")
+    grown = sync_sessions(state, agent="agy")
+    assert grown.ingested == 1
+    assert read_session_bundle(session_bundle_path("agy", "agy-cwd"))[0].cwd == "/work/project"
+
 
 def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path

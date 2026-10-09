@@ -874,6 +874,26 @@ def test_undated_usage_without_transcript_timestamps_takes_the_source_mtime(tmp_
     assert _usage(parse_copilot_session(database, "cp-id")).timestamp == "2026-03-01T00:00:01Z"
 
 
+def test_copilot_usage_is_dated_by_the_latest_turn_of_a_resumed_session(tmp_path) -> None:
+    database = tmp_path / "copilot.db"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.executescript(
+            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
+            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
+            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
+            INSERT INTO sessions VALUES('cp-id','/repo','2026-03-01T00:00:00Z');
+            INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-03-01T00:00:01Z');
+            INSERT INTO turns VALUES(2,'cp-id',2,'again','reply','2026-03-09T00:00:00Z');
+            INSERT INTO assistant_usage_events VALUES('cp-id','gpt',10,5,0,0,0);"""
+        )
+    assert _usage(parse_copilot_session(database, "cp-id")).timestamp == "2026-03-09T00:00:00Z"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute("DELETE FROM turns")
+        connection.commit()
+    # Without dated turns, the session creation time still dates the usage.
+    assert _usage(parse_copilot_session(database, "cp-id")).timestamp == "2026-03-01T00:00:00Z"
+
+
 def test_undated_usage_without_any_remaining_source_stays_undated(tmp_path) -> None:
     # A source removed mid-sync must not crash parsing or invent a capture-time stamp.
     assert parser_module._undated_usage_timestamp([], tmp_path / "gone.jsonl", tmp_path / "signals.json") == ""  # noqa: SLF001
