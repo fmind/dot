@@ -1,13 +1,13 @@
 ---
 name: repository-review
-description: "Review code, diffs, PRs, or repos for bugs and regressions."
+description: "Read-only review of code, diffs, PRs, or repos for bugs and regressions."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-review
   created: "2026-08-01"
-  updated: "2026-10-07"
+  updated: "2026-10-09"
 ---
 
 # Repository Review

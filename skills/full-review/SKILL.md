@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-06"
+  updated: "2026-10-09"
 ---
 
 # Full Review
@@ -16,7 +16,7 @@ Answer "perform a full review", "final check before release", or "make sure ever
 
 ## Arguments
 
-Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope), mode (default fix; `report` stays read-only, skips Fix and Prove (steps 5-6), and lists findings under **Fixed** renamed **Findings**, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
+Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope), mode (default fix; `report` stays read-only, skips the Fix and Prove steps, and lists findings under **Fixed** renamed **Findings**, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
 
 ## Workflow
 

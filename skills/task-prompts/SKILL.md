@@ -1,13 +1,13 @@
 ---
 name: task-prompts
-description: "Write grounded task, delegation, and continuation prompts for coding agents."
+description: "Write grounded task and delegation prompts for coding agents."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-10-07"
+  updated: "2026-10-09"
 ---
 
 # Task and Continuation Prompts
