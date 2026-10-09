@@ -477,7 +477,10 @@ def test_doctor_github_auth_inspects_token_source(output: dict[str, str] | str, 
     assert (result["name"], result["status"], result["condition"]) == ("gh", status, condition)
     if status == "warn":
         assert "gh auth logout" in result["details"]
-    assert "private" not in json.dumps(report)
+    # macOS's legitimate disk paths start with /private; reject the fixture's sensitive values.
+    encoded = json.dumps(report)
+    for sensitive in ("private-user", "private network failure", "private-invalid-json"):
+        assert sensitive not in encoded
 
 
 @pytest.mark.parametrize(
@@ -583,7 +586,15 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     assert auth["gws"]["condition"] == "broken"
     assert "jules" not in auth
     assert results["docker"][0]["details"] == "not running"
-    assert "private" not in json.dumps(results)
+    encoded = json.dumps(results)
+    for sensitive in (
+        "private operating-system error",
+        "private-host",
+        "private adc error",
+        "unclassified private failure",
+        "private daemon failure",
+    ):
+        assert sensitive not in encoded
 
 
 def test_verify_reports_environment_and_secret_edge_cases(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
