@@ -7,7 +7,7 @@
 # patchy to gate routine upgrades on, and this is a single-user workstation. The
 # lockfile records digests for aqua/github/http downloads and conda dependencies,
 # except where the registry publishes none (acli, awscli, gcloud, sonarqube-cli,
-# ttyd): those lock only a URL and version, and test_contracts names them.
+# ttyd): those lock only a URL and version, and dot/dot_tasks/mise_refresh.py names them.
 # Newly published releases are eligible immediately. Lock revision 3 records supported
 # npm and pipx dependency graphs in locks/; keep these native files with mise.lock
 # and install with --locked. First fetches are unverified.
