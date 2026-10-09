@@ -1,7 +1,7 @@
 # chezmoi:modify-template
 {{- /* Docs: https://opencode.ai/docs/config/
        Persona (symlinked AGENTS.md) and skills (~/.agents/skills) load natively; the theme
-       lives in tui.json. Python uses ty instead of pyright; prune and formatter default off. */ -}}
+       lives in tui.json. Python uses ty instead of pyright; pruning and the formatter are enabled. */ -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://opencode.ai/config.json",

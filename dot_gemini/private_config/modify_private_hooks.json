@@ -16,4 +16,11 @@
   }
 }
 `) -}}
+{{- /* The brain's agy adapter injects its session context on a conversation's first invocation,
+       only where the brain is checked out; it is a named hook of its own, like notify. */ -}}
+{{- $agyContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/agy-context.py" -}}
+{{- if stat $agyContext -}}
+{{-   $command := printf "%s %s" $agyContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
+{{-   $_ := set $managedConfig "brain-context" (fromJson (printf `{"PreInvocation": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command))) -}}
+{{- end -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

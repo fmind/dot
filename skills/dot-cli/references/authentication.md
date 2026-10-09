@@ -15,7 +15,7 @@ The default policy covers repository, publishing, document, mail, calendar, cont
 
 ## Colab ADC
 
-ADC replaces its whole grant on every login, so `auth.gcp.adc_scopes` owns every ADC consumer's scope: gcloud's defaults (`openid`, `userinfo.email`, `cloud-platform`, `sqlservice.login`) plus `colaboratory` and the `bigquery.readonly` scope the brain's analytics sensor narrows its token to. `dot login gcp` and `dot login colab` request the same list, so neither drops the other's scopes. `dot login colab` refuses a list without the Colab scopes, then authorizes only when the scoped ADC refresh fails (or with `--force`) and verifies session access:
+ADC replaces its whole grant on every login, so `auth.gcp.adc_scopes` owns every ADC consumer's scope: gcloud's defaults (`openid`, `userinfo.email`, `cloud-platform`, `sqlservice.login`) plus `colaboratory` and the read-only scopes the brain's sensors narrow their tokens to (`bigquery.readonly`, `logging.read`, `cloud-platform.read-only`). `dot login gcp` and `dot login colab` request the same list, so neither drops the other's scopes. `dot login colab` refuses a list without the Colab scopes, then authorizes only when the scoped ADC refresh fails (or with `--force`) and verifies session access:
 
 ```bash
 gcloud auth application-default print-access-token --scopes=<auth.gcp.adc_scopes>  # readiness probe

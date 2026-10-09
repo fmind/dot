@@ -352,8 +352,10 @@ class WorkspaceConfig(StrictModel):
 
 class GcpConfig(StrictModel):
     # ADC login replaces its whole grant, so this list owns every ADC consumer's scope: gcloud's
-    # default ADC scopes plus Colab's and the BigQuery read-only scope the brain's analytics sensor
-    # narrows its token to. `dot login colab` requires the Colab scopes to stay listed.
+    # default ADC scopes plus Colab's and the read-only scopes the brain's sensors narrow their
+    # tokens to (BigQuery for analytics and costs; Logging and read-only Cloud Platform for the
+    # error collector's log reads and project listing). `dot login colab` requires the Colab
+    # scopes to stay listed.
     adc_scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
@@ -362,6 +364,8 @@ class GcpConfig(StrictModel):
             "https://www.googleapis.com/auth/sqlservice.login",
             "https://www.googleapis.com/auth/colaboratory",
             "https://www.googleapis.com/auth/bigquery.readonly",
+            "https://www.googleapis.com/auth/logging.read",
+            "https://www.googleapis.com/auth/cloud-platform.read-only",
         ],
         min_length=1,
     )
