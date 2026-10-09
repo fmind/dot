@@ -117,7 +117,7 @@ def test_mixed_models_unknown_cost_and_comparable_statistics(tmp_path: Path) -> 
 
 
 def git(path: Path, *args: str) -> str:
-    return subprocess.run(["git", *args], cwd=path, check=True, text=True, capture_output=True).stdout
+    return subprocess.run(["git", *args], cwd=path, check=True, text=True, capture_output=True, timeout=10).stdout
 
 
 def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> None:

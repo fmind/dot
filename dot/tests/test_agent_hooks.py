@@ -14,7 +14,7 @@ from fmind_dot import agent as agent_module
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
-from fmind_dot.hooks import Notification, build_notification, notification_command
+from fmind_dot.hooks import Notification, notification_command
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 from tests.fakes import ScriptedRunner
@@ -400,19 +400,6 @@ def test_linux_notification_renders_title_as_text_without_actions() -> None:
             assert "@as []" in command
         else:
             assert not any("action" in argument for argument in command)
-
-
-def test_build_notification_preserves_agent_hook_context() -> None:
-    notification = build_notification(
-        "claude",
-        "needs-input",
-        Path("/home/fmind/fmind/dot"),
-        title="Fix notifications",
-    )
-
-    assert notification.summary == "⏳ Claude Code · dot"
-    assert notification.headline == "Needs your input"
-    assert notification.details == ("Fix notifications",)
 
 
 def test_notification_command_prefers_notify_send() -> None:

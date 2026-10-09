@@ -51,7 +51,7 @@ def test_retired_repository_links_need_explicit_cleanup(
     installation: tuple[Path, Path, list[str]], rename: bool
 ) -> None:
     source, home, command = installation
-    subprocess.run(command, capture_output=True, text=True, check=True)
+    subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
     catalog = home / ".agents/skills"
     peer = catalog / "meeting-prep"
     peer.mkdir()
@@ -62,10 +62,10 @@ def test_retired_repository_links_need_explicit_cleanup(
         (source / "dot_agents/skills/symlink_python-workflow.tmpl").write_text(
             "{{ .chezmoi.sourceDir }}/skills/python-workflow\n"
         )
-    subprocess.run([*command, "--dry-run"], capture_output=True, text=True, check=True)
+    subprocess.run([*command, "--dry-run"], capture_output=True, text=True, timeout=30, check=True)
     assert (catalog / "python-stack").is_symlink()
     for _ in range(2):
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
         assert result.stderr == ""
         assert (catalog / "python-stack").is_symlink()
         assert (peer / "SKILL.md").read_text() == "# Another package\n"
@@ -90,7 +90,7 @@ def test_apply_preserves_retired_names_now_owned_elsewhere(
     installation: tuple[Path, Path, list[str]], replacement: str
 ) -> None:
     source, home, command = installation
-    subprocess.run(command, capture_output=True, text=True, check=True)
+    subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
     (source / "dot_agents/skills/symlink_python-stack.tmpl").unlink()
     target = home / ".agents/skills/python-stack"
     target.unlink()
@@ -105,7 +105,7 @@ def test_apply_preserves_retired_names_now_owned_elsewhere(
             elsewhere.mkdir(parents=True)
             (elsewhere / "SKILL.md").write_text("# Another owner\n")
         target.symlink_to(elsewhere)
-    subprocess.run(command, capture_output=True, text=True, check=True)
+    subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
     if replacement.endswith("link"):
         assert target.readlink() == elsewhere
     elif replacement == "directory":
@@ -116,17 +116,17 @@ def test_apply_preserves_retired_names_now_owned_elsewhere(
 
 def test_source_relocation_requires_explicit_link_repair(installation: tuple[Path, Path, list[str]]) -> None:
     source, home, command = installation
-    subprocess.run(command, capture_output=True, text=True, check=True)
+    subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
     moved = source.with_name("moved-source")
     source.rename(moved)
     command[command.index("--source") + 1] = str(moved)
     target = home / ".agents/skills/python-stack"
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode != 0
     assert "belongs to another source" in result.stderr
     assert target.readlink() == source / "skills/python-stack"
     target.unlink()
-    subprocess.run(command, capture_output=True, text=True, check=True)
+    subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
     assert target.readlink() == moved / "skills/python-stack"
     assert (target / "SKILL.md").read_text() == "# Fixture\n"
 
@@ -150,7 +150,7 @@ def test_apply_blocks_conflicting_skill_owners(installation: tuple[Path, Path, l
         elsewhere.mkdir()
         catalog.symlink_to(elsewhere)
         target.write_text("preserve")
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode != 0
     if conflict == "dangling-link":
         assert target.readlink() == home / "missing"
@@ -171,7 +171,7 @@ def test_apply_individual_skills_preserves_other_packages(
     independent.mkdir()
     (catalog / "meeting-prep").symlink_to(independent, target_is_directory=True)
     for _ in range(2):
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
         assert result.stderr == ""
         assert not catalog.is_symlink()
         assert (catalog / "python-stack").is_symlink()
@@ -183,7 +183,7 @@ def test_apply_individual_skills_preserves_other_packages(
     # A later repository-name collision fails even with --force and preserves the owner.
     (catalog / "python-stack").unlink()
     (catalog / "python-stack").symlink_to(independent, target_is_directory=True)
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode != 0
     assert "belongs to another source" in result.stderr
     assert (catalog / "python-stack").resolve() == independent
@@ -226,7 +226,7 @@ def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path,
     catalog = home / ".agents/skills"
     catalog.parent.mkdir()
     catalog.symlink_to(source / "skills", target_is_directory=True)
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode != 0
     assert "must be a real directory" in result.stderr
     assert catalog.is_symlink()
@@ -242,7 +242,7 @@ def test_existing_host_skill_directory_blocks_forced_apply(
     owned.mkdir(parents=True)
     (owned / "SKILL.md").write_text("# Personal\n")
 
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
 
     assert result.returncode != 0
     assert f"~/{link} already exists" in result.stderr
