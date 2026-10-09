@@ -95,6 +95,7 @@ class HarnessConfigTests(unittest.TestCase):
                 input=content,
                 encoding="utf-8",
                 capture_output=True,
+                timeout=30,
                 check=True,
                 env=environment,
             )
@@ -455,6 +456,8 @@ sessions = false
         fresh = json.loads(self.render(template, ""))
         assert fresh["model"] == "auto"
         assert fresh["effortLevel"] == "high"
+        # Base-16 terminal colors follow the Ghostty palette.
+        assert fresh["theme"] == "default"
 
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
         template = "dot_gemini/antigravity-cli/modify_private_settings.json"
@@ -721,8 +724,7 @@ sessions = false
         ]
 
         grok = json.loads(self.render("dot_grok/hooks/hooks.json.tmpl", ""))["hooks"]
-        assert set(grok) == {"Notification", "Stop"}
-        assert grok["Stop"] == []
+        assert set(grok) == {"Notification"}
         assert grok["Notification"][0]["matcher"] == "^(permission_prompt|elicitation_dialog)$"
         assert grok["Notification"][1]["matcher"] == "^idle_prompt$"
 
