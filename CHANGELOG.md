@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.1.0] - 2026-10-09
+
+### 🚀 Features
+
+- Improve workstation diagnostics and dot shortcuts
+
+### 🐛 Bug Fixes
+
+- _(pricing)_ Correct Sonnet 5.5 cache read estimates
+- Align provider scopes and agent context hooks
+
 ## [11.0.2] - 2026-10-07
 
 ### ♻️ Refactor
