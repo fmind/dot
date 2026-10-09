@@ -296,11 +296,13 @@ def sync_sessions(
                     if not cwd or previous.cwd == cwd:
                         counts.unchanged += 1
                     continue
-                parsed, observed = _stable_parse(adapter, path, session_id, source_cwd, signature)
+                # A grown transcript keeps the captured workspace after its metadata row is pruned.
+                parse_cwd = source_cwd or (previous.cwd if adapter.external_cwd and previous else "")
+                parsed, observed = _stable_parse(adapter, path, session_id, parse_cwd, signature)
                 if not adapter.database and observed != signature:
                     # The retry parsed a newer stable source; record that file evidence instead.
                     stored_signature = observed + stored_signature[len(signature) :]
-                parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), source_cwd)
+                parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), parse_cwd)
                 if cwd and resolve_cwd(parsed_cwd) != cwd:
                     continue
                 counts.selected += 1

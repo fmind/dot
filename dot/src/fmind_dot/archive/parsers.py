@@ -935,7 +935,9 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
         connection.execute("BEGIN")
         rows, logs = _copilot_turns(connection, session_id, cwd)
         try:
-            usage = _extract_copilot_usage(connection, session_id, cwd, _undated_usage_timestamp(logs, path))
+            usage = _extract_copilot_usage(
+                connection, session_id, cwd, _undated_usage_timestamp(logs), _undated_usage_timestamp([], path)
+            )
             usage_error = None
         except (sqlite3.Error, ValueError) as error:
             usage = None
@@ -968,7 +970,7 @@ _COPILOT_TOKEN_FIELDS = (
 
 
 def _extract_copilot_usage(
-    connection: sqlite3.Connection, session_id: str, cwd: str, fallback_timestamp: str
+    connection: sqlite3.Connection, session_id: str, cwd: str, latest_turn: str, fallback_timestamp: str
 ) -> UsageRecord | None:
     rows = connection.execute(
         """SELECT model, input_tokens, output_tokens, cache_read_tokens,
@@ -983,11 +985,13 @@ def _extract_copilot_usage(
         session_id=session_id,
         cwd=resolve_cwd(cwd),
         measurement_kind="provider-reported",
+        # Usage is per session, so date it by its last activity; a resumed session belongs to the period of use.
+        timestamp=latest_turn,
     )
     if session is not None:
         if not record.cwd:
             record.cwd = resolve_cwd(session["cwd"] or "")
-        record.timestamp = session["created_at"] or ""
+        record.timestamp = record.timestamp or session["created_at"] or ""
     for row in rows:
         if row["model"]:
             record.observe_model(str(row["model"]))
