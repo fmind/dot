@@ -9,7 +9,7 @@ Deleting or renaming a chezmoi source never removes what an earlier apply deploy
 
 ## Workflow
 
-1. **List**: run `dot orphan` (or `dot orphan --json`: `dot.orphan/v1` with `.targets[]` of `path`, `type`, `status`) after removing or renaming sources, after a release that retired files, or when a machine behaves as if an old config is still active. It needs `chezmoi` and reads `chezmoi state dump` plus `chezmoi managed`; it prints paths only, never contents.
+1. **List**: `dot doctor` warns with a count (`mise run upgrade` already retires superseded `~/.config/mise/locks` graphs); run `dot orphan` (or `dot orphan --json`: `dot.orphan/v1` with `.targets[]` of `path`, `type`, `status`) after removing or renaming sources, after a release that retired files, or when a machine behaves as if an old config is still active. It needs `chezmoi` and reads `chezmoi state dump` plus `chezmoi managed`; it prints paths only, never contents.
 1. **Read the status**:
    - `unchanged`: the file or symlink still holds chezmoi's last write, so nothing else has claimed it. Usually a safe leftover.
    - `modified`: changed since chezmoi wrote it. Another owner may now manage the path (a tool's own state file, a brain's timer, a `dot trust` target); inspect before touching it.

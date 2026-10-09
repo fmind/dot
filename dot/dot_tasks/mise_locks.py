@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
+import sys
 import tomllib
 from pathlib import Path
 
@@ -70,3 +72,54 @@ def capture(source: Path, destination: Path) -> None:
         while parent != destination.parent and not any(parent.iterdir()):
             parent.rmdir()
             parent = parent.parent
+
+
+def retire(lock: Path) -> list[Path]:
+    """Remove deployed graph directories that the lock no longer references.
+
+    chezmoi never deletes a target whose source was removed, so each upgrade otherwise
+    leaves the previous versions' graphs behind. Only locks/<tool>/<version> directories
+    holding nothing but generated graph files are removed; anything else is kept.
+    """
+    referenced = {path.parent for path in bundle(lock, verify=False) if path.parts[:1] == ("locks",)}
+    generated = {name for names in _GRAPH_FILES.values() for name in names}
+    retired = []
+    for directory in sorted((lock.parent / "locks").glob("*/*")):
+        relative = directory.relative_to(lock.parent)
+        if (
+            relative in referenced
+            or any((lock.parent / parent).is_symlink() for parent in (relative, *relative.parents))
+            or not directory.is_dir()
+        ):
+            continue
+        entries = list(directory.iterdir())
+        if any(entry.is_symlink() or not entry.is_file() or entry.name not in generated for entry in entries):
+            continue
+        for entry in entries:
+            entry.unlink()
+        directory.rmdir()
+        if not any(directory.parent.iterdir()):
+            directory.parent.rmdir()
+        retired.append(relative)
+    return retired
+
+
+def main() -> int:
+    """Retire stale graphs next to a deployed global lock."""
+    parser = argparse.ArgumentParser(
+        description="Remove deployed dependency graphs that mise.lock no longer references."
+    )
+    parser.add_argument("lock", type=Path, help="deployed global mise.lock")
+    arguments = parser.parse_args()
+    try:
+        retired = retire(arguments.lock)
+    except (OSError, ValueError) as error:
+        sys.stderr.write(f"Cannot retire mise dependency graphs: {error}\n")
+        return 1
+    for relative in retired:
+        sys.stdout.write(f"Retired {arguments.lock.parent / relative}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

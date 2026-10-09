@@ -85,6 +85,8 @@ mise run apply
 
 The [Dot CLI guide](skills/dot-cli/SKILL.md) covers commands, diagnostics, and recovery.
 
+Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repository status with fetch, `hp` → pull, `ho` → orphans, `hc` → caches, and `ha` → agent statistics.
+
 ### Dot configuration
 
 Machine-local settings live in `~/.config/dot.yaml` and merge with [built-in defaults](dot/src/fmind_dot/config.py). Configuration selection is `dot --config <path>` → `DOT_CONFIG_PATH` → the default path. A missing default file is fine; a missing explicitly selected file is an error.
@@ -99,13 +101,13 @@ Usage reports distinguish token counts and estimated API value from actual costs
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command            | Purpose                                                              |
-| ------------------ | -------------------------------------------------------------------- |
-| `mise run diff`    | Preview dotfile changes                                              |
-| `mise run apply`   | Apply files and eligible hooks                                       |
-| `mise run full`    | Synchronize files, locked tools, CLI, and completions                |
-| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply and reinstall |
-| `mise run all`     | Format, check, test, and build the repository                        |
+| Command            | Purpose                                                                                       |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `mise run diff`    | Preview dotfile changes                                                                       |
+| `mise run apply`   | Apply files and eligible hooks                                                                |
+| `mise run full`    | Synchronize files, locked tools, CLI, and completions                                         |
+| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply, reinstall, and retire old lock graphs |
+| `mise run all`     | Format, check, test, and build the repository                                                 |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 

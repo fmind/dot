@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from dot_tasks.mise_locks import bundle, capture
+from dot_tasks.mise_locks import bundle, capture, retire
 
 
 def _lock(root: Path, version: str = "1.0", backend: str = "uv") -> Path:
@@ -100,3 +100,45 @@ def test_capture_repairs_damaged_destination(tmp_path: Path, damage: str) -> Non
         graph.write_text("damaged\n")
     capture(source, destination)
     assert bundle(destination) == bundle(source)
+
+
+def test_retire_removes_only_unreferenced_generated_graphs(tmp_path: Path) -> None:
+    lock = _lock(tmp_path, "2.0")
+    stale = tmp_path / "locks/example/1.0"
+    stale.mkdir()
+    (stale / "uv.lock").write_text("old")
+    retired_tool = tmp_path / "locks/removed/0.1"
+    retired_tool.mkdir(parents=True)
+    (retired_tool / "package.json").write_text("{}")
+    personal = tmp_path / "locks/personal/0.1"
+    personal.mkdir(parents=True)
+    (personal / "notes.txt").write_text("keep")
+    (tmp_path / "locks/personal.txt").write_text("keep")
+
+    assert retire(lock) == [Path("locks/example/1.0"), Path("locks/removed/0.1")]
+    assert not stale.exists()
+    assert not retired_tool.parent.exists()
+    assert (personal / "notes.txt").read_text() == "keep"
+    assert (tmp_path / "locks/personal.txt").read_text() == "keep"
+    assert bundle(lock)
+    assert retire(lock) == []
+
+
+@pytest.mark.parametrize("linked", ["locks", "locks/personal", "locks/personal/1.0"])
+def test_retire_preserves_graphs_under_symlinked_directories(tmp_path: Path, linked: str) -> None:
+    deployed = tmp_path / "deployed"
+    deployed.mkdir()
+    lock = deployed / "mise.lock"
+    lock.write_text("lockfile_version = 3\n[tools]\n")
+    target = deployed / linked
+    target.parent.mkdir(parents=True, exist_ok=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    target.symlink_to(outside, target_is_directory=True)
+    graph = deployed / "locks/personal/1.0/uv.lock"
+    graph.parent.mkdir(parents=True, exist_ok=True)
+    graph.write_text("keep")
+
+    assert retire(lock) == []
+    assert target.is_symlink()
+    assert graph.read_text() == "keep"
