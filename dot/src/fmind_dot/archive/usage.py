@@ -376,7 +376,7 @@ def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: 
         raise ValueError(
             f"invalid time {value!r}; use a duration (24h), a day count (7d), or a date (2006-01-02)"
         ) from error
-    if end_of_day and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+    if end_of_day and re.fullmatch(r"\d{4}-?\d{2}-?\d{2}", value):
         parsed = parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
