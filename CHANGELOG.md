@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.1.1] - 2026-10-09
+
+### 🐛 Bug Fixes
+
+- _(ci)_ Check sensitive values without rejecting macOS paths
+
 ## [11.1.0] - 2026-10-09
 
 ### 🚀 Features
