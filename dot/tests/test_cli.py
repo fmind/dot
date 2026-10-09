@@ -35,13 +35,14 @@ def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch
     assert "--show-completion" not in result.stdout
     for command in (
         "agent",
-        "completion",
         "config",
         "doctor",
         "pull",
         "status",
     ):
         assert command in result.stdout
+    # Repository tasks and release gates call `dot completion`; it stays out of everyday help.
+    assert not re.search(r"^\s*completion\s", result.stdout, flags=re.MULTILINE)
     for removed in (
         "context",
         "help",
@@ -118,7 +119,7 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
     }
     visible = [name for name in command.list_commands(_click.Context(command)) if not command.commands[name].hidden]
 
-    assert set(visible) == expected
+    assert set(visible) == expected - {"completion"}
     assert set(command.commands) == expected
 
 
@@ -130,7 +131,6 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
             [
                 "agent",
                 "cache",
-                "completion",
                 "config",
                 "doctor",
                 "login",

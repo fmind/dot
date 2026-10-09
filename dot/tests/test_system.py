@@ -25,6 +25,12 @@ from fmind_dot.system import run_doctor
 from tests.fakes import ScriptedRunner, doctor_sections
 
 
+@pytest.fixture(autouse=True)
+def ample_disk(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Doctor verdicts must not depend on the test host's free disk; disk tests override this."""
+    monkeypatch.setattr(system.shutil, "disk_usage", _disk(30))
+
+
 def test_verify_fails_closed_for_required_environment_and_tools(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -914,3 +920,53 @@ def test_verify_skips_docker_service_when_engine_is_absent() -> None:
         {"name": "docker", "status": "skip", "condition": "skipped", "details": "not installed (optional)"}
     ]
     assert results["passed"] is True
+
+
+@pytest.mark.parametrize(
+    ("free_gib", "status", "passed"),
+    [(30, "pass", True), (15, "warn", True), (5, "fail", False)],
+)
+def test_doctor_checks_disk_and_points_to_cleanup(
+    monkeypatch: pytest.MonkeyPatch, free_gib: float, status: str, passed: bool
+) -> None:
+    monkeypatch.setattr(system.shutil, "disk_usage", _disk(free_gib))
+
+    results = doctor_sections(run_doctor(state_with(ScriptedRunner(set()), _minimal_verify_config()), fix=False))
+
+    assert {item["name"] for item in results["resources"]} == {"disk"}
+    assert {item["status"] for item in results["resources"]} == {status}
+    assert all(("dot prune" in item["details"]) == (status != "pass") for item in results["resources"])
+    assert results["passed"] is passed
+
+
+def test_doctor_counts_chezmoi_orphans_without_failing(tmp_path: Path) -> None:
+    leftover = tmp_path / "leftover"
+    leftover.write_text("old", encoding="utf-8")
+    managed = tmp_path / "managed"
+    managed.write_text("new", encoding="utf-8")
+    entries = {str(leftover): {"type": "file"}, str(managed): {"type": "file"}}
+
+    def chezmoi(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
+        del cwd, input_text, check
+        if args[:2] == ["chezmoi", "state"]:
+            return CommandResult(json.dumps({"entryState": entries}), "", 0)
+        if args[:2] == ["chezmoi", "managed"]:
+            return CommandResult(f"{managed}\0", "", 0)
+        return CommandResult("", "", 1)
+
+    runner = ScriptedRunner({"chezmoi"}, run=chezmoi)
+    found = doctor_sections(run_doctor(state_with(runner, _minimal_verify_config()), fix=False))
+    orphans = [item for item in found["install"] if item["name"] == "chezmoi orphans"]
+    assert orphans == [
+        {
+            "name": "chezmoi orphans",
+            "status": "warn",
+            "condition": "orphaned",
+            "details": "1 target(s) chezmoi no longer manages; review with `dot orphan`",
+        }
+    ]
+    assert found["passed"] is True
+
+    leftover.unlink()
+    clean = doctor_sections(run_doctor(state_with(runner, _minimal_verify_config()), fix=False))
+    assert [item["status"] for item in clean["install"] if item["name"] == "chezmoi orphans"] == ["pass"]

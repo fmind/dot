@@ -17,7 +17,7 @@ def test_fish_aliases_load_without_errors() -> None:
             "--no-config",
             "--interactive",
             "--command",
-            "source dot_config/fish/conf.d/aliases.fish; abbr --query a ac ai ap ar i k ux vd vs",
+            "source dot_config/fish/conf.d/aliases.fish; abbr --query a ac ai ap h ha hc hd hh ho hp hs i k ux vd vi",
         ],
         cwd=root,
         stdin=subprocess.DEVNULL,

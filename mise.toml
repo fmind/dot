@@ -391,6 +391,8 @@ run = [
   "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
   # Publish the complete bundle before installation; rerun tools after a failed install.
   "mise run tools",
+  # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs.
+  'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "dprint config update --yes",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",

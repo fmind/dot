@@ -9,7 +9,6 @@ if status is-interactive
     abbr -a b bat
     # c:gcloud
     abbr -a c gcloud
-    abbr -a cl "gcloud auth login --update-adc"
     # d:docker
     abbr -a d docker
     # e:lazydocker
@@ -19,8 +18,16 @@ if status is-interactive
     # g:git
     abbr -a g git
     abbr -a gd gh-dash
-    # h:lazygit
-    abbr -a h lazygit
+    abbr -a gl lazygit
+    # h:dot
+    abbr -a h dot
+    abbr -a ha "dot agent stats"
+    abbr -a hc "dot cache"
+    abbr -a hd "dot doctor"
+    abbr -a hh "dot doctor --headroom"
+    abbr -a ho "dot orphan"
+    abbr -a hp "dot pull"
+    abbr -a hs "dot status --fetch --needs-attention"
     # i:fastfetch
     abbr -a i fastfetch
     # j:bf
@@ -64,7 +71,7 @@ if status is-interactive
     abbr -a uf "uv run --frozen"
     abbr -a ur "uv run"
     abbr -a ux uvx
-    # v:nvim (piped stdin opens as a buffer: `cat a.txt | v`)
+    # v:nvim
     abbr -a v nvim
     abbr -a vd "nvim -d"
     abbr -a vi nvim

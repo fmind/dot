@@ -1,6 +1,6 @@
 # AGENTS.md Guidance
 
-Keep each instruction layer focused: the global persona owns durable personal preferences, project instructions own repository invariants, and skills own reusable procedures.
+Keep each instruction layer focused: the global persona owns durable personal preferences, project instructions own repository invariants, and skills own reusable procedures. Lead every rule with a bold summary, `**<2–6 word rule>**: <detail>`, stating the rule rather than its topic, so reading only the bold conveys every rule; reference entries (workflows, paths, fields) may lead with their name, and link lists need none.
 
 ## Global persona
 

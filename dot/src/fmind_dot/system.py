@@ -28,6 +28,7 @@ from fmind_dot.auth import (
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
+from fmind_dot.orphan import find_orphans
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import CommandResult, Runner, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
@@ -470,12 +471,37 @@ def _headroom_line(results: list[CheckResult]) -> str:
     return line
 
 
+def _resource_results() -> list[CheckResult]:
+    """Disk only: available memory is momentary, so it stays a --headroom pre-job check."""
+    remedy = "inspect with `dot cache`, reclaim with `dot prune`"
+    return [
+        item if item.status == "pass" else replace(item, details=f"{item.details}; {remedy}")
+        for item in headroom_results()
+        if item.name == "disk"
+    ]
+
+
+def _orphan_results(state: State) -> list[CheckResult]:
+    name = "chezmoi orphans"
+    if state.runner.which("chezmoi") is None:
+        return [CheckResult(name, "skip", "chezmoi not installed", condition="skipped")]
+    try:
+        orphans = find_orphans(state)
+    except DotError, OSError:
+        return [CheckResult(name, "warn", "could not read chezmoi state", condition="unknown")]
+    if not orphans:
+        return [CheckResult(name, "pass", "none", condition="healthy")]
+    details = f"{len(orphans)} target(s) chezmoi no longer manages; review with `dot orphan`"
+    return [CheckResult(name, "warn", details, condition="orphaned")]
+
+
 # Report order and headings; each key is the `group` of its checks in --json output.
 _DOCTOR_GROUPS = {
     "env_vars": "Environment Variables",
     "auth": "CLI Authentication",
     "secrets": "Secrets & Encryption",
     "docker": "System Services",
+    "resources": "System Resources",
     "tools": "CLI Tools",
     "install": "Install Freshness",
 }
@@ -489,8 +515,9 @@ def run_doctor(state: State, *, fix: bool, deep: bool = False) -> list[CheckResu
         else [CheckResult("authentication", "skip", "use --deep to probe providers")],
         "secrets": _secret_results(state, fix=fix),
         "docker": _docker_results(state),
+        "resources": _resource_results(),
         "tools": _tool_results(state),
-        "install": _install_results(state),
+        "install": [*_install_results(state), *_orphan_results(state)],
     }
     return [replace(item, group=group) for group, items in sections.items() for item in items]
 
@@ -509,6 +536,8 @@ def register(app: typer.Typer) -> None:
         "completion",
         help="Generate and validate Fish completions",
         epilog="Exit 1 when any generator fails; the scripts that succeeded are still installed.",
+        # `mise run completions` and the release gate own this; keep it out of everyday help.
+        hidden=True,
     )
     def completion(
         context: typer.Context,
@@ -522,8 +551,8 @@ def register(app: typer.Typer) -> None:
     @app.command(
         "doctor",
         help="Check local workstation health; --deep also probes authentication",
-        epilog=f"Exit 1 on any failed check. --headroom fails below {_DISK_FAIL_GIB} GiB free disk "
-        f"(warns below {_DISK_WARN_GIB}) or {_MEMORY_FAIL_GIB} GiB available memory.",
+        epilog=f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free "
+        f"(warns below {_DISK_WARN_GIB}). --headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory.",
     )
     def doctor(
         context: typer.Context,

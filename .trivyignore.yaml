@@ -28,8 +28,8 @@ vulnerabilities:
     paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
     statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
     expired_at: 2027-01-02
-  # cf 1.0.0-beta.12 pins miniflare 5.20260930.0-alpha, and every miniflare release through
-  # 5.20261006.0-alpha pins sharp 0.35.4 exactly, so no lock refresh can resolve 0.35.5 yet.
+  # cf 1.0.0-beta.13 pins miniflare 5.20261006.0-alpha, which pins sharp 0.35.4 exactly,
+  # so no lock refresh can resolve 0.35.5 yet.
   - id: GHSA-wq5f-xc86-pv6w
     paths: ["dot_config/mise/locks/npm-cf/*/aube-lock.yaml"]
     statement: sharp decodes SVG only in miniflare's local Images emulation of the user's own Workers.
