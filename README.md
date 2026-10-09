@@ -85,7 +85,7 @@ mise run apply
 
 The [Dot CLI guide](skills/dot-cli/SKILL.md) covers commands, diagnostics, and recovery.
 
-Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repository status with fetch, `hp` → pull, `ho` → orphans, `hc` → caches, and `ha` → agent statistics.
+Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repositories needing attention (with fetch), `hp` → pull, `ho` → orphans, `hc` → caches, and `ha` → agent statistics.
 
 ### Dot configuration
 
@@ -121,7 +121,7 @@ Run these from the checkout; `mise tasks` lists every task and alias.
   >
 </a>
 
-Shared roles (code and security reviewers, content editor, and deep researcher) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. Edit [shared Supagents sources](dot_agents/supagents/), run `mise run format:agents`, then preview and apply the affected chezmoi files. `mise run check:agents` rejects source warnings and missing, changed, or obsolete generated profiles, and shows their diffs. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
+Shared roles (code and security reviewers, content editor, and deep researcher) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
 
 ## Agent skills
 
