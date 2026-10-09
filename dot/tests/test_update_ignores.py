@@ -43,8 +43,10 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "# Python\n__pycache__/\n.venv/\nnode_modules/\n__pycache__/\n.claude/\n*.log\n!keep.log\n"
     )
     (root / ".ignore").write_text("uv.lock\n__pycache__/\nmissing/\n")
-    subprocess.run(["git", "init", "-q", str(root)], check=True)
-    subprocess.run(["git", "-C", str(root), "add", "src/app.py", "uv.lock", "keep.log", ".gitignore"], check=True)
+    subprocess.run(["git", "init", "-q", str(root)], timeout=10, check=True)
+    subprocess.run(
+        ["git", "-C", str(root), "add", "src/app.py", "uv.lock", "keep.log", ".gitignore"], timeout=10, check=True
+    )
     return root
 
 

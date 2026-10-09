@@ -159,22 +159,17 @@ def test_skills_contract_rejects_non_regular_and_symlinked_resources(tmp_path: P
     assert any("non-regular resource" in finding for finding in findings)
 
 
-def test_skills_contract_rejects_symlinked_skill_root(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "entrypoint",
+    ["---\nname: linked\ndescription: Linked fixture.\n---\n", "foreign package\n"],
+    ids=["skill", "foreign"],
+)
+def test_skills_contract_rejects_symlinked_skill_root(tmp_path: Path, entrypoint: str) -> None:
     root = _fixture_repository(tmp_path)
     target = root / "outside"
     target.mkdir()
-    (target / "SKILL.md").write_text("---\nname: linked\ndescription: Linked fixture.\n---\n", encoding="utf-8")
+    (target / "SKILL.md").write_text(entrypoint, encoding="utf-8")
     (root / "skills/linked").symlink_to(target, target_is_directory=True)
-
-    assert any("symbolic link" in finding for finding in checker.repository_findings(root))
-
-
-def test_skills_contract_rejects_untracked_foreign_skill_root(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    target = root / "foreign"
-    target.mkdir()
-    (target / "SKILL.md").write_text("foreign package\n", encoding="utf-8")
-    (root / "skills/foreign").symlink_to(target, target_is_directory=True)
 
     assert any("symbolic link" in finding for finding in checker.repository_findings(root))
 
