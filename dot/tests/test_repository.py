@@ -423,13 +423,7 @@ def test_status_emits_machine_readable_repository_state(tmp_path: Path) -> None:
 
 
 def test_status_omits_empty_optional_json_fields(tmp_path: Path) -> None:
-    docker_info = (
-        "/tools/docker",
-        "info",
-        "--format",
-        "{{.Name}} (Containers: {{.Containers}}, Running: {{.ContainersRunning}})",
-    )
-    runner = RecordingRunner({docker_info: [result("")]}, {"git", "docker"})
+    runner = RecordingRunner({}, {"git"})
     config = Config(pull=PullConfig(directories=[str(tmp_path)]))
     state = state_with(runner, config)
 
@@ -489,7 +483,10 @@ def test_status_fetch_failure_marks_inspection_incomplete(tmp_path: Path) -> Non
         run_status(state, fetch=True)
 
     assert isinstance(state.stdout, io.StringIO)
-    assert "failed to fetch repository" in state.stdout.getvalue()
+    output = state.stdout.getvalue()
+    assert "failed to fetch repository" in output
+    assert "no upstream" not in output
+    assert " \n" not in output
 
 
 def test_status_needs_attention_confirms_an_all_clear_workspace(tmp_path: Path) -> None:
@@ -580,8 +577,7 @@ def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path)
     assert "Push failed" in state.stdout.getvalue()
 
 
-@pytest.mark.parametrize("has_upstream", [False, True])
-def test_pull_classifies_fetch_failure_by_upstream_state(tmp_path: Path, has_upstream: bool) -> None:
+def test_pull_reports_a_fetch_failure_before_inspecting_the_upstream(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
@@ -590,9 +586,6 @@ def test_pull_classifies_fetch_failure_by_upstream_state(tmp_path: Path, has_ups
             ("git", "branch", "--show-current"): [result("main\n")],
             ("git", "--no-optional-locks", "status", "--porcelain"): [result()],
             ("git", "fetch", "--prune"): [result(returncode=1)],
-            ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): [
-                result("origin/main\n" if has_upstream else "", returncode=0 if has_upstream else 128)
-            ],
         },
         {"git"},
     )
@@ -601,6 +594,7 @@ def test_pull_classifies_fetch_failure_by_upstream_state(tmp_path: Path, has_ups
 
     with pytest.raises(DotError, match="failed to pull 1 repositories"):
         run_pull(state)
+    assert not any("@{u}" in command for command, _, _ in runner.calls)
     assert isinstance(state.stdout, io.StringIO)
     assert "failed to fetch repository" in state.stdout.getvalue()
     assert "skipped" not in state.stdout.getvalue()
@@ -668,23 +662,11 @@ def test_status_human_output_shows_dirty_repository_without_probing_docker(tmp_p
     assert "work/sample [main] [dirty]" in state.stdout.getvalue()
 
 
-def test_status_json_reports_probe_and_repository_failures(tmp_path: Path) -> None:
+def test_status_json_reports_repository_failures(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    docker_info = (
-        "/tools/docker",
-        "info",
-        "--format",
-        "{{.Name}} (Containers: {{.Containers}}, Running: {{.ContainersRunning}})",
-    )
-    runner = RecordingRunner(
-        {
-            docker_info: [result(returncode=1)],
-            ("git", "branch", "--show-current"): [result(returncode=1)],
-        },
-        {"git", "docker"},
-    )
+    runner = RecordingRunner({("git", "branch", "--show-current"): [result(returncode=1)]}, {"git"})
     state = state_with(runner, Config(pull=PullConfig(directories=[str(workspace)])))
 
     with pytest.raises(DotError, match="inspection is incomplete"):
@@ -724,6 +706,18 @@ def test_status_human_output_reports_empty_workspace(tmp_path: Path) -> None:
         (
             "fatal: unable to access 'https://x/': Could not resolve host: x\n",
             "git fetch failed (128): network unavailable",
+        ),
+        (
+            "fatal: unable to access 'https://x/': The requested URL returned error: 403\n",
+            "git fetch failed (128): authentication failed",
+        ),
+        (
+            "git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.\n",
+            "git fetch failed (128): authentication failed",
+        ),
+        (
+            "error: cannot open '.git/FETCH_HEAD': Permission denied\n",
+            "git fetch failed (128): error: cannot open '.git/FETCH_HEAD': Permission denied",
         ),
         (
             "error: https://user:ghp_0123456789abcdefghijklmnopqrstuvwxyz@host/r odd\nsecond line\n",

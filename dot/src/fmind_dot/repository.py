@@ -72,7 +72,9 @@ _GIT_FAILURE_CAUSES = (
         "authentication failed",
         (
             "authentication failed",
-            "permission denied",
+            "permission denied (publickey",
+            "returned error: 401",
+            "returned error: 403",
             "could not read username",
             "terminal prompts disabled",
             "invalid username or password",
@@ -110,11 +112,11 @@ def git_failure(arguments: Sequence[str], result: CommandResult) -> str:
     return f"git {subcommand} failed ({result.returncode})" + (f": {cause}" if cause else "")
 
 
-def _git(state: State, path: Path, arguments: Sequence[str], deadline: float, *, check: bool = True) -> str:
+def _git(state: State, path: Path, arguments: Sequence[str], deadline: float) -> str:
     result = state.runner.run(
         ["git", *arguments], cwd=path, env=_GIT_ENVIRONMENT, timeout=_remaining_timeout(deadline), check=False
     )
-    if check and result.returncode:
+    if result.returncode:
         raise DotError(git_failure(arguments, result))
     return result.stdout
 
@@ -461,10 +463,11 @@ def run_status(
         state.stdout.write("  Upstream counts use cached refs; pass --fetch to refresh.\n")
     for item in visible:
         dirty = " [dirty]" if item.dirty else ""
-        tracking = f" ahead={item.ahead} behind={item.behind}" if item.upstream else " [no upstream]"
-        state.stdout.write(
-            f"  ▶ {item.parent}/{item.name} [{item.branch or 'error'}]{dirty}{tracking} {item.operation}\n"
+        tracking = (
+            "" if item.error else f" ahead={item.ahead} behind={item.behind}" if item.upstream else " [no upstream]"
         )
+        operation = f" {item.operation}" if item.operation else ""
+        state.stdout.write(f"  ▶ {item.parent}/{item.name} [{item.branch or 'error'}]{dirty}{tracking}{operation}\n")
         if item.error:
             state.stdout.write(f"    ✗ {item.error}\n")
     if failed:
