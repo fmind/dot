@@ -277,6 +277,18 @@ def test_rate_card_prices_current_models(harness: str, model: str) -> None:
     )
 
 
+def test_sonnet_5_5_cache_hits_use_the_published_discount() -> None:
+    usage = UsageRecord(
+        harness="claude",
+        session_id="cached",
+        model="claude-sonnet-5-5",
+        measurement_kind="provider-reported",
+        cached_tokens=1_000_000,
+    ).finalize(fallback_timestamp="2026-10-09T00:00:00Z")
+
+    assert api_equivalent(usage, default_pricing()) == (pytest.approx(0.1), "")
+
+
 @pytest.mark.parametrize("sampled", [False, True], ids=["session-measurement", "request-measurement"])
 def test_public_stats_leave_unproven_legacy_zero_unpriced_without_changing_archive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sampled: bool
