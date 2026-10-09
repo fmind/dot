@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.1.2] - 2026-10-09
+
+### 🐛 Bug Fixes
+
+- _(archive)_ Date Copilot usage by its latest turn and keep agy workspaces
+- _(usage)_ Treat compact dates as whole days for end bounds
+- _(release)_ Report recovery steps when tagging fails
+- _(status)_ Classify auth failures narrowly and tidy failed rows
+- _(config)_ Follow terminal theme in Copilot and drop empty Grok Stop hook
+
+### 📚 Documentation
+
+- Sync persona and skills with current behavior
+
+### 🧪 Testing
+
+- Bound subprocess calls and merge duplicate cases
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Update neovim to 0.12.6
+
 ## [11.1.1] - 2026-10-09
 
 ### 🐛 Bug Fixes
