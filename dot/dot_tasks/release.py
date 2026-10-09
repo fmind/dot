@@ -139,13 +139,20 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
         generated = [str(path) for path in _RELEASE_GENERATED_FILES]
         state.runner.run(["git", "restore", "--staged", "--worktree", "--", *generated], cwd=root, check=False)
         raise
-    _git(state, "tag", "-a", bumped, "-m", bumped)
     # Atomic: the remote accepts the release commit and its tag together or neither.
     push = ["git", "push", "--atomic", remote, f"HEAD:refs/heads/{branch}", f"refs/tags/{bumped}"]
+    try:
+        _git(state, "tag", "-a", bumped, "-m", bumped)
+    except DotError as error:
+        # The release commit exists locally, so a rerun would stop at the HEAD == upstream preflight.
+        raise DotError(
+            f"tagging failed after the local release commit ({error}); fix the cause, then run: "
+            f"git tag -a {bumped} -m {bumped} && {' '.join(push)} && mise run deploy"
+        ) from error
     if _interactive(state, push, root) != 0:
         raise DotError(
             f"push failed; the release commit and tag {bumped} are local. Retry with: "
-            f"git push --atomic {remote} HEAD:refs/heads/{branch} refs/tags/{bumped}"
+            f"git push --atomic {remote} HEAD:refs/heads/{branch} refs/tags/{bumped}, then: mise run deploy"
         )
     # The release commit changes package metadata, so refresh the installed CLI.
     if _interactive(state, ["mise", "run", "deploy"], root) != 0:

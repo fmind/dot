@@ -160,11 +160,22 @@ def test_interrupt_restores_generated_files_and_propagates(project: Path) -> Non
     assert RESTORE in runner.calls
 
 
+def test_failed_tag_reports_the_local_release_commit_and_its_recovery(project: Path) -> None:
+    runner = ReleaseRunner(project)
+    runner.responses[("git", "tag", "-a", TAG, "-m", TAG)] = CommandResult("", "", 128)
+
+    with pytest.raises(DotError, match=r"tagging failed after the local release commit.*git tag -a v1\.27\.0"):
+        run_release(make_state(runner), yes=True)
+
+    assert PUSH not in runner.interactive_calls
+    assert RESTORE not in runner.calls
+
+
 def test_failed_push_reports_the_local_release_and_skips_deploy(project: Path) -> None:
     runner = ReleaseRunner(project)
     runner.interactive_codes[PUSH] = 1
 
-    with pytest.raises(DotError, match=r"release commit and tag v1\.27\.0 are local"):
+    with pytest.raises(DotError, match=r"release commit and tag v1\.27\.0 are local.*then: mise run deploy"):
         run_release(make_state(runner), yes=True)
 
     assert DEPLOY not in runner.interactive_calls
