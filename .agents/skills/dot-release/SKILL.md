@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-10-07"
+  updated: "2026-10-09"
 ---
 
 # Dot Release
 
-Use the checkout's release task as the single owner of preparation and publication. The global [release](../../../skills/git-delivery/references/release/GUIDE.md) skill owns generic versioning and publication verification; this skill owns dot's preconditions and recovery.
+Use the checkout's release task as the single owner of preparation and publication. The global [release guide](../../../skills/git-delivery/references/release/GUIDE.md) owns generic versioning and publication verification; this skill owns dot's preconditions and recovery.
 
 ## Workflow
 
@@ -34,13 +34,14 @@ mise run release -- -y  # non-interactive, within an authorized release
 
 Inspect `git status --short`, the release commit, local tag, and remote state before retrying. [release.py](../../../dot/dot_tasks/release.py) owns the flow; its failure cases are exercised in [test_release.py](../../../dot/tests/test_release.py).
 
-| Failure boundary                           | Next action                                                                                                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Before the release commit                  | The command restores the version, changelog, and lockfile from HEAD with `git restore`. Fix the original failure, then rerun.                                  |
-| Local tag already exists                   | Preflight stops before writing files. Delete the leftover tag with `git tag -d <tag>` after confirming it never reached the remote, then rerun.                |
-| Commit and tag created, atomic push failed | Nothing reached the remote. Retry the push the error prints; if upstream moved, delete the local tag, reset the release commit, integrate upstream, and rerun. |
-| Push accepted, installation refresh failed | Verify the remote commit, tag, and CD independently, then retry `mise run deploy`. An installation error does not undo publication.                            |
-| CD gate failed on the tag                  | No release was created. Fix forward on `main` and release the next version; do not move published tags or rewrite history as an automatic repair.              |
+| Failure boundary                           | Next action                                                                                                                                                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Before the release commit                  | The command restores the version, changelog, and lockfile from HEAD with `git restore`. Fix the original failure, then rerun.                                                          |
+| Local tag already exists                   | Preflight stops before writing files. Delete the leftover tag with `git tag -d <tag>` after confirming it never reached the remote, then rerun.                                        |
+| Commit created, tagging failed             | Nothing reached the remote. Fix the cause, then run the tag, push, and deploy commands the error prints.                                                                               |
+| Commit and tag created, atomic push failed | Nothing reached the remote. Retry the push the error prints, then `mise run deploy`; if upstream moved, delete the local tag, reset the release commit, integrate upstream, and rerun. |
+| Push accepted, installation refresh failed | Verify the remote commit, tag, and CD independently, then retry `mise run deploy`. An installation error does not undo publication.                                                    |
+| CD gate failed on the tag                  | No release was created. Fix forward on `main` and release the next version; do not move published tags or rewrite history as an automatic repair.                                      |
 
 ## Documentation
 
