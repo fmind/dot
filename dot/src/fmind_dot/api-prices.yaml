@@ -1,5 +1,5 @@
 # Docs: https://developers.openai.com/api/docs/pricing
-as_of: "2026-10-02"
+as_of: "2026-10-09"
 basis: Standard short-context USD per million tokens; cache writes at the 5-minute rate, except Claude 1-hour writes at
   their own rate. Excludes long-context, priority/fast, regional and tool fees, discounts, taxes and subscriptions.
   Applies current rates to historical usage; not an invoice.
@@ -175,7 +175,7 @@ models:
   claude-sonnet-5-5:
     input: 2
     output: 10
-    cache_read: 0.2
+    cache_read: 0.1
     cache_write: 2.5
     cache_write_1h: 4
   claude-sonnet-5:
