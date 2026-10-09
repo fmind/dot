@@ -21,7 +21,8 @@
   "includeCoAuthoredBy": false,
   "notifications": true,
   "remoteExport": false,
-  "respectGitignore": false
+  "respectGitignore": false,
+  "theme": "default"
 }
 ` -}}
 {{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "jsonc" true) -}}
