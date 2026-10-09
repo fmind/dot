@@ -215,6 +215,20 @@ class HarnessConfigTests(unittest.TestCase):
                 assert json.loads(rendered)["hooks"]["SessionStart"] == [*existing[:1], brain]
                 assert self.render(template, rendered) == rendered
 
+    def test_agy_registers_brain_context_hook_only_with_the_brain_checkout(self):
+        template = "dot_gemini/private_config/modify_private_hooks.json"
+        assert "brain-context" not in json.loads(self.render(template, ""))
+        script = self.home / "fmind/brain/settings/hooks/agy-context.py"
+        script.parent.mkdir(parents=True)
+        script.write_text("#!/usr/bin/env python3\n")
+        rendered = self.render(template, json.dumps({"custom": {"Stop": []}}))
+        hooks = json.loads(rendered)
+        assert hooks["brain-context"] == {
+            "PreInvocation": [{"type": "command", "command": f"{script} {self.home / 'fmind/brain'}", "timeout": 30}]
+        }
+        assert hooks["custom"] == {"Stop": []}
+        assert self.render(template, rendered) == rendered
+
     def test_codex_merge_keeps_autonomy_memory_and_native_subagents(self):
         template = "dot_codex/modify_private_config.toml"
         original = """

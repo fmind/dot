@@ -257,8 +257,10 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
 
 
 def test_adc_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
-    # ADC login replaces its whole grant: the brain's analytics sensor narrows its token to BigQuery read-only.
-    assert "https://www.googleapis.com/auth/bigquery.readonly" in Config().auth.gcp.adc_scopes
+    # ADC login replaces its whole grant: the brain's sensors narrow their tokens to these read-only scopes.
+    scopes = Config().auth.gcp.adc_scopes
+    for scope in ("bigquery.readonly", "logging.read", "cloud-platform.read-only"):
+        assert f"https://www.googleapis.com/auth/{scope}" in scopes
 
 
 def test_workspace_grant_missing_borrowed_scope_logs_in(provider: RecordingRunner) -> None:
