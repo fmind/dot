@@ -463,6 +463,8 @@ def test_parse_flexible_time_supports_durations_days_and_iso_values() -> None:
     assert parse_flexible_time("7d", now=now) == now - timedelta(days=7)
     assert parse_flexible_time("2026-09-01", now=now) == datetime(2026, 9, 1, tzinfo=UTC)
     assert parse_flexible_time("2026-09-06T14:00:00+02:00", now=now) == now
+    end = datetime(2026, 9, 6, 23, 59, 59, 999999, tzinfo=UTC)
+    assert parse_flexible_time("2026-09-06", end_of_day=True) == parse_flexible_time("20260906", end_of_day=True) == end
 
 
 @pytest.mark.parametrize("value", ["", "0d", "0h", "0m0s", "1h-no"])
