@@ -29,7 +29,7 @@ python ~/.agents/skills/delegate-tasks/scripts/run.py /absolute/batch.json
 
 ## Contract
 
-- `tasks`: 1–100 objects with unique lowercase `id` (letters/digits/hyphens), existing `workspace`, and nonempty `prompt`. Include required context, authorized changes, and relevant instructions in the prompt. The runner adds no-recursion and compact-response instructions.
+- `tasks`: 1–100 objects with unique `id` (1–64 lowercase letters, digits, or hyphens, starting with a letter or digit), existing `workspace`, and nonempty `prompt`. Include required context, authorized changes, and relevant instructions in the prompt. The runner adds no-recursion and compact-response instructions.
 - `concurrency`: default 2, range 1–16. Overlapping workspace paths (including symlink aliases and `add_dirs`) serialize even if more slots are available. Distinct paths are not a sandbox or proof that workers cannot reach shared resources; isolate actual writes before delegating.
 - `timeout`: default 900 seconds, range 1–86400, applied separately to each worker and each acceptance command. Set a smaller bound for tests. Runtime has no automatic retry or quota fallback.
 - `depends_on`: task IDs, default empty. Unknown dependencies and cycles fail before any launch. Dependents start only after all prerequisites reach `verified`.

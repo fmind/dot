@@ -5,7 +5,7 @@ description: "Diagnose or change managed turn notifications and their hooks per 
 
 # Turn Notifications
 
-On the `fmind/dot` workstation, notifications mean it is your turn: the main session is idle or needs an answer. `dot agent session sync` captures sessions from each harness's own store. Restart open harnesses after changing notification configuration.
+On the `fmind/dot` workstation, notifications mean it is your turn: the main session is idle or needs an answer. Restart open harnesses after changing notification configuration.
 
 - **Claude and Grok**: `Notification` hooks select `idle_prompt` for “Your turn” and actionable permission/question events for “Needs your input”. Claude's idle alert waits about 60 seconds without typing. No `Stop` notifier is managed (Grok's list stays empty) because those hooks run before continuation decisions. Informational notifications and background-agent completion do not trigger the managed notifier.
 - **Codex and Copilot**: native attention notifications are enabled; no `Stop` / `agentStop` desktop hooks are managed, avoiding premature and duplicate alerts. Native alerts depend on the host's focus detection and terminal/OS support.

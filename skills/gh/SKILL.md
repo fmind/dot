@@ -1,13 +1,13 @@
 ---
 name: gh
-description: "Use gh for GitHub repos, issues, PRs, Actions logs, and API calls."
+description: "Use gh for GitHub auth, repo selection, Actions logs, and bounded API calls."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-10-07"
+  updated: "2026-10-09"
 ---
 
 # GitHub CLI

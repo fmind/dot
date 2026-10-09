@@ -52,6 +52,7 @@ Cross-cutting owners:
 - [pyproject.toml.template](templates/pyproject.toml.template), [mise.toml](templates/mise.toml), and [lefthook.yml](templates/lefthook.yml) define the shared foundation. Preserve supported package ranges; resolve scaffold tool selectors to exact baseline pins before installation.
 - [AGENTS.md](templates/AGENTS.md), [gitignore](templates/gitignore), and [ignore](templates/ignore) supply project conventions.
 - [init-library.py](templates/init-library.py) and [test_library.py](templates/test_library.py) supply the minimal library example; application code and tests live with the selected specialist.
+- [zensical.toml](templates/zensical.toml) and [docs-index.md](templates/docs-index.md) supply the API documentation starter.
 
 ## Documentation
 

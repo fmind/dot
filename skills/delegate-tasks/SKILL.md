@@ -8,7 +8,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/delegate-tasks
   created: "2026-09-16"
-  updated: "2026-10-07"
+  updated: "2026-10-09"
 ---
 
 # Delegate Tasks

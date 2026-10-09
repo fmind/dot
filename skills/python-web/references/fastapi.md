@@ -9,7 +9,7 @@ Use this for an existing or explicitly chosen FastAPI service, including an [age
 
 ## Workflow
 
-1. **Use native OpenTelemetry instrumentation**: on FastAPI 0.142+, configure the native OpenTelemetry instrumentation with `FastAPI(telemetry={...})`; do not also add `opentelemetry-instrumentation-fastapi`. The `standard` extras include the SDK and OTLP HTTP exporter, which export once `OTEL_EXPORTER_OTLP_ENDPOINT` is set: use `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` (collector port 4318), and pass `"auto_configure": False` when the application already configures exporters. [observability](../../observability/SKILL.md) owns the rest of the stack.
+1. **Use native OpenTelemetry instrumentation**: on FastAPI 0.142+, configure the native OpenTelemetry instrumentation with `FastAPI(telemetry={...})`; do not also add `opentelemetry-instrumentation-fastapi`. The `standard` extras include the SDK and OTLP HTTP exporter, which export once `OTEL_EXPORTER_OTLP_ENDPOINT` is set: use `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` (collector port 4318; with `grpc` it exports nothing and only logs a startup warning), and pass `"auto_configure": False` when the application already configures exporters. [observability](../../observability/SKILL.md) owns the rest of the stack.
 1. **Test locally and check OpenAPI**: run local request and lifespan tests and inspect the OpenAPI output when the public schema changes.
 
 ## Gotchas
@@ -17,7 +17,7 @@ Use this for an existing or explicitly chosen FastAPI service, including an [age
 - **Package install is not skill discovery**: the skill is shipped within the framework source package and is discovered by the skills CLI. Installing the Python package alone does not establish host discovery.
 - **Avoid the bundled cloud client**: `fastapi[standard]` pulls `fastapi-cli[standard]`, which installs the `fastapi-cloud-cli` vendor client. Use `fastapi[standard-no-fastapi-cloud-cli]` unless that client is a deliberate choice.
 - **Keep agents-cli scaffolds on FastAPI**: do not convert an agents-cli FastAPI scaffold to Litestar while implementing an agent feature.
-- **Redact exception logs**: with `grpc`, FastAPI's automatic OTLP export sends nothing and only logs a startup warning. Its exception logs include messages and stack traces; redact them in a log processor or set `logs` to `False`.
+- **Redact exception logs**: FastAPI's native telemetry exception logs include messages and stack traces; redact them in a log processor or set `logs` to `False`.
 
 ## Official Skills
 

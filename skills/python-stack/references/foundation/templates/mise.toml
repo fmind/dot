@@ -91,7 +91,7 @@ run = "uv audit --preview-features audit-command --locked"
 [tasks.clean]
 alias = "n"
 description = "Remove build artifacts and coverage files"
-run = "rm -rf .cache .pytest_cache .ruff_cache .coverage htmlcov dist"
+run = "rm -rf .cache .pytest_cache .ruff_cache .coverage htmlcov dist site"
 
 [tasks.coverage]
 alias = "v"
