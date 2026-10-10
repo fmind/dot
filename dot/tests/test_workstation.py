@@ -1,6 +1,7 @@
 """Public workstation workflows use recorded providers, never real credentials or caches."""
 
 import json
+import threading
 from collections.abc import Callable, Mapping, Sequence
 from io import StringIO
 from pathlib import Path
@@ -17,12 +18,9 @@ from fmind_dot.process import CommandResult, Runner
 from fmind_dot.workstation import CACHE_TOOLS
 
 
-@pytest.mark.parametrize("command", ["login", "setup"])
-def test_provider_groups_without_arguments_show_help(
-    command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_setup_without_arguments_shows_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    result = CliRunner().invoke(app, [command])
+    result = CliRunner().invoke(app, ["setup"])
     assert result.exit_code == 0, result.output
     assert "workspace" in result.stdout
     assert "github" in result.stdout
@@ -143,14 +141,16 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     monkeypatch.setattr(Runner, "which", fake.which)
     monkeypatch.setattr(Runner, "run", fake.run)
     monkeypatch.setattr(Runner, "interactive", fake.interactive)
+    # One worker keeps concurrent readiness probes in the order the recorded responses follow.
+    monkeypatch.setattr(auth, "PROBE_WORKERS", 1)
     return fake
 
 
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["login"],
         ["setup"],
+        ["login", "--dry-run"],
         ["login", "all", "--dry-run"],
         ["login", "colab", "--dry-run"],
         ["login", "github", "--dry-run"],
@@ -910,10 +910,17 @@ def test_browser_requires_a_graphical_session(monkeypatch: pytest.MonkeyPatch) -
     assert not auth.open_browser("https://accounts.google.com/o/oauth2/auth")
 
 
-def test_login_all_skips_every_ready_provider(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+def workspace_client_status(**kwargs: Any) -> CommandResult:
+    """gws reports its OAuth client and token in one status, shared by Workspace setup and login."""
+    return response({**json.loads(client_status().stdout), **json.loads(workspace_status().stdout), **kwargs})
+
+
+def test_login_skips_every_ready_provider_with_one_probe_each(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("GWS_PROJECT", "fixture-project")
-    provider.responses = [github_status(), TOKEN, TOKEN, client_status(), workspace_status()]
-    result = CliRunner().invoke(app, ["login", "all"])
+    provider.responses = [github_status(), TOKEN, TOKEN, workspace_client_status()]
+    result = CliRunner().invoke(app, ["login"])
     assert result.exit_code == 0, result.exception
     assert not provider.actions
     assert [args[:3] for args in provider.calls] == [
@@ -921,8 +928,44 @@ def test_login_all_skips_every_ready_provider(provider: RecordingRunner, monkeyp
         ["gcloud", "auth", "print-access-token"],
         ADC_PROBE[:3],
         ["gws", "auth", "status"],
-        ["gws", "auth", "status"],
     ]
+
+
+@pytest.mark.usefixtures("provider")
+def test_login_probes_providers_concurrently(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auth, "PROBE_WORKERS", 4)
+    barrier = threading.Barrier(4, timeout=5)
+    answers = {"gh": github_status(), "gcloud": TOKEN, "gws": workspace_status()}
+
+    def run(args: Sequence[str], **_: Any) -> CommandResult:
+        # Every probe waits for the other three, so a sequential run would time out.
+        barrier.wait()
+        return answers[args[0]]
+
+    monkeypatch.setattr(Runner, "run", lambda _self, args, **options: run(args, **options))
+    result = CliRunner().invoke(app, ["login", "--check"])
+    assert result.exit_code == 0, result.output
+    assert result.stdout.splitlines() == ["github: ready", "gcp: ready", "workspace: ready"]
+
+
+def test_login_reconciles_only_the_machine_providers_in_dependency_order(
+    provider: RecordingRunner, tmp_path: Path
+) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("auth:\n  login: [colab, workspace, gcp]\n", encoding="utf-8")
+    provider.responses = [TOKEN, TOKEN, workspace_status(), CommandResult("session\n", "", 0)]
+    result = CliRunner().invoke(app, ["--config", str(path), "login"])
+    assert result.exit_code == 0, result.exception
+    assert not provider.actions
+    assert [args[0] for args in provider.calls] == ["gcloud", "gcloud", "gws", "colab"]
+    assert result.stderr.index("Google Cloud") < result.stderr.index("Workspace is") < result.stderr.index("Colab")
+
+
+def test_login_rejects_group_options_before_a_provider(provider: RecordingRunner) -> None:
+    result = CliRunner().invoke(app, ["login", "--check", "gcp"])
+    assert result.exit_code == 2
+    assert "dot login gcp --check" in result.output
+    assert not provider.calls
 
 
 def test_login_all_refreshes_gcloud_before_workspace_setup(
@@ -932,12 +975,13 @@ def test_login_all_refreshes_gcloud_before_workspace_setup(
     monkeypatch.setenv("GWS_PROJECT", "fixture-project")
     reauth = CommandResult("", "Reauthentication failed.\n\n  $ gcloud auth login\n\nto obtain new credentials.", 1)
     enabled = response([{"config": {"name": api}} for api in Config().auth.workspace.apis])
-    provider.responses = [github_status(), reauth, TOKEN, TOKEN, TOKEN, client_status(enabled_apis=None), enabled]
-    provider.responses.append(workspace_status())
+    stale = workspace_client_status(enabled_apis=None)
+    # The gcloud login invalidates the first gws status, which embeds a live gcloud query.
+    provider.responses = [github_status(), reauth, TOKEN, stale, TOKEN, TOKEN, stale, enabled]
     result = CliRunner().invoke(app, ["login", "all"])
     assert result.exit_code == 0, result.exception
     assert provider.actions == [["gcloud", "auth", "login"]]
-    assert provider.calls[-2][:3] == ["gcloud", "services", "list"]
+    assert provider.calls[-1][:3] == ["gcloud", "services", "list"]
 
 
 def test_login_all_rejects_invalid_project_before_any_login(
@@ -960,7 +1004,8 @@ def test_login_all_without_project_skips_workspace_setup(provider: RecordingRunn
 
 
 def test_login_all_reconciles_github_first_and_stops_on_failure(provider: RecordingRunner) -> None:
-    provider.responses = [github_status(scopes=[*Config().auth.github.scopes, "delete_repo"])]
+    provider.responses = [github_status(scopes=[*Config().auth.github.scopes, "delete_repo"]), TOKEN, TOKEN]
+    provider.responses.append(workspace_status())
     provider.action_code = 17
     result = CliRunner().invoke(app, ["login", "all"])
     assert result.exit_code != 0
@@ -994,10 +1039,10 @@ def test_login_check_reports_readiness_without_authenticating(provider: Recordin
 
 def test_login_all_check_exits_one_and_names_each_provider(provider: RecordingRunner) -> None:
     provider.responses = [github_status(scopes=["repo"]), TOKEN, SCOPE_GAP, workspace_status()]
-    result = CliRunner().invoke(app, ["login", "all", "--check"])
+    result = CliRunner().invoke(app, ["login", "--check"])
     assert result.exit_code == 1
     assert result.stdout.splitlines() == ["github: login needed", "gcp: login needed", "workspace: ready"]
-    assert "Run dot login all" in result.stderr
+    assert "Run dot login in a terminal" in result.stderr
     assert "private" not in result.output
     assert not provider.actions
 

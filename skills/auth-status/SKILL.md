@@ -45,7 +45,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    done
    ```
 
-1. **Report and hand off**: one table of provider, account (no token), status, scopes gap, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login all` or `dot login github|workspace|gcp|colab` over native commands. When the user says they logged in, re-run only the failed probes.
+1. **Report and hand off**: one table of provider, account (no token), status, scopes gap, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login` or `dot login github|workspace|gcp|colab` over native commands. When the user says they logged in, re-run only the failed probes.
 
 ## Gotchas
 

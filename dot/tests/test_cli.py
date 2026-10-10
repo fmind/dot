@@ -531,7 +531,6 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
         ["config"],
         ["agent"],
         ["agent", "session"],
-        ["login"],
         ["setup"],
         ["prune"],
     ],

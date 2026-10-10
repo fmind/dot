@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from fmind_dot.config import Config, config_file_path, load_config
 from fmind_dot.errors import DotError
-from fmind_dot.process import Runner
+from fmind_dot.process import CommandResult, Runner
 
 
 @dataclass
@@ -27,6 +27,8 @@ class State:
     stdout: IO[str] = field(default_factory=lambda: sys.stdout)
     stderr: IO[str] = field(default_factory=lambda: sys.stderr)
     _config: Config | None = field(default=None, init=False, repr=False)
+    # Readiness probe results reused within one invocation; every login clears them.
+    probes: dict[tuple[str, ...], CommandResult] = field(default_factory=dict, init=False, repr=False)
 
     @property
     def config_path(self) -> Path:
