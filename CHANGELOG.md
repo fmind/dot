@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.2.0] - 2026-10-10
+
+### 🚀 Features
+
+- _(theme)_ Deploy DESIGN.md as the default agent design system
+- _(login)_ Reconcile per-machine providers with concurrent probes
+
 ## [11.1.2] - 2026-10-09
 
 ### 🐛 Bug Fixes
