@@ -38,7 +38,7 @@ Use Zensical as the default static site generator for project documentation, cou
 - **Check features before enabling them**: some theme features exclude each other, offline builds drop several, and fonts, Mermaid, and analytics contact third parties; check [configuration](references/configuration.md) before enabling one.
 - **Some layouts and modes are unsupported**: `docs_dir` cannot be `.`; uv's symlink link mode is unsupported; `serve` has no strict mode, and a busy port fails with `Address already in use` (pass `-a 127.0.0.1:<port>`).
 - **Keep Zensical locked**: Zensical is pre-1.0 (0.0.x) and releases often; keep `uv.lock` committed, upgrade with `uv lock --upgrade-package zensical`, and rebuild `--clean`. The CI template stays cache-free as upstream advises. Tested on 0.0.68.
-- **Preserve existing site branding**: the starter applies [fmind/theme](https://github.com/fmind/theme) tokens to the light scheme and Google Sans fonts. Preserve an existing site's identity; follow [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos and assets.
+- **Preserve existing site branding**: the starter applies Fmind's `~/.agents/DESIGN.md` tokens to the light scheme and Google Sans fonts; customer sites use their own design system. Preserve an existing site's identity; follow [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos and assets.
 
 ## Documentation
 

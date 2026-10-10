@@ -6,7 +6,7 @@ rows step by 42 (34px chip + 8px gap); flows use the 64px gutters between column
 Classes: label = uppercase heading; chip = neutral item; box = the system boundary; tile = a named part
 (code title + muted subtitle); config = configuration or caution; err = failure; step = numbered badge;
 flow = primary arrow; muted = secondary note.
-Brand: fmind/theme roles (https://github.com/fmind/theme) plus the light #DADCE0 card border; every color
+Brand: ~/.agents/DESIGN.md roles (https://github.com/fmind/theme/blob/main/DESIGN.md) plus the light #DADCE0 card border; every color
 lives in <style>. For a customer, swap its hex values and font names only and keep text contrast at 4.5:1
 or more on its actual fill.
 -->

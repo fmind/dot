@@ -7,17 +7,17 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-10-07"
+  updated: "2026-10-10"
 ---
 
 # Fmind Visual Communication
 
-Apply the customer's brand when the work belongs to one; otherwise the Fmind identity from [fmind-theme.md](references/fmind-theme.md): readable typography, spacious composition, and evidence-backed claims. [Technical publishing](../technical-publishing/SKILL.md) owns article production.
+Apply the customer's brand when the work belongs to one; otherwise the Fmind design in `~/.agents/DESIGN.md` ([source](https://github.com/fmind/theme/blob/main/DESIGN.md)): readable typography, spacious composition, and evidence-backed claims. [Technical publishing](../technical-publishing/SKILL.md) owns article production.
 
 ## Workflow
 
 1. **Select the format** while respecting an explicitly requested format or an existing project: Typst for talks and slide decks, VHS for reproducible terminal demonstrations. [Diagrams as code](../diagrams-as-code/SKILL.md) owns diagrams and illustrations (Mermaid, SVG, and D2, including Fmind article diagrams).
-1. **Apply the brand**: use the customer's palette, fonts, and logo when the repository or engagement specifies them; ask for its brand guide rather than guessing. Otherwise use Google Sans for headings and body text, Google Sans Code for code, and the palette from [fmind/theme](https://github.com/fmind/theme). Bundle the fonts with their OFL notices and use the existing reviewed logo. Keep colors, text roles, and contrast aligned with the source theme; [fmind-theme.md](references/fmind-theme.md) lists the full palette. Preserve published assets when branding changes.
+1. **Apply the brand**: customer or employer work uses that organization's design system, palette, fonts, and logo; ask for its brand guide rather than guessing, and never mix brands. An existing project keeps its identity. Otherwise read `~/.agents/DESIGN.md` for tokens, components, and do's and don'ts, map it with [renderers.md](references/renderers.md), bundle the fonts with their OFL notices, and use the existing reviewed logo. Preserve published assets when the design changes.
 1. **Explore variants** when the look is open (logo, cover, hero illustration, deck theme) or the user rejects a draft: follow [variants](references/variants.md) instead of iterating on one guess.
 1. **Create**: follow [production.md](references/production.md) for decks and Fmind diagram branding, or [recording.md](references/recording.md) for VHS demos; keep the tape and synthetic inputs.
 1. **Verify**: compile success is not visual success. Inspect every rendered page, frame, or diagram for legibility, clipping, font loading, and accessibility, and keep editable sources beside their exports.
@@ -25,6 +25,7 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind ide
 ## Gotchas
 
 - **Cut decoration**: remove decorative nodes, gradients, and generic AI imagery.
+- **Edit the source, not a copy**: change the design in fmind/theme's DESIGN.md; templates and adapters here only carry native values for renderers.
 
 ## Task guides
 

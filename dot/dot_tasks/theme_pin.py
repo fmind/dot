@@ -1,6 +1,6 @@
 """Pin fmind/theme externals to one upstream commit with per-file checksums.
 
-Several theme files execute (Fish, Neovim Lua, ptpython, Git includes), so apply
+The pinned files are native themes under `themes/` and the root DESIGN.md. Several theme files execute (Fish, Neovim Lua, ptpython, Git includes), so apply
 must never fetch a moving branch; `mise run upgrade` advances the pin instead.
 Configs that cannot include a second file carry a copy of the upstream theme block;
 the pin only advances while every copy matches the target revision.
@@ -23,23 +23,23 @@ from typing import Any
 import yaml
 
 REPOSITORY = "https://github.com/fmind/theme"
-RAW = "https://raw.githubusercontent.com/fmind/theme/{revision}/themes/{path}"
+RAW = "https://raw.githubusercontent.com/fmind/theme/{revision}/{path}"
 MAX_BYTES = 1_000_000
-BASE = re.compile(r'(\{\{ \$base := "https://raw\.githubusercontent\.com/fmind/theme/)([0-9a-f]{40})(/themes" \}\})')
+BASE = re.compile(r'(\{\{ \$base := "https://raw\.githubusercontent\.com/fmind/theme/)([0-9a-f]{40})(" \}\})')
 ENTRY = re.compile(r'(    url = "\{\{ \$base \}\}/(?P<path>[^"]+)"\n    checksum\.sha256 = ")[0-9a-f]{64}(")')
 
 ROOT = Path(__file__).resolve().parents[2]
 # Source file -> (upstream theme file, key paths copied from it). The upstream suffix
 # selects the parser for both sides; ripgreprc keeps only its --colors flags.
 COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
-    "dot_config/bottom/bottom.toml": ("bottom/fmind.toml", (("styles",),)),
-    "dot_config/fastfetch/config.jsonc": ("fastfetch/fmind.json", (("display", "color"),)),
-    "dot_config/gh-dash/config.yml.tmpl": ("gh-dash/fmind.yml", (("theme",),)),
-    "dot_config/lazydocker/config.yml": ("lazydocker/fmind.yml", (("gui", "theme"),)),
-    "dot_config/ripgrep/config.tmpl": ("ripgrep/fmind.ripgreprc", (("colors",),)),
-    "dot_config/starship.toml": ("starship/fmind.toml", (("palette",), ("palettes",))),
+    "dot_config/bottom/bottom.toml": ("themes/bottom/fmind.toml", (("styles",),)),
+    "dot_config/fastfetch/config.jsonc": ("themes/fastfetch/fmind.json", (("display", "color"),)),
+    "dot_config/gh-dash/config.yml.tmpl": ("themes/gh-dash/fmind.yml", (("theme",),)),
+    "dot_config/lazydocker/config.yml": ("themes/lazydocker/fmind.yml", (("gui", "theme"),)),
+    "dot_config/ripgrep/config.tmpl": ("themes/ripgrep/fmind.ripgreprc", (("colors",),)),
+    "dot_config/starship.toml": ("themes/starship/fmind.toml", (("palette",), ("palettes",))),
     "dot_gitconfig.tmpl": (
-        "git/fmind.gitconfig",
+        "themes/git/fmind.gitconfig",
         tuple((f'color "{section}"',) for section in ("diff", "status", "branch", "decorate")),
     ),
 }
@@ -146,7 +146,7 @@ def stale_copies(revision: str, download: Fetch, read: Callable[[Path], str] = r
         for keys in paths:
             expected = dig(theme, keys)
             if expected is None or dig(local, keys) != expected:
-                stale.append(f"{source}: {'.'.join(keys)} differs from themes/{upstream}")
+                stale.append(f"{source}: {'.'.join(keys)} differs from {upstream}")
     return stale
 
 

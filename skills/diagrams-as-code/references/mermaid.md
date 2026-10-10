@@ -10,7 +10,7 @@ Mermaid is the default format for technical documentation because the same edita
 ## Workflow
 
 1. **Write portable source**: a fenced `mermaid` block when the diagram belongs to one Markdown document, a `.mmd` file when it is reused or rendered independently.
-1. **Configure in frontmatter**: put configuration in Mermaid frontmatter, never in `%%{init: ...}%%` directives or renderer-specific fence options; apply the Fmind theme from [fmind-theme](../../fmind-visuals/references/fmind-theme.md) when the work represents Médéric or `www.fmind.dev`.
+1. **Configure in frontmatter**: put configuration in Mermaid frontmatter, never in `%%{init: ...}%%` directives or renderer-specific fence options; apply the Fmind frontmatter from [renderers](../../fmind-visuals/references/renderers.md) when the work represents Médéric or `www.fmind.dev`.
 1. **Validate and render**:
 
    ```bash
