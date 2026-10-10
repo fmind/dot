@@ -1,5 +1,5 @@
 // Docs: https://typst.app/docs/reference/
-// Palette: https://github.com/fmind/theme/blob/main/README.md
+// Design: ~/.agents/DESIGN.md (https://github.com/fmind/theme/blob/main/DESIGN.md); role names match its color tokens.
 // Supply Google Sans and Google Sans Code TTF files with --font-path fonts.
 #let heading-font = "Google Sans"
 #let body-font = "Google Sans"

@@ -54,11 +54,14 @@ def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path)
     themes = {
         target: entry for target, entry in tomllib.loads(result.stdout).items() if "fmind/theme" in entry.get("url", "")
     }
-    # Fish, Neovim, ptpython, and Git execute their theme files.
-    assert {".config/fish/conf.d/theme.fish", ".config/nvim/colors/fmind.lua", ".config/git/theme.gitconfig"} <= set(
-        themes
-    )
-    revisions = {re.findall(r"fmind/theme/([0-9a-f]{40})/themes/", entry["url"])[0] for entry in themes.values()}
+    # Fish, Neovim, ptpython, and Git execute their theme files; agents read DESIGN.md.
+    assert {
+        ".agents/DESIGN.md",
+        ".config/fish/conf.d/theme.fish",
+        ".config/nvim/colors/fmind.lua",
+        ".config/git/theme.gitconfig",
+    } <= set(themes)
+    revisions = {re.findall(r"fmind/theme/([0-9a-f]{40})/", entry["url"])[0] for entry in themes.values()}
     assert len(revisions) == 1
     for entry in themes.values():
         assert "refreshPeriod" not in entry
@@ -66,10 +69,11 @@ def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path)
 
 
 def test_theme_pin_rewrites_revision_and_checksums() -> None:
-    template = (
-        '{{ $base := "https://raw.githubusercontent.com/fmind/theme/' + "a" * 40 + '/themes" }}\n'
-        '["x"]\n    type = "file"\n    url = "{{ $base }}/fish/fmind.fish"\n    checksum.sha256 = "' + "0" * 64 + '"\n'
-    )
+    template = '{{ $base := "https://raw.githubusercontent.com/fmind/theme/' + "a" * 40 + '" }}\n'
+    for path in ("themes/fish/fmind.fish", "DESIGN.md"):
+        template += (
+            f'["{path}"]\n    type = "file"\n    url = "{{{{ $base }}}}/{path}"\n    checksum.sha256 = "{"0" * 64}"\n'
+        )
     requested: list[str] = []
 
     def download(url: str) -> bytes:
@@ -78,7 +82,9 @@ def test_theme_pin_rewrites_revision_and_checksums() -> None:
 
     pinned = theme_pin.pin(template, "b" * 40, download)
 
-    assert requested == ["https://raw.githubusercontent.com/fmind/theme/" + "b" * 40 + "/themes/fish/fmind.fish"]
+    raw = "https://raw.githubusercontent.com/fmind/theme/" + "b" * 40
+    assert requested == [raw + "/themes/fish/fmind.fish", raw + "/DESIGN.md"]
+    assert "0" * 64 not in pinned
     assert "b" * 40 in pinned
     assert hashlib.sha256(b"theme").hexdigest() in pinned
     with pytest.raises(ValueError, match="pinned revision"):
@@ -99,7 +105,7 @@ def test_copied_theme_registry_covers_every_upstream_copy() -> None:
 
 def test_stale_copies_detects_changed_and_missing_theme_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     source = "dot_config/starship.toml"
-    monkeypatch.setattr(theme_pin, "COPIED", {source: ("starship/fmind.toml", (("palette",), ("palettes",)))})
+    monkeypatch.setattr(theme_pin, "COPIED", {source: ("themes/starship/fmind.toml", (("palette",), ("palettes",)))})
     local = (ROOT / source).read_text()
 
     def check(upstream: str) -> list[str]:

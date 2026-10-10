@@ -183,7 +183,7 @@ Fork and replace these personal defaults:
 1. **Secrets:** replace the age recipient and remove or re-encrypt credential sources before applying; see [Secret Management](#secret-management).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md), which every harness loads.
 1. **Workspaces:** change `pull.directories` and `trust.github_owners` in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and the personal-checkout `includeIf` directories in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl), which commit with the personal-repository email. Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.
-1. **Theme:** change [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl); theme files are pinned to an [fmind/theme](https://github.com/fmind/theme) commit that `mise run upgrade` advances.
+1. **Theme and design:** change [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl); theme files and the [`DESIGN.md`](https://github.com/fmind/theme/blob/main/DESIGN.md) design system deployed to `~/.agents/DESIGN.md` are pinned to an [fmind/theme](https://github.com/fmind/theme) commit that `mise run upgrade` advances. The persona makes it the default for personal work, never for customer work.
 
 ## Uninstall / rollback
 

@@ -2,7 +2,13 @@
 # Theme files are pinned to one fmind/theme commit with checksums because several execute
 # (Fish, Neovim Lua, ptpython, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/a4f6a9f3edc0777111d47c85e99a6b400934c8be/themes" }}
+# DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/4e5635cf338eccccd32b33235a233cb6d854867c" }}
+
+[".agents/DESIGN.md"]
+    type = "file"
+    url = "{{ $base }}/DESIGN.md"
+    checksum.sha256 = "d4de803bbbbc5a04f7771c107806e9df35ff19d430bd0fcabc2cfa222f423994"
 
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
@@ -26,78 +32,78 @@
 
 [".config/ghostty/themes/fmind"]
     type = "file"
-    url = "{{ $base }}/ghostty/fmind"
+    url = "{{ $base }}/themes/ghostty/fmind"
     checksum.sha256 = "23dcf16ddcde1b6023a026518d6963b09861fe2de3e6aed6c35ba4ba2ed93aab"
 
 [".config/zellij/themes/fmind.kdl"]
     type = "file"
-    url = "{{ $base }}/zellij/fmind.kdl"
+    url = "{{ $base }}/themes/zellij/fmind.kdl"
     checksum.sha256 = "e10fbf1f527ceec42536a912c8aeefc6d2b95e0a5e5b20e6561319a16256ea61"
 
 [".config/fish/conf.d/theme.fish"]
     type = "file"
-    url = "{{ $base }}/fish/fmind.fish"
+    url = "{{ $base }}/themes/fish/fmind.fish"
     checksum.sha256 = "2c9138a0de6e48937e5ba11366617cfbfacd2dde10b4221d78f58f37007c8190"
 
 [".config/k9s/skins/theme.yaml"]
     type = "file"
-    url = "{{ $base }}/k9s/fmind.yaml"
+    url = "{{ $base }}/themes/k9s/fmind.yaml"
     checksum.sha256 = "0b1a0b316828ec6509ddef75a5e0c56a02265292b04c668befafa838d57c3074"
 
 [".config/nvim/colors/fmind.lua"]
     type = "file"
-    url = "{{ $base }}/nvim/colors/fmind.lua"
+    url = "{{ $base }}/themes/nvim/colors/fmind.lua"
     checksum.sha256 = "5be183ec0aac7f934325a255d69e6d9fc86383164e708e201386d2c1a2a1e291"
 
 [".config/nvim/lua/lualine/themes/fmind.lua"]
     type = "file"
-    url = "{{ $base }}/lualine/fmind.lua"
+    url = "{{ $base }}/themes/lualine/fmind.lua"
     checksum.sha256 = "e97cad4c1024e89a3e736000d7b9c41977f067a1f660ee67006776371fa1c1c4"
 
 [".config/git/theme.gitconfig"]
     type = "file"
-    url = "{{ $base }}/delta/fmind.gitconfig"
+    url = "{{ $base }}/themes/delta/fmind.gitconfig"
     checksum.sha256 = "99c77092ab2b7e515c35a9dcda56bd025f4507e37871204747aec3b8d9d57cb9"
 
 [".config/fzf/theme.conf"]
     type = "file"
-    url = "{{ $base }}/fzf/fmind.conf"
+    url = "{{ $base }}/themes/fzf/fmind.conf"
     checksum.sha256 = "d4557f0c27d97262f67c4467313764afe3d68d5cd260ca0702aa40a33eca2b11"
 
 [".config/opencode/themes/fmind.json"]
     type = "file"
-    url = "{{ $base }}/opencode/fmind.json"
+    url = "{{ $base }}/themes/opencode/fmind.json"
     checksum.sha256 = "ed0a2c7453a401d10e94f78f7cf3c182cf0a2f25ff12af2fe56dffc27faf7906"
 
 [".config/ptpython/theme.py"]
     type = "file"
-    url = "{{ $base }}/ptpython/fmind.py"
+    url = "{{ $base }}/themes/ptpython/fmind.py"
     checksum.sha256 = "9969689460b6f3b4235d07060fee046f44aecc4da1438968f2223e0493e31b75"
 
 [".config/atuin/themes/fmind.toml"]
     type = "file"
-    url = "{{ $base }}/atuin/fmind.toml"
+    url = "{{ $base }}/themes/atuin/fmind.toml"
     checksum.sha256 = "b457777b196bf3e906d8819ce3043dc60db34e11509b872fc8e6d9378e6b0c50"
 
 [".config/bat/themes/fmind.tmTheme"]
     type = "file"
-    url = "{{ $base }}/bat/fmind.tmTheme"
+    url = "{{ $base }}/themes/bat/fmind.tmTheme"
     checksum.sha256 = "55d5b5806641f0feead7bc1255eaf48d2a4844397deb5863c90d3f684399f0e8"
 
 # LG_CONFIG_FILE (env.fish) layers this file over the managed lazygit config.
 [".config/lazygit/theme.yml"]
     type = "file"
-    url = "{{ $base }}/lazygit/fmind.yml"
+    url = "{{ $base }}/themes/lazygit/fmind.yml"
     checksum.sha256 = "a70c6b6e01180478f23832b831d6c664900a948900c9b956c159c4dd3c6f38c6"
 
 [".config/lsd/colors.yaml"]
     type = "file"
-    url = "{{ $base }}/lsd/fmind.yaml"
+    url = "{{ $base }}/themes/lsd/fmind.yaml"
     checksum.sha256 = "67851dd92ea9baec543f9d8a17b1e9981f33cfab61a247912d757249b05bd79d"
 
 [".config/yazi/theme.toml"]
     type = "file"
-    url = "{{ $base }}/yazi/fmind.toml"
+    url = "{{ $base }}/themes/yazi/fmind.toml"
     checksum.sha256 = "072f322c5e4d42107ccd0ed2dc58d1e9a6792968afe7f17b1f1f48d9c5fb8d03"
 
 # Install only the Mono family, keeping terminal icons within character cells.

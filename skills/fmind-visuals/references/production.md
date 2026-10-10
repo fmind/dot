@@ -20,5 +20,5 @@
 
 [Diagrams as code](../../diagrams-as-code/SKILL.md) owns the format choice and each format's procedure; Fmind work adds only the brand.
 
-1. **Set every font slot**: use the eight static-face mappings in [fmind-theme.md](fmind-theme.md). Within Pub, `pub render diagram` supplies them from `assets/fonts/`; new article diagrams import `assets/fmind/diagram-v2.d2`. Keep previous imports and rendered assets intact.
-1. **Start Fmind article diagrams** from [diagram.d2](../templates/diagram.d2) on a light surface, and apply the portable Fmind frontmatter from [fmind-theme.md](fmind-theme.md) to Mermaid.
+1. **Set every font slot**: use the eight static-face mappings in [renderers.md](renderers.md). Within Pub, `pub render diagram` supplies them from `assets/fonts/`; new article diagrams import `assets/fmind/diagram-v2.d2`. Keep previous imports and rendered assets intact.
+1. **Start Fmind article diagrams** from [diagram.d2](../templates/diagram.d2) on a light surface, and apply the portable Fmind frontmatter from [renderers.md](renderers.md) to Mermaid.
