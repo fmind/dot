@@ -238,6 +238,7 @@ class DoctorConfig(StrictModel):
 Scope = Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_:/.-]*$")]
 Project = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
 CacheProvider = Literal["docker", "hf", "uv"]
+LoginProvider = Literal["colab", "gcp", "github", "workspace"]
 PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
 
 
@@ -375,6 +376,9 @@ class AuthConfig(StrictModel):
     github: GitHubConfig = Field(default_factory=GitHubConfig)
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
     gcp: GcpConfig = Field(default_factory=GcpConfig)
+    # Providers that a bare `dot login` reconciles on this machine; credential lifetimes differ per
+    # machine and account policy, so each machine lists only the providers it uses.
+    login: Annotated[list[LoginProvider], Field(min_length=1)] = ["github", "gcp", "workspace"]
     probe_timeout_seconds: Seconds = 45.0
 
 

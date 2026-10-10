@@ -136,15 +136,15 @@ Other everyday shortcuts: `/full-review` reviews a whole project and applies ver
 ### Authentication & Logins
 
 ```bash
-dot login all             # GitHub, GCP and ADC, then Workspace; skips what is ready, opens the browser when needed
-dot login all --check     # Only report which providers need a login (exit 1 if any)
+dot login                 # This machine's providers (auth.login); skips what is ready, opens the browser when needed
+dot login --check         # Only report which providers need a login (exit 1 if any)
 dot login github          # GitHub
 dot login workspace       # Google Workspace
 dot login gcp             # Google Cloud and ADC
 dot login colab           # ADC with Colab scopes, then verify session access
 ```
 
-GitHub pushes use SSH, even for HTTPS clones: register an SSH key in [GitHub settings](https://github.com/settings/keys). `dot login all` also reconciles GitHub scopes and, when `GWS_PROJECT` or `auth.workspace.project` is set, Workspace APIs and OAuth setup; run `dot setup github` or `dot setup workspace <project-id>` for one step alone. Account selection and scope policy live in the [authentication guide](skills/dot-cli/references/authentication.md).
+GitHub pushes use SSH, even for HTTPS clones: register an SSH key in [GitHub settings](https://github.com/settings/keys). `dot login` also reconciles GitHub scopes and, when `GWS_PROJECT` or `auth.workspace.project` is set, Workspace APIs and OAuth setup; run `dot setup github` or `dot setup workspace <project-id>` for one step alone. Credential lifetimes follow each account's session policy, so each machine lists its providers in its unmanaged `~/.config/dot.yaml`, for example `auth: {login: [gcp, workspace]}`; the default is `[github, gcp, workspace]` and `colab` is opt-in. Account selection and scope policy live in the [authentication guide](skills/dot-cli/references/authentication.md).
 
 Agent harnesses use their own logins:
 
