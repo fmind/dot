@@ -1,7 +1,7 @@
 # Docs: https://developers.openai.com/api/docs/pricing
-as_of: "2026-10-09"
-basis: Standard short-context USD per million tokens; cache writes at the 5-minute rate, except Claude 1-hour writes at
-  their own rate. Excludes long-context, priority/fast, regional and tool fees, discounts, taxes and subscriptions.
+as_of: "2026-10-12"
+basis: Standard short-context USD per million tokens; OpenAI model-default cache writes, Claude 5-minute writes and
+  separate Claude 1-hour writes. Excludes long-context, priority/fast, regional and tool fees, discounts, taxes and subscriptions.
   Applies current rates to historical usage; not an invoice.
 sources:
   - https://developers.openai.com/api/docs/pricing
@@ -12,6 +12,7 @@ sources:
   - https://platform.claude.com/docs/en/models/opus-4-5/overview
   - https://platform.claude.com/docs/en/models/sonnet-4-5/overview
   - https://docs.x.ai/docs/models
+  - https://docs.x.ai/developers/pricing
 models:
   gpt-6.1-sol:
     input: 2
@@ -202,6 +203,12 @@ models:
     cache_read: 0.3
     cache_write: 3.75
     cache_write_1h: 6
+  claude-haiku-5-5:
+    input: 0.1
+    output: 0.5
+    cache_read: 0.01
+    cache_write: 0.125
+    cache_write_1h: 0.2
   claude-haiku-4-5:
     input: 1
     output: 5
@@ -214,6 +221,11 @@ models:
     cache_read: 0.1
     cache_write: 1.25
     cache_write_1h: 2
+  grok-4.7:
+    input: 2
+    output: 6
+    cache_read: 0.5
+    cache_write: null
   grok-4.6:
     input: 2
     output: 6

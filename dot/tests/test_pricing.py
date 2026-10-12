@@ -251,15 +251,17 @@ def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
 
 
 @pytest.mark.parametrize(
-    ("harness", "model"),
+    ("harness", "model", "expected"),
     [
-        ("codex", "gpt-6.1-sol"),
-        ("claude", "claude-sonnet-5-5"),
-        ("grok", "grok-4.6"),
-        ("grok", "grok-4.6-build"),
+        ("codex", "gpt-6.1-sol", 12),
+        ("claude", "claude-sonnet-5-5", 12),
+        ("claude", "claude-haiku-5-5", 0.6),
+        ("grok", "grok-4.7", 8),
+        ("grok", "grok-4.6", 8),
+        ("grok", "grok-4.6-build", 8),
     ],
 )
-def test_rate_card_prices_current_models(harness: str, model: str) -> None:
+def test_rate_card_prices_current_models(harness: str, model: str, expected: float) -> None:
     usage = UsageRecord(
         harness=harness,
         session_id="one",
@@ -272,9 +274,7 @@ def test_rate_card_prices_current_models(harness: str, model: str) -> None:
     cost, reason = api_equivalent(usage, default_pricing())
 
     assert reason == ""
-    assert cost == pytest.approx(
-        {"gpt-6.1-sol": 12, "claude-sonnet-5-5": 12, "grok-4.6": 8, "grok-4.6-build": 8}[model]
-    )
+    assert cost == pytest.approx(expected)
 
 
 def test_sonnet_5_5_cache_hits_use_the_published_discount() -> None:
