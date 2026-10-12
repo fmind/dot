@@ -1,4 +1,4 @@
-"""Exercise editor clipboard selection, independent repository review state, and Markdown lists."""
+"""Exercise editor clipboard selection, independent repository review state, and list editing."""
 
 import os
 import shutil
@@ -126,33 +126,37 @@ assert(comparisons[buffers[1]] == nil and comparisons[buffers[2]] == nil)
     )
 
 
-def test_markdown_enter_continues_lists_in_typeahead_order(tmp_path: Path) -> None:
+def test_enter_continues_lists_in_prose_buffers_in_typeahead_order(tmp_path: Path) -> None:
     run_lua(
         tmp_path,
         """
 vim.cmd("filetype plugin indent on")
--- LazyVim keeps its 2-space indent instead of the ftplugin's 4-space style.
+-- Mirror LazyVim: comment leaders continue on <CR>, and Markdown keeps a 2-space indent.
+vim.o.formatoptions = "jcroqlnt"
 vim.g.markdown_recommended_style = 0
 vim.o.expandtab, vim.o.shiftwidth = true, 2
 dofile(vim.env.AUTOCMD_CONFIG)
-vim.cmd.edit("list.md")
-local function typed(keys)
+local function expect(keys, want)
   vim.api.nvim_buf_set_lines(0, 0, -1, false, {})
   -- One feed puts every key in typeahead at once, like a macro or :normal.
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("i" .. keys .. "<Esc>", true, false, true), "xt", false)
-  return vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local got = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  assert(vim.deep_equal(got, want), vim.bo.filetype .. ": " .. keys .. " produced " .. vim.inspect(got))
 end
-local function expect(keys, want)
-  local got = typed(keys)
-  assert(vim.deep_equal(got, want), keys .. " produced " .. vim.inspect(got))
+-- The unnamed startup buffer predates the configuration, as with LazyVim's lazy loading.
+for _, open in ipairs({ "", "edit list.md", "edit notes.txt", "edit COMMIT_EDITMSG" }) do
+  if open ~= "" then
+    vim.cmd(open)
+  end
+  expect("- top<CR>second<CR><C-t>nested<CR>deeper<CR><CR>back<CR><CR>after",
+    { "- top", "- second", "  - nested", "  - deeper", "- back", "after" })
+  expect("9. nine<CR>ten", { "9. nine", "10. ten" })
+  expect("- [x] done<CR>todo", { "- [x] done", "- [ ] todo" })
+  expect("plain<CR>line", { "plain", "line" })
+  expect("- split<Left><Left><CR>", { "- spl", "- it" })
+  expect("- x<Home><CR>", { "", "- x" })
+  vim.bo.modified = false
 end
-expect("- top<CR>second<CR><C-t>nested<CR>deeper<CR><CR>back<CR><CR>after",
-  { "- top", "- second", "  - nested", "  - deeper", "- back", "after" })
-expect("9. nine<CR>ten", { "9. nine", "10. ten" })
-expect("- [x] done<CR>todo", { "- [x] done", "- [ ] todo" })
-expect("plain<CR>line", { "plain", "line" })
-expect("- split<Left><Left><CR>", { "- spl", "it" })
-vim.bo.modified = false
 """,
         AUTOCMD_CONFIG=str(ROOT / "dot_config/nvim/lua/config/autocmds.lua"),
     )
