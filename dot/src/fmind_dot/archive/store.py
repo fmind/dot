@@ -359,8 +359,11 @@ def ingest_session(
         parent_session_id=source.parent_session_id,
     )
     retain_usage = False
-    if not logs and usage is None and not path.exists():
-        return SessionIngestionResult("skipped", manifest)
+    if not logs and usage is None:
+        try:
+            path.stat()
+        except FileNotFoundError:
+            return SessionIngestionResult("skipped", manifest)
     root = session_store_root()
     # Atomic replacement protects readers; the lock also protects the read/compare/write
     # decision against another sync process. Keep the lock inode stable between writers.
@@ -368,7 +371,12 @@ def ingest_session(
     descriptor = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, "rb") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
-        stored = read_session_manifest(path) if path.exists() else None
+        # exists() hides permission errors on supported Python versions. An unreadable
+        # capture must never become an absent one before publication repairs permissions.
+        try:
+            stored = read_session_manifest(path)
+        except FileNotFoundError:
+            stored = None
         if stored is None and not logs and usage is None:
             return SessionIngestionResult("skipped", manifest)
         generation = (stored.parser_version, stored.source_fingerprint) if stored else ("", "")

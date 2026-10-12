@@ -107,9 +107,14 @@ def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
     """Snapshot manifests before parsing, including the publication generation."""
     stored: dict[str, SessionManifest] = {}
     directory = root / agent
-    if not directory.is_dir():
+    try:
+        paths = list(directory.iterdir())
+    except FileNotFoundError:
         return stored
-    for path in directory.glob("*.jsonl"):
+    # glob() suppresses scan errors, hiding captures that publication must retain.
+    for path in paths:
+        if path.suffix != ".jsonl":
+            continue
         try:
             manifest = read_session_manifest(path)
         except OSError, ValueError:
@@ -268,7 +273,11 @@ def sync_sessions(
             fail(adapter, "scan sessions", error)
             candidates = []
             scanned = False
-        stored = _stored_sources(root, adapter.name)
+        try:
+            stored = _stored_sources(root, adapter.name)
+        except _SESSION_ERRORS as error:
+            fail(adapter, "inspect the session archive", error)
+            continue
         counts = SyncOutcome()
         for session_id, source_cwd, path in candidates:
             if session and session_id != session:
