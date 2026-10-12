@@ -2355,10 +2355,10 @@ specifiers = ["latest"]
 uv = { path = "locks/pipx-brain-framework/18.3.0", digest = "sha256:ddb283ce8a36849748ddfe6a72b6509ba7972333177bd6dc3b750287eb57cf2e" }
 
 [[tools."pipx:copier"]]
-version = "9.18.2"
+version = "9.19.0"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.18.2", digest = "sha256:c7abbce587259439c83c176e0db98292cfb466af4d64d157d4fe9df8f2ac3633" }
+uv = { path = "locks/pipx-copier/9.19.0", digest = "sha256:e384113c306f8fb23523c1011a64b89eefba07597abe3d877e59b45a17958640" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.3"
