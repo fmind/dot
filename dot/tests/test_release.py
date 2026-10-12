@@ -7,6 +7,7 @@ from typing import IO
 
 import pytest
 
+from dot_tasks import release
 from dot_tasks.release import read_release_version, run_release, validate_release_status
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
@@ -125,39 +126,84 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
 
 
 @pytest.mark.parametrize("task", ["check:network", "test:starters", "build", "check:completions"])
-def test_gate_failure_restores_generated_files_without_tagging(project: Path, task: str) -> None:
+def test_gate_failure_keeps_generated_files_without_tagging(project: Path, task: str) -> None:
     runner = ReleaseRunner(project)
     runner.interactive_codes[("mise", "run", task)] = 1
+    state = make_state(runner)
 
     with pytest.raises(DotError, match=f"project {task} failed"):
-        run_release(make_state(runner), yes=True)
+        run_release(state, yes=True)
 
-    assert RESTORE in runner.calls
+    assert RESTORE not in runner.calls
+    assert read_release_version(project) == "1.27.0"
+    assert isinstance(state.stderr, io.StringIO)
+    assert "Review git diff and git diff --cached before retrying" in state.stderr.getvalue()
     assert COMMIT not in runner.interactive_calls
     assert not any(call[:3] == ("git", "tag", "-a") for call in runner.calls)
     assert PUSH not in runner.interactive_calls
 
 
-def test_failed_commit_hook_restores_generated_files_without_tagging(project: Path) -> None:
+def test_failed_commit_hook_keeps_generated_files_without_tagging(project: Path) -> None:
     runner = ReleaseRunner(project)
     runner.interactive_codes[COMMIT] = 1
 
     with pytest.raises(DotError, match="release commit failed; see the hook output above"):
         run_release(make_state(runner), yes=True)
 
-    assert RESTORE in runner.calls
+    assert RESTORE not in runner.calls
+    assert read_release_version(project) == "1.27.0"
     assert not any(call[:3] == ("git", "tag", "-a") for call in runner.calls)
     assert PUSH not in runner.interactive_calls
 
 
-def test_interrupt_restores_generated_files_and_propagates(project: Path) -> None:
+def test_interrupt_keeps_generated_files_and_propagates(project: Path) -> None:
     runner = ReleaseRunner(project)
     runner.interactive_codes[("mise", "run", "build")] = KeyboardInterrupt()
 
     with pytest.raises(KeyboardInterrupt):
         run_release(make_state(runner), yes=True)
 
-    assert RESTORE in runner.calls
+    assert RESTORE not in runner.calls
+    assert read_release_version(project) == "1.27.0"
+
+
+def test_failed_preparation_preserves_concurrent_work_and_index(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    git = Runner()
+    git.run(["git", "init", "--initial-branch=main", str(project)])
+    git.run(["git", "add", "."], cwd=project)
+    git.run(
+        ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-m", "baseline"],
+        cwd=project,
+    )
+    runner = ReleaseRunner(project)
+    original_run = runner.run
+
+    def run_with_real_restore(
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        input_text: str | None = None,
+        env: Mapping[str, str] | None = None,
+        timeout: float | None = None,
+        check: bool = True,
+    ) -> CommandResult:
+        if tuple(args[:2]) == ("git", "restore"):
+            return git.run(args, cwd=project)
+        return original_run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
+
+    def failing_prepare(_state: State, root: Path, _tag: str) -> None:
+        changelog = root / "CHANGELOG.md"
+        changelog.write_text("# Changelog\nConcurrent staged work\n")
+        git.run(["git", "add", "CHANGELOG.md"], cwd=root)
+        changelog.write_text(changelog.read_text() + "Concurrent unstaged work\n")
+        raise DotError("gate failed")
+
+    monkeypatch.setattr(runner, "run", run_with_real_restore)
+    monkeypatch.setattr(release, "_prepare", failing_prepare)
+    with pytest.raises(DotError, match="gate failed"):
+        run_release(make_state(runner), yes=True)
+    assert (project / "CHANGELOG.md").read_text() == "# Changelog\nConcurrent staged work\nConcurrent unstaged work\n"
+    assert git.run(["git", "show", ":CHANGELOG.md"], cwd=project).stdout == "# Changelog\nConcurrent staged work\n"
 
 
 def test_failed_tag_reports_the_local_release_commit_and_its_recovery(project: Path) -> None:

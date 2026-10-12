@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-10-09"
+  updated: "2026-10-12"
 ---
 
 # Dot Release
@@ -34,14 +34,14 @@ mise run release -- -y  # non-interactive, within an authorized release
 
 Inspect `git status --short`, the release commit, local tag, and remote state before retrying. [release.py](../../../dot/dot_tasks/release.py) owns the flow; its failure cases are exercised in [test_release.py](../../../dot/tests/test_release.py).
 
-| Failure boundary                           | Next action                                                                                                                                                                            |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Before the release commit                  | The command restores the version, changelog, and lockfile from HEAD with `git restore`. Fix the original failure, then rerun.                                                          |
-| Local tag already exists                   | Preflight stops before writing files. Delete the leftover tag with `git tag -d <tag>` after confirming it never reached the remote, then rerun.                                        |
-| Commit created, tagging failed             | Nothing reached the remote. Fix the cause, then run the tag, push, and deploy commands the error prints.                                                                               |
-| Commit and tag created, atomic push failed | Nothing reached the remote. Retry the push the error prints, then `mise run deploy`; if upstream moved, delete the local tag, reset the release commit, integrate upstream, and rerun. |
-| Push accepted, installation refresh failed | Verify the remote commit, tag, and CD independently, then retry `mise run deploy`. An installation error does not undo publication.                                                    |
-| CD gate failed on the tag                  | No release was created. Fix forward on `main` and release the next version; do not move published tags or rewrite history as an automatic repair.                                      |
+| Failure boundary                           | Next action                                                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Before the release commit                  | Changes stay in the worktree and index, including concurrent edits. Review `git diff` and `git diff --cached`, preserve the intended work, and fix the cause before preparing again. |
+| Local tag already exists                   | Preflight stops before writing files. Delete the leftover tag with `git tag -d <tag>` after confirming it never reached the remote, then rerun.                                      |
+| Commit created, tagging failed             | Nothing reached the remote. Fix the cause, then run the tag, push, and deploy commands the error prints.                                                                             |
+| Commit and tag created, atomic push failed | Inspect remote state before retrying the printed push and `mise run deploy`. If upstream moved, preserve the local release commit and reconcile the divergence before retrying.      |
+| Push accepted, installation refresh failed | Verify the remote commit, tag, and CD independently, then retry `mise run deploy`. An installation error does not undo publication.                                                  |
+| CD gate failed on the tag                  | No release was created. Fix forward on `main` and release the next version; do not move published tags or rewrite history as an automatic repair.                                    |
 
 ## Documentation
 

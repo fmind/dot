@@ -87,6 +87,35 @@ def test_ingestion_publishes_one_private_bundle(monkeypatch: pytest.MonkeyPatch,
     assert sorted(item.name for item in path.parent.iterdir()) == ["session-1.jsonl"]
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
+@pytest.mark.parametrize("blocked", ["ancestor", "root", "agent", "root-search"])
+def test_discovery_never_treats_an_inaccessible_archive_as_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, blocked: str
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("codex", "session-1", _logs(1))
+    root = session_store_root()
+    directory = {"ancestor": tmp_path / ".agents", "agent": root / "codex"}.get(blocked, root)
+    directory.chmod(0o400 if blocked == "root-search" else 0)
+    try:
+        with pytest.raises(PermissionError):
+            discover_session_bundles()
+    finally:
+        directory.chmod(0o700)
+
+
+def test_discovery_distinguishes_a_missing_archive_from_a_wrong_file_type(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert discover_session_bundles() == []
+    root = session_store_root()
+    root.parent.mkdir(parents=True)
+    root.write_text("not an archive directory")
+    with pytest.raises(NotADirectoryError, match="session archive is not a directory"):
+        discover_session_bundles()
+
+
 def test_replacement_never_shrinks_the_archived_transcript(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     path = session_bundle_path("codex", "session-1")

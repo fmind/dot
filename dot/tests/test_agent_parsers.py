@@ -59,6 +59,7 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed_agy.usage is not None
     assert parsed_agy.usage.total_tokens == 5
     assert parsed_agy.usage.measurement_kind == "estimated"
+    assert parsed_agy.usage.model == "unknown"
     assert parsed_agy.usage.source_bytes == agy.stat().st_size
     assert _usage(parse_agy_session(agy, "agy-id")).total_tokens == 5
 

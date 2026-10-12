@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-10-07"
+  updated: "2026-10-12"
 ---
 
 # Secrets with sops and age
@@ -29,12 +29,12 @@ Before the first encryption on a machine, and for any recipient change, follow [
 ```bash
 sops edit secrets.enc.yaml                          # create or edit: decrypts to $EDITOR, re-encrypts on save
 sops encrypt --filename-override config.enc.yaml config.yaml > config.enc.yaml  # suffix selects the creation rule; protect the existing plaintext input
-sops decrypt secrets.enc.yaml                       # decrypt to stdout for piping, never redirect to a file
 sops exec-env secrets.enc.env 'mise run watch'      # inject as env vars, memory-only (preferred)
 sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by default, not a tmpfs guarantee
 ```
 
 - **Prefer `exec-env` and `exec-file`** for runtime delivery; keep values out of logs and inspect how child processes handle them. `--no-fifo` writes a regular temporary file.
+- **Pipe decryption only to a reviewed consumer**: bare `sops decrypt` prints plaintext secrets into captured output. Never display its stdout or redirect it to a plaintext file.
 - **Wire integrations from their guide**: read [integrations.md](references/integrations.md) before wiring CI decryption (age key versus `gcp_kms` through Workload Identity Federation), Flux, OpenTofu, or a runtime secret manager.
 
 ## Gotchas

@@ -332,6 +332,7 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
     usage = {record.harness: record for record in load_usage_records()}
     assert set(usage) == {"agy", "claude", "copilot", "grok"}
     assert usage["agy"].turn_count == 1
+    assert usage["agy"].model == "unknown"
     assert usage["grok"].total_tokens == 21
 
 

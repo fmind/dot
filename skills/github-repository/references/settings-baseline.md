@@ -16,7 +16,7 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
    gh repo view "$repository" --json "$settings_fields"
    ```
 
-1. **Extend the edit**: append the baseline before the root's single `gh repo edit`. Add `--enable-issues=false` only when the project tracks issues elsewhere. Add the two secret-scanning flags only for a public repository or when `security_and_analysis.secret_scanning` is present; otherwise report that the capability is unavailable and continue with the remaining settings:
+1. **Extend the edit**: append the baseline before the root's single `gh repo edit`. For a new repository, disable unused sidebar features with `--enable-wiki=false --enable-projects=false --enable-discussions=false`; on an existing repository, add each flag only when that feature's removal was requested. Add `--enable-issues=false` only when the project tracks issues elsewhere. Add the two secret-scanning flags only for a public repository or when `security_and_analysis.secret_scanning` is present; otherwise report that the capability is unavailable and continue with the remaining settings:
 
    ```bash
    repository_json="$(gh api "repos/$repository")"
@@ -24,7 +24,6 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
      --delete-branch-on-merge --enable-squash-merge
      --squash-merge-commit-message pr-title-description
      --enable-merge-commit=false --enable-rebase-merge=false --allow-update-branch
-     --enable-wiki=false --enable-projects=false --enable-discussions=false
    )
    if [[ "$(jq -r .visibility <<<"$repository_json")" == public ]] ||
      [[ "$(jq -r '.security_and_analysis.secret_scanning.status? // empty' <<<"$repository_json")" ]]; then

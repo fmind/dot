@@ -16,4 +16,4 @@ python3 ~/.agents/skills/agy/scripts/sync-projects.py          # preview
 python3 ~/.agents/skills/agy/scripts/sync-projects.py --apply
 ```
 
-It adds missing checkouts and removes folder entries outside the glob or duplicated (symlinked checkouts resolve to one entry); entries without folders, such as the native default project, stay. Existing names and metadata are preserved, and new entries are written atomically. This registers projects, not semantic code indexes.
+It adds missing checkouts and removes folder entries outside the glob or duplicated (symlinked checkouts resolve to one entry); entries without folders, such as the native default project, stay. Existing names and metadata are preserved, and new entries are written atomically. Malformed registry JSON fails with a diagnostic before entries are changed. This registers projects, not semantic code indexes.
