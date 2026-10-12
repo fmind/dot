@@ -133,7 +133,7 @@ class ModelPrice(StrictModel):
     input: TokenPrice
     output: TokenPrice
     cache_read: TokenPrice | None = None
-    # 5-minute (default TTL) cache writes; Claude prices 1-hour writes separately.
+    # Model-default cache writes (Claude: 5-minute TTL); Claude prices 1-hour writes separately.
     cache_write: TokenPrice | None = None
     cache_write_1h: TokenPrice | None = None
 
