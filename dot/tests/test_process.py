@@ -160,6 +160,48 @@ def test_cancellation_during_launch_reports_cancellation_and_reaps_child(monkeyp
                     stream.close()
 
 
+@pytest.mark.parametrize("mode", ["captured", "interactive"])
+@pytest.mark.parametrize("signum", [process_module.signal.SIGINT, process_module.signal.SIGTERM])
+def test_signal_during_process_construction_stops_child(
+    mode: str, signum: process_module.signal.Signals, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = Runner()
+    execute_child = getattr(subprocess.Popen, "_execute_child")  # noqa: B009 - POSIX launch hook has no type stub.
+    children: list[subprocess.Popen[str]] = []
+
+    def launch(process: subprocess.Popen[str], *args, **kwargs) -> None:
+        execute_child(process, *args, **kwargs)
+        children.append(process)
+        # The OS child exists, but Popen has not returned ownership to Runner.
+        process_module.signal.raise_signal(signum)
+
+    def interrupt(_signum, _frame) -> None:
+        raise KeyboardInterrupt
+
+    previous = process_module.signal.signal(signum, interrupt)
+    monkeypatch.setattr(subprocess.Popen, "_execute_child", launch)
+    try:
+        command = [sys.executable, "-c", "import time; time.sleep(30)"]
+        invoke = runner.run if mode == "captured" else runner.interactive
+        with pytest.raises(KeyboardInterrupt):
+            invoke(command)
+        assert children[0].poll() is not None
+        assert process_module.signal.getsignal(signum) is interrupt
+        assert not runner._processes  # noqa: SLF001 - cancellation must also unregister the child.
+        for stream in (children[0].stdin, children[0].stdout, children[0].stderr):
+            if stream is not None:
+                assert stream.closed
+    finally:
+        process_module.signal.signal(signum, previous)
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+            for stream in (child.stdin, child.stdout, child.stderr):
+                if stream is not None:
+                    stream.close()
+
+
 def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: Path) -> None:
     script = (
         "import os,pathlib,sys\n"

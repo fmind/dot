@@ -13,9 +13,10 @@ import threading
 import time
 from collections.abc import Callable, Generator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager, nullcontext, suppress
+from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from pathlib import Path
+from types import FrameType
 from typing import IO
 
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -100,6 +101,32 @@ def _terminate(process: subprocess.Popen[str], *, group: bool = True) -> None:
 
 
 @contextmanager
+def _deferred_launch_interrupts() -> Generator[None]:
+    """Deliver cancellation only after Popen returns ownership of the launched child."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    pending: list[int] = []
+
+    def defer(signum: int, _frame: FrameType | None) -> None:
+        pending.append(signum)
+
+    try:
+        with ExitStack() as restore:
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                previous = signal.getsignal(signum)
+                if callable(previous):
+                    # Callable handlers reset on exec; blocking signals here would
+                    # leave the child with an inherited cancellation-blocking mask.
+                    signal.signal(signum, defer)
+                    restore.callback(signal.signal, signum, previous)
+            yield
+    finally:
+        for signum in pending:
+            signal.raise_signal(signum)
+
+
+@contextmanager
 def _deferred_interrupts() -> Generator[None]:
     """Leave Ctrl+C to an interactive child, which shares dot's foreground process group."""
     if threading.current_thread() is not threading.main_thread():
@@ -172,35 +199,40 @@ class Runner:
             raise DotError("cannot run an empty command")
         if self._cancelled.is_set():
             raise DotError("operation cancelled")
-        process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
-            list(args),
-            cwd=cwd,
-            env=_environment(env),
-            stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            # Text mode also applies universal newlines; tool output is not trusted text.
-            encoding=locale.getencoding(),
-            errors="replace",
-            start_new_session=True,
-        )
+        process: subprocess.Popen[str] | None = None
         try:
-            with self._process_lock:
-                self._processes.add(process)
+            with _deferred_launch_interrupts():
+                process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
+                    list(args),
+                    cwd=cwd,
+                    env=_environment(env),
+                    stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    # Text mode also applies universal newlines; tool output is not trusted text.
+                    encoding=locale.getencoding(),
+                    errors="replace",
+                    start_new_session=True,
+                )
+                with self._process_lock:
+                    self._processes.add(process)
             # Cancellation can land between launch and registration. Use the same
             # cleanup path as other failures, without trying to read closed pipes.
             if self._cancelled.is_set():
                 raise DotError("operation cancelled")
             stdout, stderr = process.communicate(input_text, timeout=timeout)
         except subprocess.TimeoutExpired as error:
-            _terminate(process)
+            if process is not None:
+                _terminate(process)
             raise CommandTimeoutError(f"command timed out: {args[0]}") from error
         except BaseException:
-            _terminate(process)
+            if process is not None:
+                _terminate(process)
             raise
         finally:
-            with self._process_lock:
-                self._processes.discard(process)
+            if process is not None:
+                with self._process_lock:
+                    self._processes.discard(process)
         if check and process.returncode != 0:
             # Tool stderr can contain credentials or provider payloads; callers opt in
             # to rendering bounded diagnostics only after they have classified them.
@@ -234,24 +266,26 @@ class Runner:
         for stream in (stdout or sys.stdout, stderr or sys.stderr):
             stream.flush()
         with nullcontext() if detached else _deferred_interrupts():
-            process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
-                list(args),
-                cwd=cwd,
-                env=_environment(env),
-                stdin=stdin,
-                stdout=stdout,
-                stderr=subprocess.PIPE if on_stderr_line is not None else stderr,
-                text=True,
-                errors="replace",
-                process_group=0 if detached else None,
-            )
-            relay = None
-            if on_stderr_line is not None and process.stderr is not None:
-                # The relay owns the pipe: closing it while the thread reads would wait on its buffer lock.
-                source, process.stderr = process.stderr, None
-                relay = threading.Thread(target=_relay_lines, args=(source, stderr, on_stderr_line), daemon=True)
-                relay.start()
+            process: subprocess.Popen[str] | None = None
             try:
+                with _deferred_launch_interrupts():
+                    process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
+                        list(args),
+                        cwd=cwd,
+                        env=_environment(env),
+                        stdin=stdin,
+                        stdout=stdout,
+                        stderr=subprocess.PIPE if on_stderr_line is not None else stderr,
+                        text=True,
+                        errors="replace",
+                        process_group=0 if detached else None,
+                    )
+                relay = None
+                if on_stderr_line is not None and process.stderr is not None:
+                    # The relay owns the pipe: closing it while the thread reads would wait on its buffer lock.
+                    source, process.stderr = process.stderr, None
+                    relay = threading.Thread(target=_relay_lines, args=(source, stderr, on_stderr_line), daemon=True)
+                    relay.start()
                 code = process.wait()
                 if relay is not None:
                     # An escaped descendant may keep the pipe open; never wait on it indefinitely.
@@ -260,7 +294,8 @@ class Runner:
                     raise KeyboardInterrupt
                 return code
             except BaseException:
-                _terminate(process, group=detached)
+                if process is not None:
+                    _terminate(process, group=detached)
                 raise
 
 
