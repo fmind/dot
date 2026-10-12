@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.4.2] - 2026-10-12
+
+### 🐛 Bug Fixes
+
+- Stop child processes interrupted during startup
+
 ## [11.4.1] - 2026-10-12
 
 ### 🐛 Bug Fixes
