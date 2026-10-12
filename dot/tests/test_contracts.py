@@ -34,6 +34,9 @@ def _write_skill(
         "metadata:\n"
         "  kind: task\n"
         "  author: Fixture Author\n"
+        f"  source: github.com/fmind/dot/tree/main/skills/{name}\n"
+        '  created: "2026-10-01"\n'
+        '  updated: "2026-10-12"\n'
         "---\n\n"
         "# Fixture\n\n"
         "Validate a fixture with the uv executable.\n\n"
@@ -87,12 +90,43 @@ def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, valu
         (lambda text: text.replace("name: fixture", "name: wrong"), "must match its directory"),
         (lambda text: text.replace("# Fixture", "Fixture"), "H1 heading"),
         (lambda text: text.replace("## ", "### "), "H2 section"),
+        (
+            lambda text: text.replace("  kind: task", "  kind: task\n  deep: " + "[" * 1000 + "]" * 1000),
+            "invalid frontmatter",
+        ),
     ],
 )
 def test_skills_contract_rejects_broken_package(tmp_path: Path, mutation: Callable[[str], str], expected: str) -> None:
     root = _fixture_repository(tmp_path)
     skill = root / "skills/fixture/SKILL.md"
     skill.write_text(mutation(skill.read_text(encoding="utf-8")), encoding="utf-8")
+
+    assert any(expected in finding for finding in checker.repository_findings(root))
+
+
+@pytest.mark.parametrize(
+    ("original", "replacement", "expected"),
+    [
+        ("  author: Fixture Author\n", "", "metadata.author must be a non-empty string"),
+        ("  author: Fixture Author", "  author: 42", "metadata keys and values must be strings"),
+        ("  author: Fixture Author", '  author: ""', "metadata.author must be a non-empty string"),
+        ("  source: github.com/fmind/dot/tree/main/skills/fixture", "  source: null", "metadata.source"),
+        ('  created: "2026-10-01"', "  created: 2026-10-01", "metadata keys and values must be strings"),
+        ('  created: "2026-10-01"', '  created: "2026-02-30"', "metadata.created must be a quoted ISO date"),
+        ('  updated: "2026-10-12"', '  updated: "20261012"', "metadata.updated must be a quoted ISO date"),
+        ('  updated: "2026-10-12"', '  updated: "2026-09-30"', "must not precede metadata.created"),
+        ('  updated: "2026-10-12"\n', "", "metadata.updated must be a non-empty string"),
+        ("  kind: task", "  kind: [task]", "metadata.kind must be connector, task, or collection"),
+        ("  kind: task", "  kind: task\n  revision: 1", "metadata keys and values must be strings"),
+        ("  kind: task", "  kind: task\n  1: value", "metadata keys and values must be strings"),
+    ],
+)
+def test_skills_contract_rejects_invalid_metadata(
+    tmp_path: Path, original: str, replacement: str, expected: str
+) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    skill.write_text(skill.read_text().replace(original, replacement))
 
     assert any(expected in finding for finding in checker.repository_findings(root))
 
@@ -338,7 +372,10 @@ def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -
     (destination / "GUIDE.md").rename(promoted)
     promoted.write_text(
         promoted.read_text().replace(
-            "description: Recover a fixture.", "description: Recover a fixture.\nlicense: MIT\nmetadata:\n  kind: task"
+            "description: Recover a fixture.",
+            "description: Recover a fixture.\nlicense: MIT\nmetadata:\n  kind: task\n"
+            "  author: Fixture Author\n  source: github.com/fmind/dot/tree/main/skills/child\n"
+            '  created: "2026-10-01"\n  updated: "2026-10-12"',
         )
     )
     findings, _ = checker._skill_findings(root, "child", promoted)

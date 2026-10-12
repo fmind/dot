@@ -9,6 +9,7 @@ import re
 import stat
 import sys
 import unicodedata
+from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -135,7 +136,7 @@ def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, li
     raw, body = normalized[4:].split("\n---\n", 1)
     try:
         metadata = yaml.safe_load(raw)
-    except yaml.YAMLError as error:
+    except (yaml.YAMLError, RecursionError) as error:
         return None, body, [f"{relative}: invalid frontmatter: {error}"]
     if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
         return None, body, [f"{relative}: frontmatter must be a string-keyed mapping"]
@@ -341,6 +342,39 @@ def _document_targets(content: str) -> tuple[str, ...]:
     return tuple(targets)
 
 
+def _metadata_findings(relative: str, metadata: Any) -> list[str]:
+    if not isinstance(metadata, dict):
+        return [f"{relative}: metadata must be a mapping"]
+    findings: list[str] = []
+    if not all(isinstance(key, str) and isinstance(value, str) for key, value in metadata.items()):
+        findings.append(f"{relative}: metadata keys and values must be strings")
+    kind = metadata.get("kind")
+    if not isinstance(kind, str) or kind not in SKILL_KINDS:
+        findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
+    if "guides" in metadata:
+        findings.append(f"{relative}: remove metadata.guides; guide frontmatter owns the generated index")
+    for field in ("author", "source", "created", "updated"):
+        value = metadata.get(field)
+        if not isinstance(value, str) or not value.strip():
+            findings.append(f"{relative}: metadata.{field} must be a non-empty string")
+    dates: dict[str, date] = {}
+    for field in ("created", "updated"):
+        value = metadata.get(field)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError:
+            parsed = None
+        if parsed is None or parsed.isoformat() != value:
+            findings.append(f"{relative}: metadata.{field} must be a quoted ISO date (YYYY-MM-DD)")
+        else:
+            dates[field] = parsed
+    if len(dates) == 2 and dates["created"] > dates["updated"]:
+        findings.append(f"{relative}: metadata.updated must not precede metadata.created")
+    return findings
+
+
 def _skill_findings(root: Path, name: str, path: Path) -> tuple[list[str], str | None]:
     relative = _relative(root, path)
     metadata, body, findings = _frontmatter(path, root)
@@ -366,14 +400,7 @@ def _skill_findings(root: Path, name: str, path: Path) -> tuple[list[str], str |
         description = None
     if metadata.get("license") != "MIT":
         findings.append(f"{relative}: license must be MIT")
-    if not isinstance(metadata.get("metadata"), dict):
-        findings.append(f"{relative}: metadata must be a mapping")
-    else:
-        kind = metadata["metadata"].get("kind")
-        if not isinstance(kind, str) or kind not in SKILL_KINDS:
-            findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
-        if "guides" in metadata["metadata"]:
-            findings.append(f"{relative}: remove metadata.guides; guide frontmatter owns the generated index")
+    findings.extend(_metadata_findings(relative, metadata.get("metadata")))
     findings.extend(_guide_findings(root, path, body))
 
     body_lines = [line for line in body.splitlines() if line.strip()]

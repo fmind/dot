@@ -13,9 +13,15 @@ _GRAPH_FILES = {"uv": ("pyproject.toml", "uv.lock"), "aube": ("package.json", "a
 LOCK_REVISION = 3
 
 
+def _bundle_path(root: Path, relative: Path) -> Path:
+    if any((root / parent).is_symlink() for parent in (relative, *relative.parents)):
+        raise ValueError(f"Lock bundle paths must not use symlinks: {relative}")
+    return root / relative
+
+
 def bundle(lock: Path, *, verify: bool = True) -> dict[Path, bytes]:
     """Read a lock bundle; allow damaged graphs only when repairing a destination."""
-    content = lock.read_bytes()
+    content = _bundle_path(lock.parent, Path(lock.name)).read_bytes()
     document = tomllib.loads(content.decode())
     if document.get("lockfile_version") != LOCK_REVISION:
         raise ValueError(f"Unsupported mise lock format; expected revision {LOCK_REVISION}")
@@ -40,9 +46,7 @@ def bundle(lock: Path, *, verify: bool = True) -> dict[Path, bytes]:
                     raise ValueError(f"Dependency path must remain under locks/: {relative}")
                 for name in names:
                     path = relative / name
-                    target = lock.parent / path
-                    if any((lock.parent / parent).is_symlink() for parent in (path, *path.parents)):
-                        raise ValueError(f"Dependency files must not use symlinks: {path}")
+                    target = _bundle_path(lock.parent, path)
                     if verify or target.exists():
                         files[path] = target.read_bytes()
                 if not verify:
@@ -61,8 +65,13 @@ def capture(source: Path, destination: Path) -> None:
     incoming = bundle(source)
     previous = bundle(destination, verify=False) if destination.exists() else {}
     lock = Path(source.name)
+    # Validate every incoming destination before writing even an earlier safe graph.
+    targets = {
+        relative: _bundle_path(destination.parent, Path(destination.name) if relative == lock else relative)
+        for relative in incoming
+    }
     for relative in sorted(incoming, key=lambda path: path == lock):
-        target = destination if relative == lock else destination.parent / relative
+        target = targets[relative]
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(incoming[relative])
     for relative in previous.keys() - incoming.keys():
