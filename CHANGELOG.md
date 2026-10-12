@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.3.1] - 2026-10-12
+
+### 🐛 Bug Fixes
+
+- _(pricing)_ Price Grok Build turns at their served model rate
+
+### 🧪 Testing
+
+- _(nvim)_ Assert the Wayland clipboard only on Linux hosts
+
 ## [11.3.0] - 2026-10-12
 
 ### 🚀 Features
