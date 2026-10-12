@@ -80,7 +80,7 @@ def _skill_entry(path: Path, scope: Scope, *, catalog: Path) -> ContextEntry:
         raise DotError(f"unclosed skill frontmatter: {path}; add the closing --- delimiter")
     try:
         metadata = yaml.safe_load("".join(lines[1:end]))
-    except yaml.YAMLError as error:
+    except (yaml.YAMLError, RecursionError) as error:
         # YAML exceptions can contain source text. Keep private instructions out of errors.
         raise DotError(f"invalid skill frontmatter: {path}; repair its YAML") from error
     if not isinstance(metadata, dict):

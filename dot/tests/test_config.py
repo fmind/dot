@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -183,6 +184,25 @@ def test_load_config_wraps_yaml_and_decode_failures_with_path_context(tmp_path: 
     directory.mkdir()
     with pytest.raises(ValueError, match=r"failed to read config file at .*directory\.yaml"):
         load_config(directory)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
+def test_unreadable_default_config_never_falls_back_to_default_policy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    path = tmp_path / ".config/dot.yaml"
+    path.parent.mkdir()
+    path.write_text("prune:\n  providers: [mise]\n")
+    assert load_config().prune.providers == ["mise"]
+    path.parent.chmod(0)
+    try:
+        with pytest.raises(ValueError, match="failed to read config file") as caught:
+            load_config()
+        assert isinstance(caught.value.__cause__, PermissionError)
+    finally:
+        path.parent.chmod(0o700)
+    assert load_config().prune.providers == ["mise"]
 
 
 def test_path_resolution_expands_only_current_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
