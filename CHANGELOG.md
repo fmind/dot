@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.4.0] - 2026-10-12
+
+### 🚀 Features
+
+- _(nvim)_ Continue Markdown lists on Enter and accept completions with Tab
+
+### 🐛 Bug Fixes
+
+- _(nvim)_ Continue lists in text, commit, and unnamed buffers
+
 ## [11.3.1] - 2026-10-12
 
 ### 🐛 Bug Fixes
