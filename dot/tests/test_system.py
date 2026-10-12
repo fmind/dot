@@ -177,7 +177,7 @@ def test_headroom_groups_paths_by_filesystem_and_parses_available_memory(tmp_pat
         "Pages inactive:                           70000.\n"
         "Pages speculative:                         5536.\n"
     )
-    assert system.vm_stat_available_bytes(vm_stat) == (70000 - 5536 + 70000) * 16384
+    assert system.vm_stat_available_bytes(vm_stat) == (70000 + 5536 + 70000) * 16384
     assert system.vm_stat_available_bytes("Pages free: 1.\n") is None
     results = system.headroom_results([first, second, first, tmp_path / "absent"], memory=None)
     disks = [result for result in results if result.name == "disk"]
@@ -198,6 +198,26 @@ def test_macos_memory_reads_vm_stat_and_degrades_to_unknown(monkeypatch: pytest.
     assert system.available_memory_bytes() == 16 * 4096
     output = "unexpected"
     assert system.available_memory_bytes() is None
+
+
+def test_macos_headroom_counts_speculative_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    output = (
+        "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n"
+        "Pages free: 60000.\nPages inactive: 10000.\nPages speculative: 20000.\n"
+    )
+
+    class VmStat:
+        def run(self, args: list[str], **_kwargs: object) -> CommandResult:
+            assert args == ["vm_stat"]
+            return CommandResult(output, "", 0)
+
+    monkeypatch.setattr(system.sys, "platform", "darwin")
+    monkeypatch.setattr(system, "Runner", VmStat)
+    monkeypatch.setattr(system.shutil, "disk_usage", _disk(30))
+    result = CliRunner().invoke(app, ["doctor", "--headroom"])
+    assert result.exit_code == 0, result.output
+    assert "1.4 GiB available" in result.stdout
+    assert result.stdout.startswith("PASS · headroom: ")
 
 
 def state_with(

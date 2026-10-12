@@ -719,6 +719,36 @@ def test_cache_text_continues_past_a_failed_provider_and_exits_nonzero(provider:
     assert "cache inspection failed for docker, hf, uv" in str(result.exception)
 
 
+def test_cache_json_keeps_other_reports_when_a_provider_cannot_start(provider: RecordingRunner) -> None:
+    provider.responses = [OSError("SECRET-DIAGNOSTIC"), CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
+    result = CliRunner().invoke(app, ["cache", "--json"])
+    assert result.exit_code == 1
+    entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
+    assert entries["docker"]["error"].startswith("could not start cache inspection")
+    assert entries["uv"]["report"] == {"bytes": 1024}
+    assert "SECRET-DIAGNOSTIC" not in result.output
+
+
+@pytest.mark.parametrize("as_json", [False, True])
+def test_cache_continues_when_hf_directory_is_unusable(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, as_json: bool
+) -> None:
+    cache = tmp_path / "private-hf-cache"
+    cache.write_text("occupied")
+    monkeypatch.setenv("HF_HUB_CACHE", str(cache))
+    provider.responses = [CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
+    result = CliRunner().invoke(app, ["cache", *(["--json"] if as_json else [])])
+    assert result.exit_code == 1
+    if as_json:
+        entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
+        assert entries["hf"]["error"].startswith("could not start cache inspection")
+        assert entries["uv"]["report"] == {"bytes": 1024}
+    else:
+        assert [args[0] for args in provider.actions] == ["docker", "uv"]
+        assert "cache inspection failed for hf" in str(result.exception)
+    assert str(cache) not in result.output
+
+
 def test_cache_all_skips_missing_tools_but_an_explicit_provider_requires_it(provider: RecordingRunner) -> None:
     provider.missing.add("docker")
     provider.responses = [CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]

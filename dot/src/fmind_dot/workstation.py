@@ -108,14 +108,16 @@ def _inspect_command(name: str, *, as_json: bool) -> list[str]:
 
 def _cache_report(state: State, name: str, args: list[str]) -> dict[str, Any]:
     """Capture one provider's native report; stderr stays out because it can carry provider payloads."""
-    if name == "hf":
-        _ensure_hf_cache_dir()
     entry: dict[str, Any] = {"name": name, "command": shlex.join(args)}
     try:
+        if name == "hf":
+            _ensure_hf_cache_dir()
         result = state.runner.run(args, timeout=_CACHE_TIMEOUT_SECONDS, check=False)
     except CommandTimeoutError:
         # One slow provider must not discard the other providers' reports.
         return entry | {"error": f"timed out after {_CACHE_TIMEOUT_SECONDS}s; run {shlex.join(args)} directly"}
+    except OSError:
+        return entry | {"error": f"could not start cache inspection; run {shlex.join(args)} for the native diagnostic"}
     if result.returncode != 0:
         return entry | {"error": f"exit {result.returncode}; run {shlex.join(args)} for the native diagnostic"}
     try:
@@ -155,6 +157,11 @@ def run_cache(
                     print(f"[{name}]", file=state.stdout, flush=True)
                 try:
                     execute(state, args)
+                except OSError:
+                    message = f"could not start cache inspection; run {shlex.join(args)} for the native diagnostic"
+                    providers.append(entry | {"error": message})
+                    print(f"✗ {message}", file=state.stderr, flush=True)
+                    continue
                 except DotError as error:
                     providers.append(entry | {"error": str(error)})
                     print(f"✗ {error}", file=state.stderr, flush=True)
