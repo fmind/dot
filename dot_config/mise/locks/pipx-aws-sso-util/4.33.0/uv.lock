@@ -41,7 +41,7 @@ source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "botocore", version = "1.37.38", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.9'" },
     { name = "botocore", version = "1.42.97", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version == '3.9.*'" },
-    { name = "botocore", version = "1.43.110", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
+    { name = "botocore", version = "1.43.111", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/fc/2541892cafad6658e9ce5226e54088eff9692cbe4a32cd5a7dfec5846cbf/aws_error_utils-2.7.0.tar.gz", hash = "sha256:07107af2a2c26706cd9525b7ffbed43f2d07b50d27e39f9e9156c11b2e993c97", size = 10803, upload-time = "2022-11-03T22:54:45.851Z" }
 wheels = [
@@ -56,7 +56,7 @@ dependencies = [
     { name = "aws-error-utils" },
     { name = "boto3", version = "1.37.38", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.9'" },
     { name = "boto3", version = "1.42.97", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version == '3.9.*'" },
-    { name = "boto3", version = "1.43.110", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
+    { name = "boto3", version = "1.43.111", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3d/df/302bafc5e7182212eec091269c4731bb4469041a1db5e6c3643d089d135d/aws_sso_lib-1.14.0.tar.gz", hash = "sha256:b0203a64ccb66ba78f99ef3d0eb669affe7bc323f6ab9caac97f35c21a03cea5", size = 29404, upload-time = "2023-01-27T00:47:00.141Z" }
 wheels = [
@@ -72,7 +72,7 @@ dependencies = [
     { name = "aws-sso-lib" },
     { name = "boto3", version = "1.37.38", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.9'" },
     { name = "boto3", version = "1.42.97", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version == '3.9.*'" },
-    { name = "boto3", version = "1.43.110", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
+    { name = "boto3", version = "1.43.111", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.10'" },
     { name = "click", version = "8.5.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.10'" },
     { name = "jsonschema", version = "4.23.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.9'" },
@@ -125,20 +125,20 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.110"
+version = "1.43.111"
 source = { registry = "https://pypi.org/simple/" }
 resolution-markers = [
     "python_full_version >= '3.11'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "botocore", version = "1.43.110", source = { registry = "https://pypi.org/simple/" } },
+    { name = "botocore", version = "1.43.111", source = { registry = "https://pypi.org/simple/" } },
     { name = "jmespath", version = "1.1.0", source = { registry = "https://pypi.org/simple/" } },
     { name = "s3transfer", version = "0.19.2", source = { registry = "https://pypi.org/simple/" } },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/6e/fe973c8ce8fe4f59d6df6128600b9cc7c4ed75788bed5f5f615f88379529/boto3-1.43.110.tar.gz", hash = "sha256:0251b67d99cc0e7b958db48e7dd149094d453377fcd03299fde7329f975db2e6", size = 112658, upload-time = "2026-10-08T19:30:47.85Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/d3/fa092ae1c109100d0c5c14c69a316cd6d53c05fb57183fa77b1fcdef86ce/boto3-1.43.111.tar.gz", hash = "sha256:5ae342a16c848909cd42d4be404f69d9082e5705460198d4d3327eca5f6cddcb", size = 112656, upload-time = "2026-10-09T19:27:48.995Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/97/3295f3f87138c3647be183e08b4f585ae26e794e7ae9f3c44c24880483bd/boto3-1.43.110-py3-none-any.whl", hash = "sha256:74b811e6def4b30d685d4539a9ead3796f0e03a2112f00134e0f5e583ad8b098", size = 140042, upload-time = "2026-10-08T19:30:46.512Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/3b/bca42f8f7b76e567c66cc39bacc6bf31b353c9edfbb0fb1f5c534fc65369/boto3-1.43.111-py3-none-any.whl", hash = "sha256:c79994619c8d89e45f6fd0edc5c5b5a70c9358f00423f4c99cb64931f89ecf37", size = 140042, upload-time = "2026-10-09T19:27:47.599Z" },
 ]
 
 [[package]]
@@ -177,7 +177,7 @@ wheels = [
 
 [[package]]
 name = "botocore"
-version = "1.43.110"
+version = "1.43.111"
 source = { registry = "https://pypi.org/simple/" }
 resolution-markers = [
     "python_full_version >= '3.11'",
@@ -188,9 +188,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "urllib3", version = "2.8.0", source = { registry = "https://pypi.org/simple/" } },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/d8/7a2320aabf1b1e62580e990f8a52760e396f4ec56e3ebcbce07d23acc031/botocore-1.43.110.tar.gz", hash = "sha256:888cd54d59502e2195dac30805e5c08dd1be5416932a3793373e81b8f463e006", size = 16317803, upload-time = "2026-10-08T19:30:43.376Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/43/257e97270ddd6833fd54b11e544a09b441b02f8c731bdeb29b90479be565/botocore-1.43.111.tar.gz", hash = "sha256:44d5e80962ac6cb9e85af72667b77c9586451e3328ab0ce33195380767e213d8", size = 16321685, upload-time = "2026-10-09T19:27:44.19Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/6c/bea5940931819d2f8e4a467af8b40302846183bf1e280e31c5a4727c8476/botocore-1.43.110-py3-none-any.whl", hash = "sha256:9f5ae5685b4d7129e32f6084ae8683d5857a1d60d77528b8da77bb53b9dff48f", size = 16015248, upload-time = "2026-10-08T19:30:38.172Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/5b/c3ce1b227954eb0313e76e6e7c0b5b24d4c553f0e8a03e5828ff5a5918dc/botocore-1.43.111-py3-none-any.whl", hash = "sha256:f1f4c28cb2a096bf246d0bb24cbb1a01c5cb696ef499fa71b155adda7b94c90b", size = 16018923, upload-time = "2026-10-09T19:27:40.066Z" },
 ]
 
 [[package]]
@@ -1374,7 +1374,7 @@ resolution-markers = [
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "botocore", version = "1.43.110", source = { registry = "https://pypi.org/simple/" } },
+    { name = "botocore", version = "1.43.111", source = { registry = "https://pypi.org/simple/" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/43/35e4d8aa320bffe8287fe8f65f578fa2d2db0a64212f0e710dce58267854/s3transfer-0.19.2.tar.gz", hash = "sha256:ba0309fd86be3c27dbf78cdd813c13c5e1df16e5874b99d2535ebbdfb9892993", size = 165592, upload-time = "2026-07-22T19:30:44.432Z" }
 wheels = [
