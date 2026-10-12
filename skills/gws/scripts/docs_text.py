@@ -32,6 +32,9 @@ def structural_text(elements: list) -> str:
                 elif "dateElement" in run:
                     date = run["dateElement"].get("dateElementProperties", {})
                     result.append(chip("date", date.get("displayText")))
+                elif "dropdown" in run:
+                    dropdown = run["dropdown"].get("dropdownProperties", {})
+                    result.append(chip("dropdown", dropdown.get("displayValue")))
         elif "table" in element:
             for row in element["table"].get("tableRows", []):
                 cells = [structural_text(cell.get("content", [])).rstrip("\n") for cell in row.get("tableCells", [])]

@@ -13,7 +13,7 @@ Run with `uv run --no-project python ~/.agents/skills/gws/scripts/<script>.py --
 
 - [chat_body.py](../scripts/chat_body.py): build a text request with explicit syntax and an optional existing thread, reject common broken formatting and oversized text. It preserves content; it is not a general Markdown converter or a rendered preview.
 - [pages.py](../scripts/pages.py): combine a pretty JSON object or JSON/NDJSON pages into a labeled result, treating an omitted repeated field as empty; reject API errors and incomplete results unless `--allow-incomplete` retains a labeled partial sample. Completeness assumes the original query included pagination fields and succeeded; it cannot detect fields removed by an upstream projection.
-- [docs_text.py](../scripts/docs_text.py): extract body, table, header, footer and footnote text from all returned tabs, including child tabs. Output labels preserve tab/section identity; person, rich-link, and date chips become `[person: <name>]`, `[link: <title>]`, and `[date: <displayText>]` placeholders. Extraction still loses styling, images, other chip metadata and suggestion context, so retain source JSON for editing.
+- [docs_text.py](../scripts/docs_text.py): extract body, table, header, footer and footnote text from all returned tabs, including child tabs. Output labels preserve tab/section identity; person, rich-link, date, and dropdown chips become `[person: <name>]`, `[link: <title>]`, `[date: <displayText>]`, and `[dropdown: <displayValue>]` placeholders. Extraction still loses styling, images, other chip metadata and suggestion context, so retain source JSON for editing.
 
 ## Gotchas
 

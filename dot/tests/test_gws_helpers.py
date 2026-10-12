@@ -166,6 +166,27 @@ def test_docs_smart_chips_become_labeled_placeholders(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("properties", "expected"),
+    [
+        ({"displayValue": "Blocked"}, "Status: [dropdown: Blocked]\n"),
+        ({"displayValue": "En cours"}, "Status: [dropdown: En cours]\n"),
+        ({}, "Status: [dropdown]\n"),
+        ({"displayValue": ""}, "Status: [dropdown]\n"),
+    ],
+)
+def test_docs_dropdown_preserves_selected_text(tmp_path: Path, properties: dict[str, str], expected: str) -> None:
+    elements = [
+        {"textRun": {"content": "Status: "}},
+        {"dropdown": {"dropdownProperties": properties}},
+        {"textRun": {"content": "\n"}},
+    ]
+    document = {"body": {"content": [{"paragraph": {"elements": elements}}]}}
+    result = run_helper(tmp_path, "docs_text", json.dumps(document))
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["sections"][0]["text"] == expected
+
+
+@pytest.mark.parametrize(
     "text",
     ["{}", "[]", "null", '{"title":"Metadata only"}', '{"tabs":[{}]}', '{"error":{"message":"PRIVATE"}}', "PRIVATE"],
 )

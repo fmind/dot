@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/clipboard
   created: "2026-10-03"
-  updated: "2026-10-05"
+  updated: "2026-10-12"
 ---
 
 # Clipboard
@@ -17,7 +17,7 @@ Treat `/clipboard` without arguments as “copy the interesting output I request
 ## Workflow
 
 1. **Select the latest requested deliverable**: a draft, prompt, command, code snippet, table, or test result. Omit assistant preambles, progress updates, tool logs, and offers to continue unless they are the requested output. Preserve the deliverable verbatim; do not regenerate it or rerun a test. For code or commands, omit the surrounding Markdown fence unless the user requested Markdown. If several outputs are equally plausible, ask which one; never guess unavailable conversation content.
-1. **Pipe the text to the helper**: pass the selected UTF-8 text to [scripts/copy.py](scripts/copy.py) on stdin using `python -I`. Use the tool's structured stdin when available, or a single-quoted heredoc with a delimiter absent from the text; never interpolate the content into shell commands or command-line arguments. The helper strips exactly one final newline, the one a heredoc always adds; pass `--keep-final-newline` when the deliverable must end with one, such as a whole file.
+1. **Pipe the text to the helper**: pass the selected UTF-8 text to [scripts/copy.py](scripts/copy.py) on stdin using `python -I`. Use the tool's structured stdin when available, or a single-quoted heredoc with a delimiter absent from the text; never interpolate the content into shell commands or command-line arguments. The helper bounds its stdin read and rejects deliverables above 1 MiB; use a file for larger content. It strips exactly one final newline, the one a heredoc always adds; pass `--keep-final-newline` when the deliverable must end with one, such as a whole file.
 
    ```bash
    python -I ~/.agents/skills/clipboard/scripts/copy.py <<'CLIPBOARD_PAYLOAD'
