@@ -421,13 +421,15 @@ def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
 
 
 def vm_stat_available_bytes(output: str) -> int | None:
-    """Estimate macOS available memory like psutil: non-speculative free plus inactive pages."""
+    """Estimate macOS available memory like psutil: total free plus inactive pages."""
     page = re.search(r"page size of (\d+) bytes", output)
     pages = dict(re.findall(r"^Pages (free|inactive|speculative):\s+(\d+)\.$", output, re.MULTILINE))
     if page is None or not {"free", "inactive"} <= pages.keys():
         return None
-    free = int(pages["free"]) - int(pages.get("speculative", 0))
-    return (max(free, 0) + int(pages["inactive"])) * int(page.group(1))
+    # vm_stat already subtracts speculative pages from its printed free count.
+    # Restore them to match host_statistics64's free_count used by psutil.
+    free = int(pages["free"]) + int(pages.get("speculative", 0))
+    return (free + int(pages["inactive"])) * int(page.group(1))
 
 
 def headroom_results(paths: list[Path] | None = None, *, memory: int | None = None) -> list[CheckResult]:
