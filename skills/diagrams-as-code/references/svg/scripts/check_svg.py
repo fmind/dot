@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
 
 NS = "{http://www.w3.org/2000/svg}"
@@ -30,9 +31,12 @@ def view_box(root: ET.Element) -> tuple[float, float] | None:
     if len(parts) != 4:
         return None
     try:
-        return float(parts[2]), float(parts[3])
+        values = tuple(float(part) for part in parts)
     except ValueError:
         return None
+    if not all(math.isfinite(value) for value in values) or values[2] <= 0 or values[3] <= 0:
+        return None
+    return values[2], values[3]
 
 
 def check(path: Path, width: float) -> list[str]:
@@ -51,12 +55,15 @@ def check(path: Path, width: float) -> list[str]:
         problems.append(f"viewBox width is {size[0]:g}, expected {width:g}")
     if root.get("role") != "img":
         problems.append('root <svg> needs role="img"')
-    ids = {element.get("id") for element in root.iter() if element.get("id")}
+    ids = Counter(element.get("id") for element in root.iter() if element.get("id"))
+    problems += [f"duplicate id {identifier!r}" for identifier, count in ids.items() if count > 1]
+    labelled = (root.get("aria-labelledby") or "").split()
     for name in ("title", "desc"):
         element = root.find(NS + name)
         if element is None or not "".join(element.itertext()).strip():
             problems.append(f"missing non-empty <{name}> as a direct child of <svg>")
-    labelled = (root.get("aria-labelledby") or "").split()
+        elif not element.get("id") or element.get("id") not in labelled:
+            problems.append(f"<{name}> needs an id referenced by aria-labelledby")
     if not labelled:
         problems.append("root <svg> needs aria-labelledby pointing at its <title> and <desc>")
     problems += [f"aria-labelledby references missing id {ref!r}" for ref in labelled if ref not in ids]
@@ -70,14 +77,19 @@ def check(path: Path, width: float) -> list[str]:
         css = (element.text or "") if tag == "style" else (element.get("style") or "")
         if tag == "style" and re.search(r"@import|@font-face|url\(\s*['\"]?(https?:|data:)", css, re.IGNORECASE):
             problems.append("<style> imports, embeds fonts, or loads remote URLs; <img> sandboxing drops them")
-        sizes = [float(value) for value, _ in FONT_SIZE.findall(css)]
+        sizes = [value for value, _ in FONT_SIZE.findall(css)]
         attribute = element.get("font-size")
         if attribute:
             match = re.fullmatch(r"\s*([0-9.]+)(px)?\s*", attribute)
-            sizes += [float(match.group(1))] if match else []
-        problems += [
-            f"<{tag}> uses font-size {value:g}px, below {MIN_FONT_PX:g}px" for value in sizes if value < MIN_FONT_PX
-        ]
+            sizes += [match.group(1)] if match else []
+        for value in sizes:
+            try:
+                size = float(value)
+            except ValueError:
+                problems.append(f"<{tag}> uses invalid font-size {value!r}")
+                continue
+            if size < MIN_FONT_PX:
+                problems.append(f"<{tag}> uses font-size {size:g}px, below {MIN_FONT_PX:g}px")
     return problems
 
 

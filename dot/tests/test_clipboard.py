@@ -136,6 +136,39 @@ def test_lone_newline_and_oversized_payloads_are_rejected(clipboard: ModuleType)
         clipboard.copy_text(b"x" * (clipboard.LIMIT + 1))
 
 
+def test_main_bounds_oversized_stdin_before_touching_clipboard(
+    clipboard: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class EndlessInput:
+        def read(self, size: int = -1) -> bytes:
+            assert 0 < size <= clipboard.LIMIT + 2, "stdin must never be read without a bound"
+            return b"x" * size
+
+    def unexpected_backend() -> None:
+        pytest.fail("oversized stdin must not access the clipboard")
+
+    monkeypatch.setattr(sys, "stdin", type("Stdin", (), {"buffer": EndlessInput()})())
+    monkeypatch.setattr(clipboard, "commands", unexpected_backend)
+
+    assert clipboard.main([]) == 1
+    captured = capsys.readouterr()
+    assert "limit" in captured.err
+    assert "verified" not in captured.out
+
+
+@pytest.mark.parametrize("keep", [False, True])
+def test_main_handles_limit_with_a_final_newline(
+    clipboard: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, keep: bool
+) -> None:
+    store = backend(tmp_path, monkeypatch, ("pbcopy", "pbpaste"))
+    store.write_bytes(b"preserve")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "stdin", type("Stdin", (), {"buffer": io.BytesIO(b"x" * clipboard.LIMIT + b"\n")})())
+
+    assert clipboard.main(["--keep-final-newline"] if keep else []) == (1 if keep else 0)
+    assert store.read_bytes() == (b"preserve" if keep else b"x" * clipboard.LIMIT)
+
+
 @pytest.mark.parametrize(
     ("names", "sommelier", "expected"),
     [

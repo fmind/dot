@@ -39,7 +39,10 @@ def test_template_passes(svg: ModuleType) -> None:
     [
         ('role="img" ', "", 'role="img"'),
         ('<desc id="desc">', '<desc id="other">', "missing id 'desc'"),
+        ('aria-labelledby="title desc"', 'aria-labelledby="card"', "<title> needs an id referenced"),
+        ('<desc id="desc">', "<desc>", "<desc> needs an id referenced"),
         ("font-size: 12px;", "font-size: 10px;", "font-size 10px"),
+        ("font-size: 12px;", "font-size: 1.2.3px;", "invalid font-size"),
         ("</defs>", '</defs><image href="https://example.com/a.png"/>', "external or raster"),
         ("</defs>", "</defs><script>alert(1)</script>", "<script>"),
         ("<style>\ntext", '<style>@import url("https://fonts.example/x.css");\ntext', "imports"),
@@ -50,6 +53,40 @@ def test_template_passes(svg: ModuleType) -> None:
 def test_guide_violations_are_reported(svg: ModuleType, tmp_path: Path, old: str, new: str, expected: str) -> None:
     problems = svg.check(variant(tmp_path, old, new), 960)
     assert any(expected in problem for problem in problems), problems
+
+
+@pytest.mark.parametrize(
+    "viewbox",
+    ["0 0 960 NaN", "0 0 960 inf", "0 0 960 0", "0 0 960 -1", "inf 0 960 420", "text 0 960 420"],
+)
+def test_invalid_geometry_fails_before_rendering(
+    svg: ModuleType, tmp_path: Path, viewbox: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = variant(tmp_path, 'viewBox="0 0 960 420"', f'viewBox="{viewbox}"')
+
+    def unexpected_render(*_args: object) -> None:
+        pytest.fail("invalid geometry must not launch a browser")
+
+    monkeypatch.setattr(svg, "render", unexpected_render)
+    assert svg.main([str(path), "--render", str(tmp_path / "shots")]) == 1
+    assert "invalid viewBox" in capsys.readouterr().out
+
+
+def test_accessible_label_must_reference_the_title_and_description(svg: ModuleType, tmp_path: Path) -> None:
+    path = variant(tmp_path, 'aria-labelledby="title desc"', 'aria-labelledby="unrelated"')
+    path.write_text(path.read_text().replace("</svg>", '<text id="unrelated">Other text</text></svg>'))
+
+    problems = svg.check(path, 960)
+
+    assert any("<title> needs an id referenced" in problem for problem in problems)
+    assert any("<desc> needs an id referenced" in problem for problem in problems)
+
+
+def test_title_and_description_cannot_share_an_id(svg: ModuleType, tmp_path: Path) -> None:
+    path = variant(tmp_path, '<desc id="desc">', '<desc id="title">')
+    path.write_text(path.read_text().replace('aria-labelledby="title desc"', 'aria-labelledby="title"'))
+
+    assert "duplicate id 'title'" in svg.check(path, 960)
 
 
 def test_render_writes_brand_and_fallback_screenshots(

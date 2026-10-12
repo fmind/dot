@@ -22,7 +22,7 @@ User-facing documentation explains ideas with hand-authored SVG illustrations: s
    </a>
    ```
 
-1. **Check and inspect**: run [check_svg.py](scripts/check_svg.py); it validates well-formedness, the 960px `viewBox`, `role="img"`, `<title>`/`<desc>` wiring, the 12px type floor, and `<img>`-sandbox hazards, then screenshots each file with brand fonts and with Google Sans removed, since most viewers lack it. It finds Chrome or Chromium (`CHROME` overrides); otherwise screenshot with [playwright](../../../playwright/SKILL.md). Inspect both images for overflow, collisions, contrast, and spelling, which no static check proves.
+1. **Check and inspect**: run [check_svg.py](scripts/check_svg.py); it validates well-formedness, a finite `viewBox` with positive dimensions and 960px width, unique IDs, `role="img"`, `aria-labelledby` references to both `<title>` and `<desc>`, the 12px type floor for recognized numeric font sizes, and `<img>`-sandbox hazards, then screenshots each file with brand fonts and with Google Sans removed, since most viewers lack it. It finds Chrome or Chromium (`CHROME` overrides); otherwise screenshot with [playwright](../../../playwright/SKILL.md). Inspect both images for overflow, collisions, contrast, and spelling, which no static check proves.
 
    ```bash
    python -I ~/.agents/skills/diagrams-as-code/references/svg/scripts/check_svg.py docs/assets/*.svg --render "$(mktemp -d)"

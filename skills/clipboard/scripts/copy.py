@@ -97,7 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        sys.stdout.write(copy_text(sys.stdin.buffer.read(), keep_final_newline=args.keep_final_newline) + "\n")
+        payload = sys.stdin.buffer.read(LIMIT + 2)  # One optional newline plus one byte to detect excess.
+        sys.stdout.write(copy_text(payload, keep_final_newline=args.keep_final_newline) + "\n")
     except (ValueError, RuntimeError, OSError) as error:
         sys.stderr.write(f"Clipboard error: {error}\n")
         return 1
