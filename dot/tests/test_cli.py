@@ -253,11 +253,16 @@ def test_main_reports_invalid_config_with_path_and_repair_command(
     assert "lots" not in captured.err
 
 
+@pytest.mark.parametrize(
+    "content",
+    ["prune: [\n", "agent: " + "[" * 1200 + "SYNTHETIC_PRIVATE_VALUE" + "]" * 1200 + "\n"],
+    ids=["syntax", "deep-nesting"],
+)
 def test_main_reports_malformed_explicit_yaml_without_traceback(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], content: str
 ) -> None:
     malformed = tmp_path / "malformed.yaml"
-    malformed.write_text("prune: [\n", encoding="utf-8")
+    malformed.write_text(content, encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["dot", "--config", str(malformed), "doctor"])
 
     with pytest.raises(SystemExit) as exit_info:
@@ -268,6 +273,7 @@ def test_main_reports_malformed_explicit_yaml_without_traceback(
     assert captured.out == ""
     assert f"dot: failed to parse config file at {malformed}:" in captured.err
     assert "Traceback" not in captured.err
+    assert "SYNTHETIC_PRIVATE_VALUE" not in captured.err
 
 
 @pytest.mark.parametrize(

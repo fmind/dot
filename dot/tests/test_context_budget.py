@@ -231,6 +231,7 @@ def test_combined_total_can_exceed_limit_when_each_scope_fits(tmp_path: Path) ->
         "---\nname: wrong\ndescription: test\n---\n",
         "---\nname: broken\ndescription: 42\n---\n",
         "---\n- private\n---\n",
+        pytest.param("---\nmetadata: " + "[" * 1200 + "private" + "]" * 1200 + "\n---\n", id="deep-nesting"),
     ],
 )
 def test_bad_metadata_fails_without_printing_instruction_content(tmp_path: Path, content: str) -> None:

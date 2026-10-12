@@ -438,18 +438,16 @@ def _deep_merge(base: dict[str, Any], overlay: dict[str, Any], path: tuple[str, 
 
 def load_config(path: str | Path | None = None) -> Config:
     resolved, implicit = config_file_path(path)
-    if not resolved.exists():
-        if implicit:
-            return Config()
-        raise FileNotFoundError(f"failed to read config file at {resolved}")
     try:
         with resolved.open(encoding="utf-8") as stream:
             documents = list(yaml.safe_load_all(stream))
     except FileNotFoundError as error:
+        if implicit:
+            return Config()
         raise FileNotFoundError(f"failed to read config file at {resolved}") from error
     except (OSError, UnicodeError) as error:
         raise ValueError(f"failed to read config file at {resolved}: {error}") from error
-    except yaml.YAMLError as error:
+    except (yaml.YAMLError, RecursionError) as error:
         mark = getattr(error, "problem_mark", None)
         location = f" at line {mark.line + 1}, column {mark.column + 1}" if mark is not None else ""
         # Parser messages and snippets can include credentials from malformed input.
@@ -462,7 +460,10 @@ def load_config(path: str | Path | None = None) -> Config:
     if not isinstance(overlay, dict):
         raise ValueError(f"config file at {resolved} must contain a YAML mapping")
     defaults = Config().model_dump(mode="python")
-    return Config.model_validate(_deep_merge(defaults, overlay))
+    try:
+        return Config.model_validate(_deep_merge(defaults, overlay))
+    except RecursionError as error:
+        raise ValueError(f"failed to parse config file at {resolved}: YAML nesting is too deep") from error
 
 
 def dump_config(config: Config) -> str:

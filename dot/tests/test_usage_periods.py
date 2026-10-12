@@ -13,6 +13,7 @@ from fmind_dot.archive.store import ingest_session
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, load_usage_records, write_usage_stats
 from fmind_dot.cli import app
 from fmind_dot.config import SubscriptionConfig
+from fmind_dot.errors import DotError
 
 
 def request(timestamp: str, *, model: str = "gpt-5.4", tokens: int = 1_000_000) -> UsageRecord:
@@ -202,9 +203,15 @@ def test_public_monthly_and_subscription_config(tmp_path: Path, monkeypatch: pyt
     assert billed.exit_code == 0, billed.output
     assert json.loads(billed.stdout)["usage"][0]["period_start"].startswith("2026-08-15")
     config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 32\n")
-    assert runner.invoke(app, ["--config", str(config), "config", "validate"]).exit_code != 0
+    invalid = runner.invoke(app, ["--config", str(config), "config", "show"])
+    assert invalid.exit_code == 1
+    assert isinstance(invalid.exception, DotError)
+    assert "agent.subscriptions.codex.renewal_day:" in str(invalid.exception)
     config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 1\n      timezone: Invalid/Zone\n")
-    assert runner.invoke(app, ["--config", str(config), "config", "validate"]).exit_code != 0
+    invalid = runner.invoke(app, ["--config", str(config), "config", "show"])
+    assert invalid.exit_code == 1
+    assert isinstance(invalid.exception, DotError)
+    assert "subscription timezone must be an IANA timezone" in str(invalid.exception)
 
 
 def test_usage_query_rejects_invalid_usage_and_mismatched_identity(
