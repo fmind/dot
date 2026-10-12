@@ -80,7 +80,7 @@ dot agent stats --tokens-only --no-sync                # report the archive as s
 
 Reports first sync changed sessions incrementally; sync failures print on stderr and the report still prints. Use `--no-sync` for a reproducible rerun over an unchanged archive. Terminal reports use wrapped sections per agent, model, project, or period; exact counts and accounting qualifications remain visible. Add `--by-model` or `--json` for detail; omit `--tokens-only` when prompt statistics are also needed.
 
-API equivalents use the offline rate card in `agent.pricing`, independently of recorded cost. Check `priced_measurements`, `pricing_complete`, `legacy_accounting_sessions`, and `unpriced_reasons`. Rates assume standard short context; Claude 1-hour cache writes use their own rate, other cache writes the 5-minute rate. Unknown models and unsupported accounting remain unpriced. API-equivalent value divided by the configured USD subscription charge is a usage comparison, not verified savings or a quality score.
+API equivalents use the offline rate card in `agent.pricing`, independently of recorded cost. Check `priced_measurements`, `pricing_complete`, `legacy_accounting_sessions`, and `unpriced_reasons`. Rates assume standard short context; Claude 1-hour cache writes use their own rate, other cache writes the model's default rate (5-minute for Claude). Grok Build's `<model>-build` turns use the `<model>` rate unless the card lists the suffixed name. Unknown models and unsupported accounting remain unpriced. API-equivalent value divided by the configured USD subscription charge is a usage comparison, not verified savings or a quality score.
 
 Subscription configuration lives under `agent.subscriptions` in the selected Dot YAML file:
 
