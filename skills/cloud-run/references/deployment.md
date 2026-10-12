@@ -62,10 +62,21 @@
 
    Treat private invocation as a postcondition, not a successful deploy exit code. Run the `Verify private invocation` checks in [deploy.yml](../templates/deploy.yml) after imperative or declarative deployment, using [verify-private.py](../templates/verify-private.py) at `.github/scripts/verify-private.py`: the Invoker IAM check must be enabled, and service/project IAM policies must contain neither `allUsers` nor `allAuthenticatedUsers`. Reject those principals even in conditional bindings or custom roles. A failed policy read, unknown setting, or remaining grant fails verification; gcloud can otherwise turn a failed IAM removal into a warning. Resolve inherited organization/folder access during bootstrap; these service/project checks are not a general IAM policy evaluator. Verify an unauthenticated request is denied before exposing sensitive traffic.
 
-1. **Seed a runtime secret when authorized**: decrypt only into the pipe; do not write plaintext to disk. Pin the version it creates in the next deployment.
+1. **Seed a runtime secret when authorized**: decrypt and validate in memory before starting the cloud writer; a failed pipeline can still create an invalid secret version. Require a non-empty, single-line string, preserve its bytes, and keep plaintext off disk, arguments, and logs. Pin the version it creates in the next deployment.
 
    ```bash
-   sops -d secrets.enc.yaml | yq -r .api_key | tr -d '\n' | gcloud secrets versions add api-key --data-file=-
+   (
+     set +x
+     set -euo pipefail
+     cloud_run_secrets=$(sops --decrypt --output-type json secrets.enc.yaml) || exit
+     cloud_run_api_key=$(printf '%s' "$cloud_run_secrets" | jq -er \
+       '.api_key | select(type == "string" and length > 0) | select(test("[\r\n\u0000]") | not)') || {
+       printf '%s\n' 'api_key must be a non-empty, single-line string.' >&2
+       exit 1
+     }
+     unset cloud_run_secrets
+     printf '%s' "$cloud_run_api_key" | gcloud secrets versions add api-key --data-file=-
+   )
    ```
 
 1. **Expose deployment as an on-demand task**: keep it out of hooks because it mutates a live service and can spend money.

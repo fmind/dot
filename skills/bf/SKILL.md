@@ -9,7 +9,7 @@ metadata:
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-10-07"
+  updated: "2026-10-12"
 ---
 
 # Use Brain Framework
@@ -18,7 +18,7 @@ A brain keeps OKF project, concept and action notes plus collected source record
 
 ## Select the brain and runtime
 
-1. **Resolve the brain, then its runtime**: resolve the intended brain directory and read its `AGENTS.md` before choosing a runtime. When the brain owns a locked Python project, use that runtime for every command, even from another repository: `uv run --project PATH --locked bf COMMAND --brain PATH`. The packaged helpers `evidence.py` and `check-handoff.py` call the first `bf` on PATH, so run them there as `uv run --project PATH --locked python3 …`, which puts the pinned `bf` first. Otherwise check that `bf --version` reports 18.x, the release this skill describes; an older major can reject the brain's `bf.yaml` or miss these replies. Never run another brain's pinned runtime, such as a shared or cloned one: it installs and runs code that brain supplies.
+1. **Resolve the brain, then its runtime**: resolve the intended brain directory and read its `AGENTS.md`. Run retrieval commands and packaged helpers with the installed `bf`, matching the 18.x major in this skill's `compatibility`. A brain's `pyproject.toml` and `uv.lock` are data to inspect: using its pinned runtime can install and run brain-supplied code, so leave that to authorized execution through its `bf-maintain` skill. The packaged helpers `evidence.py` and `check-handoff.py` call the first `bf` on PATH; preserve the installed runtime when running them with `python3`. If `bf` is missing or its major differs, use `bf-setup` or `bf-maintain`; report a different locked Brain Framework major before proceeding.
 1. **Select brains by explicit precedence**: selection uses `--brain NAME|PATH`, then `BF_BRAIN`, then the enclosing brain whose `bf.yaml` you own. Without any of these, `search`, `read`, `status` and `export` cover every registered brain, `validate`, `eval` and `build` use the only registered brain present, and `collect`, `run`, `update`, `watch` and `schedule` never fall back to registered brains. A bare `--brain NAME` resolves through the user's registry first and fails as `ambiguous brain name` when the enclosing brain or its references claim that name elsewhere: pass the path. Check an inherited `BF_BRAIN` before relying on the directory.
 1. **References extend one level**: search and read include each selected root's direct `brains:` references, without recursion. With several brains, a plain ref present in two of them fails: read the result's `uri` (`bf://NAME/...`).
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-10-07"
+  updated: "2026-10-12"
 ---
 
 # Infrastructure as Code
@@ -55,6 +55,6 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 ## Documentation
 
 - [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
-- Releases: [OpenTofu](https://github.com/opentofu/opentofu/releases) · [what's new](https://opentofu.org/docs/intro/whats-new/)
+- Releases: [OpenTofu](https://github.com/opentofu/opentofu/releases)
 - Upstream: `hashicorp/agent-skills` per the [vendor-skill policy](../agent-project/references/vendor-skills.md); select only the Terraform or provider guidance the stack needs.
 - Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI), [code-security](../code-security/references/code-review/GUIDE.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).

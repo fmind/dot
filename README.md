@@ -27,9 +27,9 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 | Platform            | Requirements                            | CI coverage                            |
 | ------------------- | --------------------------------------- | -------------------------------------- |
 | Linux x86-64        | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Full repository gate and starter tests |
-| macOS Apple Silicon | Xcode Command Line Tools                | Templates, Python and starter tests    |
+| macOS Apple Silicon | macOS 15+, Xcode Command Line Tools     | Templates, Python and starter tests    |
 
-Other platforms are untested. CI checks templates, code, and builds; it does not run the installer end to end.
+The macOS baseline follows [Homebrew's supported versions](https://docs.brew.sh/Installation#macos-requirements). Other platforms are untested. CI checks templates, code, and builds; it does not run the installer end to end.
 
 Install the host prerequisites first; the rest installs in user space:
 

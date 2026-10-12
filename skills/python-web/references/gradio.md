@@ -9,7 +9,7 @@ Build Gradio apps around Python functions and explicit component events. Use [ni
 
 ## Workflow
 
-1. **Start from the installed release**: inspect the project dependency model and installed version with `uv run python -c 'import gradio; print(gradio.__version__)'`. For a new packaged app, use `uv add gradio`; preserve PEP 723 metadata for an existing standalone script.
+1. **Start from the installed release**: inspect the project dependency model and installed version with `uv run python -c 'from importlib.metadata import version; print(version("gradio"))'`, without importing the framework. For a new packaged app, use `uv add gradio`; preserve PEP 723 metadata for an existing standalone script.
 1. **Choose the API from current docs**: consult the official skill below and documentation matching the installed release. Choose `Interface` for a function demo, `ChatInterface` for conversational interaction, or `Blocks` for custom layouts and multiple event flows.
 1. **Separate logic, state, and wiring**: keep computation independently testable; wire component inputs and outputs explicitly. Use `gr.State` for session state and keep shared model resources separate from user data. Configure queue concurrency around the actual resource, and use generator outputs for streaming work.
 1. **Style through supported APIs**: start with themes and layout components. Use `gr.HTML` for bespoke HTML/CSS/JavaScript when the installed version supports the needed template and event APIs; avoid styling through undocumented internal DOM selectors.
