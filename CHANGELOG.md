@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.3.0] - 2026-10-12
+
+### 🚀 Features
+
+- _(pricing)_ Add Claude Haiku 5.5 and Grok 4.7 rates
+
+### 🐛 Bug Fixes
+
+- _(archive)_ Surface unreadable session archives and sources
+- _(config)_ Fail closed on unreadable or deeply nested YAML
+- _(workstation)_ Count macOS speculative pages and survive cache probe failures
+- _(nvim)_ Scope branch review to the buffer and keep native clipboards
+- _(tasks)_ Validate lock paths and skill metadata, format only staged shell files
+- _(skills)_ Bound clipboard input, tighten SVG checks, extract Docs dropdowns
+
+### 📚 Documentation
+
+- _(skills)_ Tighten release, secret, vendor, and template guidance
+
+### ⚙️ Build & CI
+
+- _(deps)_ Upgrade tools and hold Python at 3.14
+
 ## [11.2.0] - 2026-10-10
 
 ### 🚀 Features
