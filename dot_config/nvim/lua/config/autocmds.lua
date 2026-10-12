@@ -1,9 +1,12 @@
 -- Docs: https://www.lazyvim.org/configuration/general
--- Continue Markdown list items on <CR>; the markdown ftplugin keeps only the indent.
--- An empty item outdents, then ends the list. This runs as a callback, not <expr>: insert
--- mode evaluates <expr> mappings before earlier queued keys reach the line.
+-- Continue list items on <CR> in prose buffers: the markdown ftplugin keeps only the indent,
+-- and other buffers align text under the `fb:-` comment leader. Mid-item <CR> splits the item;
+-- an empty item outdents, then ends the list. A callback, not <expr>: insert mode evaluates
+-- <expr> mappings before earlier queued keys reach the line. Items are written directly, so
+-- comment options cannot interfere.
 local function continue_list()
   local line = vim.api.nvim_get_current_line()
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local indent, marker, rest = line:match("^(%s*)([-*+]%s+)(.*)$")
   if not marker then
     local number, delimiter, space
@@ -14,20 +17,29 @@ local function continue_list()
   if text then
     marker, rest = marker .. "[ ] ", text
   end
-  local keys = "<CR>"
-  if marker and vim.fn.col(".") > #line then
-    if rest ~= "" then
-      keys = "<CR>" .. marker -- autoindent copies the item's indent
-    elseif indent ~= "" then
-      keys = "<C-d>"
-    else
-      vim.api.nvim_set_current_line("")
-      return
-    end
+  if not marker or col < #line - #rest then
+    -- Insert ahead of pending keys: appending would reorder macros and :normal.
+    vim.api.nvim_feedkeys(vim.keycode("<CR>"), "ni", false)
+  elseif rest ~= "" then
+    vim.api.nvim_buf_set_lines(0, row - 1, row, true, { line:sub(1, col), indent .. marker .. line:sub(col + 1) })
+    vim.api.nvim_win_set_cursor(0, { row + 1, #indent + #marker })
+  elseif indent ~= "" then
+    vim.api.nvim_feedkeys(vim.keycode("<C-d>"), "ni", false)
+  else
+    vim.api.nvim_set_current_line("")
   end
-  -- Insert ahead of pending keys: appending would reorder macros and :normal.
-  vim.api.nvim_feedkeys(vim.keycode(keys), "ni", false)
 end
+
+-- Attach on InsertEnter: LazyVim loads this file after the startup buffer was entered, and
+-- unnamed scratch buffers never fire FileType.
+local prose = { [""] = true, gitcommit = true, markdown = true, text = true }
+vim.api.nvim_create_autocmd("InsertEnter", {
+  callback = function(event)
+    if vim.bo[event.buf].buftype == "" and prose[vim.bo[event.buf].filetype] then
+      vim.keymap.set("i", "<CR>", continue_list, { buffer = event.buf, desc = "Continue List" })
+    end
+  end,
+})
 
 -- Markdown: no auto-wrap while typing. Soft wrap/linebreak are set globally in
 -- options.lua; textwidth stays untouched so EditorConfig max_line_length still drives gq.
@@ -35,7 +47,6 @@ vim.api.nvim_create_autocmd("FileType", {
   pattern = "markdown",
   callback = function()
     vim.opt_local.formatoptions:remove("t")
-    vim.keymap.set("i", "<CR>", continue_list, { buffer = true, desc = "Continue List" })
   end,
 })
 
