@@ -115,6 +115,8 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
+Python follows the latest 3.14 patch release. Required Python tools install only binary packages; their PyYAML and PyArrow dependencies do not yet provide Python 3.15 wheels.
+
 ## Agent roles
 
 <a href=".github/assets/agent-layer.svg">
