@@ -1,4 +1,4 @@
-"""Exercise editor clipboard selection and independent repository review state."""
+"""Exercise editor clipboard selection, independent repository review state, and Markdown lists."""
 
 import os
 import shutil
@@ -123,4 +123,36 @@ toggle()
 assert(comparisons[buffers[1]] == nil and comparisons[buffers[2]] == nil)
 """,
         KEYMAP_CONFIG=str(ROOT / "dot_config/nvim/lua/config/keymaps.lua"),
+    )
+
+
+def test_markdown_enter_continues_lists_in_typeahead_order(tmp_path: Path) -> None:
+    run_lua(
+        tmp_path,
+        """
+vim.cmd("filetype plugin indent on")
+-- LazyVim keeps its 2-space indent instead of the ftplugin's 4-space style.
+vim.g.markdown_recommended_style = 0
+vim.o.expandtab, vim.o.shiftwidth = true, 2
+dofile(vim.env.AUTOCMD_CONFIG)
+vim.cmd.edit("list.md")
+local function typed(keys)
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, {})
+  -- One feed puts every key in typeahead at once, like a macro or :normal.
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("i" .. keys .. "<Esc>", true, false, true), "xt", false)
+  return vim.api.nvim_buf_get_lines(0, 0, -1, false)
+end
+local function expect(keys, want)
+  local got = typed(keys)
+  assert(vim.deep_equal(got, want), keys .. " produced " .. vim.inspect(got))
+end
+expect("- top<CR>second<CR><C-t>nested<CR>deeper<CR><CR>back<CR><CR>after",
+  { "- top", "- second", "  - nested", "  - deeper", "- back", "after" })
+expect("9. nine<CR>ten", { "9. nine", "10. ten" })
+expect("- [x] done<CR>todo", { "- [x] done", "- [ ] todo" })
+expect("plain<CR>line", { "plain", "line" })
+expect("- split<Left><Left><CR>", { "- spl", "it" })
+vim.bo.modified = false
+""",
+        AUTOCMD_CONFIG=str(ROOT / "dot_config/nvim/lua/config/autocmds.lua"),
     )

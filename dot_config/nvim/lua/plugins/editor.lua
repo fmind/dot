@@ -11,6 +11,14 @@ return {
   -- fmind/theme owns the palette; skip the colorschemes bundled with LazyVim.
   { "folke/tokyonight.nvim", enabled = false },
   { "catppuccin/nvim", name = "catppuccin", enabled = false },
+  -- Tab accepts completions and Enter always inserts a newline. LazyVim chains snippet
+  -- jumps and Copilot suggestions onto Tab for this preset.
+  {
+    "saghen/blink.cmp",
+    opts = {
+      keymap = { preset = "super-tab" },
+    },
+  },
   -- Which-key preset
   {
     "folke/which-key.nvim",
