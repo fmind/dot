@@ -29,6 +29,9 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
         # Current explicit zeros and Claude's local synthetic responses are known zero.
         return 0.0, ""
     rate = pricing.models.get(record.model)
+    if rate is None and record.harness == "grok" and record.model.endswith("-build"):
+        # Grok Build bills turns as `<model>-build`; xAI lists only the `<model>` it serves.
+        rate = pricing.models.get(record.model.removesuffix("-build"))
     if record.model in {"", "mixed", "unknown"} or rate is None:
         return None, "unknown or mixed model"
     # UsageRecord validation keeps 1-hour cache writes within cache writes.

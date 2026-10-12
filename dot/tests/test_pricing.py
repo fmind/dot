@@ -259,6 +259,7 @@ def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
         ("grok", "grok-4.7", 8),
         ("grok", "grok-4.6", 8),
         ("grok", "grok-4.6-build", 8),
+        ("grok", "grok-4.7-build", 8),
     ],
 )
 def test_rate_card_prices_current_models(harness: str, model: str, expected: float) -> None:
@@ -287,6 +288,35 @@ def test_sonnet_5_5_cache_hits_use_the_published_discount() -> None:
     ).finalize(fallback_timestamp="2026-10-09T00:00:00Z")
 
     assert api_equivalent(usage, default_pricing()) == (pytest.approx(0.1), "")
+
+
+@pytest.mark.parametrize(
+    ("harness", "model"), [("grok", "grok-9-build"), ("grok", "grok-4.7-build-preview"), ("claude", "grok-4.7-build")]
+)
+def test_only_grok_build_falls_back_to_its_served_model(harness: str, model: str) -> None:
+    usage = UsageRecord(
+        harness=harness,
+        session_id="build",
+        model=model,
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+    ).finalize(fallback_timestamp="2026-10-12T00:00:00Z")
+
+    assert api_equivalent(usage, default_pricing()) == (None, "unknown or mixed model")
+
+
+def test_configured_grok_build_rate_overrides_its_served_model() -> None:
+    pricing = default_pricing()
+    pricing.models["grok-4.7-build"] = pricing.models["grok-4.7"].model_copy(update={"input": 1})
+    usage = UsageRecord(
+        harness="grok",
+        session_id="build",
+        model="grok-4.7-build",
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+    ).finalize(fallback_timestamp="2026-10-12T00:00:00Z")
+
+    assert api_equivalent(usage, pricing) == (pytest.approx(1), "")
 
 
 @pytest.mark.parametrize("sampled", [False, True], ids=["session-measurement", "request-measurement"])
