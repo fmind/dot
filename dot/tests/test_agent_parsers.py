@@ -506,7 +506,7 @@ def test_grok_aggregate_cost_survives_missing_model_costs(tmp_path: Path, measur
     assert usage.total_tokens == (11 if measured else 0)
 
 
-@pytest.mark.parametrize("cost", ["private-invalid-cost", True, -1])
+@pytest.mark.parametrize("cost", ["private-invalid-cost", True, -1, pytest.param(10**350, id="oversized")])
 def test_grok_rejects_invalid_aggregate_cost_with_model_breakdown(tmp_path: Path, cost: object) -> None:
     transcript = tmp_path / "updates.jsonl"
     _jsonl(

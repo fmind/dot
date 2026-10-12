@@ -123,6 +123,37 @@ def test_truncated_source_never_shrinks_the_archived_copy(tmp_path: Path, monkey
     assert _tokens() == [(10, 5)]
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
+@pytest.mark.parametrize("quiet", [False, True])
+def test_unreadable_archive_preserves_capture_and_syncs_later_agents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: bool
+) -> None:
+    state, source = source_session(tmp_path, monkeypatch)
+    sync_sessions(state, agent="claude")
+    path = session_bundle_path("claude", "fixture-id")
+    before = path.read_bytes()
+    source.write_text(json.dumps({"type": "user", "message": {"content": "rotated"}}) + "\n")
+    later = tmp_path / "grok/project/later/updates.jsonl"
+    later.parent.mkdir(parents=True)
+    later.write_text(
+        json.dumps({"params": {"update": {"sessionUpdate": "user_message_chunk", "content": {"text": "later"}}}}) + "\n"
+    )
+    state.config.agent.sources["grok"] = str(tmp_path / "grok")
+    path.parent.chmod(0)
+    try:
+        if quiet:
+            outcome = sync_sessions(state, quiet=True)
+            assert (outcome.failed, outcome.ingested) == (1, 1)
+        else:
+            with pytest.raises(DotError, match="1 failure"):
+                sync_sessions(state)
+        assert "failed to inspect the session archive for Claude" in _text(state.stderr)
+    finally:
+        path.parent.chmod(0o700)
+    assert path.read_bytes() == before
+    assert read_session_bundle(session_bundle_path("grok", "later"))[1][0].content == "later"
+
+
 def test_usage_error_keeps_the_last_measurement_and_grows_the_transcript(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

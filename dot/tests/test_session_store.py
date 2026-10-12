@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import stat
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -100,6 +101,24 @@ def test_replacement_never_shrinks_the_archived_transcript(monkeypatch: pytest.M
     assert ingest_session("codex", "session-1", _logs(3), SessionSource(fingerprint="d" * 64)).status == "ingested"
     manifest, records = read_session_bundle(path)
     assert (manifest.source_fingerprint, len(records)) == ("d" * 64, 3)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
+@pytest.mark.parametrize("empty", [False, True])
+def test_ingestion_never_treats_an_inaccessible_bundle_as_absent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, empty: bool
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("codex", "session-1", _logs(2))
+    path = session_bundle_path("codex", "session-1")
+    before = path.read_bytes()
+    path.parent.chmod(0)
+    try:
+        with pytest.raises(PermissionError):
+            ingest_session("codex", "session-1", [] if empty else _logs(1))
+    finally:
+        path.parent.chmod(0o700)
+    assert path.read_bytes() == before
 
 
 def test_unchanged_content_keeps_capture_time_and_refreshes_signature(

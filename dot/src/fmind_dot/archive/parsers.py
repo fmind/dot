@@ -886,7 +886,10 @@ def _parse_grok_usage(
     record.set_samples(samples, timed=timed)
     record.timestamp = max(sample.timestamp for sample in samples) if timed else ""
     if cost_complete:
-        record.cost_usd = cost_ticks / _GROK_TICKS_PER_USD
+        try:
+            record.cost_usd = cost_ticks / _GROK_TICKS_PER_USD
+        except OverflowError as error:
+            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number") from error
         record.cost_known = True
     return record.finalize(fallback_timestamp=fallback_timestamp)
 

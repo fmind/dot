@@ -97,6 +97,8 @@ Use `dot config edit` to edit settings; it validates them when the editor exits.
 
 Usage reports distinguish token counts and estimated API value from actual costs. See the [usage guide](skills/agent-usage/SKILL.md) for reports and [subscription settings](skills/agent-usage/references/queries.md#monthly-and-subscription-reports) for renewal dates and charges.
 
+Session capture preserves longer archived transcripts and recorded usage. An unreadable archive fails for that agent while other agents continue; restore access before retrying.
+
 ## Repository tasks
 
 Run these from the checkout; `mise tasks` lists every task and alias.

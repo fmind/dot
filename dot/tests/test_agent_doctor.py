@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
@@ -269,6 +270,39 @@ def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest
     )
     assert (results["codex"].sync_failures, results["codex"].healthy) == (2, False)
     assert results["codex"].next == "dot agent session sync --agent codex"
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
+def test_doctor_never_reports_an_inaccessible_archive_as_readable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    ingest_session("claude", "retained", [SessionLog("", "claude", "retained", "user", "synthetic")])
+    directory = session_store_root() / "claude"
+    directory.chmod(0)
+    try:
+        [result] = gather_agent_doctor(state, agent="claude")
+        assert (result.archive, result.sessions, result.healthy) == ("unreadable", 0, False)
+    finally:
+        directory.chmod(0o700)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
+def test_doctor_never_reports_an_inaccessible_source_as_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    parent = _claude_source(state).parent.parent
+    parent.chmod(0)
+    try:
+        sync_sessions(state, agent="claude", quiet=True)
+        [result] = gather_agent_doctor(state, agent="claude")
+    finally:
+        parent.chmod(0o700)
+
+    # Path.exists() hides EACCES; an unreachable source must not pass as an unused agent.
+    assert (result.source, result.healthy) == ("unreadable", False)
+    assert result.next.startswith("restore read access to the claude session source")
 
 
 def test_doctor_json_is_a_diagnostic_envelope(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -272,7 +272,15 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
     (`--since`) pass by the current parser then reports its time, and its counts when they are larger:
     it cannot clear failures of older sessions that only a complete pass retries.
     """
-    source = "present" if source_root(state, agent).exists() else "missing"
+    # exists() hides permission errors; sync fails on any source it cannot inspect.
+    try:
+        source_root(state, agent).stat()
+    except FileNotFoundError:
+        source = "missing"
+    except OSError:
+        source = "unreadable"
+    else:
+        source = "present"
     complete = _read_sync_state(root / agent / SYNC_STATE_NAME)
     if isinstance(complete, str):
         return source, complete, 0, 0
@@ -288,10 +296,16 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
 
 def _check_archive(root: Path, agent: str) -> tuple[str, int]:
     directory = root / agent
-    if not directory.is_dir():
+    try:
+        paths = list(directory.iterdir())
+    except FileNotFoundError:
         return "empty", 0
+    except OSError:
+        return "unreadable", 0
     sessions = unreadable = 0
-    for path in directory.glob(f"*{BUNDLE_SUFFIX}"):
+    for path in paths:
+        if path.suffix != BUNDLE_SUFFIX:
+            continue
         try:
             read_session_manifest(path)
         except OSError, ValueError:
@@ -322,6 +336,8 @@ def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorRes
             hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
         elif archive not in {"readable", "empty"}:
             hint = f"inspect the unreadable bundles under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
+        elif source == "unreadable":
+            hint = f"restore read access to the {name} session source, then dot agent session sync --agent {name}"
         elif not synced or failures:
             hint = f"dot agent session sync --agent {name}"
         else:
