@@ -31,14 +31,13 @@ local function bdelete_next()
 end
 map("n", "<leader>bd", bdelete_next, { desc = "Delete Buffer (next)" })
 
--- Review a whole branch: point gitsigns at the merge-base with the default branch so
--- ]h/[h and hunk previews cover every change since the branch started, not only unstaged ones.
-local branch_base
+-- Review the current buffer against the default branch's merge-base. Keep its state
+-- local to the buffer: another repository cannot resolve this repository's commit SHA.
 map("n", "<leader>gm", function()
   local gitsigns = require("gitsigns")
-  if branch_base then
-    branch_base = nil
-    gitsigns.reset_base(true)
+  if vim.b.dot_branch_base then
+    vim.b.dot_branch_base = nil
+    gitsigns.reset_base()
     Snacks.notify.info("Comparing with the index", { title = "Git Base" })
     return
   end
@@ -53,8 +52,8 @@ map("n", "<leader>gm", function()
     Snacks.notify.warn("No merge-base with " .. default, { title = "Git Base" })
     return
   end
-  branch_base = base
-  gitsigns.change_base(base, true)
+  vim.b.dot_branch_base = base
+  gitsigns.change_base(base)
   Snacks.notify.info(("Comparing with %s (%s)"):format(default, base:sub(1, 7)), { title = "Git Base" })
 end, { desc = "Toggle Branch Review Base" })
 

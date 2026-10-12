@@ -19,8 +19,9 @@ opt.scrolloff = 15
 -- Keymap timeouts
 opt.timeoutlen = 400
 
--- Prefer xclip on Linux/ChromeOS to avoid wl-clipboard hanging in Wayland containers
-if vim.fn.executable("xclip") == 1 then
+-- Prefer xclip with an X display on Linux/ChromeOS to avoid wl-clipboard hanging
+-- in Wayland containers. Keep native macOS and Wayland-only clipboard selection.
+if vim.fn.has("linux") == 1 and vim.env.DISPLAY and vim.env.DISPLAY ~= "" and vim.fn.executable("xclip") == 1 then
   -- xclip exits non-zero with "Error: target STRING not available" whenever a selection
   -- has no owner or holds non-text data, which Neovim surfaces as a clipboard error on
   -- every paste. Read through a Lua function so an unavailable selection is simply an
