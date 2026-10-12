@@ -62,7 +62,8 @@ if vim.env.TEST_PLATFORM == "linux" and (vim.env.DISPLAY or "") ~= "" then
   assert(vim.g.clipboard.name == "xclip", "X display should use xclip")
 else
   assert(vim.g.clipboard == nil, "configuration overrode the native clipboard provider")
-  if vim.env.TEST_PLATFORM == "linux" then
+  -- Neovim's Vimscript provider calls the real has('mac'), so only a Linux host reaches Wayland.
+  if vim.env.TEST_PLATFORM == "linux" and has("linux") == 1 then
     assert(vim.fn["provider#clipboard#Executable"]() == "wl-copy", "Wayland provider was lost")
   end
 end
