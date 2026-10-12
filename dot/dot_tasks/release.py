@@ -112,7 +112,7 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
     if bumped == current:
         state.stdout.write(f"No new conventional commits since {current}. Nothing to release.\n")
         return None
-    # Tagging runs after the commit, outside the rollback, so reject a leftover tag first.
+    # Tagging runs after the commit, so reject a leftover tag first.
     if _git(state, "tag", "--list", bumped):
         raise DotError(f"tag {bumped} already exists locally; delete it with: git tag -d {bumped}")
     state.stdout.write(f"Current version: {current}\nNext version:    {bumped}\n")
@@ -135,9 +135,12 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
         if _interactive(state, commit, root) != 0:
             raise DotError("release commit failed; see the hook output above")
     except BaseException:
-        # The tree was clean before preparation, so HEAD holds the exact originals.
-        generated = [str(path) for path in _RELEASE_GENERATED_FILES]
-        state.runner.run(["git", "restore", "--staged", "--worktree", "--", *generated], cwd=root, check=False)
+        # Another editor or agent may have saved work since the clean preflight.
+        # Preserve both the worktree and index rather than guessing who owns edits.
+        state.stderr.write(
+            "Release preparation stopped; changes were kept in CHANGELOG.md, dot/pyproject.toml, and dot/uv.lock. "
+            "Review git diff and git diff --cached before retrying.\n"
+        )
         raise
     # Atomic: the remote accepts the release commit and its tag together or neither.
     push = ["git", "push", "--atomic", remote, f"HEAD:refs/heads/{branch}", f"refs/tags/{bumped}"]

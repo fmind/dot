@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -23,10 +24,10 @@ from pydantic import Field, StrictBool, StrictStr, TypeAdapter, ValidationError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
-SESSION_PARSER_VERSION = "12"
+SESSION_PARSER_VERSION = "13"
 # Every released parser stays readable: a bundle whose source the provider deleted can never be
 # recaptured. Earlier captures are flagged as legacy until their sources are recaptured.
-READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", "9", "10", "11", SESSION_PARSER_VERSION)
+READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", "9", "10", "11", "12", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -274,12 +275,18 @@ def read_session_bundle(path: Path) -> tuple[SessionManifest, list[SessionLog]]:
 def discover_session_bundles() -> list[Path]:
     """List bundle files; hidden names are temporary files or sync state."""
     root = session_store_root()
-    if not root.is_dir():
+    try:
+        mode = root.stat().st_mode
+    except FileNotFoundError:
         return []
+    if not stat.S_ISDIR(mode):
+        raise NotADirectoryError(f"session archive is not a directory: {root}")
+    # Path.is_dir() suppresses filesystem errors in Python 3.14. An inaccessible
+    # archive must fail instead of silently reporting no captured sessions.
     return sorted(
         path
         for agent in root.iterdir()
-        if agent.is_dir() and is_valid_session_id(agent.name)
+        if is_valid_session_id(agent.name) and stat.S_ISDIR(agent.stat().st_mode)
         for path in agent.iterdir()
         if path.suffix == BUNDLE_SUFFIX and is_valid_session_id(path.stem)
     )

@@ -219,7 +219,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         harness="agy",
         agent="agy",
         session_id=session_id,
-        model="gemini",
+        # The transcript has no verified model identity; agy can serve several providers.
+        model="unknown",
         cwd=resolve_cwd(cwd),
         measurement_kind="estimated",
     )

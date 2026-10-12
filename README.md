@@ -41,7 +41,7 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-c
 xcode-select --install
 ```
 
-The installer requires mise 2026.10.3 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
+The installer requires mise 2026.10.8 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
 
 ## Installation
 
@@ -99,7 +99,7 @@ Use `dot config edit` to edit settings; it validates them when the editor exits.
 
 Usage reports distinguish token counts and estimated API value from actual costs. See the [usage guide](skills/agent-usage/SKILL.md) for reports and [subscription settings](skills/agent-usage/references/queries.md#monthly-and-subscription-reports) for renewal dates and charges.
 
-Session capture preserves longer archived transcripts and recorded usage. An unreadable archive fails for that agent while other agents continue; restore access before retrying.
+Session capture preserves longer archived transcripts and recorded usage. An unreadable archive fails for that agent while other agents continue; archive queries fail when a directory is inaccessible instead of reporting no sessions. Restore access before retrying.
 
 ## Repository tasks
 
@@ -115,7 +115,7 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
-Python follows the latest 3.14 patch release. Required Python tools install only binary packages; their PyYAML and PyArrow dependencies do not yet provide Python 3.15 wheels.
+Python follows the latest 3.14 patch release. Required Python tools install only binary packages; their PyYAML dependency does not yet provide Python 3.15 wheels.
 
 ## Agent roles
 

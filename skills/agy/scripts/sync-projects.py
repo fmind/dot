@@ -22,7 +22,10 @@ def checkouts(home: Path) -> dict[str, str]:
 
 def folders(project: dict) -> list[str]:
     resources = project.get("projectResources", {}).get("resources", [])
-    return [r.get("folderUri") or r.get("gitFolder", {}).get("folderUri") or "" for r in resources]
+    uris = [r.get("folderUri") or r.get("gitFolder", {}).get("folderUri") or "" for r in resources]
+    if any(not isinstance(uri, str) for uri in uris):
+        raise ValueError("folder URIs must be strings")
+    return uris
 
 
 def plan(home: Path, registry: Path) -> tuple[list[Path], dict[str, str]]:
@@ -72,7 +75,7 @@ def main() -> int:
             sys.stdout.write(f"+ {name}\n")
             if args.apply:
                 write(registry, uri, name)
-    except (OSError, ValueError, AttributeError) as error:
+    except (OSError, ValueError, AttributeError, TypeError) as error:
         sys.stderr.write(f"Project sync failed ({type(error).__name__}); check {registry} JSON and permissions.\n")
         return 1
     verb = "applied" if args.apply else "previewed; rerun with --apply"

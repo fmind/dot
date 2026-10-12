@@ -57,17 +57,29 @@ def test_registry_matches_glob_and_is_repeatable(tmp_path: Path, monkeypatch: py
     )
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        "{registry-content-sentinel",
+        json.dumps({"name": "registry-content-sentinel", "projectResources": {"resources": None}}),
+        json.dumps({"projectResources": {"resources": [{"folderUri": ["registry-content-sentinel"]}]}}),
+        json.dumps({"projectResources": {"resources": [{"folderUri": 123}]}}),
+    ],
+)
 def test_invalid_registry_fails_before_writing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], content: str
 ) -> None:
     (tmp_path / "owner/repo/.git").mkdir(parents=True)
     registry = tmp_path / ".gemini/config/projects"
     registry.mkdir(parents=True)
+    entry(registry, "a-stale", tmp_path / "gone")
     # macOS temporary paths live under /private, so the sentinel must not be a path word.
-    (registry / "broken.json").write_text("{registry-content-sentinel")
+    (registry / "broken.json").write_text(content)
+    before = {path.name: path.read_bytes() for path in registry.iterdir()}
     assert run(tmp_path, monkeypatch, "--apply") == 1
     assert "registry-content-sentinel" not in capsys.readouterr().err
-    assert [path.name for path in registry.iterdir()] == ["broken.json"]
+    assert (registry / "broken.json").read_text() == content
+    assert {path.name: path.read_bytes() for path in registry.iterdir()} == before
 
 
 def test_preview_leaves_a_missing_registry_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
