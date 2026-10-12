@@ -87,6 +87,8 @@ The [Dot CLI guide](skills/dot-cli/SKILL.md) covers commands, diagnostics, and r
 
 Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repositories needing attention (with fetch), `hp` → pull, `ho` → orphans, `hc` → caches, and `ha` → agent statistics.
 
+In Neovim, `<leader>gm` toggles the current buffer's Git comparison between the index and the default branch's merge-base; other buffers keep their own comparison. Clipboard selection uses macOS's native provider, or xclip when Linux has an X display; Wayland-only sessions use Neovim's native detection.
+
 ### Dot configuration
 
 Machine-local settings live in `~/.config/dot.yaml` and merge with [built-in defaults](dot/src/fmind_dot/config.py). Configuration selection is `dot --config <path>` → `DOT_CONFIG_PATH` → the default path. A missing default file is fine; a missing explicitly selected file is an error. An unreadable file always fails instead of falling back to defaults.
