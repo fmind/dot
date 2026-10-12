@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.4.1] - 2026-10-12
+
+### 🐛 Bug Fixes
+
+- Preserve user data and evidence during maintenance
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Refresh mise, Copier, and action pins
+
 ## [11.4.0] - 2026-10-12
 
 ### 🚀 Features
