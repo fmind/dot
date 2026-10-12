@@ -4,7 +4,7 @@
    - **Triggers**: Run manually, on a schedule, from GitHub events, or through guarded slash commands.
    - **Context and tools**: Read repository files, issues, pull requests, and Actions; opt into editing, allowlisted shell commands, web fetch, or trusted MCP servers.
    - **Safe outputs**: Request bounded issues, comments, labels, reviews, or pull requests for separate permission-scoped jobs to validate and apply.
-1. **Install and diagnose**: Require GitHub Actions, repository write access, an authenticated `gh` CLI, and Copilot access. Install the extension once, then use `gh extension upgrade github/gh-aw` on later visits.
+1. **Install and diagnose**: Require GitHub Actions, repository write access, an authenticated `gh` CLI, and Copilot access. Install the extension once; use `gh extension upgrade github/gh-aw` only when an upgrade is in scope, then review generated changes and revalidate.
    ```bash
    gh auth status
    gh extension install github/gh-aw

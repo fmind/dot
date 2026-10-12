@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/incident-response
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-12"
 ---
 
 # Incident Response
@@ -16,7 +16,7 @@ Coordinate diagnosis, containment, recovery, and learning during an active outag
 
 ## Rules
 
-1. **Resolve authority before mutating**: a request for help does not authorize production mutation, credential rotation, customer or external communication, disclosure, or destructive containment. Before acting, present the exact target, expected signal, abort condition, and rollback, and get explicit approval.
+1. **Resolve authority before mutating**: a request for help does not authorize production mutation, credential rotation, customer or external communication, disclosure, or destructive containment. Before acting, present the exact target, expected signal, abort condition, and rollback. Reuse established approval within its scope; ask only for authority that is missing.
 1. **Prefer the safest reversible mitigation**: rank options by time to relief, reversibility, and secondary risk; preserve forensic evidence before containment changes it.
 1. **Freeze unrelated work**: no unrelated changes or speculative fixes while the incident is active.
 1. **Treat silence as a gap**: missing telemetry, stale dashboards, and a quiet alert are unknowns, not recovery. Recovery means critical journeys, data correctness, and queued work verified over a predeclared window.

@@ -8,7 +8,7 @@ Move the guide and owned resources into a new package, rename its entrypoint to 
 
 ## Standalone publication
 
-A first-party catalog may link across global/local owners. Before publishing one package independently, bundle necessary resources or replace sibling paths with available skill-name routing; validate a disposable copy containing only that package.
+A first-party catalog may link across global/local owners. Before publishing one package independently, bundle necessary resources or replace sibling paths with available skill-name routing. Include the applicable license and copyright notices from the repository and bundled third-party resources; `license: MIT` metadata alone does not contain those notices. Link the bundled notices from the entrypoint, then validate a disposable copy containing only that package.
 
 ## Host metadata
 

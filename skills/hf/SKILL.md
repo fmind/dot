@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-12"
 ---
 
 # Hugging Face CLI
@@ -38,14 +38,13 @@ Use `hf` for Hub operations from the shell. The CLI generates its own command sk
 
 ## Official Skills
 
-Upstream: `huggingface/skills`, the same packages the CLI marketplace serves. The `hf`-native commands below replace the default installer while preserving the review and project-scope rules in the shared [vendor-skill policy](../agent-project/references/vendor-skills.md):
+Upstream: `huggingface/skills`. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) to review and install marketplace packages from an immutable snapshot. Native marketplace `hf skills add <name>` and unqualified `hf skills update` fetch mutable content without a revision pin; they do not implement that policy. Use native generation only for the `hf-cli` skill, which comes from the installed CLI, and review it before installing or refreshing at project scope:
 
 ```bash
 hf skills list
 hf skills preview                            # review the generated CLI skill
 hf skills add --dest .agents/skills          # the CLI skill
-hf skills add <name> --dest .agents/skills
-hf skills update
+hf skills update hf-cli --dest .agents/skills # refresh only the generated CLI skill
 ```
 
 ## Documentation

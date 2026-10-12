@@ -56,15 +56,17 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
    fi
    ```
 
-1. **Read back** what the edit and protection changed: repeat the settings read, then query the update-branch, squash-message, security, and ruleset state that `gh repo view` omits. Expect `deletion` and `non_fast_forward` among the effective branch rules and `true` for vulnerability reporting on a public repository:
+1. **Read back** what the edit changed: repeat the settings read, then query the update-branch, squash-message, and security state that `gh repo view` omits. Only for a public repository, verify the protection step as well: expect `deletion` and `non_fast_forward` among the effective branch rules and `true` for vulnerability reporting. Private repositories skip these public-baseline checks, including APIs their plan may not support:
 
    ```bash
    gh repo view "$repository" --json "$settings_fields"
    gh api "repos/$repository" \
      --jq '{allow_update_branch, squash_merge_commit_title, squash_merge_commit_message, security_and_analysis}'
-   gh api "repos/$repository/private-vulnerability-reporting" --jq .enabled
-   gh api --paginate "repos/$repository/rulesets?includes_parents=false" --jq '.[] | {id, name, enforcement}'
-   gh api "repos/$repository/rules/branches/$branch" --jq 'map(.type)'
+   if [[ "$(jq -r .visibility <<<"$repository_json")" == public ]]; then
+     gh api "repos/$repository/private-vulnerability-reporting" --jq .enabled
+     gh api --paginate "repos/$repository/rulesets?includes_parents=false" --jq '.[] | {id, name, enforcement}'
+     gh api "repos/$repository/rules/branches/$branch" --jq 'map(.type)'
+   fi
    ```
 
 ## Gotchas

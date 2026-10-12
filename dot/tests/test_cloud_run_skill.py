@@ -51,6 +51,59 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     assert deployment.index("mise install --locked cosign trivy") < deployment.index("--push")
 
 
+@pytest.mark.parametrize(
+    ("payload", "decrypt_exit", "expected"),
+    [
+        ({"api_key": "literal $(text) `value`"}, 0, b"literal $(text) `value`"),
+        ({"api_key": "preserve spaces "}, 0, b"preserve spaces "),
+        ({"api_key": "partial decryption"}, 7, None),
+        ({}, 0, None),
+        ({"api_key": None}, 0, None),
+        ({"api_key": ""}, 0, None),
+        ({"api_key": 42}, 0, None),
+        ({"api_key": "invalid\nline"}, 0, None),
+        ({"api_key": "invalid\rline"}, 0, None),
+        ({"api_key": "invalid\0byte"}, 0, None),
+    ],
+)
+def test_secret_seed_validates_before_starting_writer(
+    tmp_path: Path, payload: dict[str, object], decrypt_exit: int, expected: bytes | None
+) -> None:
+    deployment = (ROOT / "skills/cloud-run/references/deployment.md").read_text(encoding="utf-8")
+    section = deployment.split("**Seed a runtime secret when authorized**", 1)[1]
+    match = re.search(r"```bash\n(.*?)\n\s*```", section, re.DOTALL)
+    assert match is not None
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps(payload))
+    writer_input = tmp_path / "writer-input"
+    for name, code in {
+        "sops": 'import os,sys; print(open(os.environ["FIXTURE"]).read()); sys.exit(int(os.environ["DECRYPT_EXIT"]))',
+        "gcloud": 'import os,sys,pathlib; pathlib.Path(os.environ["WRITER_INPUT"]).write_bytes(sys.stdin.buffer.read())',
+    }.items():
+        executable = tmp_path / name
+        executable.write_text(f"#!{sys.executable}\n{code}\n")
+        executable.chmod(0o700)
+    result = subprocess.run(
+        ["bash", "-c", match[1]],
+        env={
+            "PATH": str(tmp_path) + os.pathsep + os.environ["PATH"],
+            "FIXTURE": str(fixture),
+            "DECRYPT_EXIT": str(decrypt_exit),
+            "WRITER_INPUT": str(writer_input),
+        },
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert (result.returncode == 0) is (expected is not None), result.stderr
+    assert writer_input.exists() is (expected is not None)
+    if expected is not None:
+        assert writer_input.read_bytes() == expected
+    assert result.stdout == ""
+    assert all(value not in result.stderr for value in payload.values() if isinstance(value, str) and value)
+
+
 @pytest.mark.parametrize("errexit", [False, True])
 def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path, errexit: bool) -> None:
     shell = ["bash", *(["-e"] if errexit else []), "-o", "pipefail", "-c"]
