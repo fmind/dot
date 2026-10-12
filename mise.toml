@@ -265,7 +265,11 @@ run = "uv run --frozen --project dot ruff format --force-exclude"
 [tasks."format:shell"]
 alias = "fs"
 description = "Format shell scripts"
-run = "shfmt -w -i 2 -s install.sh run_*.sh dot_local/bin/executable_*"
+run = "mise run format:shell:files install.sh run_*.sh dot_local/bin/executable_*"
+
+[tasks."format:shell:files"]
+description = "Format only the supplied shell files (pre-commit passes staged files)"
+run = "shfmt -w -i 2 -s"
 
 [tasks.install]
 alias = "i"

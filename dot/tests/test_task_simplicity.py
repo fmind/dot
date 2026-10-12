@@ -153,6 +153,31 @@ def test_repository_lua_hook_preserves_unselected_files(tmp_path: Path) -> None:
     assert unrelated.read_text() != source
 
 
+def test_repository_shell_hook_preserves_unselected_files(tmp_path: Path) -> None:
+    env = materialize(tmp_path, "mise.toml", prefix="format:shell")
+    shfmt = subprocess.check_output(["mise", "which", "shfmt"], cwd=ROOT, text=True, timeout=60).strip()
+    env["PATH"] = f"{Path(shfmt).parent}:{env['PATH']}"
+    selected = tmp_path / "run_selected space ' ; $(touch injected).sh"
+    unrelated = tmp_path / "run_unrelated.sh"
+    source = "#!/bin/sh\nprintf   '%s\\n'   hello\n"
+    selected.write_text(source)
+    unrelated.write_text(source)
+    hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["jobs"]
+    [hook] = [hook for hook in hooks if hook["name"].startswith("format:shell")]
+    assert hook["run"].endswith(" {staged_files}")
+    assert hook["stage_fixed"] is True
+    result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], selected.name)
+    assert result.returncode == 0, result.stderr
+    assert selected.read_text() != source
+    assert unrelated.read_text() == source
+    assert not (tmp_path / "injected").exists()
+    (tmp_path / "install.sh").write_text(source)
+    (tmp_path / "dot_local/bin").mkdir(parents=True)
+    (tmp_path / "dot_local/bin/executable_wrapper").write_text(source)
+    assert run(tmp_path, env, "mise", "run", "format:shell").returncode == 0
+    assert unrelated.read_text() != source
+
+
 def test_terraform_formatter_forwards_files_and_failures(tmp_path: Path) -> None:
     env = materialize(tmp_path, "terraform")
     bin_dir = tmp_path / "bin"

@@ -69,6 +69,43 @@ def test_capture_accepts_crlf_hash_normalization(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    "linked", ["locks", "locks/example", "locks/example/2.0", "locks/example/2.0/uv.lock", "mise.lock"]
+)
+def test_capture_rejects_destination_symlinks_before_any_writes(tmp_path: Path, linked: str) -> None:
+    source = _lock(tmp_path / "live", "2.0")
+    # Capture writes graphs in lock order: this valid graph precedes the unsafe one; neither may be written.
+    early = source.parent / "locks/aaa/1.0"
+    early.mkdir(parents=True)
+    (early / "pyproject.toml").write_text("# Generated manifest\n")
+    content = b"# Generated lock\n"
+    (early / "uv.lock").write_bytes(content)
+    aaa = f'[[tools.aaa]]\nuv = {{ path = "locks/aaa/1.0", digest = "sha256:{hashlib.sha256(content).hexdigest()}" }}\n'
+    source.write_text(source.read_text().replace("[[tools.example]]", aaa + "[[tools.example]]", 1))
+    assert list(bundle(source))[1] == Path("locks/aaa/1.0/pyproject.toml")  # mise.lock is written last.
+    destination = tmp_path / "managed/mise.lock"
+    destination.parent.mkdir()
+    previous = b"lockfile_version = 3\n[tools]\n"
+    destination.write_bytes(previous)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "uv.lock").write_text("preserve personal graph\n")
+    (outside / "mise.lock").write_bytes(previous)
+    before = {path.name: path.read_bytes() for path in outside.iterdir()}
+    target = destination.parent / linked
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if linked == "mise.lock":
+        target.unlink()
+    target.symlink_to(outside / target.name if target.suffix == ".lock" else outside)
+
+    with pytest.raises(ValueError, match="symlinks"):
+        capture(source, destination)
+
+    assert destination.read_bytes() == previous
+    assert {path.name: path.read_bytes() for path in outside.iterdir()} == before
+    assert not (destination.parent / "locks/aaa/1.0").exists()
+
+
+@pytest.mark.parametrize(
     "body",
     ["tools = []", '[tools]\nexample = "invalid"', '[[tools.example]]\nuv = "invalid"'],
 )
