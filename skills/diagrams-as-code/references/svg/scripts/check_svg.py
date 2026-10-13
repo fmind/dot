@@ -1,7 +1,7 @@
 """Check hand-authored SVG illustrations against the SVG guide and optionally render review screenshots."""
 
 import argparse
-import base64
+import html
 import math
 import os
 import re
@@ -108,20 +108,19 @@ def render(path: Path, out: Path) -> list[Path]:
     width, height = view_box(root) or (960.0, 540.0)
     binary = chrome()
     shots = []
-    original = path.read_bytes()
-    fallback = BRAND_FONTS.sub("", original.decode("utf-8")).encode("utf-8")
     with tempfile.TemporaryDirectory() as workspace:
-        temporary = Path(workspace).resolve()
-        for content, name in ((original, path.stem), (fallback, f"{path.stem}.fallback")):
+        temporary = Path(workspace)
+        fallback = temporary / "fallback.svg"
+        fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
+        for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback")):
             # A top-level SVG is an active document. Only the generated HTML is
             # navigated to; SVG content stays in the browser's inert image context.
-            # Embed bytes to avoid file subresource loading across macOS /var aliases.
             wrapper = temporary / "preview.html"
             wrapper.write_text(
                 '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
                 "<style>body{margin:0}img{display:block;width:100vw;height:100vh}</style>"
-                '</head><body><img alt="" src="data:image/svg+xml;base64,'
-                + base64.b64encode(content).decode("ascii")
+                '</head><body><img alt="" src="'
+                + html.escape(source.resolve().as_uri(), quote=True)
                 + '"/></body></html>',
                 encoding="utf-8",
             )
@@ -145,7 +144,7 @@ def render(path: Path, out: Path) -> list[Path]:
             if completed.returncode or not shot.exists():
                 tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
                 raise RuntimeError(
-                    f"{Path(binary).name} failed to render {name}.svg (exit {completed.returncode}): {tail}"
+                    f"{Path(binary).name} failed to render {source.name} (exit {completed.returncode}): {tail}"
                 )
             shots.append(shot)
     return shots

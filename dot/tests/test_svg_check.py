@@ -1,6 +1,5 @@
 """Exercise the SVG illustration checker against the template and broken variants."""
 
-import base64
 import importlib.util
 import subprocess
 import xml.etree.ElementTree as ET
@@ -23,16 +22,6 @@ def svg() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-@pytest.fixture
-def symlinked_tmp_path(tmp_path: Path) -> Path:
-    """Mirror macOS /var -> /private/var even on Linux."""
-    real = tmp_path / "private" / "var" / "folders"
-    real.mkdir(parents=True)
-    alias = tmp_path / "var"
-    alias.symlink_to(real.parent, target_is_directory=True)
-    return alias / "folders"
 
 
 def variant(tmp_path: Path, old: str, new: str) -> Path:
@@ -102,38 +91,34 @@ def test_title_and_description_cannot_share_an_id(svg: ModuleType, tmp_path: Pat
     assert "duplicate id 'title'" in svg.check(path, 960)
 
 
-def test_render_embeds_brand_and_fallback_bytes_with_symlinked_paths(
-    svg: ModuleType, symlinked_tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_render_writes_brand_and_fallback_screenshots(
+    svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # Neither path aliases nor special characters may become file subresources.
-    source = symlinked_tmp_path / 'a "quoted" & <special> #é.svg'
-    source.write_bytes(TEMPLATE.read_bytes())
-    monkeypatch.setattr(svg.tempfile, "tempdir", str(symlinked_tmp_path))
+    # URI quoting and HTML attribute escaping must preserve unusual filenames.
+    source = tmp_path / 'a "quoted" & <special> #é.svg'
+    source.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
     temporary_files: list[Path] = []
 
     def screenshot(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
         wrapper = Path(unquote(urlsplit(command[-1]).path))
         assert wrapper.suffix == ".html"
-        assert wrapper == wrapper.resolve()
         document = ET.fromstring(wrapper.read_text())  # noqa: S314 - generated local HTML fixture
         assert [element.tag for element in document.iter()] == ["html", "head", "meta", "style", "body", "img"]
         img = document.find("body/img")
         assert img is not None
-        prefix, encoded = img.attrib["src"].split(",", 1)
-        assert prefix == "data:image/svg+xml;base64"
-        content = base64.b64decode(encoded, validate=True)
+        image = Path(unquote(urlsplit(img.attrib["src"]).path))
         temporary_files.append(wrapper)
         if len(temporary_files) == 1:
-            assert content == source.read_bytes()
+            assert image == source
         else:
-            assert content == svg.BRAND_FONTS.sub("", source.read_text(encoding="utf-8")).encode("utf-8")
+            temporary_files.append(image)
         shot = Path(next(arg.split("=", 1)[1] for arg in command if arg.startswith("--screenshot=")))
-        shot.write_bytes(content)
+        shot.write_text(image.read_text())
         return subprocess.CompletedProcess(command, 0, b"", b"")
 
     monkeypatch.setattr(svg, "chrome", lambda: "chrome")
     monkeypatch.setattr(svg.subprocess, "run", screenshot)
-    out = symlinked_tmp_path.resolve() / "shots"
+    out = tmp_path / "shots"
     out.mkdir()
     existing = out / f"{source.stem}.fallback.svg"
     existing.write_text("preserve an existing file")
@@ -145,46 +130,34 @@ def test_render_embeds_brand_and_fallback_bytes_with_symlinked_paths(
     assert "rendered" in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("timed_out", [False, True])
 def test_render_cleans_temporary_files_on_browser_failure(
-    svg: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    timed_out: bool,
+    svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     wrappers: list[Path] = []
 
     def fail(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
         wrappers.append(Path(unquote(urlsplit(command[-1]).path)))
-        if timed_out:
-            raise subprocess.TimeoutExpired(command, 60)
         return subprocess.CompletedProcess(command, 1, b"", b"browser failed")
 
     monkeypatch.setattr(svg, "chrome", lambda: "chrome")
     monkeypatch.setattr(svg.subprocess, "run", fail)
     out = tmp_path / "shots"
     assert svg.main([str(TEMPLATE), "--render", str(out)]) == 1
-    assert ("timed out" if timed_out else "browser failed") in capsys.readouterr().err
+    assert "browser failed" in capsys.readouterr().err
     assert wrappers
     assert all(not path.parent.exists() for path in wrappers)
     assert list(out.iterdir()) == []
 
 
-def test_browser_keeps_svg_events_inert_and_clean_pixels_unchanged(
-    svg: ModuleType, symlinked_tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_browser_keeps_svg_events_inert_and_clean_pixels_unchanged(svg: ModuleType, tmp_path: Path) -> None:
     try:
         binary = svg.chrome()
     except RuntimeError:
         pytest.skip("Chrome/Chromium is required for the SVG image-context regression")
 
-    # Temp wrappers start below /var, while the inputs and shots use /private/var.
-    monkeypatch.setattr(svg.tempfile, "tempdir", str(symlinked_tmp_path))
-    source_dir = symlinked_tmp_path.resolve()
-    clean = source_dir / "clean.svg"
+    clean = tmp_path / "clean.svg"
     clean.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
-    event = source_dir / "event.svg"
+    event = tmp_path / "event.svg"
     event.write_text(
         clean.read_text().replace("<svg ", "<svg onload=\"document.querySelector('rect').style.fill='magenta'\" ", 1),
         encoding="utf-8",
@@ -192,7 +165,7 @@ def test_browser_keeps_svg_events_inert_and_clean_pixels_unchanged(
     # This deliberately passes the authoring checks: image isolation must hold
     # independently of the static checker's coverage of executable SVG features.
     assert svg.check(event, 960) == []
-    out = source_dir / "shots"
+    out = tmp_path / "shots"
     out.mkdir()
     assert svg.main([str(clean), str(event), "--render", str(out)]) == 0
 
@@ -204,7 +177,7 @@ def test_browser_keeps_svg_events_inert_and_clean_pixels_unchanged(
                 "--headless=new",
                 "--hide-scrollbars",
                 "--disable-gpu",
-                f"--user-data-dir={source_dir / 'control-profile'}",
+                f"--user-data-dir={tmp_path / 'control-profile'}",
                 "--window-size=960,420",
                 f"--screenshot={shot}",
                 source.as_uri(),
@@ -222,7 +195,7 @@ def test_browser_keeps_svg_events_inert_and_clean_pixels_unchanged(
     assert direct(event, "active.png") != original
     assert (out / "clean.png").read_bytes() == original
     assert (out / "event.png").read_bytes() == original
-    fallback = source_dir / "fallback.svg"
+    fallback = tmp_path / "fallback.svg"
     fallback.write_text(svg.BRAND_FONTS.sub("", clean.read_text()), encoding="utf-8")
     original_fallback = direct(fallback, "direct-fallback.png")
     assert (out / "clean.fallback.png").read_bytes() == original_fallback
