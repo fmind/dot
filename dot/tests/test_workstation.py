@@ -236,6 +236,10 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "webmasters.readonly",
         "youtube.readonly",
         "yt-analytics.readonly",
+        # Management scopes the brain's google CLI narrows its explicit writes to.
+        "analytics.edit",
+        "business.manage",
+        "webmasters",
         # Read-only scopes the brain's gws collectors narrow their tokens to, and the audit-log reader.
         "admin.reports.audit.readonly",
         "calendar.readonly",
@@ -252,7 +256,18 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
     )
     for scope in borrowed:
         assert f"https://www.googleapis.com/auth/{scope}" in workspace.scopes
-    for api in ("admin", "analyticsadmin", "analyticsdata", "searchconsole", "youtube", "youtubeanalytics"):
+    for api in (
+        "admin",
+        "analyticsadmin",
+        "analyticsdata",
+        "businessprofileperformance",
+        "mybusinessaccountmanagement",
+        "mybusinessbusinessinformation",
+        "pagespeedonline",
+        "searchconsole",
+        "youtube",
+        "youtubeanalytics",
+    ):
         assert f"{api}.googleapis.com" in workspace.apis
 
 
