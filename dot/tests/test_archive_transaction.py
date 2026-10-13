@@ -285,6 +285,44 @@ def test_sync_recaptures_older_parser_bundles(tmp_path: Path, monkeypatch: pytes
     assert [record.content for record in records] == ["fixture", "response answer-1"]
 
 
+def test_sync_recaptures_meta_flags_from_unchanged_parser_13_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fmind_dot.archive.sync import _source_signature
+
+    state, source = source_session(tmp_path, monkeypatch)
+    with source.open("a") as stream:
+        stream.write(json.dumps({"type": "user", "isMeta": True, "message": {"content": "injected skill"}}) + "\n")
+    parsed = parsers.parse_claude_session(source, "fixture-id")
+    assert parsed.usage is not None
+    with monkeypatch.context() as legacy:
+        legacy.setattr(session_store, "SESSION_PARSER_VERSION", "13")
+        session_store.ingest_session(
+            "claude",
+            "fixture-id",
+            [replace(record, meta=False) for record in parsed.logs],
+            session_store.SessionSource(
+                type=parsed.source_type,
+                fingerprint=parsed.fingerprint,
+                signature=_source_signature([source])[0],
+            ),
+            usage=parsed.usage.to_dict(),
+        )
+    path = session_bundle_path("claude", "fixture-id")
+    old_manifest, old_records = read_session_bundle(path)
+    assert old_manifest.parser_version == "13"
+    assert all(not record.meta for record in old_records)
+
+    assert sync_sessions(state, agent="claude").ingested == 1
+    manifest, records = read_session_bundle(path)
+    assert manifest.schema_version == 3
+    assert manifest.parser_version == session_store.SESSION_PARSER_VERSION
+    assert records == parsed.logs
+    assert manifest.usage == old_manifest.usage
+    assert [json.loads(line).get("meta") for line in path.read_text().splitlines()[1:]] == [None, None, True]
+    assert sync_sessions(state, agent="claude").unchanged == 1
+
+
 def test_new_session_with_failed_usage_archives_its_transcript_and_retries(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
