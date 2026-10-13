@@ -12,6 +12,7 @@ Operate the Grok Build coding harness. The Grok chat product and model API have 
 Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
 - **Read Build docs, not chat docs**: use the Build documentation and Build changelog, not the chat product's.
+- **Let mise own the managed binary**: fmind/dot uses `npm:@xai-official/grok`, the [official npm distribution](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/npm/grok/README.md), with platform binaries pinned by the native dependency lock. The short `grok` registry entry currently selects HTTP downloads without published checksums for `mise lock`, so it fails this repository's portable lock validation. Use `mise run upgrade` for updates; `grok update` bypasses the lock. The npm installer also writes binaries and installer settings under `GROK_HOME` (default `~/.grok`); isolate both `MISE_DATA_DIR` and `GROK_HOME` when testing an install. After migration, verify `mise which grok` and shell resolution before retiring any old self-install executable or PATH entry. Preserve `~/.grok` settings, authentication, and sessions.
 - **Inspect before changing configuration**: use `grok inspect` locally to check discovered configuration, instructions, and extensions before changing them. Its output can contain private context; report only the fields needed for the task.
 
 ## Official Skills

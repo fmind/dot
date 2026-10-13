@@ -165,6 +165,8 @@ Agent harnesses use their own logins:
 
 For hooks, notifications, and provider overrides, see [agent harnesses](skills/agent-harnesses/SKILL.md) and [Antigravity](skills/agy/SKILL.md). Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 
+Grok Build is installed and locked by mise using the official xAI distribution. After migrating an existing self-install, confirm `mise which grok` and `grok --version` resolve the managed binary before manually retiring the old executable and its PATH entry. Keep `~/.grok` settings, credentials, and sessions; see the [Grok guide](skills/agent-harnesses/references/grok/GUIDE.md) for update ownership.
+
 ### Secret Management
 
 Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode use native credential files, seeded only when absent so later logins survive apply. Use `hf auth login`, `kaggle auth login`, or OpenCode's `/connect` for your own accounts. For customer work, select credentials explicitly using the [account override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
