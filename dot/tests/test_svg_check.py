@@ -155,6 +155,12 @@ def test_render_writes_brand_and_fallback_screenshots(
     assert "rendered" in capsys.readouterr().out
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin",
+    # Headless Chrome screenshots time out on GitHub's macOS runners (runs 38439557067, 38444198105);
+    # the stubbed render tests above still cover macOS, and Linux CI runs this real-browser check.
+    reason="headless Chrome screenshots hang on macOS CI runners",
+)
 def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: ModuleType, tmp_path: Path) -> None:
     try:
         binary = svg.chrome()
