@@ -1,6 +1,7 @@
 """Check hand-authored SVG illustrations against the SVG guide and optionally render review screenshots."""
 
 import argparse
+import json
 import math
 import os
 import re
@@ -71,6 +72,13 @@ def check(path: Path, width: float) -> list[str]:
         tag = local(element.tag)
         if tag in FORBIDDEN:
             problems.append(f"<{tag}> is ignored or unsafe when the SVG is embedded through <img>")
+        for attribute, value in element.attrib.items():
+            name = attribute.rsplit("}", 1)[-1]
+            if name.lower().startswith("on"):
+                problems.append(f"<{tag}> has event-handler attribute {name!r}; remove executable content")
+            # XML entities are already decoded; also catch whitespace-obfuscated schemes.
+            if re.sub(r"[\x00-\x20]", "", value).lower().startswith("javascript:"):
+                problems.append(f"<{tag}> has a javascript: URL in {name!r}; remove executable content")
         href = element.get("href") or element.get(XLINK) or ""
         if tag in {"image", "use", "feImage"} and href and not href.startswith("#"):
             problems.append(f"<{tag}> loads {href[:60]!r}; inline the shape instead of external or raster content")
@@ -102,7 +110,7 @@ def chrome() -> str:
 
 
 def render(path: Path, out: Path) -> list[Path]:
-    """Screenshot the SVG with brand fonts and with Google Sans removed, as most viewers lack it."""
+    """Screenshot the SVG directly with scripts/network blocked, in brand and fallback fonts."""
     root = ET.parse(path).getroot()  # noqa: S314 - already checked local file
     width, height = view_box(root) or (960.0, 540.0)
     binary = chrome()
@@ -110,6 +118,14 @@ def render(path: Path, out: Path) -> list[Path]:
     fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
     shots = []
     with tempfile.TemporaryDirectory() as profile:
+        # A global Blink scriptEnabled=false also disables Chrome's headless
+        # screenshot harness. Content settings block scripts in file: documents
+        # while leaving the internal chrome: harness working (see the SVG guide).
+        preferences = Path(profile) / "Default" / "Preferences"
+        preferences.parent.mkdir()
+        preferences.write_text(
+            json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}), encoding="utf-8"
+        )
         for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback")):
             shot = out / f"{name}.png"
             completed = subprocess.run(  # noqa: S603 - fixed browser binary and file URLs
@@ -118,6 +134,10 @@ def render(path: Path, out: Path) -> list[Path]:
                     "--headless=new",
                     "--hide-scrollbars",
                     "--disable-gpu",
+                    # Fail all host lookups, including loopback and IP literals.
+                    # Ignore system proxies, which could resolve hosts remotely.
+                    "--host-resolver-rules=MAP * ^NOTFOUND",
+                    "--no-proxy-server",
                     f"--user-data-dir={profile}",
                     f"--window-size={math.ceil(width)},{math.ceil(height)}",
                     f"--screenshot={shot}",
