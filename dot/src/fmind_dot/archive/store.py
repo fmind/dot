@@ -24,10 +24,10 @@ from pydantic import Field, StrictBool, StrictStr, TypeAdapter, ValidationError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 3
-SESSION_PARSER_VERSION = "13"
+SESSION_PARSER_VERSION = "14"
 # Every released parser stays readable: a bundle whose source the provider deleted can never be
 # recaptured. Earlier captures are flagged as legacy until their sources are recaptured.
-READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", "9", "10", "11", "12", SESSION_PARSER_VERSION)
+READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", SESSION_PARSER_VERSION)
 SESSION_STORE_VERSION = "v3"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -55,6 +55,7 @@ class SessionLog:
     content: StrictStr
     cwd: StrictStr = ""
     model: StrictStr = ""
+    meta: StrictBool = False
 
     def to_dict(self) -> dict[str, Any]:
         return _LOG_ADAPTER.dump_python(self, exclude_defaults=True)

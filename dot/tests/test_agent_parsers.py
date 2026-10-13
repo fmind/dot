@@ -19,7 +19,7 @@ from fmind_dot.archive.parsers import (
     parse_copilot_session,
     parse_grok_session,
 )
-from fmind_dot.archive.store import fingerprint_bytes, fingerprint_json
+from fmind_dot.archive.store import SessionLog, fingerprint_bytes, fingerprint_json, marshal_session_logs
 from fmind_dot.archive.usage import UsageRecord
 
 
@@ -36,6 +36,35 @@ def _grok_usage(directory, session_id: str, cwd: str = "") -> UsageRecord:
 
 def _jsonl(path, rows) -> None:
     path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+
+def test_claude_meta_user_turns_are_preserved(tmp_path: Path) -> None:
+    path = tmp_path / "claude.jsonl"
+    turns = [
+        {"type": "user", "message": {"content": "normal prompt"}},
+        {"type": "user", "isMeta": True, "message": {"content": "injected skill body"}},
+        {"type": "user", "isMeta": True, "message": {"content": [{"type": "text", "text": "injected hook"}]}},
+        {"type": "user", "isMeta": False, "message": {"content": "explicit normal prompt"}},
+        {"type": "user", "isMeta": "true", "message": {"content": "non-boolean flag"}},
+        {"type": "user", "isMeta": 1, "message": {"content": "numeric flag"}},
+        {"type": "assistant", "isMeta": True, "message": {"content": [{"type": "text", "text": "answer"}]}},
+    ]
+    _jsonl(path, turns)
+
+    parsed = parse_claude_session(path, "claude-id")
+    rows = [json.loads(line) for line in marshal_session_logs(parsed.logs).splitlines()]
+
+    assert [row["content"] for row in rows] == [
+        "normal prompt",
+        "injected skill body",
+        "injected hook",
+        "explicit normal prompt",
+        "non-boolean flag",
+        "numeric flag",
+        "answer",
+    ]
+    assert [row.get("meta") for row in rows] == [None, True, True, None, None, None, None]
+    assert [SessionLog.from_dict(row) for row in rows] == parsed.logs
 
 
 def test_file_transcript_parsers_and_usage(tmp_path) -> None:

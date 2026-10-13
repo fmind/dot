@@ -419,6 +419,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
                 content,
                 resolve_cwd(line_cwd or cwd),
                 model,
+                meta=kind == "user" and raw.get("isMeta") is True,
             )
         )
     propagate_models(logs)
