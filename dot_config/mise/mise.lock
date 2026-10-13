@@ -2285,6 +2285,12 @@ specifiers = [
     "latest",
 ]
 
+[[tools."npm:@xai-official/grok"]]
+version = "1.0.52"
+aube = { path = "locks/npm-xai-official-grok/1.0.52", digest = "sha256:dc32956cbc8491b91cfa6a29bb0e121b0a2001f2e0885a6da0ee4ccd87b3d392" }
+backend = "npm:@xai-official/grok"
+specifiers = ["latest"]
+
 [[tools."npm:cf"]]
 version = "1.0.0-beta.14"
 aube = { path = "locks/npm-cf/1.0.0-beta.14", digest = "sha256:f553131a13551b94af92a1b484ec3cc44be9fc64e1415e1d1cce83733f078ce0" }

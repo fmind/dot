@@ -1,0 +1,88 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@xai-official/grok':
+        specifier: 1.0.52
+        version: 1.0.52
+
+packages:
+
+  '@iarna/toml@3.0.0':
+    resolution: {integrity: sha512-td6ZUkz2oS3VeleBcN+m//Q6HlCFCPrnI0FZhrt/h4XqLEdOyYp2u21nd8MdsR+WJy5r9PTDaHTDDfhf4H4l6Q==}
+
+  '@xai-official/grok-darwin-arm64@1.0.52':
+    resolution: {integrity: sha512-3e02UcyrA9s5J3Tp3N72FwcP2rzK9ogMe+nR4xzXaKZaLIwLHm6kgyFbtij1A8R3xO26oSGq0oxTJjKKErGK5g==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@xai-official/grok-darwin-x64@1.0.52':
+    resolution: {integrity: sha512-iRhxVYYIj/si1ECa5mzioLaOKm4dyhEIzoNt77HQdffOOG5nQEr2VWRV1dzAQ6uNG2hI21DsrGm8z9Ww2oI++w==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@xai-official/grok-linux-arm64@1.0.52':
+    resolution: {integrity: sha512-aweQyHPi5r+qMG0BUp1XH22R7RGeQNYhqQMpePlsjyGesd5/v79HQPs9PIkKLjrcX4uz5cFFe8RcnkKu5J5zCA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@xai-official/grok-linux-x64@1.0.52':
+    resolution: {integrity: sha512-g45usH9ef8PiJBEVLfelkKe13ixx7pjemRb6EDBqp+nKrkDx4wn6VdFoTOVUneBJ7jXj9hCkI34nhusgMtWXVg==}
+    cpu: [x64]
+    os: [linux]
+
+  '@xai-official/grok-win32-arm64@1.0.52':
+    resolution: {integrity: sha512-0Un8yKlVTGKBXLRGA9H8Un6mbk8kzyRY2j0yKX6KVmaIMwkKEKe52tpfQYWdyD3PBxH0ONPwr11xXf/ry/SB4Q==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@xai-official/grok-win32-x64@1.0.52':
+    resolution: {integrity: sha512-5/oBO0KCiFfDe9Pl12QZa16+gIud6XHhnCIPgnFn4xBb4HKVzxDKiHhyux/CPSmEkG21QaGDzr2m2rWg/IhjlA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@xai-official/grok@1.0.52':
+    resolution: {integrity: sha512-mWNiJL++3cUoD9QVDWHZmhLdpmRNAu1nHQs1sMT10UNQMczBZflqdtr09XRyuKEKEle61L/1/YWDtxip840b8g==}
+    engines: {node: '>=20'}
+    cpu: [arm64, x64]
+    os: [darwin, linux, win32]
+    hasBin: true
+
+snapshots:
+
+  '@iarna/toml@3.0.0': {}
+
+  '@xai-official/grok-darwin-arm64@1.0.52':
+    optional: true
+
+  '@xai-official/grok-darwin-x64@1.0.52':
+    optional: true
+
+  '@xai-official/grok-linux-arm64@1.0.52':
+    optional: true
+
+  '@xai-official/grok-linux-x64@1.0.52':
+    optional: true
+
+  '@xai-official/grok-win32-arm64@1.0.52':
+    optional: true
+
+  '@xai-official/grok-win32-x64@1.0.52':
+    optional: true
+
+  '@xai-official/grok@1.0.52':
+    dependencies:
+      '@iarna/toml': 3.0.0
+    optionalDependencies:
+      '@xai-official/grok-darwin-arm64': 1.0.52
+      '@xai-official/grok-darwin-x64': 1.0.52
+      '@xai-official/grok-linux-arm64': 1.0.52
+      '@xai-official/grok-linux-x64': 1.0.52
+      '@xai-official/grok-win32-arm64': 1.0.52
+      '@xai-official/grok-win32-x64': 1.0.52
