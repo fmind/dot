@@ -1,7 +1,11 @@
 """Exercise the SVG illustration checker against the template and broken variants."""
 
 import importlib.util
+import subprocess
 import sys
+import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import ModuleType
 
@@ -89,14 +93,54 @@ def test_title_and_description_cannot_share_an_id(svg: ModuleType, tmp_path: Pat
     assert "duplicate id 'title'" in svg.check(path, 960)
 
 
+@pytest.mark.parametrize(
+    ("markup", "expected"),
+    [
+        ('<g onload="void 0"/>', "event-handler attribute 'onload'"),
+        ('<g onclick="void 0"/>', "event-handler attribute 'onclick'"),
+        ('<g ONLOAD="void 0"/>', "event-handler attribute 'ONLOAD'"),
+        ('<g xmlns:x="urn:test" x:onload="void 0"/>', "event-handler attribute 'onload'"),
+        ('<a href="javascript:void(0)"/>', "javascript: URL"),
+        ('<a href=" &#x09;JaVa&#x0A;ScRiPt:void(0)"/>', "javascript: URL"),
+        ('<a href="j&#97;vascript:void(0)"/>', "javascript: URL"),
+        (
+            '<a xmlns:xlink="http://www.w3.org/1999/xlink" href="#card" xlink:href="javascript:void(0)"/>',
+            "javascript: URL",
+        ),
+    ],
+)
+def test_executable_attributes_fail_before_rendering(
+    svg: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    markup: str,
+    expected: str,
+) -> None:
+    source = variant(tmp_path, "</svg>", markup + "</svg>")
+
+    def unexpected_render(*_args: object) -> None:
+        pytest.fail("executable attributes must not launch a browser")
+
+    monkeypatch.setattr(svg, "render", unexpected_render)
+    assert svg.main([str(source), "--render", str(tmp_path / "shots")]) == 1
+    assert expected in capsys.readouterr().out
+
+
 def test_render_writes_brand_and_fallback_screenshots(
     svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     browser = tmp_path / "chrome"
     browser.write_text(
         f"#!{sys.executable}\n"
-        "import sys\nfrom pathlib import Path\n"
+        "import json, sys\nfrom pathlib import Path\n"
         "args=sys.argv[1:]\n"
+        "assert '--host-resolver-rules=MAP * ^NOTFOUND' in args\n"
+        "assert '--no-proxy-server' in args\n"
+        "profile=Path(next(a.split('=',1)[1] for a in args if a.startswith('--user-data-dir=')))\n"
+        "prefs=json.loads((profile/'Default'/'Preferences').read_text())\n"
+        "assert prefs['profile']['default_content_setting_values']['javascript'] == 2\n"
+        "assert args[-1].startswith('file://') and args[-1].endswith('.svg')\n"
         "shot=next(a.split('=',1)[1] for a in args if a.startswith('--screenshot='))\n"
         "source=Path(args[-1].removeprefix('file://')).read_text()\n"
         "Path(shot).write_text(source)\n"
@@ -109,6 +153,107 @@ def test_render_writes_brand_and_fallback_screenshots(
     assert "Google Sans" not in (out / "illustration.fallback.png").read_text()
     assert not (out / "illustration.fallback.svg").exists()
     assert "rendered" in capsys.readouterr().out
+
+
+def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: ModuleType, tmp_path: Path) -> None:
+    try:
+        binary = svg.chrome()
+    except RuntimeError:
+        pytest.skip("Chrome/Chromium is required for the direct-SVG browser regression")
+
+    clean = tmp_path / "clean.svg"
+    clean.write_bytes(TEMPLATE.read_bytes())
+    fallback = tmp_path / "control-fallback.svg"
+    fallback.write_text(svg.BRAND_FONTS.sub("", clean.read_text(encoding="utf-8")), encoding="utf-8")
+    out = tmp_path / "shots"
+    out.mkdir()
+
+    def direct(source: Path, name: str) -> bytes:
+        """Original screenshot command, with only synthetic test hosts routed locally."""
+        shot = out / name
+        with tempfile.TemporaryDirectory() as profile:
+            result = subprocess.run(
+                [
+                    binary,
+                    "--headless=new",
+                    "--hide-scrollbars",
+                    "--disable-gpu",
+                    "--no-proxy-server",
+                    "--host-resolver-rules=MAP svg-preview.test 127.0.0.1",
+                    f"--user-data-dir={profile}",
+                    "--window-size=960,420",
+                    f"--screenshot={shot}",
+                    source.resolve().as_uri(),
+                ],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=60,
+                check=False,
+            )
+        assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
+        assert shot.is_file(), result.stderr.decode("utf-8", "replace")
+        return shot.read_bytes()
+
+    requests: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            requests.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.end_headers()
+            self.wfile.write(b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>')
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - stdlib handler signature
+            pass
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            event = tmp_path / "event.svg"
+            event.write_text(
+                clean.read_text(encoding="utf-8").replace(
+                    "<svg ",
+                    "<svg onload=\"document.querySelector('rect').style.fill='magenta';"
+                    f"new Image().src='http://127.0.0.1:{server.server_port}/onload'\" ",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            network = tmp_path / "network.svg"
+            network.write_text(
+                clean.read_text(encoding="utf-8").replace(
+                    "</svg>",
+                    "".join(
+                        f'<image href="http://{host}:{server.server_port}/{host}" width="1" height="1"/>'
+                        for host in ("localhost", "127.0.0.1", "svg-preview.test")
+                    )
+                    + "</svg>",
+                ),
+                encoding="utf-8",
+            )
+            original = direct(clean, "original.png")
+            original_fallback = direct(fallback, "original-fallback.png")
+            # Positive controls prove execution and requests really work in this environment.
+            assert direct(event, "active.png") != original
+            assert requests == ["/onload"]
+            requests.clear()
+            direct(network, "network-control.png")
+            assert set(requests) == {"/localhost", "/127.0.0.1", "/svg-preview.test"}
+            requests.clear()
+
+            # Bypass the authoring checks to exercise the browser boundary itself.
+            for source in (clean, event, network):
+                shots = svg.render(source, out)
+                assert len(shots) == 2
+                if source != network:
+                    assert shots[0].read_bytes() == original
+                    assert shots[1].read_bytes() == original_fallback
+                assert requests == []
+        finally:
+            server.shutdown()
+            thread.join()
 
 
 def test_missing_file_fails(svg: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
