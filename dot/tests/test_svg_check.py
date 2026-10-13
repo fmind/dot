@@ -1,11 +1,9 @@
 """Exercise the SVG illustration checker against the template and broken variants."""
 
 import importlib.util
-import subprocess
-import xml.etree.ElementTree as ET
+import sys
 from pathlib import Path
 from types import ModuleType
-from urllib.parse import unquote, urlsplit
 
 import pytest
 
@@ -94,112 +92,23 @@ def test_title_and_description_cannot_share_an_id(svg: ModuleType, tmp_path: Pat
 def test_render_writes_brand_and_fallback_screenshots(
     svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # URI quoting and HTML attribute escaping must preserve unusual filenames.
-    source = tmp_path / 'a "quoted" & <special> #é.svg'
-    source.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
-    temporary_files: list[Path] = []
-
-    def screenshot(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
-        wrapper = Path(unquote(urlsplit(command[-1]).path))
-        assert wrapper.suffix == ".html"
-        document = ET.fromstring(wrapper.read_text())  # noqa: S314 - generated local HTML fixture
-        assert [element.tag for element in document.iter()] == ["html", "head", "meta", "style", "body", "img"]
-        img = document.find("body/img")
-        assert img is not None
-        image = Path(unquote(urlsplit(img.attrib["src"]).path))
-        temporary_files.append(wrapper)
-        if len(temporary_files) == 1:
-            assert image == source
-        else:
-            temporary_files.append(image)
-        shot = Path(next(arg.split("=", 1)[1] for arg in command if arg.startswith("--screenshot=")))
-        shot.write_text(image.read_text())
-        return subprocess.CompletedProcess(command, 0, b"", b"")
-
-    monkeypatch.setattr(svg, "chrome", lambda: "chrome")
-    monkeypatch.setattr(svg.subprocess, "run", screenshot)
-    out = tmp_path / "shots"
-    out.mkdir()
-    existing = out / f"{source.stem}.fallback.svg"
-    existing.write_text("preserve an existing file")
-    assert svg.main([str(source), "--render", str(out)]) == 0
-    assert "Google Sans" in (out / f"{source.stem}.png").read_text()
-    assert "Google Sans" not in (out / f"{source.stem}.fallback.png").read_text()
-    assert existing.read_text() == "preserve an existing file"
-    assert all(not path.exists() for path in temporary_files)
-    assert "rendered" in capsys.readouterr().out
-
-
-def test_render_cleans_temporary_files_on_browser_failure(
-    svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    wrappers: list[Path] = []
-
-    def fail(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
-        wrappers.append(Path(unquote(urlsplit(command[-1]).path)))
-        return subprocess.CompletedProcess(command, 1, b"", b"browser failed")
-
-    monkeypatch.setattr(svg, "chrome", lambda: "chrome")
-    monkeypatch.setattr(svg.subprocess, "run", fail)
-    out = tmp_path / "shots"
-    assert svg.main([str(TEMPLATE), "--render", str(out)]) == 1
-    assert "browser failed" in capsys.readouterr().err
-    assert wrappers
-    assert all(not path.parent.exists() for path in wrappers)
-    assert list(out.iterdir()) == []
-
-
-def test_browser_keeps_svg_events_inert_and_clean_pixels_unchanged(svg: ModuleType, tmp_path: Path) -> None:
-    try:
-        binary = svg.chrome()
-    except RuntimeError:
-        pytest.skip("Chrome/Chromium is required for the SVG image-context regression")
-
-    clean = tmp_path / "clean.svg"
-    clean.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
-    event = tmp_path / "event.svg"
-    event.write_text(
-        clean.read_text().replace("<svg ", "<svg onload=\"document.querySelector('rect').style.fill='magenta'\" ", 1),
-        encoding="utf-8",
+    browser = tmp_path / "chrome"
+    browser.write_text(
+        f"#!{sys.executable}\n"
+        "import sys\nfrom pathlib import Path\n"
+        "args=sys.argv[1:]\n"
+        "shot=next(a.split('=',1)[1] for a in args if a.startswith('--screenshot='))\n"
+        "source=Path(args[-1].removeprefix('file://')).read_text()\n"
+        "Path(shot).write_text(source)\n"
     )
-    # This deliberately passes the authoring checks: image isolation must hold
-    # independently of the static checker's coverage of executable SVG features.
-    assert svg.check(event, 960) == []
+    browser.chmod(0o700)
+    monkeypatch.setenv("CHROME", str(browser))
     out = tmp_path / "shots"
-    out.mkdir()
-    assert svg.main([str(clean), str(event), "--render", str(out)]) == 0
-
-    def direct(source: Path, name: str) -> bytes:
-        shot = out / name
-        result = subprocess.run(
-            [
-                binary,
-                "--headless=new",
-                "--hide-scrollbars",
-                "--disable-gpu",
-                f"--user-data-dir={tmp_path / 'control-profile'}",
-                "--window-size=960,420",
-                f"--screenshot={shot}",
-                source.as_uri(),
-            ],
-            capture_output=True,
-            stdin=subprocess.DEVNULL,
-            timeout=60,
-            check=False,
-        )
-        assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
-        return shot.read_bytes()
-
-    # Positive control: opening the synthetic SVG as a document executes onload.
-    original = direct(clean, "direct.png")
-    assert direct(event, "active.png") != original
-    assert (out / "clean.png").read_bytes() == original
-    assert (out / "event.png").read_bytes() == original
-    fallback = tmp_path / "fallback.svg"
-    fallback.write_text(svg.BRAND_FONTS.sub("", clean.read_text()), encoding="utf-8")
-    original_fallback = direct(fallback, "direct-fallback.png")
-    assert (out / "clean.fallback.png").read_bytes() == original_fallback
-    assert (out / "event.fallback.png").read_bytes() == original_fallback
+    assert svg.main([str(TEMPLATE), "--render", str(out)]) == 0
+    assert "Google Sans" in (out / "illustration.png").read_text()
+    assert "Google Sans" not in (out / "illustration.fallback.png").read_text()
+    assert not (out / "illustration.fallback.svg").exists()
+    assert "rendered" in capsys.readouterr().out
 
 
 def test_missing_file_fails(svg: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

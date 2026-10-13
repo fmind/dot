@@ -1,7 +1,6 @@
 """Check hand-authored SVG illustrations against the SVG guide and optionally render review screenshots."""
 
 import argparse
-import html
 import math
 import os
 import re
@@ -103,27 +102,15 @@ def chrome() -> str:
 
 
 def render(path: Path, out: Path) -> list[Path]:
-    """Screenshot the SVG as an image with brand fonts and with Google Sans removed."""
+    """Screenshot the SVG with brand fonts and with Google Sans removed, as most viewers lack it."""
     root = ET.parse(path).getroot()  # noqa: S314 - already checked local file
     width, height = view_box(root) or (960.0, 540.0)
     binary = chrome()
+    fallback = out / f"{path.stem}.fallback.svg"
+    fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
     shots = []
-    with tempfile.TemporaryDirectory() as workspace:
-        temporary = Path(workspace)
-        fallback = temporary / "fallback.svg"
-        fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
+    with tempfile.TemporaryDirectory() as profile:
         for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback")):
-            # A top-level SVG is an active document. Only the generated HTML is
-            # navigated to; SVG content stays in the browser's inert image context.
-            wrapper = temporary / "preview.html"
-            wrapper.write_text(
-                '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-                "<style>body{margin:0}img{display:block;width:100vw;height:100vh}</style>"
-                '</head><body><img alt="" src="'
-                + html.escape(source.resolve().as_uri(), quote=True)
-                + '"/></body></html>',
-                encoding="utf-8",
-            )
             shot = out / f"{name}.png"
             completed = subprocess.run(  # noqa: S603 - fixed browser binary and file URLs
                 [
@@ -131,10 +118,10 @@ def render(path: Path, out: Path) -> list[Path]:
                     "--headless=new",
                     "--hide-scrollbars",
                     "--disable-gpu",
-                    f"--user-data-dir={temporary / 'profile'}",
+                    f"--user-data-dir={profile}",
                     f"--window-size={math.ceil(width)},{math.ceil(height)}",
                     f"--screenshot={shot}",
-                    wrapper.as_uri(),
+                    source.resolve().as_uri(),
                 ],
                 stdin=subprocess.DEVNULL,
                 capture_output=True,
@@ -147,6 +134,7 @@ def render(path: Path, out: Path) -> list[Path]:
                     f"{Path(binary).name} failed to render {source.name} (exit {completed.returncode}): {tail}"
                 )
             shots.append(shot)
+    fallback.unlink()
     return shots
 
 
