@@ -18,8 +18,8 @@ Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an exis
 
 1. **Retrieve guidance**: search curated web platform recipes, then fetch a guide's implementation details and browser baselines by identifier:
    ```bash
-   npx --yes modern-web-guidance@0.0.193 search "<topic or api>"
-   npx --yes modern-web-guidance@0.0.193 retrieve "<guide-id>"
+   DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.194 search "<topic or platform feature>"
+   DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.194 retrieve "<guide-id>"
    ```
 1. **Prefer web platform primitives**: Prioritize native elements (`<dialog>`, `<details>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
 1. **Compile Tailwind**: use the [standalone Tailwind workflow](references/tailwind.md) when the project selects Tailwind; preserve an existing asset pipeline. `tailwindcss` owns CSS compilation, while `npx` runs only the guidance CLI above.

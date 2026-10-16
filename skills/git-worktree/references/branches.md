@@ -40,7 +40,7 @@ For a separate checkout or qualification of dirty changes, use [git-worktree](..
 
 ## Gotchas
 
-- **Leave pushing to the PR flow**: the branch stays local; [github-pull-request](../../github-pull-request/SKILL.md) pushes it with `-u` when the PR is opened.
+- **Leave pushing to the PR flow**: the branch stays local; push it with `-u` per [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md) when the PR is opened.
 
 ## Documentation
 

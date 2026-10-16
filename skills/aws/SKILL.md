@@ -37,7 +37,7 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 1. **Start read-only with bounded queries**: use `--query` (JMESPath) and `--max-items` to constrain results; describe resources, IAM policies, and CloudWatch metrics before changing anything.
 
    ```bash
-   aws s3 ls --profile <profile>
+   aws s3 ls --profile <profile> --region <region> --no-cli-pager
    aws ecs list-clusters --profile <profile> --region <region> --max-items 20 --output json --no-cli-pager
    ```
 

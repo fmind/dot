@@ -27,10 +27,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.10.8
+          version: 2026.10.11
           # Install tools fresh on every deploy; the build itself never reads a CI cache.
           cache: false
       - name: Build site

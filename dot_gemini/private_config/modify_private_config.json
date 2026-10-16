@@ -17,7 +17,7 @@
 }
 ` -}}
 {{- $current := dict -}}
-{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = mustFromJson .chezmoi.stdin }}{{ end -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
 {{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
 {{- /* Full autonomy for remote sessions (developer, 2026-10-01): wildcard grants for every action

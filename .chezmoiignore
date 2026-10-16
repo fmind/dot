@@ -27,9 +27,6 @@ skills
 supagents.yaml
 trivy.yaml
 
-# Personal dependency graphs are not part of the shared workstation baseline.
-.config/mise/locks/mise.local
-
 # Machine-specific CLI configuration stays local.
 .config/dot.yaml
 .config/dot.*.yaml

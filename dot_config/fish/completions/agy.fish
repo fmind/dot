@@ -13,7 +13,7 @@ complete -c agy -n __fish_use_subcommand -s i -r -d 'Short alias for --prompt-in
 complete -c agy -n __fish_use_subcommand -l input-format -r -d 'Input format for print mode (text, stream-json). stream-json reads one NDJSON message per line from stdin and runs a turn for each; it requires --output-format stream-json (default text)'
 complete -c agy -n __fish_use_subcommand -l json-schema -r -d 'Optional JSON schema string or path to a schema file to enforce structured output (for stream-json, only applicable to the final result)'
 complete -c agy -n __fish_use_subcommand -l log-file -r -d 'Override CLI log file path'
-complete -c agy -n __fish_use_subcommand -l mode -r -d 'Set the agent execution mode for this session (accept-edits, plan)'
+complete -c agy -n __fish_use_subcommand -l mode -x -a 'accept-edits auto plan' -d 'Set the agent execution mode for this session'
 complete -c agy -n __fish_use_subcommand -l model -r -d 'Model for the current CLI session'
 complete -c agy -n __fish_use_subcommand -l new-project -d 'Create a new project for this session'
 complete -c agy -n __fish_use_subcommand -l output-format -r -d 'Output format for print mode (text, json, stream-json) (default text)'

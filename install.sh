@@ -5,7 +5,7 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/sha
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
 # The mise release that CI tests, installed when mise is absent. mise.toml's
 # min_version rejects an older existing installation. Keep equal to the workflow pins.
-MINIMUM_MISE_VERSION="2026.10.8"
+MINIMUM_MISE_VERSION="2026.10.11"
 
 # Install mise
 command -v mise >/dev/null || {

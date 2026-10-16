@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.10.8"
+min_version = "2026.10.11"
 
 [settings.task]
 run_auto_install = false
@@ -85,8 +85,7 @@ depends = ["format:tofu", "format:dprint"]
 description = "Format JSON, Markdown, TOML, YAML with dprint"
 run = "dprint fmt --allow-no-files"
 
-# Split from format:dprint so a commit touching only .tf files never hands dprint
-# an empty file list (it exits 14 with "No files found").
+# Split from format:dprint because tofu and dprint format different file types.
 [tasks."format:tofu"]
 description = "Format HCL sources (tofu fmt)"
 run = "tofu fmt -recursive"
