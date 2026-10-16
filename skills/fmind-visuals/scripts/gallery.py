@@ -92,7 +92,9 @@ def screenshot(page: Path, count: int) -> Path:
     shot = page.with_suffix(".png")
     height = 80 + math.ceil(count / COLUMNS) * 240
     binary = chrome()
-    with tempfile.TemporaryDirectory() as profile:
+    with tempfile.TemporaryDirectory(prefix=".gallery-preview-", dir=page.parent) as temporary:
+        staged = Path(temporary) / shot.name
+        profile = Path(temporary) / "profile"
         completed = subprocess.run(  # noqa: S603 - fixed browser binary and a local file URL
             [
                 binary,
@@ -101,7 +103,7 @@ def screenshot(page: Path, count: int) -> Path:
                 "--disable-gpu",
                 f"--user-data-dir={profile}",
                 f"--window-size=1440,{height}",
-                f"--screenshot={shot}",
+                f"--screenshot={staged.resolve()}",
                 page.resolve().as_uri(),
             ],
             stdin=subprocess.DEVNULL,
@@ -109,10 +111,12 @@ def screenshot(page: Path, count: int) -> Path:
             timeout=60,
             check=False,
         )
-    if completed.returncode or not shot.exists():
-        tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
-        raise RuntimeError(f"{Path(binary).name} failed to screenshot the sheet (exit {completed.returncode}): {tail}")
-    return shot
+        if completed.returncode or not staged.is_file() or not staged.stat().st_size:
+            tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
+            raise RuntimeError(
+                f"{Path(binary).name} failed to screenshot the sheet (exit {completed.returncode}): {tail}"
+            )
+        return staged.replace(shot)
 
 
 def main(argv: list[str] | None = None) -> int:

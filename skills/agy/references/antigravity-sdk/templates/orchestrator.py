@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
-# dependencies = ["google-antigravity==0.1.20"]
+# dependencies = ["google-antigravity==0.1.22"]
 # ///
 """Fan work out to static subagents under explicit budgets and an explicit policy.
 
@@ -90,10 +90,10 @@ def build(workspace: str) -> LocalAgentConfig:
         capabilities=types.CapabilitiesConfig(
             enable_subagents=True,
             allowed_subagents=["reader", "critic"],
-            max_subagent_depth=1,  # without this, delegation nests without bound
-            # read_only() omits START_SUBAGENT: filtering to it alone silently
+            max_subagent_depth=1,  # keep delegation flat
+            # read_only() omits INVOKE_SUBAGENT: filtering to it alone silently
             # disables delegation and rejects max_subagent_depth at validation.
-            enabled_tools=[*READ_TOOLS, types.BuiltinTools.START_SUBAGENT],
+            enabled_tools=[*READ_TOOLS, types.BuiltinTools.INVOKE_SUBAGENT],
         ),
         # Session budgets complement the caller deadline; policies select tools.
         budget_config=types.BudgetConfig(max_model_calls=40, max_tool_calls=80, max_total_tokens=400_000),
@@ -101,7 +101,7 @@ def build(workspace: str) -> LocalAgentConfig:
         # non-read-only tools to a handler that may wait for a human.
         policies=[
             policy.deny_all(),
-            policy.allow(types.BuiltinTools.START_SUBAGENT.value),
+            policy.allow(types.BuiltinTools.INVOKE_SUBAGENT.value),
             policy.allow(record_finding.__name__),  # scoped to CRITIC's tools
             *[policy.allow(tool.value) for tool in READ_TOOLS],
             *policy.workspace_only([root]),

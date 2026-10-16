@@ -2,10 +2,10 @@
 
 ## 1. Install and Authenticate
 
-The standalone example selects Python 3.13 through PEP 723 metadata and was checked with warnings treated as errors. `google-antigravity==0.1.20` with `google-genai==2.27.0` fails that import check on Python 3.14; do not suppress the upstream deprecation warning or assume the broader SDK Python constraint proves compatibility.
+The standalone example pins `google-antigravity==0.1.22`, selects Python 3.13 through PEP 723 metadata, and was checked with warnings treated as errors. `google-antigravity==0.1.20` with `google-genai==2.27.0` fails that import check on Python 3.14; do not suppress the upstream deprecation warning or assume the broader SDK Python constraint proves compatibility.
 
 ```bash
-uv add google-antigravity==0.1.20  # version exercised by the example; includes a harness binary
+uv add google-antigravity==0.1.22  # version exercised by the example; includes a harness binary
 # Select the authorized ADC project; optionally override ANTIGRAVITY_MODEL/location.
 export GOOGLE_CLOUD_PROJECT=<project-id>
 uv run orchestrator.py <workspace>

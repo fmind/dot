@@ -7,6 +7,7 @@ decides it, so a pattern with zero hits is unused or shadowed by another one.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from collections import defaultdict
@@ -47,18 +48,17 @@ def candidate_paths(root: Path) -> tuple[list[str], set[str]]:
 def global_excludes(root: Path) -> Path | None:
     configured = git(root, "config", "--path", "--get", "core.excludesFile", empty_ok=True).decode().strip()
     if configured:
-        return Path(configured).expanduser()
+        # All Git probes run from root, including resolution of relative excludes files.
+        return root / Path(configured).expanduser()
     base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     return base / "git/ignore"
 
 
 def patterns(path: Path) -> list[tuple[int, str]]:
+    """Patterns as git reads them: leading spaces count, and only unescaped trailing spaces drop."""
     lines = path.read_text(encoding="utf-8").splitlines()
-    return [
-        (number, line.rstrip())
-        for number, line in enumerate(lines, 1)
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
+    trimmed = ((number, re.sub(r"(?<!\\) +$", "", line)) for number, line in enumerate(lines, 1))
+    return [(number, line) for number, line in trimmed if line and not line.startswith("#")]
 
 
 def attribute(root: Path, paths: list[str], extra: Path | None) -> dict[tuple[str, int], list[str]]:
@@ -79,9 +79,7 @@ def audit(root: Path, files: list[Path]) -> dict[str, Any]:
     root = Path(git(root, "rev-parse", "--show-toplevel").decode().strip())
     paths, tracked = candidate_paths(root)
     global_file = global_excludes(root)
-    global_patterns = (
-        {line.strip() for _, line in patterns(global_file)} if global_file and global_file.is_file() else set()
-    )
+    global_patterns = {line for _, line in patterns(global_file)} if global_file and global_file.is_file() else set()
     # --exclude-standard skips tool-written .gitignore files inside ignored caches and environments.
     listed = split(git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.gitignore"))
     targets = [path.resolve() for path in files] or [(root / item).resolve() for item in listed]
@@ -104,15 +102,15 @@ def audit(root: Path, files: list[Path]) -> dict[str, Any]:
         for number, pattern in patterns(target):
             matched = hits.get((str(target), number), [])
             notes = []
-            if pattern.strip() in seen:
-                notes.append(f"duplicate of line {seen[pattern.strip()]}")
-            if gitignore and pattern.strip() in global_patterns:
+            if pattern in seen:
+                notes.append(f"duplicate of line {seen[pattern]}")
+            if gitignore and pattern in global_patterns:
                 notes.append("also in global excludes")
             # Never report an unmatched search negation as prunable: it may re-include gitignored paths.
-            unmeasured = not gitignore and pattern.lstrip().startswith("!")
+            unmeasured = not gitignore and pattern.startswith("!")
             if unmeasured:
                 notes.append("negation: re-includes for search; not measurable here")
-            seen.setdefault(pattern.strip(), number)
+            seen.setdefault(pattern, number)
             entries.append(
                 {
                     "line": number,

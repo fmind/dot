@@ -77,6 +77,24 @@ def test_search_ignore_counts_tracked_hits_and_gitignore_shadowing(audit: Module
     assert lines[3][0] == "unused"  # missing/
 
 
+def test_relative_global_excludes_resolve_from_repository_root(
+    audit: ModuleType, repository: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repository / "global.ignore").write_text(".claude/\n")
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "core.excludesFile", "global.ignore"],
+        timeout=10,
+        check=True,
+    )
+    monkeypatch.chdir(repository)
+    expected = audit.audit(repository, [])
+    monkeypatch.chdir(repository / "src")
+    actual = audit.audit(Path(), [])
+
+    assert actual == expected
+    assert "also in global excludes" in statuses(actual, ".gitignore")[6][1]
+
+
 def test_search_negations_are_never_reported_unused(audit: ModuleType, repository: Path) -> None:
     (repository / ".ignore").write_text("uv.lock\n!.venv/\n*.py\n!src/app.py\n")
     report = audit.audit(repository, [repository / ".ignore"])

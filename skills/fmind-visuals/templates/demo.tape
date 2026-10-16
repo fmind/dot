@@ -17,3 +17,5 @@ Type `python -c 'print("Hello, Ada!")'`
 Enter
 Sleep 2s
 Screenshot final.png
+# Screenshot captures the next frame; keep recording past the request.
+Sleep 200ms

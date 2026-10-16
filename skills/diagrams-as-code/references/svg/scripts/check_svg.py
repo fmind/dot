@@ -114,20 +114,24 @@ def render(path: Path, out: Path) -> list[Path]:
     root = ET.parse(path).getroot()  # noqa: S314 - already checked local file
     width, height = view_box(root) or (960.0, 540.0)
     binary = chrome()
-    fallback = out / f"{path.stem}.fallback.svg"
-    fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
-    shots = []
-    with tempfile.TemporaryDirectory() as profile:
+    # Stage beside the output so publication can rename each file atomically. No caller-owned
+    # fallback SVG is overwritten, and old PNGs cannot masquerade as a successful new render.
+    with tempfile.TemporaryDirectory(prefix=".svg-preview-", dir=out) as temporary:
+        staging = Path(temporary)
+        fallback = staging / f"{path.stem}.fallback.svg"
+        fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
+        profile = staging / "profile"
         # A global Blink scriptEnabled=false also disables Chrome's headless
         # screenshot harness. Content settings block scripts in file: documents
         # while leaving the internal chrome: harness working (see the SVG guide).
-        preferences = Path(profile) / "Default" / "Preferences"
-        preferences.parent.mkdir()
+        preferences = profile / "Default" / "Preferences"
+        preferences.parent.mkdir(parents=True)
         preferences.write_text(
             json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}), encoding="utf-8"
         )
+        shots = []
         for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback")):
-            shot = out / f"{name}.png"
+            shot = staging / f"{name}.png"
             completed = subprocess.run(  # noqa: S603 - fixed browser binary and file URLs
                 [
                     binary,
@@ -140,7 +144,7 @@ def render(path: Path, out: Path) -> list[Path]:
                     "--no-proxy-server",
                     f"--user-data-dir={profile}",
                     f"--window-size={math.ceil(width)},{math.ceil(height)}",
-                    f"--screenshot={shot}",
+                    f"--screenshot={shot.resolve()}",
                     source.resolve().as_uri(),
                 ],
                 stdin=subprocess.DEVNULL,
@@ -148,14 +152,13 @@ def render(path: Path, out: Path) -> list[Path]:
                 timeout=60,
                 check=False,
             )
-            if completed.returncode or not shot.exists():
+            if completed.returncode or not shot.is_file() or not shot.stat().st_size:
                 tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
                 raise RuntimeError(
                     f"{Path(binary).name} failed to render {source.name} (exit {completed.returncode}): {tail}"
                 )
             shots.append(shot)
-    fallback.unlink()
-    return shots
+        return [shot.replace(out / shot.name) for shot in shots]
 
 
 def main(argv: list[str] | None = None) -> int:
