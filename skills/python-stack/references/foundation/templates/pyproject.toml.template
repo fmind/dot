@@ -5,7 +5,7 @@ name = "<slug>"
 version = "0.1.0"
 description = "<description>"
 readme = "README.md"
-requires-python = ">=<latest_stable_version_major_minor>"
+requires-python = ">=<python_major_minor>"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "<holder>" }]
@@ -25,7 +25,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.12.23,<0.13"]
+requires = ["uv_build>=0.13.0,<0.14"]
 build-backend = "uv_build"
 
 [tool.ruff]

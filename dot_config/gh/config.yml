@@ -9,6 +9,5 @@ aliases:
   rvw: repo view --web
 git_protocol: ssh
 pager: delta --paging=never
-prefer_editor_prompt: disabled
 telemetry: disabled
 version: "1"

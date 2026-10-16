@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-10-12"
+  updated: "2026-10-16"
 ---
 
 # Documentation Sites
@@ -34,7 +34,7 @@ Use Zensical as the default static site generator for project documentation, cou
 - **Diagnostics come first**: a strict failure prints the file, line, and column, then a Python traceback; read the head of the output.
 - **Strict mode has gaps**: it catches missing pages, anchors, snippets (`check_paths`), and unresolved autorefs, but unclosed fences and unknown icon shortcodes build silently. Review the rendered pages.
 - **`site_url` is load-bearing**: `llmstxt` aborts without it; instant navigation, previews, and the sitemap degrade; a wrong prefix breaks social card and `llms.txt` links.
-- **Unsupported plugins are silently ignored**: Zensical never runs MkDocs plugin code. Check the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) for the locked version before relying on one. `gen-files`, `hooks`, `exclude_docs`, `draft_docs`, and `not_in_nav` are unsupported.
+- **Unsupported plugins are silently ignored**: Zensical never runs MkDocs plugin code. Check the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) for the locked version before relying on one. `gen-files` and `hooks` are unsupported; `exclude_docs`, `draft_docs`, and `not_in_nav` need Zensical 0.0.70 or later.
 - **Check features before enabling them**: some theme features exclude each other, offline builds drop several, and fonts, Mermaid, and analytics contact third parties; check [configuration](references/configuration.md) before enabling one.
 - **Some layouts and modes are unsupported**: `docs_dir` cannot be `.`; uv's symlink link mode is unsupported; `serve` has no strict mode, and a busy port fails with `Address already in use` (pass `-a 127.0.0.1:<port>`).
 - **Keep Zensical locked**: Zensical is pre-1.0 (0.0.x) and releases often; keep `uv.lock` committed, upgrade with `uv lock --upgrade-package zensical`, and rebuild `--clean`. The CI template stays cache-free as upstream advises. Tested on 0.0.68.

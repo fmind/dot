@@ -1,6 +1,10 @@
 # chezmoi:modify-template
 {{- $managedConfig := fromToml `
 # Docs: https://docs.x.ai/build/settings/reference
+# mise owns the Grok version; grok update would bypass the lock.
+[cli]
+auto_update = false
+
 [features]
 feedback = false
 # Python code intelligence uses the ty server declared in lsp.json.

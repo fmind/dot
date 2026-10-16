@@ -1,9 +1,9 @@
 # :schema https://mise.jdx.dev/schema/mise.json
 # Docs: https://mise.jdx.dev/configuration.html
 
-# Fail before running tasks on a mise that predates the GITHUB_TOKEN trust fixes and
-# lockfile revision 3; keep equal to install.sh and the workflow pins.
-min_version = "2026.10.8"
+# Include the remote-task header trust fix and rustls security update (2026.10.11).
+# Keep equal to install.sh and the workflow pins; lockfile revision 3 is required.
+min_version = "2026.10.11"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
@@ -286,9 +286,11 @@ run = [
 alias = "t"
 description = "Run the Python CLI and repository contract tests"
 # The archive tests are fsync-latency-bound, not CPU-bound; workers overlap the syncs.
+# Eight workers ran twice as fast as four (2026-10-14); the cap keeps a 16-core workstation
+# with many resident agent sessions out of OOM territory.
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
-run = "uv run --frozen --project dot pytest -q -n auto dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
+run = "uv run --frozen --project dot pytest -q -n auto --maxprocesses 8 dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
 description = "Materialize and execute the Python library, CLI, and web starter contracts"
@@ -298,7 +300,7 @@ run = "uv run --frozen --project dot pytest -q dot/tests/test_python_starter.py"
 [tasks.watch]
 alias = "w"
 description = "Re-run the Python test suite on every change"
-run = "uv run --frozen --directory dot ptw --now . -q -n auto"
+run = "uv run --frozen --directory dot ptw --now . -q -n auto --maxprocesses 8"
 
 # Project management tasks. Every alias begins with m.
 
