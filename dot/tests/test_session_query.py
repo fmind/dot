@@ -128,7 +128,7 @@ def test_query_surfaces_partial_unsupported_and_invalid_sessions(
     path = _ingest("agy", "unsupported", malformed=1)
     _rewrite_manifest(path, schema_version=SESSION_SCHEMA_VERSION + 1)
 
-    with pytest.raises(ValueError, match="unsupported session format"):
+    with pytest.raises(ValueError, match="session format written by a newer dot"):
         query_session_summaries()
 
     _rewrite_manifest(path, schema_version=SESSION_SCHEMA_VERSION)

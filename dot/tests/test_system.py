@@ -17,7 +17,7 @@ from typer.testing import CliRunner
 
 from fmind_dot import system
 from fmind_dot.cli import app
-from fmind_dot.config import Config, SecretConfig, ToolConfig
+from fmind_dot.config import Config, DoctorConfig, SecretConfig, ToolConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
@@ -605,7 +605,9 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     assert auth["gcloud-adc"]["details"] == "auth check failed; state unknown"
     assert auth["gws"]["condition"] == "broken"
     assert "jules" not in auth
-    assert results["docker"][0]["details"] == "not running"
+    docker = results["docker"][0]
+    # A stopped optional engine warns instead of failing doctor.
+    assert (docker["status"], docker["condition"], docker["details"]) == ("warn", "stopped", "not running")
     encoded = json.dumps(results)
     for sensitive in (
         "private operating-system error",
@@ -787,7 +789,10 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
     system.register(app)
     state = state_with(ScriptedRunner())
     passing: list[system.CheckResult] = []
-    failing = [system.CheckResult("REQUIRED", "fail", "MISSING", group="env_vars")]
+    failing = [
+        system.CheckResult("REQUIRED", "fail", "MISSING", group="env_vars"),
+        system.CheckResult("disk", "warn", "6.9 GiB free", "/tmp", group="resources"),  # noqa: S108
+    ]
     monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: passing)
 
     json_result = CliRunner().invoke(app, ["doctor", "--json", "--fix"], obj=state)
@@ -808,6 +813,7 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
     failed_result = CliRunner().invoke(app, ["doctor"], obj=state)
     assert failed_result.exit_code == 1
     assert "✗ REQUIRED" in state.stdout.getvalue()
+    assert "6.9 GiB free (/tmp)" in state.stdout.getvalue()
 
 
 def test_system_command_surface_and_verify_flags() -> None:
@@ -944,6 +950,8 @@ def test_completion_mise_resolution_error_is_not_a_missing_tool(
 def test_verify_skips_docker_service_when_engine_is_absent() -> None:
     config = _minimal_verify_config()
     config.doctor.tools = []
+    # The README calls the container engine optional, so the default tool list omits it.
+    assert "docker" not in DoctorConfig().tools
 
     results = doctor_sections(system.run_doctor(state_with(ScriptedRunner(set()), config), fix=False, deep=False))
 

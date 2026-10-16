@@ -5,8 +5,9 @@ import json
 import os
 import shutil
 from collections.abc import Mapping, Sequence
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Barrier, Lock
+from threading import Barrier, Lock, Thread
 
 import pytest
 
@@ -15,6 +16,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.repository import (
     find_git_repositories,
+    gather_status,
     git_failure,
     run_pull,
     run_status,
@@ -776,4 +778,51 @@ def test_pull_never_waits_on_credential_prompts(tmp_path: Path) -> None:
         run_pull(state_with(runner, config))
 
     # Concurrent fetches fail instead of opening a terminal or askpass prompt.
-    assert environments[("git", "fetch", "--prune")] == {"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"}
+    assert environments[("git", "fetch", "--prune")] == {
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ASKPASS": "",
+        "SSH_ASKPASS_REQUIRE": "never",
+    }
+
+
+@pytest.mark.parametrize("source", ["GIT_ASKPASS", "core.askPass", "SSH_ASKPASS"])
+def test_fetch_does_not_invoke_inherited_askpass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str) -> None:
+    class Unauthorized(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="fixture"')
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - stdlib handler signature
+            pass
+
+    marker = tmp_path / "prompted"
+    askpass = tmp_path / "askpass"
+    askpass.write_text('#!/bin/sh\nprintf prompted >> "$DOT_ASKPASS_MARKER"\nexit 1\n')
+    askpass.chmod(0o700)
+    monkeypatch.setenv("DOT_ASKPASS_MARKER", str(marker))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.delenv("SSH_ASKPASS", raising=False)
+    runner = Runner()
+    repository = tmp_path / "repo"
+    runner.run(["git", "init", "-q", str(repository)])
+    if source == "core.askPass":
+        runner.run(["git", "config", source, str(askpass)], cwd=repository)
+    else:
+        monkeypatch.setenv(source, str(askpass))
+    runner.run(["git", "config", "credential.helper", ""], cwd=repository)
+    with ThreadingHTTPServer(("127.0.0.1", 0), Unauthorized) as server:
+        worker = Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            runner.run(
+                ["git", "remote", "add", "origin", f"http://127.0.0.1:{server.server_port}/repo"], cwd=repository
+            )
+            results = gather_status(state_with(runner), paths=[repository], fetch=True)
+        finally:
+            server.shutdown()
+            worker.join(timeout=2)
+    assert len(results) == 1
+    assert "authentication failed" in results[0].error
+    assert not marker.exists()

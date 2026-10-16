@@ -329,7 +329,8 @@ def _auth_results(state: State) -> list[CheckResult]:
 def _docker_results(state: State) -> list[CheckResult]:
     path = state.runner.which("docker")
     if path is None:
-        # A container engine is optional; doctor.tools decides whether its absence fails.
+        # A container engine is optional: absence skips and a stopped daemon warns; listing
+        # docker in doctor.tools makes its absence fail.
         return [CheckResult("docker", "skip", "not installed (optional)", condition="skipped")]
     result = _probe(state, ["docker", "info"])
     if isinstance(result, str):
@@ -337,7 +338,7 @@ def _docker_results(state: State) -> list[CheckResult]:
     return [
         CheckResult("docker", "pass", "running", str(path), "healthy")
         if result.returncode == 0
-        else CheckResult("docker", "fail", "not running", str(path), "broken")
+        else CheckResult("docker", "warn", "not running", str(path), "stopped")
     ]
 
 
@@ -530,7 +531,9 @@ def _print_doctor(state: State, results: Sequence[CheckResult]) -> None:
         typer.echo(f"\n{label}", file=state.stdout)
         for item in results:
             if item.group == group:
-                typer.echo(f"  {icons[item.status]} {item.name:<20} {item.details}", file=state.stdout)
+                # Several filesystems can each report a disk line; name the paths behind each.
+                details = f"{item.details} ({item.path})" if item.name == "disk" else item.details
+                typer.echo(f"  {icons[item.status]} {item.name:<20} {details}", file=state.stdout)
 
 
 def register(app: typer.Typer) -> None:

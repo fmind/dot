@@ -279,6 +279,7 @@ def sync_sessions(
             fail(adapter, "inspect the session archive", error)
             continue
         counts = SyncOutcome()
+        announced = not quiet
         for session_id, source_cwd, path in candidates:
             if session and session_id != session:
                 continue
@@ -305,6 +306,13 @@ def sync_sessions(
                     if not cwd or previous.cwd == cwd:
                         counts.unchanged += 1
                     continue
+                if not announced and previous and previous.parser_version != SESSION_PARSER_VERSION:
+                    # Quiet callers (stats, usage) would otherwise sit silent through a full recapture.
+                    announced = True
+                    state.stderr.write(
+                        f"agent-session: upgrading archived {adapter.name} sessions to parser "
+                        f"{SESSION_PARSER_VERSION}; this can take minutes\n"
+                    )
                 # A grown transcript keeps the captured workspace after its metadata row is pruned.
                 parse_cwd = source_cwd or (previous.cwd if adapter.external_cwd and previous else "")
                 parsed, observed = _stable_parse(adapter, path, session_id, parse_cwd, signature)

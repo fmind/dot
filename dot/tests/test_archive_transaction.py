@@ -404,10 +404,16 @@ def test_recent_grok_signals_update_an_unchanged_transcript(tmp_path: Path, monk
 
 
 @pytest.mark.parametrize(
-    ("field", "version"), [("schema_version", 2), ("schema_version", 999), ("parser_version", "2")]
+    ("field", "version", "message"),
+    [
+        ("schema_version", 2, "unsupported session format; recapture available sources"),
+        ("schema_version", 999, "written by a newer dot; install that dot version"),
+        ("parser_version", "2", "unsupported session format; recapture available sources"),
+        ("parser_version", "999", "written by a newer dot; install that dot version"),
+    ],
 )
 def test_active_store_rejects_other_formats_without_modification(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, version: int | str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, version: int | str, message: str
 ) -> None:
     state, _ = source_session(tmp_path, monkeypatch)
     sync_sessions(state, agent="claude")
@@ -418,7 +424,7 @@ def test_active_store_rejects_other_formats_without_modification(
     path.write_bytes(json.dumps(value).encode() + b"\n" + rest)
     before = path.read_bytes()
     for operation in (query_session_summaries, load_usage_records):
-        with pytest.raises(ValueError, match="unsupported session format; recapture available sources"):
+        with pytest.raises(ValueError, match=message):
             operation()
     assert path.read_bytes() == before
 
@@ -578,3 +584,21 @@ def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(t
     assert manifest.usage_parser_version == ""
     assert manifest.source_signature
     assert [record.input_tokens for record in load_usage_records()] == [110]
+
+
+def test_quiet_sync_announces_a_parser_upgrade_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state, _ = source_session(tmp_path, monkeypatch)
+    sync_sessions(state, agent="claude")
+    path = session_bundle_path("claude", "fixture-id")
+    header, rest = path.read_bytes().split(b"\n", 1)
+    path.write_bytes(json.dumps(json.loads(header) | {"parser_version": "13"}).encode() + b"\n" + rest)
+    state.stderr = io.StringIO()
+
+    assert sync_sessions(state, agent="claude", quiet=True).ingested == 1
+    assert sync_sessions(state, agent="claude", quiet=True).unchanged == 1
+
+    assert isinstance(state.stderr, io.StringIO)
+    assert state.stderr.getvalue() == (
+        f"agent-session: upgrading archived claude sessions to parser {session_store.SESSION_PARSER_VERSION}; "
+        "this can take minutes\n"
+    )

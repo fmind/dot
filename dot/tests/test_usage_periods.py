@@ -94,6 +94,51 @@ def test_partial_model_pricing_is_not_free_and_session_cost_cannot_be_split() ->
     assert "$2.5000 (partial)" in output.getvalue()
 
 
+@pytest.mark.parametrize("child_first", [False, True], ids=["parent-first", "child-first"])
+@pytest.mark.parametrize("selection", ["all", "model", "month", "billing", "since", "until"])
+def test_session_cost_includes_sidechains_before_grouping(selection: str, child_first: bool) -> None:
+    parent = UsageRecord(
+        timestamp="2026-09-30T23:00:00Z",
+        harness="claude",
+        session_id="parent",
+        model="claude-opus-5-5",
+        input_tokens=100,
+        cost_usd=5.0,
+        cost_known=True,
+        measurement_kind="provider-reported",
+    ).finalize()
+    child = UsageRecord(
+        timestamp="2026-10-01T01:00:00Z",
+        harness="claude",
+        session_id="child",
+        parent_session_id="parent",
+        sidechain=True,
+        model="claude-haiku-4-5",
+        input_tokens=50,
+        measurement_kind="provider-reported",
+    ).finalize()
+    records = [child, parent] if child_first else [parent, child]
+    boundary = datetime(2026, 10, 1, tzinfo=UTC)
+    rows = aggregate_usage(
+        records,
+        by_model=selection == "model",
+        monthly=selection == "month",
+        billing=selection == "billing",
+        subscriptions={"claude": SubscriptionConfig(renewal_day=1)},
+        since=boundary if selection == "since" else None,
+        until=boundary if selection == "until" else None,
+    )
+    assert rows
+    if selection == "all":
+        assert len(rows) == 1
+        assert rows[0].total_tokens == 150
+        assert rows[0].to_dict()["cost_usd"] == 5.0
+        assert rows[0].to_dict()["cost_complete"] is True
+    else:
+        assert all(row.to_dict()["cost_usd"] is None for row in rows)
+        assert all(row.to_dict()["cost_complete"] is False for row in rows)
+
+
 def test_compact_sample_missing_counter_does_not_inherit_session_total() -> None:
     record = session(request("2026-09-01T00:00:00Z"), request("2026-09-02T00:00:00Z", tokens=0))
     del record.samples[1]["input_tokens"]
