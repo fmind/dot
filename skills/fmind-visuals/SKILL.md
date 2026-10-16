@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-10-10"
+  updated: "2026-10-16"
 ---
 
 # Fmind Visual Communication

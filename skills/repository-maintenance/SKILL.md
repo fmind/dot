@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-maintenance
   created: "2026-09-02"
-  updated: "2026-10-06"
+  updated: "2026-10-16"
 ---
 
 # Repository Maintenance

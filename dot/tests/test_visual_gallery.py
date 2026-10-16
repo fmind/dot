@@ -1,6 +1,7 @@
 """Exercise the variant contact sheet without a real browser."""
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -78,3 +79,25 @@ def test_png_uses_the_configured_browser(gallery: ModuleType, tmp_path: Path, mo
     assert gallery.main([str(folder), "--png"]) == 0
     assert (folder / "gallery.html").exists()
     assert (folder / "gallery.png").read_bytes() == b"png"
+
+
+@pytest.mark.parametrize("empty", [False, True], ids=["missing", "empty"])
+def test_screenshot_requires_fresh_output_and_preserves_previous_png(
+    gallery: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, empty: bool
+) -> None:
+    page = tmp_path / "gallery.html"
+    page.write_text("<p>Current gallery</p>")
+    shot = page.with_suffix(".png")
+    shot.write_bytes(b"previous screenshot")
+    monkeypatch.setattr(gallery, "chrome", lambda: "chrome")
+
+    def browser(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        if empty:
+            Path(next(arg.removeprefix("--screenshot=") for arg in args if arg.startswith("--screenshot="))).touch()
+        return subprocess.CompletedProcess(args, 0, b"", b"")
+
+    monkeypatch.setattr(gallery.subprocess, "run", browser)
+    with pytest.raises(RuntimeError, match="failed to screenshot"):
+        gallery.screenshot(page, 1)
+    assert shot.read_bytes() == b"previous screenshot"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["gallery.html", "gallery.png"]

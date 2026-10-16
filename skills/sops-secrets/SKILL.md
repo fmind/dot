@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/sops-secrets
   created: "2026-08-07"
-  updated: "2026-10-12"
+  updated: "2026-10-16"
 ---
 
 # Secrets with sops and age
@@ -28,7 +28,7 @@ Before the first encryption on a machine, and for any recipient change, follow [
 
 ```bash
 sops edit secrets.enc.yaml                          # create or edit: decrypts to $EDITOR, re-encrypts on save
-sops encrypt --filename-override config.enc.yaml config.yaml > config.enc.yaml  # suffix selects the creation rule; protect the existing plaintext input
+sops encrypt --filename-override config.enc.yaml --output config.enc.yaml config.yaml  # suffix selects the rule; --output preserves prior ciphertext if encryption fails
 sops exec-env secrets.enc.env 'mise run watch'      # inject as env vars, memory-only (preferred)
 sops exec-file secrets.enc.json 'tool --config {}'  # Unix tools get a FIFO by default, not a tmpfs guarantee
 ```

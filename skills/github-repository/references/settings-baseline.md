@@ -36,19 +36,24 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
 1. **Protect a public repository** after the edit: enable private vulnerability reporting and keep exactly one repository ruleset, `Protect default branch`, that blocks deletion and force pushes without requiring pull requests or signatures, so direct pushes keep working. Look it up by name and update it in place; create it only when it is absent and no other ruleset already enforces both rules. Duplicates left by earlier runs stop the step: report their IDs and delete extras only with the user's approval.
 
    ```bash
+   set -euo pipefail
    branch="$(gh repo view "$repository" --json defaultBranchRef --jq .defaultBranchRef.name)"
    ruleset='{"name": "Protect default branch", "target": "branch", "enforcement": "active",
      "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
      "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}], "bypass_actors": []}'
-   gh api -X PUT "repos/$repository/private-vulnerability-reporting"
    ids="$(gh api --paginate "repos/$repository/rulesets?includes_parents=false" \
      --jq '.[] | select(.name == "Protect default branch") | .id')"
    if (( $(wc -w <<<"$ids") > 1 )); then
      echo "Duplicate 'Protect default branch' rulesets: $ids; resolve before editing." >&2
-   elif [[ -n "$ids" ]]; then
+     exit 1
+   fi
+   # A failing read inside an if/elif condition would bypass errexit and trigger creation.
+   protected="$(gh api "repos/$repository/rules/branches/$branch" \
+     --jq '[.[].type] | contains(["deletion", "non_fast_forward"])')"
+   gh api -X PUT "repos/$repository/private-vulnerability-reporting"
+   if [[ -n "$ids" ]]; then
      gh api -X PUT "repos/$repository/rulesets/$ids" --input - --jq .id <<<"$ruleset"
-   elif [[ "$(gh api "repos/$repository/rules/branches/$branch" \
-     --jq '[.[].type] | contains(["deletion", "non_fast_forward"])')" == true ]]; then
+   elif [[ "$protected" == true ]]; then
      echo "Another ruleset already blocks deletion and force pushes on $branch."
    else
      gh api -X POST "repos/$repository/rulesets" --input - --jq .id <<<"$ruleset"

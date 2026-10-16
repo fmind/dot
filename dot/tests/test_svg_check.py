@@ -148,11 +148,46 @@ def test_render_writes_brand_and_fallback_screenshots(
     browser.chmod(0o700)
     monkeypatch.setenv("CHROME", str(browser))
     out = tmp_path / "shots"
+    out.mkdir()
+    existing = out / "illustration.fallback.svg"
+    existing.write_text("user-owned SVG")
     assert svg.main([str(TEMPLATE), "--render", str(out)]) == 0
     assert "Google Sans" in (out / "illustration.png").read_text()
     assert "Google Sans" not in (out / "illustration.fallback.png").read_text()
-    assert not (out / "illustration.fallback.svg").exists()
+    assert existing.read_text() == "user-owned SVG"
     assert "rendered" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("failure", ["no-output", "empty-output", "second-render", "timeout"])
+def test_failed_render_preserves_sources_and_previous_screenshots(
+    svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    source = tmp_path / "concept.svg"
+    source.write_bytes(TEMPLATE.read_bytes())
+    previous = {
+        "concept.svg": source.read_bytes(),
+        "concept.fallback.svg": b"user-owned source",
+        "concept.png": b"previous brand screenshot",
+        "concept.fallback.png": b"previous fallback screenshot",
+    }
+    for name, content in previous.items():
+        (tmp_path / name).write_bytes(content)
+    monkeypatch.setattr(svg, "chrome", lambda: "chrome")
+
+    def browser(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        shot = Path(next(arg.removeprefix("--screenshot=") for arg in args if arg.startswith("--screenshot=")))
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired(args, 60)
+        if failure == "empty-output":
+            shot.touch()
+        if failure == "second-render" and shot.name == "concept.png":
+            shot.write_bytes(b"new brand screenshot")
+        return subprocess.CompletedProcess(args, 0, b"", b"")
+
+    monkeypatch.setattr(svg.subprocess, "run", browser)
+    with pytest.raises((RuntimeError, subprocess.TimeoutExpired)):
+        svg.render(source, tmp_path)
+    assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == previous
 
 
 @pytest.mark.skipif(
@@ -221,8 +256,7 @@ def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: M
             event.write_text(
                 clean.read_text(encoding="utf-8").replace(
                     "<svg ",
-                    "<svg onload=\"document.querySelector('rect').style.fill='magenta';"
-                    f"new Image().src='http://127.0.0.1:{server.server_port}/onload'\" ",
+                    "<svg onload=\"document.querySelector('rect').style.fill='magenta'\" ",
                     1,
                 ),
                 encoding="utf-8",
@@ -241,10 +275,9 @@ def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: M
             )
             original = direct(clean, "original.png")
             original_fallback = direct(fallback, "original-fallback.png")
-            # Positive controls prove execution and requests really work in this environment.
+            # A synchronous pixel change proves script execution; <image> below proves network
+            # access without racing an asynchronous request against screenshot process exit.
             assert direct(event, "active.png") != original
-            assert requests == ["/onload"]
-            requests.clear()
             direct(network, "network-control.png")
             assert set(requests) == {"/localhost", "/127.0.0.1", "/svg-preview.test"}
             requests.clear()

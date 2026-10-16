@@ -48,11 +48,11 @@ Use VHS for executable terminal demonstrations; [fmind-visuals](../SKILL.md) own
        run(["vhs", "validate", "demo.tape"], environment, 15)
        run(["vhs", "demo.tape"], environment, 120)
    ```
-1. **Inspect frames and retain sources**: inspect the beginning, command output, and final frame for legibility, clipping, font fallback, private data, and sufficient reading time. Retain `.tape`, `theme.tape`, synthetic fixture inputs, and the export together; record tool versions and the theme source revision. Provide a static frame and text equivalent for readers who cannot use animation.
+1. **Inspect frames and retain sources**: inspect the beginning, command output, and final frame for legibility, clipping, font fallback, private data, and sufficient reading time. VHS captures `Screenshot` on the next recorded frame: keep a short `Sleep` after it, including at the end of a tape, and verify the PNG exists. Retain `.tape`, `theme.tape`, synthetic fixture inputs, and the export together; record tool versions and the theme source revision. Provide a static frame and text equivalent for readers who cannot use animation.
 
 ## Generate the terminal theme
 
-Read the selected Ghostty theme from a reviewed fmind/theme release or its managed local file. Save this standard-library recipe as `theme.py` in the disposable directory and run `uv run python theme.py <ghostty-theme-path> > theme.tape`. It maps all sixteen slots without reinterpreting named ANSI colors, so the semantic bright half is retained.
+Read the selected Ghostty theme from a reviewed fmind/theme release or its managed local file. Save this standard-library recipe as `theme.py` in the disposable directory and run `python3 -I theme.py <ghostty-theme-path> > theme.tape`. It maps all sixteen slots without reinterpreting named ANSI colors, so the semantic bright half is retained.
 
 ```python
 import json
