@@ -138,7 +138,7 @@ class SessionManifest:
             value.get("schema_version") != SESSION_SCHEMA_VERSION
             or value.get("parser_version") not in READABLE_PARSER_VERSIONS
         ):
-            raise ValueError("unsupported session format; recapture available sources with dot agent session sync")
+            raise _unsupported_format(value.get("schema_version"), value.get("parser_version"))
         # Constructor defaults support new captures; all three counters are required on disk.
         if not {"record_count", "malformed_records", "skipped_records"} <= value.keys():
             raise ValueError("invalid session manifest")
@@ -154,8 +154,20 @@ class SessionManifest:
         ):
             raise ValueError("invalid session manifest identity")
         if manifest.usage_parser_version and manifest.usage_parser_version not in READABLE_PARSER_VERSIONS:
-            raise ValueError("unsupported session format; recapture available sources with dot agent session sync")
+            raise _unsupported_format(SESSION_SCHEMA_VERSION, manifest.usage_parser_version)
         return manifest
+
+
+def _unsupported_format(schema_version: object, parser_version: object) -> ValueError:
+    """Recapture fixes an older format; only a newer dot can read a format written by a newer dot."""
+    newer = (isinstance(schema_version, int) and schema_version > SESSION_SCHEMA_VERSION) or (
+        isinstance(parser_version, str)
+        and parser_version.isdigit()
+        and int(parser_version) > int(SESSION_PARSER_VERSION)
+    )
+    if newer:
+        return ValueError("session format written by a newer dot; install that dot version to read this archive")
+    return ValueError("unsupported session format; recapture available sources with dot agent session sync")
 
 
 _MANIFEST_ADAPTER = TypeAdapter(SessionManifest)

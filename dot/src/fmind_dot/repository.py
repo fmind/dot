@@ -61,7 +61,7 @@ _GIT_ROOT_TIMEOUT_SECONDS = 30
 _STATUS_TIMEOUT_SECONDS = 30
 DirtyPolicy = Literal["skip", "allow"]
 # Concurrent workers fail fast instead of waiting on a terminal or askpass credential prompt.
-_GIT_ENVIRONMENT = {"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"}
+_GIT_ENVIRONMENT = {"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "", "SSH_ASKPASS_REQUIRE": "never"}
 # Ordered classification of git stderr into stable causes that never echo remote output.
 _GIT_FAILURE_CAUSES = (
     (

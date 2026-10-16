@@ -214,6 +214,10 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
         try:
             return find_git_repositories(state, [path]), []
         except DotError:
+            # Copilot trusts every descendant of a folder: trusting home or an ancestor would
+            # bypass the trust.github_owners allowlist for every repository below it.
+            if path in {Path.home().resolve(), *Path.home().resolve().parents}:
+                raise DotError(f"refusing to trust {path}: it contains the home directory") from None
             return [path], []
     # Configured workspaces themselves cover their non-repository subfolders in Claude
     # and every path below them in Copilot; each repository needs its own entry.

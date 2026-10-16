@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-10-12"
+  updated: "2026-10-16"
 ---
 
 # Agent Usage
@@ -24,7 +24,7 @@ Quick total: `dot agent stats --tokens-only` (coverage dates and API equivalents
 ## Gotchas
 
 - **Unknown is not free**: absent prices are `null`/`unknown`, not zero; read `cost_known_sessions` and `cost_complete` before comparing cost.
-- **Never add unlike measurements**: `measurement_kind` separates provider-reported, estimated (Antigravity), and context-only (Grok) tokens; statistics group them separately.
+- **Never add unlike measurements**: `measurement_kind` separates provider-reported, estimated (Antigravity), and context-only (Grok fallback) tokens; statistics group them separately.
 - **Subagents are sidechains**: exclude `sidechain` records when counting sessions; their tokens join the parent.
 - **Check accounting completeness**: `legacy_accounting_sessions` and `session_timestamp_sessions` flag records needing recapture or approximate allocation; [queries.md](references/queries.md) owns parser and per-harness details.
 - **`sync` fails loud, reports warn**: `dot agent session sync` records each failed session, continues, and exits 1 at the end; the sync before `stats` and `usage` only warns on stderr.

@@ -205,7 +205,6 @@ class DoctorConfig(StrictModel):
             "claude",
             "codex",
             "copilot",
-            "docker",
             "dprint",
             "file",
             "gcloud",

@@ -164,13 +164,16 @@ def test_grok_trust_replaces_integer_with_boolean(tmp_path: Path) -> None:
 
 
 def test_trust_reports_when_no_harness_has_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    home, folder = tmp_path / "home", tmp_path / "work"
+    home.mkdir()
+    folder.mkdir()
+    monkeypatch.setenv("HOME", str(home))
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
 
-    run_trust(state, str(tmp_path))
+    run_trust(state, str(folder))
     assert isinstance(state.stdout, io.StringIO)
     assert state.stdout.getvalue() == "○ No agent harness state found; nothing to trust yet.\n"
-    assert not any(tmp_path.iterdir())
+    assert not any(home.iterdir())
 
 
 def test_trust_skips_missing_harnesses_and_home_for_grok(tmp_path: Path) -> None:
@@ -372,10 +375,29 @@ def test_trust_dry_run_json_reports_changes_without_writing(tmp_path: Path, monk
 
 def test_trust_json_without_harness_state_lists_no_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    folder = tmp_path / "work"
+    folder.mkdir()
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
 
-    run_trust(state, str(tmp_path), as_json=True)
+    run_trust(state, str(folder), as_json=True)
 
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
     assert (document["harnesses"], document["folders"][0]["changed"]) == ([], [])
+
+
+@pytest.mark.parametrize("relative", [".", ".."])
+def test_trust_refuses_home_and_its_ancestors_outside_a_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    harness_home(home)
+    monkeypatch.setenv("HOME", str(home))
+    before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}
+    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+
+    with pytest.raises(DotError, match="contains the home directory"):
+        run_trust(state, str(home / relative))
+
+    assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before

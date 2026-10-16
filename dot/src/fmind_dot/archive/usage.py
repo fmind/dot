@@ -415,10 +415,16 @@ def aggregate_usage(
     rates = pricing if pricing is not None else default_pricing()
     grouped: dict[tuple[str, str, str, str, str], UsageStats] = {}
     sessions: dict[tuple[str, str, str, str, str], dict[object, _SessionEvidence]] = {}
+    costs: dict[object, tuple[float, bool]] = {}
+    cost_groups: dict[object, set[tuple[str, str, str, str, str]]] = {}
+    partial_sessions: set[object] = set()
 
     def include(record: UsageRecord, session: object, project: str) -> None:
         """Add one measurement to the rows of its session; `project` is that session's CWD."""
+        if not record.sidechain:
+            costs[session] = (record.cost_usd, record.cost_known or record.cost_usd > 0)
         if (harness and harness not in {record.harness, record.agent}) or (cwd and project != cwd):
+            partial_sessions.add(session)
             return
         subscription = (subscriptions or {}).get(record.harness)
         zone = ZoneInfo(subscription.timezone) if billing and subscription else ZoneInfo("UTC")
@@ -428,6 +434,7 @@ def aggregate_usage(
         for sample in samples:
             timestamp = _parse_usage_timestamp(sample.timestamp)
             if (since and timestamp < since) or (until and timestamp > until):
+                partial_sessions.add(session)
                 continue
             if billing and subscription is None:
                 raise ValueError(
@@ -464,18 +471,13 @@ def aggregate_usage(
                 row.requests = (
                     row.requests + sample.turn_count if record.harness in REQUEST_COUNTING_HARNESSES else None
                 )
+        cost_groups.setdefault(session, set()).update(selected)
         for key, included in selected.items():
-            row = grouped[key]
             evidence = sessions.setdefault(key, {}).setdefault(session, _SessionEvidence())
             evidence.priced = evidence.priced and all(included)
             evidence.session_timestamp = evidence.session_timestamp or not record.samples
             evidence.legacy = evidence.legacy or record.legacy_accounting
             evidence.retained = evidence.retained or record.retained
-            # A provider's session cost cannot be apportioned between dates/models. Claude's
-            # session cost already includes its subagents, so a sidechain never adds cost.
-            if not record.sidechain and len(selected) == 1 and len(included) == len(samples):
-                row.cost_usd += record.cost_usd
-                row.cost_known_sessions += record.cost_known or record.cost_usd > 0
 
     # Each top-level record is its own session; a sidechain joins its parent's session and project.
     parents: dict[tuple[str, str], tuple[object, str]] = {}
@@ -492,6 +494,14 @@ def aggregate_usage(
     for record in orphans:
         session = (record.harness, record.parent_session_id or record.session_id)
         include(record, *parents.get((record.harness, record.parent_session_id), (session, record.cwd)))
+    # Provider session costs include sidechains. Attribute them only after every member
+    # is classified, when the complete session belongs to one selected row.
+    for session, (cost, known) in costs.items():
+        keys = cost_groups.get(session, set())
+        if session not in partial_sessions and len(keys) == 1:
+            row = grouped[next(iter(keys))]
+            row.cost_usd += cost
+            row.cost_known_sessions += known
     for key, evidence in sessions.items():
         row = grouped[key]
         row.sessions = len(evidence)

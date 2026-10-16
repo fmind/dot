@@ -18,8 +18,7 @@ def _render(name: str, replacements: dict[str, str], *, owner: str = "python-sta
     for placeholder, value in replacements.items():
         content = content.replace(placeholder, value)
     unresolved = {
-        match.group()
-        for match in re.finditer(r"<(?:slug|package|description|holder|latest_stable_version_major_minor)>", content)
+        match.group() for match in re.finditer(r"<(?:slug|package|description|holder|python_major_minor)>", content)
     }
     assert unresolved == set(), f"{name} retains placeholders: {sorted(unresolved)}"
     return content
@@ -72,7 +71,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         "<package>": "starter_py",
         "<description>": "Starter command line application",
         "<holder>": "Fixture Author",
-        "<latest_stable_version_major_minor>": version,
+        "<python_major_minor>": version,
     }
     manifest = _render("pyproject.toml.template", replacements)
     parsed = tomllib.loads(manifest)
