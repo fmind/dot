@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.5.0] - 2026-10-16
+
+### 🚀 Features
+
+- _(tools)_ Manage Grok through its official npm package
+- _(archive)_ Preserve Claude meta user turns in session bundles
+- _(config)_ Grant Google management scopes and Business Profile and PageSpeed APIs
+- _(mise)_ Add datadog pup to workstation tools (#105)
+
+### 🐛 Bug Fixes
+
+- _(svg)_ Render previews in an inert image context
+- _(svg)_ Embed preview images to avoid macOS file loads
+- _(svg)_ Block scripts and network in direct previews
+- _(dot)_ Preserve usage evidence and harden unattended operations
+- _(skills)_ Preserve artifacts and stop unsafe failure paths
+
+### 🧪 Testing
+
+- _(svg)_ Run the real-browser preview check on Linux CI only
+
+### 🧹 Miscellaneous
+
+- _(tools)_ Refresh verified workstation tools and integration pins
+
 ## [11.4.2] - 2026-10-12
 
 ### 🐛 Bug Fixes
