@@ -1859,6 +1859,21 @@ checksum = "sha256:d1b40dd6e7cd3d823867ffe22b39a025bc420f7875926ae9ca974155378da
 url = "https://github.com/atuinsh/atuin/releases/download/v18.23.0/atuin-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/580134247"
 
+[[tools."github:DataDog/pup"]]
+version = "1.27.1"
+backend = "github:DataDog/pup"
+specifiers = ["latest"]
+
+[tools."github:DataDog/pup"."platforms.linux-x64"]
+checksum = "sha256:a240b87dc19b699aa5689513a64896cb4d13f9acfb386a123946d6c0d9d0b831"
+url = "https://github.com/DataDog/pup/releases/download/v1.27.1/pup_1.27.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/641419657"
+
+[tools."github:DataDog/pup"."platforms.macos-arm64"]
+checksum = "sha256:526a865fd4e7c89dab1dbf95651bb696d561b8ae3d95513ad321f5eb32c483b8"
+url = "https://github.com/DataDog/pup/releases/download/v1.27.1/pup_1.27.1_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/641419619"
+
 [[tools."github:databricks/cli"]]
 version = "1.20.0"
 backend = "github:databricks/cli"
