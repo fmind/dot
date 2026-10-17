@@ -477,8 +477,12 @@ sessions = false
             assert data[key] == value
         assert data["editorMode"] == "vim"
         assert data["notifications"] is True
+        assert data["queuedMessages"] == "send-immediately"
+        assert data["verbosity"] == "high"
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
+        assert fresh["queuedMessages"] == "send-immediately"
+        assert fresh["verbosity"] == "high"
         for key in ("model", "pickerGrouping", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
             assert key not in fresh
         assert "trustedWorkspaces" not in fresh  # dot trust owns folder trust.
