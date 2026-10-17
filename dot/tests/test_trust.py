@@ -386,18 +386,40 @@ def test_trust_json_without_harness_state_lists_no_changes(tmp_path: Path, monke
     assert (document["harnesses"], document["folders"][0]["changed"]) == ([], [])
 
 
-@pytest.mark.parametrize("relative", [".", ".."])
-def test_trust_refuses_home_and_its_ancestors_outside_a_repository(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str
+@pytest.mark.parametrize("relative", [".", "..", "subdir"])
+@pytest.mark.parametrize("git_at", [None, "home", "parent"])
+def test_trust_refuses_home_and_its_ancestors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str, git_at: str | None
 ) -> None:
     home = tmp_path / "home"
-    home.mkdir()
+    (home / "subdir").mkdir(parents=True)
+    if git_at == "home":
+        subprocess.run(["git", "init", "-q", str(home)], check=True)
+    elif git_at == "parent":
+        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    if relative == "subdir" and git_at is None:
+        return
     harness_home(home)
     monkeypatch.setenv("HOME", str(home))
     before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(home)]))
 
     with pytest.raises(DotError, match="contains the home directory"):
         run_trust(state, str(home / relative))
+    with pytest.raises(DotError, match="contains the home directory"):
+        run_trust(state, "all")
 
     assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before
+
+
+def test_trust_propagates_git_inspection_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home, folder = tmp_path / "home", tmp_path / "work"
+    home.mkdir()
+    folder.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+    monkeypatch.setattr(state.runner, "which", lambda _tool: None)
+
+    with pytest.raises(DotError, match="required tools are missing: git"):
+        run_trust(state, str(folder))

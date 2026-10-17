@@ -1319,5 +1319,6 @@ __all__ = [
     "parse_codex_session",
     "parse_copilot_session",
     "parse_grok_session",
+    "parse_opencode_session",
     "resolve_cwd",
 ]

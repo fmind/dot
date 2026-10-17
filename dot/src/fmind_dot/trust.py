@@ -207,29 +207,39 @@ def _allowed_origin(state: State, repository: Path) -> bool:
 
 def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
     """Return the folders to trust and the workspace repositories skipped by the owner allowlist."""
+    home = Path.home().resolve()
+    forbidden = {home, *home.parents}
     if target != "all":
         path = expand_path(target).resolve()
         if not path.is_dir():
             raise DotError(f"{path} is not a directory")
+        if path in forbidden:
+            raise DotError(f"refusing to trust {path}: it contains the home directory")
         try:
-            return find_git_repositories(state, [path]), []
-        except DotError:
-            # Copilot trusts every descendant of a folder: trusting home or an ancestor would
-            # bypass the trust.github_owners allowlist for every repository below it.
-            if path in {Path.home().resolve(), *Path.home().resolve().parents}:
-                raise DotError(f"refusing to trust {path}: it contains the home directory") from None
-            return [path], []
-    # Configured workspaces themselves cover their non-repository subfolders in Claude
-    # and every path below them in Copilot; each repository needs its own entry.
-    roots = [expand_path(directory).resolve() for directory in state.config.pull.directories]
-    trusted = {root for root in roots if root.is_dir()}
-    skipped = []
-    for repository in find_git_repositories(state):
-        if repository in trusted or _allowed_origin(state, repository):
-            trusted.add(repository)
-        else:
-            skipped.append(repository)
-    return sorted(trusted), skipped
+            folders = find_git_repositories(state, [path])
+        except DotError as error:
+            if "not inside a git work tree" not in str(error):
+                raise
+            folders = [path]
+        skipped: list[Path] = []
+    else:
+        # Configured workspaces themselves cover their non-repository subfolders in Claude
+        # and every path below them in Copilot; each repository needs its own entry.
+        roots = [expand_path(directory).resolve() for directory in state.config.pull.directories]
+        trusted = {root for root in roots if root.is_dir()}
+        skipped = []
+        for repository in find_git_repositories(state):
+            if repository in trusted or _allowed_origin(state, repository):
+                trusted.add(repository)
+            else:
+                skipped.append(repository)
+        folders = sorted(trusted)
+    # Copilot trusts every descendant of a folder: trusting home or an ancestor would
+    # bypass the trust.github_owners allowlist for every repository below it.
+    for folder in folders:
+        if folder in forbidden:
+            raise DotError(f"refusing to trust {folder}: it contains the home directory")
+    return folders, skipped
 
 
 def run_trust(state: State, target: str = ".", *, dry_run: bool = False, as_json: bool = False) -> None:
