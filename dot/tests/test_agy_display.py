@@ -134,11 +134,18 @@ def test_managed_config_preserves_host_preferences_and_is_repeatable(tmp_path: P
         "--file",
         str(template),
     ]
-    original = {"model": "host-choice", "queuedMessages": "send-immediately", "permissions": {"deny": ["host-rule"]}}
+    original = {
+        "model": "host-choice",
+        "queuedMessages": "queue",
+        "verbosity": "medium",
+        "permissions": {"deny": ["host-rule"]},
+    }
     first = subprocess.run(command, input=json.dumps(original), text=True, capture_output=True, check=True, timeout=30)
     settings = json.loads(first.stdout)
-    # agy drops default-valued settings on start, so the host keeps its queue choice.
-    assert all(settings[k] == v for k, v in original.items())
+    assert settings["model"] == "host-choice"
+    assert settings["permissions"] == {"deny": ["host-rule"]}
+    assert settings["queuedMessages"] == "send-immediately"
+    assert settings["verbosity"] == "high"
     for field, mode in [("statusLine", "statusline"), ("title", "title")]:
         assert settings[field]["enabled"] is True
         arguments = shlex.split(settings[field]["command"])

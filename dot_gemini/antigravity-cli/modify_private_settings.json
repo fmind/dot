@@ -8,7 +8,9 @@
   "artifactReviewPolicy": "always-proceed",
   "editorMode": "vim",
   "notifications": true,
+  "queuedMessages": "send-immediately",
   "toolPermission": "always-proceed",
+  "verbosity": "high",
   "vimInsertFirst": true
 }
 ` -}}
