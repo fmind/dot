@@ -70,6 +70,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "lsd": ToolConfig(package="lsd"),
         "lychee": ToolConfig(args=["--generate", "complete-fish"]),
         "mise": ToolConfig(),
+        "pup": ToolConfig(args=["completions", "fish"]),
         "rg": ToolConfig(args=["--generate", "complete-fish"]),
         "ruff": ToolConfig(args=["generate-shell-completion", "fish"]),
         "starship": ToolConfig(args=["completions", "fish"]),
