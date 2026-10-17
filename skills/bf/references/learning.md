@@ -5,7 +5,7 @@ description: "Update project notes and concepts after meaningful work: OKF statu
 
 # Write knowledge back
 
-<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/learn.md (v18.3.0); update it there first. -->
+<!-- Mirrors github.com/fmind/brain-framework src/bf/skills/bf-use/references/learn.md (v19.0.0); update it there first. -->
 
 Helpers named `skills/bf-use/scripts/…` belong to the packaged skill: run them from a brain that installed it with `bf skills skills`, or from the host folder where `bf skills DIR` put it.
 
@@ -36,17 +36,20 @@ Expect `{"written":"projects/new-website.md","sha256":"..."}`; that digest guard
 
 - `the file changed since it was read`: read it again, reapply your edit to the new text and retry with the new digest.
 - `the old text does not occur` or `occurs several times`: copy the passage exactly from your read, or include surrounding text until it is unique.
+- `another guarded write of this file is still running`: read it again and retry.
 
-The helper replaces only an existing regular file, atomically, and never empties it. Like bf, it follows a linked brain folder and links above it, such as `/home` on Fedora Atomic, but no symbolic link inside the brain, at the file or in its folders. An interrupted edit can leave a `.write-HEX` temporary file beside the note, as bf's own writes can; delete it when `bf validate` warns about it.
+`Written, but its directory could not be synced` also exits 1, yet the file did change: check the file system, then read the file again for its new `sha256` before another edit.
+
+Helpers lock the file while they check, write and rename it, so of two sessions that read the same digest only one succeeds; an editor that takes no lock can still save between the last check and the rename. The helper replaces only an existing regular file, atomically, and never empties it. Like bf, it follows a linked brain folder and links above it, such as `/home` on Fedora Atomic, but no symbolic link inside the brain, at the file or in its folders. An interrupted edit can leave a `.write-HEX` temporary file beside the note, as bf's own writes can; delete it when `bf validate` warns about it.
 
 ## Author notes
 
-Start from [templates/project.md](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/templates/project.md) or [templates/concept.md](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/templates/concept.md) and replace every sample value with an observed one. OKF notes need:
+Start from [templates/project.md](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/templates/project.md) or [templates/concept.md](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/templates/concept.md) and replace every sample value with an observed one. OKF notes need:
 
 - `type` and `status: draft|stable|deprecated`; only `deprecated` closes a note and its tasks. Work progress belongs in the body and its task list, never in `status`.
 - `updated: YYYY-MM-DD` for the last meaningful change; `stale_after` (an ISO 8601 date-time with its offset, such as `2026-10-13T00:00:00+02:00`) only for an explicit review deadline.
 - `sources` entries with a `resource`, and `verified` events with real `by` and `at` values only after an actual check.
-- `aliases` with namespaced identities (`scheme:value`), never display names; `resource` for the URI of the asset the note describes. Both make the note answer to that identity: see [links](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/references/links.md).
+- `aliases` with namespaced identities (`scheme:value`), never display names; `resource` for the URI of the asset the note describes. Both make the note answer to that identity: see [links](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/references/links.md).
 - Reused `tags`: browse `bf read tags` before adding one.
 
 Write next steps as checkboxes (`- [ ]`) in their owning note only; summaries link to them or use plain bullets, since copied checkboxes become duplicate tasks. A completed action does not by itself justify `status: stable` or a `verified` event.
@@ -55,10 +58,10 @@ Write next steps as checkboxes (`- [ ]`) in their owning note only; summaries li
 
 | Task                                                              | Guide                                                                                                                 |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Add tags, identities, typed links, `fields:` or related brains    | [Links](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/references/links.md)               |
-| Retain a source revision, revise a belief or inspect dependencies | [Evidence](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/references/evidence.md)         |
-| Review projects, reminders, intentions or decision outcomes       | [Review](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/references/review.md)             |
-| Derive a procedure from observed outcomes                         | [Consolidation](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/references/consolidate.md) |
-| Prepare selected knowledge for another audience                   | [Sharing](https://github.com/fmind/brain-framework/blob/v18.3.0/src/bf/skills/bf-use/references/share.md)             |
+| Add tags, identities, typed links, `fields:` or related brains    | [Links](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/references/links.md)               |
+| Retain a source revision, revise a belief or inspect dependencies | [Evidence](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/references/evidence.md)         |
+| Review projects, reminders, intentions or decision outcomes       | [Review](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/references/review.md)             |
+| Derive a procedure from observed outcomes                         | [Consolidation](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/references/consolidate.md) |
+| Prepare selected knowledge for another audience                   | [Sharing](https://github.com/fmind/brain-framework/blob/v19.0.0/src/bf/skills/bf-use/references/share.md)             |
 
 A review reminder or a recent edit is a reason to inspect, not verification: never touch a file only to clear a reminder. When two sessions changed the same claim, preserve both and follow the conflict guide of the `bf-maintain` skill, or stop at the unresolved claim and ask for the missing judgment.
