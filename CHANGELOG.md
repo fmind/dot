@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [11.6.0] - 2026-10-17
+
+### 🚀 Features
+
+- _(agy)_ Manage immediate message delivery and high verbosity
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Reject home trust roots and register pup completions
+
+### 📚 Documentation
+
+- _(bf)_ Sync skill references with Brain Framework 19.0.0
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 19.0.0
+
 ## [11.5.0] - 2026-10-16
 
 ### 🚀 Features
