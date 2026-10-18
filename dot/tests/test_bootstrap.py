@@ -325,15 +325,15 @@ def run_task_bootstrap(
     return result, home, log.read_text().splitlines() if log.exists() else []
 
 
-@pytest.mark.parametrize("task", ["tools", "mf", "install"])
+@pytest.mark.parametrize("task", ["tools", "full", "install"])
 @pytest.mark.parametrize("old_dot", [False, True], ids=["fresh", "older-dot"])
 def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str, old_dot: bool) -> None:
     result, home, events = run_task_bootstrap(tmp_path, task, old_dot=old_dot)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert events[:5] == ["repository-install", "seed", "global-install", "deploy", "apply"]
-    assert events[5:9] == ["theme-cache", "dot trust all", f"dot trust {home / 'source'}", "dot completion"]
-    assert events[9:] == (["hooks", "vim"] if task == "install" else [])
+    assert events[5:8] == ["theme-cache", f"dot trust all {home / 'source'}", "dot completion"]
+    assert events[8:] == (["hooks", "vim"] if task == "install" else [])
     codex = tomllib.loads((home / ".codex/config.toml").read_text())
     assert codex["projects"][str(home / "source")]["trust_level"] == "trusted"
     assert (home / ".cache/bat/fmind-theme.stamp").is_file()

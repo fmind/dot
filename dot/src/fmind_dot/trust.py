@@ -2,7 +2,7 @@
 
 import json
 import re
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, Sequence
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -242,8 +242,16 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
     return folders, skipped
 
 
-def run_trust(state: State, target: str = ".", *, dry_run: bool = False, as_json: bool = False) -> None:
-    folders, skipped = _target_folders(state, target)
+def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = False, as_json: bool = False) -> None:
+    # One invocation covers every target, so the apply hook pays the CLI startup once.
+    selected: set[Path] = set()
+    excluded: set[Path] = set()
+    for target in targets:
+        found, skipped_here = _target_folders(state, target)
+        selected.update(found)
+        excluded.update(skipped_here)
+    folders = sorted(selected)
+    skipped = sorted(excluded - selected)
     harnesses = installed_harnesses()
     changes = trust_folders(folders, dry_run=dry_run) if harnesses else {}
     if as_json:
@@ -283,12 +291,16 @@ def register(app: typer.Typer) -> None:
     )
     def trust(
         context: typer.Context,
-        target: Annotated[
-            str, typer.Argument(help="Folder or repository to trust, or 'all' for the configured workspaces")
-        ] = ".",
+        targets: Annotated[
+            list[str] | None,
+            typer.Argument(
+                help="Folders or repositories to trust, or 'all' for the configured workspaces [default: .]",
+                show_default=False,
+            ),
+        ] = None,
         dry_run: Annotated[
             bool, typer.Option("--dry-run", help="Report trust changes without writing harness files")
         ] = False,
         json_output: JsonOption = False,
     ) -> None:
-        run_trust(state_from(context), target, dry_run=dry_run, as_json=json_output)
+        run_trust(state_from(context), targets or ["."], dry_run=dry_run, as_json=json_output)

@@ -8,16 +8,25 @@
 {{- /* Reject glob characters in the checkout path; the glob below would match other directories. */ -}}
 {{- $directory := joinPath .chezmoi.sourceDir "dot_agents/skills" -}}
 {{- if regexMatch "[\\[\\]*?{}\\\\]" $directory }}{{ fail "chezmoi source path contains glob characters; move the checkout before applying" }}{{ end -}}
+{{- $names := list -}}
+{{- $links := list -}}
 {{- range glob (printf "%s/symlink_*.tmpl" $directory) -}}
 {{- $name := base . | trimPrefix "symlink_" | trimSuffix ".tmpl" -}}
 {{- $target := joinPath $catalog $name -}}
-{{- $expected := joinPath $source $name -}}
 {{- $info := lstat $target -}}
 {{- if $info -}}
   {{- if ne $info.type "symlink" -}}
     {{- fail (printf "skill %s already exists; relocate the conflicting package before applying" $name) -}}
   {{- end -}}
-  {{- if ne (output "readlink" $target | trim) $expected -}}
+  {{- $names = append $names $name -}}
+  {{- $links = append $links $target -}}
+{{- end -}}
+{{- end -}}
+{{- /* One readlink for every link: a process per skill added about 90 ms to every chezmoi command. */ -}}
+{{- if $links -}}
+{{- $targets := outputList "readlink" $links | trimSuffix "\n" | splitList "\n" -}}
+{{- range $index, $name := $names -}}
+  {{- if ne (index $targets $index) (joinPath $source $name) -}}
     {{- fail (printf "skill %s belongs to another source; resolve the name collision before applying" $name) -}}
   {{- end -}}
 {{- end -}}

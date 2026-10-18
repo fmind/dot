@@ -26,45 +26,11 @@ _NOTIFY_EXPIRE_MS = "10000"
 class Notification:
     summary: str
     headline: str = ""
-    details: tuple[str, ...] = ()
-
-
-def notification_title(runner: Runner) -> str:
-    """Read only the originating terminal title; unavailable metadata is optional."""
-    pane = os.environ.get("ZELLIJ_PANE_ID") or ""
-    if (
-        not os.environ.get("ZELLIJ_SESSION_NAME")
-        or not pane.isascii()
-        or not pane.isdecimal()
-        or not runner.which("zellij")
-    ):
-        return ""
-    try:
-        result = runner.run(["zellij", "action", "list-panes", "--json"], timeout=1, check=False)
-        if result.returncode:
-            return ""
-        panes = json.loads(result.stdout)
-    except DotError, OSError, ValueError, RecursionError:
-        return ""
-    if not isinstance(panes, list):
-        return ""
-    for item in panes:
-        if not isinstance(item, dict) or item.get("is_plugin") is not False or item.get("id") != int(pane):
-            continue
-        title = item.get("title")
-        if not isinstance(title, str):
-            return ""
-        # Codex titles include a changing status and project around the task.
-        parts = title.split(" | ")
-        if len(parts) >= 3 and re.match(r"^\[[^\]]+\] ", parts[0]):
-            title = " | ".join(parts[1:-1])
-        return title
-    return ""
 
 
 def _short_notification_text(value: str) -> str:
-    # Titles are untrusted terminal metadata: remove escapes/control characters
-    # and keep desktop banners to one short line per field.
+    # Directory names are untrusted: remove escapes/control characters
+    # and keep desktop banners to one short line.
     value = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
     text = " ".join("".join(char for char in value if char.isprintable() or char.isspace()).split())
     return text if len(text) <= 80 else text[:79].rstrip() + "…"
@@ -74,8 +40,6 @@ def build_notification(
     agent: str,
     event: str,
     cwd: Path | None,
-    *,
-    title: str = "",
 ) -> Notification:
     if not agent:
         raise DotError("agent name is required")
@@ -93,15 +57,7 @@ def build_notification(
         resolved = expanded if expanded.is_absolute() else (Path.cwd() / expanded).absolute()
         project = _short_notification_text(resolved.name)
         summary += f" · {project}"
-    title = _short_notification_text(title)
-    details = (
-        (title,) if title and title.casefold() not in {agent.casefold(), label.casefold(), project.casefold()} else ()
-    )
-    return Notification(summary, headline, details)
-
-
-def _notification_body(notification: Notification) -> str:
-    return "\n".join((notification.headline, *notification.details)).strip()
+    return Notification(summary, headline)
 
 
 def _apple_script_string(value: str) -> str:
@@ -111,22 +67,14 @@ def _apple_script_string(value: str) -> str:
 def notification_command(runner: Runner, notification: Notification, *, system: str | None = None) -> list[str]:
     host = (system or platform.system()).lower()
     if host == "darwin":
-        details = " · ".join(notification.details)
-        if details:
-            script = (
-                f"display notification {_apple_script_string(details)} "
-                f"with title {_apple_script_string(notification.summary)} "
-                f"subtitle {_apple_script_string(notification.headline)}"
-            )
-        else:
-            script = (
-                f"display notification {_apple_script_string(notification.headline)} "
-                f"with title {_apple_script_string(notification.summary)}"
-            )
+        script = (
+            f"display notification {_apple_script_string(notification.headline)} "
+            f"with title {_apple_script_string(notification.summary)}"
+        )
         return ["osascript", "-e", script]
     if host != "linux":
         raise DotError(f"desktop notifications are unsupported on {host}")
-    body = html.escape(_notification_body(notification), quote=False)
+    body = html.escape(notification.headline, quote=False)
     if runner.which("notify-send") is not None:
         return [
             "notify-send",

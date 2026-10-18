@@ -1,4 +1,4 @@
-"""Usage reports reconcile request events, immutable history, and billing boundaries."""
+"""Usage reports reconcile request events, immutable history, and monthly boundaries."""
 
 import io
 import json
@@ -12,7 +12,6 @@ from fmind_dot.archive.parsers import parse_claude_session, parse_codex_session
 from fmind_dot.archive.store import ingest_session
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, load_usage_records, write_usage_stats
 from fmind_dot.cli import app
-from fmind_dot.config import SubscriptionConfig
 from fmind_dot.errors import DotError
 
 
@@ -62,21 +61,13 @@ def test_model_breakdown_does_not_sum_overlapping_sessions() -> None:
     assert "Sessions using multiple models appear in each model row" in output.getvalue()
 
 
-def test_billing_clamps_month_end_and_respects_timezone_and_dst() -> None:
-    record = session(request("2026-02-28T22:59:59Z"), request("2026-03-30T22:00:00Z"))
-    subscriptions = {"codex": SubscriptionConfig(renewal_day=31, timezone="Europe/Paris", monthly_usd=20)}
-    rows = aggregate_usage([record], billing=True, subscriptions=subscriptions)
+def test_monthly_periods_are_utc_calendar_months_across_the_year_end() -> None:
+    record = session(request("2026-12-31T23:59:59Z"), request("2027-01-01T00:00:00Z"))
+    rows = aggregate_usage([record], monthly=True)
     assert [(r.period_start, r.period_end) for r in rows] == [
-        ("2026-02-28T00:00:00+01:00", "2026-03-31T00:00:00+02:00"),
-        ("2026-03-31T00:00:00+02:00", "2026-04-30T00:00:00+02:00"),
+        ("2026-12-01T00:00:00+00:00", "2027-01-01T00:00:00+00:00"),
+        ("2027-01-01T00:00:00+00:00", "2027-02-01T00:00:00+00:00"),
     ]
-    assert rows[0].to_dict()["api_value_ratio"] == 0.125
-    previous = aggregate_usage([request("2026-02-27T22:00:00Z")], billing=True, subscriptions=subscriptions)[0]
-    assert previous.period_start.startswith("2026-01-31")
-    with pytest.raises(ValueError, match=r"configure agent\.subscriptions\.codex"):
-        aggregate_usage([record], billing=True)
-    with pytest.raises(ValueError, match="choose --monthly or --billing"):
-        aggregate_usage([record], monthly=True, billing=True)
 
 
 def test_partial_model_pricing_is_not_free_and_session_cost_cannot_be_split() -> None:
@@ -95,7 +86,7 @@ def test_partial_model_pricing_is_not_free_and_session_cost_cannot_be_split() ->
 
 
 @pytest.mark.parametrize("child_first", [False, True], ids=["parent-first", "child-first"])
-@pytest.mark.parametrize("selection", ["all", "model", "month", "billing", "since", "until"])
+@pytest.mark.parametrize("selection", ["all", "model", "month", "since", "until"])
 def test_session_cost_includes_sidechains_before_grouping(selection: str, child_first: bool) -> None:
     parent = UsageRecord(
         timestamp="2026-09-30T23:00:00Z",
@@ -123,8 +114,6 @@ def test_session_cost_includes_sidechains_before_grouping(selection: str, child_
         records,
         by_model=selection == "model",
         monthly=selection == "month",
-        billing=selection == "billing",
-        subscriptions={"claude": SubscriptionConfig(renewal_day=1)},
         since=boundary if selection == "since" else None,
         until=boundary if selection == "until" else None,
     )
@@ -229,7 +218,7 @@ def test_codex_repeated_counters_and_model_switches(tmp_path: Path) -> None:
     assert corrected.total_tokens == 50
 
 
-def test_public_monthly_and_subscription_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_public_monthly_report_and_retired_billing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     record = session(request("2026-08-31T23:00:00Z"), request("2026-09-01T23:00:00Z"))
@@ -240,23 +229,14 @@ def test_public_monthly_and_subscription_config(tmp_path: Path, monkeypatch: pyt
     result = json.loads(report.output)
     assert result["prompts"] is None
     assert len(result["usage"]) == 2
+    assert "subscription_usd" not in result["usage"][0]
+    assert runner.invoke(app, ["agent", "stats", "--tokens-only", "--billing"]).exit_code == 2
     config = tmp_path / "config.yaml"
-    config.write_text(
-        "agent:\n  subscriptions:\n    codex:\n      renewal_day: 15\n      timezone: Europe/Paris\n      monthly_usd: 20\n"
-    )
-    billed = runner.invoke(app, ["--config", str(config), "agent", "stats", "--tokens-only", "--billing", "--json"])
-    assert billed.exit_code == 0, billed.output
-    assert json.loads(billed.stdout)["usage"][0]["period_start"].startswith("2026-08-15")
-    config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 32\n")
+    config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 15\n")
     invalid = runner.invoke(app, ["--config", str(config), "config", "show"])
     assert invalid.exit_code == 1
     assert isinstance(invalid.exception, DotError)
-    assert "agent.subscriptions.codex.renewal_day:" in str(invalid.exception)
-    config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 1\n      timezone: Invalid/Zone\n")
-    invalid = runner.invoke(app, ["--config", str(config), "config", "show"])
-    assert invalid.exit_code == 1
-    assert isinstance(invalid.exception, DotError)
-    assert "subscription timezone must be an IANA timezone" in str(invalid.exception)
+    assert "agent.subscriptions" in str(invalid.exception)
 
 
 def test_usage_query_rejects_invalid_usage_and_mismatched_identity(
@@ -268,11 +248,13 @@ def test_usage_query_rejects_invalid_usage_and_mismatched_identity(
     ingest_session("codex", "one", [], usage=request("2026-09-01T00:00:00Z").to_dict())
     assert len(load_usage_records()) == 1
     path = store.session_bundle_path("codex", "one")
-    manifest = json.loads(path.read_text())
-    path.write_text(json.dumps(manifest | {"usage": manifest["usage"] | {"input_tokens": -1}}) + "\n")
+    # Schema 4 publishes usage on the line after the manifest.
+    header, usage_line = path.read_text().splitlines()[:2]
+    usage = json.loads(usage_line)
+    path.write_text(f"{header}\n{json.dumps(usage | {'input_tokens': -1})}\n")
     with pytest.raises(ValueError, match="non-negative integer"):
         load_usage_records()
-    path.write_text(json.dumps(manifest | {"usage": manifest["usage"] | {"session_id": "two"}}) + "\n")
+    path.write_text(f"{header}\n{json.dumps(usage | {'session_id': 'two'})}\n")
     with pytest.raises(ValueError, match="does not match its session"):
         load_usage_records()
 
@@ -400,3 +382,89 @@ def test_codex_rejects_malformed_response_records(tmp_path: Path, payload: dict)
     assert parsed.usage is None
     assert isinstance(parsed.usage_error, ValueError)
     assert "private-invalid" not in str(parsed.usage_error)
+
+
+def _usage(session_id: str, timestamp: str, *, cost: float = 0.0) -> dict[str, object]:
+    record = request(timestamp)
+    record.session_id = session_id
+    record.cost_usd, record.cost_known = cost, bool(cost)
+    return record.to_dict()
+
+
+def test_window_skips_only_families_measured_outside_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fmind_dot.archive import store
+    from fmind_dot.archive.store import SessionSource
+    from fmind_dot.archive.usage import iter_usage_records
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ingest_session("codex", "recent", [], usage=_usage("recent", "2026-09-02T12:00:00Z", cost=1.0))
+    # The parent is outside the window, its sidechain inside: the parent's cost includes the
+    # sidechain, so it must still be read and keep the session cost unattributed.
+    ingest_session("codex", "parent", [], usage=_usage("parent", "2026-08-01T00:00:00Z", cost=2.0))
+    sidechain = SessionSource(sidechain=True, parent_session_id="parent")
+    ingest_session("codex", "child", [], sidechain, usage=_usage("child", "2026-09-02T13:00:00Z"))
+    ingest_session("codex", "old", [], usage=_usage("old", "2026-07-01T00:00:00Z"))
+    old = store.session_bundle_path("codex", "old")
+    header = old.read_text().splitlines()[0]
+    assert json.loads(header)["usage_last_timestamp"] == "2026-07-01T00:00:00+00:00"
+    # A corrupt usage line proves the window never decodes a family measured outside it.
+    old.write_text(f"{header}\n{{broken\n")
+    since, until = datetime(2026, 9, 2, tzinfo=UTC), datetime(2026, 9, 3, tzinfo=UTC)
+
+    windowed = aggregate_usage(iter_usage_records(since, until), since=since, until=until)
+
+    assert [(row.sessions, row.total_tokens, row.cost_usd) for row in windowed] == [(2, 2_000_000, 1.0)]
+    with pytest.raises(ValueError, match="invalid session usage"):
+        list(iter_usage_records())
+
+
+def test_sync_upgrades_schema_3_bundles_in_place(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fmind_dot.archive import store
+    from fmind_dot.archive.sync import sync_sessions
+    from fmind_dot.state import State
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    usage = _usage("one", "2026-09-01T00:00:00Z")
+    ingest_session(
+        "codex", "one", [store.SessionLog("2026-09-01T00:00:00Z", "codex", "one", "user", "hi")], usage=usage
+    )
+    path = store.session_bundle_path("codex", "one")
+    header, _, *records = path.read_text().splitlines()
+    legacy = json.loads(header) | {"schema_version": 3, "usage": usage}
+    for key in ("usage_first_timestamp", "usage_last_timestamp"):
+        legacy.pop(key)
+    path.write_text("\n".join([json.dumps(legacy), *records]) + "\n")
+    manifest, logs = store.read_session_bundle(path)
+    assert (manifest.schema_version, manifest.usage) == (3, usage)
+    state = State(stdout=io.StringIO(), stderr=io.StringIO())
+
+    sync_sessions(state, agent="codex", dry_run=True)
+    assert store.read_session_manifest(path).schema_version == 3
+    sync_sessions(state, agent="codex")
+
+    upgraded, upgraded_logs = store.read_session_bundle(path)
+    assert (upgraded.schema_version, upgraded.usage, upgraded_logs) == (4, usage, logs)
+    assert (upgraded.ingested_at, upgraded.source_fingerprint) == (manifest.ingested_at, manifest.source_fingerprint)
+    assert "usage" not in json.loads(path.read_text().splitlines()[0])
+
+
+def test_unreadable_legacy_bundle_fails_sync_without_failing_the_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fmind_dot.archive import store
+    from fmind_dot.archive.sync import sync_sessions
+    from fmind_dot.state import State
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / ".codex/sessions").mkdir(parents=True)
+    ingest_session("codex", "one", [store.SessionLog("2026-09-01T00:00:00Z", "codex", "one", "user", "hi")])
+    path = store.session_bundle_path("codex", "one")
+    header = json.loads(path.read_text().splitlines()[0]) | {"schema_version": 3, "usage": None}
+    path.write_text(json.dumps(header) + "\nnot json\n")
+    stderr = io.StringIO()
+    state = State(stdout=io.StringIO(), stderr=stderr)
+
+    assert sync_sessions(state, agent="codex", quiet=True).failed == 1
+    assert "upgrade session bundle" in stderr.getvalue()
+    sync_state = json.loads((store.session_store_root() / "codex/.sync.json").read_text())
+    assert sync_state["failed"] == 0

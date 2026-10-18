@@ -4,7 +4,7 @@ import json
 import os
 import select
 import shlex
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Annotated, Any, get_args
@@ -82,7 +82,6 @@ def execute(
     *,
     dry_run: bool = False,
     env: dict[str, str] | None = None,
-    on_stderr_line: Callable[[str], None] | None = None,
 ) -> None:
     """Preserve caller environment, directory, terminal, and native diagnostics."""
     if dry_run:
@@ -91,9 +90,7 @@ def execute(
     require_tools(state, [args])
     if args[:2] == ["hf", "cache"]:
         _ensure_hf_cache_dir()
-    code = state.runner.interactive(
-        args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env, on_stderr_line=on_stderr_line
-    )
+    code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env)
     if code != 0:
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 

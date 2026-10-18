@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-verify
   created: "2026-09-24"
-  updated: "2026-10-05"
+  updated: "2026-10-18"
 ---
 
 # Verify Dot
@@ -21,7 +21,7 @@ Prove that the current checkout (committed and uncommitted work) is correct, doc
 1. **Synchronize docs**: check `README.md`, `AGENTS.md`, `dot_agents/AGENTS.md`, `.github/*.md`, `.agents/skills/`, and `skills/` against the code: removed or renamed files, commands and flags (`uv run --frozen --project dot dot <command> --help`), tasks (`mise tasks`), and JSON fields. Bump `updated:` on changed skills; run `mise run format:skills` for guide indexes; follow dot-skills for catalog changes.
 1. **Run the gates**: `mise run all`, then the host checks it omits: `mise run check:completions` and `mise run test:starters`. Rerun only what a later fix invalidates.
 1. **Smoke-test the CLI** from the repository root with `uv run --frozen --project dot dot` (`--directory dot` would resolve `.` to `dot/`): `--help` for every top-level command, then read-only commands: `doctor`, `agent doctor`, `agent context --check`, `config show`, `status`, `orphan`, `cache`, `prune all --dry-run`, `trust --dry-run .`, and `agent stats --no-sync`. Every exit code must be 0 or explained.
-1. **Check the workstation** when tools or dotfiles changed: `chezmoi diff` preview, `dot orphan` for retired targets (report, never delete), and `mise run verify`. `STALE` for the installed `dot` is expected until release or `mise run deploy`.
+1. **Check the workstation** when tools or dotfiles changed: `chezmoi diff` preview, `dot orphan` for retired targets (report, never delete), and `mise run doctor`. `STALE` for the installed `dot` is expected until release or `mise run deploy`.
 1. **Report**: fixed findings, deliberately left items with reasons, each check and its result, and confirm the tested snapshot equals the candidate (the working tree after the last fix).
 
 ## Gotchas

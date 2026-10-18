@@ -147,17 +147,6 @@ def _is_terminal(stream: IO[str] | None, default: IO[str]) -> bool:
     return False
 
 
-def _relay_lines(source: IO[str], target: IO[str] | None, on_line: Callable[[str], None]) -> None:
-    """Echo each child line as it arrives, then let the caller react to it."""
-    destination = target if target is not None else sys.stderr
-    # The daemon thread owns the pipe and closes it at EOF, after any escaped descendant holding it exits.
-    with suppress(OSError, ValueError), source:
-        for line in source:
-            destination.write(line)
-            destination.flush()
-            on_line(line)
-
-
 class Runner:
     """Run external tools with timeout and process-group cleanup."""
 
@@ -248,9 +237,8 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
-        """Run with the caller's terminal; `on_stderr_line` relays stderr so callers can react to prompts.
+        """Run with the caller's terminal.
 
         A child using the terminal stays in dot's process group, so the terminal delivers Ctrl+C and
         Ctrl+Z to both. Without one, it gets its own group so that a SIGTERM to dot (timeout, a
@@ -258,9 +246,7 @@ class Runner:
         """
         if not args:
             raise DotError("cannot run an empty command")
-        streams = [(stdin, sys.stdin), (stdout, sys.stdout)]
-        if on_stderr_line is None:
-            streams.append((stderr, sys.stderr))
+        streams = [(stdin, sys.stdin), (stdout, sys.stdout), (stderr, sys.stderr)]
         detached = not any(_is_terminal(stream, default) for stream, default in streams)
         # The child writes to the same descriptors, so pending buffered text must land first.
         for stream in (stdout or sys.stdout, stderr or sys.stderr):
@@ -275,21 +261,12 @@ class Runner:
                         env=_environment(env),
                         stdin=stdin,
                         stdout=stdout,
-                        stderr=subprocess.PIPE if on_stderr_line is not None else stderr,
+                        stderr=stderr,
                         text=True,
                         errors="replace",
                         process_group=0 if detached else None,
                     )
-                relay = None
-                if on_stderr_line is not None and process.stderr is not None:
-                    # The relay owns the pipe: closing it while the thread reads would wait on its buffer lock.
-                    source, process.stderr = process.stderr, None
-                    relay = threading.Thread(target=_relay_lines, args=(source, stderr, on_stderr_line), daemon=True)
-                    relay.start()
                 code = process.wait()
-                if relay is not None:
-                    # An escaped descendant may keep the pipe open; never wait on it indefinitely.
-                    relay.join(timeout=_TERMINATION_TIMEOUT_SECONDS)
                 if code == -signal.SIGINT:
                     raise KeyboardInterrupt
                 return code

@@ -487,6 +487,33 @@ def test_copilot_partial_scans_never_publish_a_skip_checkpoint(
     assert sync_sessions(state, agent="copilot").selected == 0
 
 
+def test_copilot_writes_during_every_parse_still_capture_the_snapshot(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A running Copilot writes the shared database while sync parses: each parse reads one
+    # transaction snapshot, so the capture succeeds and only the pass checkpoint is withheld.
+    monkeypatch.setenv("HOME", str(tmp_path))
+    database = tmp_path / ".copilot/session-store.db"
+    _create_copilot_database(database)
+    state = _state()
+    adapter = archive_sync_module.AGENT_ADAPTERS["copilot"]
+
+    def parse(path: Path, session_id: str, cwd: str) -> ParsedSession:
+        result = adapter.parser(path, session_id, cwd)
+        with closing(sqlite3.connect(database)) as connection:
+            connection.execute("CREATE TABLE IF NOT EXISTS unrelated (value INTEGER)")
+            connection.execute("INSERT INTO unrelated VALUES (1)")
+            connection.commit()
+        return result
+
+    with monkeypatch.context() as temporary:
+        temporary.setitem(archive_sync_module.AGENT_ADAPTERS, "copilot", replace(adapter, parser=parse))
+        outcome = sync_sessions(state, agent="copilot")
+
+    assert (outcome.ingested, outcome.failed) == (1, 0)
+    assert sync_sessions(state, agent="copilot").selected == 1
+
+
 def test_copilot_checkpoint_detects_wal_updates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"

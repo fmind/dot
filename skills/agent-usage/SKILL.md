@@ -1,13 +1,13 @@
 ---
 name: agent-usage
-description: "Analyze agent token usage, costs, and subscriptions with dot and DuckDB queries."
+description: "Analyze agent token usage and costs with dot and DuckDB queries."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-usage
   created: "2026-09-03"
-  updated: "2026-10-16"
+  updated: "2026-10-18"
 ---
 
 # Agent Usage
@@ -19,7 +19,7 @@ Analyze the shared usage archive with dot and DuckDB. Preserve the difference be
 1. **Let dot own sync and schemas**: dot owns source synchronization and archive schemas; read [queries.md](references/queries.md) for layout, fields, DuckDB queries, and exports.
 1. **Report completeness, protect data**: state period, sources, and completeness; protect prompt and account data.
 
-Quick total: `dot agent stats --tokens-only` (coverage dates and API equivalents). [queries.md](references/queries.md) owns flags, pricing fields, and billing configuration. API equivalents are offline rate-card estimates, never the bill or verified savings.
+Quick total: `dot agent stats --tokens-only` (coverage dates and API equivalents). [queries.md](references/queries.md) owns flags, pricing fields, and monthly periods. API equivalents are offline rate-card estimates, never the bill or verified savings.
 
 ## Gotchas
 

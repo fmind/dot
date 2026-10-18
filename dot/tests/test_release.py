@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import IO
 
@@ -75,9 +75,8 @@ class ReleaseRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr, env, on_stderr_line
+        del cwd, stdin, stdout, stderr, env
         call = tuple(args)
         self.interactive_calls.append(call)
         code = self.interactive_codes.get(call, 0)

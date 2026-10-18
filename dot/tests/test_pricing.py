@@ -172,7 +172,12 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert result.exit_code == 0, result.output
     assert "SECRET PROMPT" not in result.output
     report = json.loads(result.output)
-    assert report["schema"] == "dot.agent.stats/v3"
+    assert report["schema"] == "dot.agent.stats/v4"
+    # Rate-card facts are stated once for the document, never repeated per row.
+    assert report["pricing"]["as_of"]
+    assert report["pricing"]["sources"]
+    assert report["time_basis"].startswith("request timestamps")
+    assert not {"pricing_as_of", "pricing_basis", "pricing_sources", "time_basis"} & report["usage"][0].keys()
     assert report["prompts"]["schema"] == "dot.agent.prompts.stats/v2"
     assert report["prompts"]["prompts"] == 1
     assert report["usage"][0]["api_equivalent_usd"] == 7

@@ -17,7 +17,7 @@ def isolated_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
 
 
-@pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login", "all"]])
+@pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login"]])
 def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> None:
     config = tmp_path / "bad.yaml"
     config.write_text("pull:\n  typo: true\n")
@@ -29,14 +29,17 @@ def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> N
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["pull", "--dirty", "typo"],
+        ["pull", "--dirty", "allow"],
         ["agent", "session", "show"],
         ["agent", "stats", "--since", "invalid"],
         ["agent", "stats", "--since", "2026-09-16", "--until", "2026-09-15"],
         ["agent", "stats", "--sessions", "--limit", "-1"],
         ["agent", "session", "list", "--limit", "-1"],
         ["agent", "stats", "--tokens-only", "--prompts-only"],
-        ["agent", "stats", "--monthly", "--billing"],
+        ["agent", "stats", "--billing"],
+        ["agent", "stats", "--harness", "codex"],
+        ["agent", "stats", "--cwd", "."],
+        ["login", "all"],
         ["agent", "doctor", "--dry-run"],
     ],
 )
@@ -60,7 +63,7 @@ def test_reports_include_whole_until_day_and_exact_timestamp() -> None:
         result = runner.invoke(app, [*command, "--since", "2026-09-15", "--until", "2026-09-15", "--json"])
         assert result.exit_code == 0, result.output
         document = json.loads(result.stdout)
-        assert document["schema"] == "dot.agent.stats/v3"
+        assert document["schema"] == "dot.agent.stats/v4"
         if "--tokens-only" not in command:
             assert document["prompts"]["prompts"] == 1
         if "--prompts-only" not in command:
@@ -81,8 +84,8 @@ def test_removed_cleanup_cannot_delete_retained_files(tmp_path: Path, monkeypatc
     assert report.read_text() == "retained work"
 
 
-def test_login_all_dry_run_names_every_provider() -> None:
-    result = CliRunner().invoke(app, ["login", "all", "--dry-run"])
+def test_login_dry_run_names_every_provider() -> None:
+    result = CliRunner().invoke(app, ["login", "--dry-run"])
     assert result.exit_code == 0
     assert "gh auth login" in result.stdout
     assert "gws auth login" in result.stdout
@@ -96,7 +99,7 @@ def test_removed_report_routes_are_usage_errors(command: list[str]) -> None:
     assert result.stdout == ""
 
 
-@pytest.mark.parametrize("flag", ["--agent", "--harness", "-a"])
+@pytest.mark.parametrize("flag", ["--agent", "-a"])
 def test_agent_filter_aliases_select_the_same_usage(flag: str) -> None:
     for agent in ["codex", "claude"]:
         record = UsageRecord(
@@ -161,7 +164,7 @@ def test_stats_are_readable_in_a_narrow_terminal_and_preserve_json(monkeypatch: 
     assert "\t" not in human.stdout
     assert max(map(len, human.stdout.splitlines())) <= 60
     document = json.loads(runner.invoke(app, ["agent", "stats", "--by-model", "--json"]).stdout)
-    assert document["schema"] == "dot.agent.stats/v3"
+    assert document["schema"] == "dot.agent.stats/v4"
     assert document["usage"][0]["total_tokens"] == 1234567
     assert document["usage"][0]["api_equivalent_usd"] is None
     assert document["prompts"]["prompts"] == 1

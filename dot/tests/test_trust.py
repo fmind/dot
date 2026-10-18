@@ -170,7 +170,7 @@ def test_trust_reports_when_no_harness_has_state(tmp_path: Path, monkeypatch: py
     monkeypatch.setenv("HOME", str(home))
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
 
-    run_trust(state, str(folder))
+    run_trust(state, [str(folder)])
     assert isinstance(state.stdout, io.StringIO)
     assert state.stdout.getvalue() == "○ No agent harness state found; nothing to trust yet.\n"
     assert not any(home.iterdir())
@@ -226,14 +226,14 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
         pull=PullConfig(directories=["work" if relative else str(workspace), str(tmp_path / "missing")])
     )
 
-    run_trust(state, "all", dry_run=True)
+    run_trust(state, ["all"], dry_run=True)
     assert isinstance(state.stdout, io.StringIO)
     assert state.stdout.getvalue().count("skipped (origin is not a github.com repository") == 3
     assert state.stdout.getvalue().count("Copilot still inherits workspace trust") == 3
     assert not (tmp_path / ".gemini/antigravity-cli/settings.json").read_text().count("trustedWorkspaces")
 
     state.stdout = io.StringIO()
-    run_trust(state, "all")
+    run_trust(state, ["all"])
 
     trusted = json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"]
     assert trusted == [str(workspace), str(workspace / "one"), str(workspace / "two")]
@@ -244,12 +244,20 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
 
     # An explicitly named repository is trusted regardless of its origin.
     state.stdout = io.StringIO()
-    run_trust(state, str(workspace / "local"))
+    run_trust(state, [str(workspace / "local")])
     assert state.stdout.getvalue() == f"+ {workspace / 'local'}: trusted in claude, codex, grok, agy, copilot\n"
 
     state.stdout = io.StringIO()
-    run_trust(state, str(workspace / "one" / "."))
+    run_trust(state, [str(workspace / "one" / ".")])
     assert state.stdout.getvalue() == f"✓ {workspace / 'one'}: already trusted\n"
+
+    # One call merges targets: a repository named alongside "all" is trusted, not reported as skipped.
+    state.stdout = io.StringIO()
+    run_trust(state, ["all", str(workspace / "local")], dry_run=True)
+    output = state.stdout.getvalue()
+    assert f"✓ {workspace / 'local'}: already trusted" in output
+    assert f"- {workspace / 'local'}: skipped" not in output
+    assert f"- {workspace / 'foreign'}: skipped" in output
 
 
 @pytest.mark.parametrize(
@@ -292,7 +300,7 @@ def test_trust_all_writes_each_harness_file_once(tmp_path: Path, monkeypatch: py
 
     monkeypatch.setattr(trust, "write_atomic_file", counting)
 
-    run_trust(state, "all")
+    run_trust(state, ["all"])
 
     # Three folders, one read-modify-write per harness file.
     assert sorted(path.name for path in written) == [
@@ -363,7 +371,7 @@ def test_trust_dry_run_json_reports_changes_without_writing(tmp_path: Path, monk
     before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
 
-    run_trust(state, str(folder), dry_run=True, as_json=True)
+    run_trust(state, [str(folder)], dry_run=True, as_json=True)
 
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
@@ -379,7 +387,7 @@ def test_trust_json_without_harness_state_lists_no_changes(tmp_path: Path, monke
     folder.mkdir()
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
 
-    run_trust(state, str(folder), as_json=True)
+    run_trust(state, [str(folder)], as_json=True)
 
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
@@ -406,9 +414,9 @@ def test_trust_refuses_home_and_its_ancestors(
     state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(home)]))
 
     with pytest.raises(DotError, match="contains the home directory"):
-        run_trust(state, str(home / relative))
+        run_trust(state, [str(home / relative)])
     with pytest.raises(DotError, match="contains the home directory"):
-        run_trust(state, "all")
+        run_trust(state, ["all"])
 
     assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before
 
@@ -422,4 +430,4 @@ def test_trust_propagates_git_inspection_failure(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr(state.runner, "which", lambda _tool: None)
 
     with pytest.raises(DotError, match="required tools are missing: git"):
-        run_trust(state, str(folder))
+        run_trust(state, [str(folder)])

@@ -19,6 +19,7 @@ from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.store import session_bundle_path
 from fmind_dot.archive.sync import bounded_failure, sync_sessions
 from fmind_dot.archive.usage import (
+    USAGE_TIME_BASIS,
     UsageRecord,
     aggregate_usage,
     iter_usage_records,
@@ -29,7 +30,7 @@ from fmind_dot.archive.usage import (
 from fmind_dot.command_group import JsonOption, help_group
 from fmind_dot.context_budget import register as register_context
 from fmind_dot.errors import DotError
-from fmind_dot.hooks import build_notification, notification_title, notification_workspace, send_notification
+from fmind_dot.hooks import build_notification, notification_workspace, send_notification
 from fmind_dot.reporting import write_json, write_report_line
 from fmind_dot.state import State, state_from
 
@@ -74,9 +75,9 @@ NoSyncOption = Annotated[
     bool, typer.Option("--no-sync", help="Report the archive as stored, without capturing changed sessions first")
 ]
 # Shared filters keep one documented contract across session and report commands.
-AgentOption = Annotated[AgentName | None, typer.Option("--agent", "--harness", "-a", help="Filter by agent")]
+AgentOption = Annotated[AgentName | None, typer.Option("--agent", "-a", help="Filter by agent")]
 ProjectOption = Annotated[
-    str, typer.Option("--project", "--cwd", help="Filter by project directory; relative paths resolve first")
+    str, typer.Option("--project", help="Filter by project directory; relative paths resolve first")
 ]
 SessionOption = Annotated[str, typer.Option("--session", help="Filter by session identity")]
 LimitOption = Annotated[int, typer.Option("--limit", "-n", min=0, help="Maximum rows to return; 0 returns all")]
@@ -180,20 +181,22 @@ def session_show(
 @session_app.command(
     "sync",
     help="Capture new and changed sessions from configured agent sources",
-    epilog="Progress goes to stderr; exit 1 after any failed session, once the others are captured.",
+    epilog=(
+        "Progress goes to stderr: one summary per agent plus each retained session; --verbose also lists "
+        "every ingested session. Exit 1 after any failed session, once the others are captured."
+    ),
 )
 def session_sync(
     context: typer.Context,
-    agent: Annotated[
-        AgentName | None, typer.Option("--agent", "--harness", "-a", help="Synchronize one adapter")
-    ] = None,
+    agent: Annotated[AgentName | None, typer.Option("--agent", "-a", help="Synchronize one adapter")] = None,
     session: Annotated[str, typer.Option("--session", help="Synchronize one session identity")] = "",
-    cwd: Annotated[str, typer.Option("--project", "--cwd", help="Filter by resolved project path")] = "",
+    cwd: Annotated[str, typer.Option("--project", help="Filter by resolved project path")] = "",
     since: Annotated[str, typer.Option("--since", help=f"Only sources modified since {_SINCE_VALUES}")] = "",
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Inspect candidates without writing archives or usage")
     ] = False,
     as_json: JsonOption = False,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Also list every ingested session")] = False,
 ) -> None:
     sync_sessions(
         state_from(context),
@@ -203,6 +206,7 @@ def session_sync(
         since=_parse_time(since, "--since"),
         dry_run=dry_run,
         as_json=as_json,
+        verbose=verbose,
     )
 
 
@@ -245,7 +249,7 @@ def hook_notify(
         if workspace is None:
             return
         cwd = Path(workspace) if workspace else None
-        send_notification(state, build_notification(agent, event, cwd, title=notification_title(state.runner)))
+        send_notification(state, build_notification(agent, event, cwd))
     except (OSError, ValueError, DotError) as error:
         # Notifications are best effort: a failing hook would surface as a failed agent turn.
         state.stderr.write(f"agent hook notify failed: {bounded_failure(error)}\n")
@@ -268,7 +272,7 @@ def _print_session_usage(state: State, records: list[UsageRecord]) -> None:
     "stats",
     help="Sync changed sessions (unless --no-sync), then report prompts, tokens, costs, and API equivalents",
     epilog="Examples: dot agent stats --since 7d --tokens-only --json · dot agent stats --sessions -n 10 --since 7d · "
-    "dot agent stats --billing --agent codex. Exit 1 when prompt statistics are incomplete; JSON is still printed.",
+    "dot agent stats --monthly --agent codex. Exit 1 when prompt statistics are incomplete; JSON is still printed.",
 )
 def agent_stats(
     context: typer.Context,
@@ -280,7 +284,6 @@ def agent_stats(
     by_project: Annotated[bool, typer.Option("--by-project", help="Group prompts and usage by project")] = False,
     as_json: JsonOption = False,
     monthly: Annotated[bool, typer.Option("--monthly", help="Group usage by calendar month in UTC")] = False,
-    billing: Annotated[bool, typer.Option("--billing", help="Group usage by configured subscription cycles")] = False,
     tokens_only: Annotated[
         bool, typer.Option("--tokens-only", help="Skip prompt analysis for a quick usage report")
     ] = False,
@@ -297,16 +300,12 @@ def agent_stats(
 ) -> None:
     state = state_from(context)
     selected = _agent(agent)
-    if sessions and (by_model or by_project or monthly or billing or tokens_only or prompts_only):
+    if sessions and (by_model or by_project or monthly or tokens_only or prompts_only):
         raise typer.BadParameter("lists sessions; drop the grouping and --*-only options", param_hint="--sessions")
     if tokens_only and prompts_only:
         raise typer.BadParameter("cannot be combined with --prompts-only", param_hint="--tokens-only")
-    if monthly and billing:
-        raise typer.BadParameter("cannot be combined with --billing", param_hint="--monthly")
-    if prompts_only and (monthly or billing or by_model):
-        raise typer.BadParameter(
-            "--monthly, --billing, and --by-model require token statistics", param_hint="--prompts-only"
-        )
+    if prompts_only and (monthly or by_model):
+        raise typer.BadParameter("--monthly and --by-model require token statistics", param_hint="--prompts-only")
     query = _query(selected, cwd, "", since, until)
     if not no_sync:
         sync_sessions(state, agent=selected, quiet=True)
@@ -325,7 +324,7 @@ def agent_stats(
         []
         if prompts_only
         else aggregate_usage(
-            iter_usage_records(),
+            iter_usage_records(query.since, query.until),
             harness=selected,
             since=query.since,
             until=query.until,
@@ -334,17 +333,21 @@ def agent_stats(
             by_project=by_project,
             pricing=state.config.agent.pricing,
             monthly=monthly,
-            billing=billing,
-            subscriptions=state.config.agent.subscriptions,
         )
     )
+    rates = state.config.agent.pricing
     coverage = " without a sync (--no-sync)" if no_sync else " after an incremental sync"
     if as_json:
         write_json(
             state.stdout,
             {
-                "schema": "dot.agent.stats/v3",
+                "schema": "dot.agent.stats/v4",
                 "coverage": f"Archived records{coverage}. Prompt and usage coverage can differ.",
+                # Shared by every usage row, so stated once instead of per row.
+                "time_basis": None if prompts_only else USAGE_TIME_BASIS,
+                "pricing": None
+                if prompts_only
+                else {"as_of": rates.as_of, "basis": rates.basis, "sources": rates.sources},
                 "prompts": prompts,
                 "usage": [row.to_dict() for row in rows],
             },
@@ -366,9 +369,7 @@ def agent_stats(
 )
 def agent_doctor(
     context: typer.Context,
-    agent: Annotated[
-        AgentName | None, typer.Option("--agent", "--harness", "-a", help="Inspect only one agent")
-    ] = None,
+    agent: Annotated[AgentName | None, typer.Option("--agent", "-a", help="Inspect only one agent")] = None,
     as_json: JsonOption = False,
 ) -> None:
     run_agent_doctor(state_from(context), as_json=as_json, agent=_agent(agent))

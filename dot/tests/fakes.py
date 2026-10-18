@@ -55,10 +55,9 @@ class ScriptedRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
         # Never launch a real process from a test.
-        del args, cwd, stdin, stdout, stderr, env, on_stderr_line
+        del args, cwd, stdin, stdout, stderr, env
         return 0
 
 

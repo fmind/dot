@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import monotonic
-from typing import Annotated, Literal
+from typing import Annotated
 
 import typer
 
@@ -56,10 +56,13 @@ class RepositoryStatus:
 # Read-only inspection must not refresh the index: that takes index.lock and can
 # collide with an editor, hook, or agent writing the same repository.
 _STATUS = ("--no-optional-locks", "status", "--porcelain")
+# One porcelain v2 call reports branch, upstream, divergence, and changes for `dot status`.
+_STATUS_BRANCH = ("--no-optional-locks", "status", "--porcelain=v2", "--branch")
 _GIT_ROOT_TIMEOUT_SECONDS = 30
-# Status reads only local refs; it needs no network allowance like pull.timeout_seconds.
+# Status reads only local refs; fetch and pull get the larger network allowance.
 _STATUS_TIMEOUT_SECONDS = 30
-DirtyPolicy = Literal["skip", "allow"]
+_PULL_TIMEOUT_SECONDS = 120.0
+_PULL_CONCURRENCY = 8
 # Concurrent workers fail fast instead of waiting on a terminal or askpass credential prompt.
 _GIT_ENVIRONMENT = {"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "", "SSH_ASKPASS_REQUIRE": "never"}
 # Ordered classification of git stderr into stable causes that never echo remote output.
@@ -233,8 +236,6 @@ def _pull_repository(
     path: Path,
     push: bool,
     timeout: float,
-    *,
-    dirty_policy: DirtyPolicy = "skip",
 ) -> RepoResult:
     deadline = monotonic() + timeout
     branch = ""
@@ -246,7 +247,7 @@ def _pull_repository(
     try:
         branch = _branch(state, path, deadline)
         dirty = _dirty(state, path, deadline)
-        if dirty and dirty_policy == "skip":
+        if dirty:
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         _fetch(state, path, deadline)
         try:
@@ -257,8 +258,9 @@ def _pull_repository(
             return RepoResult(path=path, branch=branch, dirty=dirty, no_upstream=True)
         behind_raw = git(["rev-list", "--count", "HEAD..@{u}"])
         behind = _count(behind_raw, "behind")
-        # Fetch once, then fast-forward the upstream snapshot inspected above.
-        git(["merge", "--ff-only", "@{u}"])
+        # Fetch once, then fast-forward the upstream snapshot inspected above; nothing to merge when current.
+        if behind:
+            git(["merge", "--ff-only", "@{u}"])
         ahead = _count(git(["rev-list", "--count", "@{u}..HEAD"]), "ahead")
         pushed = False
         push_error = ""
@@ -292,7 +294,6 @@ def run_pull(
     paths: Sequence[Path] = (),
     dry_run: bool = False,
     as_json: bool = False,
-    dirty_policy: DirtyPolicy = "skip",
 ) -> list[RepoResult]:
     """Fetch and fast-forward configured repositories concurrently."""
     require_tools(state, [["git"]])
@@ -302,13 +303,12 @@ def run_pull(
             "schema": "dot.pull.plan/v1",
             "remote_state": "not refreshed",
             "push": push,
-            "dirty_policy": dirty_policy,
             "repositories": [str(path) for path in repositories],
         }
         if as_json:
             write_json(state.stdout, plan)
         else:
-            state.stdout.write(f"Pull plan (no fetch or changes): dirty={dirty_policy}, push={push}\n")
+            state.stdout.write(f"Pull plan (no fetch or changes): push={push}\n")
             for path in repositories:
                 state.stdout.write(f"  {path}\n")
         return []
@@ -318,12 +318,11 @@ def run_pull(
         else:
             state.stdout.write("No git repositories found in configured pull directories.\n")
         return []
-    timeout = state.config.pull.timeout_seconds
     results = run_parallel(
         state.runner,
-        lambda path: _pull_repository(state, path, push, timeout, dirty_policy=dirty_policy),
+        lambda path: _pull_repository(state, path, push, _PULL_TIMEOUT_SECONDS),
         repositories,
-        state.config.pull.concurrency,
+        _PULL_CONCURRENCY,
     )
     if as_json:
         write_json(
@@ -364,21 +363,41 @@ def run_pull(
     return results
 
 
+def _branch_status(state: State, path: Path, deadline: float) -> tuple[str, bool, str, int, int]:
+    """Return branch, dirty state, upstream, ahead, and behind from one porcelain v2 status."""
+    branch = upstream = ""
+    counts: list[str] | None = None
+    dirty = False
+    for line in _git(state, path, _STATUS_BRANCH, deadline).splitlines():
+        if not line.startswith("# "):
+            dirty = dirty or bool(line.strip())
+            continue
+        key, _, value = line[2:].partition(" ")
+        if key == "branch.head":
+            branch = value.strip()
+        elif key == "branch.upstream":
+            upstream = value.strip()
+        elif key == "branch.ab":
+            counts = value.split()
+    if not branch:
+        raise DotError("failed to parse branch status")
+    if branch == "(detached)":
+        branch = _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
+    # Git omits branch.ab when the configured upstream ref is gone: report no upstream, as pull does.
+    if counts is None:
+        return branch, dirty, "", 0, 0
+    if len(counts) != 2 or not counts[0].startswith("+") or not counts[1].startswith("-"):
+        raise DotError("failed to parse upstream counts")
+    return branch, dirty, upstream, _count(counts[0][1:], "upstream"), _count(counts[1][1:], "upstream")
+
+
 def _repository_status(state: State, path: Path, *, fetch: bool = False) -> RepositoryStatus:
     # Fetching contacts the remote, so it gets the network allowance that pull uses.
-    deadline = monotonic() + (state.config.pull.timeout_seconds if fetch else _STATUS_TIMEOUT_SECONDS)
+    deadline = monotonic() + (_PULL_TIMEOUT_SECONDS if fetch else _STATUS_TIMEOUT_SECONDS)
     try:
         if fetch:
             _fetch(state, path, deadline)
-        branch = _branch(state, path, deadline)
-        dirty = _dirty(state, path, deadline)
-        upstream = _upstream(state, path, deadline)
-        ahead = behind = 0
-        if upstream:
-            counts = _git(state, path, ["rev-list", "--left-right", "--count", "HEAD...@{u}"], deadline).split()
-            if len(counts) != 2:
-                raise DotError("failed to parse upstream counts")
-            ahead, behind = (_count(value, "upstream") for value in counts)
+        branch, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
         git_directory = _git(state, path, ["rev-parse", "--absolute-git-dir"], deadline).strip()
         if not git_directory:
             raise DotError("Git returned an empty metadata directory")
@@ -420,7 +439,7 @@ def gather_status(state: State, paths: Sequence[Path] = (), *, fetch: bool = Fal
         state.runner,
         lambda path: _repository_status(state, path, fetch=fetch),
         repositories,
-        state.config.pull.concurrency,
+        _PULL_CONCURRENCY,
     )
 
 
@@ -485,11 +504,8 @@ def pull_command(
         bool, typer.Option("--dry-run", help="List targets without fetching or changing repositories")
     ] = False,
     as_json: JsonOption = False,
-    dirty: Annotated[
-        DirtyPolicy, typer.Option("--dirty", help="Dirty worktrees: skip (default) or allow fast-forward")
-    ] = "skip",
 ) -> None:
-    run_pull(state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json, dirty_policy=dirty)
+    run_pull(state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json)
 
 
 def status_command(

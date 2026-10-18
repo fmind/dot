@@ -22,13 +22,10 @@ from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     DUPLICATE_GUIDANCE,
     context_report,
-    estimated_tokens,
-    skill_index_entry,
 )
 from fmind_dot.errors import DotError
 
 MAX_DESCRIPTION = 180
-MAX_DESCRIPTION_AVERAGE = 100
 MAX_NAME = 64
 MAX_SKILL_BYTES = 1 << 20
 MAX_SKILL_LINES = 500
@@ -455,70 +452,6 @@ def repository_findings(root: Path) -> list[str]:
     return sorted(set(findings))
 
 
-def _render_global_index(descriptions: dict[str, str]) -> str:
-    """Use a stable display path so moving a checkout cannot change its budget."""
-    return "".join(skill_index_entry(name, description, "global") for name, description in sorted(descriptions.items()))
-
-
-def catalog_report(root: Path, *, details: bool = True) -> str:
-    """Report reproducible discovery cost without claiming provider token counts."""
-    root = root.resolve()
-    discovered, _ = _discover_skills(root)
-    every = _descriptions(root)
-    descriptions = {name: text for name, text in every.items() if discovered[name].parent.parent == root / "skills"}
-    index_size = len(_render_global_index(descriptions))
-    local_descriptions = {
-        name: text for name, text in every.items() if discovered[name].parent.parent == root / ".agents/skills"
-    }
-    local_size = sum(
-        len(skill_index_entry(name, description, "local")) for name, description in local_descriptions.items()
-    )
-    startup = context_report(root, source=root)["budgets"]
-    average = sum(map(len, descriptions.values())) / len(descriptions) if descriptions else 0.0
-    kinds = dict.fromkeys(sorted(SKILL_KINDS), 0)
-    members: dict[str, list[str]] = {kind: [] for kind in sorted(SKILL_KINDS)}
-    costs: list[str] = []
-    guide_costs: list[tuple[int, str]] = []
-    for name, path in sorted(discovered.items()):
-        metadata, body, _ = _frontmatter(path, root)
-        if metadata is None:
-            continue
-        kind = metadata.get("metadata", {}).get("kind")
-        if kind in kinds:
-            kinds[kind] += 1
-            members[kind].append(name)
-        tokens = estimated_tokens(len(body))
-        target = 600 if kind == "collection" else 1_500
-        if tokens > target:
-            costs.append(f"- {name}: {tokens} body tokens; consider the {target}-token authoring target")
-        for guide in _guides(path.parent):
-            label = f"{name}/{guide.stem if guide.name != 'GUIDE.md' else guide.parent.name}"
-            guide_costs.append((estimated_tokens(len(path.read_text()) + len(guide.read_text())), label))
-    selected_costs = sorted(guide_costs, reverse=True)
-    if not details:
-        selected_costs = selected_costs[:5]
-    costs.extend(f"- {label}: {tokens} tokens for parent + guide" for tokens, label in selected_costs)
-    discovery = estimated_tokens(index_size + local_size)
-    classification = "".join(f"- {kind}: {', '.join(names)}\n" for kind, names in members.items()) if details else ""
-    return (
-        f"Global skills: {len(descriptions)}; local skills: {len(local_descriptions)}\n"
-        f"Kinds (both scopes): {kinds}\n"
-        + classification
-        + f"Global description average: {average:.1f} characters (advisory target: {MAX_DESCRIPTION_AVERAGE})\n"
-        f"Global skill index: {index_size} characters "
-        "(names, descriptions, and portable paths)\n"
-        f"Combined estimated index tokens: {discovery} (informational) "
-        "(characters / 4; not host tokenization or billing)\n"
-        f"Global AGENTS.md + skill discovery: {startup['global']['estimated_tokens']} / <{CONTEXT_TOKEN_LIMIT} "
-        "estimated tokens\n"
-        f"Local AGENTS.md + skill discovery: {startup['local']['estimated_tokens']} / <{CONTEXT_TOKEN_LIMIT} "
-        "estimated tokens\n"
-        "Full breakdown: dot agent context --source . --project .\n"
-        f"On-demand paths ({'all' if details else 'five largest'}; estimates exclude resources and runtime output):\n"
-        + "\n".join(costs)
-    )
-
-
 def _descriptions(root: Path) -> dict[str, str]:
     descriptions: dict[str, str] = {}
     discovered, _ = _discover_skills(root)
@@ -531,14 +464,8 @@ def _descriptions(root: Path) -> dict[str, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", action="store_true", help="print informational catalog and load estimates")
-    parser.add_argument("--details", action="store_true", help="include category members and every guide cost")
     parser.add_argument("--sync", action="store_true", help="refresh marked guide indexes from guide metadata")
     args = parser.parse_args()
-    if args.details and not args.report:
-        parser.error("--details requires --report")
-    if args.sync and args.report:
-        parser.error("choose --sync or --report")
     root = Path(__file__).resolve().parents[2]
     if args.sync:
         discovered, errors = _discover_skills(root)
@@ -559,12 +486,7 @@ def main() -> int:
         for finding in findings:
             sys.stderr.write(f"error: {finding}\n")
         return 1
-    if args.report:
-        sys.stdout.write(f"{catalog_report(root, details=args.details)}\n")
-        if not args.details:
-            sys.stdout.write("Use mise run report:skills -- --details for category members and every guide cost.\n")
-    else:
-        sys.stdout.write(f"Validated {len(_descriptions(root))} first-party skills.\n")
+    sys.stdout.write(f"Validated {len(_descriptions(root))} first-party skills.\n")
     return 0
 
 
