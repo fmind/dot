@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [12.0.0] - 2026-10-18
+
+### 🚀 Features
+
+- _(agents)_ [**breaking**] Drop shared subagent roles and the Supagents compiler
+- _(dot)_ [**breaking**] Speed up usage reports and simplify the CLI
+
+### 🐛 Bug Fixes
+
+- _(lazygit)_ Keep delta diffs readable in narrow panes
+- _(mise)_ Hold Mermaid CLI during lock upgrades
+
+### ♻️ Refactor
+
+- _(config)_ Merge config templates and drop default settings
+
+### 📚 Documentation
+
+- _(skills)_ Refresh Zensical, Antigravity, and official skill references
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade workstation tools and editor plugins
+
 ## [11.6.0] - 2026-10-17
 
 ### 🚀 Features
