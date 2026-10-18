@@ -14,6 +14,7 @@
   would also mutate $current and the drift check could never fire.
 */ -}}
 {{- $format := get . "format" | default "json" -}}
+{{- if not (has $format (list "json" "jsonc" "toml")) }}{{ fail (printf "unsupported config format %q" $format) }}{{ end -}}
 {{- $current := dict -}}
 {{- if ne (trim .stdin) "" -}}
   {{- if eq $format "toml" }}{{ $current = fromToml .stdin }}{{ else if eq $format "jsonc" }}{{ $current = fromJsonc .stdin }}{{ else }}{{ $current = fromJson .stdin }}{{ end -}}
