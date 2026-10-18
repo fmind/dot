@@ -9,9 +9,8 @@ end
 
 local opt = vim.opt
 
--- Enable soft wrapping
+-- Enable soft wrapping (LazyVim already breaks lines at word boundaries)
 opt.wrap = true
-opt.linebreak = true
 
 -- Scroll offset context
 opt.scrolloff = 15

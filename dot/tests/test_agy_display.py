@@ -114,7 +114,7 @@ def test_managed_config_preserves_host_preferences_and_is_repeatable(tmp_path: P
     source = tmp_path / "source"
     templates = source / ".chezmoitemplates"
     templates.mkdir(parents=True)
-    shutil.copyfile(ROOT / ".chezmoitemplates/json-merge.tmpl", templates / "json-merge.tmpl")
+    shutil.copyfile(ROOT / ".chezmoitemplates/config-merge.tmpl", templates / "config-merge.tmpl")
     template = tmp_path / "settings.tmpl"
     template.write_text(
         (ROOT / "dot_gemini/antigravity-cli/modify_private_settings.json").read_text().split("\n", 1)[1]

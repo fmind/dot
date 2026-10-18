@@ -30,12 +30,10 @@ mouse-scroll-multiplier = precision:0.0625,discrete:0.25
 mouse-scroll-multiplier = precision:0.25,discrete:1
 {{- end }}
 
-# Performance Improvements
+# Behavior
 cursor-style-blink = false
 mouse-hide-while-typing = true
 resize-overlay = never
-quick-terminal-animation-duration = 0
-custom-shader-animation = false
 {{- if eq .chezmoi.os "linux" }}
 gtk-single-instance = true
 linux-cgroup = never

@@ -7,7 +7,6 @@ target-version = "py314"
 [format]
 docstring-code-format = true
 line-ending = "lf"
-quote-style = "double"
 
 [lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "PTH", "PERF", "RUF"]

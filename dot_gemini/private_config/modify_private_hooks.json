@@ -23,4 +23,4 @@
 {{-   $command := printf "%s %s" $agyContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
 {{-   $_ := set $managedConfig "brain-context" (fromJson (printf `{"PreInvocation": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command))) -}}
 {{- end -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
