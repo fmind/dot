@@ -110,6 +110,27 @@ def test_refresh_uses_portable_source_and_isolated_config(
     bundle(source / "mise.lock")
 
 
+def test_bump_names_every_tool_except_the_held_ones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = tmp_path / "repository"
+    write_bundle(root / "dot_config/mise")
+    commands: list[list[str]] = []
+
+    def run(args: list[str], *, env: dict[str, str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(args)
+        write_bundle(Path(env["MISE_CONFIG_DIR"]))
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(mise_refresh, "HELD_TOOLS", frozenset({"native", "absent"}))
+    mise_refresh.refresh(root, bump=True)
+    mise_refresh.refresh(root)
+
+    assert commands == [
+        ["mise", "lock", "--global", "--yes", "--bump", "pipx:example", "linux_only"],
+        ["mise", "lock", "--global", "--yes"],
+    ]
+
+
 @pytest.mark.parametrize("failure", ["command", "missing_tool", "missing_platform", "missing_graph", "digest"])
 def test_refresh_failure_preserves_the_managed_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
