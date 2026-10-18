@@ -278,7 +278,7 @@ def test_parser_upgrade_retains_an_older_parser_measurement(
     assert outcome.retained == 1
     manifest = store.read_session_manifest(bundle)
     assert (manifest.parser_version, manifest.usage_parser_version) == (store.SESSION_PARSER_VERSION, "9")
-    assert manifest.usage == json.loads(before.split(b"\n", 1)[0])["usage"]
+    assert manifest.usage == json.loads(before.split(b"\n")[1])
     [record] = load_usage_records()
     assert (record.input_tokens, record.legacy_accounting) == (100, False)
     republished = bundle.read_bytes()

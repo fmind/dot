@@ -57,6 +57,8 @@ def _write_bundle(home: Path, header: dict[str, object] | bytes, transcript: byt
     path = home / ".agents/sessions/v3/codex/session-1.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     content = header if isinstance(header, bytes) else (json.dumps(header) + "\n").encode()
+    if isinstance(header, dict) and header.get("schema_version") != 3:
+        content += b"null\n"  # schema 4: the usage line precedes the records
     path.write_bytes(content + transcript)
     return path
 
@@ -196,7 +198,7 @@ def test_bundle_content_is_compact_native_utf8(monkeypatch: pytest.MonkeyPatch, 
     content = session_bundle_path("agy", "unicode").read_bytes()
 
     assert "café <ok>\u2028".encode() in content
-    assert content.count(b"\n") == 2
+    assert content.count(b"\n") == 3  # manifest, usage, and one record
     assert read_session_bundle(session_bundle_path("agy", "unicode"))[1][0].content == "café <ok>\u2028"
 
 
@@ -282,7 +284,9 @@ def test_corrupt_stored_bundle_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp
         ({"session_id": "../escape"}, "invalid session manifest identity"),
         ({"record_count": True}, "invalid manifest field record_count"),
         ({"malformed_records": -1}, "invalid manifest field malformed_records"),
-        ({"usage": []}, "invalid manifest field usage"),
+        ({"schema_version": 3, "usage": []}, "invalid manifest field usage"),
+        # Schema 4 publishes usage on its own line, never inside the manifest.
+        ({"usage": {}}, "invalid session manifest"),
     ],
 )
 def test_manifest_rejects_invalid_fields(change: dict[str, object], match: str) -> None:

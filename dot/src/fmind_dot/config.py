@@ -6,12 +6,9 @@ import copy
 import os
 from pathlib import Path
 from typing import Annotated, Any, Literal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
 
 class StrictModel(BaseModel):
@@ -104,7 +101,6 @@ class CompletionConfig(StrictModel):
     # None selects every custom_commands entry, so adding one never also needs a tools edit;
     # an explicit list narrows the selection or adds tools using `<tool> completion fish`.
     tools: list[ToolName] | None = None
-    timeout_seconds: Seconds = 60.0
 
     @property
     def selected_tools(self) -> list[str]:
@@ -113,8 +109,6 @@ class CompletionConfig(StrictModel):
 
 class PullConfig(StrictModel):
     directories: list[str] = Field(default_factory=lambda: ["~/fmind", "~/fmind-ai", "~/mlops-courses"])
-    timeout_seconds: Seconds = 120.0
-    concurrency: int = Field(default=8, gt=0)
 
 
 # GitHub account and organization names: alphanumeric runs joined by single hyphens.
@@ -150,20 +144,6 @@ def default_pricing() -> PricingConfig:
     return PricingConfig.model_validate(yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text()))
 
 
-class SubscriptionConfig(StrictModel):
-    renewal_day: int = Field(ge=1, le=31)
-    timezone: str = "UTC"
-    monthly_usd: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
-
-    @model_validator(mode="after")
-    def valid_timezone(self) -> SubscriptionConfig:
-        try:
-            ZoneInfo(self.timezone)
-        except (ZoneInfoNotFoundError, ValueError) as error:
-            raise ValueError("subscription timezone must be an IANA timezone such as Europe/Paris") from error
-        return self
-
-
 class AgentConfig(StrictModel):
     sources: dict[str, str] = Field(
         default_factory=lambda: {
@@ -176,27 +156,13 @@ class AgentConfig(StrictModel):
         }
     )
     pricing: PricingConfig = Field(default_factory=default_pricing)
-    subscriptions: dict[str, SubscriptionConfig] = Field(default_factory=dict)
-
-
-class EnvVarsConfig(StrictModel):
-    required: list[str] = Field(default_factory=list)
-    optional: list[str] = Field(
-        default_factory=lambda: [
-            "GWS_PROJECT",
-            "ANTIGRAVITY_CLOUD_PROJECT",
-            "ANTIGRAVITY_CLOUD_LOCATION",
-        ]
-    )
 
 
 class SecretConfig(StrictModel):
     path: str
-    required_perms: int = Field(default=0o600, ge=0, le=0o777)
 
 
 class DoctorConfig(StrictModel):
-    env_vars: EnvVarsConfig = Field(default_factory=EnvVarsConfig)
     tools: list[str] = Field(
         default_factory=lambda: [
             "age",
@@ -229,9 +195,8 @@ class DoctorConfig(StrictModel):
             "uv",
         ]
     )
+    # Each secret must exist with owner-only permissions (0600 or stricter).
     secrets: list[SecretConfig] = Field(default_factory=lambda: [SecretConfig(path="~/.config/chezmoi/key.txt")])
-    probe_timeout_seconds: Seconds = 45.0
-    probe_concurrency: int = Field(default=8, gt=0)
 
 
 # Policy values are data; native command arguments and safety boundaries stay in code.
@@ -387,7 +352,6 @@ class AuthConfig(StrictModel):
     # Providers that a bare `dot login` reconciles on this machine; credential lifetimes differ per
     # machine and account policy, so each machine lists only the providers it uses.
     login: Annotated[list[LoginProvider], Field(min_length=1)] = ["github", "gcp", "workspace"]
-    probe_timeout_seconds: Seconds = 45.0
 
 
 class CacheConfig(StrictModel):

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-10-12"
+  updated: "2026-10-18"
 ---
 
 # Dot CLI
@@ -27,6 +27,7 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 - [authentication](references/authentication.md): Inspect and apply configured provider login, OAuth scopes, and account policy.
 - [context](references/context.md): Measure discovery and instruction budgets in source or installed skill catalogs.
 - [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and session archive compatibility.
+- [daily-workflows](references/daily-workflows.md): Run repository status and pull, folder trust, session sync and statistics, cleanup, and Fish completions.
 - [disk-space](references/disk-space.md): Audit workstation disk headroom, cache growth and shared tool versions before large downloads or builds.
 - [operations](references/operations.md): Inspect repositories, diagnose workstation health, and manage session archives with dot.
 - [orphans](references/orphans.md): Find files chezmoi deployed but no longer manages, then decide per path whether to keep, remove, or forget them.
@@ -40,6 +41,5 @@ Use [conventional-commit](../git-delivery/references/conventional-commit.md) for
 ## Documentation
 
 - [fmind/dot](https://github.com/fmind/dot) — setup, implementation, and repository tasks.
-- [Daily workflows](references/daily-workflows.md) — command examples for repositories, sessions and statistics, cleanup, publication, and completions.
 - Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
 - Companion skills: [agent-usage](../agent-usage/SKILL.md) (usage and cost reports), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

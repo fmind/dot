@@ -262,6 +262,19 @@ def test_malformed_manifest_error_includes_path_and_cause(monkeypatch: pytest.Mo
     assert "Expecting property name" in str(failure.value)
 
 
+def test_agent_and_identity_filters_skip_unrelated_manifests(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _ingest("codex", "wanted")
+    _ingest("claude", "wanted")
+    _ingest("codex", "broken").write_text("{broken\n", encoding="utf-8")
+
+    assert [item.agent for item in discover_sessions(identity="wanted")] == ["claude", "codex"]
+    assert show_session(SessionQuery(agent="codex", identity="wanted")).agent == "codex"
+    # Unscoped and agent-wide queries still read the broken manifest and fail closed.
+    with pytest.raises(ValueError, match="invalid session manifest"):
+        query_session_summaries(SessionQuery(agent="codex"))
+
+
 def test_time_filter_excludes_non_rfc3339_manifest_timestamp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     path = _ingest("codex", "bad-time")

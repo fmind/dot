@@ -240,7 +240,7 @@ def test_main_reports_invalid_config_with_path_and_repair_command(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     invalid = tmp_path / "invalid.yaml"
-    invalid.write_text("pull:\n  concurrency: lots\n", encoding="utf-8")
+    invalid.write_text("pull:\n  directories: lots\n", encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["dot", "--config", str(invalid), "doctor"])
 
     with pytest.raises(SystemExit) as exit_info:
@@ -248,7 +248,7 @@ def test_main_reports_invalid_config_with_path_and_repair_command(
 
     captured = capsys.readouterr()
     assert exit_info.value.code == 1
-    assert f"dot: invalid config file at {invalid} (1 validation error(s)): pull.concurrency:" in captured.err
+    assert f"dot: invalid config file at {invalid} (1 validation error(s)): pull.directories:" in captured.err
     assert "fix it with: dot config edit" in captured.err
     assert "lots" not in captured.err
 
@@ -280,7 +280,7 @@ def test_main_reports_malformed_explicit_yaml_without_traceback(
     "content",
     [
         "api_token: SYNTHETIC_PRIVATE_VALUE\n",
-        "pull:\n  timeout_seconds: SYNTHETIC_PRIVATE_VALUE\n",
+        "pull:\n  directories: SYNTHETIC_PRIVATE_VALUE\n",
         "auth: !SYNTHETIC_PRIVATE_VALUE {}\n",
     ],
 )
@@ -311,15 +311,15 @@ def test_config_repair_commands_accept_an_explicit_missing_path(tmp_path: Path) 
 
 def test_config_show_prints_the_effective_round_trippable_yaml(tmp_path: Path) -> None:
     path = tmp_path / "dot.yaml"
-    path.write_text("pull:\n  concurrency: 3\n", encoding="utf-8")
+    path.write_text("trust:\n  github_owners: [example]\n", encoding="utf-8")
 
     result = runner.invoke(app, ["--config", str(path), "config", "show"])
 
     assert result.exit_code == 0
     rendered = yaml.safe_load(result.stdout)
-    assert rendered["pull"]["concurrency"] == 3
+    assert rendered["trust"]["github_owners"] == ["example"]
     assert rendered["pull"]["directories"] == ["~/fmind", "~/fmind-ai", "~/mlops-courses"]
-    assert rendered["doctor"]["probe_concurrency"] == 8
+    assert "git" in rendered["doctor"]["tools"]
 
 
 def test_config_path_expands_the_current_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -349,7 +349,7 @@ def test_config_edit_opens_the_selected_editor_and_validates(
 
     def interactive(_self: Runner, arguments: Sequence[str], **_kwargs: object) -> int:
         calls.append(list(arguments))
-        Path(arguments[-1]).write_text("pull:\n  concurrency: 2\n", encoding="utf-8")
+        Path(arguments[-1]).write_text("trust:\n  github_owners: [example]\n", encoding="utf-8")
         return 0
 
     monkeypatch.setenv("EDITOR", editor)

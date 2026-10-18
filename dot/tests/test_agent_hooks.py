@@ -29,18 +29,10 @@ def state_with(
     return state
 
 
-@pytest.fixture(autouse=True)
-def no_live_terminal_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(agent_module, "notification_title", lambda _runner: "")
-
-
 def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "work")
-    monkeypatch.setenv("ZELLIJ_PANE_ID", "7")
-    monkeypatch.setattr(agent_module, "notification_title", lambda _runner: "Fix notifications")
     captured: list[Notification] = []
 
     def capture(_state: State, notification: Notification) -> None:
@@ -55,13 +47,7 @@ def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest
     )
 
     assert result.exit_code == 0
-    assert captured == [
-        Notification(
-            "⏳ Claude Code · project",
-            "Needs your input",
-            ("Fix notifications",),
-        )
-    ]
+    assert captured == [Notification("⏳ Claude Code · project", "Needs your input")]
 
 
 @pytest.mark.parametrize("agent", ["codex", "claude", "grok", "agy", "copilot"])
@@ -217,7 +203,7 @@ def test_deeply_nested_hook_payload_exits_zero(monkeypatch: pytest.MonkeyPatch, 
 def test_notification_commands_cover_linux_fallback_and_darwin_escaping() -> None:
     linux = hooks.notification_command(
         ScriptedRunner({"gdbus"}),
-        hooks.Notification("Done", "Turn finished", ("~/dot",)),
+        hooks.Notification("Done", "Turn finished"),
         system="linux",
     )
     assert linux[0] == "gdbus"
@@ -225,12 +211,12 @@ def test_notification_commands_cover_linux_fallback_and_darwin_escaping() -> Non
 
     darwin = hooks.notification_command(
         ScriptedRunner(),
-        hooks.Notification('Done "now"', "Turn finished", (r"~/a\b",)),
+        hooks.Notification('Done "now"', r"Turn \finished"),
         system="darwin",
     )
     assert darwin[0:2] == ["osascript", "-e"]
     assert r"Done \"now\"" in darwin[2]
-    assert r"~/a\\b" in darwin[2]
+    assert r"Turn \\finished" in darwin[2]
 
 
 def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -> None:
@@ -246,12 +232,8 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
         in hooks.notification_command(ScriptedRunner(), minimal, system="darwin")[2]
     )
 
-    session_only = hooks.build_notification(
-        "codex",
-        "stop",
-        tmp_path / "outside",
-    )
-    assert session_only.details == ()
+    session_only = hooks.build_notification("codex", "stop", tmp_path / "outside")
+    assert session_only == hooks.Notification("✅ Codex · outside", "Your turn")
 
     with pytest.raises(DotError, match="unsupported on plan9"):
         hooks.notification_command(ScriptedRunner(), minimal, system="plan9")
@@ -319,61 +301,11 @@ def test_notification_dispatch_skips_missing_desktop_service(monkeypatch: pytest
     assert "notification skipped: no desktop notification service" in state.stderr.getvalue()
 
 
-def _zellij_pane(monkeypatch: pytest.MonkeyPatch, pane: str) -> None:
-    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "work")
-    monkeypatch.setenv("ZELLIJ_PANE_ID", pane)
-
-
-@pytest.mark.parametrize(
-    ("output", "expected"),
-    [
-        ('[{"id":7,"is_plugin":false,"title":"Fix notifications"}]', "Fix notifications"),
-        ('[{"id":7,"is_plugin":false,"title":"[ . ] Working | Fix hooks | dot"}]', "Fix hooks"),
-        ('[{"id":8,"is_plugin":false,"title":"Other task"}]', ""),
-        ('[{"id":7,"is_plugin":true,"title":"Plugin"}]', ""),
-        ('[{"id":7,"is_plugin":false,"title":null}]', ""),
-        ('{"panes":[]}', ""),
-        ("invalid JSON", ""),
-    ],
-)
-def test_notification_title_uses_only_originating_terminal(
-    monkeypatch: pytest.MonkeyPatch, output: str, expected: str
-) -> None:
-    _zellij_pane(monkeypatch, "7")
-    runner = ScriptedRunner({"zellij"}, run=lambda *_args: CommandResult(output, "", 0))
-    assert hooks.notification_title(runner) == expected
-
-
-@pytest.mark.parametrize("failure", ["timeout", "exited"])
-def test_notification_title_failure_keeps_plain_notification(monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
-    _zellij_pane(monkeypatch, "7")
-
-    def run(*_args: object) -> CommandResult:
-        if failure == "timeout":
-            raise DotError("command timed out: zellij")
-        return CommandResult("[]", "", int(failure == "exited"))
-
-    runner = ScriptedRunner({"zellij"}, run=run)
-    assert hooks.notification_title(runner) == ""
-    assert hooks.build_notification("codex", "stop", Path("/work/project")).details == ()
-
-
-@pytest.mark.parametrize("pane", ["", "terminal_7", "-1", "\uff17"])
-def test_notification_title_skips_unavailable_origin(monkeypatch: pytest.MonkeyPatch, pane: str) -> None:
-    _zellij_pane(monkeypatch, pane)
-    runner = ScriptedRunner({"zellij"})
-    assert hooks.notification_title(runner) == ""
-    assert runner.calls == []
-
-
 def test_notification_text_is_short_and_has_no_terminal_controls() -> None:
-    notification = hooks.build_notification(
-        "codex", "stop", Path("/work/project"), title="\x1b[31mFix\n hooks\x1b[0m\x00"
-    )
-    assert notification.details == ("Fix hooks",)
-    long = hooks.build_notification("codex", "stop", None, title="x" * 100)
-    assert long.details == ("x" * 79 + "…",)
-    assert hooks.build_notification("codex", "stop", Path("/work/project"), title="project").details == ()
+    notification = hooks.build_notification("codex", "stop", Path("/work/\x1b[31mFix\n hooks\x1b[0m\x00"))
+    assert notification.summary == "✅ Codex · Fix hooks"
+    long = hooks.build_notification("codex", "stop", Path("/work") / ("x" * 100))
+    assert long.summary == "✅ Codex · " + "x" * 79 + "…"
 
 
 @pytest.mark.parametrize("agent", ["codex", "claude", "grok", "agy", "copilot"])
@@ -381,21 +313,19 @@ def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: p
     monkeypatch.setattr(hooks.platform, "system", lambda: "Darwin")
     monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
     runner = ScriptedRunner()
-    notification = hooks.build_notification(agent, "stop", Path("/work/project"), title='Fix "quoted" paths')
+    notification = hooks.build_notification(agent, "stop", Path('/work/"quoted"'))
     hooks.send_notification(state_with(runner), notification)
     assert len(runner.calls) == 1
     assert runner.calls[0][:2] == ["osascript", "-e"]
-    assert 'subtitle "Your turn"' in runner.calls[0][2]
-    assert r"Fix \"quoted\" paths" in runner.calls[0][2]
-    assert "Zellij" not in runner.calls[0][2]
-    assert "pane" not in runner.calls[0][2]
+    assert 'display notification "Your turn"' in runner.calls[0][2]
+    assert r"\"quoted\"" in runner.calls[0][2]
 
 
-def test_linux_notification_renders_title_as_text_without_actions() -> None:
-    notification = hooks.build_notification("codex", "stop", Path("/work/project"), title="Fix <hooks> & tests")
+def test_linux_notification_renders_body_as_text_without_actions() -> None:
+    notification = hooks.Notification("Done", "Fix <hooks> & tests")
     for installed in ({"notify-send", "gdbus"}, {"gdbus"}):
         command = hooks.notification_command(ScriptedRunner(installed), notification, system="linux")
-        assert "Your turn\nFix &lt;hooks&gt; &amp; tests" in command
+        assert "Fix &lt;hooks&gt; &amp; tests" in command
         if command[0] == "gdbus":
             assert "@as []" in command
         else:
@@ -405,7 +335,7 @@ def test_linux_notification_renders_title_as_text_without_actions() -> None:
 def test_notification_command_prefers_notify_send() -> None:
     runner = ScriptedRunner({"notify-send", "gdbus"})
 
-    command = notification_command(runner, Notification("Done", "Turn finished", ("~/dot",)), system="linux")
+    command = notification_command(runner, Notification("Done", "Turn finished"), system="linux")
 
     assert command[0] == "notify-send"
-    assert command[-2:] == ["Done", "Turn finished\n~/dot"]
+    assert command[-2:] == ["Done", "Turn finished"]

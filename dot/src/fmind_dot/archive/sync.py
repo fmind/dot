@@ -4,20 +4,24 @@ import json
 import re
 import sqlite3
 import stat
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
 from fmind_dot.archive.parsers import AGENT_ADAPTERS, AgentAdapter, ParsedSession, resolve_cwd
 from fmind_dot.archive.store import (
+    BUNDLE_SUFFIX,
     SESSION_PARSER_VERSION,
     SessionIngestionResult,
     SessionManifest,
     SessionSource,
     ingest_session,
+    is_valid_session_id,
     read_session_manifest,
     report_ingestion,
     session_store_root,
+    upgrade_session_bundle,
 )
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
@@ -34,6 +38,7 @@ SYNC_STATE_SCHEMA = "dot.agent.session.sync-state/v1"
 FAILURE_DETAIL_LIMIT = 512
 _UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 _SESSION_ERRORS = (OSError, ValueError, TypeError, sqlite3.Error, DotError)
+_SCHEMA_3_PREFIX = re.compile(rb'\{\s*"schema_version"\s*:\s*3\s*,')
 
 
 @dataclass
@@ -116,13 +121,33 @@ def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
         if path.suffix != ".jsonl":
             continue
         try:
-            manifest = read_session_manifest(path)
+            manifest = read_session_manifest(path, usage=False)
         except OSError, ValueError:
             # Publication reports the unreadable bundle for this session instead of skipping it.
             continue
         # Keep only capture metadata in memory, not every session's request samples.
         stored[manifest.session_id] = replace(manifest, usage=None)
     return stored
+
+
+def _upgrade_bundles(root: Path, adapter: AgentAdapter, fail: Callable[..., None]) -> None:
+    directory = root / adapter.name
+    try:
+        paths = sorted(directory.iterdir())
+    except OSError:
+        # Absent needs nothing; the archive inspection that follows reports an unreadable one once.
+        return
+    for path in paths:
+        if path.suffix != BUNDLE_SUFFIX or not is_valid_session_id(path.stem):
+            continue
+        try:
+            # Peek at the version without decoding: a schema 3 manifest line holds every usage sample.
+            with path.open("rb") as stream:
+                legacy = _SCHEMA_3_PREFIX.match(stream.read(64)) is not None
+            if legacy:
+                upgrade_session_bundle(path)
+        except _SESSION_ERRORS as error:
+            fail(adapter, "upgrade session bundle", error, path.stem)
 
 
 def _capture(
@@ -165,12 +190,13 @@ def _stable_parse(
     """Parse a source that stayed unchanged throughout, returning it with that source signature.
 
     A file source starts from the signature its skip decision used; an agent still writing gets one retry.
+    A database parse reads one SQLite transaction snapshot, so a running agent writing other sessions
+    cannot tear it; the pass-wide checkpoint, not this parse, must observe database changes.
     """
+    if adapter.database:
+        return adapter.parser(path, session_id, cwd), signature
     for attempt in range(2):
-        # SQLite has a shared checkpoint, but each parse needs its own stable snapshot.
-        observed = (
-            signature if not (adapter.database or attempt) else _source_signature(_source_files(adapter, path))[0]
-        )
+        observed = signature if not attempt else _source_signature(_source_files(adapter, path))[0]
         parsed = adapter.parser(path, session_id, cwd)
         if _source_signature(_source_files(adapter, path))[0] == observed:
             return parsed, observed
@@ -230,8 +256,13 @@ def sync_sessions(
     dry_run: bool = False,
     as_json: bool = False,
     quiet: bool = False,
+    verbose: bool = False,
 ) -> SyncOutcome:
-    """Capture changed sessions; quiet mode reports only failures and never raises for them."""
+    """Capture changed sessions; quiet mode reports only failures and never raises for them.
+
+    Progress names each retained session, which needs attention, but only verbose mode lists
+    every ingested one: a parser bump recaptures thousands, which would flood an agent's context.
+    """
     if agent and agent not in AGENT_ADAPTERS:
         raise DotError(f"unknown session agent {agent!r}")
     root = session_store_root()
@@ -249,6 +280,12 @@ def sync_sessions(
     for adapter in AGENT_ADAPTERS.values():
         if agent and adapter.name != agent:
             continue
+        if not dry_run and not session:
+            # Schema 3 bundles embed usage in their manifest line: rewrite them once, even when the
+            # provider deleted the source, so later metadata reads skip the usage samples.
+            _upgrade_bundles(root, adapter, fail)
+        # An unreadable legacy bundle fails the command, but never this pass's capture state: it would
+        # otherwise clear a database checkpoint and force a full re-parse on every later sync.
         failed_before = outcome.failed
         try:
             source = _validated_source_root(state, adapter)
@@ -337,7 +374,7 @@ def sync_sessions(
             setattr(counts, result.status, getattr(counts, result.status) + 1)
             if result.status == "retained" and result.current_transcript:
                 counts.retained_current_transcripts += 1
-            if not quiet and result.status in {"ingested", "retained"}:
+            if not quiet and (result.status == "retained" or (verbose and result.status == "ingested")):
                 state.stderr.write(report_ingestion(result) + "\n")
             if failure is not None:
                 fail(adapter, "capture session", failure, session_id)

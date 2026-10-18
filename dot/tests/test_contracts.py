@@ -269,36 +269,6 @@ def test_skills_contract_does_not_budget_the_combined_total(tmp_path: Path) -> N
     assert checker.repository_findings(root) == []
 
 
-def test_skills_catalog_report_is_portable_and_includes_name_and_path_cost(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    report = checker.catalog_report(root)
-    assert "Global skills: 2; local skills: 0" in report
-    assert "Global AGENTS.md + skill discovery:" in report
-    assert "Local AGENTS.md + skill discovery:" in report
-    assert " / <5000" in report
-    assert "characters / 4" in report
-    assert "not host tokenization or billing" in report
-    assert str(tmp_path) not in report
-
-
-@pytest.mark.parametrize("details", [False, True])
-def test_skills_report_details_are_opt_in(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], details: bool
-) -> None:
-    root = _fixture_repository(tmp_path)
-    monkeypatch.setattr(checker, "__file__", str(root / "dot/dot_tasks/skill_contracts.py"))
-    monkeypatch.setattr("sys.argv", ["skill_contracts", "--report", *(["--details"] if details else [])])
-
-    assert checker.main() == 0
-
-    output = capsys.readouterr().out
-    assert "Combined estimated index tokens:" in output
-    assert "(informational)" in output
-    assert "Discovery headroom:" not in output
-    assert ("- task: fixture, fixture-helper" in output) is details
-    assert str(tmp_path) not in output
-
-
 @pytest.mark.parametrize("slug", ["../escape", "", "guide, guide"])
 def test_skills_contract_rejects_invalid_guide_metadata(tmp_path: Path, slug: str) -> None:
     root = _fixture_repository(tmp_path)

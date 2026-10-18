@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import re
-from calendar import monthrange
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime, timedelta
-from typing import IO, Annotated, Any, Literal, Required, TypedDict
-from zoneinfo import ZoneInfo
+from typing import IO, TYPE_CHECKING, Annotated, Any, Literal, Required, TypedDict
 
 from pydantic import AfterValidator, Field, StrictBool, StrictStr, TypeAdapter, ValidationError, with_config
 
 from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
 from fmind_dot.archive.store import NonNegativeInt, is_valid_session_id
-from fmind_dot.config import PricingConfig, SubscriptionConfig, default_pricing
+from fmind_dot.config import PricingConfig, default_pricing
 from fmind_dot.reporting import write_report_line
+
+if TYPE_CHECKING:
+    from fmind_dot.archive.store import SessionManifest
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
@@ -217,6 +218,10 @@ class UsageRecord:
 _USAGE_ADAPTER = TypeAdapter(UsageRecord)
 
 
+# Document-level facts of dot.agent.stats/v4; rows carry only what varies between them.
+USAGE_TIME_BASIS = "request timestamps where available; otherwise whole session at recorded timestamp"
+
+
 def _sample_record(record: UsageRecord, sample: UsageSample) -> UsageRecord:
     return UsageRecord(
         harness=record.harness,
@@ -268,7 +273,6 @@ class UsageStats:
     last_timestamp: str = ""
     period_start: str = ""
     period_end: str = ""
-    subscription_usd: float | None = None
     legacy_accounting_sessions: int = 0
     retained_usage_sessions: int = 0
     session_timestamp_sessions: int = 0
@@ -295,15 +299,10 @@ class UsageStats:
                 "usage_complete": not self.retained_usage_sessions,
                 "measurement_kind": self.measurement_kind,
                 "cwd": self.cwd,
-                "time_basis": "request timestamps where available; otherwise whole session at recorded timestamp",
                 "first_timestamp": self.first_timestamp or None,
                 "last_timestamp": self.last_timestamp or None,
                 "period_start": self.period_start or None,
                 "period_end": self.period_end or None,
-                "subscription_usd": self.subscription_usd,
-                "api_value_ratio": self.api_equivalent_usd / self.subscription_usd
-                if self.subscription_usd and self.priced_measurements == self.measurements
-                else None,
                 "session_timestamp_sessions": self.session_timestamp_sessions,
                 "legacy_accounting_sessions": self.legacy_accounting_sessions,
                 "retained_usage_sessions": self.retained_usage_sessions,
@@ -313,9 +312,6 @@ class UsageStats:
                 "priced_sessions": self.priced_sessions,
                 "pricing_complete": self.priced_measurements == self.measurements,
                 "unpriced_reasons": self.unpriced_reasons,
-                "pricing_as_of": self.pricing_as_of,
-                "pricing_basis": self.pricing_basis,
-                "pricing_sources": self.pricing_sources,
                 "sessions": self.sessions,
                 "requests": self.requests,
             }
@@ -323,11 +319,22 @@ class UsageStats:
         return result
 
 
-def iter_usage_records() -> Iterator[UsageRecord]:
-    """Yield the usage measured for each archived session."""
+def iter_usage_records(since: datetime | None = None, until: datetime | None = None) -> Iterator[UsageRecord]:
+    """Yield the usage measured for each archived session.
+
+    A window skips decoding sessions whose whole family (a session and its sidechains) was measured
+    outside it: such a family adds no row or cost, while a member outside the window must still
+    mark its family partial so a provider session cost is never attributed to only part of it.
+    """
     from fmind_dot.archive.store import discover_session_bundles, read_session_manifest
 
-    for path in discover_session_bundles():
+    paths = discover_session_bundles()
+    active: set[tuple[str, str]] | None = None
+    if since is not None or until is not None:
+        headers = [read_session_manifest(path, usage=False) for path in paths]
+        active = {_family(manifest) for manifest in headers if _may_overlap(manifest, since, until)}
+        paths = [path for path, manifest in zip(paths, headers, strict=True) if _family(manifest) in active]
+    for path in paths:
         manifest = read_session_manifest(path)
         if manifest.usage is None:
             continue
@@ -344,6 +351,19 @@ def iter_usage_records() -> Iterator[UsageRecord]:
         record.sidechain, record.parent_session_id = manifest.sidechain, manifest.parent_session_id
         record.retained = bool(manifest.usage_parser_version)
         yield record
+
+
+def _family(manifest: SessionManifest) -> tuple[str, str]:
+    return manifest.agent, (manifest.parent_session_id if manifest.sidechain else "") or manifest.session_id
+
+
+def _may_overlap(manifest: SessionManifest, since: datetime | None, until: datetime | None) -> bool:
+    """False only when the manifest's recorded usage span lies wholly outside the window."""
+    if not (manifest.usage_first_timestamp and manifest.usage_last_timestamp):
+        return True
+    first = _parse_usage_timestamp(manifest.usage_first_timestamp)
+    last = _parse_usage_timestamp(manifest.usage_last_timestamp)
+    return not ((since is not None and last < since) or (until is not None and first > until))
 
 
 def load_usage_records() -> list[UsageRecord]:
@@ -383,16 +403,10 @@ def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: 
     return parsed.astimezone(UTC)
 
 
-def _period(timestamp: datetime, day: int, zone: ZoneInfo) -> tuple[str, str]:
-    local = timestamp.astimezone(zone)
-
-    def boundary(year: int, month: int) -> datetime:
-        return datetime(year, month, min(day, monthrange(year, month)[1]), tzinfo=zone)
-
-    start = boundary(local.year, local.month)
-    if local < start:
-        start = boundary(local.year - (local.month == 1), (local.month - 2) % 12 + 1)
-    end = boundary(start.year + (start.month == 12), start.month % 12 + 1)
+def _month(timestamp: datetime) -> tuple[str, str]:
+    """Return the UTC calendar month containing `timestamp` as ISO start and exclusive end."""
+    start = datetime(timestamp.year, timestamp.month, 1, tzinfo=UTC)
+    end = datetime(start.year + (start.month == 12), start.month % 12 + 1, 1, tzinfo=UTC)
     return start.isoformat(), end.isoformat()
 
 
@@ -407,11 +421,7 @@ def aggregate_usage(
     by_project: bool = False,
     pricing: PricingConfig | None = None,
     monthly: bool = False,
-    billing: bool = False,
-    subscriptions: dict[str, SubscriptionConfig] | None = None,
 ) -> list[UsageStats]:
-    if monthly and billing:
-        raise ValueError("choose --monthly or --billing, not both")
     rates = pricing if pricing is not None else default_pricing()
     grouped: dict[tuple[str, str, str, str, str], UsageStats] = {}
     sessions: dict[tuple[str, str, str, str, str], dict[object, _SessionEvidence]] = {}
@@ -426,9 +436,6 @@ def aggregate_usage(
         if (harness and harness not in {record.harness, record.agent}) or (cwd and project != cwd):
             partial_sessions.add(session)
             return
-        subscription = (subscriptions or {}).get(record.harness)
-        zone = ZoneInfo(subscription.timezone) if billing and subscription else ZoneInfo("UTC")
-        day = subscription.renewal_day if billing and subscription else 1
         selected: dict[tuple[str, str, str, str, str], list[bool]] = {}  # priced flag per included sample
         samples = [_sample_record(record, sample) for sample in record.samples] or [record]
         for sample in samples:
@@ -436,11 +443,7 @@ def aggregate_usage(
             if (since and timestamp < since) or (until and timestamp > until):
                 partial_sessions.add(session)
                 continue
-            if billing and subscription is None:
-                raise ValueError(
-                    f"configure agent.subscriptions.{record.harness} before using --billing, or filter --agent"
-                )
-            period_start, period_end = _period(timestamp, day, zone) if monthly or billing else ("", "")
+            period_start, period_end = _month(timestamp) if monthly else ("", "")
             model = (sample.model or "unknown") if by_model else ""
             kind = record.measurement_kind or "unknown"
             group = project if by_project else ""
@@ -449,9 +452,6 @@ def aggregate_usage(
                 key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=group)
             )
             row.period_start, row.period_end = period_start, period_end
-            row.subscription_usd = (
-                subscription.monthly_usd if billing and subscription and not by_model and not by_project else None
-            )
             row.pricing_as_of, row.pricing_basis, row.pricing_sources = rates.as_of, rates.basis, rates.sources
             stamp = timestamp.isoformat()
             row.first_timestamp = min(row.first_timestamp, stamp) if row.first_timestamp else stamp
@@ -550,7 +550,7 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
     first = min((row.first_timestamp for row in rows if row.first_timestamp), default="unknown")
     last = max((row.last_timestamp for row in rows if row.last_timestamp), default="unknown")
     write(f"Coverage: {first[:10]} to {last[:10]} (archived usage only).")
-    write("API equivalent is an estimate in USD, separate from recorded cost and subscriptions.")
+    write("API equivalent is an estimate in USD, separate from recorded cost.")
     if rows[0].pricing_as_of:
         write(f"Rate card: {rows[0].pricing_as_of} · {rows[0].pricing_basis}")
     periods = any(row.period_start for row in rows)
@@ -604,13 +604,6 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
         write("Some usage has only a session timestamp; its monthly allocation is approximate.")
     if periods:
         write("Period ends are exclusive; sessions spanning periods may appear in more than one row.")
-        for row in rows:
-            if row.subscription_usd:
-                ratio = row.to_dict()["api_value_ratio"]
-                value = f"{ratio:.2f}x" if ratio is not None else "unknown (partial pricing)"
-                write(
-                    f"{row.harness} {row.period_start[:10]}: ${row.subscription_usd:.2f}/cycle; API value {value}. Coverage may be partial."
-                )
         return
     kinds = {row.measurement_kind for row in rows}
     if len(kinds) > 1:

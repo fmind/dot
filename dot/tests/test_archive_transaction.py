@@ -110,6 +110,19 @@ def test_latest_copy_grows_with_its_source_and_survives_source_removal(
     assert _tokens() == [(30, 12)]
 
 
+def test_sync_lists_ingested_sessions_only_when_verbose(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state, source = source_session(tmp_path, monkeypatch)
+    sync_sessions(state, agent="claude")
+    assert "agent-session: ingested" not in _text(state.stderr)
+    assert "claude: 1 ingested, 0 unchanged, 0 retained" in _text(state.stderr)
+    with source.open("a") as stream:
+        stream.write(_answer("answer-2", "2026-09-01T10:02:00Z", 20, 7))
+
+    sync_sessions(state, agent="claude", verbose=True)
+
+    assert "agent-session: ingested claude records=3" in _text(state.stderr)
+
+
 def test_truncated_source_never_shrinks_the_archived_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state, source = source_session(tmp_path, monkeypatch)
     sync_sessions(state, agent="claude")
@@ -315,11 +328,12 @@ def test_sync_recaptures_meta_flags_from_unchanged_parser_13_source(
 
     assert sync_sessions(state, agent="claude").ingested == 1
     manifest, records = read_session_bundle(path)
-    assert manifest.schema_version == 3
+    assert manifest.schema_version == session_store.SESSION_SCHEMA_VERSION
     assert manifest.parser_version == session_store.SESSION_PARSER_VERSION
     assert records == parsed.logs
     assert manifest.usage == old_manifest.usage
-    assert [json.loads(line).get("meta") for line in path.read_text().splitlines()[1:]] == [None, None, True]
+    # Records start after the manifest and usage lines.
+    assert [json.loads(line).get("meta") for line in path.read_text().splitlines()[2:]] == [None, None, True]
     assert sync_sessions(state, agent="claude").unchanged == 1
 
 
@@ -569,7 +583,7 @@ def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(t
     # New turns publish; the measurement the source can no longer provide stays, marked as retained.
     manifest, records = read_session_bundle(bundle)
     assert records[0].content == "Keep this owner request with a new instruction"
-    assert manifest.usage == json.loads(measured.split(b"\n", 1)[0])["usage"]
+    assert manifest.usage == json.loads(measured.split(b"\n")[1])
     assert (manifest.usage_parser_version, manifest.source_signature) == (manifest.parser_version, "")
     assert (outcome.retained, outcome.ingested) == (1, 0)
     # Sync retries the source without rewriting a current transcript.

@@ -25,7 +25,6 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "prune",
     }
     assert config.trust.github_owners == ["fmind", "fmind-ai", "mlops-courses"]
-    assert config.pull.timeout_seconds == 120.0
 
 
 def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
@@ -40,7 +39,6 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     assert not retired.intersection(config.doctor.tools)
     assert not retired.intersection(config.completions.selected_tools)
     assert not retired.intersection(config.completions.custom_commands)
-    assert "JULES_API_KEY" not in config.doctor.env_vars.required
 
 
 def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
@@ -64,25 +62,6 @@ def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) ->
     trailing.write_text("ai:\n  binary: claude\n---\nai:\n  binary: codex\n", encoding="utf-8")
     with pytest.raises(ValueError, match="exactly one YAML document"):
         load_config(trailing)
-
-
-@pytest.mark.parametrize(
-    ("document", "field"),
-    [
-        ("pull:\n  concurrency: VALUE\n", "concurrency"),
-        ("doctor:\n  probe_concurrency: VALUE\n", "probe_concurrency"),
-        ("doctor:\n  secrets:\n    - path: ~/.config/key\n      required_perms: VALUE\n", "required_perms"),
-    ],
-)
-@pytest.mark.parametrize("value", ["false", '"8"'])
-def test_operational_integer_scalars_reject_yaml_coercion(
-    tmp_path: Path, document: str, field: str, value: str
-) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(document.replace("VALUE", value), encoding="utf-8")
-
-    with pytest.raises(ValidationError, match=field):
-        load_config(path)
 
 
 def test_config_overlay_replaces_lists_and_merges_maps(tmp_path: Path) -> None:
@@ -125,6 +104,15 @@ def test_custom_completion_override_replaces_the_default_entry(tmp_path: Path) -
         "context:\n  max_bytes: 1000\n",
         "release:\n  workflow: cd.yml\n",
         "completions:\n  concurrency: 4\n",
+        "completions:\n  timeout_seconds: 60\n",
+        "pull:\n  timeout_seconds: 120\n",
+        "pull:\n  concurrency: 8\n",
+        "auth:\n  probe_timeout_seconds: 45\n",
+        "doctor:\n  probe_timeout_seconds: 45\n",
+        "doctor:\n  probe_concurrency: 8\n",
+        "doctor:\n  env_vars:\n    required: []\n",
+        "doctor:\n  secrets:\n    - path: ~/.config/key\n      required_perms: 384\n",
+        "agent:\n  subscriptions:\n    codex:\n      renewal_day: 1\n",
     ],
 )
 def test_removed_configuration_fields_are_rejected(tmp_path: Path, document: str) -> None:
@@ -231,21 +219,6 @@ def test_config_document_requires_a_mapping(tmp_path: Path) -> None:
         load_config(path)
 
 
-@pytest.mark.parametrize("value", ["true", '"30s"', '"30"', "0", "-1", ".nan", ".inf"])
-def test_timeouts_reject_invalid_or_ambiguous_seconds(tmp_path: Path, value: str) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(f"pull:\n  timeout_seconds: {value}\n")
-    with pytest.raises(ValidationError, match="timeout_seconds"):
-        load_config(path)
-
-
-@pytest.mark.parametrize("value", ["30", "0.5"])
-def test_timeouts_accept_positive_numeric_seconds(tmp_path: Path, value: str) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(f"pull:\n  timeout_seconds: {value}\n")
-    assert load_config(path).pull.timeout_seconds == float(value)
-
-
 @pytest.mark.parametrize(
     "document",
     [
@@ -256,7 +229,6 @@ def test_timeouts_accept_positive_numeric_seconds(tmp_path: Path, value: str) ->
         "auth:\n  workspace:\n    scopes: []\n",
         "auth:\n  workspace:\n    project: '--flags-file=oops'\n",
         "auth:\n  workspace:\n    apis: ['--all']\n",
-        "auth:\n  probe_timeout_seconds: .nan\n",
         "cache:\n  providers: [unknown]\n",
         "prune:\n  providers: []\n",
     ],
@@ -285,12 +257,4 @@ def test_completion_sources_reject_ambiguous_configuration(tmp_path: Path, sourc
     path = tmp_path / "dot.yaml"
     path.write_text(f"completions:\n  custom_commands:\n    custom:\n      package: owner/tool\n      {source}\n")
     with pytest.raises(ValidationError, match="choose either a bundled package or a completion command"):
-        load_config(path)
-
-
-@pytest.mark.parametrize("permissions", [-1, 0o1000, 0o4600])
-def test_secret_permissions_reject_masks_outside_posix_access_bits(tmp_path: Path, permissions: int) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(f"doctor:\n  secrets:\n    - path: ~/.config/key\n      required_perms: {permissions}\n")
-    with pytest.raises(ValidationError, match="required_perms"):
         load_config(path)

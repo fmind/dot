@@ -19,7 +19,6 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.cli import app
-from fmind_dot.config import default_pricing
 
 
 def test_usage_record_finalizes_defaults_and_computed_total() -> None:
@@ -275,13 +274,10 @@ def test_aggregate_usage_filters_and_sums_every_metric() -> None:
             "retained_usage_sessions": 0,
             "measurement_kind": "unknown",
             "cwd": "",
-            "time_basis": "request timestamps where available; otherwise whole session at recorded timestamp",
             "first_timestamp": "2026-09-06T10:00:00+00:00",
             "last_timestamp": "2026-09-06T10:00:00+00:00",
             "period_start": None,
             "period_end": None,
-            "subscription_usd": None,
-            "api_value_ratio": None,
             "session_timestamp_sessions": 1,
             "legacy_accounting_sessions": 0,
             "measurements": 1,
@@ -290,9 +286,6 @@ def test_aggregate_usage_filters_and_sums_every_metric() -> None:
             "priced_sessions": 0,
             "pricing_complete": False,
             "unpriced_reasons": {"measurement is not provider-reported": 1},
-            "pricing_as_of": default_pricing().as_of,
-            "pricing_basis": default_pricing().basis,
-            "pricing_sources": default_pricing().sources,
         }
     ]
 
@@ -431,7 +424,7 @@ def test_usage_cli_lists_filters_aggregates_and_shows_records(
         )
 
     runner = CliRunner()
-    listed = runner.invoke(app, ["agent", "stats", "--sessions", "--harness", "codex", "--limit", "1", "--json"])
+    listed = runner.invoke(app, ["agent", "stats", "--sessions", "--agent", "codex", "--limit", "1", "--json"])
     windowed = runner.invoke(app, ["agent", "stats", "--sessions", "--until", "2026-09-06T09:30:00Z", "--json"])
     stats = runner.invoke(
         app,

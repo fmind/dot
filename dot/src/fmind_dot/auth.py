@@ -3,9 +3,7 @@
 import contextlib
 import json
 import os
-import sys
-import webbrowser
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import PurePath
 from typing import Annotated, Any
 
@@ -84,12 +82,11 @@ GCLOUD_CLI_TOKEN = ["gcloud", "auth", "print-access-token"]
 GITHUB_STATUS = ["gh", "auth", "status", "--active", "--hostname", GITHUB_HOST, "--json", "hosts"]
 WORKSPACE_STATUS = ["gws", "auth", "status"]
 COLAB_SESSIONS = ["colab", "--auth=adc", "sessions"]
+_PROBE_TIMEOUT_SECONDS = 45.0
 # Workspace setup lists and enables APIs through gcloud and Colab shares ADC, so GCP precedes both.
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace", "colab")
 # One worker per distinct readiness probe: the five probes are I/O-bound native CLIs.
 PROBE_WORKERS = 5
-# Native OAuth URLs that dot may open on behalf of a CLI that only prints them.
-_GOOGLE_OAUTH_URL = "https://accounts.google.com/"
 _GOOGLE_SCOPE_ALIASES = {
     "email": "https://www.googleapis.com/auth/userinfo.email",
     "profile": "https://www.googleapis.com/auth/userinfo.profile",
@@ -102,7 +99,7 @@ def probe(state: State, args: list[str]) -> CommandResult:
     if (cached := state.probes.get(key)) is not None:
         return cached
     require_tools(state, [args])
-    result = state.runner.run(args, timeout=state.config.auth.probe_timeout_seconds, check=False)
+    result = state.runner.run(args, timeout=_PROBE_TIMEOUT_SECONDS, check=False)
     state.probes[key] = result
     return result
 
@@ -191,38 +188,10 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False)
     if not force and workspace_ready(state):
         print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
         return
-    # gws 0.22.5 prints its OAuth URL on stderr but never launches a browser.
-    change(state, args, on_stderr_line=browser_opener(state))
+    # gws prints its OAuth URL on stderr; the user opens it.
+    change(state, args)
     if not workspace_ready(state):
         raise DotError("Workspace login did not satisfy the configured scopes; inspect gws auth status and retry")
-
-
-def open_browser(url: str) -> bool:
-    """Open a URL in the graphical browser; report False when none is available."""
-    # webbrowser honors $BROWSER (garcon-url-handler on Crostini), but without a graphical
-    # session it falls back to console browsers that would seize the terminal mid-login.
-    if sys.platform != "darwin" and not any(os.environ.get(name) for name in ("BROWSER", "DISPLAY", "WAYLAND_DISPLAY")):
-        return False
-    try:
-        return webbrowser.open(url)
-    except webbrowser.Error:
-        return False
-
-
-def browser_opener(state: State) -> Callable[[str], None]:
-    """Open the first Google OAuth URL a native login prints; the printed URL stays the fallback."""
-    opened = False
-
-    def on_line(line: str) -> None:
-        nonlocal opened
-        url = line.strip()
-        if opened or not url.startswith(_GOOGLE_OAUTH_URL) or any(char.isspace() for char in url):
-            return
-        opened = True
-        if open_browser(url):
-            print("Opened the sign-in page in your browser.", file=state.stderr, flush=True)
-
-    return on_line
 
 
 def github_status(state: State) -> dict[str, Any] | None:
@@ -637,14 +606,6 @@ def colab(
         check_logins(state, ["colab"], "dot login colab", force=force, dry_run=dry_run)
         return
     login_colab(state, force=force, dry_run=dry_run)
-
-
-# Kept for existing scripts and habits; a bare `dot login` is the documented form.
-@login_app.command("all", hidden=True, help="Same as dot login", epilog=_LOGIN_EPILOG)
-def login_all(
-    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
-) -> None:
-    login_machine(state_from(context), force=force, dry_run=dry_run, check=check)
 
 
 @setup_app.command("github", help="Ensure requested GitHub scopes and remove configured excluded grants")

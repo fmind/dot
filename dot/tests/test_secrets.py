@@ -151,9 +151,7 @@ def test_personal_pypi_publishing_is_retired() -> None:
 
 
 def test_doctor_does_not_require_ambient_api_keys() -> None:
-    config = Config()
-    assert config.doctor.env_vars.required == []
-    assert not any("TOKEN" in name or "API_KEY" in name for name in config.doctor.env_vars.optional)
+    assert "env_vars" not in type(Config().doctor).model_fields
 
 
 def test_shell_secret_exports_are_retired() -> None:

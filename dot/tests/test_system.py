@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
+import threading
 from collections.abc import Callable, Mapping, Sequence
 from io import StringIO
 from pathlib import Path
@@ -15,7 +17,7 @@ from typer.core import TyperGroup, TyperOption
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from fmind_dot import system
+from fmind_dot import reporting, system
 from fmind_dot.cli import app
 from fmind_dot.config import Config, DoctorConfig, SecretConfig, ToolConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -31,13 +33,8 @@ def ample_disk(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system.shutil, "disk_usage", _disk(30))
 
 
-def test_verify_fails_closed_for_required_environment_and_tools(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.delenv("REQUIRED_FOR_TEST", raising=False)
+def test_verify_fails_closed_for_required_tools(tmp_path: Path) -> None:
     config = Config()
-    config.doctor.env_vars.required = ["REQUIRED_FOR_TEST"]
-    config.doctor.env_vars.optional = []
     config.doctor.tools = ["python", "missing"]
     secret = tmp_path / "key"
     secret.write_text("encrypted", encoding="utf-8")
@@ -49,25 +46,18 @@ def test_verify_fails_closed_for_required_environment_and_tools(
 
     assert results["passed"] is False
     encoded = json.dumps(results)
-    assert "MISSING (required)" in encoded
     assert '"name": "missing", "status": "fail"' in encoded
 
 
 def test_verify_omits_empty_optional_result_fields(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config()
-    config.doctor.env_vars.required = []
-    config.doctor.env_vars.optional = []
     config.doctor.secrets = []
     config.doctor.tools = []
-    monkeypatch.setattr(
-        system,
-        "_environment_results",
-        lambda _state: [system.CheckResult("minimal", "pass", "")],
-    )
+    monkeypatch.setattr(system, "_resource_results", lambda: [system.CheckResult("minimal", "pass", "")])
 
     results = doctor_sections(run_doctor(state_with(ScriptedRunner(), config), fix=False))
 
-    assert results["env_vars"] == [{"name": "minimal", "status": "pass"}]
+    assert results["resources"] == [{"name": "minimal", "status": "pass"}]
 
 
 def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,8 +88,6 @@ def test_doctor_detects_pgcli_import_failure() -> None:
     config = Config()
     assert "pgcli" in config.doctor.tools
     config.doctor.tools = ["pgcli"]
-    config.doctor.env_vars.required = []
-    config.doctor.env_vars.optional = []
     config.doctor.secrets = []
     result = doctor_sections(run_doctor(state_with(BrokenPgcli({"pgcli"}), config), fix=False))
     assert result["passed"] is False
@@ -417,8 +405,6 @@ def test_completion_rejects_empty_scripts_before_replacing_existing_file(tmp_pat
 
 def _minimal_verify_config() -> Config:
     config = Config()
-    config.doctor.env_vars.required = []
-    config.doctor.env_vars.optional = []
     config.doctor.secrets = []
     config.doctor.tools = []
     return config
@@ -619,44 +605,30 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
         assert sensitive not in encoded
 
 
-def test_verify_reports_environment_and_secret_edge_cases(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("REQUIRED_SET", "yes")
-    monkeypatch.setenv("OPTIONAL_SET", "yes")
-    monkeypatch.delenv("OPTIONAL_MISSING", raising=False)
+def test_verify_reports_secret_edge_cases(tmp_path: Path) -> None:
     config = _minimal_verify_config()
-    config.doctor.env_vars.required = ["REQUIRED_SET"]
-    config.doctor.env_vars.optional = ["OPTIONAL_SET", "OPTIONAL_MISSING"]
     missing = tmp_path / "missing"
     insecure = tmp_path / "insecure"
-    relaxed = tmp_path / "relaxed"
+    strict = tmp_path / "strict"
     loop = tmp_path / "loop"
     insecure.write_text("encrypted", encoding="utf-8")
     insecure.chmod(0o644)
-    relaxed.write_text("public", encoding="utf-8")
-    relaxed.chmod(0o666)
+    strict.write_text("encrypted", encoding="utf-8")
+    strict.chmod(0o400)
     loop.symlink_to(loop)
     config.doctor.secrets = [
         SecretConfig(path=str(missing)),
         SecretConfig(path=str(insecure)),
-        SecretConfig(path=str(relaxed), required_perms=0),
+        SecretConfig(path=str(strict)),
         SecretConfig(path=str(loop)),
     ]
 
     results = doctor_sections(system.run_doctor(state_with(ScriptedRunner(), config), fix=False, deep=True))
 
-    environment = {item["name"]: item for item in results["env_vars"]}
-    assert environment["REQUIRED_SET"]["status"] == "pass"
-    assert environment["OPTIONAL_SET"]["status"] == "pass"
-    assert environment["OPTIONAL_MISSING"] == {
-        "name": "OPTIONAL_MISSING",
-        "status": "skip",
-        "condition": "skipped",
-        "details": "unset (optional)",
-    }
     secrets = {item["name"]: item for item in results["secrets"]}
     assert secrets[str(missing)]["status"] == "warn"
     assert secrets[str(insecure)]["status"] == "fail"
-    assert secrets[str(relaxed)]["status"] == "pass"
+    assert secrets[str(strict)]["status"] == "pass"
     assert secrets[str(loop)]["details"] == "unable to inspect file"
 
 
@@ -790,7 +762,7 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
     state = state_with(ScriptedRunner())
     passing: list[system.CheckResult] = []
     failing = [
-        system.CheckResult("REQUIRED", "fail", "MISSING", group="env_vars"),
+        system.CheckResult("python", "fail", "command not found", group="tools"),
         system.CheckResult("disk", "warn", "6.9 GiB free", "/tmp", group="resources"),  # noqa: S108
     ]
     monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: passing)
@@ -798,21 +770,22 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
     json_result = CliRunner().invoke(app, ["doctor", "--json", "--fix"], obj=state)
     assert json_result.exit_code == 0
     assert isinstance(state.stdout, StringIO)
-    assert '"passed": true' in state.stdout.getvalue()
-    assert json.loads(state.stdout.getvalue())["schema"] == "dot.diagnostics/v1"
+    document = json.loads(state.stdout.getvalue())
+    assert document["passed"] is True
+    assert document["schema"] == "dot.diagnostics/v1"
 
     state.stdout.seek(0)
     state.stdout.truncate()
     human_result = CliRunner().invoke(app, ["doctor"], obj=state)
     assert human_result.exit_code == 0
-    assert "Environment Variables" in state.stdout.getvalue()
+    assert "CLI Tools" in state.stdout.getvalue()
 
     monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: failing)
     state.stdout.seek(0)
     state.stdout.truncate()
     failed_result = CliRunner().invoke(app, ["doctor"], obj=state)
     assert failed_result.exit_code == 1
-    assert "✗ REQUIRED" in state.stdout.getvalue()
+    assert "✗ python" in state.stdout.getvalue()
     assert "6.9 GiB free (/tmp)" in state.stdout.getvalue()
 
 
@@ -1009,3 +982,43 @@ def test_doctor_counts_chezmoi_orphans_without_failing(tmp_path: Path) -> None:
     leftover.unlink()
     clean = doctor_sections(run_doctor(state_with(runner, _minimal_verify_config()), fix=False))
     assert [item["status"] for item in clean["install"] if item["name"] == "chezmoi orphans"] == ["pass"]
+
+
+def test_doctor_runs_auth_probes_concurrently() -> None:
+    # Every probe waits for the others: sequential probes would break the barrier instead of passing.
+    barrier = threading.Barrier(4, timeout=5)
+
+    def auth(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
+        del cwd, input_text, check
+        barrier.wait()
+        if args == _GH_STATUS:
+            return CommandResult(json.dumps({"hosts": {}}), "", 0)
+        return CommandResult("", "", 1)
+
+    runner = ScriptedRunner({"gh", "gcloud", "gws"}, run=auth)
+    report = doctor_sections(system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True))
+
+    assert [item["name"] for item in report["auth"]] == ["gh", "gcloud", "gcloud-adc", "gws"]
+
+
+def test_report_lines_wrap_without_splitting_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(reporting.shutil, "get_terminal_size", lambda **_kwargs: os.terminal_size((40, 24)))
+    path = "/home/user/projects/very-long-repository-name-with-hyphens"
+    output = StringIO()
+
+    reporting.write_report_line(output, f"repository dirty {path}")
+
+    assert path in output.getvalue().splitlines()[-1]
+
+
+def test_json_is_compact_for_pipes_and_indented_for_terminals() -> None:
+    class Terminal(StringIO):
+        def isatty(self) -> bool:
+            return True
+
+    piped, terminal = StringIO(), Terminal()
+    reporting.write_json(piped, {"schema": "x/v1", "items": [1]})
+    reporting.write_json(terminal, {"schema": "x/v1", "items": [1]})
+
+    assert piped.getvalue() == '{"schema":"x/v1","items":[1]}\n'
+    assert terminal.getvalue().startswith('{\n  "schema": "x/v1"')

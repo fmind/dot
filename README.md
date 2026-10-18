@@ -95,9 +95,9 @@ Machine-local settings live in `~/.config/dot.yaml` and merge with [built-in def
 
 Use `dot config edit` to edit settings; it validates them when the editor exits. Alternate `~/.config/dot.*.yaml` profiles are loaded only when selected; these files stay outside Git and chezmoi management.
 
-### Usage and subscription settings
+### Usage reports
 
-Usage reports distinguish token counts and estimated API value from actual costs. See the [usage guide](skills/agent-usage/SKILL.md) for reports and [subscription settings](skills/agent-usage/references/queries.md#monthly-and-subscription-reports) for renewal dates and charges.
+Usage reports distinguish token counts and estimated API value from actual costs; `dot agent stats --monthly` groups them by UTC calendar month. See the [usage guide](skills/agent-usage/SKILL.md).
 
 Session capture preserves longer archived transcripts and recorded usage. An unreadable archive fails for that agent while other agents continue; archive queries fail when a directory is inaccessible instead of reporting no sessions. Restore access before retrying.
 
@@ -109,29 +109,30 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 | ------------------ | --------------------------------------------------------------------------------------------- |
 | `mise run diff`    | Preview dotfile changes                                                                       |
 | `mise run apply`   | Apply files and eligible hooks                                                                |
+| `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                                           |
 | `mise run full`    | Synchronize files, locked tools, CLI, and completions                                         |
 | `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply, reinstall, and retire old lock graphs |
 | `mise run all`     | Format, check, test, and build the repository                                                 |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
-Python follows the latest 3.14 patch release. Required Python tools install only binary packages; their PyYAML dependency does not yet provide Python 3.15 wheels.
+Python follows the latest 3.14 patch release until the required tools ship Python 3.15 wheels.
 
-## Agent roles
+## Agent layer
 
 <a href=".github/assets/agent-layer.svg">
   <img
     src=".github/assets/agent-layer.svg"
-    alt="One agent layer for six harnesses: the persona, skill catalog, specialist roles and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode; dot agent session sync archives their sessions and dot agent stats reports usage."
+    alt="One agent layer for six harnesses: the persona, skill catalog and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode; dot agent session sync archives their sessions and dot agent stats reports usage."
     width="960"
   >
 </a>
 
-Shared roles (code and security reviewers, content editor, and deep researcher) are available to Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) for invocation, native permission differences, and updating the pinned compiler.
+Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share one persona and one skill catalog. No custom subagent roles are deployed: each host's general-purpose subagents load the same persona and skills, and apply removes the retired `code-reviewer`, `content-editor`, `deep-researcher`, and `security-reviewer` profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) before adding one.
 
 ## Agent skills
 
-Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alongside independently installed packages. Restart agent sessions after catalog changes. See [skill authoring](skills/skillify/SKILL.md) and [catalog maintenance](.agents/skills/dot-skills/SKILL.md); upgrades from v6.x, or from releases that shipped `bf-use`, `deleguate-tasks`, or `security-review` (now `bf`, `delegate-tasks`, and `code-security`), need the [retired-link cleanup](.agents/skills/dot-skills/references/installed-links.md#retired-links).
+Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alongside independently installed packages. Restart agent sessions after catalog changes. See [skill authoring](skills/skillify/SKILL.md) and [catalog maintenance](.agents/skills/dot-skills/SKILL.md); upgrades from older releases may need the [retired-link cleanup](.agents/skills/dot-skills/references/installed-links.md#retired-links).
 
 Use `/clipboard` to copy the requested deliverable from the preceding exchange, or `/clipboard <selection>` to choose a result. The [clipboard skill](skills/clipboard/SKILL.md) verifies the copied text using native macOS or ChromeOS/Linux tools.
 
@@ -165,7 +166,7 @@ Agent harnesses use their own logins:
 
 For hooks, notifications, and provider overrides, see [agent harnesses](skills/agent-harnesses/SKILL.md) and [Antigravity](skills/agy/SKILL.md). Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 
-Grok Build is installed and locked by mise using the official xAI distribution. After migrating an existing self-install, confirm `mise which grok` and `grok --version` resolve the managed binary before manually retiring the old executable and its PATH entry. Keep `~/.grok` settings, credentials, and sessions; see the [Grok guide](skills/agent-harnesses/references/grok/GUIDE.md) for update ownership.
+mise installs and locks every harness except Antigravity, which updates itself; see the [Grok guide](skills/agent-harnesses/references/grok/GUIDE.md) to retire a former Grok self-install.
 
 ### Secret Management
 

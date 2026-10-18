@@ -39,6 +39,10 @@ _GIB = 1024**3
 _DISK_FAIL_GIB = 10
 _DISK_WARN_GIB = 20
 _MEMORY_FAIL_GIB = 1
+_COMPLETION_TIMEOUT_SECONDS = 60.0
+_PROBE_TIMEOUT_SECONDS = 45.0
+_PROBE_CONCURRENCY = 8
+_SECRET_PERMISSIONS = 0o600
 _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "agy": ("--help",),
     "gitleaks": ("version",),
@@ -65,7 +69,7 @@ def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> 
     if not content.strip():
         raise DotError(f"generated Fish script is empty: {path.name}")
     require_tools(state, [["fish"]])
-    timeout = state.config.completions.timeout_seconds
+    timeout = _COMPLETION_TIMEOUT_SECONDS
     try:
         state.runner.run(["fish", "--no-config", "--no-execute"], input_text=content, timeout=timeout)
     except (DotError, OSError) as error:
@@ -84,9 +88,7 @@ def _completion_available(state: State, tool: str) -> bool:
     # Disabled optional tools can leave executable shims pointing at mise.
     # Resolve only those shims; a real executable needs no mise configuration.
     if tool != "mise" and mise is not None and executable.resolve() == mise.resolve():
-        result = state.runner.run(
-            ["mise", "which", tool], timeout=state.config.completions.timeout_seconds, check=False
-        )
+        result = state.runner.run(["mise", "which", tool], timeout=_COMPLETION_TIMEOUT_SECONDS, check=False)
         if result.returncode:
             if "not currently active" in result.stderr or "No version is set" in result.stderr:
                 return False
@@ -106,7 +108,7 @@ def _generate_completion(state: State, tool: str) -> str:
     if custom and custom.package:
         require_tools(state, [["mise"]])
         root = state.runner.run(
-            ["mise", "where", "--", custom.package], timeout=state.config.completions.timeout_seconds
+            ["mise", "where", "--", custom.package], timeout=_COMPLETION_TIMEOUT_SECONDS
         ).stdout.strip()
         if not root or not Path(root).is_absolute() or not Path(root).is_dir():
             raise DotError(f"mise returned an invalid completion package directory for {tool}")
@@ -121,7 +123,7 @@ def _generate_completion(state: State, tool: str) -> str:
     if binary != tool and state.runner.which(binary) is None:
         raise DotError(f"completion generator for {tool} is not installed: {binary}")
     args = custom.args if custom and custom.args else ["completion", "fish"]
-    timeout = state.config.completions.timeout_seconds
+    timeout = _COMPLETION_TIMEOUT_SECONDS
     with tempfile.TemporaryDirectory(prefix="dot-completion-") as directory:
         try:
             result = state.runner.run([binary, *args], cwd=Path(directory), timeout=timeout)
@@ -192,30 +194,13 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
                     state.config.completions.selected_tools
                 )
                 environment = {"CARAPACE_EXCLUDES": ",".join(sorted(excludes - {""}))} if tool == "carapace" else None
-                result = state.runner.run(
-                    [tool, *args], timeout=state.config.completions.timeout_seconds, env=environment
-                )
+                result = state.runner.run([tool, *args], timeout=_COMPLETION_TIMEOUT_SECONDS, env=environment)
                 _write_validated_fish(state, cache / filename, result.stdout, 0o600)
                 typer.echo(f"  ✓ Generated {filename}", file=state.stdout)
             except (DotError, OSError) as error:
                 failures.append(f"{filename}: {error}")
                 typer.echo(f"  ✗ Failed to generate {filename}", file=state.stdout)
     return failures
-
-
-def _environment_results(state: State) -> list[CheckResult]:
-    results = [
-        CheckResult(name, "pass", "set") if os.environ.get(name) else CheckResult(name, "fail", "MISSING (required)")
-        for name in state.config.doctor.env_vars.required
-    ]
-    # An unset optional variable is a valid choice, reported like an absent optional tool.
-    results.extend(
-        CheckResult(name, "pass", "set")
-        if os.environ.get(name)
-        else CheckResult(name, "skip", "unset (optional)", condition="skipped")
-        for name in state.config.doctor.env_vars.optional
-    )
-    return results
 
 
 def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
@@ -234,8 +219,8 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
             results.append(CheckResult(secret.path, "fail", "not a regular file"))
             continue
         current = stat.S_IMODE(info.st_mode)
-        allowed = secret.required_perms
-        if allowed == 0 or current & ~allowed == 0:
+        allowed = _SECRET_PERMISSIONS
+        if current & ~allowed == 0:
             results.append(CheckResult(secret.path, "pass", f"secure (permissions: {current:04o})"))
         elif fix:
             try:
@@ -264,7 +249,7 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
 def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
     """Run one doctor probe; a string names why it produced no usable result."""
     try:
-        return state.runner.run(list(args), timeout=state.config.doctor.probe_timeout_seconds, check=False)
+        return state.runner.run(list(args), timeout=_PROBE_TIMEOUT_SECONDS, check=False)
     except CommandTimeoutError:
         return "timed out"
     except DotError, OSError:
@@ -283,7 +268,7 @@ def _tool_results(state: State) -> list[CheckResult]:
             return CheckResult(tool, "fail", "capability probe failed", str(path), "broken")
         return CheckResult(tool, "pass", "capability probe passed", str(path), "healthy")
 
-    return run_parallel(state.runner, probe, state.config.doctor.tools, state.config.doctor.probe_concurrency)
+    return run_parallel(state.runner, probe, state.config.doctor.tools, _PROBE_CONCURRENCY)
 
 
 def _auth_results(state: State) -> list[CheckResult]:
@@ -303,27 +288,26 @@ def _auth_results(state: State) -> list[CheckResult]:
         "gcloud-adc": ("gcloud", lambda: adc_ready(state)),
         "gws": ("gws", lambda: workspace_ready(state)),
     }
-    results: list[CheckResult] = []
-    for label, (tool, check) in checks.items():
+
+    def run(item: tuple[str, tuple[str, Callable[[], CheckResult | bool]]]) -> CheckResult:
+        label, (tool, check) = item
         path = state.runner.which(tool)
         if path is None:
-            results.append(CheckResult(label, "skip", f"{tool} not installed", condition="skipped"))
-            continue
+            return CheckResult(label, "skip", f"{tool} not installed", condition="skipped")
         try:
             ready = check()
         except CommandTimeoutError:
-            results.append(CheckResult(label, "fail", "auth check timed out; state unknown", str(path), "broken"))
-            continue
+            return CheckResult(label, "fail", "auth check timed out; state unknown", str(path), "broken")
         except DotError, OSError:
-            results.append(CheckResult(label, "fail", "auth check failed; state unknown", str(path), "broken"))
-            continue
+            return CheckResult(label, "fail", "auth check failed; state unknown", str(path), "broken")
         if isinstance(ready, CheckResult):
-            results.append(replace(ready, path=str(path)))
-        elif ready:
-            results.append(CheckResult(label, "pass", "authenticated", str(path), "healthy"))
-        else:
-            results.append(CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated"))
-    return results
+            return replace(ready, path=str(path))
+        if ready:
+            return CheckResult(label, "pass", "authenticated", str(path), "healthy")
+        return CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated")
+
+    # The probes are independent network calls: concurrency bounds the worst case to one timeout, not four.
+    return run_parallel(state.runner, run, list(checks.items()), _PROBE_CONCURRENCY)
 
 
 def _docker_results(state: State) -> list[CheckResult]:
@@ -500,7 +484,6 @@ def _orphan_results(state: State) -> list[CheckResult]:
 
 # Report order and headings; each key is the `group` of its checks in --json output.
 _DOCTOR_GROUPS = {
-    "env_vars": "Environment Variables",
     "auth": "CLI Authentication",
     "secrets": "Secrets & Encryption",
     "docker": "System Services",
@@ -512,7 +495,6 @@ _DOCTOR_GROUPS = {
 
 def run_doctor(state: State, *, fix: bool, deep: bool = False) -> list[CheckResult]:
     sections = {
-        "env_vars": _environment_results(state),
         "auth": _auth_results(state)
         if deep
         else [CheckResult("authentication", "skip", "use --deep to probe providers")],

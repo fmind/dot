@@ -31,10 +31,6 @@ DOT_BIN = "{{env.HOME}}/.local/bin/dot"
 # bytecode files can disappear between its directory listing and lstat calls.
 PYTHONDONTWRITEBYTECODE = "1"
 
-[vars]
-# Shared by format:agents (build) and check:agents (check); --strict rejects source warnings.
-supagents_args = "--strict --project --source-dir dot_agents/supagents --config supagents.yaml"
-
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
@@ -83,7 +79,6 @@ depends = ["check:local", "check:network"]
 description = "Run the static checks that need no remote database (pre-commit)"
 depends = [
   "check:actions",
-  "check:agents",
   "check:chezmoi",
   "check:fish",
   "check:format",
@@ -107,10 +102,6 @@ run = ["actionlint", "zizmor --offline --strict-collection .github/"]
 [tasks."check:actions:online"]
 description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
 run = "zizmor --strict-collection .github/"
-
-[tasks."check:agents"]
-description = "Reject warnings and missing, changed, or obsolete native subagent profiles; show their diffs"
-run = "uv run --frozen --project dot supagents check --diff {{vars.supagents_args}}"
 
 [tasks."check:chezmoi"]
 alias = "cc"
@@ -207,10 +198,6 @@ alias = "cv"
 description = "Audit the locked Python dependency graph"
 run = "uv audit --project dot --preview-features audit-command --locked"
 
-[tasks."report:skills"]
-description = "Report skill discovery budgets and on-demand load estimates"
-run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --report"
-
 [tasks."report:coverage"]
 description = "Show per-file coverage from the last test run without rerunning tests"
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
@@ -219,11 +206,7 @@ run = "uv run --frozen --project dot coverage report --rcfile=dot/pyproject.toml
 [tasks.format]
 alias = "f"
 description = "Format all active sources and documents"
-depends = ["format:agents", "format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
-
-[tasks."format:agents"]
-description = "Compile shared Supagents roles into native chezmoi sources"
-run = "uv run --frozen --project dot supagents build {{vars.supagents_args}}"
+depends = ["format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
 
 [tasks."format:dprint"]
 alias = "fd"
@@ -309,11 +292,6 @@ alias = "ma"
 description = "Apply the chezmoi source tree"
 run = "chezmoi apply --force"
 
-[tasks."apply:externals"]
-alias = "mae"
-description = "Apply the chezmoi source tree and force-refresh external files"
-run = "chezmoi apply --force --refresh-externals"
-
 [tasks.completions]
 alias = "mg"
 description = "Generate Fish completions for installed CLI tools"
@@ -340,9 +318,9 @@ run = "chezmoi diff --force --no-pager --exclude encrypted"
 
 [tasks.doctor]
 alias = "mo"
-description = "Run chezmoi and mise health checks"
+description = "Run the dot, chezmoi, and mise workstation health checks"
 # chezmoi probes hardlinks from its source into TMPDIR; /tmp can be another filesystem.
-run = ['TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor"]
+run = ['"$DOT_BIN" doctor', 'TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor"]
 
 [tasks.hooks]
 alias = "mh"
@@ -367,7 +345,7 @@ description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
 [tasks.tools]
-alias = ["mt", "full", "mf"]
+alias = ["mt", "full"]
 description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
@@ -380,11 +358,6 @@ run = [
   "mise run apply",
   "mise run completions",
 ]
-
-[tasks.trust]
-alias = "mtr"
-description = "Trust the repository mise config (the home config needs no trust)"
-run = "mise trust -y mise.toml"
 
 [tasks.upgrade]
 alias = "mu"
@@ -406,11 +379,6 @@ run = [
   # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]
-
-[tasks.verify]
-alias = "mx"
-description = "Run the dot workstation sanity checks"
-run = '"$DOT_BIN" doctor'
 
 [tasks.vim]
 alias = "mv"

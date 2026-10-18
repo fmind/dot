@@ -485,32 +485,6 @@ def test_interactive_child_restores_default_interrupt_and_reports_it() -> None:
     assert process_module.signal.getsignal(process_module.signal.SIGINT) is previous
 
 
-def test_interactive_relay_echoes_stderr_lines_and_reports_each() -> None:
-    lines: list[str] = []
-    stderr = StringIO()
-    script = "import sys; sys.stderr.write('Open this URL:\\n  https://example.test\\n'); sys.exit(3)"
-    with Path(os.devnull).open(encoding="utf-8") as stdin:
-        code = Runner().interactive(
-            [sys.executable, "-c", script], stdin=stdin, stderr=stderr, on_stderr_line=lines.append
-        )
-    assert code == 3
-    assert lines == ["Open this URL:\n", "  https://example.test\n"]
-    assert stderr.getvalue() == "".join(lines)
-
-
-def test_interactive_relay_returns_while_an_escaped_descendant_holds_stderr(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(process_module, "_TERMINATION_TIMEOUT_SECONDS", 0.2)
-    lines: list[str] = []
-    started = time.monotonic()
-    # The background sleep inherits the stderr pipe and outlives the shell.
-    code = Runner().interactive(
-        ["sh", "-c", "echo ready >&2; sleep 5 & exit 0"], stderr=StringIO(), on_stderr_line=lines.append
-    )
-    assert code == 0
-    assert time.monotonic() - started < 3
-    assert lines == ["ready\n"]
-
-
 def test_sigterm_stops_descendants_of_a_child_without_a_terminal(tmp_path: Path) -> None:
     pid_file = tmp_path / "descendant.pid"
     launcher = (

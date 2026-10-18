@@ -2,8 +2,7 @@
 
 import json
 import threading
-from collections.abc import Callable, Mapping, Sequence
-from io import StringIO
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import IO, Any, get_args
 
@@ -35,7 +34,6 @@ class RecordingRunner(Runner):
         self.action_code = 0
         self.missing: set[str] = set()
         self.envs: list[Mapping[str, str] | None] = []
-        self.relays: list[Callable[[str], None] | None] = []
 
     def which(self, command: str) -> Path | None:
         return None if command in self.missing else Path("/bin") / command
@@ -69,7 +67,6 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
         assert cwd is None
         assert stdin is not None
@@ -78,7 +75,6 @@ class RecordingRunner(Runner):
         self.calls.append(list(args))
         self.actions.append(list(args))
         self.envs.append(env)
-        self.relays.append(on_stderr_line)
         return self.action_code
 
 
@@ -151,7 +147,6 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     [
         ["setup"],
         ["login", "--dry-run"],
-        ["login", "all", "--dry-run"],
         ["login", "colab", "--dry-run"],
         ["login", "github", "--dry-run"],
         ["setup", "github", "--dry-run"],
@@ -920,41 +915,6 @@ def test_hf_cache_creates_the_native_cache_location(
     assert provider.actions == [["hf", "cache", "ls"]]
 
 
-def test_workspace_login_opens_the_printed_oauth_url_once(
-    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    opened: list[str] = []
-    monkeypatch.setenv("BROWSER", "fixture-browser")
-    monkeypatch.setattr(auth.webbrowser, "open", lambda url: opened.append(url) or True)
-    provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
-    result = CliRunner().invoke(app, ["login", "workspace"])
-    assert result.exit_code == 0, result.exception
-    assert provider.relays[0] is not None
-    stderr = StringIO()
-    relay = auth.browser_opener(auth.State(stderr=stderr))
-    relay("Open this URL in your browser to authenticate:\n")
-    relay("  https://accounts.google.com/o/oauth2/auth?a=1\n")
-    relay("  https://accounts.google.com/o/oauth2/auth?a=2\n")
-    assert opened == ["https://accounts.google.com/o/oauth2/auth?a=1"]
-    assert "Opened the sign-in page" in stderr.getvalue()
-
-
-def test_workspace_login_ignores_foreign_urls(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("BROWSER", "fixture-browser")
-    monkeypatch.setattr(auth.webbrowser, "open", lambda _url: pytest.fail("only Google OAuth URLs open"))
-    relay = auth.browser_opener(auth.State())
-    relay("  https://example.test/?next=https://accounts.google.com/\n")
-    relay("https://accounts.google.com/o/oauth2/auth trailing words\n")
-
-
-def test_browser_requires_a_graphical_session(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("BROWSER", "DISPLAY", "WAYLAND_DISPLAY"):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(auth.sys, "platform", "linux")
-    monkeypatch.setattr(auth.webbrowser, "open", lambda _url: pytest.fail("console browsers would seize the terminal"))
-    assert not auth.open_browser("https://accounts.google.com/o/oauth2/auth")
-
-
 def workspace_client_status(**kwargs: Any) -> CommandResult:
     """gws reports its OAuth client and token in one status, shared by Workspace setup and login."""
     return response({**json.loads(client_status().stdout), **json.loads(workspace_status().stdout), **kwargs})
@@ -1013,7 +973,7 @@ def test_login_rejects_group_options_before_a_provider(provider: RecordingRunner
     assert not provider.calls
 
 
-def test_login_all_refreshes_gcloud_before_workspace_setup(
+def test_machine_login_refreshes_gcloud_before_workspace_setup(
     provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # gws omits enabled APIs when its live gcloud query fails, so setup falls back to gcloud itself.
@@ -1023,44 +983,44 @@ def test_login_all_refreshes_gcloud_before_workspace_setup(
     stale = workspace_client_status(enabled_apis=None)
     # The gcloud login invalidates the first gws status, which embeds a live gcloud query.
     provider.responses = [github_status(), reauth, TOKEN, stale, TOKEN, TOKEN, stale, enabled]
-    result = CliRunner().invoke(app, ["login", "all"])
+    result = CliRunner().invoke(app, ["login"])
     assert result.exit_code == 0, result.exception
     assert provider.actions == [["gcloud", "auth", "login"]]
     assert provider.calls[-1][:3] == ["gcloud", "services", "list"]
 
 
-def test_login_all_rejects_invalid_project_before_any_login(
+def test_machine_login_rejects_invalid_project_before_any_login(
     provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("GWS_PROJECT", "Not A Project")
-    result = CliRunner().invoke(app, ["login", "all", "--dry-run"])
+    result = CliRunner().invoke(app, ["login", "--dry-run"])
     assert result.exit_code == 1
     assert "fix GWS_PROJECT or auth.workspace.project" in str(result.exception)
     assert not provider.calls
     assert result.stdout == ""
 
 
-def test_login_all_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:
+def test_machine_login_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:
     provider.responses = [github_status(), TOKEN, TOKEN, workspace_status()]
-    result = CliRunner().invoke(app, ["login", "all"])
+    result = CliRunner().invoke(app, ["login"])
     assert result.exit_code == 0, result.exception
     assert "Skipping Workspace setup" in result.stderr
     assert not provider.actions
 
 
-def test_login_all_reconciles_github_first_and_stops_on_failure(provider: RecordingRunner) -> None:
+def test_machine_login_reconciles_github_first_and_stops_on_failure(provider: RecordingRunner) -> None:
     provider.responses = [github_status(scopes=[*Config().auth.github.scopes, "delete_repo"]), TOKEN, TOKEN]
     provider.responses.append(workspace_status())
     provider.action_code = 17
-    result = CliRunner().invoke(app, ["login", "all"])
+    result = CliRunner().invoke(app, ["login"])
     assert result.exit_code != 0
     assert len(provider.actions) == 1
     assert "--remove-scopes" in provider.actions[0]
 
 
-def test_login_all_preview_lists_every_step(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_machine_login_preview_lists_every_step(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GWS_PROJECT", "fixture-project")
-    result = CliRunner().invoke(app, ["login", "all", "--dry-run"])
+    result = CliRunner().invoke(app, ["login", "--dry-run"])
     assert result.exit_code == 0, result.exception
     assert not provider.calls
     for command in (
@@ -1082,7 +1042,7 @@ def test_login_check_reports_readiness_without_authenticating(provider: Recordin
     assert not provider.actions
 
 
-def test_login_all_check_exits_one_and_names_each_provider(provider: RecordingRunner) -> None:
+def test_machine_login_check_exits_one_and_names_each_provider(provider: RecordingRunner) -> None:
     provider.responses = [github_status(scopes=["repo"]), TOKEN, SCOPE_GAP, workspace_status()]
     result = CliRunner().invoke(app, ["login", "--check"])
     assert result.exit_code == 1
