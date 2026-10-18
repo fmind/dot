@@ -4,15 +4,15 @@ requires-python = ">=3.10"
 
 [[package]]
 name = "cli-helpers"
-version = "2.15.1"
+version = "2.15.2"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "configobj" },
     { name = "tabulate", extra = ["widechars"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/de/278f4885fcd03661ab9b69dba9fc745c27d820858dbc06e427057899dcf5/cli_helpers-2.15.1.tar.gz", hash = "sha256:e9c0826dda2855745eb63b3fd8e33b6ac8881188f2ba91e51a516ed833fc0cb8", size = 41819, upload-time = "2026-07-25T12:56:20.726Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/e0/70b2e992f089bd34c79d7154eadb45aa9d798e48e8c8bfe4f64895da8616/cli_helpers-2.15.2.tar.gz", hash = "sha256:730ddf07bff25b566c64453e543496364e88cbab2a0554e0bee0de98feedc68f", size = 42204, upload-time = "2026-10-16T16:15:49.686Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/dd/39ecd612e3c26f86e635f958237a8def3296543168c1b50433a3a5aa6872/cli_helpers-2.15.1-py3-none-any.whl", hash = "sha256:e2674e890db63b2451750d3441f42aabb95bd5b4bcdcdb64ca92538e59a7621f", size = 21514, upload-time = "2026-07-25T12:56:19.659Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/19/4fd3adb5cc7f5879e96837b6dd2a55848269774ce42a7747a873d168a163/cli_helpers-2.15.2-py3-none-any.whl", hash = "sha256:327aeda1f98295189702c2be11f980dde6bb4477d2b973473c74aaf6751597ed", size = 21578, upload-time = "2026-10-16T16:15:48.765Z" },
 ]
 
 [package.optional-dependencies]
