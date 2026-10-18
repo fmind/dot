@@ -255,7 +255,7 @@ def _pull_repository(
         except DotError as upstream_error:
             raise DotError(f"failed to inspect upstream: {upstream_error}") from upstream_error
         if not upstream:
-            return RepoResult(path=path, branch=branch, dirty=dirty, no_upstream=True)
+            return RepoResult(path=path, branch=branch, no_upstream=True)
         behind_raw = git(["rev-list", "--count", "HEAD..@{u}"])
         behind = _count(behind_raw, "behind")
         # Fetch once, then fast-forward the upstream snapshot inspected above; nothing to merge when current.
@@ -266,7 +266,7 @@ def _pull_repository(
         push_error = ""
         # Fetch/merge can take long enough for an editor or another process to
         # change the worktree. Never authorize a push using the pre-fetch check.
-        if push and ahead and not dirty:
+        if push and ahead:
             dirty = _dirty(state, path, deadline)
         if push and ahead and not dirty:
             try:
