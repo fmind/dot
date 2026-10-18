@@ -149,7 +149,14 @@ def test_managed_config_preserves_host_preferences_and_is_repeatable(tmp_path: P
     for field, mode in [("statusLine", "statusline"), ("title", "title")]:
         assert settings[field]["enabled"] is True
         arguments = shlex.split(settings[field]["command"])
-        assert arguments == ["python3", str(Path.home() / ".agents/skills/agy/scripts/display.py"), mode]
+        assert arguments == [
+            "exec",
+            "python3",
+            "-I",
+            "-S",
+            str(Path.home() / ".agents/skills/agy/scripts/display.py"),
+            mode,
+        ]
     second = subprocess.run(command, input=first.stdout, text=True, capture_output=True, check=True, timeout=30)
     assert second.stdout == first.stdout
 
@@ -202,7 +209,7 @@ def test_wide_display_preserves_full_labels_and_additional_state() -> None:
 @pytest.mark.parametrize("environment", [{"NO_COLOR": "1"}, {"TERM": "dumb"}])
 def test_plain_terminal_overrides(environment: dict[str, str]) -> None:
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "statusline"],
+        [sys.executable, "-I", "-S", str(SCRIPT), "statusline"],
         input=json.dumps(state()),
         env={**os.environ, **environment},
         capture_output=True,
@@ -216,7 +223,7 @@ def test_plain_terminal_overrides(environment: dict[str, str]) -> None:
 def test_location_tokens_reset_and_sandbox_details() -> None:
     payload = state()
     payload.update(
-        workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot/skills/agy"},
+        workspace={"project_dir": "/private/owner/dot/", "current_dir": "/private/owner/dot/skills/agy/"},
         sandbox={"enabled": True, "allow_network": True},
         terminal_width=400,
     )
@@ -225,6 +232,8 @@ def test_location_tokens_reset_and_sandbox_details() -> None:
     assert "sandbox +net" in text
     assert render(payload, "title") == "dot* — working · 2 tasks"
     payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/elsewhere"})
+    assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
+    payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot-other"})
     assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
     payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot/x/../../other"})
     assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")

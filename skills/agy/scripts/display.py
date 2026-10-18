@@ -10,7 +10,6 @@ import re
 import sys
 import unicodedata
 from collections.abc import Mapping
-from pathlib import PurePath
 
 ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\))")
 
@@ -123,14 +122,14 @@ def location(workspace: Mapping[str, object], cwd: object) -> tuple[str, str]:
     """Return the project name and the subdirectory when agy runs below its root."""
     project_dir, current_dir = workspace.get("project_dir"), workspace.get("current_dir")
     path = next((p for p in (project_dir, current_dir, cwd) if isinstance(p, str) and p), "")
-    name = clean(PurePath(path).name) or "agy"
-    if isinstance(project_dir, str) and project_dir and isinstance(current_dir, str):
-        try:
-            relative = PurePath(posixpath.normpath(current_dir)).relative_to(posixpath.normpath(project_dir))
-        except ValueError:
-            return name, ""
-        if relative.parts:
-            return name, "/" + clean(relative.as_posix())
+    base = posixpath.basename(posixpath.normpath(path))
+    name = ("" if base == "." else clean(base)) or "agy"
+    if isinstance(project_dir, str) and project_dir and isinstance(current_dir, str) and current_dir:
+        root, current = posixpath.normpath(project_dir), posixpath.normpath(current_dir)
+        if root.startswith("/") == current.startswith("/"):
+            relative = posixpath.relpath(current, root)
+            if relative not in {".", ".."} and not relative.startswith("../"):
+                return name, "/" + clean(relative)
     return name, ""
 
 
