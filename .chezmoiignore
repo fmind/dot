@@ -10,8 +10,7 @@
 **/dist
 **/htmlcov
 
-# Repository-only sources and tooling. Supagents roles compile into native harness profiles.
-.agents/supagents
+# Repository-only sources and tooling.
 AGENTS.md
 CHANGELOG.md
 LICENSE
@@ -24,7 +23,6 @@ mise.lock
 mise.toml
 ruff.toml
 skills
-supagents.yaml
 trivy.yaml
 
 # Machine-specific CLI configuration stays local.
