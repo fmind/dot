@@ -39,8 +39,11 @@
     pager = delta --paging=never
 
 [delta]
-    pager = cat
+    features = side-by-side
     line-numbers = true
+    wrap-max-lines = unlimited
+
+[delta "side-by-side"]
     side-by-side = true
 
 # Colours only. Fetched from github.com/fmind/theme by .chezmoiexternal.toml.tmpl,
