@@ -23,38 +23,17 @@
   "modules": [
     "title",
     "separator",
-    {
-      "type": "os",
-      "key": "OS"
-    },
-    {
-      "type": "kernel",
-      "key": "Kernel"
-    },
-    {
-      "type": "host",
-      "key": "Host"
-    },
-    {
-      "type": "uptime",
-      "key": "Uptime"
-    },
-    {
-      "type": "shell",
-      "key": "Shell"
-    },
+    "os",
+    "kernel",
+    "host",
+    "uptime",
+    "shell",
     {
       "type": "terminal",
       "key": "Term"
     },
-    {
-      "type": "cpu",
-      "key": "CPU"
-    },
-    {
-      "type": "memory",
-      "key": "Memory"
-    },
+    "cpu",
+    "memory",
     {
       "type": "disk",
       "key": "Disk"

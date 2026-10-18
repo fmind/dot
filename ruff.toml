@@ -19,7 +19,6 @@ force-exclude = true
 [format]
 docstring-code-format = true
 line-ending = "lf"
-quote-style = "double"
 
 [lint]
 select = [

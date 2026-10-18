@@ -25,4 +25,4 @@
        lists; an explicit ask or deny rule still wins. */ -}}
 {{- $grants := list "read_file(*)" "write_file(*)" "command(*)" "read_url(*)" "execute_url(*)" "mcp(*)" -}}
 {{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow $grants | uniq)) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}

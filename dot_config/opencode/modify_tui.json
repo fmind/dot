@@ -4,4 +4,4 @@
        errors for parent sessions. Disable sounds because native child-session
        completion also plays them; keep desktop attention notifications. */ -}}
 {{- $managedConfig := dict "$schema" "https://opencode.ai/tui.json" "theme" "fmind" "attention" (dict "enabled" true "notifications" true "sound" false) -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "jsonc" true) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "format" "jsonc") -}}

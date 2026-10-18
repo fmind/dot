@@ -18,4 +18,4 @@
   "permission": "allow"
 }
 ` -}}
-{{- includeTemplate "json-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "jsonc" true) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "format" "jsonc") -}}

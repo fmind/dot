@@ -1,0 +1,29 @@
+{{- /*
+  Merge managed keys into a configuration file the tool also writes: seed `defaults` on first
+  write, preserve host state, enforce `managed`, and rewrite only on drift so a converged file
+  keeps the tool's own comments, key order, and indentation.
+
+  Params: stdin (current content), managed (keys this repository owns), defaults (optional,
+  seeded only), format ("json" by default, "jsonc" for hosts that accept comments and trailing
+  commas, or "toml"). Callers use includeTemplate: on chezmoi 2.72.0 a modify_ script cannot
+  reach the .chezmoitemplates namespace through a template action.
+
+  chezmoi's fromJson, not sprig's mustFromJson: sprig decodes every number as float64, so
+  deepEqual never matched an integer and integers above 2^53 lost precision. deepCopy is
+  load-bearing: mergeOverwrite splices nested maps by reference, so without it the managed merge
+  would also mutate $current and the drift check could never fire.
+*/ -}}
+{{- $format := get . "format" | default "json" -}}
+{{- $current := dict -}}
+{{- if ne (trim .stdin) "" -}}
+  {{- if eq $format "toml" }}{{ $current = fromToml .stdin }}{{ else if eq $format "jsonc" }}{{ $current = fromJsonc .stdin }}{{ else }}{{ $current = fromJson .stdin }}{{ end -}}
+{{- end -}}
+{{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
+{{- $desired := mergeOverwrite (deepCopy (get . "defaults" | default dict)) (deepCopy $current) .managed -}}
+{{- if and (ne (trim .stdin) "") (deepEqual $current $desired) -}}
+{{ .stdin -}}
+{{- else if eq $format "toml" -}}
+{{ $desired | toToml -}}
+{{- else -}}
+{{ $desired | toPrettyJson }}
+{{- end -}}

@@ -322,7 +322,6 @@ sessions = false
             "permissions": {"deny": ["Read(./private)"], "additionalDirectories": ["/synthetic/host-root"]},
             "model": "host-model[1m]",
             "effortLevel": "xhigh",
-            "enableAllProjectMcpServers": True,
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
@@ -336,9 +335,9 @@ sessions = false
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["autoMemoryEnabled"] is True
         assert data["syncClaudeAiSkills"] is False
+        assert data["disableClaudeAiConnectors"] is True
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
-        assert data["enableAllProjectMcpServers"] is False
         managed_roots = [str(self.home / name) for name in (".agents", ".local/share/chezmoi", "fmind")]
         assert data["permissions"]["additionalDirectories"][:4] == ["/synthetic/host-root", *managed_roots]
         assert self.render(template, rendered) == rendered
@@ -356,11 +355,8 @@ sessions = false
         assert fresh["permissions"]["additionalDirectories"][:3] == managed_roots
         with pytest.raises(RuntimeError, match="additionalDirectories must be an array"):
             self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
-        with pytest.raises(RuntimeError, match="deny must be an array"):
-            self.render(template, '{"permissions": {"deny": "Bash(rm *)"}}')
-        # Deployed files drop the retired managed rules but keep the host's own.
-        retired = {"permissions": {"deny": ["Bash(rm -rf /)", "Bash(git push -f *main)", "Bash(npm publish)"]}}
-        assert json.loads(self.render(template, json.dumps(retired)))["permissions"]["deny"] == ["Bash(npm publish)"]
+        # No managed deny rules: the host's own list passes through untouched.
+        assert "deny" not in fresh["permissions"]
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_opencode.json"
@@ -659,7 +655,8 @@ sessions = false
                     timeout=30,
                     check=True,
                 )
-                assert log.read_text().splitlines() == ["trust", "all", "trust", str(source)]
+                # One call trusts the workspaces and this source directory, its path passed verbatim.
+                assert log.read_text().splitlines() == ["trust", "all", str(source)]
 
     def test_toml_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
         template = "dot_codex/modify_private_config.toml"
