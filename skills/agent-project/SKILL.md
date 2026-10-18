@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-10-07"
+  updated: "2026-10-18"
 ---
 
 # Set Up Agents on a Project
@@ -26,7 +26,7 @@ Author the shared project instruction and skill layer once, then add only requir
 
 <!-- guides:start -->
 
-- [cross-harness-agents](references/cross-harness-agents.md): Generate shared role profiles with Supagents and verify native harness discovery.
+- [cross-harness-agents](references/cross-harness-agents.md): Decide when a custom agent role pays off, write native definitions per host, and verify discovery.
 
 <!-- guides:end -->
 

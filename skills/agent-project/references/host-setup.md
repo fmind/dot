@@ -44,13 +44,4 @@
 
 ## Custom agents
 
-Native agent definitions differ by host. Share role instructions with [Supagents](cross-harness-agents.md), compile explicit native settings, and verify each host.
-
-| Host        | Project location                 |
-| ----------- | -------------------------------- |
-| Antigravity | `.agents/agents/<name>/agent.md` |
-| Claude Code | `.claude/agents/<name>.md`       |
-| Codex       | `.codex/agents/<name>.toml`      |
-| Copilot     | `.github/agents/<name>.agent.md` |
-| OpenCode    | `.opencode/agents/<name>.md`     |
-| Grok        | `.grok/agents/<name>.md`         |
+Native agent definitions differ by host. Add a role only when [cross-harness agents](cross-harness-agents.md) shows it pays off; that guide lists each host's project and personal locations.

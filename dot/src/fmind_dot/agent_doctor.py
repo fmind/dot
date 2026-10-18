@@ -36,8 +36,6 @@ class HostDeployment:
     persona: str
     # Host link to the shared skills; empty when the host reads ~/.agents/skills natively.
     skills: str
-    # Compiled subagent profiles match this glob.
-    agents: str
     # The native switch that silences notifications, named in the repair hint.
     notify_switch: str = "notifications"
 
@@ -52,7 +50,6 @@ HOSTS = {
         ("stop",),
         "~/.gemini/GEMINI.md",
         "~/.gemini/config/skills",
-        "~/.gemini/config/agents/*.md",
     ),
     "claude": HostDeployment(
         "~/.claude/settings.json",
@@ -60,7 +57,6 @@ HOSTS = {
         ("needs-input", "ready"),
         "~/.claude/CLAUDE.md",
         "~/.claude/skills",
-        "~/.claude/agents/*.md",
         "disableAllHooks",
     ),
     "codex": HostDeployment(
@@ -69,7 +65,6 @@ HOSTS = {
         ("native",),
         "~/.codex/AGENTS.md",
         "",
-        "~/.codex/agents/*.toml",
         "tui.notifications",
     ),
     "grok": HostDeployment(
@@ -78,7 +73,6 @@ HOSTS = {
         ("needs-input", "ready"),
         "~/.grok/AGENTS.md",
         "~/.grok/skills",
-        "~/.grok/agents/*.md",
     ),
     "copilot": HostDeployment(
         "~/.copilot/settings.json",
@@ -86,10 +80,9 @@ HOSTS = {
         ("native",),
         "~/.copilot/copilot-instructions.md",
         "",
-        "~/.copilot/agents/*.agent.md",
     ),
     # OpenCode collection is database-based; this integration does not install notification hooks.
-    "opencode": HostDeployment("", "", (), "~/.config/opencode/AGENTS.md", "", "~/.config/opencode/agents/*.md"),
+    "opencode": HostDeployment("", "", (), "~/.config/opencode/AGENTS.md", ""),
 }
 
 
@@ -195,7 +188,7 @@ def _same_file(path: Path, target: Path) -> bool:
 
 
 def _check_discovery(agent: str) -> str:
-    """Confirm the host reaches the shared persona, skills, and compiled subagents from the files alone."""
+    """Confirm the host reaches the shared persona and skills from the files alone."""
     definition = HOSTS[agent]
     shared_skills = expand_path(_SHARED_SKILLS)
     problems = []
@@ -204,9 +197,6 @@ def _check_discovery(agent: str) -> str:
     skills = expand_path(definition.skills or _SHARED_SKILLS)
     if not (_same_file(skills, shared_skills) and any(shared_skills.glob("*/SKILL.md"))):
         problems.append("skills")
-    agents = expand_path(definition.agents)
-    if not any(agents.parent.glob(agents.name)):
-        problems.append("agents")
     return f"broken:{','.join(problems)}" if problems else "ok"
 
 
@@ -307,7 +297,7 @@ def _check_archive(root: Path, agent: str) -> tuple[str, int]:
         if path.suffix != BUNDLE_SUFFIX:
             continue
         try:
-            read_session_manifest(path)
+            read_session_manifest(path, usage=False)
         except OSError, ValueError:
             unreadable += 1
         else:

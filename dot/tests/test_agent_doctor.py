@@ -68,7 +68,7 @@ def _configure_hooks(home: Path, binary: str = "dot") -> None:
 
 
 def _configure_discovery(home: Path) -> None:
-    """Lay out the shared persona, skills, and per-host links and profiles as chezmoi deploys them."""
+    """Lay out the shared persona, skills, and per-host links as chezmoi deploys them."""
     _write(home / ".agents/AGENTS.md", "# Persona\n")
     _write(home / ".agents/skills/sample/SKILL.md", "---\nname: sample\n---\n")
     for persona in (
@@ -84,15 +84,6 @@ def _configure_discovery(home: Path) -> None:
     for link in (".gemini/config/skills", ".claude/skills", ".grok/skills"):
         (home / link).parent.mkdir(parents=True, exist_ok=True)
         (home / link).symlink_to(home / ".agents/skills", target_is_directory=True)
-    for profile in (
-        ".gemini/config/agents/reviewer.md",
-        ".claude/agents/reviewer.md",
-        ".codex/agents/reviewer.toml",
-        ".grok/agents/reviewer.md",
-        ".copilot/agents/reviewer.agent.md",
-        ".config/opencode/agents/reviewer.md",
-    ):
-        _write(home / profile, "reviewer\n")
 
 
 def _state(monkeypatch: pytest.MonkeyPatch, home: Path) -> State:
@@ -325,7 +316,7 @@ def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.Monkey
     assert isinstance(agent, TyperGroup)
     doctor = agent.commands["doctor"]
     options = {option for parameter in doctor.params for option in parameter.opts}
-    assert options == {"--agent", "--harness", "-a", "--json", "-j"}
+    assert options == {"--agent", "-a", "--json", "-j"}
     for removed in ("--fix", "--dry-run", "--deep", "--explain"):
         assert CliRunner().invoke(app, ["agent", "doctor", removed]).exit_code == 2
     unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "unsupported"])
@@ -533,7 +524,6 @@ def test_doctor_reports_broken_discovery_per_host(monkeypatch: pytest.MonkeyPatc
     (tmp_path / ".grok/skills").unlink()
     (tmp_path / ".grok/skills").mkdir()
     (tmp_path / ".codex/AGENTS.md").unlink()
-    (tmp_path / ".copilot/agents/reviewer.agent.md").unlink()
 
     with pytest.raises(DotError, match="unhealthy"):
         run_agent_doctor(state)
@@ -541,7 +531,7 @@ def test_doctor_reports_broken_discovery_per_host(monkeypatch: pytest.MonkeyPatc
     results = {result.agent: result for result in gather_agent_doctor(state)}
     assert results["grok"].discovery == "broken:skills"
     assert results["codex"].discovery == "broken:persona"
-    assert results["copilot"].discovery == "broken:agents"
+    assert results["copilot"].discovery == "ok"
     assert results["claude"].discovery == "ok"
     assert "chezmoi apply --force" in results["grok"].next
 

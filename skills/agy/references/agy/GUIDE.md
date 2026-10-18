@@ -23,19 +23,11 @@ The CLI signs in with the Google account and its plan quota by default; keep it 
 
 Shell completions: after upgrades, compare native help with the deployed `~/.config/fish/completions/agy.fish` (chezmoi-managed; edit its source, not the deployed copy). Use a native generator if one becomes available; otherwise maintain this completion and its Carapace exclusion. Verify Fish syntax and representative completions, including `agy mic-serve --` and `agy remote-control st`; `mise run completions` regenerates the other configured completions.
 
-## Managed custom agents
+## Custom agents
 
-Shared roles, such as `code-reviewer` and `security-reviewer`, inherit the session model, support main-agent and subagent use, and carry the explicit tool allowlist that [permission limits](../../../agent-project/references/cross-harness-agents.md#permission-limits) owns (agy always adds `send_message` and `manage_task`). The headless `init.tools` list shows the global registry, not a role's effective tools. Markdown agents inherit ambient skills, rules, and subagents unless `excludeDefaultComponents: true`. Their instructions, not the allowlist, bound actions.
+fmind/dot deploys no custom roles; the default agent loads the shared persona and skills. Before adding one, read [cross-harness agents](../../../agent-project/references/cross-harness-agents.md): an agy role needs an explicit tool allowlist to act (agy always adds `send_message` and `manage_task`). Markdown agents inherit ambient skills, rules, and subagents unless `excludeDefaultComponents: true`. The headless `init.tools` list shows the global registry, not a role's effective tools.
 
-Select with `agy --agent <role>` or `/agents`. For delegation, give the parent the role, scope, acceptance criteria, and relevant diff or evidence paths. Use `agy agents` to verify discovery after applying `~/.gemini/config/agents/` (project roles live in `.agents/agents/`); reopen the panel or start a fresh session to pick up changes.
-
-```bash
-agy --agent code-reviewer -i 'Review the working-tree diff. Report verified findings without editing.'
-```
-
-That selects the main agent. To spawn subagents, ask the default parent explicitly: “Delegate correctness review to code-reviewer and credential/permission review to security-reviewer. Give each the relevant paths and constraints, have both report without editing, then reconcile findings.” Subagents start with fresh context; include requirements and evidence in the assignment. Use `/agents` to inspect them; `Enter` opens details and `K` terminates a selected subagent. To message an existing subagent, type `@` followed by a space and select it from autocomplete; this differs from `@path` file mentions. [Agents panel](https://antigravity.google/docs/cli/commands/agents/) and the [changelog](https://antigravity.google/docs/changelog) own current controls.
-
-Supagents compiles shared `dot_agents/supagents/` sources into native definitions under `dot_gemini/private_config/exact_agents/`; chezmoi deploys them. Run `mise run format:agents` after editing a source and `mise run check:agents` to check drift. See [cross-harness agents](../../../agent-project/references/cross-harness-agents.md) for all host mappings and compiler updates. [Custom agents](https://antigravity.google/docs/subagents/) owns the current schema.
+To spawn subagents, ask the default parent explicitly, for example: "Delegate a correctness review and a credential/permission review to two subagents. Give each the relevant paths and constraints, have both report without editing, then reconcile findings." Subagents start with fresh context; include requirements and evidence in the assignment. Use `/agents` to inspect them; `Enter` opens details and `K` terminates a selected subagent. To message an existing subagent, type `@` followed by a space and select it from autocomplete; this differs from `@path` file mentions. [Agents panel](https://antigravity.google/docs/cli/commands/agents/), [custom agents](https://antigravity.google/docs/subagents/), and the [changelog](https://antigravity.google/docs/changelog) own current controls.
 
 ## Official Skills
 
