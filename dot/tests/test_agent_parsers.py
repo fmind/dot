@@ -79,18 +79,20 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
                 "type": "PLANNER_RESPONSE",
                 "content": "world",
                 "thinking": "why",
+                "truncated_fields": ["tool_calls"],
             },
             {"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "old", "is_truncated": True},
+            {"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "cut", "truncated_fields": ["content"]},
         ],
     )
     parsed_agy = parse_agy_session(agy, "agy-id")
     assert [line.role for line in parsed_agy.logs] == ["user", "assistant"]
     assert parsed_agy.usage is not None
-    assert parsed_agy.usage.total_tokens == 5
+    assert parsed_agy.usage.total_tokens == 6
     assert parsed_agy.usage.measurement_kind == "estimated"
     assert parsed_agy.usage.model == "unknown"
     assert parsed_agy.usage.source_bytes == agy.stat().st_size
-    assert _usage(parse_agy_session(agy, "agy-id")).total_tokens == 5
+    assert _usage(parse_agy_session(agy, "agy-id")).total_tokens == 6
 
     claude = tmp_path / "claude.jsonl"
     _jsonl(

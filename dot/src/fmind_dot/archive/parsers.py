@@ -246,7 +246,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
                 output_bytes += len(thinking.encode())
         elif kind in {"RUN_COMMAND", "SYSTEM_MESSAGE"}:
             input_bytes += len(text.encode())
-        if raw.get("is_truncated") is True:
+        truncated = raw.get("truncated_fields")
+        if raw.get("is_truncated") is True or (isinstance(truncated, list) and "content" in truncated):
             continue
         role = ""
         if source == "USER_EXPLICIT" and kind == "USER_INPUT":
