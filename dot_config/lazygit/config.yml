@@ -5,10 +5,17 @@ disableStartupPopups: true
 git:
   diffContextSize: 7
   diffRenderers:
-    - command: delta --paging=never
+    - name: delta
+      command: delta --paging=never --features={{if gt .width 120}}side-by-side{{end}}
+      colorArg: always
+    - name: delta unified
+      command: delta --paging=never --features=
       colorArg: always
 gui:
+  sidePanelWidth: 0.3
   expandFocusedSidePanel: true
+  commitAuthorLongLength: 22
+  commitHashLength: 7
   # Filter lists fuzzily and show ahead/behind counts against the base branch.
   filterMode: fuzzy
   showDivergenceFromBaseBranch: arrowAndNumber
