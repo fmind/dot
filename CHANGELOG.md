@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [12.1.0] - 2026-10-18
+
+### 🚀 Features
+
+- _(fish)_ Complete agy 1.4.2 install, mcp add, and plugin flags
+
+### 🐛 Bug Fixes
+
+- _(archive)_ Skip agy transcript entries with truncated content
+- _(chezmoi)_ Reject unknown config-merge formats
+
+### ⚡ Performance
+
+- _(agy)_ Start the status line renderer without site imports
+
+### ♻️ Refactor
+
+- _(dot)_ Drop the vestigial dirty guard in pull
+
+### 📚 Documentation
+
+- _(agy)_ Refresh the skill for Antigravity CLI 1.4.2
+- _(readme)_ Drop retired roles from the overview illustration
+
 ## [12.0.0] - 2026-10-18
 
 ### 🚀 Features
