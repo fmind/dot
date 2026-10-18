@@ -15,6 +15,9 @@ from dot_tasks.mise_locks import bundle, capture
 # Their registry entries publish no checksum; keep in step with config.toml's comment.
 UNCHECKSUMMED_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
 _CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
+# Tools whose --bump keeps the locked version and graph; keep in step with config.toml's comment.
+# mermaid-cli: newer graphs select a chromium-bidi without trusted-publisher evidence (refused 2026-10-16).
+HELD_TOOLS = frozenset({"npm:@mermaid-js/mermaid-cli"})
 
 
 def validate(configuration: Path) -> None:
@@ -80,6 +83,10 @@ def refresh(root: Path, *, bump: bool = False) -> None:
         command = ["mise", "lock", "--global", "--yes"]
         if bump:
             command.append("--bump")
+            tools = tomllib.loads((source / "config.toml").read_text(encoding="utf-8"))["tools"]
+            if HELD_TOOLS.intersection(tools):
+                # Naming the other tools leaves each held tool's locked entry untouched.
+                command.extend(name for name in tools if name not in HELD_TOOLS)
         subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
             command, cwd=workspace, env=environment, check=True, timeout=1800
         )
