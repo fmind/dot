@@ -52,7 +52,7 @@ def _default_custom_completions() -> dict[str, ToolConfig]:
         "dot": ToolConfig(binary="env", args=["_DOT_COMPLETE=source_fish", "dot"]),
         "dprint": ToolConfig(args=["completions", "fish"]),
         "dyff": ToolConfig(),
-        "fastfetch": ToolConfig(package="fastfetch"),
+        "fastfetch": ToolConfig(package="github:fastfetch-cli/fastfetch"),
         "fd": ToolConfig(args=["--gen-completions", "fish"]),
         "gh": ToolConfig(args=["completion", "-s", "fish"]),
         "git-cliff": ToolConfig(package="git-cliff"),
