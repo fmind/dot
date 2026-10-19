@@ -31,9 +31,6 @@ from fmind_dot.state import State
 
 SYNC_SCHEMA = "dot.agent.session.sync/v2"
 SYNC_STATE_NAME = ".sync.json"
-# Windowed (`--since`) passes record their own state: they never prove a complete capture, so they
-# must not touch the complete-pass state or its database checkpoint, but they do prove sync is running.
-SYNC_WINDOW_STATE_NAME = ".sync-window.json"
 SYNC_STATE_SCHEMA = "dot.agent.session.sync-state/v1"
 FAILURE_DETAIL_LIMIT = 512
 _UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
@@ -227,9 +224,8 @@ def _write_sync_state(
     database_signature: str = "",
     *,
     retained: int = 0,
-    since: datetime | None = None,
 ) -> None:
-    """Record a complete pass, or a windowed pass (``since``) in its own state file."""
+    """Record a complete pass; filtered passes never prove the archive and record nothing."""
     document: dict[str, object] = {
         "schema": SYNC_STATE_SCHEMA,
         "synced_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -239,11 +235,8 @@ def _write_sync_state(
         "parser_version": SESSION_PARSER_VERSION,
         "database_signature": database_signature,
     }
-    if since is not None:
-        document["since"] = since.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     directory = private_directory(private_directory(root) / agent)
-    name = SYNC_STATE_NAME if since is None else SYNC_WINDOW_STATE_NAME
-    write_private_file(directory / name, (json.dumps(document) + "\n").encode())
+    write_private_file(directory / SYNC_STATE_NAME, (json.dumps(document) + "\n").encode())
 
 
 def sync_sessions(
@@ -269,8 +262,6 @@ def sync_sessions(
     outcome = SyncOutcome()
     # Only an unfiltered pass proves every available session of an agent was considered.
     complete_pass = not (session or cwd or since or dry_run)
-    # A windowed pass considers every session modified since the cutoff, so it proves sync is running.
-    window_pass = since is not None and not (session or cwd or dry_run)
 
     def fail(adapter: AgentAdapter, operation: str, error: BaseException, session_id: str = "") -> None:
         outcome.failed += 1
@@ -400,13 +391,6 @@ def sync_sessions(
                         database_signature = ""
                 _write_sync_state(
                     root, adapter.name, outcome.failed - failed_before, database_signature, retained=counts.retained
-                )
-            except OSError as error:
-                fail(adapter, "record sync state", error)
-        elif window_pass:
-            try:
-                _write_sync_state(
-                    root, adapter.name, outcome.failed - failed_before, retained=counts.retained, since=since
                 )
             except OSError as error:
                 fail(adapter, "record sync state", error)
