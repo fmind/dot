@@ -14,7 +14,7 @@ from fmind_dot import agent as agent_module
 from fmind_dot.cli import app
 from fmind_dot.config import Config
 from fmind_dot.errors import DotError
-from fmind_dot.hooks import Notification, notification_command
+from fmind_dot.hooks import Notification
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 from tests.fakes import ScriptedRunner
@@ -200,14 +200,13 @@ def test_deeply_nested_hook_payload_exits_zero(monkeypatch: pytest.MonkeyPatch, 
     assert result.stderr.startswith("agent hook notify failed:")
 
 
-def test_notification_commands_cover_linux_fallback_and_darwin_escaping() -> None:
+def test_notification_commands_cover_linux_and_darwin_escaping() -> None:
     linux = hooks.notification_command(
-        ScriptedRunner({"gdbus"}),
+        ScriptedRunner({"notify-send"}),
         hooks.Notification("Done", "Turn finished"),
         system="linux",
     )
-    assert linux[0] == "gdbus"
-    assert {"uint32 0", "@as []", "@a{sv} {}", "int32 10000"} <= set(linux)
+    assert linux == ["notify-send", "--app-name=dot", "--expire-time=10000", "Done", "Turn finished"]
 
     darwin = hooks.notification_command(
         ScriptedRunner(),
@@ -237,7 +236,7 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
 
     with pytest.raises(DotError, match="unsupported on plan9"):
         hooks.notification_command(ScriptedRunner(), minimal, system="plan9")
-    with pytest.raises(DotError, match="install notify-send or gdbus"):
+    with pytest.raises(DotError, match=r"install notify-send \(libnotify-bin\)"):
         hooks.notification_command(ScriptedRunner(), minimal, system="linux")
 
 
@@ -283,10 +282,10 @@ def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failu
 
 def test_notification_dispatch_skips_missing_desktop_service(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = ScriptedRunner(
-        {"gdbus"},
+        {"notify-send"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(
             "",
-            "Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: "
+            "GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: "
             "The name org.freedesktop.Notifications was not provided by any .service files",
             1,
         ),
@@ -323,19 +322,6 @@ def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: p
 
 def test_linux_notification_renders_body_as_text_without_actions() -> None:
     notification = hooks.Notification("Done", "Fix <hooks> & tests")
-    for installed in ({"notify-send", "gdbus"}, {"gdbus"}):
-        command = hooks.notification_command(ScriptedRunner(installed), notification, system="linux")
-        assert "Fix &lt;hooks&gt; &amp; tests" in command
-        if command[0] == "gdbus":
-            assert "@as []" in command
-        else:
-            assert not any("action" in argument for argument in command)
-
-
-def test_notification_command_prefers_notify_send() -> None:
-    runner = ScriptedRunner({"notify-send", "gdbus"})
-
-    command = notification_command(runner, Notification("Done", "Turn finished"), system="linux")
-
-    assert command[0] == "notify-send"
-    assert command[-2:] == ["Done", "Turn finished"]
+    command = hooks.notification_command(ScriptedRunner({"notify-send"}), notification, system="linux")
+    assert "Fix &lt;hooks&gt; &amp; tests" in command
+    assert not any("action" in argument for argument in command)
