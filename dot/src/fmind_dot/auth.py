@@ -56,6 +56,8 @@ _GITHUB_IMPLIED = {
     "write:public_key": {"read:public_key"},
     "admin:gpg_key": {"write:gpg_key", "read:gpg_key"},
     "write:gpg_key": {"read:gpg_key"},
+    "admin:ssh_signing_key": {"write:ssh_signing_key", "read:ssh_signing_key"},
+    "write:ssh_signing_key": {"read:ssh_signing_key"},
     "user": {"read:user", "user:email", "user:follow"},
     "project": {"read:project"},
     "write:packages": {"read:packages"},

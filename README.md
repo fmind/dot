@@ -168,6 +168,19 @@ For hooks, notifications, and provider overrides, see [agent harnesses](skills/a
 
 mise installs and locks every harness except Antigravity, which updates itself; see the [Grok guide](skills/agent-harnesses/references/grok/GUIDE.md) to retire a former Grok self-install.
 
+### Commit signing
+
+Each machine signs commits and annotated tags with its own Ed25519 SSH key, so one machine can be revoked without touching the others; the private key never enters this repository, even encrypted. Apply enables signing only where `~/.ssh/id_ed25519_signing` exists, and a machine without it commits unsigned. The key has no passphrase so agent shells sign unattended: a signature proves the machine, not a human. Set up a new machine once, after `dot setup github` grants `write:ssh_signing_key`:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C "git-signing@$(hostname)" -f ~/.ssh/id_ed25519_signing
+gh ssh-key add ~/.ssh/id_ed25519_signing.pub --type signing --title "$(hostname) signing"
+printf '*@fmind.dev namespaces="git" %s\n' "$(cat ~/.ssh/id_ed25519_signing.pub)" >>"$(chezmoi source-path)/dot_config/git/allowed_signers"
+chezmoi apply ~/.gitconfig ~/.config/git/allowed_signers
+```
+
+Commit the new [`allowed_signers`](dot_config/git/allowed_signers) line so every machine verifies the others locally (`git log --show-signature`). Retire a machine by deleting its line and its key in [GitHub SSH and GPG keys](https://github.com/settings/keys). Turn on [vigilant mode](https://docs.github.com/en/authentication/managing-commit-signature-verification/displaying-verification-statuses-for-all-of-your-commits) there once every machine signs, so unsigned commits under your name show as Unverified. GitHub verifies only classical signatures (GPG, SSH, S/MIME), and a verified commit keeps its status after key rotation, so post-quantum signing waits for GitHub support.
+
 ### Secret Management
 
 Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode use native credential files, seeded only when absent so later logins survive apply. Use `hf auth login`, `kaggle auth login`, or OpenCode's `/connect` for your own accounts. For customer work, select credentials explicitly using the [account override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
