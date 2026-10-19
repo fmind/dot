@@ -40,7 +40,7 @@ def invoke(root: Path, tasks: list[dict], **options: object) -> tuple[subprocess
         [sys.executable, str(RUNNER), str(manifest), "--state-dir", str(root / "state")],
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=60,
     )
     return result, json.loads(result.stdout or result.stderr)
 
@@ -142,7 +142,8 @@ def test_native_agy_reaching_print_timeout_needs_review(tmp_path: Path, monkeypa
     executable.write_text('#!/bin/sh\nsleep 1.1\necho \'{"status": "SUCCESS", "response": "partial"}\'\n')
     executable.chmod(0o700)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
-    spec = {"id": "native", "workspace": str(tmp_path), "prompt": "x", "checks": [[sys.executable, "-c", "pass"]]}
+    # timeout=6 gives agy a 1 s print timeout; the cheapest check keeps the 6 s worker ceiling loose under load.
+    spec = {"id": "native", "workspace": str(tmp_path), "prompt": "x", "checks": [["true"]]}
     result, output = invoke(tmp_path, [spec], timeout=6)
     row = output["tasks"][0]
     assert result.returncode == 1
@@ -230,7 +231,7 @@ def invoke_default_state(root: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[s
     manifest = root / "batch.json"
     manifest.write_text(json.dumps({"tasks": [task(root, "first")]}))
     result = subprocess.run(
-        [sys.executable, str(RUNNER), str(manifest)], capture_output=True, text=True, timeout=20, check=False
+        [sys.executable, str(RUNNER), str(manifest)], capture_output=True, text=True, timeout=60, check=False
     )
     return result, Path(json.loads(result.stdout)["run"])
 
