@@ -1,6 +1,6 @@
 ---
 name: settings-baseline
-description: "Apply the solo-maintainer merge, feature, secret-scanning, and default-branch protection baseline idempotently."
+description: "Apply the solo-maintainer merge, feature, secret-scanning, Dependabot security-update, and default-branch protection baseline idempotently."
 ---
 
 # Settings Baseline
@@ -31,6 +31,13 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
    else
      echo "Secret scanning is unavailable for $repository; leaving it unchanged." >&2
    fi
+   ```
+
+1. **Enable Dependabot security updates** on every repository, public or private (free on every plan): alerts warn about vulnerable dependencies and security updates open the fix PRs; the [dependabot](../../github-actions/references/dependabot.md) config keeps version updates off and groups the fixes:
+
+   ```bash
+   gh api -X PUT "repos/$repository/vulnerability-alerts"
+   gh api -X PUT "repos/$repository/automated-security-fixes"
    ```
 
 1. **Protect a public repository** after the edit: enable private vulnerability reporting and keep exactly one repository ruleset, `Protect default branch`, that blocks deletion and force pushes without requiring pull requests or signatures, so direct pushes keep working. Look it up by name and update it in place; create it only when it is absent and no other ruleset already enforces both rules. Duplicates left by earlier runs stop the step: report their IDs and delete extras only with the user's approval.
@@ -66,6 +73,7 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
    gh repo view "$repository" --json "$settings_fields"
    gh api "repos/$repository" \
      --jq '{allow_update_branch, squash_merge_commit_title, squash_merge_commit_message, security_and_analysis}'
+   gh api "repos/$repository/automated-security-fixes" --jq .enabled   # expect true
    if [[ "$(jq -r .visibility <<<"$repository_json")" == public ]]; then
      gh api "repos/$repository/private-vulnerability-reporting" --jq .enabled
      gh api --paginate "repos/$repository/rulesets?includes_parents=false" --jq '.[] | {id, name, enforcement}'
@@ -81,4 +89,4 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
 
 ## Documentation
 
-- [Repository rulesets API](https://docs.github.com/en/rest/repos/rules) · [Private vulnerability reporting API](https://docs.github.com/en/rest/repos/repos#enable-private-vulnerability-reporting-for-a-repository)
+- [Repository rulesets API](https://docs.github.com/en/rest/repos/rules) · [Dependabot security updates API](https://docs.github.com/en/rest/repos/repos#enable-dependabot-security-updates) · [Private vulnerability reporting API](https://docs.github.com/en/rest/repos/repos#enable-private-vulnerability-reporting-for-a-repository)

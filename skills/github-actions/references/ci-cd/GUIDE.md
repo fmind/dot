@@ -31,7 +31,7 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
 - **Isolate publishing from builds**: build distributions without OIDC, transfer only `dist/`, then grant `id-token: write` to the PyPI job. `pypa/gh-action-pypi-publish` performs Trusted Publishing and creates PyPI attestations.
 - **Grant least privilege**: top-level `contents: read`; grant `id-token: write` only to publishers and `packages: write` only to the GHCR job.
 - **Verify images before promoting tags**: push a candidate tag and resolve every requested platform's child digest from the Buildx index. Scan each child and generate its own CycloneDX SBOM; sign the index and attest each SBOM to the corresponding child digest with [trivy](../../../code-security/references/trivy/GUIDE.md) and [cosign](../../../docker/references/cosign.md). Verify all signatures and attestations before promoting that same index digest to the version and `latest` tags with [Buildx imagetools](https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/); a rejected candidate leaves consumer tags unchanged. Keep `PLATFORMS` as the shared build/validation declaration. Trivy's default scan selects AMD64 and does not cover an entire multi-platform index.
-- **Pin actions to commit SHAs**: use the full 40-character commit SHA plus the release as a trailing comment, such as `actions/checkout@<sha> # v7.0.1`; let Dependabot propose reviewed updates.
+- **Pin actions to commit SHAs**: use the full 40-character commit SHA plus the release as a trailing comment, such as `actions/checkout@<sha> # v7.0.1`; Dependabot security updates bump a vulnerable pin, and [upgrade-tools](../../../upgrade-tools/SKILL.md) refreshes the rest.
 
 ## Gotchas
 

@@ -23,7 +23,7 @@ Read only the matching guide and its required resources. Use a known guide direc
 <!-- guides:start -->
 
 - [ci-cd](references/ci-cd/GUIDE.md): GitHub Actions CI/CD setup, workflow validation, and publication.
-- [dependabot](references/dependabot.md): Automated dependency updates and grouping.
+- [dependabot](references/dependabot.md): Security-only dependency updates: alerts plus grouped fix PRs.
 - [github-agentic-workflow](references/github-agentic-workflow/GUIDE.md): Design, compile, test, and audit GitHub Agentic Workflows.
 - [lefthook](references/lefthook.md): Local Git hooks aligned with repository tasks.
 - [zizmor](references/zizmor.md): Workflow security analysis and finding verification.
