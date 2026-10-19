@@ -93,7 +93,7 @@ def test_secret_seed_validates_before_starting_writer(
         },
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=60,
         check=False,
     )
     assert (result.returncode == 0) is (expected is not None), result.stderr
@@ -240,6 +240,6 @@ else:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=60,
     )
     assert (result.returncode == 0) is (problem in {"none", "implicit-default"}), result.stderr

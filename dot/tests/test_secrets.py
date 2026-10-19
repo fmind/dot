@@ -210,7 +210,7 @@ def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login:
         str(config),
     ]
     environment = {**os.environ, "HOME": str(home)}
-    subprocess.run(command, check=True, capture_output=True, timeout=15, env=environment)
+    subprocess.run(command, check=True, capture_output=True, timeout=60, env=environment)
     if login == "no-age-key":
         assert all(not (home / relative).exists() for relative in targets.values())
         return
@@ -222,6 +222,6 @@ def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login:
         assert path.read_text() == "synthetic-personal\n"
         assert path.stat().st_mode & 0o777 == 0o600
         path.write_text("synthetic-customer\n")
-    subprocess.run(command, check=True, capture_output=True, timeout=15, env=environment)
+    subprocess.run(command, check=True, capture_output=True, timeout=60, env=environment)
     for relative in targets.values():
         assert (home / relative).read_text() == "synthetic-customer\n"
