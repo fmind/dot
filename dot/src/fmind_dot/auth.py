@@ -98,10 +98,17 @@ _GOOGLE_SCOPE_ALIASES = {
 def probe(state: State, args: list[str]) -> CommandResult:
     """Run a readiness probe once per invocation; logins clear the reused results."""
     key = tuple(args)
-    if (cached := state.probes.get(key)) is not None:
+    if isinstance(cached := state.probes.get(key), DotError):
+        raise cached
+    if cached is not None:
         return cached
     require_tools(state, [args])
-    result = state.runner.run(args, timeout=_PROBE_TIMEOUT_SECONDS, check=False)
+    try:
+        result = state.runner.run(args, timeout=_PROBE_TIMEOUT_SECONDS, check=False)
+    except DotError as error:
+        # Reuse a timeout too: the sequential step after warm_probes must not wait for it again.
+        state.probes[key] = error
+        raise
     state.probes[key] = result
     return result
 

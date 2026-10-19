@@ -28,7 +28,7 @@ class State:
     stderr: IO[str] = field(default_factory=lambda: sys.stderr)
     _config: Config | None = field(default=None, init=False, repr=False)
     # Readiness probe results reused within one invocation; every login clears them.
-    probes: dict[tuple[str, ...], CommandResult] = field(default_factory=dict, init=False, repr=False)
+    probes: dict[tuple[str, ...], CommandResult | DotError] = field(default_factory=dict, init=False, repr=False)
 
     @property
     def config_path(self) -> Path:
