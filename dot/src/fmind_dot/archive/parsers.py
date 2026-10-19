@@ -848,7 +848,7 @@ def _grok_turn_usage(
         )
         _apply_counters(sample, counters, _GROK_TOKEN_FIELDS)
         samples.append(sample.finalize(fallback_timestamp=fallback_timestamp))
-    # An unstamped turn cannot establish a complete bill, including known zero.
+    # A turn without a reported cost cannot establish a complete bill, including a known zero.
     return samples, ticks or 0, ticks is not None
 
 

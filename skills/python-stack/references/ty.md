@@ -16,7 +16,7 @@ Use ty for Python static typing; [foundation](foundation/GUIDE.md) owns the comm
 
 - **Know ty's configuration precedence**: ty takes the Python version from `[tool.ty.environment].python-version` (`major.minor` only), else the minimum of `project.requires-python`; a `ty.toml` replaces the whole `[tool.ty]` section.
 - **Suppress with `# ty: ignore[rule-name]`**: place it on the offending line; never clear a gate with `ty check --add-ignore`, which writes those comments and then prints `All checks passed!`.
-- **Standalone skill installation does not install Astral's Claude LSP configuration.**
+- **Standalone installs skip the LSP configuration**: standalone skill installation does not install Astral's Claude LSP configuration.
 
 ## Official Skills
 

@@ -23,7 +23,7 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 
 - **Localhost numbers exclude the network**: `oha` against `localhost` measures the server, not the user experience.
 - **Correction needs a rate**: oha ignores `--latency-correction` without `-q`; set an authorized request rate and report that rate, concurrency, and achieved throughput together.
-- **hyperfine 2 runs without a shell**: commands no longer pay shell startup; add `-S default` (or `-S bash`) for pipes, `&&`, globs, or variables. 2.x JSON exports use schema v2, so never compare them with 1.x results.
+- **hyperfine 2 runs without a shell**: commands no longer pay shell startup; add `-S` (the platform shell) or `--shell=bash` for pipes, `&&`, globs, or variables. 2.x JSON exports use schema v2, so never compare them with 1.x results.
 - **Caches lie**: a second run of a build or query hits caches; use `--prepare` to clear them when the cold path is what matters.
 - **Separate Cloud Run cold starts**: benchmark with `--min-instances` known, and separate first-request latency from steady state per the [cloud-run skill](../../cloud-run/SKILL.md).
 
