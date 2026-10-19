@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-10-16"
+  updated: "2026-10-19"
 ---
 
 # Infrastructure as Code
@@ -19,7 +19,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 - **Default to OpenTofu via mise**: `opentofu` tool, `tofu` binary; verify provider, backend, state, and language-feature compatibility before a Terraform migration.
 - **Use the template tasks and hooks**: [mise.toml](templates/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](templates/lefthook.yml) wires the hooks per [lefthook](../github-actions/references/lefthook.md).
 - **Generate docs with terraform-docs**: `mise run build` injects the inputs/outputs table between the `TF_DOCS` markers in `README.md` (add them once at scaffold time) per [terraform-docs.yml](templates/terraform-docs.yml), without cloud access.
-- **Authenticate without service-account keys**: Application Default Credentials locally; Workload Identity Federation in CI per [github-actions](../github-actions/references/ci-cd/GUIDE.md).
+- **Authenticate without service-account keys**: Application Default Credentials locally; Workload Identity Federation in CI per [cloud-run bootstrap](../cloud-run/references/bootstrap.md).
 
 ## Workflow
 

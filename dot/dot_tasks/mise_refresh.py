@@ -12,7 +12,7 @@ from pathlib import Path
 
 from dot_tasks.mise_locks import bundle, capture
 
-# Their registry entries publish no checksum; keep in step with config.toml's comment.
+# Their registry entries publish no checksum.
 UNCHECKSUMMED_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
 _CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
 # Tools whose --bump keeps the locked version and graph; keep in step with config.toml's comment.

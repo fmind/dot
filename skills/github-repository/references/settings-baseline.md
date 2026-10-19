@@ -61,7 +61,12 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
    ```bash
    gh api -X PUT "repos/$repository/immutable-releases"
    for env in $(gh api "repos/$repository/environments" --jq '.environments[].name | select(. == "pypi" or . == "release")'); do
-     jq -n '{deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}}' |
+     # PUT replaces the environment's settings, so carry its reviewers and wait timer forward.
+     gh api "repos/$repository/environments/$env" --jq '{
+       wait_timer: ([.protection_rules[]? | select(.type == "wait_timer") | .wait_timer][0] // 0),
+       prevent_self_review: ([.protection_rules[]? | select(.type == "required_reviewers") | .prevent_self_review][0] // false),
+       reviewers: ([.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[] | {type, id: .reviewer.id}] | if length == 0 then null else . end),
+       deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}}' |
        gh api -X PUT "repos/$repository/environments/$env" --input - >/dev/null
      gh api "repos/$repository/environments/$env/deployment-branch-policies" \
        --jq '.branch_policies[] | select(.type == "tag") | .name' | grep -qx 'v\*' ||

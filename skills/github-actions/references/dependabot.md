@@ -17,7 +17,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
    gh api "repos/$repository/automated-security-fixes" --jq .enabled   # expect true
    ```
 
-1. **Map the ecosystems**: one `updates` entry per ecosystem the GitHub Advisory Database covers, listing every manifest directory under `directories`, using the value Dependabot expects:
+1. **Map the ecosystems**: one `updates` entry per ecosystem the GitHub Advisory Database covers, with `directory` for one manifest directory or `directories` for several, using the value Dependabot expects:
 
    | Manifest                     | `package-ecosystem` |
    | ---------------------------- | ------------------- |
@@ -85,7 +85,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 - **Drop version-update options**: `cooldown`, `allow.update-types`, and `schedule.day`/`time` only shape version updates; leave them out so the file states what runs.
 - **Avoid `allow` and `ignore`**: unlike `update-types`, they also filter security updates, so an `ignore` written to hold back a major can silently block its security fix.
 - **Pin actions to commit SHAs**: pin every action to a full commit SHA with a trailing release comment; a security update bumps both the SHA and the comment. Routine pin refreshes come from [upgrade-tools](../../upgrade-tools/SKILL.md).
-- **Directory is per manifest**: a uv project under `dot/` needs `/dot` in `directories`; Dependabot does not recurse from `/`.
+- **Directory is per manifest**: a uv project under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
 - **Group the repositories without a config**: grouping for repositories with no `dependabot.yml` is the "Grouped security updates" toggle in the account (`https://github.com/settings/security_analysis`) or organization security settings, next to "Enable all" and "Automatically enable for new repositories".
 - **Route alerts deliberately**: alert email and web delivery live under the account's notification settings (Dependabot alerts), separate from repository watching.
 - **No CLI trigger**: forcing an immediate check happens only in the repository's Dependabot tab (Insights, Dependency graph).
