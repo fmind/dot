@@ -73,6 +73,8 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
 "github:DataDog/pup" = "latest" # Official Datadog command-line interface (pup) for logs, monitors, and OAuth PKCE
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
+# fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
+"github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
 # Held by dot_tasks/mise_refresh.py HELD_TOOLS until chromium-bidi restores trusted-publisher evidence (2026-10-16 bump refused).
 "npm:@mermaid-js/mermaid-cli" = "latest" # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
 "npm:@xai-official/grok" = "latest" # Official Grok Build CLI; npm locks platform binaries with integrity hashes
@@ -113,7 +115,6 @@ duckdb = "latest" # Embedded SQL analytical database management system
 duf = "latest" # Disk usage utility with clean tabular layout
 dust = "latest" # Rust-based disk usage analyzer
 dyff = "latest" # Semantic diff for YAML/JSON (Kubernetes-aware)
-fastfetch = "latest" # Active, customizable system info fetching tool
 fd = "latest" # Simple, fast replacement for the find command
 ffmpeg = "latest" # Media encoder required by VHS to render terminal recordings
 fish = "latest" # Friendly interactive shell (Fish)
