@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [12.1.1] - 2026-10-19
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Keep global installs from rewriting the global lock
+
+### ♻️ Refactor
+
+- _(hooks)_ Send Linux notifications only through notify-send
+- _(archive)_ Drop the windowed sync state
+
+### 🧪 Testing
+
+- _(dot)_ Loosen subprocess ceilings that flake under load
+
 ## [12.1.0] - 2026-10-18
 
 ### 🚀 Features
