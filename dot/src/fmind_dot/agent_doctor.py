@@ -17,7 +17,7 @@ from fmind_dot.archive.store import (
     read_session_manifest,
     session_store_root,
 )
-from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, SYNC_WINDOW_STATE_NAME, source_root
+from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, source_root
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.reporting import diagnostic_report, write_json
@@ -225,7 +225,6 @@ def _count(value: object) -> int | None:
 @dataclass(frozen=True)
 class _SyncState:
     synced_at: str
-    timestamp: datetime
     failed: int
     retained: int
     current: bool
@@ -252,15 +251,13 @@ def _read_sync_state(path: Path) -> _SyncState | str:
         return "unreadable"
     if timestamp.tzinfo is None:
         return "unreadable"
-    return _SyncState(synced_at, timestamp, failed, retained, document.get("parser_version") == SESSION_PARSER_VERSION)
+    return _SyncState(synced_at, failed, retained, document.get("parser_version") == SESSION_PARSER_VERSION)
 
 
 def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, int]:
-    """Return source presence, newest sync time (or never/stale/unreadable), failures, and retained.
+    """Return source presence, last complete sync time (or never/stale/unreadable), failures, and retained.
 
-    Only a complete pass proves the archive, so it decides never/stale/unreadable. A newer windowed
-    (`--since`) pass by the current parser then reports its time, and its counts when they are larger:
-    it cannot clear failures of older sessions that only a complete pass retries.
+    Only a complete pass proves the archive; filtered passes record no state.
     """
     # exists() hides permission errors; sync fails on any source it cannot inspect.
     try:
@@ -277,11 +274,7 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
     if not complete.current:
         # Another parser captured this state: the archive needs a recapture by the current one.
         return source, "stale", complete.failed, complete.retained
-    window = _read_sync_state(root / agent / SYNC_WINDOW_STATE_NAME)
-    # The window state is auxiliary: a missing, unreadable or outdated one never hides the complete pass.
-    if isinstance(window, str) or not window.current or window.timestamp <= complete.timestamp:
-        return source, complete.synced_at, complete.failed, complete.retained
-    return source, window.synced_at, max(complete.failed, window.failed), max(complete.retained, window.retained)
+    return source, complete.synced_at, complete.failed, complete.retained
 
 
 def _check_archive(root: Path, agent: str) -> tuple[str, int]:

@@ -448,63 +448,27 @@ def _sync_state(
     path.write_text(json.dumps(document | {"retained": retained, "parser_version": parser}))
 
 
-def test_windowed_sync_refreshes_last_sync_without_replacing_the_complete_state(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_filtered_syncs_record_no_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state = _state(monkeypatch, tmp_path)
     _claude_source(state)
     sync_sessions(state, agent="claude")
-    complete = session_store_root() / "claude/.sync.json"
-    _sync_state("claude", ".sync.json", "2026-09-01T10:00:00Z")
-    before = complete.read_bytes()
+    _sync_state("claude", ".sync.json", "2026-09-01T10:00:00Z", failed=1, retained=2)
+    before = list((session_store_root() / "claude").glob(".sync*"))
+    complete = (session_store_root() / "claude/.sync.json").read_bytes()
 
-    window_path = session_store_root() / "claude/.sync-window.json"
-    # Session-filtered or dry passes prove nothing about the agent and record no state.
-    sync_sessions(state, agent="claude", session="fixture-id", since=datetime(2026, 9, 1, tzinfo=UTC))
-    sync_sessions(state, agent="claude", since=datetime(2026, 9, 1, tzinfo=UTC), dry_run=True)
-    assert not window_path.exists()
-
+    # Only a complete pass proves the archive: session, window, and dry passes leave its state alone.
+    sync_sessions(state, agent="claude", session="fixture-id")
     sync_sessions(state, agent="claude", since=datetime(2026, 9, 1, tzinfo=UTC))
+    sync_sessions(state, agent="claude", dry_run=True)
 
-    assert complete.read_bytes() == before
-    window = json.loads(window_path.read_text())
-    assert (window["failed"], window["since"]) == (0, "2026-09-01T00:00:00Z")
+    assert list((session_store_root() / "claude").glob(".sync*")) == before
+    assert (session_store_root() / "claude/.sync.json").read_bytes() == complete
     (claude,) = gather_agent_doctor(state, agent="claude")
-    assert (claude.last_sync, claude.healthy) == (window["synced_at"], True)
-
-
-@pytest.mark.parametrize(
-    ("window", "expected"),
-    [
-        ({"synced_at": "2026-09-02T10:00:00Z"}, ("2026-09-02T10:00:00Z", 1, 2)),
-        ({"synced_at": "2026-09-02T10:00:00Z", "failed": 3, "retained": 5}, ("2026-09-02T10:00:00Z", 3, 5)),
-        ({"synced_at": "2026-08-31T10:00:00Z", "failed": 3, "retained": 5}, ("2026-09-01T10:00:00Z", 1, 2)),
-        ({"synced_at": "2026-09-02T10:00:00Z", "parser": "1"}, ("2026-09-01T10:00:00Z", 1, 2)),
-        ({"synced_at": "invalid"}, ("2026-09-01T10:00:00Z", 1, 2)),
-    ],
-    ids=["newer", "newer-counts", "older", "other-parser", "unreadable"],
-)
-def test_doctor_reports_the_newest_sync_and_keeps_complete_pass_counts(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, window: dict[str, object], expected: tuple[str, int, int]
-) -> None:
-    state = _state(monkeypatch, tmp_path)
-    _sync_state("grok", ".sync.json", "2026-09-01T10:00:00Z", failed=1, retained=2)
-    _sync_state(
-        "grok",
-        ".sync-window.json",
-        str(window["synced_at"]),
-        failed=int(str(window.get("failed", 0))),
-        retained=int(str(window.get("retained", 0))),
-        parser=str(window.get("parser", SESSION_PARSER_VERSION)),
-    )
-
-    (result,) = gather_agent_doctor(state, agent="grok")
-
-    assert (result.last_sync, result.sync_failures, result.sync_retained) == expected
+    assert (claude.last_sync, claude.sync_failures, claude.sync_retained) == ("2026-09-01T10:00:00Z", 1, 2)
 
 
 @pytest.mark.parametrize("complete", [None, "9"], ids=["never", "stale"])
-def test_doctor_requires_a_complete_pass_despite_windowed_syncs(
+def test_doctor_requires_a_complete_pass_and_ignores_legacy_window_state(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, complete: str | None
 ) -> None:
     state = _state(monkeypatch, tmp_path)
