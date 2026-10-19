@@ -170,7 +170,7 @@ mise installs and locks every harness except Antigravity, which updates itself; 
 
 ### Commit signing
 
-Each machine signs commits and annotated tags with its own Ed25519 SSH key, so one machine can be revoked without touching the others; the private key never enters this repository, even encrypted. Apply enables signing only where `~/.ssh/id_ed25519_signing` exists, and a machine without it commits unsigned. The key has no passphrase so agent shells sign unattended: a signature proves the machine, not a human. Set up a new machine once, after `dot setup github` grants `write:ssh_signing_key`:
+Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with its own Ed25519 SSH key, so one machine can be revoked without touching the others; the private key never enters this repository, even encrypted. Apply enables signing only where `~/.ssh/id_ed25519_signing` exists, and a machine without it commits unsigned. The key has no passphrase so agent shells sign unattended: a signature proves the machine, not a human. Set up a new machine once, after `dot setup github` grants `write:ssh_signing_key`:
 
 ```bash
 ssh-keygen -t ed25519 -N '' -C "git-signing@$(hostname)" -f ~/.ssh/id_ed25519_signing
@@ -201,7 +201,7 @@ The helper preserves existing environment values; an empty value fails instead o
 
 Fork and replace these personal defaults:
 
-1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and the clone URL in [`install.sh`](install.sh). Use unmanaged `~/.config/git/config.local` for Git overrides and `includeIf` profiles.
+1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and the clone URL in [`install.sh`](install.sh). Use unmanaged `~/.config/git/config.local` for Git overrides and `includeIf` profiles. Replace [`allowed_signers`](dot_config/git/allowed_signers) and its `*@fmind.dev` principal before adding your own [signing key](#commit-signing).
 1. **Secrets:** replace the age recipient and remove or re-encrypt credential sources before applying; see [Secret Management](#secret-management).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md), which every harness loads.
 1. **Workspaces:** change `pull.directories` and `trust.github_owners` in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and the personal-checkout `includeIf` directories in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl), which commit with the personal-repository email. Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.

@@ -120,7 +120,7 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
         PUSH,
         DEPLOY,
     ]
-    assert runner.calls[-1] == ("git", "tag", "-a", TAG, "-m", TAG)
+    assert runner.calls[-1] == ("git", "tag", TAG, "-m", TAG)
     assert RESTORE not in runner.calls
 
 
@@ -138,7 +138,7 @@ def test_gate_failure_keeps_generated_files_without_tagging(project: Path, task:
     assert isinstance(state.stderr, io.StringIO)
     assert "Review git diff and git diff --cached before retrying" in state.stderr.getvalue()
     assert COMMIT not in runner.interactive_calls
-    assert not any(call[:3] == ("git", "tag", "-a") for call in runner.calls)
+    assert not any(call[:2] == ("git", "tag") and "-m" in call for call in runner.calls)
     assert PUSH not in runner.interactive_calls
 
 
@@ -151,7 +151,7 @@ def test_failed_commit_hook_keeps_generated_files_without_tagging(project: Path)
 
     assert RESTORE not in runner.calls
     assert read_release_version(project) == "1.27.0"
-    assert not any(call[:3] == ("git", "tag", "-a") for call in runner.calls)
+    assert not any(call[:2] == ("git", "tag") and "-m" in call for call in runner.calls)
     assert PUSH not in runner.interactive_calls
 
 
@@ -207,9 +207,9 @@ def test_failed_preparation_preserves_concurrent_work_and_index(project: Path, m
 
 def test_failed_tag_reports_the_local_release_commit_and_its_recovery(project: Path) -> None:
     runner = ReleaseRunner(project)
-    runner.responses[("git", "tag", "-a", TAG, "-m", TAG)] = CommandResult("", "", 128)
+    runner.responses[("git", "tag", TAG, "-m", TAG)] = CommandResult("", "", 128)
 
-    with pytest.raises(DotError, match=r"tagging failed after the local release commit.*git tag -a v1\.27\.0"):
+    with pytest.raises(DotError, match=r"tagging failed after the local release commit.*git tag v1\.27\.0"):
         run_release(make_state(runner), yes=True)
 
     assert PUSH not in runner.interactive_calls
