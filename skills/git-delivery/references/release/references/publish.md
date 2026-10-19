@@ -36,7 +36,7 @@ Use the repository's release task when it owns versioning, tags, or publication.
    ```bash
    tag=vX.Y.Z
    release_sha=$(git rev-parse HEAD)
-   git tag -a "$tag" -m "$tag" "$release_sha"
+   git tag "$tag" -m "$tag" "$release_sha"   # -m without -a keeps tag.forceSignAnnotated signing
    git push --atomic origin main "refs/tags/$tag"
    ```
 
