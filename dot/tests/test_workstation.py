@@ -1052,6 +1052,14 @@ def test_machine_login_check_exits_one_and_names_each_provider(provider: Recordi
     assert not provider.actions
 
 
+def test_login_check_waits_for_a_timed_out_probe_only_once(provider: RecordingRunner) -> None:
+    provider.responses = [CommandTimeoutError("command timed out: gws")]
+    result = CliRunner().invoke(app, ["login", "workspace", "--check"])
+    assert result.exit_code == 1
+    assert result.stdout.startswith("workspace: unknown (")
+    assert provider.calls == [["gws", "auth", "status"]]
+
+
 def test_login_check_reports_unknown_state_and_rejects_conflicting_flags(provider: RecordingRunner) -> None:
     provider.responses = [response({"unexpected": True})]
     unknown = CliRunner().invoke(app, ["login", "workspace", "--check"])
