@@ -35,7 +35,7 @@ Install the host prerequisites first; the rest installs in user space:
 
 ```bash
 # Debian / Ubuntu
-sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard
+sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin
 
 # macOS
 xcode-select --install

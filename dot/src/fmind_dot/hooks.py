@@ -75,35 +75,9 @@ def notification_command(runner: Runner, notification: Notification, *, system: 
     if host != "linux":
         raise DotError(f"desktop notifications are unsupported on {host}")
     body = html.escape(notification.headline, quote=False)
-    if runner.which("notify-send") is not None:
-        return [
-            "notify-send",
-            "--app-name=dot",
-            f"--expire-time={_NOTIFY_EXPIRE_MS}",
-            notification.summary,
-            body,
-        ]
-    if runner.which("gdbus") is not None:
-        return [
-            "gdbus",
-            "call",
-            "--session",
-            "--dest",
-            "org.freedesktop.Notifications",
-            "--object-path",
-            "/org/freedesktop/Notifications",
-            "--method",
-            "org.freedesktop.Notifications.Notify",
-            "dot",
-            "uint32 0",
-            "dialog-information",
-            notification.summary,
-            body,
-            "@as []",
-            "@a{sv} {}",
-            f"int32 {_NOTIFY_EXPIRE_MS}",
-        ]
-    raise DotError("install notify-send or gdbus to send desktop notifications")
+    if runner.which("notify-send") is None:
+        raise DotError("install notify-send (libnotify-bin) to send desktop notifications")
+    return ["notify-send", "--app-name=dot", f"--expire-time={_NOTIFY_EXPIRE_MS}", notification.summary, body]
 
 
 def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
@@ -145,9 +119,7 @@ def send_notification(state: State, notification: Notification) -> None:
     if result.returncode != 0:
         # A session bus can exist in a container without a desktop notification
         # service. Treat that like a headless session, not a failed agent turn.
-        if command[0] == "gdbus" and result.stderr.startswith(
-            "Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown:"
-        ):
+        if result.stderr.startswith("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown:"):
             state.stderr.write("Desktop notification skipped: no desktop notification service.\n")
             return
         raise DotError(f"failed to send desktop notification with {command[0]}")
