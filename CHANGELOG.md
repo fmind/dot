@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [12.2.0] - 2026-10-19
+
+### 🚀 Features
+
+- _(skills)_ Default Dependabot to security updates only
+- _(git)_ Sign commits and tags with a per-machine SSH key
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Use github backend for fastfetch universal macOS release (#106)
+- _(ghostty)_ Keep GPU rendering on Crostini with GPU support
+- _(git)_ Sign annotated tags without breaking plain tags
+- _(auth)_ Wait for a timed-out readiness probe only once
+
+### 📚 Documentation
+
+- _(github-repository)_ Add Actions hardening and immutable releases to the settings baseline
+- _(skills)_ Correct stale commands, links, and update dates
+
 ## [12.1.1] - 2026-10-19
 
 ### 🐛 Bug Fixes
