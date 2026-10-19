@@ -41,4 +41,4 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 - [uv: upgrading locked versions](https://docs.astral.sh/uv/concepts/projects/sync/#upgrading-locked-package-versions)
 - [OpenTofu lock file](https://opentofu.org/docs/language/files/dependency-lock/) · [dprint config update](https://dprint.dev/cli/#update)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [uv](https://github.com/astral-sh/uv/releases) · [OpenTofu](https://github.com/opentofu/opentofu/releases) · [dprint](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../github-actions/references/dependabot.md) (automated bumps), [repository-maintenance](../repository-maintenance/SKILL.md) (the pass that calls this skill).
+- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../github-actions/references/dependabot.md) (security-only fix PRs), [repository-maintenance](../repository-maintenance/SKILL.md) (the pass that calls this skill).
