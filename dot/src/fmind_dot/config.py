@@ -221,10 +221,18 @@ class GitHubConfig(StrictModel):
             "workflow",
             "write:packages",
             "write:public_key",
+            "write:ssh_signing_key",
         ]
     )
     remove_scopes: list[Scope] = Field(
-        default_factory=lambda: ["admin:public_key", "delete:packages", "delete_repo", "user"]
+        default_factory=lambda: [
+            "admin:org",
+            "admin:public_key",
+            "admin:ssh_signing_key",
+            "delete:packages",
+            "delete_repo",
+            "user",
+        ]
     )
 
     @model_validator(mode="after")
