@@ -31,6 +31,11 @@ github.credential_command = "gh auth token"
 github.github_attestations = false
 github.slsa = false
 github_attestations = false
+# Global installs (including exec and shim auto-installs) never rewrite this lock: an unlocked
+# install drops the macOS entries and specifiers that `mise run lock` captured. Only `mise lock`
+# writes it; projects keep their own lock policy.
+locked = true
+locked_scopes = ["global"]
 lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 # Resolve fuzzy versions such as `latest` without a release-age delay.
