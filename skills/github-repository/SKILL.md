@@ -41,7 +41,7 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
    done < <(jq -r '(.repositoryTopics // [])[].name' <<<"$state")
    ```
 
-1. **Extend for a settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) appends merge policy, sidebar features, and secret scanning to the same `args`, then enables Dependabot security updates and protects a public repository after the edit.
+1. **Extend for a settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) appends merge policy, sidebar features, and secret scanning to the same `args`, then enables Dependabot security updates, hardens Actions, locks releases, and protects a public repository after the edit.
 1. **Apply** once with `gh repo edit "$repository" "${args[@]}"`.
 1. **Verify** with the same `gh repo view --json ...` fields and report the ones that changed; a settings pass also runs the guide's read-back, which covers fields `gh repo view` does not expose.
 
@@ -49,7 +49,7 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 
 <!-- guides:start -->
 
-- [settings-baseline](references/settings-baseline.md): Apply the solo-maintainer merge, feature, secret-scanning, Dependabot security-update, and default-branch protection baseline idempotently.
+- [settings-baseline](references/settings-baseline.md): Apply the solo-maintainer merge, feature, secret-scanning, Dependabot, Actions hardening, immutable-release, and default-branch protection baseline idempotently.
 
 <!-- guides:end -->
 
