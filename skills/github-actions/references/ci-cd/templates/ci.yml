@@ -20,10 +20,10 @@ jobs:
         with:
           persist-credentials: false # no step pushes back to the repository
       - name: Install mise system
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.10.11
+          version: 2026.10.15
           cache: true
       - name: Run canonical gate
         run: mise run all
