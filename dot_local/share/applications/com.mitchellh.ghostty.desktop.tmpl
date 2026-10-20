@@ -1,7 +1,10 @@
 # Docs: https://specifications.freedesktop.org/desktop-entry-spec/latest/
-{{- /* Crostini without GPU support (no /dev/dri) needs software rendering; with crostini-gpu-support, and on native Linux desktops, Ghostty keeps its GPU path. */}}
+{{- /* Crostini keeps X11 (Sommelier); without GPU support (no /dev/dri) it also needs software rendering. Native Linux desktops keep Ghostty's defaults. */}}
 {{- $exec := "ghostty" }}
-{{- if and (stat "/opt/google/cros-containers") (not (stat "/dev/dri")) }}{{ $exec = print "env GDK_BACKEND=x11 GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 " $exec }}{{ end }}
+{{- if stat "/opt/google/cros-containers" }}
+{{- if not (stat "/dev/dri") }}{{ $exec = print "GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 " $exec }}{{ end }}
+{{- $exec = print "env GDK_BACKEND=x11 " $exec }}
+{{- end }}
 [Desktop Entry]
 Name=Ghostty
 Type=Application
