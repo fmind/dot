@@ -1,9 +1,9 @@
 # :schema https://mise.jdx.dev/schema/mise.json
 # Docs: https://mise.jdx.dev/configuration.html
 
-# Include the remote-task header trust fix and rustls security update (2026.10.11).
+# Include the untrusted-project settings and zip symlink security fixes (2026.10.13).
 # Keep equal to install.sh and the workflow pins; lockfile revision 3 is required.
-min_version = "2026.10.11"
+min_version = "2026.10.15"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
