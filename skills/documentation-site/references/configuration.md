@@ -43,6 +43,7 @@ These replace MkDocs plugins without extra packages unless noted. Enable a plugi
 - `markdown-exec`: 0.0.47; Use: Executes fenced code during the build; install `markdown-exec[ansi]`; never enable for untrusted content
 - `glightbox`: 0.0.35; Use: Image lightbox with optional captions
 - `gh-admonitions`, `callouts`: 0.0.67, 0.0.62; Use: GitHub `> [!NOTE]` alerts and Obsidian callouts rendered as admonitions
+- `mkdocs-nav-weight`, `markdownextradata`, `include-markdown`: 0.0.69, 0.0.69, 0.0.71; Use: Migration compatibility for front-matter `weight` ordering, `extra` and data-file variables in Markdown, and `{% include-markdown %}` (mapped to snippets); new sites use explicit `nav`, `macros`, and snippets
 - `exclude`: 0.0.67; Use: Remove source files from the site by glob or regex
 - `offline`: 0.0.3; Use: File-system browsing with working search; disable instant navigation, analytics, repository facts, and comments
 - `mike`: 0.0.30; Use: Versioned deployments through the `squidfunk/mike` fork and `mkdocs.yml`; native versioning is planned
