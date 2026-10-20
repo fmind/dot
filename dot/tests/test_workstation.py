@@ -335,6 +335,27 @@ def test_github_setup_reconciles_excluded_scopes_once(provider: RecordingRunner)
     assert "--remove-scopes" in provider.actions[0]
 
 
+def test_github_admin_signing_key_scope_satisfies_login(provider: RecordingRunner) -> None:
+    scopes = [scope for scope in Config().auth.github.scopes if scope != "write:ssh_signing_key"]
+    provider.responses = [github_status(scopes=[*scopes, "admin:ssh_signing_key"])]
+    result = CliRunner().invoke(app, ["login", "github"])
+    assert result.exit_code == 0, result.exception
+    assert not provider.actions
+
+
+def test_github_setup_removes_admin_scopes_and_keeps_signing_key_writes(provider: RecordingRunner) -> None:
+    granted = [*Config().auth.github.scopes, "admin:org", "admin:ssh_signing_key"]
+    provider.responses = [github_status(scopes=granted), github_status()]
+    result = CliRunner().invoke(app, ["setup", "github"])
+    assert result.exit_code == 0, result.exception
+    [refresh] = provider.actions
+    requested = set(refresh[refresh.index("--scopes") + 1].split(","))
+    removed = set(refresh[refresh.index("--remove-scopes") + 1].split(","))
+    assert "write:ssh_signing_key" in requested
+    assert {"admin:org", "admin:ssh_signing_key", "delete_repo"} <= removed
+    assert not requested & removed
+
+
 def test_github_setup_already_satisfied_skips_refresh(provider: RecordingRunner) -> None:
     provider.responses = [github_status()]
     result = CliRunner().invoke(app, ["setup", "github"])
