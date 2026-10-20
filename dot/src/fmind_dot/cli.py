@@ -29,7 +29,8 @@ _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "terminal_width": 16
 _EPILOG = (
     "Exit codes: 0 success; 1 failure or unhealthy result; 2 usage error; 130 cancelled. "
     "Reports go to stdout; prompts and errors go to stderr.\n\n"
-    "Reports accept --json (-j) and print one JSON document with a versioned schema field. "
+    "Reports accept --json (-j) and print one JSON document with a versioned schema field; "
+    "agent session show always prints JSON and config show prints YAML. "
     "Commands that change state accept --dry-run, login also --check; prune needs --yes without a terminal. "
     "Run dot COMMAND --help for examples."
 )
