@@ -20,7 +20,7 @@ Deleting or renaming a chezmoi source never removes what an earlier apply deploy
 1. **Decide per path**, within the task's authority:
    - Leftover no longer used: delete it (a secret seed, an old hook duplicating a new one, a retired unit), after confirming nothing else reads it. Unload services first (`systemctl --user disable --now`, `launchctl bootout`).
    - Now owned elsewhere or intentionally kept: leave it and forget it with `chezmoi state delete --bucket=entryState --key=<absolute path>` so it stops being reported.
-   - To clean every machine: list the target in `.chezmoiremove` instead of deleting locally.
+   - To clean every machine: list the target in a `.chezmoiremove` file instead of deleting locally.
 1. **Recheck**: rerun `dot orphan` and report what was removed, kept, or forgotten, and why.
 
 ## Boundaries

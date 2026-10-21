@@ -6,9 +6,6 @@
 # source entries, such as .venv and tool caches, at any depth.
 **/*.py[co]
 **/__pycache__
-**/build
-**/dist
-**/htmlcov
 
 # Repository-only sources and tooling.
 AGENTS.md

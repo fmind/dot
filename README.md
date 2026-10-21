@@ -128,7 +128,7 @@ Python follows the latest 3.14 patch release until the required tools ship Pytho
   >
 </a>
 
-Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share one persona and one skill catalog. No custom subagent roles are deployed: each host's general-purpose subagents load the same persona and skills, and apply removes the retired `code-reviewer`, `content-editor`, `deep-researcher`, and `security-reviewer` profiles. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) before adding one.
+Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share one persona and one skill catalog. No custom subagent roles are deployed: each host's general-purpose subagents load the same persona and skills. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) before adding one.
 
 ## Agent skills
 

@@ -5,9 +5,8 @@ glob_matcher: doublestar
 # Jobs run sequentially in list order: formatters, Python fixes before style, then checks.
 pre-commit:
   jobs:
-    # Formatters receive only staged files and restage them. Generated skill indexes
-    # are not refreshed here: check:skills fails on a stale one so it cannot be
-    # committed unstaged and then break CI's clean-tree verification.
+    # Formatters receive only staged files and restage them; format:dprint explains
+    # why generated skill indexes are not refreshed here.
     - name: format:dprint
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
       run: mise run format:dprint {staged_files}
@@ -16,7 +15,7 @@ pre-commit:
       glob: "**/*.lua"
       run: mise run format:lua:files {staged_files}
       stage_fixed: true
-    # ruff.toml's extend-exclude (applied via --force-exclude) owns the template exclusions.
+    # ruff.toml's extend-exclude and force-exclude own the template exclusions.
     - name: format:python:fix
       glob: "**/*.py"
       run: mise run format:python:fix {staged_files}

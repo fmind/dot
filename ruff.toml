@@ -7,7 +7,6 @@ target-version = "py314"
 # dprint owns Markdown, including the Python blocks inside it.
 extend-exclude = [
   "skills/*/references/*/templates",
-  ".agents",
   "*.md",
 ]
 force-exclude = true
