@@ -2,7 +2,6 @@
 
 # Share fd's global ignore list; keep only ripgrep-specific exclusions here.
 --ignore-file={{ joinPath .chezmoi.homeDir ".config/fd/ignore" }}
---glob=!.git/
 --glob=!package-lock.json
 --hidden
 --smart-case

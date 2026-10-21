@@ -26,7 +26,6 @@ set -gx CARAPACE_EXCLUDES 'agy,dot,bf'
 # 1 auto-approves tools only; the exact value "true" would also trust every working
 # directory and load its hooks, bypassing the folders curated by `dot trust`.
 set -gx COPILOT_ALLOW_ALL 1
-set -gx COREPACK_ENABLE_AUTO_PIN 0
 # Match the skin installed by chezmoi externals.
 set -gx K9S_SKIN theme
 # ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively;

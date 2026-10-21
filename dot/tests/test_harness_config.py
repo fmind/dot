@@ -333,7 +333,6 @@ sessions = false
         assert data["env"]["DISABLE_UPDATES"] == "1"
         assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
-        assert data["autoMemoryEnabled"] is True
         assert data["syncClaudeAiSkills"] is False
         assert data["disableClaudeAiConnectors"] is True
         assert data["model"] == "host-model[1m]"

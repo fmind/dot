@@ -18,9 +18,9 @@ checksum = "sha256:bcfe516fdebf4503ab10c7968ee880774ce1adee6e055738ca53c81745cfd
 url = "https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-hda65f42_10.conda"
 checksum = "sha256:1a0d382c515ebf55f8ee1f38c8b81bc95af5c2acc42ad53b66bc5df932032f96"
 
-[conda-packages.linux-x64."ca-certificates-2026.10.18-hbd8a1cb_0"]
-url = "https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.18-hbd8a1cb_0.conda"
-checksum = "sha256:d65aa0c8990f34e1e86e6b505c8a149fea6cfbfcccef087a77c0bcb0b4fbe159"
+[conda-packages.linux-x64."ca-certificates-2026.10.19-hbd8a1cb_0"]
+url = "https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.19-hbd8a1cb_0.conda"
+checksum = "sha256:9404ee878c6bd5b260655ab651366db43fac6be8d465fcc0acd0f7a50be91acb"
 
 [conda-packages.linux-x64."cairo-1.18.6-h3c89d7e_0"]
 url = "https://conda.anaconda.org/conda-forge/linux-64/cairo-1.18.6-h3c89d7e_0.conda"
@@ -582,9 +582,9 @@ checksum = "sha256:292b3cfab77d5db222b53add0ec3b5e7e5c04ce2cb8cf8a7237cbe0643b3e
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-h4e30115_10.conda"
 checksum = "sha256:8ec22f0ba25cbfc2e64d70cf29459eccd7ffdf6436f6a6ff15bbfef799f7d4f6"
 
-[conda-packages.macos-arm64."ca-certificates-2026.10.18-hbd8a1cb_0"]
-url = "https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.18-hbd8a1cb_0.conda"
-checksum = "sha256:d65aa0c8990f34e1e86e6b505c8a149fea6cfbfcccef087a77c0bcb0b4fbe159"
+[conda-packages.macos-arm64."ca-certificates-2026.10.19-hbd8a1cb_0"]
+url = "https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.19-hbd8a1cb_0.conda"
+checksum = "sha256:9404ee878c6bd5b260655ab651366db43fac6be8d465fcc0acd0f7a50be91acb"
 
 [conda-packages.macos-arm64."cairo-1.18.6-h580cee5_0"]
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/cairo-1.18.6-h580cee5_0.conda"
@@ -1058,6 +1058,21 @@ url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/598
 checksum = "sha256:c3e34d3bfa5b7449aa2c37416b8aa6d90e9cf98da1a8bb51ccb438379056c62e"
 url = "https://github.com/astronomer/astro-cli/releases/download/v1.46.0/astro_1.46.0_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/598747758"
+
+[[tools.atuin]]
+version = "18.24.1"
+backend = "aqua:atuinsh/atuin"
+specifiers = ["latest"]
+
+[tools.atuin."platforms.linux-x64"]
+checksum = "sha256:bd89df077da94e719fd7a6d8e7dbe2f42ca9d4c284e96a1748eae264345c9e81"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.1/atuin-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/648842388"
+
+[tools.atuin."platforms.macos-arm64"]
+checksum = "sha256:0094caaa5732ea404ff9057e87a6ef1eb45a7317433bc3a6b06c3adf0546e891"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.1/atuin-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/648842232"
 
 [[tools.awscli]]
 version = "2.38.2"
@@ -1611,7 +1626,7 @@ conda_deps = [
     "pthread-stubs-0.4-h7cc23a3_1004",
     "xorg-libxau-1.0.12-h7cc23a3_2",
     "xorg-libxdmcp-1.1.5-h7cc23a3_2",
-    "ca-certificates-2026.10.18-hbd8a1cb_0",
+    "ca-certificates-2026.10.19-hbd8a1cb_0",
     "dbus-1.16.2-he8c428d_2",
     "libsystemd0-262.1-h26e0ef7_0",
     "sdl3-3.4.18-h5330f5c_0",
@@ -1726,7 +1741,7 @@ conda_deps = [
     "libharfbuzz-devel-14.6.0-hcda0f7c_2",
     "freetype-2.14.3-hce30654_2",
     "libogg-1.3.5-h48c0fde_1",
-    "ca-certificates-2026.10.18-hbd8a1cb_0",
+    "ca-certificates-2026.10.19-hbd8a1cb_0",
     "sdl3-3.4.18-h4bb5895_0",
     "libusb-1.0.30-h74c22ad_0",
     "font-ttf-ubuntu-0.83-h77eed37_3",
@@ -1873,32 +1888,6 @@ checksum = "sha256:3c9eb14c3607af86a95a46b3a0d344baf9a164f2262d0902fff6b30812f7a
 url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.3.1/a2a_0.3.1_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/646800164"
 
-[[tools."github:atuinsh/atuin"]]
-version = "18.24.1"
-backend = "github:atuinsh/atuin"
-specifiers = ["latest"]
-
-[tools."github:atuinsh/atuin".options]
-asset_pattern = "*x86_64-unknown-linux-musl*"
-
-[tools."github:atuinsh/atuin"."platforms.linux-x64"]
-checksum = "sha256:fe03f652d6545a9d8795b3c2abb84bcddfe831e4b7effb0c2d191a0d70e498a0"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.1/atuin-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/648842402"
-
-[[tools."github:atuinsh/atuin"]]
-version = "18.24.1"
-backend = "github:atuinsh/atuin"
-specifiers = ["latest"]
-
-[tools."github:atuinsh/atuin".options]
-asset_pattern = "*aarch64-apple-darwin*"
-
-[tools."github:atuinsh/atuin"."platforms.macos-arm64"]
-checksum = "sha256:0094caaa5732ea404ff9057e87a6ef1eb45a7317433bc3a6b06c3adf0546e891"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.1/atuin-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/648842232"
-
 [[tools."github:databricks/cli"]]
 version = "1.21.0"
 backend = "github:databricks/cli"
@@ -1954,32 +1943,6 @@ asset_pattern = "*x86_64-unknown-linux-musl*"
 checksum = "sha256:4db473dde4b1ab872e4ff35d769b0d4af1f1a6441a605e79d5cf8ada9c87e920"
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/googleworkspace/cli/releases/assets/385726987"
-
-[[tools."github:sxyazi/yazi"]]
-version = "26.9.1"
-backend = "github:sxyazi/yazi"
-specifiers = ["latest"]
-
-[tools."github:sxyazi/yazi".options]
-asset_pattern = "*aarch64-apple-darwin.zip"
-
-[tools."github:sxyazi/yazi"."platforms.macos-arm64"]
-checksum = "sha256:3921182a21cceb0a505e5dac578e1487d48104caa5f114e9f8adf40b5a7289a9"
-url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261410"
-
-[[tools."github:sxyazi/yazi"]]
-version = "26.9.1"
-backend = "github:sxyazi/yazi"
-specifiers = ["latest"]
-
-[tools."github:sxyazi/yazi".options]
-asset_pattern = "*x86_64-unknown-linux-musl.zip"
-
-[tools."github:sxyazi/yazi"."platforms.linux-x64"]
-checksum = "sha256:9b9c39decccf8cb0ff53a7d637d38f8a79d93bbd0099f4ea9c619ef6bb392f5d"
-url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-x86_64-unknown-linux-musl.zip"
-url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261404"
 
 [[tools."github:tailwindlabs/tailwindcss"]]
 version = "4.3.3"
@@ -2901,6 +2864,21 @@ url_api = "https://api.github.com/repos/ducaale/xh/releases/assets/490411268"
 checksum = "sha256:7907c1ef225382fb5955c8274aa23e31b70622c4d39dbc76cf945dc8ce15a78d"
 url = "https://github.com/ducaale/xh/releases/download/v0.26.2/xh-v0.26.2-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/ducaale/xh/releases/assets/490411898"
+
+[[tools.yazi]]
+version = "26.9.1"
+backend = "aqua:sxyazi/yazi"
+specifiers = ["latest"]
+
+[tools.yazi."platforms.linux-x64"]
+checksum = "sha256:a02fe91d3304294048c681f010f1100856872a4e98ecf6927328e888d40a6ad2"
+url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261400"
+
+[tools.yazi."platforms.macos-arm64"]
+checksum = "sha256:3921182a21cceb0a505e5dac578e1487d48104caa5f114e9f8adf40b5a7289a9"
+url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261410"
 
 [[tools.yq]]
 version = "4.54.1"
