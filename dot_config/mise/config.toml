@@ -36,6 +36,10 @@ lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 # Resolve fuzzy versions such as `latest` without a release-age delay.
 minimum_release_age = "0d"
+# Update the workstation mise binary before interactive commands on the same 24h cadence
+# as mise's end-of-command version check, so `mise run full` never finishes with a stale-binary warning.
+self_update.auto = true
+self_update.check_duration = "24h"
 # Never set python.uv_venv_auto globally: it puts any cloned repository's .venv/bin first
 # on PATH without `mise trust`. Opt in per project with `[settings]` in a trusted mise.toml.
 slsa = false
