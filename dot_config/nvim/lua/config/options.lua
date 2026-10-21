@@ -47,28 +47,3 @@ if vim.fn.has("linux") == 1 and vim.env.DISPLAY and vim.env.DISPLAY ~= "" and vi
     cache_enabled = 1,
   }
 end
-
--- Resolve underlying filetype for chezmoi template files (*.tmpl)
-vim.filetype.add({
-  extension = {
-    tmpl = function()
-      return "template",
-        function(bufnr)
-          if vim.bo[bufnr].commentstring == "" then
-            vim.bo[bufnr].commentstring = "{{/* %s */}}"
-          end
-        end
-    end,
-  },
-  pattern = {
-    [".*%.(%w+)%.tmpl"] = function(path, bufnr, ext)
-      if path:find("symlink_") then
-        return nil
-      end
-      local buf_arg = (bufnr and bufnr > 0 and vim.api.nvim_buf_is_valid(bufnr)) and bufnr or nil
-      return vim.filetype.match({ filename = "file." .. ext, buf = buf_arg })
-    end,
-    [".*gitconfig.*%.tmpl"] = "gitconfig",
-    [".*ghostty/config%.tmpl"] = "conf",
-  },
-})

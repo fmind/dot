@@ -12,9 +12,7 @@
 # npm and pipx dependency graphs in locks/; keep these native files with mise.lock
 # and install with --locked. First fetches are unverified.
 aqua.cosign = false
-aqua.github_attestations = false
 aqua.minisign = false
-aqua.slsa = false
 # Interactive prompts draw from the terminal's sixteen slots rather than from
 # mise's own palette, so they follow fmind/theme like everything else.
 color_theme = "base16"
@@ -28,8 +26,6 @@ env_cache = true
 # Shelling out to `gh auth token` keeps the token out of the dotfiles and out of the
 # process environment, at the cost of one `gh` invocation per token lookup.
 github.credential_command = "gh auth token"
-github.github_attestations = false
-github.slsa = false
 github_attestations = false
 # Global installs (including exec and shim auto-installs) never rewrite this lock: an unlocked
 # install drops the macOS entries and specifiers that `mise run lock` captured. Only `mise lock`
@@ -50,7 +46,6 @@ slsa = false
 fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
 neovim = "aqua:neovim/neovim"
-pup = "github:DataDog/pup"
 
 [env]
 # agents-cli 1.9.0 turned usage telemetry on by default.
@@ -98,6 +93,7 @@ actionlint = "latest" # Correctness linter for GitHub Actions workflows
 age = "latest" # Simple and secure file encryption tool
 ast-grep = "latest" # Code structural search, lint, and rewrite tool
 astro = "latest" # Astronomer CLI for local Apache Airflow development and DAG testing
+atuin = "latest" # Magical shell history replacement database
 awscli = "latest" # Official Amazon Web Services command-line interface
 bat = "latest" # Cat clone with syntax highlighting and git integration
 bitwarden = "latest" # Official Bitwarden CLI (bw) for password management
@@ -169,6 +165,7 @@ vault = "latest" # HashiCorp Vault command-line interface for secrets management
 vhs = "latest" # Records a terminal session to GIF from a .tape script
 watchexec = "latest" # Runs commands in response to file modifications
 xh = "latest" # Fast, friendly tool for sending HTTP requests
+yazi = "latest" # Blazing-fast terminal file manager in Rust
 yq = "latest" # Command-line YAML, XML, and TOML processor
 zellij = "latest" # Terminal multiplexer and workspace built in Rust
 zizmor = "latest" # Security auditor for GitHub Actions workflows
@@ -181,14 +178,6 @@ version = "latest" # Official CLI client for Agent2Agent (A2A) agents
 linux-x64 = { asset_pattern = "*linux_amd64*" }
 macos-arm64 = { asset_pattern = "*darwin_arm64*" }
 
-[tools."github:atuinsh/atuin"]
-# Upstream Linux glibc releases require GLIBC 2.38+; use musl assets for compatibility across Linux distributions.
-version = "latest" # Magical shell history replacement database
-
-[tools."github:atuinsh/atuin".platforms]
-linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
-macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
-
 [tools."github:googleworkspace/cli"]
 # Upstream ships glibc and musl assets side by side; select musl explicitly for portability.
 version = "latest" # Google Workspace CLI (gws)
@@ -196,14 +185,6 @@ version = "latest" # Google Workspace CLI (gws)
 [tools."github:googleworkspace/cli".platforms]
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
-
-[tools."github:sxyazi/yazi"]
-# Select musl explicitly for portability across Linux distributions.
-version = "latest" # Blazing-fast terminal file manager in Rust
-
-[tools."github:sxyazi/yazi".platforms]
-linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl.zip" }
-macos-arm64 = { asset_pattern = "*aarch64-apple-darwin.zip" }
 
 [tools."github:tailwindlabs/tailwindcss"]
 # Upstream ships glibc and musl assets side by side on Linux; select glibc for standard

@@ -34,10 +34,6 @@ auto_background_on_timeout = true
 output_byte_limit = 32768
 timeout_secs = 300.0
 
-# Keep fetching off the local network explicitly (the default).
-[toolset.web_fetch]
-allow_local = false
-
 # Native symlinks supply the persona and skills. Foreign scanning duplicates
 # instructions and can run another harness's session hooks with the wrong IDs.
 [compat.claude]

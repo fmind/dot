@@ -19,6 +19,8 @@ return {
       keymap = { preset = "super-tab" },
     },
   },
+  -- The util.chezmoi extra applies a source file on every save; keep apply explicit.
+  { "xvzc/chezmoi.nvim", init = function() end },
   -- Which-key preset
   {
     "folke/which-key.nvim",

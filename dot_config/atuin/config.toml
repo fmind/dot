@@ -17,9 +17,6 @@ filter_mode = "directory"
 # Up-arrow scoped to the session
 filter_mode_shell_up_key_binding = "session"
 
-# Offer the whole Git repository's history as a filter mode
-workspaces = true
-
 # Match Fish's vi cursor shapes and Ghostty's steady cursor
 keymap_cursor = { emacs = "steady-bar", vim_insert = "steady-bar", vim_normal = "steady-block" }
 

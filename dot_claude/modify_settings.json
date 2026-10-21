@@ -32,7 +32,6 @@
     "sessionUrl": false
   },
   "autoContinueAtUsageLimit": true,
-  "autoMemoryEnabled": true,
   "disableClaudeAiConnectors": true,
   "editorMode": "vim",
   "env": {
