@@ -5,7 +5,7 @@ description: "A2A clients, servers, Agent Cards, task lifecycle, and official gu
 
 # A2A Python SDK
 
-Use the official `a2aproject/a2a-python` distribution `a2a-sdk` and the `a2aproject/a2a-cli` client `a2a`; [MCP implementation](mcp/GUIDE.md) owns MCP tools/resources and [api-client](../../api-client/SKILL.md) owns ordinary HTTP clients.
+Use the official `a2aproject/a2a-python` distribution `a2a-sdk` and the `a2aproject/a2a-cli` client `a2a`; [MCP implementation](mcp/GUIDE.md) owns MCP tools/resources and [api-client](../../python-stack/references/api-client/GUIDE.md) owns ordinary HTTP clients.
 
 ## Workflow
 

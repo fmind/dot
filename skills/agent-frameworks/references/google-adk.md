@@ -15,7 +15,7 @@ Implement Python ADK behavior within the existing project; [agents-cli](agents-c
 1. **Wire narrow tools explicitly**: in the generated layout, `app/agent.py` defines `root_agent`; tools have complete type signatures, useful docstrings, bounded I/O, and explicit errors, while business logic stays in independently testable modules and prompts in reviewable source. Enforce authorization and idempotency in the tool boundary rather than relying on model instructions; offline tests inspect agent wiring and call tool functions directly.
 1. **Handle events and state**: consume the runner event stream, distinguish tool calls and errors from a final response, and handle empty or non-text parts. Update state through tool/callback context or service events so the selected session service can persist deltas.
 1. **Test locally**: use a fake model or event stream and cover isolation between two user sessions; run provider smoke calls and repeated evaluations only within their authorized access and cost.
-1. **Evaluate changes**: use the [agents-cli](agents-cli/GUIDE.md) evaluation workflow or the project's own, preserving generated deployment choices; [observability](../../observability/SKILL.md) owns traces.
+1. **Evaluate changes**: use the [agents-cli](agents-cli/GUIDE.md) evaluation workflow or the project's own, preserving generated deployment choices; [observability](../../python-stack/references/observability.md) owns traces.
 
 ## Gotchas
 

@@ -1,18 +1,11 @@
 ---
 name: api-client
 description: "Build typed Python HTTPX API clients with bounded pagination and retries."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/api-client
-  created: "2026-09-09"
-  updated: "2026-10-07"
 ---
 
 # API Client
 
-Integrate the needed API operation with a small, testable boundary. Prefer an existing CLI or maintained SDK when it satisfies the contract; [xh](../xh/SKILL.md) owns endpoint inspection and provider skills own their existing clients.
+Integrate the needed API operation with a small, testable boundary. Prefer an existing CLI or maintained SDK when it satisfies the contract; [xh](../../../xh/SKILL.md) owns endpoint inspection and provider skills own their existing clients.
 
 ## Workflow
 
@@ -34,4 +27,4 @@ Integrate the needed API operation with a small, testable boundary. Prefer an ex
 
 - [HTTPX clients](https://www.python-httpx.org/advanced/clients/) · [timeouts](https://www.python-httpx.org/advanced/timeouts/) · [transports](https://www.python-httpx.org/advanced/transports/)
 - Releases: [HTTPX changelog](https://github.com/encode/httpx/blob/master/CHANGELOG.md)
-- Companion skills: [pydantic](../python-stack/references/pydantic.md) (schemas), [python-async](../python-stack/references/python-async/GUIDE.md) (task lifetime and cancellation), [python-stack](../python-stack/references/foundation/GUIDE.md) (project tooling), [gws](../gws/SKILL.md) (Workspace).
+- Companion skills: [pydantic](../pydantic.md) (schemas), [python-async](../python-async/GUIDE.md) (task lifetime and cancellation), [python-stack](../foundation/GUIDE.md) (project tooling), [gws](../../../gws/SKILL.md) (Workspace).

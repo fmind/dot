@@ -40,4 +40,4 @@ A symlinked `.claude/skills` -> `.agents/skills` layout exposes the same files t
 
 ## Native plugin catalogs
 
-Use the installed host's native discovery before adding a plugin: `anthropics/skills` is Anthropic's skill bundle and `openai/plugins` is the Codex plugin catalog. Read the relevant package only when a task needs it, review executable integrations per [skill-security-review](../../skill-security-review/SKILL.md), and preserve project versus user scope. Do not install an entire catalog into the shared personal skills directory.
+Use the installed host's native discovery before adding a plugin: `anthropics/skills` is Anthropic's skill bundle and `openai/plugins` is the Codex plugin catalog. Read the relevant package only when a task needs it, review executable integrations per [skill-security-review](../../code-security/references/skill-security-review/GUIDE.md), and preserve project versus user scope. Do not install an entire catalog into the shared personal skills directory.

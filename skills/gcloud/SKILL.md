@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Google Cloud CLI
@@ -48,4 +48,4 @@ Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google
 
 - [gcloud reference](https://docs.cloud.google.com/sdk/gcloud/reference) · [Authenticate for the gcloud CLI](https://docs.cloud.google.com/sdk/docs/authenticate)
 - Releases: [gcloud release notes](https://docs.cloud.google.com/sdk/docs/release-notes)
-- Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deployment), [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure), [incident-response](../incident-response/SKILL.md) (live outage).
+- Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deployment), [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure), [incident-response](../production-readiness/references/incident-response.md) (live outage).

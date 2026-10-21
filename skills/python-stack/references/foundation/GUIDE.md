@@ -42,8 +42,8 @@ Cross-cutting owners:
 - **This skill**: [uv](../uv.md) for dependencies, environments, Python versions, and builds; [ruff](../ruff.md) and [ty](../ty.md) for lint/format and type diagnostics; [pydantic](../pydantic.md) for input validation.
 - **Tasks, hooks, markup/config formatting**: [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [dprint](../../../dprint/SKILL.md).
 - **Persisted schema or data changes**: [data-migration](../../../data-migration/SKILL.md), including Alembic; use installed database/framework documentation for query APIs.
-- **Logging and external HTTP**: [observability](../../../observability/SKILL.md), [api-client](../../../api-client/SKILL.md).
-- **Tests**: [python-testing](../../../python-testing/SKILL.md) for pytest mechanics and Hypothesis property tests; [quality-assurance](../../../quality-assurance/SKILL.md) for broader campaigns.
+- **Logging and external HTTP**: [observability](../observability.md), [api-client](../api-client/GUIDE.md).
+- **Tests**: [python-testing](../python-testing/GUIDE.md) for pytest mechanics and Hypothesis property tests; [quality-assurance](../../../quality-assurance/SKILL.md) for broader campaigns.
 - **CPU and allocation profiling**: [systematic-debugging](../../../systematic-debugging/SKILL.md), including its Python profiler recipes.
 - **Security scans and dependency upgrades**: [code-security](../../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../../upgrade-tools/SKILL.md).
 

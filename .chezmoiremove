@@ -1,8 +1,3 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiremove/
-# Retired shared subagent roles: remove their deployed native profiles.
-.claude/agents/{code-reviewer,content-editor,deep-researcher,security-reviewer}.md
-.codex/agents/{code-reviewer,content-editor,deep-researcher,security-reviewer}.toml
-.config/opencode/agents/{code-reviewer,content-editor,deep-researcher,security-reviewer}.md
-.copilot/agents/{code-reviewer,content-editor,deep-researcher,security-reviewer}.agent.md
-.gemini/config/agents/{code-reviewer,content-editor,deep-researcher,security-reviewer}.md
-.grok/agents/{code-reviewer,content-editor,deep-researcher,security-reviewer}.md
+# Skills merged or deleted on 2026-10-20: remove their dangling catalog links.
+.agents/skills/{api-client,delegate-tasks,incident-response,observability,python-testing,repository-maintenance,skill-security-review,threat-model}

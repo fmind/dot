@@ -5,7 +5,7 @@ description: "Monitor ML data quality, drift, labeled performance, lineage, and 
 
 # Monitor Model Quality
 
-This guide owns data and predictive-behavior changes against a versioned reference window; [observability](../../observability/SKILL.md) owns service logs, traces, latency, and errors.
+This guide owns data and predictive-behavior changes against a versioned reference window; [observability](../../python-stack/references/observability.md) owns service logs, traces, latency, and errors.
 
 - **Never equate drift with degradation**: input drift alone does not prove accuracy loss or concept drift; without labels, report the missing evidence and the proxies' limits.
 - **Treat SHAP as descriptive**: explain only on request or for a concrete finding, with the exact model version and a documented background sample; attributions are not causal evidence.

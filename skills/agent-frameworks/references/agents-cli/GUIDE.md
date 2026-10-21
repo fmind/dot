@@ -41,7 +41,7 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
    agents-cli run "hello"
    ```
 1. **Evaluate behavior**: run `agents-cli eval run` on a versioned dataset and compare the candidate with its immutable baseline.
-1. **Instrument the candidate**: use OpenTelemetry traces and structured logs per [observability](../../../observability/SKILL.md). Exclude prompt, completion, secret, and personal data bodies unless a reviewed policy explicitly permits them. Export from `agents-cli run` or `playground` only when authorized, with `--otel-to-cloud`; 1.7.0 removed `--trace-to-cloud`.
+1. **Instrument the candidate**: use OpenTelemetry traces and structured logs per [observability](../../../python-stack/references/observability.md). Exclude prompt, completion, secret, and personal data bodies unless a reviewed policy explicitly permits them. Export from `agents-cli run` or `playground` only when authorized, with `--otel-to-cloud`; 1.7.0 removed `--trace-to-cloud`.
 1. **Review deployment first**: from the intended project's directory, preview a target with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run`, inspect generated infrastructure and IAM (its Terraform requires 1.11 or later), check an Agent Runtime target with the read-only `agents-cli deploy --dry-run` (APIs, IAM, `actAs`, secrets), then run `agents-cli deploy` only with explicit deployment approval. Verify the deployed agent through `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
 
 ## Gotchas
@@ -53,7 +53,7 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
 - **Gateway-ready is not routed**: `--agent-gateway` only adds the gateway's root-CA trust to the image. Routing egress needs an authorized `agents-cli deploy --agent-gateway-egress <gateway>` naming an existing gateway with `governedAccessPath=AGENT_TO_ANYWHERE`. Review deployment flags, IAM, analytics content collection and retention before an authorized deployment.
 - **Use ADC**: use ADC locally and in production per [model-providers](../../../model-providers/SKILL.md), with a narrow runtime service account; use an AI Studio key only when explicitly requested.
 - **Pin a named model**: avoid `-latest`; use a dated snapshot when reproducibility matters and document the reason for the chosen Flash or Pro model.
-- **Protect public agents**: store secrets in Secret Manager, constrain tools, and add reviewed input and output controls per [threat-model](../../../threat-model/SKILL.md).
+- **Protect public agents**: store secrets in Secret Manager, constrain tools, and add reviewed input and output controls per [threat-model](../../../code-security/references/threat-model.md).
 
 ## Official Skills
 
@@ -63,4 +63,4 @@ Upstream: `google/agents-cli`, with separate workflow, scaffold, ADK code, evalu
 
 - [ADK](https://adk.dev/) · [google/agents-cli](https://github.com/google/agents-cli) · [Agent Runtime](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale)
 - Releases: [agents-cli](https://github.com/google/agents-cli/releases)
-- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [quality-assurance](../../../quality-assurance/SKILL.md), [observability](../../../observability/SKILL.md), [cloud-run](../../../cloud-run/SKILL.md), [Google catalog](../../../google-developer/SKILL.md), [system-prompts](../../../system-prompts/SKILL.md).
+- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [quality-assurance](../../../quality-assurance/SKILL.md), [observability](../../../python-stack/references/observability.md), [cloud-run](../../../cloud-run/SKILL.md), [Google catalog](../../../google-developer/SKILL.md), [system-prompts](../../../system-prompts/SKILL.md).

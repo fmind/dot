@@ -5,7 +5,7 @@ description: "Async design, cancellation, timeouts, and shutdown."
 
 # Python Async
 
-Own concurrent task lifetime and failure behavior. Async pays off only when many operations wait on IO at the same time; reject it for CPU-bound work (use processes), behind a blocking driver (stay synchronous or `asyncio.to_thread`), and in sequential scripts and CLIs. [api-client](../../../api-client/SKILL.md) owns HTTP semantics and retries, framework skills own application integration.
+Own concurrent task lifetime and failure behavior. Async pays off only when many operations wait on IO at the same time; reject it for CPU-bound work (use processes), behind a blocking driver (stay synchronous or `asyncio.to_thread`), and in sequential scripts and CLIs. [api-client](../api-client/GUIDE.md) owns HTTP semantics and retries, framework skills own application integration.
 
 ## Workflow
 

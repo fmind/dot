@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Trim
 
-Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a request to remove words, lines, and settings that carry nothing, while every fact, behavior, and the author's voice survive. Trimming is not summarizing: when the text is the deliverable (an article, a talk) and the user did not ask for a length, tighten sentences but keep its substance and length class. Arguments can set a target (`to 300 words`, `-40%`) or a scope. For code, [repository-maintenance](../repository-maintenance/SKILL.md) owns dead code and abstractions; apply these rules only with tests proving behavior.
+Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a request to remove words, lines, and settings that carry nothing, while every fact, behavior, and the author's voice survive. Trimming is not summarizing: when the text is the deliverable (an article, a talk) and the user did not ask for a length, tighten sentences but keep its substance and length class. Arguments can set a target (`to 300 words`, `-40%`) or a scope. For code, [full-review](../full-review/SKILL.md) owns dead code and abstractions; apply these rules only with tests proving behavior.
 
 ## Workflow
 

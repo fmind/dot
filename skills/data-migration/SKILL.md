@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/data-migration
   created: "2026-09-09"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Data Migration
@@ -35,4 +35,4 @@ Change persisted data while preserving its declared meaning and recovery path. [
 
 - [SQLite backup](https://www.sqlite.org/backup.html) · [SQLite transactions](https://www.sqlite.org/lang_transaction.html) · [Django migrations](https://docs.djangoproject.com/en/stable/topics/migrations/)
 - Releases: [Alembic changelog](https://alembic.sqlalchemy.org/en/latest/changelog.html)
-- Companion skills: [python-testing](../python-testing/SKILL.md) (regression and property tests), [implementation-plan](../implementation-plan/SKILL.md) (ordered rollout).
+- Companion skills: [python-testing](../python-stack/references/python-testing/GUIDE.md) (regression and property tests), [implementation-plan](../implementation-plan/SKILL.md) (ordered rollout).

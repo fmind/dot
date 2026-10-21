@@ -37,7 +37,7 @@ These maintainer repositories contain skills and already have personal entry poi
 - **Browser tools**: [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp), [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli); Existing entry point: [chrome-devtools](../../chrome-devtools/SKILL.md), [playwright](../../playwright/SKILL.md); CLI guidance is not the Python Playwright API
 - **Web platform**: [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance); Existing entry point: [web-frontend](../../web-frontend/SKILL.md)
 - **Infrastructure**: [hashicorp/agent-skills](https://github.com/hashicorp/agent-skills); Existing entry point: [infra-as-code](../../infra-as-code/SKILL.md); verify OpenTofu compatibility
-- **Telemetry and evaluations**: [langfuse/skills](https://github.com/langfuse/skills), [mlflow/skills](https://github.com/mlflow/skills), [pydantic/skills](https://github.com/pydantic/skills), [grafana/skills](https://github.com/grafana/skills); Existing entry point: [observability](../../observability/SKILL.md); select the project's actual backend, excluding mlflow's same-name `agent-evaluation`
+- **Telemetry and evaluations**: [langfuse/skills](https://github.com/langfuse/skills), [mlflow/skills](https://github.com/mlflow/skills), [pydantic/skills](https://github.com/pydantic/skills), [grafana/skills](https://github.com/grafana/skills); Existing entry point: [observability](../../python-stack/references/observability.md); select the project's actual backend, excluding mlflow's same-name `agent-evaluation`
 
 ## Installation boundaries
 

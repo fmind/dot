@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Quality Assurance
@@ -36,5 +36,5 @@ Run a risk-based test campaign over the actual feature journey. Keep one-diff re
 
 ## Documentation
 
-- Companion skills: [playwright](../playwright/SKILL.md) (browser automation), [benchmark](../benchmark/SKILL.md) (latency and load baselines), [python-testing](../python-testing/SKILL.md) (implementing behavior), [product-design-review](../product-design-review/SKILL.md) (UX judgment), [code-security](../code-security/references/code-review/GUIDE.md) (repository scanning), [production-readiness](../production-readiness/SKILL.md) (launch gate).
+- Companion skills: [playwright](../playwright/SKILL.md) (browser automation), [benchmark](../benchmark/SKILL.md) (latency and load baselines), [python-testing](../python-stack/references/python-testing/GUIDE.md) (implementing behavior), [product-design-review](../product-design-review/SKILL.md) (UX judgment), [code-security](../code-security/references/code-review/GUIDE.md) (repository scanning), [production-readiness](../production-readiness/SKILL.md) (launch gate).
 - Adapted from [gstack QA](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/qa/SKILL.md), [Anthropic webapp-testing](https://github.com/anthropics/skills/blob/f17010c9bb483898c1d9c9f42dde2b3a98889434/skills/webapp-testing/SKILL.md), [agent-skills browser testing](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/browser-testing-with-devtools/SKILL.md).
