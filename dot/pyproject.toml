@@ -21,7 +21,6 @@ dependencies = [
 dev = [
   "markdown-it-py>=4.0.0",
   "pytest-cov>=7.1.0",
-  "pytest-watcher>=0.6.3",
   "pytest-xdist>=3.8.0",
   "pytest>=9.1.1",
   "ruff>=0.16.6",

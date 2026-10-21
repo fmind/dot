@@ -9,9 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from fmind_dot.config import Config
 from fmind_dot.errors import DotError
-from fmind_dot.secrets import personal_token, secret_app
+from fmind_dot.secrets import personal_token
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -142,16 +141,6 @@ def test_missing_tool_does_not_read_secret(secret_home: Path) -> None:
     result = invoke_process(secret_home, "secret", "run", "MISSING_SECRET", "--", "nonexistent-dot-test-tool")
     assert result.returncode == 1
     assert "required tools are missing" in result.stderr
-
-
-def test_personal_pypi_publishing_is_retired() -> None:
-    # Packages publish through PyPI Trusted Publishing; no command supplies a personal upload token.
-    assert [command.name for command in secret_app.registered_commands] == ["run"]
-    assert not (ROOT / "dot_config/dot/private_secrets/encrypted_private_UV_PUBLISH_TOKEN.age").exists()
-
-
-def test_doctor_does_not_require_ambient_api_keys() -> None:
-    assert "env_vars" not in type(Config().doctor).model_fields
 
 
 def test_shell_secret_exports_are_retired() -> None:

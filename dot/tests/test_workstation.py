@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import IO, Any, get_args
 
 import pytest
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from fmind_dot import auth
 from fmind_dot.cli import app
@@ -19,8 +19,7 @@ from fmind_dot.workstation import CACHE_TOOLS
 
 def test_setup_without_arguments_shows_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    result = CliRunner().invoke(app, ["setup"])
-    assert result.exit_code == 0, result.output
+    result = cli(["setup"])
     assert "workspace" in result.stdout
     assert "github" in result.stdout
 
@@ -76,6 +75,12 @@ class RecordingRunner(Runner):
         self.actions.append(list(args))
         self.envs.append(env)
         return self.action_code
+
+
+def cli(arguments: list[str], *, exit_code: int = 0) -> Result:
+    result = CliRunner().invoke(app, arguments)
+    assert result.exit_code == exit_code, f"{result.output}{result.exception!r}"
+    return result
 
 
 def response(value: Any) -> CommandResult:
@@ -156,15 +161,13 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     ],
 )
 def test_help_and_preview_never_call_providers(provider: RecordingRunner, arguments: list[str]) -> None:
-    result = CliRunner().invoke(app, arguments)
-    assert result.exit_code == 0, result.output
+    cli(arguments)
     assert provider.calls == []
 
 
 def test_workspace_satisfied_scope_superset_skips_login(provider: RecordingRunner) -> None:
     provider.responses = [workspace_status(scopes=[*Config().auth.workspace.scopes, "extra"])]
-    result = CliRunner().invoke(app, ["login", "workspace"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "workspace"])
     assert "already authenticated" in result.stderr
     assert not provider.actions
 
@@ -177,8 +180,7 @@ def test_workspace_missing_auth_or_scopes_logs_in_and_verifies(
     provider: RecordingRunner, initial: CommandResult
 ) -> None:
     provider.responses = [initial, workspace_status()]
-    result = CliRunner().invoke(app, ["login", "workspace"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "workspace"])
     assert provider.actions == [["gws", "auth", "login", "--scopes", ",".join(Config().auth.workspace.scopes)]]
     assert len(provider.calls) == 3
 
@@ -277,16 +279,14 @@ def test_workspace_grant_missing_borrowed_scope_logs_in(provider: RecordingRunne
     borrowed = "https://www.googleapis.com/auth/youtube.readonly"
     granted = [scope for scope in Config().auth.workspace.scopes if scope != borrowed]
     provider.responses = [workspace_status(scopes=granted), workspace_status()]
-    result = CliRunner().invoke(app, ["login", "workspace"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "workspace"])
     assert borrowed in provider.actions[0][-1].split(",")
 
 
 @pytest.mark.parametrize("arguments", [["login", "github"], ["setup", "github"]])
 def test_github_plaintext_token_warns_after_satisfied_probe(provider: RecordingRunner, arguments: list[str]) -> None:
     provider.responses = [github_status(tokenSource="/home/user/.config/gh/hosts.yml")]
-    result = CliRunner().invoke(app, arguments)
-    assert result.exit_code == 0, result.exception
+    result = cli(arguments)
     assert not provider.actions
     assert "plaintext hosts.yml" in result.stderr
 
@@ -297,8 +297,7 @@ def test_github_plaintext_token_warns_after_login(provider: RecordingRunner) -> 
         PROTOCOL,
         github_status(tokenSource="/home/user/.config/gh/hosts.yml"),
     ]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "github"])
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
     assert "plaintext hosts.yml" in result.stderr
     assert "/home/user" not in result.stderr
@@ -307,30 +306,26 @@ def test_github_plaintext_token_warns_after_login(provider: RecordingRunner) -> 
 @pytest.mark.parametrize("source", ["keyring", "GH_TOKEN", None])
 def test_github_keyring_or_environment_token_does_not_warn(provider: RecordingRunner, source: str | None) -> None:
     provider.responses = [github_status() if source is None else github_status(tokenSource=source)]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "github"])
     assert "plaintext" not in result.stderr
 
 
 def test_github_normalized_grants_skip_login(provider: RecordingRunner) -> None:
     scopes = [scope for scope in Config().auth.github.scopes if scope != "read:packages"]
     provider.responses = [github_status(scopes=scopes)]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "github"])
     assert not provider.actions
 
 
 def test_github_missing_scopes_refreshes_instead_of_login(provider: RecordingRunner) -> None:
     provider.responses = [github_status(scopes=["repo"]), github_status()]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "github"])
     assert [args[:3] for args in provider.actions] == [["gh", "auth", "refresh"]]
 
 
 def test_github_setup_reconciles_excluded_scopes_once(provider: RecordingRunner) -> None:
     provider.responses = [github_status(scopes=[*Config().auth.github.scopes, "delete_repo"]), github_status()]
-    result = CliRunner().invoke(app, ["setup", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "github"])
     assert len(provider.actions) == 1
     assert "--remove-scopes" in provider.actions[0]
 
@@ -338,16 +333,14 @@ def test_github_setup_reconciles_excluded_scopes_once(provider: RecordingRunner)
 def test_github_admin_signing_key_scope_satisfies_login(provider: RecordingRunner) -> None:
     scopes = [scope for scope in Config().auth.github.scopes if scope != "write:ssh_signing_key"]
     provider.responses = [github_status(scopes=[*scopes, "admin:ssh_signing_key"])]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "github"])
     assert not provider.actions
 
 
 def test_github_setup_removes_admin_scopes_and_keeps_signing_key_writes(provider: RecordingRunner) -> None:
     granted = [*Config().auth.github.scopes, "admin:org", "admin:ssh_signing_key"]
     provider.responses = [github_status(scopes=granted), github_status()]
-    result = CliRunner().invoke(app, ["setup", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "github"])
     [refresh] = provider.actions
     requested = set(refresh[refresh.index("--scopes") + 1].split(","))
     removed = set(refresh[refresh.index("--remove-scopes") + 1].split(","))
@@ -358,15 +351,13 @@ def test_github_setup_removes_admin_scopes_and_keeps_signing_key_writes(provider
 
 def test_github_setup_already_satisfied_skips_refresh(provider: RecordingRunner) -> None:
     provider.responses = [github_status()]
-    result = CliRunner().invoke(app, ["setup", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "github"])
     assert not provider.actions
 
 
 def test_github_no_accounts_logs_in_through_the_web_with_configured_protocol(provider: RecordingRunner) -> None:
     provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "github"])
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
     assert provider.actions[0][-3:] == ["--web", "--git-protocol", "ssh"]
     assert provider.calls[1] == ["gh", "config", "get", "git_protocol", "--host", "github.com"]
@@ -375,8 +366,7 @@ def test_github_no_accounts_logs_in_through_the_web_with_configured_protocol(pro
 @pytest.mark.parametrize("protocol", [CommandResult("", "private", 1), CommandResult("ftp\n", "", 0)])
 def test_github_unknown_protocol_keeps_the_native_prompt(provider: RecordingRunner, protocol: CommandResult) -> None:
     provider.responses = [response({"hosts": {}}), protocol, github_status()]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "github"])
     assert provider.actions[0][-1] == "--web"
     assert "private" not in result.output
 
@@ -392,8 +382,7 @@ def test_github_login_copies_the_device_code_through_x11_on_crostini(
     monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
     monkeypatch.setenv("DISPLAY", display)
     provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "github"])
     assert provider.envs == [expected]
 
 
@@ -428,8 +417,7 @@ def test_github_environment_token_requires_external_scope_repair(
 
 def test_gcp_skip_requires_cli_and_scoped_adc(provider: RecordingRunner) -> None:
     provider.responses = [CommandResult("private-cli", "", 0), CommandResult("private-adc", "", 0)]
-    result = CliRunner().invoke(app, ["login", "gcp"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "gcp"])
     assert not provider.actions
     assert provider.calls == [["gcloud", "auth", "print-access-token"], ADC_PROBE]
     assert "private" not in result.output
@@ -441,8 +429,7 @@ def test_missing_or_narrow_adc_relogs_only_adc_with_configured_scopes(
 ) -> None:
     # gcloud auth login --update-adc would replace the ADC grant with defaults and drop Colab's scope.
     provider.responses = [TOKEN, adc, TOKEN, TOKEN]
-    result = CliRunner().invoke(app, ["login", "gcp"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "gcp"])
     assert provider.actions == [ADC_LOGIN]
     assert "https://www.googleapis.com/auth/colaboratory" in ADC_SCOPES
     assert "private" not in result.output
@@ -450,8 +437,7 @@ def test_missing_or_narrow_adc_relogs_only_adc_with_configured_scopes(
 
 def test_gcp_force_runs_both_logins_and_verifies(provider: RecordingRunner) -> None:
     provider.responses = [TOKEN, TOKEN]
-    result = CliRunner().invoke(app, ["login", "gcp", "--force"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "gcp", "--force"])
     assert provider.actions == [["gcloud", "auth", "login"], ADC_LOGIN]
 
 
@@ -472,8 +458,7 @@ def test_gcp_force_runs_both_logins_and_verifies(provider: RecordingRunner) -> N
 )
 def test_expired_gcloud_session_triggers_login(provider: RecordingRunner, diagnostic: str) -> None:
     provider.responses = [CommandResult("", diagnostic, 1), TOKEN, TOKEN, TOKEN]
-    result = CliRunner().invoke(app, ["login", "gcp"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "gcp"])
     assert provider.actions == [["gcloud", "auth", "login"]]
     assert "private" not in result.output
 
@@ -498,24 +483,21 @@ def test_colab_scoped_adc_skips_login_and_keeps_session_details_private(
     provider: RecordingRunner, listing: CommandResult
 ) -> None:
     provider.responses = [TOKEN, listing]
-    result = CliRunner().invoke(app, ["login", "colab"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "colab"])
     assert provider.calls == [ADC_PROBE, COLAB_SESSIONS]
     assert "private" not in result.output
 
 
 def test_colab_missing_scope_requests_the_configured_grant(provider: RecordingRunner) -> None:
     provider.responses = [SCOPE_GAP, COLAB_LISTING]
-    result = CliRunner().invoke(app, ["login", "colab"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "colab"])
     assert provider.calls == [ADC_PROBE, ADC_LOGIN, COLAB_SESSIONS]
     assert "private" not in result.output
 
 
 def test_colab_force_requests_the_grant_without_probing(provider: RecordingRunner) -> None:
     provider.responses = [COLAB_LISTING]
-    result = CliRunner().invoke(app, ["login", "colab", "--force"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "colab", "--force"])
     assert provider.calls == [ADC_LOGIN, COLAB_SESSIONS]
 
 
@@ -529,8 +511,7 @@ def test_colab_requires_its_scopes_in_the_adc_policy(provider: RecordingRunner, 
 
 
 def test_colab_preview_includes_scopes_and_session_check(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["login", "colab", "--dry-run"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "colab", "--dry-run"])
     assert " ".join(ADC_LOGIN) in result.stdout
     assert "colab --auth=adc sessions" in result.stdout
     assert not provider.calls
@@ -622,8 +603,7 @@ def test_setup_workspace_names_gcp_login_for_stale_gcloud(provider: RecordingRun
 
 def test_setup_workspace_already_configured_needs_only_gws_status(provider: RecordingRunner) -> None:
     provider.responses = [client_status()]
-    result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "workspace", "fixture-project"])
     assert not provider.actions
     assert provider.calls == [["gws", "auth", "status"]]
 
@@ -631,8 +611,7 @@ def test_setup_workspace_already_configured_needs_only_gws_status(provider: Reco
 def test_setup_workspace_enables_apis_missing_from_gws_status(provider: RecordingRunner) -> None:
     apis = Config().auth.workspace.apis
     provider.responses = [client_status(enabled_apis=apis[1:]), response([{"config": {"name": api}} for api in apis])]
-    result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "workspace", "fixture-project"])
     assert provider.actions == [["gcloud", "services", "enable", apis[0], "--project", "fixture-project", "--quiet"]]
     assert provider.calls[0] == ["gws", "auth", "status"]
 
@@ -643,8 +622,7 @@ def test_setup_workspace_other_project_lists_apis_with_gcloud(provider: Recordin
         response([{"config": {"name": api}} for api in Config().auth.workspace.apis]),
         client_status(),
     ]
-    result = CliRunner().invoke(app, ["setup", "workspace", "fixture-project"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "workspace", "fixture-project"])
     assert [args[:3] for args in provider.actions] == [["gws", "auth", "setup"]]
     assert provider.calls[1][:3] == ["gcloud", "services", "list"]
 
@@ -665,8 +643,7 @@ def test_workspace_setup_enables_only_missing_apis_and_stops_on_failure(provider
 def test_workspace_setup_rejects_missing_or_invalid_project_before_probes(
     provider: RecordingRunner, args: list[str]
 ) -> None:
-    result = CliRunner().invoke(app, ["setup", "workspace", *args])
-    assert result.exit_code == 2
+    cli(["setup", "workspace", *args], exit_code=2)
     assert not provider.calls
 
 
@@ -690,8 +667,7 @@ def test_project_and_scope_override_precedence(
 
 
 def test_cache_default_inspects_all_and_preserves_native_output(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["cache"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["cache"])
     assert provider.actions == [
         ["docker", "system", "df"],
         ["hf", "cache", "ls"],
@@ -706,8 +682,7 @@ def test_cache_json_parses_native_reports_without_stderr(provider: RecordingRunn
         CommandResult('[{"repo_id":"org/model"}]', "", 0),
         CommandResult("1024\n", "SECRET-DIAGNOSTIC", 0),
     ]
-    result = CliRunner().invoke(app, ["cache", "--json"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["cache", "--json"])
     document = json.loads(result.stdout)
     assert document["schema"] == "dot.cache/v1"
     reports = {entry["name"]: entry["report"] for entry in document["providers"]}
@@ -722,8 +697,7 @@ def test_cache_json_parses_native_reports_without_stderr(provider: RecordingRunn
 
 def test_cache_json_reports_a_failed_provider_and_exits_nonzero(provider: RecordingRunner) -> None:
     provider.responses = [CommandResult("", "boom", 3)]
-    result = CliRunner().invoke(app, ["cache", "uv", "--json"])
-    assert result.exit_code == 1
+    result = cli(["cache", "uv", "--json"], exit_code=1)
     entry = json.loads(result.stdout)["providers"][0]
     assert entry["error"].startswith("exit 3; run uv cache size")
     assert "boom" not in result.output
@@ -735,8 +709,7 @@ def test_cache_json_keeps_other_providers_when_one_times_out(provider: Recording
         CommandResult("[]", "", 0),
         CommandResult("1024\n", "", 0),
     ]
-    result = CliRunner().invoke(app, ["cache", "--json"])
-    assert result.exit_code == 1
+    result = cli(["cache", "--json"], exit_code=1)
     entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
     assert entries["docker"]["error"].startswith("timed out after 120s")
     assert entries["uv"]["report"] == {"bytes": 1024}
@@ -744,16 +717,14 @@ def test_cache_json_keeps_other_providers_when_one_times_out(provider: Recording
 
 def test_cache_text_continues_past_a_failed_provider_and_exits_nonzero(provider: RecordingRunner) -> None:
     provider.action_code = 1
-    result = CliRunner().invoke(app, ["cache"])
-    assert result.exit_code == 1
+    result = cli(["cache"], exit_code=1)
     assert [args[0] for args in provider.actions] == ["docker", "hf", "uv"]
     assert "cache inspection failed for docker, hf, uv" in str(result.exception)
 
 
 def test_cache_json_keeps_other_reports_when_a_provider_cannot_start(provider: RecordingRunner) -> None:
     provider.responses = [OSError("SECRET-DIAGNOSTIC"), CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
-    result = CliRunner().invoke(app, ["cache", "--json"])
-    assert result.exit_code == 1
+    result = cli(["cache", "--json"], exit_code=1)
     entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
     assert entries["docker"]["error"].startswith("could not start cache inspection")
     assert entries["uv"]["report"] == {"bytes": 1024}
@@ -768,8 +739,7 @@ def test_cache_continues_when_hf_directory_is_unusable(
     cache.write_text("occupied")
     monkeypatch.setenv("HF_HUB_CACHE", str(cache))
     provider.responses = [CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
-    result = CliRunner().invoke(app, ["cache", *(["--json"] if as_json else [])])
-    assert result.exit_code == 1
+    result = cli(["cache", *(["--json"] if as_json else [])], exit_code=1)
     if as_json:
         entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
         assert entries["hf"]["error"].startswith("could not start cache inspection")
@@ -783,8 +753,7 @@ def test_cache_continues_when_hf_directory_is_unusable(
 def test_cache_all_skips_missing_tools_but_an_explicit_provider_requires_it(provider: RecordingRunner) -> None:
     provider.missing.add("docker")
     provider.responses = [CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
-    result = CliRunner().invoke(app, ["cache", "--json"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["cache", "--json"])
     entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
     assert entries["docker"]["skipped"] == "docker not installed"
     text = CliRunner().invoke(app, ["cache"])
@@ -794,8 +763,7 @@ def test_cache_all_skips_missing_tools_but_an_explicit_provider_requires_it(prov
 
 
 def test_cache_rejects_unknown_providers(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["cache", "npm"])
-    assert result.exit_code == 2
+    cli(["cache", "npm"], exit_code=2)
     assert not provider.calls
 
 
@@ -805,8 +773,7 @@ def test_cache_registry_covers_every_configurable_provider() -> None:
 
 
 def test_cache_json_dry_run_lists_commands_without_probes(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["cache", "--json", "--dry-run"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["cache", "--json", "--dry-run"])
     document = json.loads(result.stdout)
     assert document["dry_run"] is True
     assert document["providers"][0]["command"] == "docker system df --format json"
@@ -817,15 +784,13 @@ def test_prune_requires_confirmation_and_default_excludes_docker(provider: Recor
     result = CliRunner().invoke(app, ["prune", "all"])
     assert result.exit_code != 0
     assert not provider.actions
-    result = CliRunner().invoke(app, ["prune", "all", "--yes"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["prune", "all", "--yes"])
     assert {args[0] for args in provider.actions} == {"dprint", "hf", "mise", "npm", "trivy", "uv"}
     assert ["hf", "cache", "prune", "--yes"] in provider.actions
 
 
 def test_docker_prune_requires_explicit_selection(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["prune", "docker", "--yes"])
-    assert result.exit_code == 0, result.exception
+    cli(["prune", "docker", "--yes"])
     assert provider.actions == [["docker", "builder", "prune", "--force"]]
 
 
@@ -876,15 +841,13 @@ def test_github_rejected_token_reauthenticates(provider: RecordingRunner) -> Non
         PROTOCOL,
         github_status(),
     ]
-    result = CliRunner().invoke(app, ["login", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["login", "github"])
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
 
 
 def test_new_github_setup_logs_in_then_reconciles_old_grants(provider: RecordingRunner) -> None:
     provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
-    result = CliRunner().invoke(app, ["setup", "github"])
-    assert result.exit_code == 0, result.exception
+    cli(["setup", "github"])
     assert [args[:3] for args in provider.actions] == [["gh", "auth", "login"], ["gh", "auth", "refresh"]]
     assert "--remove-scopes" in provider.actions[1]
 
@@ -930,8 +893,7 @@ def test_hf_cache_creates_the_native_cache_location(
     preview = CliRunner().invoke(app, ["cache", "hf", "--dry-run"])
     assert preview.exit_code == 0
     assert not (tmp_path / target).exists()
-    result = CliRunner().invoke(app, ["cache", "hf"])
-    assert result.exit_code == 0, result.exception
+    cli(["cache", "hf"])
     assert (tmp_path / target).is_dir()
     assert provider.actions == [["hf", "cache", "ls"]]
 
@@ -946,8 +908,7 @@ def test_login_skips_every_ready_provider_with_one_probe_each(
 ) -> None:
     monkeypatch.setenv("GWS_PROJECT", "fixture-project")
     provider.responses = [github_status(), TOKEN, TOKEN, workspace_client_status()]
-    result = CliRunner().invoke(app, ["login"])
-    assert result.exit_code == 0, result.exception
+    cli(["login"])
     assert not provider.actions
     assert [args[:3] for args in provider.calls] == [
         ["gh", "auth", "status"],
@@ -969,8 +930,7 @@ def test_login_probes_providers_concurrently(monkeypatch: pytest.MonkeyPatch) ->
         return answers[args[0]]
 
     monkeypatch.setattr(Runner, "run", lambda _self, args, **options: run(args, **options))
-    result = CliRunner().invoke(app, ["login", "--check"])
-    assert result.exit_code == 0, result.output
+    result = cli(["login", "--check"])
     assert result.stdout.splitlines() == ["github: ready", "gcp: ready", "workspace: ready"]
 
 
@@ -980,16 +940,14 @@ def test_login_reconciles_only_the_machine_providers_in_dependency_order(
     path = tmp_path / "dot.yaml"
     path.write_text("auth:\n  login: [colab, workspace, gcp]\n", encoding="utf-8")
     provider.responses = [TOKEN, TOKEN, workspace_status(), CommandResult("session\n", "", 0)]
-    result = CliRunner().invoke(app, ["--config", str(path), "login"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["--config", str(path), "login"])
     assert not provider.actions
     assert [args[0] for args in provider.calls] == ["gcloud", "gcloud", "gws", "colab"]
     assert result.stderr.index("Google Cloud") < result.stderr.index("Workspace is") < result.stderr.index("Colab")
 
 
 def test_login_rejects_group_options_before_a_provider(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["login", "--check", "gcp"])
-    assert result.exit_code == 2
+    result = cli(["login", "--check", "gcp"], exit_code=2)
     assert "dot login gcp --check" in result.output
     assert not provider.calls
 
@@ -1004,8 +962,7 @@ def test_machine_login_refreshes_gcloud_before_workspace_setup(
     stale = workspace_client_status(enabled_apis=None)
     # The gcloud login invalidates the first gws status, which embeds a live gcloud query.
     provider.responses = [github_status(), reauth, TOKEN, stale, TOKEN, TOKEN, stale, enabled]
-    result = CliRunner().invoke(app, ["login"])
-    assert result.exit_code == 0, result.exception
+    cli(["login"])
     assert provider.actions == [["gcloud", "auth", "login"]]
     assert provider.calls[-1][:3] == ["gcloud", "services", "list"]
 
@@ -1014,8 +971,7 @@ def test_machine_login_rejects_invalid_project_before_any_login(
     provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("GWS_PROJECT", "Not A Project")
-    result = CliRunner().invoke(app, ["login", "--dry-run"])
-    assert result.exit_code == 1
+    result = cli(["login", "--dry-run"], exit_code=1)
     assert "fix GWS_PROJECT or auth.workspace.project" in str(result.exception)
     assert not provider.calls
     assert result.stdout == ""
@@ -1023,8 +979,7 @@ def test_machine_login_rejects_invalid_project_before_any_login(
 
 def test_machine_login_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:
     provider.responses = [github_status(), TOKEN, TOKEN, workspace_status()]
-    result = CliRunner().invoke(app, ["login"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login"])
     assert "Skipping Workspace setup" in result.stderr
     assert not provider.actions
 
@@ -1041,8 +996,7 @@ def test_machine_login_reconciles_github_first_and_stops_on_failure(provider: Re
 
 def test_machine_login_preview_lists_every_step(provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GWS_PROJECT", "fixture-project")
-    result = CliRunner().invoke(app, ["login", "--dry-run"])
-    assert result.exit_code == 0, result.exception
+    result = cli(["login", "--dry-run"])
     assert not provider.calls
     for command in (
         "gh auth login",
@@ -1065,8 +1019,7 @@ def test_login_check_reports_readiness_without_authenticating(provider: Recordin
 
 def test_machine_login_check_exits_one_and_names_each_provider(provider: RecordingRunner) -> None:
     provider.responses = [github_status(scopes=["repo"]), TOKEN, SCOPE_GAP, workspace_status()]
-    result = CliRunner().invoke(app, ["login", "--check"])
-    assert result.exit_code == 1
+    result = cli(["login", "--check"], exit_code=1)
     assert result.stdout.splitlines() == ["github: login needed", "gcp: login needed", "workspace: ready"]
     assert "Run dot login in a terminal" in result.stderr
     assert "private" not in result.output
@@ -1075,8 +1028,7 @@ def test_machine_login_check_exits_one_and_names_each_provider(provider: Recordi
 
 def test_login_check_waits_for_a_timed_out_probe_only_once(provider: RecordingRunner) -> None:
     provider.responses = [CommandTimeoutError("command timed out: gws")]
-    result = CliRunner().invoke(app, ["login", "workspace", "--check"])
-    assert result.exit_code == 1
+    result = cli(["login", "workspace", "--check"], exit_code=1)
     assert result.stdout.startswith("workspace: unknown (")
     assert provider.calls == [["gws", "auth", "status"]]
 

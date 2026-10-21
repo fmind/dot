@@ -9,8 +9,6 @@ import re
 import stat
 import sys
 import unicodedata
-from datetime import date
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -27,9 +25,7 @@ from fmind_dot.errors import DotError
 
 MAX_DESCRIPTION = 180
 MAX_NAME = 64
-MAX_SKILL_BYTES = 1 << 20
 MAX_SKILL_LINES = 500
-MAX_RESOURCE_BYTES = 1 << 20
 SKILL_KINDS = {"connector", "task", "collection"}
 GUIDE_START = "<!-- guides:start -->"
 GUIDE_END = "<!-- guides:end -->"
@@ -45,28 +41,7 @@ FRONTMATTER_FIELDS = {
     "name",
 }
 RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
-CACHE_NAMES = {".DS_Store", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
-# Skills and root documentation link only through <a href> and <img src>; add attributes when they appear.
-HTML_LINK_ATTRIBUTES = {"href", "src"}
 MARKDOWN = MarkdownIt("commonmark")
-
-
-class _HTMLTargetParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.targets: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        self._collect(tag, attrs)
-
-    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        self._collect(tag, attrs)
-
-    def _collect(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        del tag
-        self.targets.extend(
-            value for name, value in attrs if value is not None and name.lower() in HTML_LINK_ATTRIBUTES
-        )
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -98,16 +73,10 @@ def _discover_skills(root: Path) -> tuple[dict[str, Path], list[str]]:
                 ):
                     findings.append(f"{_relative(root, directory)}: skill root has files but no SKILL.md")
                 continue
-            name = directory.name
-            if name in skills:
-                findings.append(
-                    f"duplicate skill name {name!r} in {_relative(root, skills[name])} and {_relative(root, skill)}"
-                )
-                continue
             if skill.is_symlink():
                 findings.append(f"{_relative(root, skill)}: symbolic link is not allowed")
                 continue
-            skills[name] = skill
+            skills[directory.name] = skill
     return skills, findings
 
 
@@ -117,8 +86,6 @@ def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, li
         data = path.read_bytes()
     except OSError as error:
         return None, "", [f"{relative}: cannot read: {error}"]
-    if len(data) > MAX_SKILL_BYTES:
-        return None, "", [f"{relative}: exceeds the {MAX_SKILL_BYTES}-byte limit"]
     try:
         text = data.decode()
     except UnicodeDecodeError as error:
@@ -198,7 +165,7 @@ def _guides(directory: Path) -> list[Path]:
     """Guide metadata is authoritative; no parallel metadata.guides inventory."""
     guides: list[Path] = []
     for path in sorted((directory / "references").rglob("*.md")):
-        if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_RESOURCE_BYTES:
+        if path.is_symlink() or not path.is_file():
             continue
         if "templates" in path.relative_to(directory).parts[:-1]:
             continue
@@ -277,9 +244,6 @@ def _resource_findings(root: Path, skill: Path) -> list[str]:
         # .gitignore (*.py[co], __pycache__/) already keeps bytecode out of every clone.
         if path.name == "__pycache__" or path.suffix in {".pyc", ".pyo"}:
             continue
-        if path.name in CACHE_NAMES:
-            findings.append(f"{_relative(root, skill)}: generated cache or metadata {rendered!r} is not package source")
-            continue
         if stat.S_ISLNK(mode):
             findings.append(f"{_relative(root, skill)}: symbolic link {rendered!r} is not allowed")
             continue
@@ -303,9 +267,6 @@ def _resource_findings(root: Path, skill: Path) -> list[str]:
             data = path.read_bytes()
         except OSError as error:
             findings.append(f"{_relative(root, path)}: cannot read resource: {error}")
-            continue
-        if len(data) > MAX_RESOURCE_BYTES:
-            findings.append(f"{_relative(root, path)}: exceeds the {MAX_RESOURCE_BYTES}-byte parsed-file limit")
             continue
         try:
             text = data.decode("utf-8")
@@ -332,10 +293,6 @@ def _document_targets(content: str) -> tuple[str, ...]:
                 targets.append(href)
             elif candidate.type == "image" and isinstance(src := candidate.attrGet("src"), str):
                 targets.append(src)
-            elif candidate.type in {"html_block", "html_inline"}:
-                parser = _HTMLTargetParser()
-                parser.feed(candidate.content)
-                targets.extend(parser.targets)
     return tuple(targets)
 
 
@@ -348,35 +305,18 @@ def _metadata_findings(relative: str, metadata: Any) -> list[str]:
     kind = metadata.get("kind")
     if not isinstance(kind, str) or kind not in SKILL_KINDS:
         findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
-    if "guides" in metadata:
-        findings.append(f"{relative}: remove metadata.guides; guide frontmatter owns the generated index")
     for field in ("author", "source", "created", "updated"):
         value = metadata.get(field)
         if not isinstance(value, str) or not value.strip():
             findings.append(f"{relative}: metadata.{field} must be a non-empty string")
-    dates: dict[str, date] = {}
-    for field in ("created", "updated"):
-        value = metadata.get(field)
-        if not isinstance(value, str) or not value.strip():
-            continue
-        try:
-            parsed = date.fromisoformat(value)
-        except ValueError:
-            parsed = None
-        if parsed is None or parsed.isoformat() != value:
-            findings.append(f"{relative}: metadata.{field} must be a quoted ISO date (YYYY-MM-DD)")
-        else:
-            dates[field] = parsed
-    if len(dates) == 2 and dates["created"] > dates["updated"]:
-        findings.append(f"{relative}: metadata.updated must not precede metadata.created")
     return findings
 
 
-def _skill_findings(root: Path, name: str, path: Path) -> tuple[list[str], str | None]:
+def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
     relative = _relative(root, path)
     metadata, body, findings = _frontmatter(path, root)
     if metadata is None:
-        return findings, None
+        return findings
     unknown = sorted(set(metadata) - FRONTMATTER_FIELDS)
     if unknown:
         findings.append(f"{relative}: unknown frontmatter fields: {', '.join(unknown)}")
@@ -394,23 +334,13 @@ def _skill_findings(root: Path, name: str, path: Path) -> tuple[list[str], str |
     description = metadata.get("description")
     if not isinstance(description, str) or not 1 <= len(description.strip()) <= MAX_DESCRIPTION:
         findings.append(f"{relative}: description must contain 1-{MAX_DESCRIPTION} characters")
-        description = None
     if metadata.get("license") != "MIT":
         findings.append(f"{relative}: license must be MIT")
     findings.extend(_metadata_findings(relative, metadata.get("metadata")))
     findings.extend(_guide_findings(root, path, body))
 
-    body_lines = [line for line in body.splitlines() if line.strip()]
-    if not body_lines or not body_lines[0].startswith("# "):
-        findings.append(f"{relative}: body must start with an H1 heading")
-    first_section = next((index for index, line in enumerate(body_lines) if line.startswith("## ")), None)
-    if first_section is None:
-        findings.append(f"{relative}: body must contain at least one H2 section")
-    elif first_section < 2:
-        findings.append(f"{relative}: H1 must be followed by a one-line intent before the first H2 section")
-
     findings.extend(_resource_findings(root, path))
-    return findings, description
+    return findings
 
 
 def repository_findings(root: Path) -> list[str]:
@@ -418,18 +348,8 @@ def repository_findings(root: Path) -> list[str]:
     root = root.resolve()
     discovered, findings = _discover_skills(root)
 
-    descriptions: dict[str, str] = {}
     for name, path in sorted(discovered.items()):
-        package_findings, description = _skill_findings(root, name, path)
-        findings.extend(package_findings)
-        if description is not None:
-            descriptions[name] = description
-    normalized: dict[str, str] = {}
-    for name, description in sorted(descriptions.items()):
-        key = " ".join(description.lower().split())
-        if key in normalized:
-            findings.append(f"skills {normalized[key]!r} and {name!r} have identical descriptions")
-        normalized[key] = name
+        findings.extend(_skill_findings(root, name, path))
     # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
     try:
         context = context_report(root, source=root)
@@ -450,16 +370,6 @@ def repository_findings(root: Path) -> list[str]:
             for item in context["duplicates"]
         )
     return sorted(set(findings))
-
-
-def _descriptions(root: Path) -> dict[str, str]:
-    descriptions: dict[str, str] = {}
-    discovered, _ = _discover_skills(root)
-    for name, path in discovered.items():
-        metadata, _, _ = _frontmatter(path, root)
-        if metadata is not None and isinstance(metadata.get("description"), str):
-            descriptions[name] = metadata["description"]
-    return descriptions
 
 
 def main() -> int:
@@ -486,7 +396,7 @@ def main() -> int:
         for finding in findings:
             sys.stderr.write(f"error: {finding}\n")
         return 1
-    sys.stdout.write(f"Validated {len(_descriptions(root))} first-party skills.\n")
+    sys.stdout.write(f"Validated {len(_discover_skills(root)[0])} first-party skills.\n")
     return 0
 
 

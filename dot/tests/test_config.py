@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from fmind_dot.config import Config, config_file_path, expand_path, load_config
+from fmind_dot.config import COMPLETION_SOURCES, Config, ToolConfig, config_file_path, expand_path, load_config
 
 
 def test_python_first_defaults_replace_retired_stacks() -> None:
@@ -37,19 +37,16 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     config = Config()
     retired = {"cursor-agent", "jules", "marimo", "pyrit"}
     assert not retired.intersection(config.doctor.tools)
-    assert not retired.intersection(config.completions.selected_tools)
-    assert not retired.intersection(config.completions.custom_commands)
+    assert not retired.intersection(COMPLETION_SOURCES)
 
 
 def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
-    config = Config()
-    expected = {"astro", "aws-sso-util", "cf", "databricks", "k3d", "pup", "stern"}
-    assert expected <= set(config.completions.selected_tools)
-    assert expected <= set(config.completions.custom_commands)
-    assert config.completions.custom_commands["aws-sso-util"].binary == "env"
-    assert config.completions.custom_commands["cf"].args == ["complete", "fish"]
-    assert config.completions.custom_commands["pup"].args == ["completions", "fish"]
-    assert config.completions.custom_commands["stern"].args == ["--completion", "fish"]
+    assert {"astro", "aws-sso-util", "cf", "databricks", "k3d", "pup", "stern"} <= set(COMPLETION_SOURCES)
+
+
+@pytest.mark.parametrize("source", COMPLETION_SOURCES.values())
+def test_completion_sources_choose_one_kind(source: ToolConfig) -> None:
+    assert not (source.package and (source.binary or source.args))
 
 
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:
@@ -66,95 +63,21 @@ def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) ->
 
 def test_config_overlay_replaces_lists_and_merges_maps(tmp_path: Path) -> None:
     path = tmp_path / "dot.yaml"
-    path.write_text(
-        "doctor:\n  tools: [python]\ncompletions:\n  custom_commands:\n    custom:\n      args: [completion, fish]\n",
-        encoding="utf-8",
-    )
+    path.write_text("doctor:\n  tools: [python]\ncompletions:\n  path: ~/fish\n", encoding="utf-8")
 
     config = load_config(path)
 
     assert config.doctor.tools == ["python"]
-    assert "uv" in config.completions.custom_commands
-    assert config.completions.custom_commands["custom"].args == ["completion", "fish"]
+    assert config.doctor.secrets == Config().doctor.secrets
+    assert config.completions.path == "~/fish"
 
 
-def test_custom_completion_override_replaces_the_default_entry(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    # btm defaults to a bundled package; a command source must not inherit that field.
-    path.write_text(
-        "completions:\n  custom_commands:\n    btm:\n      binary: btm\n      args: [--completion, fish]\n"
-        "    atuin:\n      package: atuin\n",
-        encoding="utf-8",
-    )
-
-    commands = load_config(path).completions.custom_commands
-
-    assert (commands["btm"].binary, commands["btm"].args, commands["btm"].package) == (
-        "btm",
-        ["--completion", "fish"],
-        "",
-    )
-    assert (commands["atuin"].package, commands["atuin"].args) == ("atuin", [])
-    assert commands["zoxide"].package == "zoxide"
-
-
-@pytest.mark.parametrize(
-    "document",
-    [
-        "context:\n  max_bytes: 1000\n",
-        "release:\n  workflow: cd.yml\n",
-        "completions:\n  concurrency: 4\n",
-        "completions:\n  timeout_seconds: 60\n",
-        "pull:\n  timeout_seconds: 120\n",
-        "pull:\n  concurrency: 8\n",
-        "auth:\n  probe_timeout_seconds: 45\n",
-        "doctor:\n  probe_timeout_seconds: 45\n",
-        "doctor:\n  probe_concurrency: 8\n",
-        "doctor:\n  env_vars:\n    required: []\n",
-        "doctor:\n  secrets:\n    - path: ~/.config/key\n      required_perms: 384\n",
-        "agent:\n  subscriptions:\n    codex:\n      renewal_day: 1\n",
-    ],
-)
+@pytest.mark.parametrize("document", ["completions:\n  tools: [uv]\n", "completions:\n  custom_commands: {}\n"])
 def test_removed_configuration_fields_are_rejected(tmp_path: Path, document: str) -> None:
     path = tmp_path / "dot.yaml"
     path.write_text(document, encoding="utf-8")
 
     with pytest.raises(ValidationError):
-        load_config(path)
-
-
-def test_custom_completion_commands_join_the_default_selection(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text("completions:\n  custom_commands:\n    foo:\n      args: [completions, fish]\n", encoding="utf-8")
-
-    config = load_config(path)
-
-    assert config.completions.tools is None
-    assert "foo" in config.completions.selected_tools
-    assert "uv" in config.completions.selected_tools
-
-
-def test_explicit_completion_tools_narrow_the_selection(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text("completions:\n  tools: [uv, extra, uv]\n", encoding="utf-8")
-
-    assert load_config(path).completions.selected_tools == ["uv", "extra"]
-
-
-def test_custom_completion_command_names_must_be_safe_file_names(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text("completions:\n  custom_commands:\n    ../escape: {}\n", encoding="utf-8")
-
-    with pytest.raises(ValidationError, match=r"completions\.custom_commands"):
-        load_config(path)
-
-
-@pytest.mark.parametrize("tool", ["../escape", "nested/tool", "*", "tool[ab]", "tool?", ".hidden", "-flag", "", "a b"])
-def test_completion_tools_must_be_safe_file_names(tmp_path: Path, tool: str) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(f"completions:\n  tools: [{tool!r}]\n", encoding="utf-8")
-
-    with pytest.raises(ValidationError, match=r"completions\.tools"):
         load_config(path)
 
 
@@ -250,11 +173,3 @@ def test_scope_lists_replace_defaults_and_default_instances_are_independent(tmp_
     first = Config()
     first.auth.github.scopes.append("custom")
     assert "custom" not in Config().auth.github.scopes
-
-
-@pytest.mark.parametrize("source", ["binary: helper", "args: [completion, fish]"])
-def test_completion_sources_reject_ambiguous_configuration(tmp_path: Path, source: str) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(f"completions:\n  custom_commands:\n    custom:\n      package: owner/tool\n      {source}\n")
-    with pytest.raises(ValidationError, match="choose either a bundled package or a completion command"):
-        load_config(path)

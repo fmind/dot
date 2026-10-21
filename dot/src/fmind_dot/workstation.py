@@ -62,9 +62,6 @@ _CACHE_TIMEOUT_SECONDS = 120
 DryRun = Annotated[
     bool, typer.Option("--dry-run", help="Show possible commands without running probes or making changes")
 ]
-ForceLogin = Annotated[
-    bool, typer.Option("--force", "-f", help="Run authentication even when already ready or status is unknown")
-]
 
 
 def _ensure_hf_cache_dir() -> None:

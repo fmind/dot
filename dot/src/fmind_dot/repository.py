@@ -55,8 +55,7 @@ class RepositoryStatus:
 
 # Read-only inspection must not refresh the index: that takes index.lock and can
 # collide with an editor, hook, or agent writing the same repository.
-_STATUS = ("--no-optional-locks", "status", "--porcelain")
-# One porcelain v2 call reports branch, upstream, divergence, and changes for `dot status`.
+# One porcelain v2 call reports branch, upstream, divergence, and changes.
 _STATUS_BRANCH = ("--no-optional-locks", "status", "--porcelain=v2", "--branch")
 _GIT_ROOT_TIMEOUT_SECONDS = 30
 # Status reads only local refs; fetch and pull get the larger network allowance.
@@ -181,20 +180,6 @@ def _remaining_timeout(deadline: float) -> float:
     return remaining
 
 
-def _upstream(state: State, path: Path, deadline: float) -> str:
-    """Return the configured upstream ref, or an empty string when the branch tracks none."""
-    # Timeouts and launch errors still raise. Git exits 128 without an upstream, and still prints
-    # the literal `@{u}` when the configured upstream ref is gone, so only success yields a ref.
-    result = state.runner.run(
-        ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-        cwd=path,
-        env=_GIT_ENVIRONMENT,
-        timeout=_remaining_timeout(deadline),
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
-
-
 def _upstream_push(git: Callable[[Sequence[str]], str], branch: str) -> list[str]:
     """Push HEAD to the exact upstream the ahead count used, never a same-named branch or extra tags.
 
@@ -206,15 +191,6 @@ def _upstream_push(git: Callable[[Sequence[str]], str], branch: str) -> list[str
     if not remote or not ref.startswith("refs/heads/"):
         raise DotError(f"cannot resolve the upstream push target for {branch}; push it manually")
     return ["push", "--no-follow-tags", remote, f"HEAD:{ref}"]
-
-
-def _branch(state: State, path: Path, deadline: float) -> str:
-    branch = _git(state, path, ["branch", "--show-current"], deadline).strip()
-    return branch or _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
-
-
-def _dirty(state: State, path: Path, deadline: float) -> bool:
-    return bool(_git(state, path, _STATUS, deadline).strip())
 
 
 def _fetch(state: State, path: Path, deadline: float) -> None:
@@ -245,29 +221,22 @@ def _pull_repository(
         return _git(state, path, arguments, deadline)
 
     try:
-        branch = _branch(state, path, deadline)
-        dirty = _dirty(state, path, deadline)
+        branch, dirty, *_ = _branch_status(state, path, deadline)
         if dirty:
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         _fetch(state, path, deadline)
-        try:
-            upstream = _upstream(state, path, deadline)
-        except DotError as upstream_error:
-            raise DotError(f"failed to inspect upstream: {upstream_error}") from upstream_error
+        _, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
         if not upstream:
             return RepoResult(path=path, branch=branch, no_upstream=True)
-        behind_raw = git(["rev-list", "--count", "HEAD..@{u}"])
-        behind = _count(behind_raw, "behind")
-        # Fetch once, then fast-forward the upstream snapshot inspected above; nothing to merge when current.
+        # Fast-forward the upstream snapshot inspected above; a fast-forward leaves ahead unchanged.
         if behind:
             git(["merge", "--ff-only", "@{u}"])
-        ahead = _count(git(["rev-list", "--count", "@{u}..HEAD"]), "ahead")
         pushed = False
         push_error = ""
         # Fetch/merge can take long enough for an editor or another process to
         # change the worktree. Never authorize a push using the pre-fetch check.
         if push and ahead:
-            dirty = _dirty(state, path, deadline)
+            dirty = _branch_status(state, path, deadline)[1]
         if push and ahead and not dirty:
             try:
                 git(_upstream_push(git, branch))

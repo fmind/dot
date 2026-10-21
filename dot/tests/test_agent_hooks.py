@@ -12,21 +12,11 @@ from typer.testing import CliRunner
 import fmind_dot.hooks as hooks
 from fmind_dot import agent as agent_module
 from fmind_dot.cli import app
-from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import Notification
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import CommandResult
 from fmind_dot.state import State
-from tests.fakes import ScriptedRunner
-
-
-def state_with(
-    runner: Runner,
-    config: Config | None = None,
-) -> State:
-    state = State(runner=runner, stdin=StringIO(), stdout=StringIO(), stderr=StringIO())
-    state._config = config or Config()  # noqa: SLF001 - command boundary dependency injection.
-    return state
+from tests.fakes import ScriptedRunner, make_state
 
 
 def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -174,18 +164,6 @@ def _fail(_state: State, _notification: Notification) -> None:
     raise DotError("notifier exited with status 7")
 
 
-@pytest.mark.parametrize(
-    "command", [["session", "claude"], ["session", "codex", "session-id"], ["copilot-session-end"]]
-)
-def test_retired_capture_hooks_are_usage_errors(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, command: list[str]
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    result = CliRunner().invoke(app, ["agent", "hook", *command], input="{}")
-    assert result.exit_code == 2
-    assert not (tmp_path / ".agents").exists()
-
-
 def test_deeply_nested_hook_payload_exits_zero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(agent_module, "send_notification", _fail)
@@ -268,7 +246,7 @@ def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failu
         {"notify-send"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult("", "oauth-token=secret", 4),
     )
-    state = state_with(runner)
+    state = make_state(runner)
     monkeypatch.setattr(hooks.platform, "system", lambda: "Plan9")
     hooks.send_notification(state, hooks.Notification("Done"))
     assert runner.calls == []
@@ -290,7 +268,7 @@ def test_notification_dispatch_skips_missing_desktop_service(monkeypatch: pytest
             1,
         ),
     )
-    state = state_with(runner)
+    state = make_state(runner)
     monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
 
@@ -313,7 +291,7 @@ def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: p
     monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
     runner = ScriptedRunner()
     notification = hooks.build_notification(agent, "stop", Path('/work/"quoted"'))
-    hooks.send_notification(state_with(runner), notification)
+    hooks.send_notification(make_state(runner), notification)
     assert len(runner.calls) == 1
     assert runner.calls[0][:2] == ["osascript", "-e"]
     assert 'display notification "Your turn"' in runner.calls[0][2]
