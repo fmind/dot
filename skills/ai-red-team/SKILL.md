@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ai-red-team
   created: "2026-09-11"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # AI Red Team
 
-Turn a concrete AI attack path into a reproducible assessment and remediation test. [threat-model](../threat-model/SKILL.md) owns architectural analysis, [code-security](../code-security/references/code-review/GUIDE.md) owns source and dependency review, and [agent-evaluation](../agent-evaluation/SKILL.md) owns repeated-trial comparisons. Use PyRIT as the execution framework through a project-local `uv` environment.
+Turn a concrete AI attack path into a reproducible assessment and remediation test. [threat-model](../code-security/references/threat-model.md) owns architectural analysis, [code-security](../code-security/references/code-review/GUIDE.md) owns source and dependency review, and [agent-evaluation](../agent-evaluation/SKILL.md) owns repeated-trial comparisons. Use PyRIT as the execution framework through a project-local `uv` environment.
 
 ## Workflow
 
@@ -37,4 +37,4 @@ Turn a concrete AI attack path into a reproducible assessment and remediation te
 
 - [PyRIT](https://microsoft.github.io/PyRIT/latest/) · [OWASP Agentic Top 10](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) · [MITRE ATLAS](https://atlas.mitre.org/)
 - Releases: [PyRIT](https://github.com/microsoft/PyRIT/releases)
-- Companion skills: [system-prompts](../system-prompts/SKILL.md) (prompt and tool contracts), [incident-response](../incident-response/SKILL.md) (active compromise), [quality-assurance](../quality-assurance/SKILL.md) (broader user journeys).
+- Companion skills: [system-prompts](../system-prompts/SKILL.md) (prompt and tool contracts), [incident-response](../production-readiness/references/incident-response.md) (active compromise), [quality-assurance](../quality-assurance/SKILL.md) (broader user journeys).

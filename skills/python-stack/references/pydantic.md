@@ -15,7 +15,7 @@ Use Pydantic for typed input boundaries and serialization; use [foundation](foun
 
 ## Gotchas
 
-- **Pydantic AI and Logfire are separate products**: both ship in the same bundle. Choose their skills only for agent or telemetry work; [observability](../../observability/SKILL.md) owns the latter.
+- **Pydantic AI and Logfire are separate products**: both ship in the same bundle. Choose their skills only for agent or telemetry work; [observability](observability.md) owns the latter.
 
 ## Official Skills
 

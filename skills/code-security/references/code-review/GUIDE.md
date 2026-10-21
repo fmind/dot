@@ -21,7 +21,7 @@ For a broad or repeated audit, use [coverage and finding records](references/aud
 1. **Automate security fixes**: enable Dependabot alerts and security updates and add the security-only config from [dependabot](../../../github-actions/references/dependabot.md) for the Python lock and GitHub Actions, so the same gates inspect every fix PR.
 1. **Scan, sign, and attest images**: when the project ships a container, build the pinned non-root image per [containerize](../../../docker/references/containerize/GUIDE.md). Scan the exact digest, generate an SBOM, then sign, verify, and attest it per [cosign](../../../docker/references/cosign.md) within the authorized delivery scope.
 1. **Harden runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../../../cloud-run/SKILL.md). Review declarative infrastructure with [infra-as-code](../../../infra-as-code/SKILL.md).
-1. **Threat-model sensitive boundaries**: run [threat-model](../../../threat-model/SKILL.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
+1. **Threat-model sensitive boundaries**: run [threat-model](../threat-model.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
 1. **Test AI systems adversarially**: use [ai-red-team](../../../ai-red-team/SKILL.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
 
 ## Gate
@@ -39,4 +39,4 @@ For a broad or repeated audit, use [coverage and finding records](references/aud
 
 - [Trail of Bits review and incorporation decisions](references/trailofbits-review.md)
 - [OpenSSF Scorecard](https://securityscorecards.dev)
-- Companion skills: [skill-security-review](../../../skill-security-review/SKILL.md) for third-party skills and [incident-response](../../../incident-response/SKILL.md) when an incident is active.
+- Companion skills: [skill-security-review](../skill-security-review/GUIDE.md) for third-party skills and [incident-response](../../../production-readiness/references/incident-response.md) when an incident is active.

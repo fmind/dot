@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Systematic Debugging
 
-Replace guess-and-check with an evidence loop that localizes where and why behavior diverges; [python-testing](../python-testing/SKILL.md) implements the fix and [incident-response](../incident-response/SKILL.md) owns live outages.
+Replace guess-and-check with an evidence loop that localizes where and why behavior diverges; [python-testing](../python-stack/references/python-testing/GUIDE.md) implements the fix and [incident-response](../production-readiness/references/incident-response.md) owns live outages.
 
 ## Workflow
 

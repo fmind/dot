@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/implementation-plan
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Implementation Plan
@@ -44,4 +44,4 @@ To write a plan, follow the steps below. To challenge an existing plan, read onl
 ## Documentation
 
 - Adapted from [Superpowers writing-plans](https://github.com/obra/superpowers/blob/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/writing-plans/SKILL.md), [Spec Kit plan template](https://github.com/github/spec-kit/blob/684b3d8e05263a7c1948d3d0699ab1cb4f77c3d5/templates/plan-template.md), [codebase design](https://github.com/mattpocock/skills/blob/84fdeffd12f2ee307994d1eb6feb48173b6e0502/skills/engineering/codebase-design/SKILL.md), [domain modeling](https://github.com/mattpocock/skills/blob/84fdeffd12f2ee307994d1eb6feb48173b6e0502/skills/engineering/domain-modeling/SKILL.md).
-- Companion skills: [python-testing](../python-testing/SKILL.md) (red-green proof), [threat-model](../threat-model/SKILL.md) (security design risk).
+- Companion skills: [python-testing](../python-stack/references/python-testing/GUIDE.md) (red-green proof), [threat-model](../code-security/references/threat-model.md) (security design risk).

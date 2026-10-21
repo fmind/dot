@@ -5,7 +5,7 @@ description: "Audit and fix .gitignore, .ignore, .dockerignore, and tool exclude
 
 # Update Ignores
 
-Make every ignore list describe the repository as it is: prune patterns that match nothing and belong to no tool in use, and add the ones its stack and tasks need. This edits ignore and exclude configuration only; it never deletes files or untracks them. It is one area of the [repository-maintenance](../../SKILL.md) upkeep pass.
+Make every ignore list describe the repository as it is: prune patterns that match nothing and belong to no tool in use, and add the ones its stack and tasks need. This edits ignore and exclude configuration only; it never deletes files or untracks them. It is one area of the [full-review](../../SKILL.md) pass.
 
 ## Workflow
 
@@ -13,8 +13,8 @@ Make every ignore list describe the repository as it is: prune patterns that mat
 1. **Measure gitignore-syntax files**: the [audit script](scripts/audit.py) attributes each path (tracked, untracked, and ignored, with ignored directories collapsed) to the pattern that decides it, then prints hits, tracked hits, samples, in-file duplicates, and `.gitignore` lines repeated from the global excludes file. Relative `core.excludesFile` paths resolve from the repository root used by the audit's Git commands. Audit `.ignore` explicitly; its `.gitignore`-shadowed patterns then show as unused, because ripgrep and fd already honor `.gitignore`.
 
    ```bash
-   python -I ~/.agents/skills/repository-maintenance/references/update-ignores/scripts/audit.py            # every non-ignored .gitignore
-   python -I ~/.agents/skills/repository-maintenance/references/update-ignores/scripts/audit.py .ignore --json
+   python -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py            # every non-ignored .gitignore
+   python -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py .ignore --json
    ```
 
 1. **Prune**: unused means "decides no current path", not "useless". Remove a pattern when it is unused and irrelevant to the stack (Node patterns in a Python-only repository, a renamed tool's cache), duplicated, or shadowed by a later pattern. Keep preventive patterns for credentials and state (`.env`, `*.tfstate`, `*.pem`, `.terraform/`) and for outputs the repository's own tasks create, even when absent now.

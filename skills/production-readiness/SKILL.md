@@ -1,25 +1,33 @@
 ---
 name: production-readiness
-description: "Assess release go/no-go: operability, rollout, recovery, and support."
+description: "Assess release go/no-go (operability, rollout, recovery, support) and handle live incidents: triage, containment, communication."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Production Readiness
 
-Decide whether the exact candidate can be operated safely. The audit produces a go/no-go recommendation; deployment, migration, and publication follow the user's existing authorization.
+Decide whether the exact candidate can be operated safely. The audit produces a go/no-go recommendation; deployment, migration, and publication follow the user's existing authorization. During an active outage, breach, or degradation, follow the incident-response guide instead.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [incident-response](references/incident-response.md): Handle live incidents: triage, containment, recovery, and communication.
+
+<!-- guides:end -->
 
 ## Workflow
 
 1. **Resolve the candidate**: record repository state, revision, artifact or image digest, configuration set, environment, dependency and schema versions, and the proposed rollout window; preserve dirty worktrees and never infer exact-head CI from another revision.
 1. **Define working**: state critical user journeys, availability and correctness expectations, latency or capacity thresholds, data-loss tolerance, compliance constraints, owners, and explicit stop conditions.
 1. **Inspect the release delta**: review code, dependency, configuration, infrastructure, identity, data, and operational changes; identify one-way doors, coupled releases, hidden manual steps, and compatibility windows.
-1. **Audit security and identity**: use [threat-model](../threat-model/SKILL.md) for design risk and [code-security](../code-security/references/code-review/GUIDE.md) for repository evidence.
+1. **Audit security and identity**: use [threat-model](../code-security/references/threat-model.md) for design risk and [code-security](../code-security/references/code-review/GUIDE.md) for repository evidence.
 1. **Audit data and migrations**: verify forward and backward compatibility, rehearsal evidence, lock and duration risk, backup and restore, rollback semantics, data validation, and ownership of irreversible transitions. [data-migration](../data-migration/SKILL.md) owns implementation and rehearsal; this skill assesses its evidence.
 1. **Audit capacity and cost**: compare measured demand and headroom with explicit thresholds and cost guardrails, without inventing traffic evidence.
 1. **Audit rollout and recovery**: prefer the smallest reversible exposure; define preflight checks, canary or staged progression, health windows, stop signals (including SLO error-budget remaining and burn rate where an SLO exists), the rollback owner and mechanism (see [cloud-run](../cloud-run/SKILL.md) for revision rollback), and post-rollback verification.
@@ -43,5 +51,5 @@ Decide whether the exact candidate can be operated safely. The audit produces a 
 
 ## Documentation
 
-- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [release](../git-delivery/references/release/GUIDE.md) (publishing), [cloud-run](../cloud-run/SKILL.md) (deploy and rollback), [incident-response](../incident-response/SKILL.md) (active outage), [product-management](../product-management/SKILL.md) (audience, positioning, public rollout), [threat-model](../threat-model/SKILL.md) (design risk), [code-security](../code-security/references/code-review/GUIDE.md) (repository evidence).
+- Companion skills: [quality-assurance](../quality-assurance/SKILL.md) (test campaign), [release](../git-delivery/references/release/GUIDE.md) (publishing), [cloud-run](../cloud-run/SKILL.md) (deploy and rollback), [incident-response](references/incident-response.md) (active outage), [product-management](../product-management/SKILL.md) (audience, positioning, public rollout), [threat-model](../code-security/references/threat-model.md) (design risk), [code-security](../code-security/references/code-review/GUIDE.md) (repository evidence).
 - Adapted from [ECC production audit](https://github.com/affaan-m/ECC/blob/59a99d669f5466d99d5be8b6fce8c5f2677766d0/skills/production-audit/SKILL.md) and [agent-skills shipping and launch](https://github.com/addyosmani/agent-skills/blob/1401c8b8030e023baeebb31781a6653fe8e93026/skills/shipping-and-launch/SKILL.md).

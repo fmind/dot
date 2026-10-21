@@ -8,9 +8,7 @@ from types import ModuleType
 
 import pytest
 
-SCRIPT = (
-    Path(__file__).resolve().parents[2] / "skills/repository-maintenance/references/update-ignores/scripts/audit.py"
-)
+SCRIPT = Path(__file__).resolve().parents[2] / "skills/full-review/references/update-ignores/scripts/audit.py"
 
 
 @pytest.fixture

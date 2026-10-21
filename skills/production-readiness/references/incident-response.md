@@ -1,13 +1,6 @@
 ---
 name: incident-response
 description: "Handle live incidents: triage, containment, recovery, and communication."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/incident-response
-  created: "2026-08-08"
-  updated: "2026-10-12"
 ---
 
 # Incident Response
@@ -25,5 +18,5 @@ Coordinate diagnosis, containment, recovery, and learning during an active outag
 
 ## Documentation
 
-- Companion skills: [cloud-run](../cloud-run/SKILL.md) (revision rollback), [gcloud](../gcloud/SKILL.md) (logs, audits, and IAM reads), [systematic-debugging](../systematic-debugging/SKILL.md) (root cause after stabilization), [threat-model](../threat-model/SKILL.md) (security design follow-up), [production-readiness](../production-readiness/SKILL.md) (pre-launch gate).
+- Companion skills: [cloud-run](../../cloud-run/SKILL.md) (revision rollback), [gcloud](../../gcloud/SKILL.md) (logs, audits, and IAM reads), [systematic-debugging](../../systematic-debugging/SKILL.md) (root cause after stabilization), [threat-model](../../code-security/references/threat-model.md) (security design follow-up), [production-readiness](../SKILL.md) (pre-launch gate).
 - Adapted from [agency-agents incident response](https://github.com/msitarzewski/agency-agents/blob/ebe9c99acb5c96f9468de368d8bead775387d1a7/engineering/engineering-incident-response-commander.md) and [gstack canary](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/canary/SKILL.md).

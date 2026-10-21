@@ -1,18 +1,11 @@
 ---
 name: skill-security-review
 description: "Review third-party skills and agent extensions for supply-chain risk."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/skill-security-review
-  created: "2026-08-08"
-  updated: "2026-10-06"
 ---
 
 # Skill Security Review
 
-Review a candidate skill package as executable supply-chain code, from an immutable snapshot and without running it, because its instructions act with the user's permissions. Inspection does not authorize installation, script execution, hooks, MCP startup, publication, or the network calls it describes; use native installation tooling only within the user's authorized scope after reviewing the exact candidate, and [code-security](../code-security/references/code-review/GUIDE.md) owns scanner depth in a checked-out repository.
+Review a candidate skill package as executable supply-chain code, from an immutable snapshot and without running it, because its instructions act with the user's permissions. Inspection does not authorize installation, script execution, hooks, MCP startup, publication, or the network calls it describes; use native installation tooling only within the user's authorized scope after reviewing the exact candidate, and [code-security](../code-review/GUIDE.md) owns scanner depth in a checked-out repository.
 
 ## Workflow
 
@@ -59,4 +52,4 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 
 - [Agent Skills specification](https://agentskills.io/specification)
 - Adapted from [NVIDIA SkillSpector at `v2.12.0`](https://github.com/NVIDIA/SkillSpector/blob/c7958a3268d9498644b22edb75d0f051bbc8cbfc/README.md), [Waza skill scanner at `fb4e1d3`](https://github.com/tw93/Waza/blob/fb4e1d3118bb0addce65e05b43c1739aa7294cad/plugins/waza/skills/health/scripts/scan_skill_security.py).
-- Companion skills: [vendor-skill policy](../agent-project/references/vendor-skills.md) (install after review), [code-security](../code-security/references/code-review/GUIDE.md) (repository scans), [threat-model](../threat-model/SKILL.md) (attack paths beyond scanners).
+- Companion skills: [vendor-skill policy](../../../agent-project/references/vendor-skills.md) (install after review), [code-security](../code-review/GUIDE.md) (repository scans), [threat-model](../threat-model.md) (attack paths beyond scanners).

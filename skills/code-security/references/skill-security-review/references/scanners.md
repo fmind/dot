@@ -5,7 +5,7 @@ description: "Run gitleaks and Trivy on a candidate with trusted configuration i
 
 # Trusted Scanners
 
-Run secret and license scanners against a candidate snapshot without executing it; the parent [skill](../SKILL.md) owns the review workflow, the pattern searches, and the decision.
+Run secret and license scanners against a candidate snapshot without executing it; the parent [guide](../GUIDE.md) owns the review workflow, the pattern searches, and the decision.
 
 ## Workflow
 
@@ -21,4 +21,4 @@ Run secret and license scanners against a candidate snapshot without executing i
 
 ## Documentation
 
-- [gitleaks](../../code-security/references/gitleaks.md) · [trivy](../../code-security/references/trivy/GUIDE.md)
+- [gitleaks](../../gitleaks.md) · [trivy](../../trivy/GUIDE.md)

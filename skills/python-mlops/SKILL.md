@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-mlops
   created: "2026-09-16"
-  updated: "2026-10-09"
+  updated: "2026-10-20"
 ---
 
 # Python MLOps
@@ -36,6 +36,6 @@ For ML work, establish permitted compute and artifact destinations before runnin
 
 ## Related owners
 
-- [python-stack](../python-stack/SKILL.md): uv, typing, packaging, and async; [python-testing](../python-testing/SKILL.md): test implementation.
+- [python-stack](../python-stack/SKILL.md): uv, typing, packaging, and async; [python-testing](../python-stack/references/python-testing/GUIDE.md): test implementation.
 - [Colab](../colab/SKILL.md), [Kaggle](../kaggle/SKILL.md), and [Hugging Face](../hf/SKILL.md) retain connector ownership of accounts, sessions, transfers, and compute. Available quota does not authorize allocation.
-- [duckdb](../duckdb/SKILL.md): SQL and file queries; [python-web](../python-web/SKILL.md): APIs and model demos; [observability](../observability/SKILL.md): service telemetry; [agent-evaluation](../agent-evaluation/SKILL.md): stochastic agent evaluation.
+- [duckdb](../duckdb/SKILL.md): SQL and file queries; [python-web](../python-web/SKILL.md): APIs and model demos; [observability](../python-stack/references/observability.md): service telemetry; [agent-evaluation](../agent-evaluation/SKILL.md): stochastic agent evaluation.

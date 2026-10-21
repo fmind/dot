@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-10-19"
+  updated: "2026-10-20"
 ---
 
 # Upgrade Tools
@@ -41,4 +41,4 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 - [uv: upgrading locked versions](https://docs.astral.sh/uv/concepts/projects/sync/#upgrading-locked-package-versions)
 - [OpenTofu lock file](https://opentofu.org/docs/language/files/dependency-lock/) · [dprint config update](https://dprint.dev/cli/#update)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [uv](https://github.com/astral-sh/uv/releases) · [OpenTofu](https://github.com/opentofu/opentofu/releases) · [dprint](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../github-actions/references/dependabot.md) (security-only fix PRs), [repository-maintenance](../repository-maintenance/SKILL.md) (the pass that calls this skill).
+- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../github-actions/references/dependabot.md) (security-only fix PRs), [full-review](../full-review/SKILL.md) (the pass that calls this skill).

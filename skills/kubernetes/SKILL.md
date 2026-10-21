@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -69,4 +69,4 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
 - [Kubernetes Documentation](https://kubernetes.io/docs/) · [Helm Documentation](https://helm.sh/docs/)
 - [k9s Terminal UI](https://k9scli.io/) · [Stern Log Tailer](https://github.com/stern/stern)
 - Releases: [Kubernetes Releases](https://github.com/kubernetes/kubernetes/releases)
-- Companion skills: [docker](../docker/SKILL.md) (container runtimes), [infra-as-code](../infra-as-code/SKILL.md) (provisioning), [incident-response](../incident-response/SKILL.md) (outages).
+- Companion skills: [docker](../docker/SKILL.md) (container runtimes), [infra-as-code](../infra-as-code/SKILL.md) (provisioning), [incident-response](../production-readiness/references/incident-response.md) (outages).

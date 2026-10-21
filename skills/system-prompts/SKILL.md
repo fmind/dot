@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/system-prompts
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-20"
 ---
 
 # System Prompts
@@ -34,5 +34,5 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 ## Documentation
 
 - Sources: [OpenAI prompting](https://developers.openai.com/api/docs/guides/prompting), [Google prompt design](https://ai.google.dev/gemini-api/docs/prompting-strategies), [Anthropic prompt engineering](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview).
-- Companion skills: [google-adk](../agent-frameworks/references/google-adk.md) (Python agents and runtime enforcement), [quality-assurance](../quality-assurance/SKILL.md) (software proof), [threat-model](../threat-model/SKILL.md) (trust boundaries), [research-brief](../implementation-plan/references/research-brief.md) (current provider semantics).
+- Companion skills: [google-adk](../agent-frameworks/references/google-adk.md) (Python agents and runtime enforcement), [quality-assurance](../quality-assurance/SKILL.md) (software proof), [threat-model](../code-security/references/threat-model.md) (trust boundaries), [research-brief](../implementation-plan/references/research-brief.md) (current provider semantics).
 - Adapted from [ECC prompt-optimizer](https://github.com/affaan-m/ECC/blob/59a99d669f5466d99d5be8b6fce8c5f2677766d0/skills/prompt-optimizer/SKILL.md).
