@@ -3,7 +3,6 @@
 # Generated lockfiles and per-tool dependency graphs.
 *.lock
 CHANGELOG.md
-aube-lock.yaml
 dot_config/mise/locks/
 lazy-lock.json
 # Skill symlink templates; skills/ holds the packages.

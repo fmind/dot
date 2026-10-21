@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-10-19"
+  updated: "2026-10-20"
 ---
 
 # Chezmoi Source Standard
@@ -44,7 +44,7 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 - **Templates fail closed**: one template error aborts the whole apply; debug with `chezmoi execute-template < file` or `chezmoi apply --dry-run` before committing.
 - **Commit only encrypted `*.age` secrets**: keep plaintext out of the repository, previews, and logs (inspect secret targets by status/metadata, never a plaintext diff); rotate a leaked secret (see [code-security](../../../skills/code-security/references/code-review/GUIDE.md)). Native login seeds use `create_encrypted_private_*` so account switches survive apply; scoped keys stay under `~/.config/dot/secrets/`, never in global shell exports. Follow [secret setup](../../../README.md#secret-management) and [credential precedence](../../../skills/dot-cli/references/authentication.md).
 - **`.chezmoiignore`** (templated doublestar patterns, not gitignore syntax) keeps repo-only files (`dot/`, `skills/`, `AGENTS.md`) out of apply and skips key-dependent files without the age key; chezmoi already skips dot-prefixed sources such as `.github/`.
-- **Removing a source never deletes its target**: list retired targets in `.chezmoiremove` (glob patterns) so apply deletes them on every machine; keep each entry until no machine can still hold the target.
+- **Removing a source never deletes its target**: create `.chezmoiremove` with the retired targets (glob patterns) so apply deletes them on every machine; delete each entry, and the file once empty, when no machine can still hold the target.
 - **Ignore patterns match target paths**: a leading `!` excludes a match from ignoring and takes priority over every other pattern, whatever the order.
 - **`.chezmoi.toml.tmpl`** seeds `~/.config/chezmoi/chezmoi.toml` on `chezmoi init` (`promptStringOnce` per-host data); `[add] secrets = "error"` makes `chezmoi add` refuse unencrypted secrets, and `[edit] apply = true` applies after `chezmoi edit` (`--watch` on save).
 

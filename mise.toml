@@ -1,8 +1,7 @@
 # :schema https://mise.jdx.dev/schema/mise.json
 # Docs: https://mise.jdx.dev/configuration.html
 
-# Include the untrusted-project settings and zip symlink security fixes (2026.10.13).
-# Keep equal to install.sh and the workflow pins; lockfile revision 3 is required.
+# Keep equal to install.sh and the workflow pins (test_bootstrap enforces it).
 min_version = "2026.10.15"
 
 [settings]
@@ -16,10 +15,6 @@ run_auto_install = false
 # Hide command echoes; keep task output, failure diagnostics, and task-name prefixes.
 # MISE_TASK_QUIET=false restores mise's execution messages for debugging.
 quiet = true
-
-[task_config]
-# Keep repository tasks rooted here when invoked from a child directory.
-dir = "{{config_root}}"
 
 [env]
 # Tasks pass `--project dot` and set COVERAGE_FILE themselves instead of exporting
@@ -95,7 +90,6 @@ description = "Run the checks that download vulnerability data (pre-push)"
 depends = ["check:scan", "check:vuln"]
 
 [tasks."check:actions"]
-alias = "ca"
 description = "Validate GitHub Actions workflows and Dependabot config"
 run = ["actionlint", "zizmor --offline --strict-collection .github/"]
 
@@ -104,7 +98,6 @@ description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekl
 run = "zizmor --strict-collection .github/"
 
 [tasks."check:chezmoi"]
-alias = "cc"
 description = "Validate rendered chezmoi source in an isolated destination"
 run = """
 render_config="$(mktemp -d)"
@@ -116,7 +109,6 @@ chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destinati
 """
 
 [tasks."check:format"]
-alias = "cf"
 description = "Check config and markup formatting (dprint)"
 run = "dprint check"
 
@@ -129,7 +121,6 @@ done
 """
 
 [tasks."check:leaks"]
-alias = "cl"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
 # The pre-commit hook runs this through check:local; check:leaks:full covers the history weekly.
 run = "gitleaks dir . --redact=100 --verbose --no-banner"
@@ -139,13 +130,10 @@ description = "Scan the complete Git history (weekly in security.yml; needs a fu
 run = "gitleaks git --redact=100 --verbose --no-banner"
 
 [tasks."check:lua"]
-alias = "cu"
 description = "Check Neovim Lua formatting (stylua)"
-# The Neovim configuration has no templated Lua; a future .lua.tmpl needs its own glob here.
 run = "stylua --check dot_config/nvim"
 
 [tasks."check:python"]
-alias = "cp"
 description = "Lint, format-check, type-check, and validate Python packaging"
 # ruff.toml scopes Ruff. ty skips dot_config/ptpython, whose prompt_toolkit import is outside the dot environment.
 run = [
@@ -157,12 +145,11 @@ run = [
 ]
 
 [tasks."check:scan"]
-alias = "ct"
 description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
+# Pass the config explicitly: trivy fs does not load ./trivy.yaml (and its ignorefile) on its own.
 run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]
-alias = "cs"
 description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh and plain run scripts"
 # shellcheck cannot parse {{ }} actions, so templates are rendered first; they use only
 # built-in .chezmoi data, so no init is needed. Modify templates render their managed
@@ -179,7 +166,6 @@ shfmt -d -i 2 -s install.sh run_*.sh dot_local/bin/executable_*
 """
 
 [tasks."check:skills"]
-alias = "ck"
 description = "Validate first-party Agent Skill packages, context budgets, and documentation links"
 run = [
   "gh skill publish --dry-run skills",
@@ -189,12 +175,10 @@ run = [
 ]
 
 [tasks."check:tools"]
-alias = "cw"
 description = "Validate repository task definitions"
 run = "mise tasks validate"
 
 [tasks."check:vuln"]
-alias = "cv"
 description = "Audit the locked Python dependency graph"
 run = "uv audit --project dot --preview-features audit-command --locked"
 
@@ -209,7 +193,6 @@ description = "Format all active sources and documents"
 depends = ["format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
 
 [tasks."format:dprint"]
-alias = "fd"
 description = "Format JSON, Markdown, TOML, and YAML"
 # Order after the index generator without depending on it: pre-commit formats only
 # staged files, and check:skills then rejects a stale index instead of this task
@@ -222,7 +205,6 @@ description = "Generate parent routing indexes from guide metadata"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --sync"
 
 [tasks."format:lua"]
-alias = "fu"
 description = "Format Neovim Lua sources"
 run = "mise run format:lua:files dot_config/nvim"
 
@@ -231,7 +213,6 @@ description = "Format only the supplied Lua files (pre-commit passes staged file
 run = "stylua"
 
 [tasks."format:python"]
-alias = "fp"
 description = "Apply safe lint fixes and format Python sources"
 run = [
   "mise run format:python:fix .",
@@ -240,14 +221,13 @@ run = [
 
 [tasks."format:python:fix"]
 description = "Apply safe lint fixes to the given Python files (pre-commit passes staged files)"
-run = "uv run --frozen --project dot ruff check --fix-only --force-exclude"
+run = "uv run --frozen --project dot ruff check --fix-only"
 
 [tasks."format:python:style"]
 description = "Format the given Python files (pre-commit passes staged files)"
-run = "uv run --frozen --project dot ruff format --force-exclude"
+run = "uv run --frozen --project dot ruff format"
 
 [tasks."format:shell"]
-alias = "fs"
 description = "Format shell scripts"
 run = "mise run format:shell:files install.sh run_*.sh dot_local/bin/executable_*"
 
@@ -259,7 +239,7 @@ run = "shfmt -w -i 2 -s"
 alias = "i"
 description = "Bootstrap a freshly initialized checkout"
 run = [
-  "mise run tools",
+  "mise run full",
   "mise run hooks",
   "mise run vim",
   "echo '✓ First-time bootstrap complete.'",
@@ -268,9 +248,7 @@ run = [
 [tasks.test]
 alias = "t"
 description = "Run the Python CLI and repository contract tests"
-# The archive tests are fsync-latency-bound, not CPU-bound; workers overlap the syncs.
-# Eight workers ran twice as fast as four (2026-10-14); the cap keeps a 16-core workstation
-# with many resident agent sessions out of OOM territory.
+# Archive tests are fsync-bound; 8 workers overlap syncs without risking OOM.
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
 run = "uv run --frozen --project dot pytest -q -n auto --maxprocesses 8 dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
@@ -279,11 +257,6 @@ run = "uv run --frozen --project dot pytest -q -n auto --maxprocesses 8 dot/test
 description = "Materialize and execute the Python library, CLI, and web starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
 run = "uv run --frozen --project dot pytest -q dot/tests/test_python_starter.py"
-
-[tasks.watch]
-alias = "w"
-description = "Re-run the Python test suite on every change"
-run = "uv run --frozen --directory dot ptw --now . -q -n auto --maxprocesses 8"
 
 # Project management tasks. Every alias begins with m.
 
@@ -344,8 +317,7 @@ alias = "mr"
 description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
-[tasks.tools]
-alias = ["mt", "full"]
+[tasks.full]
 description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
@@ -369,8 +341,8 @@ run = [
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
   # Advance the checksummed fmind/theme pin; several theme files execute.
   "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
-  # Publish the complete bundle before installation; rerun tools after a failed install.
-  "mise run tools",
+  # Publish the complete bundle before installation; rerun full after a failed install.
+  "mise run full",
   # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs.
   'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "dprint config update --yes",

@@ -263,9 +263,9 @@ def run_task_bootstrap(
     config = tomllib.loads((ROOT / "mise.toml").read_text())
     # Keep task bodies and environment from the repository, but install no real
     # tools; the deploy fixture stands in for uv tool install.
-    lines = ["[settings.task]", "run_auto_install = false", "[task_config]", 'dir = "{{config_root}}"', "[env]"]
+    lines = ["[settings.task]", "run_auto_install = false", "[env]"]
     lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["env"].items())
-    for name in ("tools", "install", "apply", "completions"):
+    for name in ("full", "install", "apply", "completions"):
         lines.append(f"[tasks.{name}]")
         lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["tasks"][name].items())
     for name in ("deploy", "hooks", "vim"):
@@ -325,7 +325,7 @@ def run_task_bootstrap(
     return result, home, log.read_text().splitlines() if log.exists() else []
 
 
-@pytest.mark.parametrize("task", ["tools", "full", "install"])
+@pytest.mark.parametrize("task", ["full", "install"])
 @pytest.mark.parametrize("old_dot", [False, True], ids=["fresh", "older-dot"])
 def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str, old_dot: bool) -> None:
     result, home, events = run_task_bootstrap(tmp_path, task, old_dot=old_dot)
@@ -370,7 +370,7 @@ def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Pat
     runtime = tmp_path / "runtime"
     runtime.mkdir()
     (global_config / "config.toml").write_text(f'[tools]\n"pipx:fixture" = "path:{runtime}"\n')
-    task = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]["tools"]["run"][0]
+    task = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]["full"]["run"][0]
     # The real first bootstrap step must ignore a home tool that cannot satisfy
     # --locked. No repository tools are needed for this isolated selection probe.
     (source / "mise.toml").write_text(
