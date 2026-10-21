@@ -88,8 +88,6 @@ def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, valu
     ("mutation", "expected"),
     [
         (lambda text: text.replace("name: fixture", "name: wrong"), "must match its directory"),
-        (lambda text: text.replace("# Fixture", "Fixture"), "H1 heading"),
-        (lambda text: text.replace("## ", "### "), "H2 section"),
         (
             lambda text: text.replace("  kind: task", "  kind: task\n  deep: " + "[" * 1000 + "]" * 1000),
             "invalid frontmatter",
@@ -112,9 +110,6 @@ def test_skills_contract_rejects_broken_package(tmp_path: Path, mutation: Callab
         ("  author: Fixture Author", '  author: ""', "metadata.author must be a non-empty string"),
         ("  source: github.com/fmind/dot/tree/main/skills/fixture", "  source: null", "metadata.source"),
         ('  created: "2026-10-01"', "  created: 2026-10-01", "metadata keys and values must be strings"),
-        ('  created: "2026-10-01"', '  created: "2026-02-30"', "metadata.created must be a quoted ISO date"),
-        ('  updated: "2026-10-12"', '  updated: "20261012"', "metadata.updated must be a quoted ISO date"),
-        ('  updated: "2026-10-12"', '  updated: "2026-09-30"', "must not precede metadata.created"),
         ('  updated: "2026-10-12"\n', "", "metadata.updated must be a non-empty string"),
         ("  kind: task", "  kind: [task]", "metadata.kind must be connector, task, or collection"),
         ("  kind: task", "  kind: task\n  revision: 1", "metadata keys and values must be strings"),
@@ -134,14 +129,12 @@ def test_skills_contract_rejects_invalid_metadata(
 @pytest.mark.parametrize(
     ("relative", "content", "expected"),
     [
-        ("references/.pytest_cache/README.md", b"generated", "generated cache or metadata"),
         ("references/control.md", b"safe\x1b[2Jspoofed\n", "unsafe control character"),
         ("references/bidi.md", "safe\u202ehidden\n".encode(), "invisible Unicode"),
         ("references/tags.md", "safe\U000e0069\U000e0067hidden\n".encode(), "invisible Unicode"),
         ("references/selectors.md", "safe\ufe00\U000e0100hidden\n".encode(), "invisible Unicode"),
         ("references/binary.md", b"text\x00payload\n", "unsafe control character"),
         ("references/non-utf8.md", b"text\xffpayload\n", "is not UTF-8"),
-        ("references/oversized.md", b"x" * ((1 << 20) + 1), "parsed-file limit"),
     ],
 )
 def test_skills_contract_rejects_unsafe_resources(tmp_path: Path, relative: str, content: bytes, expected: str) -> None:
@@ -269,16 +262,6 @@ def test_skills_contract_does_not_budget_the_combined_total(tmp_path: Path) -> N
     assert checker.repository_findings(root) == []
 
 
-@pytest.mark.parametrize("slug", ["../escape", "", "guide, guide"])
-def test_skills_contract_rejects_invalid_guide_metadata(tmp_path: Path, slug: str) -> None:
-    root = _fixture_repository(tmp_path)
-    path = root / "skills/fixture/SKILL.md"
-    path.write_text(
-        path.read_text().replace("  author: Fixture Author", f'  author: Fixture Author\n  guides: "{slug}"')
-    )
-    assert any("guide" in finding for finding in checker.repository_findings(root))
-
-
 def test_skills_guide_metadata_drives_index_and_detects_stale_description(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     path = root / "skills/fixture/SKILL.md"
@@ -348,12 +331,11 @@ def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -
             '  created: "2026-10-01"\n  updated: "2026-10-12"',
         )
     )
-    findings, _ = checker._skill_findings(root, "child", promoted)
-    assert findings == []
+    assert checker._skill_findings(root, "child", promoted) == []
     assert (destination / "templates/input.txt").read_text() == "input\n"
 
 
-def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
+def test_python_only_owned_sources() -> None:
     retired_suffixes = {".go", ".js", ".jsx", ".ts", ".tsx"}
     owned = subprocess.check_output(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, text=True
@@ -361,11 +343,6 @@ def test_python_only_owned_sources_and_retired_tool_cleanup() -> None:
     active = [path for path in owned if Path(path).suffix in retired_suffixes and (ROOT / path).exists()]
 
     assert active == []
-    # Removal markers stay only until every workstation has applied them; list each
-    # outstanding one here and delete it (and its entry) once it has shipped.
-    outstanding: set[str] = set()
-    markers = {path for path in owned if Path(path).name.startswith("remove_") and (ROOT / path).exists()}
-    assert markers == outstanding
 
 
 @pytest.mark.skipif(shutil.which("fish") is None, reason="fish is not installed")

@@ -26,22 +26,10 @@ from fmind_dot.archive.store import (
 from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import UsageRecord, load_usage_records
 from fmind_dot.cli import app
-from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import notification_workspace
-from fmind_dot.process import Runner
 from fmind_dot.state import State
-
-
-def _state(*, runner: Runner | None = None, stdin: str = "") -> State:
-    state = State(
-        runner=runner or Runner(),
-        stdin=io.StringIO(stdin),
-        stdout=io.StringIO(),
-        stderr=io.StringIO(),
-    )
-    state.__dict__["_config"] = Config()
-    return state
+from tests.fakes import make_state
 
 
 def _stderr(state: State) -> str:
@@ -119,7 +107,7 @@ def test_sync_rejects_configured_source_with_wrong_kind(monkeypatch: pytest.Monk
     monkeypatch.setenv("HOME", str(tmp_path))
     source = tmp_path / "claude-source"
     source.write_text("not a directory\n", encoding="utf-8")
-    state = _state()
+    state = make_state()
     state.config.agent.sources["claude"] = str(source)
 
     with pytest.raises(DotError, match="Claude session path is not a directory"):
@@ -152,7 +140,7 @@ def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
 
     _write_jsonl(tmp_path / f".claude/projects/project-1/{session_id}.jsonl", answer(1), answer(2))
     _write_jsonl(tmp_path / f".claude/projects/project-2/{session_id}.jsonl", answer(1))
-    state = _state()
+    state = make_state()
 
     first = sync_sessions(state)
     second = sync_sessions(state)
@@ -183,7 +171,7 @@ def test_session_sync_follows_codex_rollouts_into_archived_sessions(
 
     live = tmp_path / ".codex/sessions/2026/09/06" / name
     _write_jsonl(live, turn(1))
-    state = _state()
+    state = make_state()
     assert sync_sessions(state, agent="codex").ingested == 1
 
     # Codex moves an archived thread out of sessions/ and can keep appending to it.
@@ -211,7 +199,7 @@ def test_session_sync_dry_run_summary_omits_the_unevaluated_retained_count(
         tmp_path / ".codex/sessions/rollout-2026-09-06T08-00-00-codex-dry.jsonl",
         {"timestamp": "2026-09-06T08:00:00Z", "type": "response_item", "payload": {"role": "user", "content": "hi"}},
     )
-    state = _state()
+    state = make_state()
 
     assert sync_sessions(state, agent="codex", dry_run=True).selected == 1
 
@@ -325,7 +313,7 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
         encoding="utf-8",
     )
     _create_copilot_database(tmp_path / ".copilot/session-store.db")
-    state = _state()
+    state = make_state()
 
     assert sync_sessions(state).ingested == 4
 
@@ -343,7 +331,7 @@ def test_agy_workspace_discovered_later_recaptures_an_unchanged_transcript(
     store = tmp_path / ".gemini/antigravity-cli"
     record = {"created_at": "2026-09-06T08:00:00Z", "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "hi"}
     _write_jsonl(store / "brain/agy-cwd/.system_generated/logs/transcript.jsonl", record)
-    state = _state()
+    state = make_state()
 
     first = sync_sessions(state, agent="agy")
     with closing(sqlite3.connect(store / "conversation_summaries.db")) as connection:
@@ -403,7 +391,7 @@ def test_sync_reports_inaccessible_project_directories(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    state = _state()
+    state = make_state()
     source = tmp_path / "source"
     blocked = source / "project"
     blocked.mkdir(parents=True)
@@ -435,7 +423,7 @@ def test_copilot_checkpoint_skips_reads_and_keeps_unchanged_bundles(
             "INSERT INTO assistant_usage_events SELECT 'other', model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, reasoning_tokens FROM assistant_usage_events"
         )
         connection.commit()
-    state = _state()
+    state = make_state()
     sync_sessions(state, agent="copilot")
     unchanged = session_bundle_path("copilot", "other")
     original = unchanged.read_bytes(), unchanged.stat().st_mtime_ns, unchanged.stat().st_ino
@@ -462,7 +450,7 @@ def test_copilot_partial_scans_never_publish_a_skip_checkpoint(
     monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
-    state = _state()
+    state = make_state()
     adapter = archive_sync_module.AGENT_ADAPTERS["copilot"]
 
     def parse(path: Path, session_id: str, cwd: str) -> ParsedSession:
@@ -495,7 +483,7 @@ def test_copilot_writes_during_every_parse_still_capture_the_snapshot(
     monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
-    state = _state()
+    state = make_state()
     adapter = archive_sync_module.AGENT_ADAPTERS["copilot"]
 
     def parse(path: Path, session_id: str, cwd: str) -> ParsedSession:
@@ -518,7 +506,7 @@ def test_copilot_checkpoint_detects_wal_updates(monkeypatch: pytest.MonkeyPatch,
     monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
-    state = _state()
+    state = make_state()
     with closing(sqlite3.connect(database)) as connection:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("UPDATE assistant_usage_events SET input_tokens=15")
@@ -655,7 +643,7 @@ def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
     def parser(_path: Path, _session_id: str, _cwd: str) -> ParsedSession:
         raise TypeError(f"bad session {session_id}")
 
-    state = _state()
+    state = make_state()
     _fixture_adapter(monkeypatch, state, tmp_path, parser, session_id)
 
     with pytest.raises(DotError, match=r"session sync recorded 1 failure"):
@@ -677,7 +665,7 @@ def test_session_sync_archives_transcript_then_reports_failed_usage(
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     log = SessionLog("2026-09-06T08:00:00Z", "fixture", "fixture-id", "user", "kept")
-    state = _state()
+    state = make_state()
     _fixture_adapter(
         monkeypatch,
         state,
@@ -699,7 +687,7 @@ def test_sync_publishes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatc
     usage = UsageRecord(
         harness="fixture", agent="fixture", session_id="fixture-id", measurement_kind="provider-reported"
     ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
-    state = _state()
+    state = make_state()
     _fixture_adapter(monkeypatch, state, tmp_path, lambda *_args: ParsedSession([], "a" * 64, "fixture", usage=usage))
 
     assert sync_sessions(state).ingested == 1
@@ -709,7 +697,7 @@ def test_sync_publishes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatc
 
 def test_sync_normalizes_publication_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    state = _state()
+    state = make_state()
     _fixture_adapter(monkeypatch, state, tmp_path, lambda *_args: ParsedSession([], "a" * 64, "fixture"))
 
     def record_failure(*_args: object, **_kwargs: object) -> None:
@@ -724,7 +712,7 @@ def test_sync_normalizes_publication_failure(monkeypatch: pytest.MonkeyPatch, tm
 
 def test_sync_rejects_unknown_agents() -> None:
     with pytest.raises(DotError, match="unknown session agent"):
-        sync_sessions(_state(), agent="fixture")
+        sync_sessions(make_state(), agent="fixture")
 
 
 def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -808,7 +796,7 @@ def test_subagent_transcripts_count_once_with_their_parent_session(
 
     monkeypatch.setenv("HOME", str(tmp_path))
     project = tmp_path / "claude/-work-project"
-    state = _state()
+    state = make_state()
     state.config.agent.sources["claude"] = str(tmp_path / "claude")
 
     def answer(tokens: int, model: str) -> dict:

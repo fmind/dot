@@ -8,7 +8,7 @@ import tomllib
 from pathlib import Path
 
 from fmind_dot.errors import DotError
-from fmind_dot.state import State
+from fmind_dot.state import State, require_tools
 
 _RELEASE_VERSION_FILE = Path("dot/pyproject.toml")
 _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
@@ -60,11 +60,6 @@ def _interactive(state: State, args: list[str], root: Path) -> int:
     return state.runner.interactive(args, cwd=root, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr)
 
 
-def _require_tools(state: State, *commands: str) -> None:
-    if missing := [command for command in commands if state.runner.which(command) is None]:
-        raise DotError(f"missing release tools: {', '.join(missing)}; run 'mise run tools'")
-
-
 def _prepare(state: State, root: Path, tag: str) -> None:
     """Write the version, lock, and changelog, then run the release-only gates."""
     # uv rewrites only [project].version and relocks; --no-sync leaves the venv alone.
@@ -90,9 +85,10 @@ def _prepare(state: State, root: Path, tag: str) -> None:
     validate_release_status(state.runner.run(status, cwd=root, timeout=_GIT_TIMEOUT_SECONDS).stdout)
 
 
-def run_release(state: State, *, yes: bool = False, remote: str = "origin", branch: str = "main") -> str | None:
+def run_release(state: State, *, yes: bool = False) -> str | None:
     """Prepare, validate, commit, tag, and atomically push one release."""
-    _require_tools(state, "dprint", "git", "git-cliff", "mise", "uv")
+    remote, branch = "origin", "main"
+    require_tools(state, [["dprint"], ["git"], ["git-cliff"], ["mise"], ["uv"]])
     if _git(state, "status", "--porcelain"):
         raise DotError("working directory has uncommitted or staged changes; commit or stash them first")
     root = Path(_git(state, "rev-parse", "--show-toplevel")).absolute()
@@ -167,12 +163,10 @@ def run_release(state: State, *, yes: bool = False, remote: str = "origin", bran
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--yes", "-y", action="store_true")
-    parser.add_argument("--remote", default="origin")
-    parser.add_argument("--branch", default="main")
     args = parser.parse_args()
     os.chdir(Path(__file__).resolve().parents[2])
     try:
-        run_release(State(), yes=args.yes, remote=args.remote, branch=args.branch)
+        run_release(State(), yes=args.yes)
     except KeyboardInterrupt:
         return 130
     except (DotError, OSError) as error:

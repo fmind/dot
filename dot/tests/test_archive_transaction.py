@@ -213,9 +213,19 @@ def test_malformed_line_never_freezes_the_transcript(tmp_path: Path, monkeypatch
     assert _tokens() == [(10, 5)]
 
 
-@pytest.mark.parametrize("field", ["input_tokens", "cost_usd"])
-@pytest.mark.parametrize("value", ["private-invalid-metric", True, [], {}], ids=["string", "boolean", "list", "object"])
-def test_wrong_type_usage_keeps_the_last_measured_copy(
+_INVALID_METRICS = ["private-invalid-metric", True, [], {}]
+_INVALID_CONTAINERS = [[], "private-invalid-container", True, 1]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        *(("input_tokens", value) for value in _INVALID_METRICS),
+        *(("cost_usd", value) for value in _INVALID_METRICS),
+        *(("usage", value) for value in _INVALID_CONTAINERS),
+    ],
+)
+def test_invalid_usage_keeps_the_last_measured_copy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, value: object
 ) -> None:
     state, source = source_session(tmp_path, monkeypatch)
@@ -225,10 +235,12 @@ def test_wrong_type_usage_keeps_the_last_measured_copy(
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     measured = path.read_bytes()
-    if field == "input_tokens":
-        rows[1]["message"]["usage"][field] = value
-    else:
+    if field == "usage":
+        rows[1]["message"]["usage"] = value
+    elif field == "cost_usd":
         rows[-1]["totalCostUSD"] = value
+    else:
+        rows[1]["message"]["usage"][field] = value
     source_info = source.stat()
     source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
     # Equal-length replacements must advance mtime even on a coarse-clock filesystem.
@@ -238,33 +250,9 @@ def test_wrong_type_usage_keeps_the_last_measured_copy(
         with pytest.raises(DotError, match="1 failure"):
             sync_sessions(state, agent="claude")
         assert path.read_bytes() == measured
-        assert "usage extraction failed; kept the archived usage" in _text(state.stderr)
-        assert "private-invalid-metric" not in _text(state.stderr)
-
-
-@pytest.mark.parametrize(
-    "value", [[], "private-invalid-container", True, 1], ids=["list", "string", "boolean", "number"]
-)
-def test_malformed_usage_container_keeps_the_last_measured_copy(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: object
-) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
-    sync_sessions(state, agent="claude")
-    path = session_bundle_path("claude", "fixture-id")
-    measured = path.read_bytes()
-    rows = [json.loads(line) for line in source.read_text().splitlines()]
-    rows[1]["message"]["usage"] = value
-    source_info = source.stat()
-    source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
-    os.utime(source, ns=(source_info.st_atime_ns, source_info.st_mtime_ns + 1_000_000_000))
-
-    for _ in range(2):
-        with pytest.raises(DotError, match="1 failure"):
-            sync_sessions(state, agent="claude")
-        assert path.read_bytes() == measured
         assert _tokens() == [(10, 5)]
         assert "usage extraction failed; kept the archived usage" in _text(state.stderr)
-        assert "private-invalid-container" not in _text(state.stderr)
+        assert "private-invalid" not in _text(state.stderr)
 
 
 def test_sync_recaptures_older_parser_bundles(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -17,94 +18,80 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
 
 
-class ToolConfig(StrictModel):
+@dataclass(frozen=True)
+class ToolConfig:
+    """One Fish completion source: a native generator command or a mise package's bundled script."""
+
     binary: str = ""
-    args: list[str] = Field(default_factory=list)
+    args: tuple[str, ...] = ()
     package: str = ""
 
-    @model_validator(mode="after")
-    def one_completion_source(self) -> ToolConfig:
-        if self.package and (self.binary or self.args):
-            raise ValueError("choose either a bundled package or a completion command")
-        return self
 
-
-def _default_custom_completions() -> dict[str, ToolConfig]:
-    return {
-        "a2a": ToolConfig(),
-        "ast-grep": ToolConfig(args=["completions", "fish"]),
-        "astro": ToolConfig(),
-        "atuin": ToolConfig(args=["gen-completions", "--shell", "fish"]),
-        "aws-sso-util": ToolConfig(binary="env", args=["_AWS_SSO_UTIL_COMPLETE=fish_source", "aws-sso-util"]),
-        "bat": ToolConfig(args=["--completion", "fish"]),
-        "bf": ToolConfig(binary="env", args=["_BF_COMPLETE=source_fish", "bf"]),
-        "btm": ToolConfig(package="bottom"),
-        "carapace": ToolConfig(args=["carapace", "fish"]),
-        "cf": ToolConfig(args=["complete", "fish"]),
-        "chezmoi": ToolConfig(),
-        "codex": ToolConfig(args=["completion", "fish"]),
-        "colab": ToolConfig(binary="env", args=["_COLAB_COMPLETE=source_fish", "colab"]),
-        "copilot": ToolConfig(),
-        "cosign": ToolConfig(),
-        "databricks": ToolConfig(),
-        "delta": ToolConfig(args=["--generate-completion", "fish"]),
-        "doggo": ToolConfig(args=["completions", "fish"]),
-        "dot": ToolConfig(binary="env", args=["_DOT_COMPLETE=source_fish", "dot"]),
-        "dprint": ToolConfig(args=["completions", "fish"]),
-        "dyff": ToolConfig(),
-        "fastfetch": ToolConfig(package="github:fastfetch-cli/fastfetch"),
-        "fd": ToolConfig(args=["--gen-completions", "fish"]),
-        "gh": ToolConfig(args=["completion", "-s", "fish"]),
-        "git-cliff": ToolConfig(package="git-cliff"),
-        "git-lfs": ToolConfig(binary="git", args=["lfs", "completion", "fish"]),
-        "gitleaks": ToolConfig(),
-        "grok": ToolConfig(args=["completions", "fish"]),
-        "hf": ToolConfig(binary="env", args=["_HF_COMPLETE=fish_source", "hf"]),
-        "hyperfine": ToolConfig(package="hyperfine"),
-        "k3d": ToolConfig(),
-        "lazygit": ToolConfig(args=["completion", "fish"]),
-        "lefthook": ToolConfig(),
-        "lsd": ToolConfig(package="lsd"),
-        "lychee": ToolConfig(args=["--generate", "complete-fish"]),
-        "mise": ToolConfig(),
-        "pup": ToolConfig(args=["completions", "fish"]),
-        "rg": ToolConfig(args=["--generate", "complete-fish"]),
-        "ruff": ToolConfig(args=["generate-shell-completion", "fish"]),
-        "starship": ToolConfig(args=["completions", "fish"]),
-        "stern": ToolConfig(args=["--completion", "fish"]),
-        "terraform-docs": ToolConfig(),
-        "tree-sitter": ToolConfig(args=["complete", "--shell", "fish"]),
-        "trivy": ToolConfig(),
-        "ty": ToolConfig(args=["generate-shell-completion", "fish"]),
-        "usage": ToolConfig(args=["--completions", "fish"]),
-        "uv": ToolConfig(args=["generate-shell-completion", "fish"]),
-        "uvx": ToolConfig(args=["--generate-shell-completion", "fish"]),
-        "vhs": ToolConfig(package="vhs"),
-        "watchexec": ToolConfig(args=["--completions", "fish"]),
-        "xh": ToolConfig(args=["--generate", "complete-fish"]),
-        "ya": ToolConfig(package="github:sxyazi/yazi"),
-        "yazi": ToolConfig(package="github:sxyazi/yazi"),
-        "yq": ToolConfig(args=["shell-completion", "fish"]),
-        "zellij": ToolConfig(args=["setup", "--generate-completion", "fish"]),
-        "zizmor": ToolConfig(args=["--completions", "fish"]),
-        "zoxide": ToolConfig(package="zoxide"),
-    }
-
-
-# Completion tools name `<tool>.fish` files and glob patterns: no separators or wildcards.
-ToolName = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")]
+# Every entry is generated; unlisted fields fall back to `<tool> completion fish`.
+COMPLETION_SOURCES: dict[str, ToolConfig] = {
+    "a2a": ToolConfig(),
+    "ast-grep": ToolConfig(args=("completions", "fish")),
+    "astro": ToolConfig(),
+    "atuin": ToolConfig(args=("gen-completions", "--shell", "fish")),
+    "aws-sso-util": ToolConfig(binary="env", args=("_AWS_SSO_UTIL_COMPLETE=fish_source", "aws-sso-util")),
+    "bat": ToolConfig(args=("--completion", "fish")),
+    "bf": ToolConfig(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
+    "btm": ToolConfig(package="bottom"),
+    "carapace": ToolConfig(args=("carapace", "fish")),
+    "cf": ToolConfig(args=("complete", "fish")),
+    "chezmoi": ToolConfig(),
+    "codex": ToolConfig(args=("completion", "fish")),
+    "colab": ToolConfig(binary="env", args=("_COLAB_COMPLETE=source_fish", "colab")),
+    "copilot": ToolConfig(),
+    "cosign": ToolConfig(),
+    "databricks": ToolConfig(),
+    "delta": ToolConfig(args=("--generate-completion", "fish")),
+    "doggo": ToolConfig(args=("completions", "fish")),
+    # Rendered in-process from Click; the installed dot may be older than this checkout.
+    "dot": ToolConfig(),
+    "dprint": ToolConfig(args=("completions", "fish")),
+    "dyff": ToolConfig(),
+    "fastfetch": ToolConfig(package="github:fastfetch-cli/fastfetch"),
+    "fd": ToolConfig(args=("--gen-completions", "fish")),
+    "gh": ToolConfig(args=("completion", "-s", "fish")),
+    "git-cliff": ToolConfig(package="git-cliff"),
+    "git-lfs": ToolConfig(binary="git", args=("lfs", "completion", "fish")),
+    "gitleaks": ToolConfig(),
+    "grok": ToolConfig(args=("completions", "fish")),
+    "hf": ToolConfig(binary="env", args=("_HF_COMPLETE=fish_source", "hf")),
+    "hyperfine": ToolConfig(package="hyperfine"),
+    "k3d": ToolConfig(),
+    "lazygit": ToolConfig(args=("completion", "fish")),
+    "lefthook": ToolConfig(),
+    "lsd": ToolConfig(package="lsd"),
+    "lychee": ToolConfig(args=("--generate", "complete-fish")),
+    "mise": ToolConfig(),
+    "pup": ToolConfig(args=("completions", "fish")),
+    "rg": ToolConfig(args=("--generate", "complete-fish")),
+    "ruff": ToolConfig(args=("generate-shell-completion", "fish")),
+    "starship": ToolConfig(args=("completions", "fish")),
+    "stern": ToolConfig(args=("--completion", "fish")),
+    "terraform-docs": ToolConfig(),
+    "tree-sitter": ToolConfig(args=("complete", "--shell", "fish")),
+    "trivy": ToolConfig(),
+    "ty": ToolConfig(args=("generate-shell-completion", "fish")),
+    "usage": ToolConfig(args=("--completions", "fish")),
+    "uv": ToolConfig(args=("generate-shell-completion", "fish")),
+    "uvx": ToolConfig(args=("--generate-shell-completion", "fish")),
+    "vhs": ToolConfig(package="vhs"),
+    "watchexec": ToolConfig(args=("--completions", "fish")),
+    "xh": ToolConfig(args=("--generate", "complete-fish")),
+    "ya": ToolConfig(package="yazi"),
+    "yazi": ToolConfig(package="yazi"),
+    "yq": ToolConfig(args=("shell-completion", "fish")),
+    "zellij": ToolConfig(args=("setup", "--generate-completion", "fish")),
+    "zizmor": ToolConfig(args=("--completions", "fish")),
+    "zoxide": ToolConfig(package="zoxide"),
+}
 
 
 class CompletionConfig(StrictModel):
     path: str = "~/.config/fish/completions"
-    custom_commands: dict[ToolName, ToolConfig] = Field(default_factory=_default_custom_completions)
-    # None selects every custom_commands entry, so adding one never also needs a tools edit;
-    # an explicit list narrows the selection or adds tools using `<tool> completion fish`.
-    tools: list[ToolName] | None = None
-
-    @property
-    def selected_tools(self) -> list[str]:
-        return list(dict.fromkeys(self.tools if self.tools is not None else sorted(self.custom_commands)))
 
 
 class PullConfig(StrictModel):
@@ -397,20 +384,11 @@ def config_file_path(path: str | Path | None) -> tuple[Path, bool]:
     return expand_path(path), False
 
 
-# Mappings whose entries are complete records: an override replaces a default entry instead of
-# merging into it, so switching a completion source (package vs. binary/args) never mixes both.
-_WHOLE_ENTRY_MAPPINGS = {("completions", "custom_commands")}
-
-
-def _deep_merge(base: dict[str, Any], overlay: dict[str, Any], path: tuple[str, ...] = ()) -> dict[str, Any]:
+def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     merged = copy.deepcopy(base)
     for key, value in overlay.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            location = (*path, key)
-            if location in _WHOLE_ENTRY_MAPPINGS:
-                merged[key] = merged[key] | copy.deepcopy(value)
-            else:
-                merged[key] = _deep_merge(merged[key], value, location)
+            merged[key] = _deep_merge(merged[key], value)
         else:
             merged[key] = copy.deepcopy(value)
     return merged

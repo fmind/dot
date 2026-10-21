@@ -26,7 +26,7 @@ from fmind_dot.auth import (
     workspace_ready,
 )
 from fmind_dot.command_group import JsonOption
-from fmind_dot.config import expand_path
+from fmind_dot.config import COMPLETION_SOURCES, expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.orphan import find_orphans
 from fmind_dot.private_files import write_atomic_file
@@ -97,9 +97,9 @@ def _completion_available(state: State, tool: str) -> bool:
 
 
 def _generate_completion(state: State, tool: str) -> str:
-    custom = state.config.completions.custom_commands.get(tool)
+    custom = COMPLETION_SOURCES.get(tool)
     binary = custom.binary if custom and custom.binary else tool
-    if tool == "dot" and custom and custom.binary == "env" and custom.args == ["_DOT_COMPLETE=source_fish", "dot"]:
+    if tool == "dot":
         return get_completion_script(  # noqa: S604 - static Fish protocol template, not a shell invocation.
             prog_name="dot", complete_var="_DOT_COMPLETE", shell="fish"
         )
@@ -122,7 +122,7 @@ def _generate_completion(state: State, tool: str) -> str:
             raise DotError(f"bundled Fish completion for {tool} is not UTF-8") from error
     if binary != tool and state.runner.which(binary) is None:
         raise DotError(f"completion generator for {tool} is not installed: {binary}")
-    args = custom.args if custom and custom.args else ["completion", "fish"]
+    args = list(custom.args) if custom and custom.args else ["completion", "fish"]
     timeout = _COMPLETION_TIMEOUT_SECONDS
     with tempfile.TemporaryDirectory(prefix="dot-completion-") as directory:
         try:
@@ -158,10 +158,10 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         raise DotError("failed to create completions directory") from error
     failures: list[str] = []
     typer.echo(
-        f"=> Generating Fish autocompletions for {len(state.config.completions.selected_tools)} tools in {directory}...\n",
+        f"=> Generating Fish autocompletions for {len(COMPLETION_SOURCES)} tools in {directory}...\n",
         file=state.stdout,
     )
-    for tool in state.config.completions.selected_tools:
+    for tool in sorted(COMPLETION_SOURCES):
         try:
             content = _generate_completion(state, tool)
             _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
@@ -190,9 +190,7 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
                     continue
                 # Native scripts must win over Carapace's generic completers;
                 # in particular its "dot" completer is for Graphviz, not this CLI.
-                excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(
-                    state.config.completions.selected_tools
-                )
+                excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(COMPLETION_SOURCES)
                 environment = {"CARAPACE_EXCLUDES": ",".join(sorted(excludes - {""}))} if tool == "carapace" else None
                 result = state.runner.run([tool, *args], timeout=_COMPLETION_TIMEOUT_SECONDS, env=environment)
                 _write_validated_fish(state, cache / filename, result.stdout, 0o600)

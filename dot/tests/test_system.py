@@ -21,10 +21,10 @@ from fmind_dot import reporting, system
 from fmind_dot.cli import app
 from fmind_dot.config import Config, DoctorConfig, SecretConfig, ToolConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
-from fmind_dot.process import CommandResult, Runner
+from fmind_dot.process import CommandResult
 from fmind_dot.state import State
 from fmind_dot.system import run_doctor
-from tests.fakes import ScriptedRunner, doctor_sections
+from tests.fakes import ScriptedRunner, doctor_sections, make_state
 
 
 @pytest.fixture(autouse=True)
@@ -42,7 +42,7 @@ def test_verify_fails_closed_for_required_tools(tmp_path: Path) -> None:
     config.doctor.secrets[0].path = str(secret)
     runner = ScriptedRunner({"python"})
 
-    results = doctor_sections(run_doctor(state_with(runner, config), fix=False))
+    results = doctor_sections(run_doctor(make_state(runner, config), fix=False))
 
     assert results["passed"] is False
     encoded = json.dumps(results)
@@ -55,7 +55,7 @@ def test_verify_omits_empty_optional_result_fields(monkeypatch: pytest.MonkeyPat
     config.doctor.tools = []
     monkeypatch.setattr(system, "_resource_results", lambda: [system.CheckResult("minimal", "pass", "")])
 
-    results = doctor_sections(run_doctor(state_with(ScriptedRunner(), config), fix=False))
+    results = doctor_sections(run_doctor(make_state(ScriptedRunner(), config), fix=False))
 
     assert results["resources"] == [{"name": "minimal", "status": "pass"}]
 
@@ -68,7 +68,7 @@ def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPat
         return [system.CheckResult("fixture", "pass", "authenticated")]
 
     monkeypatch.setattr(system, "_auth_results", probe)
-    state = state_with(ScriptedRunner())
+    state = make_state(ScriptedRunner())
     local = doctor_sections(run_doctor(state, fix=False))
     assert probes == []
     assert local["auth"][0]["status"] == "skip"
@@ -89,7 +89,7 @@ def test_doctor_detects_pgcli_import_failure() -> None:
     assert "pgcli" in config.doctor.tools
     config.doctor.tools = ["pgcli"]
     config.doctor.secrets = []
-    result = doctor_sections(run_doctor(state_with(BrokenPgcli({"pgcli"}), config), fix=False))
+    result = doctor_sections(run_doctor(make_state(BrokenPgcli({"pgcli"}), config), fix=False))
     assert result["passed"] is False
     assert result["tools"][0]["status"] == "fail"
     assert result["tools"][0]["condition"] == "broken"
@@ -104,7 +104,7 @@ def test_doctor_rejects_secret_directories_without_changing_permissions(tmp_path
     config.doctor.tools = []
     config.doctor.secrets[0].path = str(secret)
 
-    result = doctor_sections(run_doctor(state_with(ScriptedRunner(), config), fix=fix))
+    result = doctor_sections(run_doctor(make_state(ScriptedRunner(), config), fix=fix))
 
     assert result["secrets"][0]["status"] == "fail"
     assert result["secrets"][0]["details"] == "not a regular file"
@@ -208,25 +208,16 @@ def test_macos_headroom_counts_speculative_pages(monkeypatch: pytest.MonkeyPatch
     assert result.stdout.startswith("PASS · headroom: ")
 
 
-def state_with(
-    runner: Runner,
-    config: Config | None = None,
-    *,
-    stdin: str = "",
-) -> State:
-    state = State(
-        runner=runner,
-        stdin=StringIO(stdin),
-        stdout=StringIO(),
-        stderr=StringIO(),
+def select_completions(monkeypatch: pytest.MonkeyPatch, *tools: str) -> None:
+    """Narrow generation to these tools, keeping each one's default source."""
+    monkeypatch.setattr(
+        system, "COMPLETION_SOURCES", {tool: system.COMPLETION_SOURCES.get(tool, ToolConfig()) for tool in tools}
     )
-    state._config = config or Config()  # noqa: SLF001 - command boundary dependency injection.
-    return state
 
 
-def test_completion_uses_only_the_configured_generator() -> None:
+def test_completion_uses_only_the_configured_generator(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config()
-    config.completions.custom_commands["custom"] = ToolConfig(args=["completions", "fish"])
+    monkeypatch.setitem(system.COMPLETION_SOURCES, "custom", ToolConfig(args=("completions", "fish")))
 
     def empty_then_fallback(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
@@ -234,7 +225,7 @@ def test_completion_uses_only_the_configured_generator() -> None:
 
     runner = ScriptedRunner({"custom"}, run=empty_then_fallback)
     with pytest.raises(DotError, match="empty output"):
-        system._generate_completion(state_with(runner, config), "custom")  # noqa: SLF001
+        system._generate_completion(make_state(runner, config), "custom")  # noqa: SLF001
     assert [call[1:] for call in runner.calls] == [["completions", "fish"]]
 
     failing = ScriptedRunner(
@@ -242,7 +233,7 @@ def test_completion_uses_only_the_configured_generator() -> None:
         run=lambda _args, _cwd, _input_text, _check: CommandResult("", "private-provider-payload", 7),
     )
     with pytest.raises(DotError, match="failed to generate completions for plain"):
-        system._generate_completion(state_with(failing), "plain")  # noqa: SLF001
+        system._generate_completion(make_state(failing), "plain")  # noqa: SLF001
     assert failing.calls == [["plain", "completion", "fish"]]
 
 
@@ -252,7 +243,7 @@ def test_dot_completion_uses_typer_fish_source_protocol() -> None:
         run=lambda _args, _cwd, _input_text, _check: CommandResult("# dot fish completion\n", "", 0),
     )
 
-    assert "_DOT_COMPLETE=complete_fish" in system._generate_completion(state_with(runner), "dot")  # noqa: SLF001
+    assert "_DOT_COMPLETE=complete_fish" in system._generate_completion(make_state(runner), "dot")  # noqa: SLF001
     assert runner.calls == []
 
 
@@ -262,7 +253,7 @@ def test_bf_completion_uses_typer_fish_source_protocol() -> None:
         run=lambda _args, _cwd, _input_text, _check: CommandResult("# bf fish completion\n", "", 0),
     )
 
-    assert system._generate_completion(state_with(runner), "bf") == "# bf fish completion\n"  # noqa: SLF001
+    assert system._generate_completion(make_state(runner), "bf") == "# bf fish completion\n"  # noqa: SLF001
     assert runner.calls == [["env", "_BF_COMPLETE=source_fish", "bf"]]
 
 
@@ -274,7 +265,7 @@ def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
     config = Config()
     config.completions.path = str(completions)
-    config.completions.tools = ["dot"]
+    select_completions(monkeypatch, "dot")
 
     def scripts(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, check
@@ -287,7 +278,7 @@ def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
         return CommandResult(f"# generated by {Path(args[0]).name}\n", "", 0)
 
     runner = ScriptedRunner({"fish", "atuin", "carapace"}, run=scripts)
-    system.run_completion(state_with(runner, config))
+    system.run_completion(make_state(runner, config))
 
     assert stat.S_IMODE((cache / "fish").stat().st_mode) == 0o700
     assert stat.S_IMODE((cache / "fish/atuin-init.fish").stat().st_mode) == 0o600
@@ -308,7 +299,7 @@ def test_completion_validation_preserves_last_known_good_file(tmp_path: Path) ->
         run=lambda _args, _cwd, _input_text, _check: CommandResult("", "private syntax diagnostic", 1),
     )
     with pytest.raises(DotError, match="failed syntax validation"):
-        system._write_validated_fish(state_with(runner), target, "if true\n", 0o644)  # noqa: SLF001
+        system._write_validated_fish(make_state(runner), target, "if true\n", 0o644)  # noqa: SLF001
     assert target.read_text(encoding="utf-8") == "# known good\n"
     assert stat.S_IMODE(target.stat().st_mode) == 0o600
     assert list(tmp_path.glob(".tool.fish.*")) == []
@@ -318,14 +309,14 @@ def test_completion_collects_both_shell_integration_failures(monkeypatch: pytest
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     config = Config()
     config.completions.path = str(tmp_path / "completions")
-    config.completions.tools = []
+    select_completions(monkeypatch)
 
     def fail_integrations(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
         return CommandResult("# dot\n", "", 0) if args[0] not in {"atuin", "carapace"} else CommandResult("", "", 9)
 
     runner = ScriptedRunner({"fish", "atuin", "carapace"}, run=fail_integrations)
-    state = state_with(runner, config)
+    state = make_state(runner, config)
     with pytest.raises(DotError, match=r"atuin-init\.fish.*carapace-init\.fish"):
         system.run_completion(state)
     assert isinstance(state.stdout, StringIO)
@@ -335,13 +326,13 @@ def test_completion_collects_both_shell_integration_failures(monkeypatch: pytest
     assert "Completions updated" not in output
 
 
-def test_completion_generation_reports_missing_generators_and_empty_output() -> None:
+def test_completion_generation_reports_missing_generators_and_empty_output(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config()
-    config.completions.custom_commands["custom"] = ToolConfig(binary="helper", args=["generate"])
+    monkeypatch.setitem(system.COMPLETION_SOURCES, "custom", ToolConfig(binary="helper", args=("generate",)))
     with pytest.raises(FileNotFoundError, match="missing"):
-        system._generate_completion(state_with(ScriptedRunner(), config), "missing")  # noqa: SLF001
+        system._generate_completion(make_state(ScriptedRunner(), config), "missing")  # noqa: SLF001
     with pytest.raises(DotError, match="generator for custom is not installed"):
-        system._generate_completion(state_with(ScriptedRunner({"custom"}), config), "custom")  # noqa: SLF001
+        system._generate_completion(make_state(ScriptedRunner({"custom"}), config), "custom")  # noqa: SLF001
 
     def failing_fallback(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
@@ -351,7 +342,7 @@ def test_completion_generation_reports_missing_generators_and_empty_output() -> 
 
     runner = ScriptedRunner({"custom", "helper"}, run=failing_fallback)
     with pytest.raises(DotError, match="failed to generate completions for custom") as raised:
-        system._generate_completion(state_with(runner, config), "custom")  # noqa: SLF001
+        system._generate_completion(make_state(runner, config), "custom")  # noqa: SLF001
     assert "provider-private" not in str(raised.value)
 
 
@@ -364,7 +355,7 @@ def test_completion_run_skips_missing_tools_and_reports_failed_generators(
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     config = Config()
     config.completions.path = str(tmp_path / "completions")
-    config.completions.tools = ["missing", "broken", "working"]
+    select_completions(monkeypatch, "missing", "broken", "working")
     directory = Path(config.completions.path)
     directory.mkdir()
     previous = directory / "broken.fish"
@@ -378,7 +369,7 @@ def test_completion_run_skips_missing_tools_and_reports_failed_generators(
             return CommandResult("# working\n", "", 0)
         return CommandResult("", "private", 7)
 
-    state = state_with(ScriptedRunner({"fish", "broken", "working"}, run=scripts), config)
+    state = make_state(ScriptedRunner({"fish", "broken", "working"}, run=scripts), config)
     # Both modes exit 1 on a failed generator; installation still keeps the successful scripts.
     with pytest.raises(DotError, match="completion generation failed: broken"):
         system.run_completion(state, check_only=check_only)
@@ -398,7 +389,7 @@ def test_completion_rejects_empty_scripts_before_replacing_existing_file(tmp_pat
     target.write_text("# known good\n", encoding="utf-8")
 
     with pytest.raises(DotError, match="generated Fish script is empty"):
-        system._write_validated_fish(state_with(ScriptedRunner()), target, " \n", 0o644)  # noqa: SLF001
+        system._write_validated_fish(make_state(ScriptedRunner()), target, " \n", 0o644)  # noqa: SLF001
 
     assert target.read_text(encoding="utf-8") == "# known good\n"
 
@@ -442,7 +433,7 @@ def test_doctor_workspace_auth_inspects_native_status(payload: object, status: s
     config.doctor.tools = []
     config.doctor.secrets = []
 
-    report = doctor_sections(system.run_doctor(state_with(runner, config), fix=False, deep=True))
+    report = doctor_sections(system.run_doctor(make_state(runner, config), fix=False, deep=True))
 
     result = next(item for item in report["auth"] if item["name"] == "gws")
     assert (result["status"], result["condition"]) == (status, condition)
@@ -476,7 +467,7 @@ def test_doctor_github_auth_inspects_token_source(output: dict[str, str] | str, 
         else ScriptedRunner({"gh"}, run=lambda _args, _cwd, _input, _check: CommandResult(output, "", 0))
     )
 
-    report = doctor_sections(system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True))
+    report = doctor_sections(system.run_doctor(make_state(runner, _minimal_verify_config()), fix=False, deep=True))
 
     result = report["auth"][0]
     assert _GH_STATUS in runner.calls
@@ -503,7 +494,7 @@ def test_doctor_gcloud_adc_login_errors_are_unauthenticated(stderr: str) -> None
         return CommandResult("", stderr, 1) if "application-default" in args else CommandResult("token", "", 0)
 
     runner = ScriptedRunner({"gcloud"}, run=adc)
-    report = doctor_sections(system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True))
+    report = doctor_sections(system.run_doctor(make_state(runner, _minimal_verify_config()), fix=False, deep=True))
 
     auth = {item["name"]: item for item in report["auth"]}
     assert (auth["gcloud-adc"]["details"], auth["gcloud-adc"]["condition"]) == ("NOT authenticated", "unauthenticated")
@@ -520,7 +511,7 @@ def test_verify_probes_path_visible_tools_and_redacts_output() -> None:
         return CommandResult("healthy", "", 0)
 
     runner = ScriptedRunner({"healthy", "broken", "docker"}, run=probe)
-    results = doctor_sections(system.run_doctor(state_with(runner, config), fix=False, deep=True))
+    results = doctor_sections(system.run_doctor(make_state(runner, config), fix=False, deep=True))
     by_name = {item["name"]: item for item in results["tools"]}
     assert by_name["healthy"]["status"] == "pass"
     assert by_name["broken"]["status"] == "fail"
@@ -542,7 +533,7 @@ def test_verify_requires_nonempty_access_tokens_without_rendering_them() -> None
         return CommandResult("ok", "", 0)
 
     runner = ScriptedRunner({"gcloud", "docker"}, run=auth)
-    results = doctor_sections(system.run_doctor(state_with(runner, config), fix=False, deep=True))
+    results = doctor_sections(system.run_doctor(make_state(runner, config), fix=False, deep=True))
     auth_results = {item["name"]: item for item in results["auth"]}
     assert auth_results["gcloud"]["status"] == "fail"
     assert auth_results["gcloud"]["condition"] == "broken"
@@ -578,7 +569,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
 
     installed = {"timeout-tool", "error-tool", "gh", "gcloud", "gws", "jules", "docker"}
     results = doctor_sections(
-        system.run_doctor(state_with(ScriptedRunner(installed, run=probes), config), fix=False, deep=True)
+        system.run_doctor(make_state(ScriptedRunner(installed, run=probes), config), fix=False, deep=True)
     )
 
     tools = {item["name"]: item for item in results["tools"]}
@@ -623,7 +614,7 @@ def test_verify_reports_secret_edge_cases(tmp_path: Path) -> None:
         SecretConfig(path=str(loop)),
     ]
 
-    results = doctor_sections(system.run_doctor(state_with(ScriptedRunner(), config), fix=False, deep=True))
+    results = doctor_sections(system.run_doctor(make_state(ScriptedRunner(), config), fix=False, deep=True))
 
     secrets = {item["name"]: item for item in results["secrets"]}
     assert secrets[str(missing)]["status"] == "warn"
@@ -640,7 +631,7 @@ def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pyte
     config.doctor.secrets = [SecretConfig(path=str(secret))]
     runner = ScriptedRunner({"docker"})
 
-    repaired = doctor_sections(system.run_doctor(state_with(runner, config), fix=True, deep=True))
+    repaired = doctor_sections(system.run_doctor(make_state(runner, config), fix=True, deep=True))
     assert repaired["secrets"][0]["status"] == "pass"
     assert stat.S_IMODE(secret.stat().st_mode) == 0o600
 
@@ -650,7 +641,7 @@ def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pyte
         raise PermissionError("chmod-denied-secret-marker")
 
     monkeypatch.setattr(Path, "chmod", deny_chmod)
-    failed = doctor_sections(system.run_doctor(state_with(runner, config), fix=True, deep=True))
+    failed = doctor_sections(system.run_doctor(make_state(runner, config), fix=True, deep=True))
     assert failed["secrets"][0]["status"] == "fail"
     assert "chmod-denied-secret-marker" not in json.dumps(failed)
 
@@ -676,11 +667,11 @@ def test_verify_compares_installed_python_package_with_source(
         return CommandResult(f"{source}\n", "", 0) if args == ["chezmoi", "source-path"] else CommandResult("ok", "", 0)
 
     runner = ScriptedRunner({"chezmoi", "docker"}, run=source_path)
-    current = doctor_sections(system.run_doctor(state_with(runner, config), fix=False, deep=True))
+    current = doctor_sections(system.run_doctor(make_state(runner, config), fix=False, deep=True))
     assert current["install"][0]["status"] == "pass"
 
     (installed_package / changed_file).write_text("VALUE = 0\n", encoding="utf-8")
-    stale = doctor_sections(system.run_doctor(state_with(runner, config), fix=False, deep=True))
+    stale = doctor_sections(system.run_doctor(make_state(runner, config), fix=False, deep=True))
     assert stale["install"][0]["status"] == "fail"
     assert stale["install"][0]["details"] == "STALE: installed Python package differs from source"
 
@@ -695,7 +686,7 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
         raise OSError("private source error")
 
     unavailable = system._install_results(  # noqa: SLF001 - install freshness is a public verify section.
-        state_with(ScriptedRunner({"chezmoi"}, run=source_error), config)
+        make_state(ScriptedRunner({"chezmoi"}, run=source_error), config)
     )
     assert unavailable[0].condition == "unknown"
 
@@ -704,7 +695,7 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
             {"chezmoi"},
             run=lambda _args, _cwd, _input_text, _check, output=invalid_output: CommandResult(output, "", 0),
         )
-        assert system._install_results(state_with(runner, config))[0].condition == "unknown"  # noqa: SLF001
+        assert system._install_results(make_state(runner, config))[0].condition == "unknown"  # noqa: SLF001
 
     not_checkout = tmp_path / "not-checkout"
     not_checkout.mkdir()
@@ -712,7 +703,7 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
         {"chezmoi"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{not_checkout}\n", "", 0),
     )
-    assert system._install_results(state_with(runner, config))[0].condition == "skipped"  # noqa: SLF001
+    assert system._install_results(make_state(runner, config))[0].condition == "skipped"  # noqa: SLF001
 
     source = tmp_path / "source"
     source_package = source / "dot/src/fmind_dot"
@@ -728,11 +719,11 @@ def test_install_verification_classifies_source_resolution_and_checkout_failures
         {"chezmoi"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{source}\n", "", 0),
     )
-    malformed = system._install_results(state_with(runner, config))  # noqa: SLF001
+    malformed = system._install_results(make_state(runner, config))  # noqa: SLF001
     assert malformed[0].condition == "broken"
 
     project.write_text('[project]\nname = "fmind-dot"\nversion = "0.0.0"\n', encoding="utf-8")
-    stale = system._install_results(state_with(runner, config))  # noqa: SLF001
+    stale = system._install_results(make_state(runner, config))  # noqa: SLF001
     assert stale[0].details == "STALE: installed version differs from source"
 
 
@@ -749,7 +740,7 @@ def test_doctor_from_a_source_checkout_skips_install_freshness(monkeypatch: pyte
         run=lambda _args, _cwd, _input_text, _check: CommandResult(f"{source}\n", "", 0),
     )
 
-    [result] = system._install_results(state_with(runner, _minimal_verify_config()))  # noqa: SLF001
+    [result] = system._install_results(make_state(runner, _minimal_verify_config()))  # noqa: SLF001
 
     assert (result.status, result.condition) == ("skip", "skipped")
     assert "source checkout" in result.details
@@ -759,7 +750,7 @@ def test_doctor_from_a_source_checkout_skips_install_freshness(monkeypatch: pyte
 def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     app = typer.Typer(add_completion=False)
     system.register(app)
-    state = state_with(ScriptedRunner())
+    state = make_state(ScriptedRunner())
     passing: list[system.CheckResult] = []
     failing = [
         system.CheckResult("python", "fail", "command not found", group="tools"),
@@ -805,25 +796,25 @@ def test_system_command_surface_and_verify_flags() -> None:
     assert "-f" not in option_names
 
 
-def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path) -> None:
+def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     package = tmp_path / "package"
     scripts = package / "share/fish/vendor_completions.d"
     scripts.mkdir(parents=True)
     (scripts / "tool.fish").write_text("complete -c tool -l example\n")
     config = Config()
-    config.completions.custom_commands["tool"] = ToolConfig(package="github:owner/tool")
+    monkeypatch.setitem(system.COMPLETION_SOURCES, "tool", ToolConfig(package="github:owner/tool"))
     runner = ScriptedRunner(
         {"tool", "mise"},
         run=lambda _args, _cwd, _input, _check: CommandResult(str(package), "", 0),
     )
-    assert system._generate_completion(state_with(runner, config), "tool") == "complete -c tool -l example\n"  # noqa: SLF001
+    assert system._generate_completion(make_state(runner, config), "tool") == "complete -c tool -l example\n"  # noqa: SLF001
     assert runner.calls == [["mise", "where", "--", "github:owner/tool"]]
     (scripts / "tool.fish").write_bytes(b"complete -c tool -d \xff\n")
     with pytest.raises(DotError, match="bundled Fish completion for tool is not UTF-8"):
-        system._generate_completion(state_with(runner, config), "tool")  # noqa: SLF001
+        system._generate_completion(make_state(runner, config), "tool")  # noqa: SLF001
     (package / "tool.fish").write_text("# ambiguous source\n")
     with pytest.raises(DotError, match="expected one bundled Fish completion for tool, found 2"):
-        system._generate_completion(state_with(runner, config), "tool")  # noqa: SLF001
+        system._generate_completion(make_state(runner, config), "tool")  # noqa: SLF001
 
 
 def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions(
@@ -833,7 +824,7 @@ def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions
     monkeypatch.setenv("CARAPACE_EXCLUDES", "custom")
     config = Config()
     config.completions.path = str(tmp_path / "completions")
-    config.completions.tools = ["uv"]
+    select_completions(monkeypatch, "uv")
     runner = ScriptedRunner({"fish", "uv", "carapace"})
     environments: list[Mapping[str, str] | None] = []
     original = runner.run
@@ -844,7 +835,7 @@ def test_completion_selection_is_authoritative_and_preserves_carapace_exclusions
         return original(args, **kwargs)
 
     monkeypatch.setattr(runner, "run", capture)
-    system.run_completion(state_with(runner, config))
+    system.run_completion(make_state(runner, config))
     assert (tmp_path / "completions/uv.fish").is_file()
     assert not (tmp_path / "completions/dot.fish").exists()
     assert environments == [{"CARAPACE_EXCLUDES": "custom,uv"}]
@@ -868,11 +859,11 @@ def test_completion_resolves_optional_mise_shims(tmp_path: Path, monkeypatch: py
     runner = ScriptedRunner(run=scripts)
     monkeypatch.setattr(runner, "which", lambda name: {"a2a": shim, "mise": mise}.get(name))
     if active:
-        assert "complete -c a2a" in system._generate_completion(state_with(runner), "a2a")  # noqa: SLF001
+        assert "complete -c a2a" in system._generate_completion(make_state(runner), "a2a")  # noqa: SLF001
         assert runner.calls[-1] == ["a2a", "completion", "fish"]
     else:
         with pytest.raises(FileNotFoundError):
-            system._generate_completion(state_with(runner), "a2a")  # noqa: SLF001
+            system._generate_completion(make_state(runner), "a2a")  # noqa: SLF001
         assert runner.calls == [["mise", "which", "a2a"]]
 
 
@@ -881,7 +872,7 @@ def test_completion_check_leaves_installed_scripts_and_cache_unchanged(
 ) -> None:
     config = Config()
     config.completions.path = str(tmp_path / "completions")
-    config.completions.tools = ["dot"]
+    select_completions(monkeypatch, "dot")
     cache = tmp_path / "cache"
     monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
     completions = Path(config.completions.path)
@@ -889,7 +880,7 @@ def test_completion_check_leaves_installed_scripts_and_cache_unchanged(
     installed = completions / "dot.fish"
     installed.write_text("last known good\n")
     runner = ScriptedRunner({"fish", "atuin", "carapace"})
-    state = state_with(runner, config)
+    state = make_state(runner, config)
     system.run_completion(state, check_only=True)
     assert installed.read_text() == "last known good\n"
     assert list(completions.iterdir()) == [installed]
@@ -901,7 +892,7 @@ def test_completion_check_leaves_installed_scripts_and_cache_unchanged(
     assert ["atuin", "init", "fish", "--disable-ai"] in runner.calls
     assert ["carapace", "_carapace", "fish"] in runner.calls
 
-    installing = state_with(ScriptedRunner({"fish"}), config)
+    installing = make_state(ScriptedRunner({"fish"}), config)
     system.run_completion(installing)
     assert isinstance(installing.stdout, StringIO)
     assert installing.stdout.getvalue().endswith(f"\n✓ Completions updated in {completions}\n")
@@ -917,7 +908,7 @@ def test_completion_mise_resolution_error_is_not_a_missing_tool(
     runner = ScriptedRunner(run=lambda *_: CommandResult("", "configuration is not trusted", 1))
     monkeypatch.setattr(runner, "which", lambda name: {"acli": shim, "mise": mise}.get(name))
     with pytest.raises(DotError, match="failed to resolve mise"):
-        system._generate_completion(state_with(runner), "acli")  # noqa: SLF001
+        system._generate_completion(make_state(runner), "acli")  # noqa: SLF001
 
 
 def test_verify_skips_docker_service_when_engine_is_absent() -> None:
@@ -926,7 +917,7 @@ def test_verify_skips_docker_service_when_engine_is_absent() -> None:
     # The README calls the container engine optional, so the default tool list omits it.
     assert "docker" not in DoctorConfig().tools
 
-    results = doctor_sections(system.run_doctor(state_with(ScriptedRunner(set()), config), fix=False, deep=False))
+    results = doctor_sections(system.run_doctor(make_state(ScriptedRunner(set()), config), fix=False, deep=False))
 
     assert results["docker"] == [
         {"name": "docker", "status": "skip", "condition": "skipped", "details": "not installed (optional)"}
@@ -943,7 +934,7 @@ def test_doctor_checks_disk_and_points_to_cleanup(
 ) -> None:
     monkeypatch.setattr(system.shutil, "disk_usage", _disk(free_gib))
 
-    results = doctor_sections(run_doctor(state_with(ScriptedRunner(set()), _minimal_verify_config()), fix=False))
+    results = doctor_sections(run_doctor(make_state(ScriptedRunner(set()), _minimal_verify_config()), fix=False))
 
     assert {item["name"] for item in results["resources"]} == {"disk"}
     assert {item["status"] for item in results["resources"]} == {status}
@@ -967,7 +958,7 @@ def test_doctor_counts_chezmoi_orphans_without_failing(tmp_path: Path) -> None:
         return CommandResult("", "", 1)
 
     runner = ScriptedRunner({"chezmoi"}, run=chezmoi)
-    found = doctor_sections(run_doctor(state_with(runner, _minimal_verify_config()), fix=False))
+    found = doctor_sections(run_doctor(make_state(runner, _minimal_verify_config()), fix=False))
     orphans = [item for item in found["install"] if item["name"] == "chezmoi orphans"]
     assert orphans == [
         {
@@ -980,7 +971,7 @@ def test_doctor_counts_chezmoi_orphans_without_failing(tmp_path: Path) -> None:
     assert found["passed"] is True
 
     leftover.unlink()
-    clean = doctor_sections(run_doctor(state_with(runner, _minimal_verify_config()), fix=False))
+    clean = doctor_sections(run_doctor(make_state(runner, _minimal_verify_config()), fix=False))
     assert [item["status"] for item in clean["install"] if item["name"] == "chezmoi orphans"] == ["pass"]
 
 
@@ -996,7 +987,7 @@ def test_doctor_runs_auth_probes_concurrently() -> None:
         return CommandResult("", "", 1)
 
     runner = ScriptedRunner({"gh", "gcloud", "gws"}, run=auth)
-    report = doctor_sections(system.run_doctor(state_with(runner, _minimal_verify_config()), fix=False, deep=True))
+    report = doctor_sections(system.run_doctor(make_state(runner, _minimal_verify_config()), fix=False, deep=True))
 
     assert [item["name"] for item in report["auth"]] == ["gh", "gcloud", "gcloud-adc", "gws"]
 

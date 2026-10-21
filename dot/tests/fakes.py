@@ -1,13 +1,16 @@
-"""Shared scripted command runner for CLI tests that must never touch the workstation."""
+"""Shared runner and state fakes for CLI tests that must never touch the workstation."""
 
 from __future__ import annotations
 
+import io
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import IO, Any
 
+from fmind_dot.config import Config
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
+from fmind_dot.state import State
 from fmind_dot.system import CheckResult
 
 RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
@@ -69,3 +72,10 @@ def doctor_sections(results: Sequence[CheckResult]) -> dict[str, Any]:
             {key: value for key, value in item.payload().items() if key != "group"}
         )
     return sections | {"passed": all(item.status != "fail" for item in results)}
+
+
+def make_state(runner: Runner | None = None, config: Config | None = None, *, stdin: str = "") -> State:
+    """A State with captured streams and an injected configuration."""
+    state = State(runner=runner or Runner(), stdin=io.StringIO(stdin), stdout=io.StringIO(), stderr=io.StringIO())
+    state.__dict__["_config"] = config or Config()
+    return state

@@ -12,6 +12,7 @@ from dot_tasks.release import read_release_version, run_release, validate_releas
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
+from tests.fakes import make_state
 
 TAG = "v1.27.0"
 GIT_CLIFF_BUMPED = ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")
@@ -83,10 +84,6 @@ class ReleaseRunner(Runner):
         if isinstance(code, BaseException):
             raise code
         return code
-
-
-def make_state(runner: Runner) -> State:
-    return State(runner=runner, stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO())
 
 
 @pytest.fixture
@@ -239,7 +236,7 @@ def test_failed_deploy_after_push_reports_the_published_release(project: Path) -
 def test_release_preflight_rejects_unsafe_repository_states(project: Path) -> None:
     runner = ReleaseRunner(project)
     runner.installed.discard("git-cliff")
-    with pytest.raises(DotError, match="missing release tools: git-cliff"):
+    with pytest.raises(DotError, match="required tools are missing: git-cliff"):
         run_release(make_state(runner), yes=True)
 
     runner = ReleaseRunner(project)

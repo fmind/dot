@@ -3,7 +3,7 @@
 import contextlib
 import json
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import PurePath
 from typing import Annotated, Any
 
@@ -15,7 +15,7 @@ from fmind_dot.config import LoginProvider, Project
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.state import State, require_tools, state_from
-from fmind_dot.workstation import DryRun, ForceLogin, execute
+from fmind_dot.workstation import DryRun, execute
 
 _LOGIN_EPILOG = "Exit 0 when ready. With --check, exit 1 when a login is needed or the state is unknown."
 login_app = typer.Typer(
@@ -484,6 +484,9 @@ def setup_workspace(state: State, project: str | None, *, dry_run: bool = False)
     )
 
 
+ForceLogin = Annotated[
+    bool, typer.Option("--force", "-f", help="Run authentication even when already ready or status is unknown")
+]
 CheckLogin = Annotated[
     bool,
     typer.Option("--check", help="Only probe readiness and exit 1 when a login is needed; never opens a login flow"),
@@ -571,50 +574,22 @@ def login_default(
         raise typer.BadParameter("place options after the provider, as in dot login gcp --check")
 
 
-@login_app.command(
-    "workspace",
-    help="Authenticate Workspace only when credentials or requested scopes are missing",
-    epilog=_LOGIN_EPILOG,
-)
-def workspace(
-    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
-) -> None:
-    state = state_from(context)
-    if check:
-        check_logins(state, ["workspace"], "dot login workspace", force=force, dry_run=dry_run)
-        return
-    login_workspace(state, force=force, dry_run=dry_run)
+def _add_login(provider: LoginProvider, description: str, login: Callable[..., None]) -> None:
+    @login_app.command(provider, help=description, epilog=_LOGIN_EPILOG)
+    def command(
+        context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
+    ) -> None:
+        state = state_from(context)
+        if check:
+            check_logins(state, [provider], f"dot login {provider}", force=force, dry_run=dry_run)
+            return
+        login(state, force=force, dry_run=dry_run)
 
 
-@login_app.command("github", help="Ensure GitHub OAuth authentication and requested scopes", epilog=_LOGIN_EPILOG)
-def github(
-    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
-) -> None:
-    state = state_from(context)
-    if check:
-        check_logins(state, ["github"], "dot login github", force=force, dry_run=dry_run)
-        return
-    login_github(state, force=force, dry_run=dry_run)
-
-
-@login_app.command("gcp", help="Ensure Google Cloud and ADC both have usable credentials", epilog=_LOGIN_EPILOG)
-def gcp(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False) -> None:
-    state = state_from(context)
-    if check:
-        check_logins(state, ["gcp"], "dot login gcp", force=force, dry_run=dry_run)
-        return
-    login_gcp(state, force=force, dry_run=dry_run)
-
-
-@login_app.command("colab", help="Ensure ADC grants the Colab scopes and verify session access", epilog=_LOGIN_EPILOG)
-def colab(
-    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
-) -> None:
-    state = state_from(context)
-    if check:
-        check_logins(state, ["colab"], "dot login colab", force=force, dry_run=dry_run)
-        return
-    login_colab(state, force=force, dry_run=dry_run)
+_add_login("workspace", "Authenticate Workspace only when credentials or requested scopes are missing", login_workspace)
+_add_login("github", "Ensure GitHub OAuth authentication and requested scopes", login_github)
+_add_login("gcp", "Ensure Google Cloud and ADC both have usable credentials", login_gcp)
+_add_login("colab", "Ensure ADC grants the Colab scopes and verify session access", login_colab)
 
 
 @setup_app.command("github", help="Ensure requested GitHub scopes and remove configured excluded grants")

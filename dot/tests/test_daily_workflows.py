@@ -19,13 +19,7 @@ from fmind_dot.archive.usage import UsageRecord, aggregate_usage, write_usage_st
 from fmind_dot.cli import app
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
-from fmind_dot.state import State
-
-
-def state_with(config: Config | None = None) -> State:
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = config or Config()
-    return state
+from tests.fakes import make_state
 
 
 @pytest.mark.parametrize("separator", ["\u0085", "\u2028", "\u2029"])
@@ -155,7 +149,7 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
         "-m",
         "ahead",
     )
-    state = state_with(Config(pull=PullConfig(directories=[str(checkout)])))
+    state = make_state(config=Config(pull=PullConfig(directories=[str(checkout)])))
     assert repository.find_git_repositories(state) == [checkout]
     report = repository.run_status(state, paths=[checkout], as_json=True)
     assert report[0].ahead == 1
@@ -189,7 +183,7 @@ def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch
         json.dumps({"type": "user", "timestamp": "2026-09-01T10:00:00Z", "message": {"content": "hidden"}}) + "\n",
         encoding="utf-8",
     )
-    state = state_with()
+    state = make_state()
     state.config.agent.sources["claude"] = str(source)
     assert sync_sessions(state, agent="claude", session="selected", dry_run=True, as_json=True).selected == 1
     assert isinstance(state.stdout, io.StringIO)
