@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented in this file.
 
+## [13.0.0] - 2026-10-21
+
+### 🐛 Bug Fixes
+
+- _(ghostty)_ Keep X11 on every Crostini
+- _(cli)_ Name the commands that print JSON or YAML without --json
+- _(mise)_ Require mise 2026.10.15 and mise-action v5.2.1
+
+### ♻️ Refactor
+
+- _(dot)_ [**breaking**] Define completion sources in code and simplify internals
+- _(skills)_ Fold seven skills into domain guides and delete delegate-tasks
+
+### 📚 Documentation
+
+- _(documentation-site)_ Refresh for Zensical 0.0.71
+- _(agents)_ Drop the delegate-reads persona rule
+
+### 🧪 Testing
+
+- _(auth)_ Cover the SSH signing key and admin scope defaults
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade mise tools to latest
+- _(theme)_ Advance the fmind/theme pin
+- _(deps)_ Upgrade Neovim plugins
+- _(config)_ Drop redundant tool settings and use the LazyVim chezmoi extra
+- _(mise)_ Rename the tools task to full and trim aliases and root configs
+
 ## [12.2.0] - 2026-10-19
 
 ### 🚀 Features
