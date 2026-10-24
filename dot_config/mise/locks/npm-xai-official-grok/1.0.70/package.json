@@ -2,6 +2,6 @@
   "name": "mise-npm-install",
   "private": true,
   "dependencies": {
-    "@xai-official/grok": "1.0.62"
+    "@xai-official/grok": "1.0.70"
   }
 }

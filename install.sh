@@ -5,7 +5,7 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/bin:${HOME}/.local/sha
 SOURCE_DIR="${HOME}/.local/share/chezmoi"
 # The mise release that CI tests, installed when mise is absent. mise.toml's
 # min_version rejects an older existing installation. Keep equal to the workflow pins.
-MINIMUM_MISE_VERSION="2026.10.15"
+MINIMUM_MISE_VERSION="2026.10.18"
 
 # Install mise
 command -v mise >/dev/null || {
@@ -42,7 +42,7 @@ fi
 echo "=> Trusting mise config..."
 mise trust -y "${SOURCE_DIR}/mise.toml"
 
-# Complete the ordered bootstrap: trust, tools (install, apply, deploy), hooks, and editor.
+# Complete the ordered bootstrap: trust, full (install, apply, deploy), hooks, and editor.
 echo "=> Completing environment bootstrap..."
 mise -C "${SOURCE_DIR}" run install
 

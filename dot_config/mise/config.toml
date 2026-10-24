@@ -36,12 +36,12 @@ lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 # Resolve fuzzy versions such as `latest` without a release-age delay.
 minimum_release_age = "0d"
+# Never set python.uv_venv_auto globally: it puts any cloned repository's .venv/bin first
+# on PATH without `mise trust`. Opt in per project with `[settings]` in a trusted mise.toml.
 # Update the workstation mise binary before interactive commands on the same 24h cadence
 # as mise's end-of-command version check, so `mise run full` never finishes with a stale-binary warning.
 self_update.auto = true
 self_update.check_duration = "24h"
-# Never set python.uv_venv_auto globally: it puts any cloned repository's .venv/bin first
-# on PATH without `mise trust`. Opt in per project with `[settings]` in a trusted mise.toml.
 slsa = false
 # Trust is machine-local: use `mise trust` for individual configs or keep
 # trusted_config_paths in unmanaged ~/.config/mise/conf.d/trust.toml.
@@ -56,6 +56,11 @@ neovim = "aqua:neovim/neovim"
 AGENTS_CLI_TELEMETRY = "0"
 ASTRO_TELEMETRY_DISABLED = "1"
 CF_SEND_TELEMETRY = "0"
+# Also covers ad-hoc chrome-devtools-mcp runs that omit --no-usage-statistics.
+CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
+# Copilot's autoUpdate setting only stops downloads; this also makes launches ignore newer
+# cached builds, so the mise-locked version is the one that runs.
+COPILOT_AUTO_UPDATE = "false"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
@@ -72,11 +77,19 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
 "github:DataDog/pup" = "latest" # Official Datadog command-line interface (pup) for logs, monitors, and OAuth PKCE
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
+# DuckDB 2.0 renamed its CLI assets (duckdb-cli-<os>-<arch>.tar.gz); aquaproj/aqua-registry#62901 (2026-10-24) fixes
+# the registry. Return to `duckdb = "latest"` once a mise release after 2026.10.18 bundles that registry.
+"github:duckdb/duckdb" = { version = "latest", matching = "duckdb-cli-" } # Embedded SQL analytical database management system
 # fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
 "github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
-# Held by dot_tasks/mise_refresh.py HELD_TOOLS until chromium-bidi restores trusted-publisher evidence (2026-10-16 bump refused).
-"npm:@mermaid-js/mermaid-cli" = "latest" # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
-"npm:@xai-official/grok" = "latest" # Official Grok Build CLI; npm locks platform binaries with integrity hashes
+# chromium-bidi moved into Chromium, whose chrome-devtools-npm account publishes without the trusted-publisher
+# evidence of its GitHub releases (reviewed 2026-10-23); exempt each reviewed version that Puppeteer selects.
+"npm:@mermaid-js/mermaid-cli" = { version = "latest", trust_policy_excludes = [
+  "chromium-bidi@157.0.8090-0",
+] } # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
+# Grok's launcher runs $GROK_HOME/bin/grok when present, and only Grok's own postinstall, which mise skips, moves that
+# link; dropping it makes the next launch extract the installed version.
+"npm:@xai-official/grok" = { version = "latest", postinstall = 'rm -f "${GROK_HOME:-$HOME/.grok}"/bin/grok "${GROK_HOME:-$HOME/.grok}"/bin/grok-[0-9]*' } # Official Grok Build CLI; npm locks platform binaries with integrity hashes
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 "npm:skills" = "latest" # Agent Skills CLI manager
@@ -111,7 +124,6 @@ d2 = "latest" # Text-to-diagram language for bespoke standalone compositions
 delta = "latest" # Syntax-highlighter for git, diff, and grep output
 doggo = "latest" # Command-line DNS client supporting modern protocols
 dprint = "latest" # Pluggable and ultra-fast code formatter
-duckdb = "latest" # Embedded SQL analytical database management system
 duf = "latest" # Disk usage utility with clean tabular layout
 dust = "latest" # Rust-based disk usage analyzer
 dyff = "latest" # Semantic diff for YAML/JSON (Kubernetes-aware)
