@@ -279,6 +279,12 @@ def claude_session_id(path: Path) -> str:
     return "" if path.name in {"memory.jsonl", "journal.jsonl"} else path.stem
 
 
+def claude_parent_session_id(path: Path) -> str:
+    """Return the parent session id of a `<parent>/subagents/agent-*.jsonl` sidechain path."""
+    parent = path.parent.parent.name if path.parent.name == "subagents" else ""
+    return parent if is_valid_session_id(parent) else ""
+
+
 _CLAUDE_TOKEN_FIELDS = (
     ("input_tokens", "input_tokens"),
     ("output_tokens", "output_tokens"),
