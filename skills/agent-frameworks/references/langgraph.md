@@ -28,11 +28,11 @@ Own the topology when the workflow is more than "loop until done": classificatio
 
 ## Official Skills
 
-Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills). Use `ecosystem-primer` for the package boundaries, then `langgraph-fundamentals`, `langgraph-persistence`, and `langgraph-human-in-the-loop`; take `langgraph-cli` only for that deployment workflow. The repository keeps its skills under `config/skills/`, includes an MIT license, and offers `skills` CLI, `install.sh`, and Claude plugin installation. Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to the selected immutable snapshot before a project-scoped installation; its private npm manifest is development tooling, not a published skill package.
+Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills). Use `ecosystem-primer` for the package boundaries, then `langgraph-fundamentals`, `langgraph-persistence`, and `langgraph-human-in-the-loop`; take `langgraph-cli` only for that deployment workflow. Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to the selected immutable snapshot before a project-scoped installation.
 
 ## Documentation
 
 - [Overview](https://docs.langchain.com/oss/python/langgraph/overview) · [Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api) · [Checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers) · [Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) · [Fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) · [Event streaming](https://docs.langchain.com/oss/python/langgraph/event-streaming)
-- Releases: [changelog](https://docs.langchain.com/oss/python/langgraph/changelog-py) · [GitHub releases](https://github.com/langchain-ai/langgraph/releases) · [v1 release notes](https://docs.langchain.com/oss/python/releases/langgraph-v1)
+- Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langgraph/releases) · [v1 release notes](https://docs.langchain.com/oss/python/releases/langgraph-v1)
 - Live reference: the docs expose an MCP endpoint at `https://docs.langchain.com/mcp` for version-current answers.
 - Companion skills: [langchain](langchain.md) (agent loop and models), [python-async](../../python-stack/references/python-async/GUIDE.md) (cancellation and shutdown), [observability](../../python-stack/references/observability.md) (traces), [agent-evaluation](../../agent-evaluation/SKILL.md) (quality comparisons).

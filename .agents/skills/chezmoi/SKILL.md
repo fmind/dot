@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-10-20"
+  updated: "2026-10-24"
 ---
 
 # Chezmoi Source Standard
@@ -32,7 +32,7 @@ Read [source names](references/source-names.md) when adding or renaming a manage
 1. **Preview**: `mise run diff` (`chezmoi diff --force --no-pager`; restrict to affected targets). Diffs exclude encrypted targets so plaintext secrets never reach transcripts; `chezmoi status` still lists their drift.
 1. **Validate rendering**: `mise run check:chezmoi` uses temporary configuration and destination with a dry run excluding encrypted files. It checks the current platform; exercise changed Linux/macOS branches separately and report unexercised branches or encrypted targets.
 1. **Check repeatability**: for Bash/profile modifier changes, add existing-target and second-pass cases under `dot/tests/`, using the isolated rendering approach in `test_shell_modifiers.py`. Their blocks go through `.chezmoitemplates/managed-block.tmpl`, which rewrites the block between its begin and end markers in place, so a body change needs no migration code. JSON/TOML modifier changes need the same cases in `test_harness_config.py`. Inspect affected `run_*` hooks: ordinary hooks run on each apply; once/onchange hooks can rerun when their content changes.
-1. **Apply within scope**: `mise run apply` (`chezmoi apply --force`, so a diverged target never blocks scripts on a prompt; `--force` does not expand authorized targets or side effects). Themes and fonts are commit-pinned externals that refetch when their URL changes; a checksum mismatch fails apply instead of deploying changed content, and `mise run upgrade` advances the theme pin only while every copied block in the `COPIED` map of `dot/dot_tasks/theme_pin.py` matches.
+1. **Apply within scope**: `mise run apply` (`chezmoi apply --force`, so a diverged target never blocks scripts on a prompt; `--force` does not expand authorized targets or side effects). Themes (one fmind/theme commit) and fonts (release URLs) are checksum-pinned externals that refetch when their URL changes; a checksum mismatch fails apply instead of deploying changed content, and `mise run upgrade` advances the theme pin only while every copied block in the `COPIED` map of `dot/dot_tasks/theme_pin.py` matches. The Google Sans, Google Sans Code, and Nerd Fonts releases have no upgrade task: when a newer release exists, bump each URL and its checksum together.
 1. **Pull target edits back**: `chezmoi re-add` folds manual changes to a managed file (a regenerated lockfile, for example) into the source.
 1. **Diagnose**: `mise run doctor` (`dot doctor`, `chezmoi doctor`, and `mise doctor`); `chezmoi managed` and `chezmoi unmanaged` list coverage; `dot orphan` lists former managed targets ([orphans](../../../skills/dot-cli/references/orphans.md)); the [installed-link recovery guide](../dot-skills/references/installed-links.md) covers retired skill links, and approved cleanup moves them to recoverable backups. Use command help and [dot-cli](../../../skills/dot-cli/SKILL.md) for cleanup flags.
 

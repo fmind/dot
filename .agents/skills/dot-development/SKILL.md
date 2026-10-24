@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-10-18"
+  updated: "2026-10-24"
 ---
 
 # Develop Dot
@@ -32,7 +32,7 @@ Modules live in `dot/src/fmind_dot/` and tests in `dot/tests/`; a module's tests
 - `secrets.py`: `test_secrets.py` (it rejects a personal `UV_PUBLISH_TOKEN`; packages use Trusted Publishing). Keep fixtures synthetic and never print credential values.
 - `hooks.py`: `test_agent_hooks.py`.
 - `agent.py` (`dot agent` commands): `test_agent_workflows.py`, `test_usage.py`, and `test_session_query.py`.
-- `archive/`: `parsers.py` → `test_agent_parsers.py`, `store.py` → `test_session_store.py`, `query.py` → `test_session_query.py`, `sync.py` and `statistics.py` → `test_agent_workflows.py`; `test_archive_transaction.py` covers replacement and usage retention, `test_usage_periods.py` covers deduplication, model changes, date boundaries, and legacy recapture.
+- `archive/`: `parsers.py` → `test_agent_parsers.py`, `store.py` → `test_session_store.py`, `query.py` → `test_session_query.py`, `sync.py` → `test_agent_workflows.py`, `statistics.py` → `test_daily_workflows.py`; `test_archive_transaction.py` covers replacement and usage retention, `test_usage_periods.py` covers deduplication, model changes, date boundaries, and legacy recapture.
 
 ## Documentation
 

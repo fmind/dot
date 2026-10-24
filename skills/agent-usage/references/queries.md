@@ -58,7 +58,7 @@ dot agent stats --sessions -n 20                                   # list recent
 dot agent session sync                                            # capture/backfill transcript and usage together
 # One record per line: the full archive exceeds DuckDB's 16 MiB maximum_object_size as a single JSON object.
 (umask 077; dot agent stats --sessions --limit 0 --json | jq -c '.records[]' > usage.jsonl)
-duckdb -init /dev/null -batch -bail -json -c "SELECT harness, measurement_kind, count(*), sum(total_tokens) FROM read_json_auto('usage.jsonl') GROUP BY ALL"
+duckdb -no-init -batch -bail -json -c "SELECT harness, measurement_kind, count(*), sum(total_tokens) FROM read_json_auto('usage.jsonl') GROUP BY ALL"
 ```
 
 Missing costs serialize as `null`. A partial group reports its known subtotal and completeness counts; it does not estimate missing usage. `--since` and inclusive `--until` filter request timestamps when reliable samples exist, otherwise whole-session timestamps. A date-only `--since` begins at midnight UTC; a date-only `--until` includes the whole UTC day. Explicit timestamps remain exact. Provider session cost is reported only when the complete session, including its sidechains, belongs to one selected group; it cannot be apportioned across dates or models.

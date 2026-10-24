@@ -1,6 +1,6 @@
 ---
 name: cross-harness-agents
-description: Decide when a custom agent role pays off, write native definitions per host, and verify discovery.
+description: "Decide when a custom agent role pays off, write native definitions per host, and verify discovery."
 ---
 
 # Cross-harness agents
@@ -9,7 +9,7 @@ A custom role is a native agent definition: a name, a description, host settings
 
 ## When a role pays off
 
-Delegation pays off in two cases: read-heavy work that would flood the coordinator's context (search, research) and clean-context second opinions (reviews), which avoid the self-preference of reviewing one's own work. Implementation and decisions stay in the coordinator: parallel writers make conflicting implicit choices, and a subagent's summary is lossy, so the coordinator verifies load-bearing claims against the cited evidence before acting ([Anthropic](https://www.anthropic.com/engineering/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)). A host's general-purpose subagent with a task prompt that names the skill to load covers most cases; add a named role only after repeated delegations show the same instructions every time.
+Delegation pays off in two cases: read-heavy work that would flood the coordinator's context (search, research) and clean-context second opinions (reviews), which avoid the self-preference of reviewing one's own work. Implementation and decisions stay in the coordinator: parallel writers make conflicting implicit choices, and a subagent's summary is lossy, so the coordinator verifies load-bearing claims against the cited evidence before acting ([Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)). A host's general-purpose subagent with a task prompt that names the skill to load covers most cases; add a named role only after repeated delegations show the same instructions every time.
 
 ## Native definitions
 

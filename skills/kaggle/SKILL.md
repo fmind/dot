@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-23"
 ---
 
 # Kaggle CLI
@@ -39,7 +39,7 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
 ## Gotchas
 
 - **Use `uv run` for pinned versions**: in a project that pins `kaggle`, call `uv run kaggle` so the pinned version runs instead of the global shim.
-- **Silence warnings in scripts**: pass `-W` to silence the out-of-date warning so JSON output stays parseable.
+- **Version warnings can reach stdout**: `-W` applies only after import-time authentication, which can already print the out-of-date warning; keep kaggle current and drop leading `Warning:` lines before parsing JSON.
 
 ## Official Skills
 

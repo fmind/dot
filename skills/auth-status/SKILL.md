@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-10-16"
+  updated: "2026-10-23"
 ---
 
 # Auth Status
@@ -56,5 +56,5 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
 
 ## Documentation
 
-- [gh auth status](https://cli.github.com/manual/gh_auth_status) · [gcloud auth](https://cloud.google.com/sdk/gcloud/reference/auth) · [AWS SSO](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html)
+- [gh auth status](https://cli.github.com/manual/gh_auth_status) · [gcloud auth](https://docs.cloud.google.com/sdk/gcloud/reference/auth) · [AWS SSO](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html)
 - Companion skills: [dot-cli](../dot-cli/SKILL.md) (login and setup), [gcloud](../gcloud/SKILL.md), [gh](../gh/SKILL.md), [gws](../gws/SKILL.md), [colab](../colab/SKILL.md).

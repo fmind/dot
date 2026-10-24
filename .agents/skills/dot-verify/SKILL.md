@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-verify
   created: "2026-09-24"
-  updated: "2026-10-18"
+  updated: "2026-10-23"
 ---
 
 # Verify Dot
@@ -27,5 +27,4 @@ Prove that the current checkout (committed and uncommitted work) is correct, doc
 ## Gotchas
 
 - **Suppress lock false positives narrowly**: universal uv locks list versions for old Python markers. Confirm the installed environment's resolved version; record a false positive as a path-scoped `.trivyignore.yaml` entry with a `statement`, never by lowering severity.
-- **Register new removal markers**: a new `remove_` source must be listed in the outstanding set of `test_python_only_owned_sources_and_retired_tool_cleanup` until it has shipped everywhere.
 - **Fix upstream breaks at the source**: an upgraded tool can drop its completion generator or tighten a pinned dependency; fix the source configuration and its skill, not the deployed copy.

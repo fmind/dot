@@ -16,13 +16,12 @@ All work goes through `mise` (see `mise.toml`); git hooks and CI call the same t
 - Format: `mise run format` — `ruff` (import sort + format) and `dprint`.
 - Check: `mise run check` — `ruff` lint, `ty` types, `deptry` dependencies, `uv audit`, `dprint check`, `gitleaks`, `pyproject` validation.
 - Test: `mise run test` — offline `pytest` suite with an 85% branch-coverage gate.
-- Build: `mise run build` — `uv build` (wheel + sdist).
-- Docs: `mise run build:docs` — strict Zensical build with the generated API reference; `mise run serve:docs` previews it.
+- Build: `mise run build` — `build:package` (`uv build`: wheel + sdist) and `build:docs` (strict Zensical build with the generated API reference); `mise run serve:docs` previews the docs.
 - Watch: `mise run watch` — re-run offline tests on source changes; application profiles may supply their development command.
 
 ## Definition of done
 
-A change is complete only when, locally, `mise run format` is clean, `mise run check` reports no findings, `mise run test` is green, `mise run build` and `mise run build:docs` succeed, and new or changed behavior has a test. Fix root causes — never weaken an assertion, add a skip/`xfail`, loosen a type, or suppress a lint error to force a green result.
+A change is complete only when, locally, `mise run format` is clean, `mise run check` reports no findings, `mise run test` is green, `mise run build` succeeds, and new or changed behavior has a test. Fix root causes — never weaken an assertion, add a skip/`xfail`, loosen a type, or suppress a lint error to force a green result.
 
 ## Conventions & idioms
 

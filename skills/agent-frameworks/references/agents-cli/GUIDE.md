@@ -11,14 +11,14 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
 
 1. **Install only the Python CLI**: inspect its current contract before scaffolding. Keep the compatible release pin aligned with the upstream skills you review. Since 1.9.0 its usage telemetry is on by default (command metadata goes to the GCP project and Google); the workstation mise environment sets `AGENTS_CLI_TELEMETRY=0`, so keep it off elsewhere too unless the user opts in. `agents-cli info` shows the state.
    ```bash
-   uv tool install "google-agents-cli~=1.9.0"
+   uv tool install "google-agents-cli~=1.11.0"
    agents-cli --version
    agents-cli --help
    ```
 1. **Review official skills before use**: list the bundle and read each selected snapshot without installing it.
    ```bash
-   skills add google/agents-cli --list
-   skills use <snapshot> --skill <name>
+   DISABLE_TELEMETRY=1 skills add google/agents-cli --list
+   DISABLE_TELEMETRY=1 skills use <snapshot> --skill <name>
    ```
 1. **Default to the full ADK scaffold**: Agent Runtime, Gateway-ready image, BigQuery analytics, GitHub Actions, Terraform and `AGENTS.md`. The CLI creates the project directory; `--skip-checks --yes` avoids interactive cloud setup. Rehearse in a fresh temporary directory using [scaffold qualification](references/scaffold-qualification.md) when the CLI version or option set changes.
    ```bash
@@ -27,8 +27,8 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
      --deployment-target agent_runtime --cicd-runner github_actions \
      --skip-checks --yes
    cd <name>
-   skills add <snapshot> --skill <name> -y
-   skills list
+   DISABLE_TELEMETRY=1 skills add <snapshot> --skill <name> -y
+   DISABLE_TELEMETRY=1 skills list
    ```
    Running `skills add` after `cd` keeps the reviewed skill project-scoped; use the immutable reviewed snapshot per the vendor policy. Agent Runtime manages sessions internally: omit `--session-type` for this target. Use `--prototype` only when the user requests the reduced scaffold; `--adk` create quickstart also forces prototype mode. Existing projects retain their accepted architecture; preview enhancements from that project's working directory rather than replacing it with these new-project defaults, and move it to a newer CLI release with `agents-cli scaffold upgrade --dry-run` and a reviewed 3-way merge instead of regenerating it.
 1. **Implement with [google-adk](../google-adk.md) in the generated app**: keep `agent.py`, `fast_api_app.py`, `agents-cli-manifest.yaml`, and the generated tests. Define type-hinted tools with narrow permissions and explicit error contracts; keep prompts and model choices in reviewable source.
@@ -42,14 +42,15 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
    ```
 1. **Evaluate behavior**: run `agents-cli eval run` on a versioned dataset and compare the candidate with its immutable baseline.
 1. **Instrument the candidate**: use OpenTelemetry traces and structured logs per [observability](../../../python-stack/references/observability.md). Exclude prompt, completion, secret, and personal data bodies unless a reviewed policy explicitly permits them. Export from `agents-cli run` or `playground` only when authorized, with `--otel-to-cloud`; 1.7.0 removed `--trace-to-cloud`.
-1. **Review deployment first**: from the intended project's directory, preview a target with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run`, inspect generated infrastructure and IAM (its Terraform requires 1.11 or later), check an Agent Runtime target with the read-only `agents-cli deploy --dry-run` (APIs, IAM, `actAs`, secrets), then run `agents-cli deploy` only with explicit deployment approval. Verify the deployed agent through `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
+1. **Review deployment first**: from the intended project's directory, preview a target with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run`, inspect generated infrastructure and IAM (its Terraform requires 1.11 or later; since 1.10, new projects run Agent Runtime agents under their own Agent Identity principal, so review that principal or pass `--agent-runtime-identity-default service_account`), check an Agent Runtime target with the read-only `agents-cli deploy --dry-run` (APIs, IAM, `actAs`, secrets), then run `agents-cli deploy` only with explicit deployment approval. Verify the deployed agent through `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
 
 ## Gotchas
 
 - **Do not run `agents-cli setup`**: it installs skills globally by default. Use `uv tool install` for the Python CLI and the reviewed `skills` commands above for project-scoped skill installation.
+- **Extensions ship skills too**: since 1.10, `agents-cli extension add` copies an extension's skills into `.agents/skills/` (`--global`: the shared `~/.agents/skills/`), and `agents-cli install` restores them for every recorded extension. Review them per the vendor policy before adding an extension and never pass `--global`. Since 1.11, pass a recipe's GitHub URL to `agents-cli create`; the `adk@<name>` shortcut is gone.
 - **Fix scaffold quality gaps**: replace dummy tests, remove blanket type ignores, and inspect prerelease observability dependencies before accepting the generated lock; follow the [generated Python profile](references/python-profile.md).
 - **Preserve scaffold choices**: do not silently change its model, deployment target, session service, or generated layout while implementing a feature.
-- **Full means selected features**: `--deployment-target` accepts `agent_runtime`, `cloud_run`, `gke`, or `none`; `--session-type` belongs to the `cloud_run` and `gke` container targets, and through 1.8.0 Agent Runtime warns and discards it; Agent Runtime selects managed sessions from its runtime environment.
+- **Full means selected features**: `--deployment-target` accepts `agent_runtime`, `cloud_run`, `gke`, or `none`; `--session-type` belongs to the `cloud_run` and `gke` container targets.
 - **Gateway-ready is not routed**: `--agent-gateway` only adds the gateway's root-CA trust to the image. Routing egress needs an authorized `agents-cli deploy --agent-gateway-egress <gateway>` naming an existing gateway with `governedAccessPath=AGENT_TO_ANYWHERE`. Review deployment flags, IAM, analytics content collection and retention before an authorized deployment.
 - **Use ADC**: use ADC locally and in production per [model-providers](../../../model-providers/SKILL.md), with a narrow runtime service account; use an AI Studio key only when explicitly requested.
 - **Pin a named model**: avoid `-latest`; use a dated snapshot when reproducibility matters and document the reason for the chosen Flash or Pro model.

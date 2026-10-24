@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-20"
+  updated: "2026-10-24"
 ---
 
 # Full Review
 
-Answer "perform a full review", "final check before release", "make sure everything works and is up to date", or a routine upkeep request with one pass that ends in a fixed, proven tree. The default outcome is applied verified fixes, not a findings list. [repository-review](../repository-review/SKILL.md) owns read-only audits and severity. When a repository ships its own verify skill (such as `dot-verify`), follow it and use this skill only for what it omits.
+Answer "perform a full review", "final check before release", "make sure everything works and is up to date", or a routine upkeep request with one pass that ends in a fixed, proven tree. The default outcome is applied verified fixes, not a findings list. [repository-review](../repository-review/SKILL.md) owns diff and PR reviews and severity; a whole-repository read-only audit is this skill's `report` mode. When a repository ships its own verify skill (such as `dot-verify`), follow it and use this skill only for what it omits.
 
 ## Arguments
 

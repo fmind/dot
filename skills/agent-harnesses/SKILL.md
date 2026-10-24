@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-10-19"
+  updated: "2026-10-24"
 ---
 
 # Agent Harnesses
@@ -30,7 +30,7 @@ Every host follows these steps; read only the matching guide for its specifics a
 - [codex](references/codex/GUIDE.md): Codex sessions and customization.
 - [copilot](references/copilot/GUIDE.md): Copilot sessions and extensions.
 - [grok](references/grok/GUIDE.md): Grok Build sessions and configuration.
-- [notifications](references/notifications.md): Diagnose or change managed turn notifications and their hooks per host.
+- [notifications](references/notifications.md): Diagnose or change managed turn notifications, brain session-context hooks, and their wiring per host.
 - [opencode](references/opencode/GUIDE.md): OpenCode sessions and provider configuration.
 
 <!-- guides:end -->

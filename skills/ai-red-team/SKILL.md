@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ai-red-team
   created: "2026-09-11"
-  updated: "2026-10-20"
+  updated: "2026-10-21"
 ---
 
 # AI Red Team

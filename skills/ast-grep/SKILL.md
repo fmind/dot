@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/ast-grep
   created: "2026-09-03"
-  updated: "2026-10-20"
+  updated: "2026-10-21"
 ---
 
 # ast-grep

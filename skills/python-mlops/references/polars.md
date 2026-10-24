@@ -12,7 +12,7 @@ Use Polars for new dataframe code in Python; [duckdb](../../duckdb/SKILL.md) own
 1. **Scan lazily, collect once**: start from `pl.scan_parquet`, `pl.scan_csv`, or `.lazy()`, chain `filter`, `select`, `with_columns`, `group_by`, and `join`, then `.collect()` at the boundary. Inspect the optimized plan with `.explain()` when projection or predicate pushdown matters.
 1. **Fix schemas at the edge**: pass `schema` or `schema_overrides` when reading untyped sources, cast deliberately, and validate with Pandera's Polars backend (`uv add 'pandera[polars]'`, `import pandera.polars as pa`) before training or writing outputs.
 1. **Hand frames over directly**: scikit-learn estimators accept Polars frames and `set_output(transform="polars")` keeps transformer outputs in Polars; DuckDB queries an in-scope frame by name (`duckdb.sql("select ... from df").pl()`) with `pyarrow` installed. `to_pandas()` requires pandas and pyarrow; convert only where a library demands pandas.
-1. **Test with small literal frames**: build expected frames inline and compare with `polars.testing.assert_frame_equal`, which checks dtypes and order unless told otherwise.
+1. **Test with small literal frames**: build expected frames inline and compare with `polars.testing.assert_frame_equal`, which checks dtypes and order unless told otherwise. Polars 2.0 collects lazy queries on the streaming engine, which does not preserve row order for `group_by`, joins, or `unpivot`: sort explicitly or pass `maintain_order` (`maintain_order="left"` for joins) before comparing.
 
 ## Documentation
 

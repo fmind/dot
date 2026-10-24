@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-10-20"
+  updated: "2026-10-24"
 ---
 
 # Skillify
@@ -18,7 +18,7 @@ Capture what this session learned as a skill the next session can run without th
 
 1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
 1. **Apply the admission rule**: in [package rules](references/package-rules.md), first extend an existing owner or use project scope. A new global entry needs a distinct recurring trigger, demonstrated behavioral value, and space within the discovery and instruction budgets. If only general product knowledge remains, use documentation instead.
-1. **Check the catalog**: `skills list` and `skills list -g` (preview `gh skill list` also scans every host directory), then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
+1. **Check the catalog**: `DISABLE_TELEMETRY=1 skills list` and `DISABLE_TELEMETRY=1 skills list -g` (preview `gh skill list` also scans every host directory), then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository, whose `dot-skills` skill owns registration (link declaration) and `mise run check:skills`. Installation or tooling changes also need their affected tests.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project; add `.claude/skills -> ../.agents/skills` if missing per [agent-project](../agent-project/SKILL.md). In the dot repository, local skills also register through `dot-skills`.

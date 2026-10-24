@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-review
   created: "2026-08-01"
-  updated: "2026-10-20"
+  updated: "2026-10-24"
 ---
 
 # Repository Review
@@ -16,7 +16,7 @@ Review code or a repository read-only and report actionable defects. Select the 
 
 ## Workflow
 
-1. **Select scope**: for a diff, patch, branch, PR, or self-review, follow [diff review](references/diff-review.md). For an entire repository or cross-cutting audit, follow [repository audit](references/repository-audit.md) and the [review matrix](references/review-matrix.md). Load only the requested mode.
+1. **Select scope**: for a diff, patch, branch, PR, or self-review, follow [diff review](references/diff-review.md). For an entire repository or cross-cutting audit, run [full-review](../full-review/SKILL.md) in `report` mode, which stays read-only and applies the [review matrix](references/review-matrix.md) and the severity below. Load only the requested mode.
 1. **Record the candidate**: read repository instructions and inspect Git status; distinguish the base/head, staged, unstaged, and untracked changes relevant to the review. Preserve user work and tie evidence to that candidate.
 1. **Establish intent**: trace requirements through the affected source, callers, tests, and contracts; inspect generator inputs for generated or vendored changes. Challenge speculative abstractions and tests that bypass the public boundary only when they cause a concrete defect.
 1. **Trace risk in proportion to scope**: use [code-security](../code-security/references/code-review/GUIDE.md) for security-sensitive changes such as authorization, uploads, deserialization, subprocesses, credentials, and agent tools. Trace removed safeguards through callers and history, and search for variants of confirmed defects.

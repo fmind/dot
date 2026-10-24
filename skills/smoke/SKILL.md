@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/smoke
   created: "2026-10-04"
-  updated: "2026-10-05"
+  updated: "2026-10-23"
 ---
 
 # Smoke
@@ -20,7 +20,7 @@ Prove that everything a repository exposes still runs: each task, each CLI comma
 1. **Discover**: list every entry point and read each command before running it; never classify by name alone.
 
    ```bash
-   mise tasks --json --hidden | jq -r '.[] | select(.global | not) | [.name, ((.run // []) | join(" && "))] | @tsv'
+   mise tasks ls --local --json --hidden | jq -r '.[] | [.name, ((.run // []) | join(" && "))] | @tsv'
    MISE_TASK_QUIET=false mise run -n <task>  # print the resolved command; quiet settings hide it
    jq -r '.scripts // {} | keys[]' package.json
    just --summary; make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z0-9_.-]+:' | cut -d: -f1 | sort -u

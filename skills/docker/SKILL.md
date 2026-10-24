@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-10-16"
+  updated: "2026-10-24"
 ---
 
 # Docker and Container Runtime Management

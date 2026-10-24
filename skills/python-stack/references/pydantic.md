@@ -19,7 +19,7 @@ Use Pydantic for typed input boundaries and serialization; use [foundation](foun
 
 ## Official Skills
 
-Upstream: [pydantic/skills](https://github.com/pydantic/skills), selection `pydantic`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md); this shares a name with the local skill, so compare ownership before installation or replacement.
+Upstream: [pydantic/skills](https://github.com/pydantic/skills), selection `pydantic`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md).
 
 ## Documentation
 

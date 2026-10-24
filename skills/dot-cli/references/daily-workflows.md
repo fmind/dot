@@ -1,11 +1,23 @@
 ---
 name: daily-workflows
-description: "Run repository status and pull, folder trust, session sync and statistics, cleanup, and Fish completions."
+description: "Diagnose workstation health; run repository status and pull, folder trust, session sync and statistics, cleanup, and Fish completions."
 ---
 
 # Daily Workflows
 
 Use command help for exact options. Examples below are local reads or previews unless identified otherwise.
+
+## Health checks
+
+```bash
+dot doctor --json
+dot doctor --headroom
+dot agent doctor --agent codex
+```
+
+`dot doctor` checks local tools, secret permissions, disk headroom, installation, and a chezmoi orphan count (a warning that never fails); `--deep` also probes authentication. `--headroom` checks only disk and memory headroom in one line (`--json` keeps the envelope) and cannot be combined with `--fix` or `--deep`. `dot agent doctor` checks one agent's discovery (its deployed persona and skills link resolve to the shared sources; for OpenCode, a non-failing note flags a caller environment without `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`), user-level notify hook events, command types, explicit Claude/Codex disable switches, last sync with its failed and retained counts, and archive readability. This static check does not prove project/policy overrides, Codex hook trust, or desktop delivery; use the harness's native hook inspection for effective session behavior. Diagnostics share the `dot.diagnostics/v1` envelope with scope, passed, and checks.
+
+In the dotfiles repository, `mise run doctor` runs the installed `dot doctor`, then `chezmoi doctor` and `mise doctor`; it does not replace the repository gate. `check:scan` audits the committed npm and pipx tool locks that `--locked` installs follow.
 
 ## Repositories
 
@@ -38,6 +50,7 @@ dot agent session sync --agent codex --project . --dry-run --json
 dot agent session sync --agent codex --project . --json
 dot agent stats --prompts-only --project . --since 2026-09-01 --json
 dot agent stats --tokens-only --project . --by-model --by-project --json
+dot agent session show SESSION_ID --content --tail 20   # bounded transcript read
 ```
 
 Sync is incremental: it parses only new or changed sources, skipping one whose size and modification time match the archived copy. For the Copilot and OpenCode databases, `--since` compares the database's modification time, so it selects all or none of their sessions. Dry-run parses changed candidates but writes nothing. Only an unfiltered pass (no `--session`, `--project`, `--since`, or `--dry-run`) records the `last_sync` that `dot agent doctor` reports; after a parser bump, doctor reports `stale` until one runs. Unreadable source directories fail the scan instead of being silently skipped. A failed session or source scan writes one stderr line, increments `failed`, and sync continues, exiting 1 at the end; a misconfigured source path still fails fast. `--json` emits [`dot.agent.session.sync/v2`](contracts.md#json-selectors); stderr prints one summary per agent and each retained session, and `--verbose` also lists every ingested session (a parser bump recaptures thousands). `dot agent stats` (including `--sessions`) runs the same sync quietly first: failures appear on stderr and the report still prints. Pass `--no-sync` to report the archive as stored; an unknown `--agent` fails before any sync, and `--agent` lists the valid names in `--help`.

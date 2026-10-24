@@ -9,7 +9,7 @@ Build the agent loop with `create_agent` and shape it with middleware. `create_a
 
 ## Workflow
 
-1. **Pin the surface**: `uv add langchain` plus only the provider integrations in use, then read the installed version against the [changelog](https://docs.langchain.com/oss/python/langchain/changelog-py) before trusting any example. v1 moved legacy chains, retrievers, the indexing API, `hub`, and `langchain-community` exports to `langchain-classic` (imported as `langchain_classic`).
+1. **Pin the surface**: `uv add langchain` plus only the provider integrations in use, then read the installed version against the [changelog](https://docs.langchain.com/oss/python/releases/changelog) before trusting any example. v1 moved legacy chains, retrievers, the indexing API, `hub`, and `langchain-community` exports to `langchain-classic` (imported as `langchain_classic`).
 1. **Assemble the agent**: `from langchain.agents import create_agent`, with the model as a `"provider:model"` string or an initialized instance from `init_chat_model`. Add custom state by subclassing `AgentState` and passing `state_schema=`; pass per-run data (user id, tenant, feature flags) through `context_schema=` and read it as `runtime.context` rather than baking it into the prompt.
 1. **Type every tool**: `@tool` from `langchain.tools`, complete input types, a docstring the model can act on, bounded output, and caller authorization enforced inside the tool. Keep business logic in independently testable functions.
 1. **Contract the output**: pass `response_format=` with `ToolStrategy` or `ProviderStrategy` from `langchain.agents.structured_output` and read `result["structured_response"]`. Cover `StructuredOutputValidationError` and `MultipleStructuredOutputsError` in tests; a schema is not a guarantee.
@@ -27,11 +27,11 @@ Build the agent loop with `create_agent` and shape it with middleware. `create_a
 
 ## Official Skills
 
-Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills). Start with `ecosystem-primer` for the package boundaries, then `langchain-fundamentals` and `langchain-middleware` or `langchain-rag`; `langchain-dependencies` covers compatibility and `eval-engineering` pairs with [agent-evaluation](../../agent-evaluation/SKILL.md). The repository keeps its skills under `config/skills/`, includes an MIT license, and offers `skills` CLI, `install.sh`, and Claude plugin installation. Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to the selected immutable snapshot before a project-scoped installation; its private npm manifest is development tooling, not a published skill package.
+Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills). Start with `ecosystem-primer` for the package boundaries, then `langchain-fundamentals` and `langchain-middleware` or `langchain-rag`; `langchain-dependencies` covers compatibility and `eval-engineering` pairs with [agent-evaluation](../../agent-evaluation/SKILL.md). Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to the selected immutable snapshot before a project-scoped installation.
 
 ## Documentation
 
 - [Agents](https://docs.langchain.com/oss/python/langchain/agents) · [Middleware](https://docs.langchain.com/oss/python/langchain/middleware/overview) · [Structured output](https://docs.langchain.com/oss/python/langchain/structured-output) · [MCP](https://docs.langchain.com/oss/python/langchain/mcp) · [Unit testing](https://docs.langchain.com/oss/python/langchain/test/unit-testing)
-- Releases: [changelog](https://docs.langchain.com/oss/python/langchain/changelog-py) · [GitHub releases](https://github.com/langchain-ai/langchain/releases) · [v1 migration](https://docs.langchain.com/oss/python/migrate/langchain-v1)
+- Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langchain/releases) · [v1 migration](https://docs.langchain.com/oss/python/migrate/langchain-v1)
 - Live reference: the docs expose an MCP endpoint at `https://docs.langchain.com/mcp` for version-current answers.
 - Companion skills: [langgraph](langgraph.md) (explicit graphs), [pydantic](../../python-stack/references/pydantic.md) (output and tool schemas), [system-prompts](../../system-prompts/SKILL.md) (instruction stack), [observability](../../python-stack/references/observability.md) (traces).

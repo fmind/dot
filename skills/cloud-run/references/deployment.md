@@ -1,14 +1,9 @@
 # Cloud Run Deployment Commands
 
-1. **Pin and install image tools**: add exact stable versions to the Python project's `mise.toml`, generate its lock entries, and install them before any image scan or registry write. Upgrade both pins deliberately through [upgrade-tools](../../upgrade-tools/SKILL.md).
-
-   ```toml
-   [tools]
-   cosign = "3.1.3"
-   trivy = "0.75.0"
-   ```
+1. **Pin and install image tools**: write their exact latest stable versions to the Python project's `mise.toml`, generate its lock entries, and install them before any image scan or registry write. Upgrade both pins deliberately through [upgrade-tools](../../upgrade-tools/SKILL.md).
 
    ```bash
+   mise use --pin cosign trivy
    mise lock
    mise install --locked cosign trivy
    cosign version
@@ -53,7 +48,7 @@
 1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history. The Python web starter requires `HOST=0.0.0.0`, `ENVIRONMENT=production`, and a `DATABASE_URL` secret accessible to its runtime identity. Adapt these names to the application; Cloud Run supplies `PORT`. Environment secrets resolve at instance startup, so pin explicit [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) instead of `latest` and record them with the image digest; rotation adds a version and redeploys. Mount a secret as a volume only when it must rotate without a redeploy.
 
    ```bash
-   gcloud run deploy <slug> --image="$IMAGE" --region=<region> \
+   gcloud run deploy <slug> --project=<project> --image="$IMAGE" --region=<region> \
      --service-account="<slug>-runtime@<project>.iam.gserviceaccount.com" \
      --set-env-vars=HOST=0.0.0.0,ENVIRONMENT=production,LOG_LEVEL=info \
      --set-secrets=DATABASE_URL=database-url:<version>,API_KEY=api-key:<version> \
@@ -89,7 +84,7 @@
    set -euo pipefail
    : "${IMAGE_REF:?Set IMAGE_REF to the reviewed digest reference}"
    [[ "$IMAGE_REF" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-   gcloud run deploy <slug> --image "$IMAGE_REF" --region <region> --service-account <slug>-runtime@<project>.iam.gserviceaccount.com --invoker-iam-check --no-allow-unauthenticated
+   gcloud run deploy <slug> --project <project> --image "$IMAGE_REF" --region <region> --service-account <slug>-runtime@<project>.iam.gserviceaccount.com --invoker-iam-check --no-allow-unauthenticated
    # Then run the private-invocation postcondition from deploy.yml; do not report success without it.
    '''
    ```

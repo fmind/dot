@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-10-07"
+  updated: "2026-10-23"
 ---
 
 # Develop a Technical Course

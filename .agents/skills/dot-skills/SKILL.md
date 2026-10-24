@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-skills
   created: "2026-09-09"
-  updated: "2026-10-18"
+  updated: "2026-10-23"
 ---
 
 # Maintain Dot Skills
@@ -26,7 +26,7 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 
 1. **Locate references; rename atomically**: use `rg` to find the old name and path across both catalogs, docs, host configuration, and `dot/`. For a rename, change the directory, frontmatter name, provenance path, and update date together; preserve needed guidance when consolidating packages.
 1. **Repoint all links at once**: update inbound links and the global link declaration together. Preserve historical records, then search again and validate as above.
-1. **Clean retired links via the guide**: apply leaves retired installed links in place. Use the [installed-link recovery guide](references/installed-links.md) for cleanup, collisions, source relocation, or catalog ownership.
+1. **Retire installed links with `.chezmoiremove`**: list the retired `.agents/skills/<name>` targets there so apply deletes them on every machine, per the [chezmoi skill](../chezmoi/SKILL.md). Use the [installed-link recovery guide](references/installed-links.md) for manual cleanup, collisions, source relocation, or catalog ownership.
 
 ## Boundaries
 
