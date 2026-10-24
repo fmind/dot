@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [13.1.0] - 2026-10-24
+
+### 🚀 Features
+
+- _(terminal)_ Tile Zellij panes in columns, add a centred zen tab, and lint mise configs in Neovim
+- _(chezmoi)_ Link the ChromeOS Downloads folder and retire the v13 migration shims
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Enable daily automatic self-update on workstation (#107)
+
+### ♻️ Refactor
+
+- _(dot)_ Simplify archive internals, retire lock graphs in full, and lint workflow templates
+
+### 📚 Documentation
+
+- _(skills)_ Trim the catalog, defer bf procedures to upstream, and refresh tool guidance
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade workstation tools, locks, and the mise 2026.10.18 baseline
+
 ## [13.0.0] - 2026-10-21
 
 ### 🐛 Bug Fixes
