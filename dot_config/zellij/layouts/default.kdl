@@ -1,0 +1,34 @@
+// Docs: https://zellij.dev/documentation/swap-layouts
+// Replaces the built-in default layout: same tab and status bars, but new panes tile as equal
+// columns. Wide screens (21:9 and 32:9 glasses) have columns to spare and few rows, and the
+// built-in arrangement stacks extra panes on the right. Cycle to half-stacked for narrow
+// screens with Ctrl b, Space; ChromeOS keeps Alt [ and Alt ] for window snapping.
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="tab-bar"
+        }
+        children
+        pane size=1 borderless=true {
+            plugin location="status-bar"
+        }
+    }
+    swap_tiled_layout name="columns" {
+        // max_panes counts both bars: up to four terminal columns.
+        tab max_panes=6 {
+            pane split_direction="vertical" {
+                children
+            }
+        }
+    }
+    swap_tiled_layout name="half-stacked" {
+        tab min_panes=5 {
+            pane split_direction="vertical" {
+                pane
+                pane stacked=true {
+                    children
+                }
+            }
+        }
+    }
+}
