@@ -3,11 +3,7 @@
 # repositories, and this source directory; `dot trust` only adds missing entries.
 set -eu
 dot={{ joinPath .chezmoi.homeDir ".local/bin/dot" | shellQuote }}
-# Bare apply can precede installation; tools/full defer hooks until dot is deployed.
+# Bare apply can precede installation; `mise run full` defers hooks until dot is deployed.
 [ -x "${dot}" ] || exit 0
-# One call pays the CLI startup once; dot before 12.0 takes a single target, so an apply
-# that runs ahead of `mise run deploy` falls back to the two separate calls.
-"${dot}" trust all {{ .chezmoi.sourceDir | shellQuote }} >/dev/null 2>&1 || {
-  "${dot}" trust all >/dev/null
-  "${dot}" trust {{ .chezmoi.sourceDir | shellQuote }} >/dev/null
-}
+# One call pays the CLI startup once.
+"${dot}" trust all {{ .chezmoi.sourceDir | shellQuote }} >/dev/null

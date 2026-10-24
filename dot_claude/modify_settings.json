@@ -1,5 +1,6 @@
 # chezmoi:modify-template
-{{- /* model and modelSettings are defaults rather than managed keys: they seed a fresh
+{{- /* Docs: https://code.claude.com/docs/en/settings
+       model and modelSettings are defaults rather than managed keys: they seed a fresh
        file, then stay whatever /model and /effort last persisted. Effort is seeded per
        model because Opus 5.5 ignores the top-level effortLevel and starts at medium;
        levels stop at xhigh: max is session-only (/effort max).
