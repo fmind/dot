@@ -20,34 +20,34 @@ url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/3849248
 provenance = "github-attestations"
 
 [[tools.chezmoi]]
-version = "2.73.2"
+version = "2.73.3"
 backend = "aqua:twpayne/chezmoi"
 specifiers = ["latest"]
 
 [tools.chezmoi."platforms.linux-x64"]
-checksum = "sha256:4d7bd8072f15373d5f5c801209bac218527452c8e54f9ae46ba6c5bd4a6eca41"
-url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.2/chezmoi_2.73.2_linux-glibc_amd64.tar.gz"
-url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/650772334"
+checksum = "sha256:6e5827598cbfc02d132b04f95b5ea10efb5b79230e2a4a0e52df4af144a8ee9f"
+url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.3/chezmoi_2.73.3_linux-glibc_amd64.tar.gz"
+url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/659666434"
 
 [tools.chezmoi."platforms.macos-arm64"]
-checksum = "sha256:b41f5a51700a7dc0b7c2ae02652d42824ee112d3d97cb2f3c725d53e8d9f6b32"
-url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.2/chezmoi_2.73.2_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/650772106"
+checksum = "sha256:ec2d0005f369c912ee9891a26c30d65dc0eda51708f06948e5f7a43db69e1aa7"
+url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.3/chezmoi_2.73.3_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/659665869"
 
 [[tools.dprint]]
-version = "0.64.0"
+version = "0.64.3"
 backend = "aqua:dprint/dprint"
 specifiers = ["latest"]
 
 [tools.dprint."platforms.linux-x64"]
-checksum = "sha256:5102aa940a060e48c33a5ceefce1273c701c6618503b7514323caada3b3649bb"
-url = "https://github.com/dprint/dprint/releases/download/0.64.0/dprint-x86_64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/654469790"
+checksum = "sha256:f71cb7e22d6776439eba168d5cb296092d6413fea7148fe4d70684a2702a4fee"
+url = "https://github.com/dprint/dprint/releases/download/0.64.3/dprint-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/667629165"
 
 [tools.dprint."platforms.macos-arm64"]
-checksum = "sha256:791560cf48299933a9fff2aea93b7e42b39e62d8a109634619d01c4f2c1aa68a"
-url = "https://github.com/dprint/dprint/releases/download/0.64.0/dprint-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/654469787"
+checksum = "sha256:94b48820945602fb113a34343db0a9e653a8346c60966f790556dc9ce4084a92"
+url = "https://github.com/dprint/dprint/releases/download/0.64.3/dprint-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/dprint/dprint/releases/assets/667629166"
 
 [[tools.fish]]
 version = "4.9.3"
@@ -65,21 +65,19 @@ url = "https://github.com/fish-shell/fish-shell/releases/download/4.9.3/fish-4.9
 url_api = "https://api.github.com/repos/fish-shell/fish-shell/releases/assets/551147059"
 
 [[tools.gh]]
-version = "2.102.0"
+version = "2.103.2"
 backend = "aqua:cli/cli"
 specifiers = ["latest"]
 
 [tools.gh."platforms.linux-x64"]
-checksum = "sha256:bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386"
-url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854672"
-provenance = "github-attestations"
+checksum = "sha256:62ccf747115ddc61237efffdde66a3c8f70ba249433dc64f70801089b59c59c8"
+url = "https://github.com/cli/cli/releases/download/v2.103.2/gh_2.103.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/670305062"
 
 [tools.gh."platforms.macos-arm64"]
-checksum = "sha256:da922c20d1792e5b2cbf375593d7a658acf034c12c84e007e71c76ef959c337e"
-url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_macOS_arm64.zip"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854720"
-provenance = "github-attestations"
+checksum = "sha256:5416000f5d17580a187339e0c4068a01ca5c87f7d4fe6ca64933696f967bc418"
+url = "https://github.com/cli/cli/releases/download/v2.103.2/gh_2.103.2_macOS_arm64.zip"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/670305145"
 
 [[tools.git-cliff]]
 version = "2.14.2"
@@ -157,17 +155,17 @@ url = "https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-macos-arm
 url_api = "https://api.github.com/repos/neovim/neovim/releases/assets/625399162"
 
 [[tools.python]]
-version = "3.14.8"
+version = "3.14.9"
 backend = "core:python"
 specifiers = ["3.14"]
 
 [tools.python."platforms.linux-x64"]
-checksum = "sha256:d8faa1b588506b9e3e5a3f57807bb056d534a1641a6b10d15b6ea3f0b413b960"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.14.8+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:561e91c1cadf30e84aec94d1917384ae3267e5f3e6e135e51fd1578bb19f4064"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.14.9+20261021-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 
 [tools.python."platforms.macos-arm64"]
-checksum = "sha256:994adadc202c5df0b4570192cc9a70e3f2c131e512f4a125c56efa8562f44b28"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.14.8+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz"
+checksum = "sha256:9f8c3480b8f0db553c270db548e8a21ae8e39df412e5661d66e8050c5c6ed2a8"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.14.9+20261021-aarch64-apple-darwin-install_only_stripped.tar.gz"
 
 [[tools.shellcheck]]
 version = "0.11.0"
@@ -218,34 +216,34 @@ url = "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-m
 url_api = "https://api.github.com/repos/JohnnyMorganz/StyLua/releases/assets/628185466"
 
 [[tools.trivy]]
-version = "0.76.0"
+version = "0.76.1"
 backend = "aqua:aquasecurity/trivy"
 specifiers = ["latest"]
 
 [tools.trivy."platforms.linux-x64"]
-checksum = "sha256:e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7"
-url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.0/trivy_0.76.0_Linux-64bit.tar.gz"
-url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/640213415"
+checksum = "sha256:c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-64bit.tar.gz"
+url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/662254617"
 
 [tools.trivy."platforms.macos-arm64"]
-checksum = "sha256:e7ec0d21fe842553f59af99aba2efbcc822369fbaed27019c575408b6d135fce"
-url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.0/trivy_0.76.0_macOS-ARM64.tar.gz"
-url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/640213409"
+checksum = "sha256:11a9b6cd2752011b54f01ea4bd0dbfa9f0c41dc6538d5a3f9d23955f471bf4e5"
+url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_macOS-ARM64.tar.gz"
+url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/662254764"
 
 [[tools.uv]]
-version = "0.13.3"
+version = "0.13.5"
 backend = "aqua:astral-sh/uv"
 specifiers = ["latest"]
 
 [tools.uv."platforms.linux-x64"]
-checksum = "sha256:e4f169ec380f1793b898a6f1fcbacd22db25cf7ca0349a6e96ffb85b69998d04"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.3/uv-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/657907872"
+checksum = "sha256:f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664336023"
 
 [tools.uv."platforms.macos-arm64"]
-checksum = "sha256:bf1e4fb6f5f5079a2902ad3f3a9e2d337575b226a1378f2449d8404353650608"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.3/uv-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/657907636"
+checksum = "sha256:743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664335803"
 
 [[tools.zizmor]]
 version = "1.31.1"

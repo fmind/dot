@@ -28,3 +28,17 @@ vulnerabilities:
     paths: ["dot_config/mise/locks/pipx-aws-sso-util/*/uv.lock"]
     statement: urllib3 1.26 is resolved only for Python <3.10, which mise never installs.
     expired_at: 2027-01-02
+  - id: CVE-2026-112940
+    paths: ["dot_config/mise/locks/pipx-huggingface-hub/*/uv.lock"]
+    statement: filelock 4.1.0 is resolved only for Python <3.11; the installed tool resolves 4.2.4.
+    expired_at: 2027-01-02
+  # cf pins these exactly (miniflare: undici 7.29.1; @cloudflare/config: zod 4.6.5), so relocking
+  # cannot pick the fixes. A short expiry forces a re-check against the next beta.
+  - id: CVE-2026-109869
+    paths: ["dot_config/mise/locks/npm-cf/*/aube-lock.yaml"]
+    statement: Accepted for the local cf beta CLI until upstream bumps its exact undici pin.
+    expired_at: 2026-11-07
+  - id: CVE-2023-54404
+    paths: ["dot_config/mise/locks/npm-cf/*/aube-lock.yaml"]
+    statement: Accepted for the local cf beta CLI until upstream bumps its exact zod pin.
+    expired_at: 2026-11-07
