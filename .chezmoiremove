@@ -1,3 +1,0 @@
-# Docs: https://www.chezmoi.io/reference/special-files/chezmoiremove/
-# Skills merged or deleted on 2026-10-20: remove their dangling catalog links.
-.agents/skills/{api-client,delegate-tasks,incident-response,observability,python-testing,repository-maintenance,skill-security-review,threat-model}

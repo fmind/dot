@@ -1,5 +1,5 @@
 # chezmoi:modify-template
-{{- /* Docs: https://antigravity.google/docs/cli/settings
+{{- /* Docs: https://antigravity.google/docs/settings?tab=cli
        Account and model choices belong to the host after initial setup; `dot trust`
        owns trustedWorkspaces. */ -}}
 {{- $managedConfig := fromJson `
