@@ -79,7 +79,7 @@ def test_authentication_probes_require_deep_doctor(monkeypatch: pytest.MonkeyPat
 
 def test_doctor_detects_pgcli_import_failure() -> None:
     class BrokenPgcli(ScriptedRunner):
-        def run(self, args: Sequence[str], **kwargs: object) -> CommandResult:  # type: ignore[override]
+        def run(self, args: Sequence[str], **kwargs: Any) -> CommandResult:
             del kwargs
             if list(args) == ["/bin/pgcli", "--version"]:
                 return CommandResult(stdout="", stderr="ImportError: no pq wrapper available", returncode=1)

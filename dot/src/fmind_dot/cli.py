@@ -31,7 +31,8 @@ _EPILOG = (
     "Reports go to stdout; prompts and errors go to stderr.\n\n"
     "Reports accept --json (-j) and print one JSON document with a versioned schema field; "
     "agent session show always prints JSON and config show prints YAML. "
-    "Commands that change state accept --dry-run, login also --check; prune needs --yes without a terminal. "
+    "login, setup, prune, pull, trust, and agent session sync accept --dry-run; login also --check; "
+    "prune needs --yes without a terminal. "
     "Run dot COMMAND --help for examples."
 )
 

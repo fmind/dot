@@ -10,14 +10,12 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from dot_tasks import ROOT
 from dot_tasks.mise_locks import bundle, capture
 
 # Their registry entries publish no checksum.
 UNCHECKSUMMED_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
 _CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
-# Tools whose --bump keeps the locked version and graph; keep in step with config.toml's comment.
-# mermaid-cli: newer graphs select a chromium-bidi without trusted-publisher evidence (refused 2026-10-16).
-HELD_TOOLS = frozenset({"npm:@mermaid-js/mermaid-cli"})
 
 
 def validate(configuration: Path) -> None:
@@ -80,13 +78,7 @@ def refresh(root: Path, *, bump: bool = False) -> None:
             MISE_SYSTEM_CONFIG_FILE=str(workspace / "system-mise/config.toml"),
             MISE_TRUSTED_CONFIG_PATHS=str(workspace),
         )
-        command = ["mise", "lock", "--global", "--yes"]
-        if bump:
-            command.append("--bump")
-            tools = tomllib.loads((source / "config.toml").read_text(encoding="utf-8"))["tools"]
-            if HELD_TOOLS.intersection(tools):
-                # Naming the other tools leaves each held tool's locked entry untouched.
-                command.extend(name for name in tools if name not in HELD_TOOLS)
+        command = ["mise", "lock", "--global", "--yes", *(["--bump"] if bump else [])]
         subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
             command, cwd=workspace, env=environment, check=True, timeout=1800
         )
@@ -102,7 +94,7 @@ def main() -> int:
     )
     arguments = parser.parse_args()
     try:
-        refresh(Path(__file__).resolve().parents[2], bump=arguments.bump)
+        refresh(ROOT, bump=arguments.bump)
     except (OSError, ValueError, KeyError, TypeError, IndexError, subprocess.SubprocessError) as error:
         sys.stderr.write(f"Cannot refresh mise lockfiles: {error}\n")
         return 1

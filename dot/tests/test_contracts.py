@@ -338,7 +338,7 @@ def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -
 def test_python_only_owned_sources() -> None:
     retired_suffixes = {".go", ".js", ".jsx", ".ts", ".tsx"}
     owned = subprocess.check_output(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, text=True
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, text=True, timeout=30
     ).splitlines()
     active = [path for path in owned if Path(path).suffix in retired_suffixes and (ROOT / path).exists()]
 
@@ -440,6 +440,27 @@ def test_encrypted_targets_are_ignored_without_the_age_key(tmp_path: Path) -> No
         ):
             unignored.append(relative)
     assert unignored == [], "add these encrypted targets to the no-key block in .chezmoiignore"
+
+
+def test_chromeos_downloads_link_deploys_only_where_its_target_exists(tmp_path: Path) -> None:
+    # A forced apply deletes a real ~/Downloads folder, contents included, to place the link.
+    target = Path((ROOT / "symlink_Downloads").read_text(encoding="utf-8").strip())
+    source = tmp_path / "source"
+    shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates")
+    shutil.copy2(ROOT / ".chezmoiignore", source / ".chezmoiignore")
+    config = tmp_path / "chezmoi.toml"
+    config.write_text("")
+    command = ["chezmoi", "execute-template", "--source", str(source), "--config", str(config)]
+    rendered = subprocess.run(
+        [*command, "--file", str(source / ".chezmoiignore")],
+        env={**os.environ, "HOME": str(tmp_path)},
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    ignored = "Downloads" in (line.strip() for line in rendered.stdout.splitlines())
+    assert ignored == (not target.is_dir())
 
 
 # age's ASCII-armored and binary headers; the repository commits armored files.

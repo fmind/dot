@@ -357,7 +357,7 @@ def agent_stats(
         if prompts is not None:
             _print_prompt_statistics(state, prompts)
         if not prompts_only:
-            write_usage_stats(state.stdout, rows, by_model=by_model)
+            write_usage_stats(state.stdout, rows, by_model=by_model, pricing=rates)
     if prompts is not None and not prompts["complete"]:
         raise DotError("prompt statistics are incomplete; inspect excluded sessions and partial counts")
 

@@ -3,10 +3,15 @@
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+
+# Tests import skill scripts from skills/, which harnesses read through ~/.agents/skills:
+# direct pytest runs outside mise (no PYTHONDONTWRITEBYTECODE) must not leave bytecode there.
+sys.dont_write_bytecode = True
 
 
 @pytest.fixture(autouse=True)

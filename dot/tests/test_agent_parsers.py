@@ -12,7 +12,6 @@ from fmind_dot.archive import parsers as parser_module
 from fmind_dot.archive.parsers import (
     AGENT_ADAPTERS,
     ParsedSession,
-    enumerate_sessions,
     parse_agy_session,
     parse_claude_session,
     parse_codex_session,
@@ -92,7 +91,6 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed_agy.usage.measurement_kind == "estimated"
     assert parsed_agy.usage.model == "unknown"
     assert parsed_agy.usage.source_bytes == agy.stat().st_size
-    assert _usage(parse_agy_session(agy, "agy-id")).total_tokens == 6
 
     claude = tmp_path / "claude.jsonl"
     _jsonl(
@@ -121,7 +119,6 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed.usage is not None
     assert parsed.usage.total_tokens == 9
     assert parsed.usage.measurement_kind == "provider-reported"
-    assert _usage(parse_claude_session(claude, "claude-id")).total_tokens == 9
 
     codex = tmp_path / "rollout.jsonl"
     _jsonl(
@@ -167,8 +164,6 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     ]
     assert parsed.usage is not None
     assert (parsed.usage.total_tokens, parsed.usage.turn_count, parsed.usage.reasoning_tokens) == (17, 1, 1)
-    usage = _usage(parse_codex_session(codex, "codex-id"))
-    assert (usage.total_tokens, usage.turn_count, usage.reasoning_tokens) == (17, 1, 1)
 
 
 @pytest.mark.parametrize(
@@ -627,7 +622,7 @@ def test_copilot_database_parser_and_usage(tmp_path) -> None:
         )
     parsed = parse_copilot_session(database, "cp-id")
     assert [line.role for line in parsed.logs] == ["user", "assistant"]
-    usage = _usage(parse_copilot_session(database, "cp-id"))
+    usage = _usage(parsed)
     assert (usage.model, usage.total_tokens, usage.reasoning_tokens) == ("gpt", 20, 1)
 
 
@@ -700,27 +695,24 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
         "copilot",
         "opencode",
     ]
-    assert enumerate_sessions(agy_root, "agy") == [("agy-id", "", preferred_agy)]
-    assert {candidate[0] for candidate in enumerate_sessions(claude_root, "claude")} == {
+    assert AGENT_ADAPTERS["agy"].enumerate(agy_root) == [("agy-id", "", preferred_agy)]
+    assert {candidate[0] for candidate in AGENT_ADAPTERS["claude"].enumerate(claude_root)} == {
         "claude-direct",
         "claude-fallback",
     }
-    assert enumerate_sessions(codex_root, "codex") == [("codex-id", "", codex)]
-    assert enumerate_sessions(grok_root, "grok") == [("grok-id", "/work/grok", grok)]
+    assert AGENT_ADAPTERS["codex"].enumerate(codex_root) == [("codex-id", "", codex)]
+    assert AGENT_ADAPTERS["grok"].enumerate(grok_root) == [("grok-id", "/work/grok", grok)]
     (grok_root / "%2Fwork%2Fgrok/signals-id/signals.json").write_text("{}")
-    assert {candidate[0] for candidate in enumerate_sessions(grok_root, "grok")} == {
+    assert {candidate[0] for candidate in AGENT_ADAPTERS["grok"].enumerate(grok_root)} == {
         "grok-id",
         "signals-id",
     }
-
-    with pytest.raises(ValueError, match="no verified session parser"):
-        enumerate_sessions(tmp_path, "unknown")
 
 
 def test_copilot_discovery_is_read_only_and_filters_invalid_session_ids(tmp_path) -> None:
     missing = tmp_path / "missing.db"
     with pytest.raises(FileNotFoundError):
-        enumerate_sessions(missing, "copilot")
+        AGENT_ADAPTERS["copilot"].enumerate(missing)
     assert not missing.exists()
 
     database = tmp_path / "copilot.db"
@@ -731,7 +723,7 @@ def test_copilot_discovery_is_read_only_and_filters_invalid_session_ids(tmp_path
             INSERT INTO sessions VALUES('invalid/id','/private','2026-01-01T00:00:00Z');"""
         )
 
-    assert enumerate_sessions(database, "copilot") == [("valid-id", "", database)]
+    assert AGENT_ADAPTERS["copilot"].enumerate(database) == [("valid-id", "", database)]
     with pytest.raises(ValueError, match="invalid copilot session id"):
         parse_copilot_session(database, "invalid/id")
 
@@ -753,7 +745,7 @@ def test_parsers_account_for_malformed_and_unsupported_records(tmp_path) -> None
     )
     parsed_agy = parse_agy_session(agy, "agy-id")
     assert (len(parsed_agy.logs), parsed_agy.malformed, parsed_agy.skipped) == (1, 2, 2)
-    agy_usage = _usage(parse_agy_session(agy, "agy-id"))
+    agy_usage = _usage(parsed_agy)
     assert (agy_usage.turn_count, agy_usage.input_tokens, agy_usage.output_tokens) == (1, 1, 1)
 
     claude = tmp_path / "claude.jsonl"
@@ -1006,7 +998,7 @@ def test_claude_subagents_are_sidechains_and_workflow_journals_are_not_sessions(
     _jsonl(parent, [{"type": "user", "isSidechain": True, "sessionId": "parent-id", "message": {"content": "own"}}])
     _jsonl(workflow / "journal.jsonl", [{"type": "launched"}, {"type": "started", "agentId": "b2", "key": "k"}])
 
-    sessions = sorted(candidate[0] for candidate in enumerate_sessions(tmp_path / "claude", "claude"))
+    sessions = sorted(candidate[0] for candidate in AGENT_ADAPTERS["claude"].enumerate(tmp_path / "claude"))
     top = parse_claude_session(parent, "parent-id")
     child = parse_claude_session(subagent, "agent-a1")
 
@@ -1100,7 +1092,7 @@ def test_agy_sessions_take_their_workspace_from_the_summaries_database(tmp_path:
             _jsonl(_agy_transcript(root, str(session_id)), [])
     _jsonl(_agy_transcript(root, "unlisted"), [])
 
-    candidates = {session_id: cwd for session_id, cwd, _ in enumerate_sessions(root, "agy")}
+    candidates = {session_id: cwd for session_id, cwd, _ in AGENT_ADAPTERS["agy"].enumerate(root)}
 
     assert candidates == {
         "project": "/work/my project",
@@ -1117,7 +1109,7 @@ def test_agy_sessions_take_their_workspace_from_the_summaries_database(tmp_path:
 def test_agy_without_summaries_database_keeps_sessions_without_workspace(tmp_path: Path) -> None:
     root = tmp_path / "brain"
     _jsonl(_agy_transcript(root, "session"), [])
-    assert [(session_id, cwd) for session_id, cwd, _ in enumerate_sessions(root, "agy")] == [("session", "")]
+    assert [(session_id, cwd) for session_id, cwd, _ in AGENT_ADAPTERS["agy"].enumerate(root)] == [("session", "")]
 
 
 def test_agy_unreadable_summaries_database_fails_the_scan(tmp_path: Path) -> None:
@@ -1126,7 +1118,7 @@ def test_agy_unreadable_summaries_database_fails_the_scan(tmp_path: Path) -> Non
     with closing(sqlite3.connect(tmp_path / "conversation_summaries.db")) as connection:
         connection.execute("CREATE TABLE other (value text)")
     with pytest.raises(sqlite3.Error):
-        enumerate_sessions(root, "agy")
+        AGENT_ADAPTERS["agy"].enumerate(root)
 
 
 def test_agy_workspace_marks_records_usage_and_fingerprint(tmp_path: Path) -> None:

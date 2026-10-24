@@ -22,13 +22,14 @@ from typing import Any
 
 import yaml
 
+from dot_tasks import ROOT
+
 REPOSITORY = "https://github.com/fmind/theme"
 RAW = "https://raw.githubusercontent.com/fmind/theme/{revision}/{path}"
 MAX_BYTES = 1_000_000
 BASE = re.compile(r'(\{\{ \$base := "https://raw\.githubusercontent\.com/fmind/theme/)([0-9a-f]{40})(" \}\})')
 ENTRY = re.compile(r'(    url = "\{\{ \$base \}\}/(?P<path>[^"]+)"\n    checksum\.sha256 = ")[0-9a-f]{64}(")')
 
-ROOT = Path(__file__).resolve().parents[2]
 # Source file -> (upstream theme file, key paths copied from it). The upstream suffix
 # selects the parser for both sides; ripgreprc keeps only its --colors flags.
 COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
@@ -162,7 +163,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision", type=_commit, help="commit SHA to pin instead of upstream main")
     arguments = parser.parse_args()
-    path = Path(__file__).resolve().parents[2] / ".chezmoiexternal.toml.tmpl"
+    path = ROOT / ".chezmoiexternal.toml.tmpl"
     try:
         revision = arguments.revision or resolve_head()
         template = path.read_text(encoding="utf-8")

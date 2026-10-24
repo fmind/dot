@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from statistics import median
 from typing import Any
 
 from fmind_dot.archive.query import SessionQuery, query_session_summaries
-from fmind_dot.archive.store import read_session_bundle
+from fmind_dot.archive.store import parse_utc_instant, read_session_bundle
 
 
 def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[str, Any]:
@@ -50,15 +49,12 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         )
         included = False
         for record in records:
-            try:
-                timestamp = datetime.fromisoformat(record.ts)
-                # Match usage accounting: an ISO timestamp without an offset is UTC.
-                timestamp = (timestamp if timestamp.tzinfo else timestamp.replace(tzinfo=UTC)).astimezone(UTC)
-            except ValueError, OverflowError:
+            # Match usage accounting: an ISO timestamp without an offset is UTC.
+            timestamp = parse_utc_instant(record.ts)
+            if timestamp is None:
                 invalid_timestamps += 1
                 if query.since or query.until:
                     continue
-                timestamp = None
             if timestamp and ((query.since and timestamp < query.since) or (query.until and timestamp > query.until)):
                 continue
             if record.role not in {"user", "assistant"}:

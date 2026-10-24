@@ -16,6 +16,7 @@ WORKFLOWS = [
     *sorted((ROOT / ".github/workflows").glob("*.yml")),
     *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
     ROOT / "skills/cloud-run/templates/deploy.yml",
+    ROOT / "skills/documentation-site/templates/docs.yml",
 ]
 ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
 COMMENTED_ACTION = re.compile(r"^\s*(?:-\s*)?uses:\s+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}\s+#\s+v\d[^\s]*\s*$")
@@ -47,8 +48,10 @@ def test_workflow_actions_are_immutable_and_version_commented() -> None:
 def test_workflow_runners_are_fixed() -> None:
     for path in WORKFLOWS:
         content = path.read_text(encoding="utf-8")
-        assert "ubuntu-latest" not in content, path
-        assert "runs-on: ubuntu-24.04" in content, path
+        runners = re.findall(r"runs-on:\s*(\S+)", content)
+        assert runners, path
+        # Fixed image labels only: no -latest alias and no expression such as a matrix value.
+        assert all(re.fullmatch(r"(?:ubuntu|macos|windows)-\d+(?:\.\d+)?(?:-arm)?", runner) for runner in runners), path
 
 
 @pytest.mark.parametrize(

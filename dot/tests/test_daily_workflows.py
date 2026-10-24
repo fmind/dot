@@ -212,8 +212,6 @@ def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.Monk
     # The CLI boundary rejects an inverted window; the library selects nothing for it.
     inverted = SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC))
     assert prompt_statistics(inverted)["prompts"] == 0
-    rejected = CliRunner().invoke(app, ["agent", "stats", "--since", "2026-09-02", "--until", "2026-09-01"])
-    assert rejected.exit_code == 2
 
 
 def test_prompt_stats_validate_selected_sessions_and_report_corruption(

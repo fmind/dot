@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import IO, Annotated, Any, Literal
 
 import typer
 import yaml
@@ -13,6 +12,7 @@ import yaml
 from fmind_dot.command_group import JsonOption
 from fmind_dot.errors import DotError
 from fmind_dot.reporting import display_path, write_json
+from fmind_dot.state import state_from
 
 CONTEXT_TOKEN_LIMIT = 5_000
 MAX_INPUT_BYTES = 1 << 20
@@ -209,46 +209,47 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
     }
 
 
-def _print_report(report: dict[str, Any], *, details: bool) -> None:
-    typer.echo("Agent context · estimated tokens")
-    typer.echo(f"Budget: below {CONTEXT_TOKEN_LIMIT:,} tokens for global and local, separately.\n")
-    typer.echo(f"{'Scope':<10} {'AGENTS.md':>9} {'Skill index':>11} {'Total':>7} {'Remaining':>10}  Status")
+def _print_report(output: IO[str], report: dict[str, Any], *, details: bool) -> None:
+    def write(text: str = "") -> None:
+        output.write(text + "\n")
+
+    write("Agent context · estimated tokens")
+    write(f"Budget: below {CONTEXT_TOKEN_LIMIT:,} tokens for global and local, separately.\n")
+    write(f"{'Scope':<10} {'AGENTS.md':>9} {'Skill index':>11} {'Total':>7} {'Remaining':>10}  Status")
     for scope, totals in report["totals"].items():
         budget = report["budgets"].get(scope)
         remaining = f"{budget['remaining']:,}" if budget else "—"
         status = ("PASS" if budget["passed"] else "OVER BUDGET") if budget else "—"
-        typer.echo(
+        write(
             f"{scope.capitalize():<10} {totals['agents_estimated_tokens']:>9,} "
             f"{totals['skill_index_estimated_tokens']:>11,} {totals['startup_estimated_tokens']:>7,} "
             f"{remaining:>10}  {status}"
         )
     global_count = report["totals"]["global"]["skills"]
     local_count = report["totals"]["local"]["skills"]
-    typer.echo(
-        f"\nSkill index: names, descriptions, and paths ({global_count:,} global, {local_count:,} local skills)."
-    )
+    write(f"\nSkill index: names, descriptions, and paths ({global_count:,} global, {local_count:,} local skills).")
     discovery = report["totals"]["combined"]["skill_index_estimated_tokens"]
-    typer.echo(f"Combined discovery: {discovery:,} estimated tokens (informational)")
-    typer.echo("Combined startup is informational. On-demand bodies and host/plugin catalogs are excluded.")
-    typer.echo("Estimated at ~4 characters/token; exact counts vary by model. Totals round independently.")
+    write(f"Combined discovery: {discovery:,} estimated tokens (informational)")
+    write("Combined startup is informational. On-demand bodies and host/plugin catalogs are excluded.")
+    write("Estimated at ~4 characters/token; exact counts vary by model. Totals round independently.")
     if report["duplicates"]:
-        typer.echo("\nDuplicate skill names · FAIL (both counted)")
+        write("\nDuplicate skill names · FAIL (both counted)")
         for item in report["duplicates"]:
-            typer.echo(f"  {item['name']}")
+            write(f"  {item['name']}")
             for path in item["paths"]:
-                typer.echo(f"    {display_path(path)}")
-        typer.echo(DUPLICATE_GUIDANCE)
+                write(f"    {display_path(path)}")
+        write(DUPLICATE_GUIDANCE)
     if details:
-        typer.echo("\nOn-demand SKILL.md files · estimated tokens, excluded from budget")
+        write("\nOn-demand SKILL.md files · estimated tokens, excluded from budget")
         for scope, totals in report["totals"].items():
-            typer.echo(f"  {scope.capitalize():<10} {totals['on_demand_skill_file_estimated_tokens']:>9,}")
-        typer.echo("\nSources")
+            write(f"  {scope.capitalize():<10} {totals['on_demand_skill_file_estimated_tokens']:>9,}")
+        write("\nSources")
         for scope, roots in report["roots"].items():
-            typer.echo(f"  {scope.capitalize() + ' AGENTS.md':<17} {display_path(roots['agents'])}")
-            typer.echo(f"  {scope.capitalize() + ' skills':<17} {display_path(roots['skills'])}")
-        typer.echo(f"\n{report['coverage']}")
+            write(f"  {scope.capitalize() + ' AGENTS.md':<17} {display_path(roots['agents'])}")
+            write(f"  {scope.capitalize() + ' skills':<17} {display_path(roots['skills'])}")
+        write(f"\n{report['coverage']}")
     else:
-        typer.echo("Use --details for source paths, on-demand costs, and coverage.")
+        write("Use --details for source paths, on-demand costs, and coverage.")
 
 
 def _check_summary(report: dict[str, Any]) -> str:
@@ -264,6 +265,7 @@ def register(agent_app: typer.Typer) -> None:
         help="Measure global, project, and combined AGENTS.md and skill discovery costs; report duplicate skill names",
     )
     def context_command(
+        context: typer.Context,
         project: Annotated[
             Path, typer.Option("--project", "-p", help="Project root (only its own instructions and skills)")
         ] = Path(),
@@ -285,17 +287,18 @@ def register(agent_app: typer.Typer) -> None:
         ] = False,
         as_json: JsonOption = False,
     ) -> None:
+        state = state_from(context, require_config=False)
         report = context_report(project, source=source)
         if as_json:
-            write_json(sys.stdout, report)
+            write_json(state.stdout, report)
             if check and report["duplicates"]:
                 # Keep stdout parseable; the text report already carries this guidance.
                 names = ", ".join(item["name"] for item in report["duplicates"])
-                typer.echo(f"Duplicate skill names: {names}. {DUPLICATE_GUIDANCE}", err=True)
+                state.stderr.write(f"Duplicate skill names: {names}. {DUPLICATE_GUIDANCE}\n")
         elif check and report["passed"] and not details:
             # Agents run the gate often; a pass needs one line, a failure keeps the full table.
-            typer.echo(_check_summary(report))
+            state.stdout.write(_check_summary(report) + "\n")
         else:
-            _print_report(report, details=details)
+            _print_report(state.stdout, report, details=details)
         if check and not report["passed"]:
             raise typer.Exit(1)

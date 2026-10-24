@@ -11,7 +11,7 @@ from typing import IO, TYPE_CHECKING, Annotated, Any, Literal, Required, TypedDi
 from pydantic import AfterValidator, Field, StrictBool, StrictStr, TypeAdapter, ValidationError, with_config
 
 from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
-from fmind_dot.archive.store import NonNegativeInt, is_valid_session_id
+from fmind_dot.archive.store import NonNegativeInt, is_valid_session_id, parse_utc_instant
 from fmind_dot.config import PricingConfig, default_pricing
 from fmind_dot.reporting import write_report_line
 
@@ -37,14 +37,10 @@ _USAGE_INTEGER_FIELDS = (
 
 
 def _parse_usage_timestamp(value: str) -> datetime:
-    try:
-        parsed = datetime.fromisoformat(value)
-        if parsed.tzinfo is None:
-            # Keep the existing filter convention for ISO timestamps without an offset.
-            parsed = parsed.replace(tzinfo=UTC)
-        return parsed.astimezone(UTC)
-    except (TypeError, ValueError, OverflowError, OSError) as error:
-        raise ValueError("usage record field 'timestamp' must be a valid ISO 8601 timestamp") from error
+    parsed = parse_utc_instant(value)
+    if parsed is None:
+        raise ValueError("usage record field 'timestamp' must be a valid ISO 8601 timestamp")
+    return parsed
 
 
 def _sample_timestamp(value: str) -> str:
@@ -266,9 +262,6 @@ class UsageStats:
     api_equivalent_usd: float = 0.0
     priced_sessions: int = 0
     unpriced_reasons: dict[str, int] = field(default_factory=dict)
-    pricing_as_of: str = ""
-    pricing_basis: str = ""
-    pricing_sources: list[str] = field(default_factory=list)
     first_timestamp: str = ""
     last_timestamp: str = ""
     period_start: str = ""
@@ -366,10 +359,6 @@ def _may_overlap(manifest: SessionManifest, since: datetime | None, until: datet
     return not ((since is not None and last < since) or (until is not None and first > until))
 
 
-def load_usage_records() -> list[UsageRecord]:
-    return list(iter_usage_records())
-
-
 def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: bool = False) -> datetime:
     value = value.strip()
     now = now or datetime.now(UTC)
@@ -452,7 +441,6 @@ def aggregate_usage(
                 key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=group)
             )
             row.period_start, row.period_end = period_start, period_end
-            row.pricing_as_of, row.pricing_basis, row.pricing_sources = rates.as_of, rates.basis, rates.sources
             stamp = timestamp.isoformat()
             row.first_timestamp = min(row.first_timestamp, stamp) if row.first_timestamp else stamp
             row.last_timestamp = max(row.last_timestamp, stamp)
@@ -537,7 +525,9 @@ def list_usage_records(
     return filtered[:limit] if limit > 0 else filtered
 
 
-def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool) -> None:
+def write_usage_stats(
+    output: IO[str], rows: list[UsageStats], *, by_model: bool, pricing: PricingConfig | None = None
+) -> None:
     if not rows:
         output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
         return
@@ -551,8 +541,8 @@ def write_usage_stats(output: IO[str], rows: list[UsageStats], *, by_model: bool
     last = max((row.last_timestamp for row in rows if row.last_timestamp), default="unknown")
     write(f"Coverage: {first[:10]} to {last[:10]} (archived usage only).")
     write("API equivalent is an estimate in USD, separate from recorded cost.")
-    if rows[0].pricing_as_of:
-        write(f"Rate card: {rows[0].pricing_as_of} · {rows[0].pricing_basis}")
+    if pricing is not None and pricing.as_of:
+        write(f"Rate card: {pricing.as_of} · {pricing.basis}")
     periods = any(row.period_start for row in rows)
     total = UsageStats(harness="TOTAL", first_timestamp=first, last_timestamp=last)
 
@@ -628,15 +618,3 @@ def _cost_display(row: UsageStats) -> str:
         return "unknown"
     suffix = " (partial)" if row.cost_known_sessions < row.sessions else ""
     return f"${row.cost_usd:.4f}{suffix}"
-
-
-__all__ = [
-    "UsageRecord",
-    "UsageStats",
-    "aggregate_usage",
-    "iter_usage_records",
-    "list_usage_records",
-    "load_usage_records",
-    "parse_flexible_time",
-    "write_usage_stats",
-]

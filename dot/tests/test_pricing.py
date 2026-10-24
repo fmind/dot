@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 from fmind_dot.archive import store
 from fmind_dot.archive.pricing import api_equivalent
 from fmind_dot.archive.store import SessionLog, ingest_session, session_bundle_path
-from fmind_dot.archive.usage import UsageRecord, aggregate_usage, load_usage_records
+from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records
 from fmind_dot.cli import app
 from fmind_dot.config import default_pricing
 
@@ -119,7 +119,7 @@ def test_parser_seven_explicit_zero_remains_known_without_recapture(
         previous.setattr(store, "SESSION_PARSER_VERSION", "7")
         ingest_session(harness, usage.session_id, [], usage=usage.to_dict())
 
-    [restored] = load_usage_records()
+    [restored] = list(iter_usage_records())
 
     assert not restored.legacy_accounting
     assert api_equivalent(restored, default_pricing()) == (0, "")
@@ -189,9 +189,8 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     human = runner.invoke(app, ["agent", "stats"])
     assert human.exit_code == 0
     assert "API equivalent:" in human.output
+    assert "Rate card:" in human.output
     assert "SECRET PROMPT" not in human.output
-    invalid = runner.invoke(app, ["agent", "stats", "--since", "2026-09-10", "--until", "2026-09-01"])
-    assert invalid.exit_code != 0
 
 
 @pytest.mark.parametrize("price", ["-1", ".inf", ".nan", "true", "'wrong'"])

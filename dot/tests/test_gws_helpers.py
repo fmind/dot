@@ -26,6 +26,7 @@ def run_helper(
         cwd=tmp_path,
         env={**os.environ, "PATH": str(tmp_path)},
         check=False,
+        timeout=30,
     )
 
 

@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -545,7 +546,7 @@ def test_usage_ignores_unknown_session_fields_but_preserves_unknown_cost() -> No
     assert loaded.to_dict()["cost_known"] is False
 
 
-def _claude_measurement(session_id: str, cwd: str, model: str, tokens: int, **context: object) -> UsageRecord:
+def _claude_measurement(session_id: str, cwd: str, model: str, tokens: int, **context: Any) -> UsageRecord:
     return UsageRecord(
         timestamp="2026-09-06T10:00:00Z",
         harness="claude",
@@ -554,7 +555,7 @@ def _claude_measurement(session_id: str, cwd: str, model: str, tokens: int, **co
         model=model,
         measurement_kind="provider-reported",
         input_tokens=tokens,
-        **context,  # ty: ignore[invalid-argument-type]
+        **context,
     ).finalize()
 
 

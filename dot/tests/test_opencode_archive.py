@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from fmind_dot.archive.parsers import enumerate_sessions, parse_opencode_session
+from fmind_dot.archive.parsers import AGENT_ADAPTERS, parse_opencode_session
 from fmind_dot.archive.store import ingest_session, read_session_bundle, session_bundle_path
 from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.config import Config
@@ -48,7 +48,7 @@ def test_opencode_discovery_projection_and_shared_archive(tmp_path, monkeypatch)
     monkeypatch.setenv("HOME", str(tmp_path))
     path = tmp_path / "opencode.db"
     database(path)
-    assert enumerate_sessions(path, "opencode") == [("ses_test", "/work/project", path)]
+    assert AGENT_ADAPTERS["opencode"].enumerate(path) == [("ses_test", "/work/project", path)]
     parsed = parse_opencode_session(path, "ses_test")
     assert [log.content for log in parsed.logs] == ["owner request", "assistant reply"]
     assert parsed.usage is None

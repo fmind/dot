@@ -1,4 +1,4 @@
-"""Observable capture, replacement, retired-store, and usage selection contracts."""
+"""Observable capture, replacement, and usage selection contracts."""
 
 import io
 import json
@@ -21,7 +21,7 @@ from fmind_dot.archive.store import (
     session_bundle_path,
 )
 from fmind_dot.archive.sync import sync_sessions
-from fmind_dot.archive.usage import load_usage_records
+from fmind_dot.archive.usage import iter_usage_records
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
 
@@ -70,7 +70,7 @@ def source_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Sta
 
 
 def _tokens() -> list[tuple[int, int]]:
-    return [(record.input_tokens, record.output_tokens) for record in load_usage_records()]
+    return [(record.input_tokens, record.output_tokens) for record in list(iter_usage_records())]
 
 
 def test_failed_publication_leaves_no_bundle_and_retries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,7 +85,7 @@ def test_failed_publication_leaves_no_bundle_and_retries(tmp_path: Path, monkeyp
             sync_sessions(state, agent="claude")
     assert "synthetic write failure" in _text(state.stderr)
     assert query_session_summaries() == []
-    assert load_usage_records() == []
+    assert list(iter_usage_records()) == []
 
     sync_sessions(state, agent="claude")
     sync_sessions(state, agent="claude")
@@ -336,7 +336,7 @@ def test_new_session_with_failed_usage_archives_its_transcript_and_retries(
 
     assert "archived the transcript without usage" in _text(state.stderr)
     assert read_session_manifest(session_bundle_path("claude", "fixture-id")).usage is None
-    assert load_usage_records() == []
+    assert list(iter_usage_records()) == []
     source.write_text(source.read_text().replace('"input_tokens": -1', '"input_tokens": 10'))
     sync_sessions(state, agent="claude")
     assert _tokens() == [(10, 5)]
@@ -377,7 +377,7 @@ def test_corrupt_bundle_fails_sync_and_usage_without_modification(
     with pytest.raises(DotError, match="1 failure"):
         sync_sessions(state, agent="claude")
     with pytest.raises(ValueError, match="unsupported session format"):
-        load_usage_records()
+        list(iter_usage_records())
     assert path.read_text() == "{}\n"
 
 
@@ -402,7 +402,7 @@ def test_recent_grok_signals_update_an_unchanged_transcript(tmp_path: Path, monk
     sync_sessions(state, agent="grok", since=datetime(2026, 9, 2, tzinfo=UTC))
 
     assert len(query_session_summaries()) == 1
-    assert [record.total_tokens for record in load_usage_records()] == [42]
+    assert [record.total_tokens for record in list(iter_usage_records())] == [42]
 
 
 @pytest.mark.parametrize(
@@ -425,7 +425,7 @@ def test_active_store_rejects_other_formats_without_modification(
     value[field] = version
     path.write_bytes(json.dumps(value).encode() + b"\n" + rest)
     before = path.read_bytes()
-    for operation in (query_session_summaries, load_usage_records):
+    for operation in (query_session_summaries, lambda: list(iter_usage_records())):
         with pytest.raises(ValueError, match=message):
             operation()
     assert path.read_bytes() == before
@@ -585,7 +585,7 @@ def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(t
     manifest = read_session_manifest(bundle)
     assert manifest.usage_parser_version == ""
     assert manifest.source_signature
-    assert [record.input_tokens for record in load_usage_records()] == [110]
+    assert [record.input_tokens for record in list(iter_usage_records())] == [110]
 
 
 def test_quiet_sync_announces_a_parser_upgrade_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
