@@ -81,7 +81,7 @@ def test_terminal_input_and_interrupt(tmp_path: Path, interrupt: str) -> None:
     finally:
         if child_pid_path.exists():
             with suppress(ProcessLookupError):
-                os.killpg(int(child_pid_path.read_text()), signal.SIGKILL)
+                os.kill(int(child_pid_path.read_text()), signal.SIGKILL)
         if not reaped:
             with suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)

@@ -228,6 +228,8 @@ elif tool == "bat":
         record("theme-cache")
     else:
         raise SystemExit(43)
+elif tool == "uv" and "dot_tasks.mise_locks" in args:
+    record("retire " + args[-1].removeprefix(str(home)))
 elif tool == "dot":
     record("dot " + " ".join(args))
     if args != ["completion"]:
@@ -258,7 +260,7 @@ def run_task_bootstrap(
     tool = bin_directory / "fixture-tool"
     tool.write_text(TASK_TOOL.replace("{python}", sys.executable))
     tool.chmod(0o755)
-    for name in ("mise", "chezmoi"):
+    for name in ("mise", "chezmoi", "uv"):
         (bin_directory / name).symlink_to(tool)
     config = tomllib.loads((ROOT / "mise.toml").read_text())
     # Keep task bodies and environment from the repository, but install no real
@@ -332,8 +334,13 @@ def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert events[:5] == ["repository-install", "seed", "global-install", "deploy", "apply"]
-    assert events[5:8] == ["theme-cache", f"dot trust all {home / 'source'}", "dot completion"]
-    assert events[8:] == (["hooks", "vim"] if task == "install" else [])
+    assert events[5:9] == [
+        "theme-cache",
+        f"dot trust all {home / 'source'}",
+        "retire /.config/mise/mise.lock",
+        "dot completion",
+    ]
+    assert events[9:] == (["hooks", "vim"] if task == "install" else [])
     codex = tomllib.loads((home / ".codex/config.toml").read_text())
     assert codex["projects"][str(home / "source")]["trust_level"] == "trusted"
     assert (home / ".cache/bat/fmind-theme.stamp").is_file()

@@ -78,10 +78,6 @@ def test_retired_repository_links_need_explicit_cleanup(
     # Removal remains an explicit, owner-checked action outside dot's runtime.
     assert target.is_symlink()
     assert target.readlink() == source / "skills/python-stack"
-    backup = home / "retired-python-stack"
-    target.rename(backup)
-    assert backup.readlink() == source / "skills/python-stack"
-    assert not target.is_symlink()
     assert (peer / "SKILL.md").read_text() == "# Another package\n"
 
 

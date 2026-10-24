@@ -7,6 +7,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+from dot_tasks import ROOT
 from fmind_dot.errors import DotError
 from fmind_dot.state import State, require_tools
 
@@ -164,7 +165,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--yes", "-y", action="store_true")
     args = parser.parse_args()
-    os.chdir(Path(__file__).resolve().parents[2])
+    os.chdir(ROOT)
     try:
         run_release(State(), yes=args.yes)
     except KeyboardInterrupt:

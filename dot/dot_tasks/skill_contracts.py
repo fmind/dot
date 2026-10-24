@@ -16,6 +16,7 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
+from dot_tasks import ROOT
 from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     DUPLICATE_GUIDANCE,
@@ -376,7 +377,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sync", action="store_true", help="refresh marked guide indexes from guide metadata")
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[2]
+    root = ROOT
     if args.sync:
         discovered, errors = _discover_skills(root)
         if errors:

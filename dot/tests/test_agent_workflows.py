@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import sqlite3
 import sys
 from contextlib import closing
@@ -15,7 +16,7 @@ from typer.testing import CliRunner
 from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
 from fmind_dot.archive import sync as archive_sync_module
-from fmind_dot.archive.parsers import AgentAdapter, ParsedSession
+from fmind_dot.archive.parsers import AgentAdapter, ParsedSession, SessionParser
 from fmind_dot.archive.store import (
     SessionLog,
     read_session_bundle,
@@ -24,7 +25,7 @@ from fmind_dot.archive.store import (
     session_store_root,
 )
 from fmind_dot.archive.sync import sync_sessions
-from fmind_dot.archive.usage import UsageRecord, load_usage_records
+from fmind_dot.archive.usage import UsageRecord, iter_usage_records
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import notification_workspace
@@ -90,13 +91,13 @@ def _write_jsonl(path: Path, *records: object) -> None:
 
 
 def _fixture_adapter(
-    monkeypatch: pytest.MonkeyPatch, state: State, tmp_path: Path, parser: object, session_id: str = "fixture-id"
+    monkeypatch: pytest.MonkeyPatch, state: State, tmp_path: Path, parser: SessionParser, session_id: str = "fixture-id"
 ) -> None:
     adapter = AgentAdapter(
         "fixture",
         "Fixture",
         False,
-        parser,  # ty: ignore[invalid-argument-type]
+        parser,
         lambda _root: [(session_id, "", tmp_path)],
     )
     monkeypatch.setattr(archive_sync_module, "AGENT_ADAPTERS", {"fixture": adapter})
@@ -151,7 +152,7 @@ def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
     assert (second.ingested, second.unchanged, second.retained) == (0, 1, 1)
     # The complete pass records the retained count that `dot agent doctor` reports.
     assert json.loads((session_store_root() / "claude/.sync.json").read_text())["retained"] == 1
-    assert load_usage_records()[0].total_tokens == 42
+    assert next(iter_usage_records()).total_tokens == 42
     assert "claude: 0 ingested, 1 unchanged, 1 retained" in _stderr(state)
     assert "agent-session-sync: done (0 failed)" in _stderr(state)
 
@@ -265,7 +266,7 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
         ("codex-ok", "complete", 0, True),
         ("grok-negative", "complete", 0, True),
     }
-    assert {record.session_id for record in load_usage_records()} == {"d-valid"}
+    assert {record.session_id for record in list(iter_usage_records())} == {"d-valid"}
 
 
 def test_usage_sync_covers_file_database_and_signals_only_sources(
@@ -317,7 +318,7 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
 
     assert sync_sessions(state).ingested == 4
 
-    usage = {record.harness: record for record in load_usage_records()}
+    usage = {record.harness: record for record in list(iter_usage_records())}
     assert set(usage) == {"agy", "claude", "copilot", "grok"}
     assert usage["agy"].turn_count == 1
     assert usage["agy"].model == "unknown"
@@ -386,6 +387,7 @@ def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
     assert read_session_manifest(session_bundle_path("copilot", "copilot-live")).record_count == 2
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
 @pytest.mark.parametrize("agent", ["claude", "codex", "grok", "agy"])
 def test_sync_reports_inaccessible_project_directories(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str

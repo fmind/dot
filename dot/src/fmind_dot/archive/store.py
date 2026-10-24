@@ -252,14 +252,15 @@ def session_bundle_path(agent: str, session_id: str) -> Path:
     return session_store_root() / agent / f"{session_id}{BUNDLE_SUFFIX}"
 
 
-def _usage_instant(value: object) -> datetime | None:
+def parse_utc_instant(value: object) -> datetime | None:
+    """Parse an ISO 8601 timestamp as UTC; one without an offset is UTC. None when invalid."""
     if not isinstance(value, str) or not value:
         return None
     try:
         parsed = datetime.fromisoformat(value)
-    except ValueError:
+        return (parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)).astimezone(UTC)
+    except ValueError, OverflowError, OSError:
         return None
-    return (parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)).astimezone(UTC)
 
 
 def usage_window(usage: dict[str, Any] | None) -> tuple[str, str]:
@@ -270,7 +271,7 @@ def usage_window(usage: dict[str, Any] | None) -> tuple[str, str]:
     values = [sample.get("timestamp") if isinstance(sample, dict) else None for sample in samples or ()] or [
         usage.get("timestamp")
     ]
-    instants = [_usage_instant(value) for value in values]
+    instants = [parse_utc_instant(value) for value in values]
     if not instants or any(instant is None for instant in instants):
         # An unknown instant could fall inside any window, so the session must always be read.
         return "", ""
@@ -418,15 +419,13 @@ def _write_lock(root: Path) -> Generator[None]:
         yield
 
 
-def upgrade_session_bundle(path: Path) -> bool:
-    """Rewrite one schema 3 bundle as schema 4 without changing its content; True when rewritten."""
+def upgrade_session_bundle(path: Path) -> None:
+    """Rewrite one schema 3 bundle as schema 4 without changing its content."""
     root = session_store_root()
     with _write_lock(root):
         manifest, logs = read_session_bundle(path)
-        if manifest.schema_version != 3:
-            return False
-        _write_bundle(root, manifest, logs)
-        return True
+        if manifest.schema_version == 3:
+            _write_bundle(root, manifest, logs)
 
 
 def ingest_session(
@@ -542,7 +541,7 @@ def ingest_session(
         _write_bundle(root, manifest, logs)
         if retain_usage:
             # The bundle just published holds this capture's records; only the usage is archived.
-            current = _holds_current_transcript(manifest, logs, manifest, logs)
+            current = manifest.completeness == "complete"
             return SessionIngestionResult("retained", manifest, current_transcript=current)
         return SessionIngestionResult("ingested", manifest)
 
@@ -554,30 +553,3 @@ def report_ingestion(result: SessionIngestionResult) -> str:
         f"malformed={manifest.malformed_records} skipped={manifest.skipped_records} "
         f"completeness={manifest.completeness}"
     )
-
-
-__all__ = [
-    "SESSION_PARSER_VERSION",
-    "SESSION_SCHEMA_VERSION",
-    "SESSION_STORE_VERSION",
-    "SessionIngestionResult",
-    "SessionLog",
-    "SessionManifest",
-    "SessionSource",
-    "discover_session_bundles",
-    "fingerprint_bytes",
-    "fingerprint_json",
-    "fingerprint_logs",
-    "ingest_session",
-    "is_valid_session_id",
-    "marshal_session_logs",
-    "propagate_models",
-    "read_session_bundle",
-    "read_session_manifest",
-    "report_ingestion",
-    "session_bundle_path",
-    "session_high_water",
-    "session_store_root",
-    "upgrade_session_bundle",
-    "usage_window",
-]

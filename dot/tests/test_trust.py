@@ -217,9 +217,11 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
         "local": "",
     }
     for name, origin in origins.items():
-        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True)
+        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True, timeout=30)
         if origin:
-            subprocess.run(["git", "-C", str(workspace / name), "remote", "add", "origin", origin], check=True)
+            subprocess.run(
+                ["git", "-C", str(workspace / name), "remote", "add", "origin", origin], check=True, timeout=30
+            )
     (workspace / "notes").mkdir()
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
     state.__dict__["_config"] = Config(
@@ -284,10 +286,11 @@ def test_trust_all_writes_each_harness_file_once(tmp_path: Path, monkeypatch: py
     harness_home(tmp_path)
     workspace = tmp_path / "work"
     for name in ("one", "two"):
-        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True)
+        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True, timeout=30)
         subprocess.run(
             ["git", "-C", str(workspace / name), "remote", "add", "origin", f"https://github.com/fmind/{name}"],
             check=True,
+            timeout=30,
         )
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
     state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
@@ -394,19 +397,25 @@ def test_trust_json_without_harness_state_lists_no_changes(tmp_path: Path, monke
     assert (document["harnesses"], document["folders"][0]["changed"]) == ([], [])
 
 
-@pytest.mark.parametrize("relative", [".", "..", "subdir"])
-@pytest.mark.parametrize("git_at", [None, "home", "parent"])
+@pytest.mark.parametrize(
+    ("relative", "git_at"),
+    # Without a repository, a subdirectory of home is an ordinary trustable folder.
+    [
+        (relative, git_at)
+        for relative in (".", "..", "subdir")
+        for git_at in (None, "home", "parent")
+        if (relative, git_at) != ("subdir", None)
+    ],
+)
 def test_trust_refuses_home_and_its_ancestors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str, git_at: str | None
 ) -> None:
     home = tmp_path / "home"
     (home / "subdir").mkdir(parents=True)
     if git_at == "home":
-        subprocess.run(["git", "init", "-q", str(home)], check=True)
+        subprocess.run(["git", "init", "-q", str(home)], check=True, timeout=30)
     elif git_at == "parent":
-        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    if relative == "subdir" and git_at is None:
-        return
+        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, timeout=30)
     harness_home(home)
     monkeypatch.setenv("HOME", str(home))
     before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}

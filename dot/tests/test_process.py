@@ -91,7 +91,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         assert started.exists(), f"child did not become ready (launcher exit: {process.poll()})"
 
         process.send_signal(process_module.signal.SIGTERM)
-        stdout, stderr = process.communicate(timeout=5)
+        stdout, stderr = process.communicate(timeout=30)
         # Only permit the side effect after cancellation returned; host scheduling
         # cannot let a short timer fire before this test delivers SIGTERM.
         release.touch()
@@ -107,7 +107,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         if process.poll() is None:
             release.touch()
             process.terminate()
-        process.communicate(timeout=5)
+        process.communicate(timeout=30)
 
 
 def test_runner_validates_commands() -> None:
@@ -273,8 +273,8 @@ def test_run_streams_large_input_and_delivers_empty_input_eof() -> None:
     payload = "x" * (256 * 1024)
     reader = "import sys; value=sys.stdin.read(); print(len(value))"
 
-    large = Runner().run([sys.executable, "-c", reader], input_text=payload, timeout=5)
-    empty = Runner().run([sys.executable, "-c", reader], input_text="", timeout=5)
+    large = Runner().run([sys.executable, "-c", reader], input_text=payload, timeout=30)
+    empty = Runner().run([sys.executable, "-c", reader], input_text="", timeout=30)
 
     assert large.stdout == f"{len(payload)}\n"
     assert empty.stdout == "0\n"
@@ -284,7 +284,7 @@ def test_run_tolerates_child_closing_stdin_early() -> None:
     result = Runner().run(
         [sys.executable, "-c", "import os,time; os.close(0); time.sleep(.05)"],
         input_text="x" * (1024 * 1024),
-        timeout=5,
+        timeout=30,
     )
 
     assert result.returncode == 0

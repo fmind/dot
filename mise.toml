@@ -2,7 +2,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Keep equal to install.sh and the workflow pins (test_bootstrap enforces it).
-min_version = "2026.10.15"
+min_version = "2026.10.18"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
@@ -90,8 +90,13 @@ description = "Run the checks that download vulnerability data (pre-push)"
 depends = ["check:scan", "check:vuln"]
 
 [tasks."check:actions"]
-description = "Validate GitHub Actions workflows and Dependabot config"
-run = ["actionlint", "zizmor --offline --strict-collection .github/"]
+description = "Validate GitHub Actions workflows, shipped workflow templates, and Dependabot config"
+# Skill templates scaffold other repositories' workflows; both linters skip them unless named.
+env = { WORKFLOW_TEMPLATES = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml" }
+run = [
+  "actionlint .github/workflows/*.yml $WORKFLOW_TEMPLATES",
+  "zizmor --offline --strict-collection .github/ $WORKFLOW_TEMPLATES",
+]
 
 [tasks."check:actions:online"]
 description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
@@ -318,7 +323,7 @@ description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
 [tasks.full]
-description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, and regenerate completions"
+description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, retire stale lock graphs, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
   'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise --locked install -y',
@@ -328,6 +333,9 @@ run = [
   "mise run deploy",
   # Hooks now see the current dot and global tools on the very first bootstrap.
   "mise run apply",
+  # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs
+  # on every machine that syncs, not only on the one that upgraded.
+  'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "mise run completions",
 ]
 
@@ -343,8 +351,6 @@ run = [
   "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
   # Publish the complete bundle before installation; rerun full after a failed install.
   "mise run full",
-  # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs.
-  'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "dprint config update --yes",
   "nvim --headless '+Lazy! update' +qa",
   "mise run vim",

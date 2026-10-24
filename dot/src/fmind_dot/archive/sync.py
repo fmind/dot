@@ -253,8 +253,9 @@ def sync_sessions(
 ) -> SyncOutcome:
     """Capture changed sessions; quiet mode reports only failures and never raises for them.
 
-    Progress names each retained session, which needs attention, but only verbose mode lists
-    every ingested one: a parser bump recaptures thousands, which would flood an agent's context.
+    Progress prints one line per retained session, which needs attention, but only verbose mode
+    adds one per ingested session: a parser bump recaptures thousands, which would flood an agent's
+    context. Lines carry the agent and counts, never session identities.
     """
     if agent and agent not in AGENT_ADAPTERS:
         raise DotError(f"unknown session agent {agent!r}")

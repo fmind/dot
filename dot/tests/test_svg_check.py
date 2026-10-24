@@ -59,6 +59,11 @@ def test_guide_violations_are_reported(svg: ModuleType, tmp_path: Path, old: str
     assert any(expected in problem for problem in problems), problems
 
 
+@pytest.mark.parametrize("size", ["0.8em", "1.5rem", "120%", "10pt"])
+def test_relative_font_sizes_are_not_read_as_pixels(svg: ModuleType, tmp_path: Path, size: str) -> None:
+    assert svg.check(variant(tmp_path, "font-size: 12px;", f"font-size: {size};"), 960) == []
+
+
 @pytest.mark.parametrize(
     "viewbox",
     ["0 0 960 NaN", "0 0 960 inf", "0 0 960 0", "0 0 960 -1", "inf 0 960 420", "text 0 960 420"],

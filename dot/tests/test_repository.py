@@ -6,8 +6,10 @@ import os
 import shutil
 from collections.abc import Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from itertools import chain, repeat
 from pathlib import Path
 from threading import Barrier, Lock, Thread
+from typing import Any
 
 import pytest
 
@@ -345,7 +347,7 @@ def test_pull_timeout_during_upstream_probe_is_a_failure(monkeypatch: pytest.Mon
         },
         {"git"},
     )
-    clock = iter([0.0, 0.0, 0.0, 121.0])
+    clock = chain([0.0] * 3, repeat(121.0))
     monkeypatch.setattr("fmind_dot.repository.monotonic", lambda: next(clock))
     config = Config(pull=PullConfig(directories=[str(workspace)]))
     state = make_state(runner, config)
@@ -727,9 +729,9 @@ def test_pull_never_waits_on_credential_prompts(tmp_path: Path) -> None:
     environments: dict[tuple[str, ...], object] = {}
 
     class EnvironmentRunner(RecordingRunner):
-        def run(self, args: Sequence[str], *, env: object = None, **options: object) -> CommandResult:
+        def run(self, args: Sequence[str], *, env: object = None, **options: Any) -> CommandResult:
             environments[tuple(args)] = env
-            return super().run(args, **options)  # ty: ignore[invalid-argument-type]
+            return super().run(args, **options)
 
     runner = EnvironmentRunner(
         {

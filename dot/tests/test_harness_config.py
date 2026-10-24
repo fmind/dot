@@ -677,7 +677,7 @@ sessions = false
                 Path(path).mkdir(parents=True)
                 # Observe the working directory reached by the native shell binding.
                 command = binding.replace("{{.RepoPath}}", path).replace("&& lazygit", "&& pwd")
-                result = subprocess.run(["sh", "-c", command], capture_output=True, text=True, check=True)
+                result = subprocess.run(["sh", "-c", command], capture_output=True, text=True, check=True, timeout=30)
                 assert result.stdout.strip() == path
 
     def test_marimo_vim_merge_preserves_host_settings_and_is_repeatable(self):

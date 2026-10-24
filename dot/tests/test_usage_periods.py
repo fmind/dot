@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from fmind_dot.archive.parsers import parse_claude_session, parse_codex_session
 from fmind_dot.archive.store import ingest_session
-from fmind_dot.archive.usage import UsageRecord, aggregate_usage, load_usage_records, write_usage_stats
+from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records, write_usage_stats
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 
@@ -246,17 +246,17 @@ def test_usage_query_rejects_invalid_usage_and_mismatched_identity(
 
     monkeypatch.setenv("HOME", str(tmp_path))
     ingest_session("codex", "one", [], usage=request("2026-09-01T00:00:00Z").to_dict())
-    assert len(load_usage_records()) == 1
+    assert len(list(iter_usage_records())) == 1
     path = store.session_bundle_path("codex", "one")
     # Schema 4 publishes usage on the line after the manifest.
     header, usage_line = path.read_text().splitlines()[:2]
     usage = json.loads(usage_line)
     path.write_text(f"{header}\n{json.dumps(usage | {'input_tokens': -1})}\n")
     with pytest.raises(ValueError, match="non-negative integer"):
-        load_usage_records()
+        list(iter_usage_records())
     path.write_text(f"{header}\n{json.dumps(usage | {'session_id': 'two'})}\n")
     with pytest.raises(ValueError, match="does not match its session"):
-        load_usage_records()
+        list(iter_usage_records())
 
 
 @pytest.mark.parametrize(("parser", "legacy"), [("9", False), ("3", True)], ids=["older", "legacy"])
@@ -271,10 +271,10 @@ def test_recapture_replaces_older_parser_accounting(
     with monkeypatch.context() as previous:
         previous.setattr(store, "SESSION_PARSER_VERSION", parser)
         ingest_session("codex", "one", [], source, usage=original.to_dict())
-    assert load_usage_records()[0].legacy_accounting is legacy
+    assert next(iter_usage_records()).legacy_accounting is legacy
     corrected = session(request("2026-09-01T00:00:00Z", tokens=100))
     ingest_session("codex", "one", [], source, usage=corrected.to_dict())
-    records = load_usage_records()
+    records = list(iter_usage_records())
     assert len(records) == 1
     assert records[0].total_tokens == 100
     assert not records[0].legacy_accounting

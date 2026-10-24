@@ -12,12 +12,14 @@ SCRIPT = Path(__file__).resolve().parents[2] / "skills/clipboard/scripts/copy.py
 
 
 @pytest.fixture
-def clipboard() -> ModuleType:
+def clipboard(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     spec = importlib.util.spec_from_file_location("clipboard_copy", SCRIPT)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # Fake tools are Python scripts; a loaded host can exceed the 5 s production timeout.
+    monkeypatch.setattr(module, "TIMEOUT", 60)
     return module
 
 

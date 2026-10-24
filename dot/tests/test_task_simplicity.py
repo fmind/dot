@@ -50,6 +50,22 @@ def run(root: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProc
 
 
 @pytest.mark.parametrize("starter", STARTERS)
+def test_starter_task_graph_validates(tmp_path: Path, starter: str) -> None:
+    # The whole template, not a task subset: mise checks every task, dependency, and setting.
+    shutil.copy2(ROOT / STARTERS[starter], tmp_path / "mise.toml")
+    mise = shutil.which("mise")
+    assert mise is not None
+    env = {
+        "PATH": os.pathsep.join([str(Path(mise).parent), os.defpath]),
+        "HOME": str(tmp_path),
+        "MISE_CONFIG_DIR": str(tmp_path / "config"),
+        "MISE_TRUSTED_CONFIG_PATHS": str(tmp_path),
+    }
+    result = run(tmp_path, env, "mise", "tasks", "validate")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("starter", STARTERS)
 def test_secret_scan_covers_untracked_files(tmp_path: Path, starter: str) -> None:
     env = materialize(tmp_path, starter)
     env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})

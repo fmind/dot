@@ -11,7 +11,6 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-EXACT_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def _workflow_steps() -> list[dict[str, object]]:
@@ -45,9 +44,8 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     assert "tool_versions" not in setup_inputs
 
     deployment = (ROOT / "skills/cloud-run/references/deployment.md").read_text(encoding="utf-8")
-    pins = dict(re.findall(r'^\s*(cosign|trivy) = "([^"]+)"$', deployment, flags=re.MULTILINE))
-    assert set(pins) == {"cosign", "trivy"}
-    assert all(EXACT_VERSION.fullmatch(version) for version in pins.values())
+    # --pin writes exact versions, so the project's mise.toml stays the one source of truth.
+    assert deployment.index("mise use --pin cosign trivy") < deployment.index("mise install --locked cosign trivy")
     assert deployment.index("mise install --locked cosign trivy") < deployment.index("--push")
 
 
@@ -141,11 +139,11 @@ def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path
             "IMAGE_REPOSITORY": "europe-docker.pkg.dev/project/app/image",
             "RUNNER_TEMP": str(case),
         }
-        validated = subprocess.run([*shell, str(inputs["run"])], env=env, check=False)
+        validated = subprocess.run([*shell, str(inputs["run"])], env=env, check=False, timeout=30)
         # GitHub's default success condition prevents later steps after a failed action.
         code = validated.returncode or build_exit
         if code == 0:
-            code = subprocess.run([*shell, str(image["run"])], env=env, check=False).returncode
+            code = subprocess.run([*shell, str(image["run"])], env=env, check=False, timeout=30).returncode
         assert (code == 0) is expected_success, name
         assert output.read_text() == (
             f"ref=europe-docker.pkg.dev/project/app/image@{digest}\n" if expected_success else ""

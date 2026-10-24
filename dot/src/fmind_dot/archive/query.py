@@ -172,13 +172,3 @@ def show_session(query: SessionQuery, *, include_content: bool = False) -> Sessi
         agents = ", ".join(sorted(summary.agent for summary in summaries))
         raise ValueError(f"session identity is ambiguous across agents {agents}; add --agent")
     return summaries[0]
-
-
-__all__ = [
-    "SESSION_STATUSES",
-    "SessionQuery",
-    "SessionSummary",
-    "discover_sessions",
-    "query_session_summaries",
-    "show_session",
-]

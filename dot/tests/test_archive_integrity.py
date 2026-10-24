@@ -16,7 +16,7 @@ from fmind_dot.archive import parsers, store
 from fmind_dot.archive import sync as archive_sync
 from fmind_dot.archive.store import read_session_bundle, session_bundle_path
 from fmind_dot.archive.sync import sync_sessions
-from fmind_dot.archive.usage import UsageRecord, aggregate_usage, load_usage_records
+from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
@@ -80,7 +80,7 @@ def test_malformed_usage_line_never_publishes_partial_measurement(
         assert len(records) == 1
         if existing:
             assert bundle.read_bytes() == before
-            assert load_usage_records()[0].total_tokens == 130
+            assert next(iter_usage_records()).total_tokens == 130
         else:
             assert manifest.usage is None
             assert manifest.source_signature == ""
@@ -191,11 +191,11 @@ def test_concurrent_equal_count_capture_never_replaces_newer_usage(
             assert ready.wait(30)
             _write(source, [_claude(30)])
             assert sync_sessions(state, agent="claude").ingested == 1
-            assert load_usage_records()[0].input_tokens == 30
+            assert next(iter_usage_records()).input_tokens == 30
         finally:
             release.set()
         assert older.result(timeout=30).retained == 1
-    assert load_usage_records()[0].input_tokens == 30
+    assert next(iter_usage_records()).input_tokens == 30
 
 
 def test_source_changed_during_parse_is_not_published(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -215,7 +215,7 @@ def test_source_changed_during_parse_is_not_published(tmp_path: Path, monkeypatc
             sync_sessions(state, agent="claude")
     assert not session_bundle_path("claude", "session").exists()
     assert sync_sessions(state, agent="claude").ingested == 1
-    assert load_usage_records()[0].input_tokens == 20
+    assert next(iter_usage_records()).input_tokens == 20
 
 
 def test_source_written_once_during_parse_is_captured_on_retry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -237,7 +237,7 @@ def test_source_written_once_during_parse_is_captured_on_retry(tmp_path: Path, m
         changed.setitem(parsers.AGENT_ADAPTERS, "claude", replace(adapter, parser=appending_once))
         assert sync_sessions(state, agent="claude").ingested == 1
     assert calls == 2
-    assert load_usage_records()[0].input_tokens == 20
+    assert next(iter_usage_records()).input_tokens == 20
     # The retry recorded the stable source's signature, so the next pass skips it.
     assert sync_sessions(state, agent="claude").unchanged == 1
 
@@ -279,7 +279,7 @@ def test_parser_upgrade_retains_an_older_parser_measurement(
     manifest = store.read_session_manifest(bundle)
     assert (manifest.parser_version, manifest.usage_parser_version) == (store.SESSION_PARSER_VERSION, "9")
     assert manifest.usage == json.loads(before.split(b"\n")[1])
-    [record] = load_usage_records()
+    [record] = list(iter_usage_records())
     assert (record.input_tokens, record.legacy_accounting) == (100, False)
     republished = bundle.read_bytes()
     assert sync_sessions(state, agent="claude").retained == 1
@@ -364,7 +364,7 @@ def test_recapture_preserves_known_cost_until_source_reports_it_again(
 
     _write(source, [_claude(150), {"type": "cost-state", "totalCostUSD": cost + 0.25}])
     assert sync_sessions(state, agent="claude").ingested == 1
-    record = load_usage_records()[0]
+    record = next(iter_usage_records())
     assert record.input_tokens == 150
     assert record.cost_known
     assert record.cost_usd == cost + 0.25
@@ -415,7 +415,7 @@ def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
         # The current parser republishes the transcript; the retained usage keeps parser 7 accounting.
         assert outcome.retained == 1
         assert store.read_session_manifest(bundle).usage_parser_version == "7"
-        assert load_usage_records()[0].legacy_accounting
+        assert next(iter_usage_records()).legacy_accounting
         republished = bundle.read_bytes()
         assert republished != before
         outcome = sync_sessions(state, agent="grok")
@@ -423,7 +423,7 @@ def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
         assert bundle.read_bytes() == republished
     else:
         assert sync_sessions(state, agent="grok").ingested == 1
-        record = load_usage_records()[0]
+        record = next(iter_usage_records())
         assert record.cost_known
         assert record.cost_usd == pytest.approx(0.0005)
         assert record.input_tokens == 10

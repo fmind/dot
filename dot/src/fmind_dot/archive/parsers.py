@@ -1292,34 +1292,3 @@ AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session, _enumerate_copilot, "Copilot"),
     "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session, _enumerate_opencode, "OpenCode"),
 }
-
-
-def enumerate_sessions(root: Path, agent: str) -> list[SessionCandidate]:
-    """Return session id, CWD, and source path for one verified adapter."""
-    adapter = AGENT_ADAPTERS.get(agent)
-    if adapter is None:
-        raise ValueError(f"agent {agent!r} has no verified session parser")
-    return adapter.enumerate(root)
-
-
-__all__ = [
-    "AGENT_ADAPTERS",
-    "AGY_SUMMARIES_NAME",
-    "AGY_TRANSCRIPT_NAMES",
-    "GROK_SIGNALS_NAME",
-    "GROK_TRANSCRIPT_NAME",
-    "AgentAdapter",
-    "ParsedSession",
-    "agy_workspaces",
-    "claude_session_id",
-    "codex_session_id",
-    "enumerate_sessions",
-    "grok_cwd_from_path",
-    "parse_agy_session",
-    "parse_claude_session",
-    "parse_codex_session",
-    "parse_copilot_session",
-    "parse_grok_session",
-    "parse_opencode_session",
-    "resolve_cwd",
-]
