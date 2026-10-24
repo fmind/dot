@@ -9,7 +9,13 @@ from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fmind_dot.archive.parsers import AGENT_ADAPTERS, AgentAdapter, ParsedSession, resolve_cwd
+from fmind_dot.archive.parsers import (
+    AGENT_ADAPTERS,
+    AgentAdapter,
+    ParsedSession,
+    claude_parent_session_id,
+    resolve_cwd,
+)
 from fmind_dot.archive.store import (
     BUNDLE_SUFFIX,
     SESSION_PARSER_VERSION,
@@ -309,7 +315,18 @@ def sync_sessions(
             continue
         counts = SyncOutcome()
         announced = not quiet
+        claimed_parents = {
+            sid: manifest.parent_session_id for sid, manifest in stored.items() if manifest.parent_session_id
+        }
         for session_id, source_cwd, path in candidates:
+            if adapter.name == "claude" and (parent_id := claude_parent_session_id(path)):
+                # Resuming a subagent in a forked parent writes `<new-parent>/subagents/agent-<id>.jsonl`;
+                # keep the first owner's stem and qualify later parents so neither overwrites the other.
+                owner = claimed_parents.get(session_id)
+                if owner and owner != parent_id:
+                    session_id = f"{session_id}-{parent_id}"
+                else:
+                    claimed_parents[session_id] = parent_id
             if session and session_id != session:
                 continue
             try:

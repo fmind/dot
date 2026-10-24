@@ -835,3 +835,29 @@ def test_subagent_transcripts_count_once_with_their_parent_session(
     assert sorted(sessions) == ["agent-a1", "parent-id"]
     assert (sessions["agent-a1"]["sidechain"], sessions["agent-a1"]["parent_session_id"]) == (True, "parent-id")
     assert "sidechain" not in sessions["parent-id"]
+
+    # A resumed/forked parent session writing the same subagent basename (even sorting earlier)
+    # gets a parent-qualified archive id instead of colliding with the first owner's bundle.
+    _write_jsonl(
+        project / "00-resumed-id.jsonl",
+        {"type": "user", "timestamp": "2026-09-06T10:02:00Z", "cwd": "/work/project", "message": {"content": "next"}},
+        answer(500, "claude-opus-5-5"),
+        {"type": "cost-state", "totalCostUSD": 0.25, "hasUnknownModelCost": False},
+    )
+    resumed_delegated = {"isSidechain": True, "sessionId": "00-resumed-id", "agentId": "a1"}
+    _write_jsonl(
+        project / "00-resumed-id/subagents/agent-a1.jsonl",
+        resumed_delegated | answer(50, "claude-haiku-4-5"),
+    )
+
+    outcome = sync_sessions(state, agent="claude")
+    assert (outcome.ingested, outcome.unchanged, outcome.retained) == (2, 2, 0)
+    repeat = sync_sessions(state, agent="claude")
+    assert (repeat.ingested, repeat.unchanged, repeat.retained) == (0, 4, 0)
+    listed = CliRunner().invoke(app, ["agent", "session", "list", "--json"])
+    sessions = {item["session_id"]: item for item in json.loads(listed.stdout)["sessions"]}
+    assert sorted(sessions) == ["00-resumed-id", "agent-a1", "agent-a1-00-resumed-id", "parent-id"]
+    assert (
+        sessions["agent-a1-00-resumed-id"]["sidechain"],
+        sessions["agent-a1-00-resumed-id"]["parent_session_id"],
+    ) == (True, "00-resumed-id")
