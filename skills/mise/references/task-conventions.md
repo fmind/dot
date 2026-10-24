@@ -36,7 +36,7 @@ Prefer native output controls for frequently run tasks. Under `[settings.task]`,
 
 Keep test counts, coverage totals and thresholds, warnings, and actionable findings visible. For pytest-cov with a positive `fail_under`, `--cov-report=` hides the per-file table while retaining the total and enforcing the threshold. Expose `report:coverage` to read the saved coverage data without rerunning tests; run tests again if those data are stale. For Gitleaks, `--no-banner` removes decoration; retain `--verbose --redact=100` for finding locations and redacted evidence.
 
-Validate success and intentional failure cases before adopting quieter defaults, including coverage below its threshold and scanner findings. Compare output with the same tokenizer and record exit codes and diagnostic completeness; output-token reductions alone do not prove billing savings. Extend to other repositories after measuring the first adoption.
+Validate success and intentional failure cases before adopting quieter defaults, including coverage below its threshold and scanner findings. Compare output with the same tokenizer and record exit codes and diagnostic completeness; output-token reductions alone do not prove billing savings.
 
 ## Tool Management
 

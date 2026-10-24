@@ -23,7 +23,7 @@ Build Gradio apps around Python functions and explicit component events. Use [ni
 
 ## Official Skills
 
-Hugging Face publishes [huggingface-gradio](https://github.com/huggingface/skills/tree/main/skills/huggingface-gradio), including app patterns, components, events, custom HTML, and examples. Discover it with `skills add huggingface/skills --list`; follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to review an immutable snapshot and install only `huggingface-gradio` at project scope. This catalog entry does not vendor or automatically install that package.
+Hugging Face publishes [huggingface-gradio](https://github.com/huggingface/skills/tree/main/skills/huggingface-gradio), including app patterns, components, events, custom HTML, and examples. Discover it with `DISABLE_TELEMETRY=1 skills add huggingface/skills --list`; follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to review an immutable snapshot and install only `huggingface-gradio` at project scope. This catalog entry does not vendor or automatically install that package.
 
 ## Documentation
 

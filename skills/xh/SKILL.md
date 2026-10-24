@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-10-07"
+  updated: "2026-10-24"
 ---
 
 # xh HTTP Inspection
@@ -34,7 +34,7 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
 
 ## Gotchas
 
-- **Supervise hard deadlines externally**: `--timeout` covers an individual request, including response-body reads in xh 0.26.2, despite its help calling it a connection timeout. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing.
+- **Supervise hard deadlines externally**: `--timeout` covers an individual request, including response-body reads in xh 0.26.3, despite its help calling it a connection timeout. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing.
 - **Range does not limit transfer**: a Range request is not a guaranteed transfer limit; the byte cap bounds only displayed output.
 - **Inspect redirects before following**: `--follow` can forward a request to another origin; inspect `Location` first and never follow an untrusted redirect with credentials.
 - **Never disable TLS verification**: `--verify=no` disables TLS verification and is not an acceptable workaround.
@@ -46,6 +46,6 @@ xh has no upstream skill bundle. Use the installed CLI and verify flags with `xh
 
 ## Documentation
 
-- [xh](https://github.com/ducaale/xh) · [command reference](https://github.com/ducaale/xh#usage) · [request timeout implementation](https://github.com/ducaale/xh/blob/v0.26.2/src/main.rs)
+- [xh](https://github.com/ducaale/xh) · [command reference](https://github.com/ducaale/xh#usage) · [request timeout implementation](https://github.com/ducaale/xh/blob/v0.26.3/src/main.rs)
 - Releases: [xh](https://github.com/ducaale/xh/releases) · [changelog](https://github.com/ducaale/xh/blob/master/CHANGELOG.md)
 - Companion skills: [research-brief](../implementation-plan/references/research-brief.md), [systematic-debugging](../systematic-debugging/SKILL.md), [gws](../gws/SKILL.md) (authenticated Google Workspace operations).

@@ -7,19 +7,19 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-10-07"
+  updated: "2026-10-24"
 ---
 
 # Chrome DevTools
 
-Use Chrome DevTools MCP or its experimental CLI for live browser diagnostics. [playwright](../playwright/SKILL.md) owns repeatable end-to-end journeys; [web-frontend](../web-frontend/SKILL.md) owns platform implementation guidance.
+Use Chrome DevTools MCP or its CLI for live browser diagnostics. [playwright](../playwright/SKILL.md) owns repeatable end-to-end journeys; [web-frontend](../web-frontend/SKILL.md) owns platform implementation guidance.
 
 ## Setup
 
 Require Node.js LTS, `npm`/`npx`, and supported Chrome. Reuse an available DevTools connection; otherwise follow [mcp-setup](../mcp-setup/SKILL.md) for the active harness. The launch command below uses a reviewed package pin; recheck installed help before updating it.
 
 ```bash
-npx --yes chrome-devtools-mcp@1.10.1 --isolated --headless --no-usage-statistics --no-performance-crux
+npx --yes chrome-devtools-mcp@1.12.0 --isolated --headless --no-usage-statistics --no-performance-crux
 ```
 
 The MCP client starts that process over stdio. Use a dedicated browser profile. Keep remote debugging on loopback; browser content, network bodies, cookies, screenshots, and traces may expose private data. The two opt-out flags disable MCP usage statistics and CrUX URL lookups respectively.
@@ -47,7 +47,7 @@ The MCP client starts that process over stdio. Use a dedicated browser profile. 
 
 ## Official Skills
 
-Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills). Use `skills add ChromeDevTools/chrome-devtools-mcp --list`, then follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) for the required guidance. Select task-specific entries such as `a11y-debugging` or `memory-leak-debugging`; preview the same-name `chrome-devtools` entry (also in `github/awesome-copilot`) instead of installing it ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
+Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills). Use `DISABLE_TELEMETRY=1 skills add ChromeDevTools/chrome-devtools-mcp --list`, then follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) for the required guidance. Select task-specific entries such as `a11y-debugging` or `memory-leak-debugging`; preview the same-name `chrome-devtools` entry (also in `github/awesome-copilot`) instead of installing it ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 

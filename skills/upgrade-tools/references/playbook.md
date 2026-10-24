@@ -58,4 +58,4 @@ Validate with `dprint check`. See [dprint](../../dprint/SKILL.md).
 
 ## Agent skills
 
-`skills update -p -y` where project-scoped external skills are installed; skip it in repositories that only author first-party skills.
+Refresh project-scoped external skills only per the [vendor-skill policy](../../agent-project/references/vendor-skills.md) (`DISABLE_TELEMETRY=1 skills update -p -y` in a clean candidate, then re-review); skip repositories that only author first-party skills.

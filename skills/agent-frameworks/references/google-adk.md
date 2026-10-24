@@ -26,7 +26,7 @@ Implement Python ADK behavior within the existing project; [agents-cli](agents-c
 
 ## Official Skills
 
-For agents-cli projects, use the ADK implementation selection from `google/agents-cli` through [agents-cli](agents-cli/GUIDE.md). For standalone ADK code, [google/adk-python application skills](https://github.com/google/adk-python/tree/main/.agents/skills) also publishes `adk-agent-builder`, its one application-building skill, alongside contributor and sample skills. Discover with `skills add google/adk-python --list`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md), select `adk-agent-builder` and its required references, and verify its version assumptions against the locked ADK dependency.
+For agents-cli projects, use the ADK implementation selection from `google/agents-cli` through [agents-cli](agents-cli/GUIDE.md). For standalone ADK code, [google/adk-python application skills](https://github.com/google/adk-python/tree/main/.agents/skills) also publishes `adk-agent-builder`, its one application-building skill, alongside contributor and sample skills. Discover with `DISABLE_TELEMETRY=1 skills add google/adk-python --list`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md), select `adk-agent-builder` and its required references, and verify its version assumptions against the locked ADK dependency.
 
 ## Documentation
 

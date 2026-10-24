@@ -92,6 +92,6 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 
 ## Documentation
 
-- [Dependabot](https://docs.github.com/en/code-security/dependabot) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Configuring security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configuring-dependabot-security-updates)
+- [Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Configuring security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates)
 - Releases: [Dependabot changelog](https://github.blog/changelog/label/dependabot/)
 - Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (deliberate upgrades), [zizmor](zizmor.md) (offline validation), [settings baseline](../../github-repository/references/settings-baseline.md) (repository switches).

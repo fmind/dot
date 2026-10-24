@@ -33,7 +33,7 @@ Use `opencode mcp add --help` for the installed setup interface and [mcp-setup](
 ## Gotchas
 
 - **Classify provider errors before rotating keys**: distinguish a missing or invalid native login or project credential override, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
-- **Sharing is publication**: `--share` can expose session contents; require explicit sharing authority.
+- **Sharing is publication**: `/share` or changing the managed `"share": "disabled"` publishes session contents; require explicit sharing authority.
 
 ## Official Skills
 

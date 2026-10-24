@@ -36,12 +36,14 @@ Install the host prerequisites first; the rest installs in user space:
 ```bash
 # Debian / Ubuntu
 sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin
+# ChromeOS Linux with GPU acceleration on: let Ghostty open the GPU, then shut down Linux and restart it
+sudo usermod -aG render "$USER"
 
 # macOS
 xcode-select --install
 ```
 
-The installer requires mise 2026.10.15 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
+The installer requires mise 2026.10.18 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional.
 
 ## Installation
 
@@ -87,7 +89,9 @@ The [Dot CLI guide](skills/dot-cli/SKILL.md) covers commands, diagnostics, and r
 
 Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repositories needing attention (with fetch), `hp` → pull, `ho` → orphans, `hc` → caches, and `ha` → agent statistics.
 
-In Neovim, `<leader>gm` toggles the current buffer's Git comparison between the index and the default branch's merge-base; other buffers keep their own comparison. Tab accepts completions and Enter always inserts a newline; in Markdown, text, commit-message, and unnamed buffers, Enter continues or splits list items, and on an empty item it outdents or ends the list. Clipboard selection uses macOS's native provider, or xclip when Linux has an X display; Wayland-only sessions use Neovim's native detection.
+In Neovim, `<leader>gm` toggles the current buffer's Git comparison between the index and the default branch's merge-base; other buffers keep their own comparison. Tab accepts completions and Enter always inserts a newline; in Markdown, text, commit-message, and unnamed buffers, Enter continues or splits list items, and on an empty item it outdents or ends the list. Clipboard selection uses macOS's native provider, or xclip when Linux has an X display; Wayland-only sessions use Neovim's native detection. mise config files get diagnostics, completion, and hover from `mise lsp`.
+
+Zellij tiles new panes (`Alt n`) as equal columns, up to four, to suit wide screens such as 21:9 or 32:9 glasses; a fifth pane, or `Ctrl b`, `Space`, switches to a half-stacked arrangement for narrow screens. `Alt z` opens a tab with one 140-column pane centred between blank margins; `Ctrl p`, `f` toggles that pane to full width, and exiting or closing it closes the whole tab; narrower terminals get an empty tab instead (`Ctrl t`, `x` closes it). Restored sessions keep their saved layouts. On ChromeOS, `Alt [` and `Alt ]` snap windows to the left or right half and never reach Zellij; on a 32:9 screen, each half is about one 16:9 display.
 
 ### Dot configuration
 
@@ -105,14 +109,14 @@ Session capture preserves longer archived transcripts and recorded usage. An unr
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command            | Purpose                                                                                       |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| `mise run diff`    | Preview dotfile changes                                                                       |
-| `mise run apply`   | Apply files and eligible hooks                                                                |
-| `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                                           |
-| `mise run full`    | Synchronize files, locked tools, CLI, and completions                                         |
-| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins; apply, reinstall, and retire old lock graphs |
-| `mise run all`     | Format, check, test, and build the repository                                                 |
+| Command            | Purpose                                                                       |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `mise run diff`    | Preview dotfile changes                                                       |
+| `mise run apply`   | Apply files and eligible hooks                                                |
+| `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                           |
+| `mise run full`    | Synchronize files, locked tools, CLI, and completions; retire old lock graphs |
+| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins, then run `full`              |
+| `mise run all`     | Format, check, test, and build the repository                                 |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 

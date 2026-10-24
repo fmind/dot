@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-10-20"
+  updated: "2026-10-24"
 ---
 
 # Set Up Agents on a Project
@@ -19,7 +19,7 @@ Author the shared project instruction and skill layer once, then add only requir
 1. **Inspect first**: preserve existing AGENTS.md, host files, skills, and user settings; reuse a stack-specific instruction file when one exists.
 1. **Create the shared layer and bridges**: follow [host-setup.md](references/host-setup.md) to start `AGENTS.md` from the [project template](templates/AGENTS.md), add `.agents/skills/` and the ignored `.agents/prompts/` inbox for [task-prompts](../task-prompts/SKILL.md), then add Claude links, optional configuration, and native custom-agent locations only for installed hosts.
 1. **Verify discovery**: read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs; distinguish presence from demonstrated instruction following.
-1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary. Select packages from the [dated official skill source audit](references/official-skills.md), which records inspected sources and gaps; recheck the selected source before installation.
+1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary. Select packages from each tool guide's Official Skills section; [official skill sources](references/official-skills.md) records known gaps and installation boundaries. Recheck the selected source before installation.
 1. **Keep current**: route repository changes through [repository-docs](../repository-docs/SKILL.md), including project-local skill references.
 
 ## Task guides

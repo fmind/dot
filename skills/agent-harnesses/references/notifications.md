@@ -1,6 +1,6 @@
 ---
 name: notifications
-description: "Diagnose or change managed turn notifications and their hooks per host."
+description: "Diagnose or change managed turn notifications, brain session-context hooks, and their wiring per host."
 ---
 
 # Turn Notifications

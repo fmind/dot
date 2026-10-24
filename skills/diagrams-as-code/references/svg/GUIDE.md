@@ -22,7 +22,7 @@ User-facing documentation explains ideas with hand-authored SVG illustrations: s
    </a>
    ```
 
-1. **Check and inspect**: run [check_svg.py](scripts/check_svg.py); it validates well-formedness, a finite `viewBox` with positive dimensions and 960px width, unique IDs, `role="img"`, `aria-labelledby` references to both `<title>` and `<desc>`, the 12px type floor for recognized numeric font sizes, and `<img>`-sandbox hazards, including event-handler attributes (`on*`) and `javascript:` URLs. It screenshots each SVG directly with JavaScript and document network requests blocked, with brand fonts and with Google Sans removed, since most viewers lack it. Preview files are staged in an owned temporary directory; both screenshots must be fresh and nonempty before replacing prior PNGs, and existing fallback SVGs are preserved. It finds Chrome or Chromium (`CHROME` overrides); otherwise use [playwright](../../../playwright/SKILL.md) with JavaScript disabled and network requests blocked. Inspect both images for overflow, collisions, contrast, and spelling, which no static check proves.
+1. **Check and inspect**: run [check_svg.py](scripts/check_svg.py). It validates structure, accessibility, the 12px type floor, and `<img>`-sandbox hazards, then screenshots each SVG with scripts and network requests blocked, once with brand fonts and once without Google Sans, which most viewers lack. It needs Chrome or Chromium (`CHROME` overrides); otherwise use [playwright](../../../playwright/SKILL.md) with JavaScript disabled and network requests blocked. Inspect both images for overflow, collisions, contrast, and spelling, which no static check proves.
 
    ```bash
    python -I ~/.agents/skills/diagrams-as-code/references/svg/scripts/check_svg.py docs/assets/*.svg --render "$(mktemp -d)"
@@ -32,12 +32,11 @@ User-facing documentation explains ideas with hand-authored SVG illustrations: s
 
 - **SVG `<text>` never wraps**: break lines manually and leave about 15% slack inside every box for wider fallback fonts.
 - **Assume an `<img>` sandbox**: GitHub and most sites render SVG through `<img>`, which ignores scripts, external fonts, stylesheets, links, and remote images; avoid `<foreignObject>` and embedded raster or base64 fonts.
-- **Keep preview controls together**: the renderer uses a fresh `--user-data-dir` with `profile.default_content_setting_values.javascript=2` (block), `--host-resolver-rules=MAP * ^NOTFOUND` (all hosts, including localhost and IP literals), and `--no-proxy-server` (prevent system proxies resolving hosts remotely). `--blink-settings=scriptEnabled=false` also disables Chrome's internal screenshot harness and can produce no PNG. The profile setting preserves that internal harness while blocking SVG scripts. These controls protect document rendering; they are not OS-level network isolation or a general SVG sanitizer. The real-browser regression runs on Linux CI; headless Chrome screenshots time out on GitHub's macOS runners, so macOS CI covers the stubbed renderer only.
+- **Preview isolation is not sanitization**: the renderer blocks scripts and network requests for document rendering only; it is neither OS-level network isolation nor a general SVG sanitizer. Change its Chrome controls together; the script documents why each exists.
 - **Mask lines behind captions**: use a canvas-colored rectangle rather than routing around the text.
 - **Keep type and contrast legible**: keep text at 12px or larger at 960px width and contrast at 4.5:1 on its actual fill; the link to the full-size SVG is the mobile fallback.
 
 ## Documentation
 
 - [MDN SVG reference](https://developer.mozilla.org/en-US/docs/Web/SVG) · [Complex images](https://www.w3.org/WAI/tutorials/images/complex/)
-- Chromium: [JavaScript content settings](https://chromium.googlesource.com/chromium/src/+/HEAD/components/content_settings/core/browser/content_settings_registry.cc) · [Headless screenshot harness](https://chromium.googlesource.com/chromium/src/+/HEAD/components/headless/command_handler/headless_command.html) · [Host resolver rules](https://chromium.googlesource.com/chromium/src/+/HEAD/net/dns/mapped_host_resolver.h) · [Proxy flags](https://www.chromium.org/developers/design-documents/network-settings/)
 - Companion skills: [fmind-visuals](../../../fmind-visuals/SKILL.md) (brand and template), [repository-docs](../../../repository-docs/SKILL.md) (README journey), [mermaid](../mermaid.md) (technical diagrams).

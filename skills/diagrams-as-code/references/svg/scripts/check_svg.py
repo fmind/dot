@@ -17,7 +17,8 @@ NS = "{http://www.w3.org/2000/svg}"
 XLINK = "{http://www.w3.org/1999/xlink}href"
 MIN_FONT_PX = 12.0
 FORBIDDEN = {"script", "foreignObject", "iframe", "object", "embed"}
-FONT_SIZE = re.compile(r"font-size\s*:\s*([0-9.]+)(px)?", re.IGNORECASE)
+# Only px or unitless sizes compare with the floor; relative units (em, rem, %, pt) are skipped.
+FONT_SIZE = re.compile(r"font-size\s*:\s*([0-9.]+)(?:px)?\s*(?=[;}\s!]|$)", re.IGNORECASE)
 BRAND_FONTS = re.compile(r'"Google Sans( Text| Code)?",\s*')
 CHROMES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
 MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -85,7 +86,7 @@ def check(path: Path, width: float) -> list[str]:
         css = (element.text or "") if tag == "style" else (element.get("style") or "")
         if tag == "style" and re.search(r"@import|@font-face|url\(\s*['\"]?(https?:|data:)", css, re.IGNORECASE):
             problems.append("<style> imports, embeds fonts, or loads remote URLs; <img> sandboxing drops them")
-        sizes = [value for value, _ in FONT_SIZE.findall(css)]
+        sizes = FONT_SIZE.findall(css)
         attribute = element.get("font-size")
         if attribute:
             match = re.fullmatch(r"\s*([0-9.]+)(px)?\s*", attribute)
@@ -123,7 +124,9 @@ def render(path: Path, out: Path) -> list[Path]:
         profile = staging / "profile"
         # A global Blink scriptEnabled=false also disables Chrome's headless
         # screenshot harness. Content settings block scripts in file: documents
-        # while leaving the internal chrome: harness working (see the SVG guide).
+        # while leaving the internal chrome: harness working. Sources:
+        # chromium.googlesource.com/chromium/src/+/HEAD/components/content_settings/core/browser/content_settings_registry.cc
+        # chromium.googlesource.com/chromium/src/+/HEAD/components/headless/command_handler/headless_command.html
         preferences = profile / "Default" / "Preferences"
         preferences.parent.mkdir(parents=True)
         preferences.write_text(

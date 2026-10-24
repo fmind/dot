@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.10.15"
+min_version = "2026.10.18"
 
 [settings.task]
 run_auto_install = false
@@ -72,7 +72,6 @@ description = "Scan IaC for misconfigurations (trivy)"
 run = "trivy --config trivy.yaml config --exit-code 1 --tf-vars terraform.example.tfvars ."
 
 [tasks."check:validate"]
-alias = "cv"
 description = "Validate configuration syntax and internal consistency"
 run = "tofu validate"
 

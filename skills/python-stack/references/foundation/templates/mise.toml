@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.10.15"
+min_version = "2026.10.18"
 
 [settings]
 lockfile = true
@@ -21,18 +21,23 @@ uv = "latest"
 [tasks.all]
 alias = "a"
 description = "Format, check, test, and build the project and its docs"
-run = ["mise run format", "mise run check", "mise run test", "mise run build", "mise run build:docs"]
+run = ["mise run format", "mise run check", "mise run test", "mise run build"]
 
 [tasks.build]
 alias = "b"
-description = "Build Python distribution artifacts"
-run = "uv build"
+description = "Build the Python distribution and the documentation site"
+depends = ["build:docs", "build:package"]
 
 [tasks."build:docs"]
-alias = "d"
+alias = "bd"
 # Strict: broken links, anchors, and docstring cross-references fail the build.
 description = "Build the documentation site with its API reference (Zensical)"
 run = "uv run --locked zensical build --clean --strict"
+
+[tasks."build:package"]
+alias = "bp"
+description = "Build Python distribution artifacts (wheel and sdist)"
+run = "uv build"
 
 [tasks."serve:docs"]
 description = "Preview the documentation site"
@@ -129,11 +134,6 @@ alias = "i"
 description = "Install development dependencies"
 run = ["uv sync --locked", "lefthook install"]
 
-[tasks.publish]
-alias = "p"
-description = "Publish distribution artifacts to PyPI via Trusted Publishing (CI only)"
-run = "uv publish --trusted-publishing always"
-
 [tasks.test]
 alias = "t"
 description = "Run offline tests with the coverage gate"
@@ -145,11 +145,6 @@ alias = "ti"
 description = "Run opt-in Docker-backed integration tests"
 run = "uv run --locked pytest -q -m integration"
 
-[tasks."test:watch"]
-alias = "tw"
-description = "Run offline tests in watch mode"
-run = 'uv run --locked pytest-watcher . -q -m "not integration"'
-
 [tasks.upgrade]
 alias = "u"
 description = "Upgrade dependencies to latest compatible versions"
@@ -158,4 +153,4 @@ run = "uv sync --upgrade"
 [tasks.watch]
 alias = "w"
 description = "Re-run offline tests on source changes"
-run = "mise run test:watch"
+run = 'uv run --locked pytest-watcher . -q -m "not integration"'

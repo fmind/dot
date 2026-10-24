@@ -24,6 +24,7 @@ Mermaid is the default format for technical documentation because the same edita
 
 - **Point `mmdc` at system Chrome**: `mmdc` fails with `Could not find chrome-headless-shell` because the Puppeteer browser download is disabled; interactive Fish exports `PUPPETEER_EXECUTABLE_PATH`, otherwise point it at system Chrome: `PUPPETEER_EXECUTABLE_PATH="$(command -v google-chrome)" mmdc -i diagram.mmd -o diagram.svg` (macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
 - **Set one renderer-stable font stack**: use root-level `config.fontFamily`; late-loading web fonts change label measurements after layout and clip inside fixed bounds.
+- **Pin the layout engine**: Mermaid 12 (local `mmdc`) defaults to ELK, while renderers still on Mermaid 11 use dagre; set root-level `config.layout: dagre` so local previews match them. ELK also ignores `flowchart.diagramPadding`.
 - **Label clearly, never cryptically**: use clear, self-explanatory labels for nodes, edges, and subgraphs instead of cryptic IDs or abbreviations; diagrams must be effortless for humans to read at a glance in documentation.
 - **Omit deprecated `flowchart.htmlLabels`** from new diagrams.
 - **Keep shared source portable**: keep remote images, custom JavaScript, click callbacks, and renderer plugins out of shared source.

@@ -18,4 +18,4 @@ Tracking belongs to [experiments](experiments.md); registry evaluation and promo
 ## Documentation
 
 - [scikit-learn pitfalls](https://scikit-learn.org/stable/common_pitfalls.html) · [releases](https://scikit-learn.org/stable/whats_new.html).
-- [Pandera dataframe models](https://pandera.readthedocs.io/en/stable/dataframe_models.html) · [releases](https://github.com/pandera-dev/pandera/releases).
+- [Pandera dataframe models](https://pandera.readthedocs.io/en/stable/dataframe_models.html) · [releases](https://github.com/unionai-oss/pandera/releases).

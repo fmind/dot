@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-10-05"
+  updated: "2026-10-23"
 ---
 
 # Google Colab CLI
@@ -16,7 +16,7 @@ Use `colab` to inspect existing sessions or run work on an accelerator the works
 
 ## Authentication
 
-Pass the global `--auth adc` or `--auth oauth2` before every subcommand: CLI 0.7.4 defaults to OAuth, so do not rely on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); for user ADC, run `dot login colab`, which requests the configured ADC grant only when it lacks the Colab scopes and verifies session access (`--dry-run` previews the native commands; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics). Session state lives under `~/.config/colab-cli/`. Examples assume ADC; substitute `oauth2` for an existing OAuth profile.
+Pass the global `--auth adc` or `--auth oauth2` before every subcommand: CLI 0.7.5 defaults to OAuth, so do not rely on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); for user ADC, run `dot login colab`, which requests the configured ADC grant only when it lacks the Colab scopes and verifies session access (`--dry-run` previews the native commands; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics). Session state lives under `~/.config/colab-cli/`. Examples assume ADC; substitute `oauth2` for an existing OAuth profile.
 
 ## Inspect without allocating
 
@@ -35,12 +35,12 @@ Follow this workflow only when remote execution is in scope; establish the autho
    ```
 
 1. **Keep a session only while iterating**: `colab --auth adc new -s <name> --gpu L4` (or `--tpu v6e1`), then `colab --auth adc exec -s <name> -f snippet.py --timeout 600`. Use `upload`, `download`, `ls`, `status`, and `log` with the same provider; verify and retrieve needed artifacts before stopping.
-1. **Stop what you started and verify release**: `colab --auth adc stop -s <name>`, then refresh `colab --auth adc sessions`; an idle session keeps consuming compute units. CLI 0.7.4's ephemeral cleanup suppresses release errors, so a successful `run` exit or “Session terminated” message is not release proof. Check authentication diagnostics and the backend listing before reporting cleanup complete.
+1. **Stop what you started and verify release**: `colab --auth adc stop -s <name>`, then refresh `colab --auth adc sessions`; an idle session keeps consuming compute units. CLI 0.7.5's ephemeral cleanup suppresses release errors, so a successful `run` exit or “Session terminated” message is not release proof. Check authentication diagnostics and the backend listing before reporting cleanup complete.
 
 ## Gotchas
 
 - **Override the 30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
-- **Let Colab pick the kernel client**: google-colab-cli 0.7.4 pins `jupyter-kernel-client==0.9.0`; let Colab select its compatible client instead of adding a conflicting mise `with` override.
+- **Let Colab pick the kernel client**: google-colab-cli 0.7.5 pins `jupyter-kernel-client==0.9.0`; let Colab select its compatible client instead of adding a conflicting mise `with` override.
 - **Treat `colab pay` as spend**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
 - **Treat the VM as disposable**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
 
@@ -51,6 +51,6 @@ Upstream: `googlecolab/google-colab-cli`, the same source `colab skill` prints. 
 ## Documentation
 
 - [Colab CLI](https://github.com/googlecolab/google-colab-cli)
-- Releases: [google-colab-cli changelog](https://github.com/googlecolab/google-colab-cli/blob/main/CHANGELOG.md)
+- Releases: [google-colab-cli tags](https://github.com/googlecolab/google-colab-cli/tags)
 - ML workflows: [python-mlops](../python-mlops/SKILL.md) owns data validation, training, experiments, and model delivery.
 - Companion skills: [kaggle](../kaggle/SKILL.md), [hf](../hf/SKILL.md), [python-script](../python-stack/references/python-script/GUIDE.md), [gcloud](../gcloud/SKILL.md).

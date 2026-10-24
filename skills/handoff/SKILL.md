@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/handoff
   created: "2026-10-04"
-  updated: "2026-10-07"
+  updated: "2026-10-24"
 ---
 
 # Handoff
 
-Treat `/handoff` as "I am about to clear this session or move to another harness; let the next one continue without me re-explaining." It writes a continuation in the [task-prompts](../task-prompts/SKILL.md) format, saves it, and copies it with [clipboard](../clipboard/SKILL.md). Arguments can name a focus, a receiving harness, or `pointer` to copy only the file reference. Native resume (`claude --resume`, `codex resume` or `codex fork` to branch, `agy -c` or `agy --conversation <id>`) is better when the same harness continues with the full history.
+Treat `/handoff` as "I am about to clear this session or move to another harness; let the next one continue without me re-explaining." It writes a continuation in the [task-prompts](../task-prompts/SKILL.md) format, saves it, and copies it with [clipboard](../clipboard/SKILL.md). Arguments can name a focus, a receiving harness, or `pointer` to copy only the file reference. Native resume (`claude --resume`, `agy -c` or `agy --conversation <id>`) is better when the same harness continues with the full history.
 
 ## Workflow
 
@@ -25,7 +25,7 @@ Treat `/handoff` as "I am about to clear this session or move to another harness
    Read this whole file. Compare `git status --short --branch` and `git rev-parse --short HEAD` with the recorded state and report any drift before acting. Reuse recorded proof only while its inputs are unchanged, start at the next step, and keep the recorded authority boundaries. Delete this file once the work lands; it is task-owned scratch.
    ```
 
-1. **Save**: in a repository, `.agents/prompts/<YYYY-MM-DD>-handoff-<slug>.md` under `git rev-parse --show-toplevel` (gitignored globally); outside one, `~/.agents/prompts/`. Never overwrite an existing handoff; add a suffix.
+1. **Save** where [task-prompts](../task-prompts/SKILL.md) saves prompts, as `<YYYY-MM-DD>-handoff-<slug>.md`. Never overwrite an existing handoff; add a suffix.
 1. **Copy**: send the file itself, which avoids quoting the content into a shell command. With `pointer`, or when the prompt exceeds about 8,000 characters, copy one line instead: `Continue from <absolute path>: read it fully, verify the recorded state, then do the next step.`
 
    ```bash
@@ -42,5 +42,5 @@ Treat `/handoff` as "I am about to clear this session or move to another harness
 
 ## Documentation
 
-- [Claude Code sessions](https://code.claude.com/docs/en/common-workflows#resume-previous-conversations) · [Codex resume](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+- [Claude Code sessions](https://code.claude.com/docs/en/common-workflows#resume-previous-conversations)
 - Companion skills: [task-prompts](../task-prompts/SKILL.md) (prompt grammar and delegation), [clipboard](../clipboard/SKILL.md) (verified copy), [git-worktree](../git-worktree/SKILL.md) (isolated continuation).

@@ -36,7 +36,7 @@ An optional edit hook can run `marimo check --strict --ignore-scripts <edited-fi
 
 ## Official Skills
 
-Upstream: [marimo-team/skills](https://github.com/marimo-team/skills), for notebook authoring, conversion, widgets, and WASM compatibility; interactive pairing lives in [marimo-team/marimo-pair](https://github.com/marimo-team/marimo-pair). List with `skills add marimo-team/skills --list` or `skills add marimo-team/marimo-pair --list`, review the needed selection, and install at project scope with `skills add <source> --skill <name> -y`. For browser execution with `marimo export html-wasm`, verify Pyodide dependency compatibility and server-only capabilities before promising parity.
+Upstream: [marimo-team/skills](https://github.com/marimo-team/skills), for notebook authoring, conversion, widgets, and WASM compatibility; interactive pairing lives in [marimo-team/marimo-pair](https://github.com/marimo-team/marimo-pair). List with `DISABLE_TELEMETRY=1 skills add marimo-team/skills --list` or `DISABLE_TELEMETRY=1 skills add marimo-team/marimo-pair --list`, then review and install only the needed selection from an immutable snapshot per the [vendor-skill policy](../../agent-project/references/vendor-skills.md). For browser execution with `marimo export html-wasm`, verify Pyodide dependency compatibility and server-only capabilities before promising parity.
 
 ## Documentation
 

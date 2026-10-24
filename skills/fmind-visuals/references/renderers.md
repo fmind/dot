@@ -14,7 +14,7 @@ npx @google/design.md@0.4.0 export --format dtcg ~/.agents/DESIGN.md  # Figma, S
 
 ## Mermaid
 
-Use Mermaid's `base` theme because it is customizable. This frontmatter stays inside the Mermaid source and works in `.mmd` files and Markdown fences when the target renderer supports frontmatter.
+Use Mermaid's `base` theme because it is customizable. This frontmatter stays inside the Mermaid source and works in `.mmd` files and Markdown fences when the target renderer supports frontmatter. `layout: dagre` keeps Mermaid 12, whose default is ELK, laying out like renderers still on Mermaid 11.
 
 ```mermaid
 ---
@@ -22,6 +22,7 @@ config:
   fontFamily: "Google Sans, sans-serif"
   flowchart:
     diagramPadding: 16
+  layout: dagre
   theme: base
   themeVariables:
     darkMode: false

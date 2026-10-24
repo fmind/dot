@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/data-migration
   created: "2026-09-09"
-  updated: "2026-10-20"
+  updated: "2026-10-21"
 ---
 
 # Data Migration

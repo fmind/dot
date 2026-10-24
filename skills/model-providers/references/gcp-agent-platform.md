@@ -13,7 +13,7 @@ Use GCP Agent Platform (Gemini Enterprise Agent Platform) by default for new mod
 1. **Check the model's global availability**: the global REST host is `https://aiplatform.googleapis.com`, with paths under `/v1/projects/{project}/locations/global/publishers/google/models/{model}`. Global routing does not guarantee regional data residency; honor any project location requirement.
 1. **Never print access tokens**: for verification, refresh ADC with token output captured in memory and discarded; never print access tokens. Confirm model access separately. Classify authentication, API enablement, IAM, model availability, and quota errors before proposing a change.
 
-For OpenCode integrations explicitly requesting this provider, its provider identifier remains `google-vertex`; configure `options.project` and `options.location: "global"`. The workstation's default OpenCode provider is explicitly OpenRouter.
+For OpenCode integrations explicitly requesting this provider, its provider identifier remains `google-vertex`; configure `options.project` and `options.location: "global"`.
 
 ## Explicit key fallback
 

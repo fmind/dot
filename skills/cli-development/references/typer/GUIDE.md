@@ -20,7 +20,7 @@ Use Typer for Python CLIs; [cli-contracts](../cli-contracts.md) owns command beh
 
 ## Gotchas
 
-- **Discover the skill with the skills CLI**: the official skill lives inside the Python source package; `skills add fastapi/typer --list` discovers it without copying site-packages by hand.
+- **Discover the skill with the skills CLI**: the official skill lives inside the Python source package; `DISABLE_TELEMETRY=1 skills add fastapi/typer --list` discovers it without copying site-packages by hand.
 - **Install `typer` alone**: `typer-slim` and `typer-cli` are deprecated. Typer vendors Click since 0.26.0, so use `typer.testing.CliRunner` and do not assume external Click classes or extensions interoperate with its command objects. An independent Click dependency can remain when another application component requires it; do not remove it as incidental CLI cleanup.
 - **Set `no_args_is_help` on the command**: `Typer(no_args_is_help=True)` is inert until the app has a callback, a sub-app, or a second command; set it on `@app.command()` instead.
 - **Fix the group shape with a callback**: Typer promotes a sole command to the root unless a callback fixes the group shape. The packaged starter uses a callback so `tool greet` remains stable when commands are added; a focused single-command utility should deliberately use the other shape.

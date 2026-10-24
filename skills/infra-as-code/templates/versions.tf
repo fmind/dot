@@ -22,10 +22,9 @@ terraform {
   # OpenTofu-only: client-side state/plan encryption — state at rest in the
   # bucket becomes ciphertext, so a leaked bucket no longer leaks secrets.
   # Requires the KMS key to exist and every operator to reach it.
-  # Existing plaintext state: back up the state and keys, add
-  # method "unencrypted" "migrate" {} and, inside state, replace enforced with
-  # fallback { method = method.unencrypted.migrate }; apply once, then remove
-  # both and restore enforced. Never rename key_provider or method labels later.
+  # Existing plaintext state: back up the state and keys, then migrate through an
+  # unencrypted fallback (https://opentofu.org/docs/language/state/encryption/).
+  # Never rename key_provider or method labels later.
   # encryption {
   #   key_provider "gcp_kms" "state" {
   #     kms_encryption_key = "projects/<project>/locations/<region>/keyRings/tofu/cryptoKeys/state"

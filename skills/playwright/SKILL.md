@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-10-07"
+  updated: "2026-10-23"
 ---
 
 # Playwright
@@ -28,7 +28,7 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 
 ## Official Skills
 
-Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) provides the official browser CLI skill. Select it through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) only for CLI-driven exploration; its commands are not the Python API. Python tests continue to use the documentation below and the project's uv lockfile. `openai/skills` also curates a same-name `playwright` skill that drives `playwright-cli`: preview it, never install it under that name ([policy](../agent-project/references/vendor-skills.md#name-collisions)). The uv-locked package also ships version-matched `playwright-cli`, `playwright-trace`, and JavaScript-only `playwright-component-testing` skills in one directory; `uv run playwright cli --help` prints the `playwright-cli` path. Review each under the same policy before exposing it, including through `uv run playwright trace install-skill`, and check its `allowed-tools`: Playwright 1.63 copies pre-approve all of `npx` (playwright-cli also `npm`), while playwright-cli v0.1.22+ narrows them to `npx playwright`.
+Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) provides the official browser CLI skill. Select it through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) only for CLI-driven exploration; its commands are not the Python API. Python tests continue to use the documentation below and the project's uv lockfile. `openai/skills` also curates a same-name `playwright` skill that drives `playwright-cli`: preview it, never install it under that name ([policy](../agent-project/references/vendor-skills.md#name-collisions)). The uv-locked package also ships version-matched `playwright-cli`, `playwright-trace`, and JavaScript-only `playwright-component-testing` skills in one directory; `uv run playwright cli --help` prints the `playwright-cli` path. Review each under the same policy before exposing it, including through `uv run playwright trace install-skill`, and check its `allowed-tools`: copies before Playwright 1.64 and playwright-cli 0.1.22 pre-approve all of `npx` (playwright-cli also `npm`); later ones narrow them to `npx playwright`.
 
 ## Documentation
 

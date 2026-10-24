@@ -24,10 +24,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false # scanners only read the checkout
       - name: Install mise system
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.10.15
+          version: 2026.10.18
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Scan full checkout

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-10-20"
+  updated: "2026-10-23"
 ---
 
 # Trim
@@ -22,7 +22,7 @@ Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a reque
    wc -lwm <path>
    ```
 
-1. **Map what must survive**: list each claim, rule, number, command, flag, link, warning, and authority boundary. For configuration, capture the effective result so the trim can prove it changed nothing: `mise cfg` and `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json` for plain data.
+1. **Map what must survive**: list each claim, rule, number, command, flag, link, warning, and authority boundary. For configuration, capture the effective result so the trim can prove it changed nothing: `mise tasks ls --json --hidden`, `mise ls --current --json`, `mise env --json`, and `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json` for plain data.
 1. **Cut, in this order**:
    - **Duplication**: the same rule stated twice; keep it at its owner and link from elsewhere.
    - **Restated defaults**: settings equal to the installed tool's default, after verifying that default in its current docs or `--help` (defaults change between versions).

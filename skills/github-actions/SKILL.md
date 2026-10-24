@@ -3,11 +3,11 @@ name: github-actions
 description: "Build GitHub Actions CI/CD and agentic workflows; Dependabot, Lefthook, and zizmor audits."
 license: MIT
 metadata:
-  kind: task
+  kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-10-19"
+  updated: "2026-10-24"
 ---
 
 # GitHub Actions
