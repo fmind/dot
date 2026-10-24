@@ -19,7 +19,8 @@ return {
       keymap = { preset = "super-tab" },
     },
   },
-  -- The util.chezmoi extra applies a source file on every save; keep apply explicit.
+  -- The util.chezmoi extra applies any opened source file on save; keep that explicit.
+  -- Its <leader>sz picker still edits targets with --watch, like `chezmoi edit --watch`.
   { "xvzc/chezmoi.nvim", init = function() end },
   -- Which-key preset
   {
