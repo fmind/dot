@@ -2477,6 +2477,23 @@ checksum = "sha256:c400a2f8c8ab7e99478a7f4dd1a466b57bf33888e520d85c55780a5464c4b
 url = "https://github.com/anomalyco/opencode/releases/download/v1.19.4/opencode-darwin-arm64.zip"
 url_api = "https://api.github.com/repos/anomalyco/opencode/releases/assets/665836811"
 
+[[tools.opentofu]]
+version = "1.13.2"
+backend = "aqua:opentofu/opentofu"
+specifiers = ["latest"]
+
+[tools.opentofu."platforms.linux-x64"]
+checksum = "sha256:ac05d9952662c7db28dd57e93f0a68018837bfdf9342384ec0987977c16a9645"
+checksum_source = "mise-versions"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742636"
+
+[tools.opentofu."platforms.macos-arm64"]
+checksum = "sha256:0d1cdc85f38992055b48e7fb161304a2ddfe2e5ee0ff68ffec9d0349c8bd1b59"
+checksum_source = "mise-versions"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742637"
+
 [[tools."pipx:aws-sso-util"]]
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
@@ -2659,6 +2676,40 @@ url_api = "https://api.github.com/repos/starship/starship/releases/assets/650074
 checksum = "sha256:5362da8cb2928f98f3ce0ffda697cf0f8de70081db000dae316d6d3a404f6cf0"
 url = "https://github.com/starship/starship/releases/download/v1.27.0/starship-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/starship/starship/releases/assets/650074353"
+
+[[tools.stylua]]
+version = "2.6.0"
+backend = "aqua:JohnnyMorganz/StyLua"
+specifiers = ["latest"]
+
+[tools.stylua."platforms.linux-x64"]
+checksum = "sha256:48ee7db28346f96f4bd545e190ab080a88a7b5a664e97649cf5d5c60426f402d"
+checksum_source = "mise-versions"
+url = "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64-musl.zip"
+url_api = "https://api.github.com/repos/JohnnyMorganz/StyLua/releases/assets/628184959"
+
+[tools.stylua."platforms.macos-arm64"]
+checksum = "sha256:dab9b66d340ca5ffc8225211f1dcf89b84783e09b8cbec8c518497eba81f3c42"
+checksum_source = "mise-versions"
+url = "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-macos-aarch64.zip"
+url_api = "https://api.github.com/repos/JohnnyMorganz/StyLua/releases/assets/628185466"
+
+[[tools.tflint]]
+version = "0.65.0"
+backend = "aqua:terraform-linters/tflint"
+specifiers = ["latest"]
+
+[tools.tflint."platforms.linux-x64"]
+checksum = "sha256:d4c545ed2e29d6338604b586f34f544f380f70f243aa72f7b484713835eaec61"
+checksum_source = "mise-versions"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_amd64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/666566850"
+
+[tools.tflint."platforms.macos-arm64"]
+checksum = "sha256:5a71c63481ba56760864298011fdb7317a9ae80a0bbaeceefa35883c7f62ac71"
+checksum_source = "mise-versions"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_darwin_arm64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/666566854"
 
 [[tools.tree-sitter]]
 version = "0.27.1"
