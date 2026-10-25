@@ -190,6 +190,8 @@ def test_pull_fast_forwards_a_local_remote_and_rejects_divergence(
     git(seed, "push", "origin", "main")
     with pytest.raises(DotError, match="failed to pull"):
         run_pull(state)
+    assert isinstance(state.stdout, io.StringIO)
+    assert "diverged from upstream (1 ahead, 1 behind); merge or rebase it yourself" in state.stdout.getvalue()
     assert git(checkout, "rev-parse", "HEAD") == local
     assert git(checkout, "status", "--porcelain") == ""
 
@@ -528,15 +530,14 @@ def test_pull_pushes_ahead_branch_to_its_exact_upstream(tmp_path: Path) -> None:
     assert "↑ pushed 2 commit(s)" in state.stdout.getvalue()
 
 
-def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path) -> None:
+def test_pull_reports_push_failure_after_a_successful_fetch(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
     runner = RecordingRunner(
         {
-            STATUS_V2: [v2(), v2(ahead=1, behind=1), v2(ahead=1)],
+            STATUS_V2: [v2(), v2(ahead=1), v2(ahead=1)],
             ("git", "fetch", "--prune"): [result()],
-            ("git", "merge", "--ff-only", "@{u}"): [result()],
             (*_FOR_EACH_UPSTREAM, "refs/heads/main"): [result("origin\0refs/heads/main\n")],
             ("git", "push", "--no-follow-tags", "origin", "HEAD:refs/heads/main"): [result(returncode=1)],
         },
@@ -549,8 +550,25 @@ def test_pull_reports_push_failure_after_successful_fast_forward(tmp_path: Path)
         run_pull(state, push=True)
 
     assert isinstance(state.stdout, io.StringIO)
-    assert "pulled 1 commit(s)" in state.stdout.getvalue()
+    assert "Pull successful (up to date)" in state.stdout.getvalue()
     assert "Push failed" in state.stdout.getvalue()
+
+
+def test_pull_never_merges_a_diverged_branch(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "sample"
+    (repository / ".git").mkdir(parents=True)
+    # Only status and fetch are scripted: a merge or push attempt would fail the lookup.
+    runner = RecordingRunner(
+        {STATUS_V2: [v2(), v2(ahead=1, behind=2)], ("git", "fetch", "--prune"): [result()]},
+        {"git"},
+    )
+    state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    with pytest.raises(DotError, match="failed to pull 1 repositories"):
+        run_pull(state, push=True)
+
+    assert [call[0][:2] for call in runner.calls if call[0][1] in {"merge", "push"}] == []
 
 
 def test_pull_reports_a_fetch_failure_before_inspecting_the_upstream(tmp_path: Path) -> None:

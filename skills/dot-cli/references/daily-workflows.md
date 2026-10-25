@@ -30,7 +30,7 @@ dot pull .                              # authorized local update: fetches and f
 
 Explicit repository paths bypass configured workspace discovery. Status includes dirty state, upstream, ahead/behind counts, and merge/rebase/cherry-pick/revert markers. Counts use cached remote-tracking refs unless `--fetch` first runs `git fetch --prune` (never a merge) within pull's 120-second allowance; a fetch failure marks that repository failed. `--needs-attention` hides clean repositories and prints an all-clear line when none remains. Repository inspection failures produce `complete: false` JSON and a nonzero exit. Docker health belongs to `dot doctor`.
 
-Pull fetches once and fast-forwards the fetched upstream without a second fetch; fetch failures always produce a nonzero exit, including on branches without an upstream; dirty repositories are always skipped before fetching. Git runs with terminal and askpass credential prompts disabled, so a missing credential fails that repository instead of blocking its worker. `--push` also pushes clean repositories that are ahead and requires authority for those remote writes; it rechecks the worktree after fetch/merge before pushing. Dry-run reports selected targets and the push setting without fetching or predicting remote changes. Pull and status cancellation stop worker subprocess groups and block subsequent worker commands; filesystem failures in one repository preserve the other results in incomplete JSON reports.
+Pull fetches once and fast-forwards the fetched upstream without a second fetch; fetch failures always produce a nonzero exit, including on branches without an upstream; dirty repositories are always skipped before fetching. A branch both ahead of and behind its upstream is reported as diverged and left unchanged, never merged or rebased. Git runs with terminal and askpass credential prompts disabled, so a missing credential fails that repository instead of blocking its worker. `--push` also pushes clean repositories that are ahead and requires authority for those remote writes; it rechecks the worktree after fetch/merge before pushing. Dry-run reports selected targets and the push setting without fetching or predicting remote changes. Pull and status cancellation stop worker subprocess groups and block subsequent worker commands; filesystem failures in one repository preserve the other results in incomplete JSON reports.
 
 ## Folder trust
 
@@ -72,16 +72,20 @@ For quick token totals and coverage dates, use `dot agent stats --tokens-only`; 
 Use the Dot CLI for cache inspection and cleanup:
 
 ```bash
-dot cache
+dot cache                               # read-only: disk used by the Docker, Hugging Face, and uv caches
 dot cache docker
-dot prune all --dry-run
-dot prune all --yes                     # authorized cache cleanup across configured providers
-dot prune docker --yes                  # authorized Docker builder-cache cleanup
+dot prune --dry-run                     # preview the default cleanup
+dot prune                               # stale entries across prune.providers; no prompt
+dot prune --aggressive --dry-run
+dot prune --aggressive --yes            # authorized: empty whole caches; they rebuild on next use
+dot prune docker                        # Docker builder cache runs only when named or configured
 ```
 
-`dot cache` inspects the configured `cache.providers` (Docker, Hugging Face, uv by default). `dot prune` displays help; `dot prune all` cleans `prune.providers` (dprint, Hugging Face, mise, npm, Trivy, uv by default); Docker builder cleanup requires explicit selection or inclusion in that configuration. The command confirms the selected providers once before any cleanup and needs `--yes` without a terminal. `--dry-run` displays commands, not reclaimable bytes, and executes no providers. `dot prune` preflights required tools and stops on the first command failure; earlier successful operations are not rolled back. `dot cache all` skips providers that are not installed and reports every provider before exiting 1 on any failure; an explicitly named provider must be installed. Each provider can be selected independently. Native tools retain caller directory, profile, environment, and output; inspecting several providers labels each report with its provider name. The cleanup confirmation prompt goes to stderr.
+`dot cache` is read-only: it prints the native report of each `cache.providers` entry (Docker, Hugging Face, uv by default), skips providers that are not installed, and exits 1 after reporting when one fails; an explicitly named provider must be installed. Several reports are labelled with their provider name.
 
-Installed tools, credentials, provider sessions, and Dot archives are outside the default cleanup aggregate. Login, setup, and cleanup run only when invoked; they are not installation hooks. Bare `dot login` reconciles the configured providers; bare `dot setup` displays help. See [authentication](authentication.md) for login order, scope checks, `--force`, and project precedence.
+`dot prune` cleans `prune.providers` (dprint, Hugging Face, mise, npm, Trivy, uv by default) or one named provider. The default tier removes only stale entries and runs without a prompt: dangling Docker build cache, detached Hugging Face revisions and incomplete downloads, mise metadata and download caches, unreachable npm entries, Trivy scan results, and unused uv entries; dprint has no default step. `--aggressive` empties whole caches (all unused Docker build cache, dprint plugins, the npm cache, Trivy databases, the uv cache), asks once on stderr, and needs `--yes` without a terminal; Hugging Face and mise keep their default step, because anything deeper deletes models or installed versions. Every provider runs even after another fails, and the command then exits 1 naming the failures. uv waits at most 10 seconds (`UV_LOCK_TIMEOUT`) for a running `uv run` process to release its cache, then fails rather than forcing. Missing tools fail before any cleanup. `--dry-run` prints commands, not reclaimable bytes.
+
+Prune never touches repositories, installed tool versions, credentials, provider sessions, Docker images, containers, volumes, or Dot archives. Login, setup, and cleanup run only when invoked; they are not installation hooks. Bare `dot login` reconciles the configured providers; bare `dot setup` displays help. See [authentication](authentication.md) for login order, scope checks, `--force`, and project precedence.
 
 `dot orphan` lists files an earlier `chezmoi apply` deployed that the source no longer manages, with whether each still holds chezmoi's last write; text output folds targets inside an orphaned directory into one line with their count, while `--json` lists every target. It never deletes. Follow the [orphans guide](orphans.md) to decide per path.
 

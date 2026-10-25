@@ -228,6 +228,10 @@ def _pull_repository(
         _, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
         if not upstream:
             return RepoResult(path=path, branch=branch, no_upstream=True)
+        # Local and remote commits both exist: only the owner may merge or rebase them.
+        if ahead and behind:
+            message = f"diverged from upstream ({ahead} ahead, {behind} behind); merge or rebase it yourself"
+            return RepoResult(path=path, branch=branch, ahead=ahead, error=message)
         # Fast-forward the upstream snapshot inspected above; a fast-forward leaves ahead unchanged.
         if behind:
             git(["merge", "--ff-only", "@{u}"])
@@ -498,7 +502,15 @@ def status_command(
 
 
 def register(parent: typer.Typer) -> None:
-    parent.command("pull", help="Update configured repositories with bounded concurrency")(pull_command)
+    parent.command(
+        "pull",
+        help="Fast-forward configured repositories; never merges, rebases, or touches dirty checkouts",
+        epilog=(
+            "Skips dirty worktrees and branches without an upstream, and reports diverged branches without "
+            "changing them. --push pushes clean branches that are ahead to their exact upstream, without tags. "
+            "Exit 1 when any repository fails or diverged."
+        ),
+    )(pull_command)
     parent.command(
         "status",
         help="Show repository status using cached upstream refs (--fetch refreshes them)",

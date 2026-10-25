@@ -101,7 +101,7 @@ def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, 
         "Runner.which=lambda self,command: Path('/fixture') / command\n"
         f"Runner.interactive=lambda *args,**kwargs: {cleanup}\n"
         "os.environ.pop('DOT_CONFIG_PATH',None)\n"
-        "sys.argv=['dot','prune','all']\nmain()\n"
+        "sys.argv=['dot','prune','--aggressive']\nmain()\n"
     )
     pid, terminal = pty.fork()
     if pid == 0:

@@ -512,7 +512,6 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
         ["agent"],
         ["agent", "session"],
         ["setup"],
-        ["prune"],
     ],
 )
 def test_bare_groups_show_help_successfully_without_actions(path: list[str], monkeypatch: pytest.MonkeyPatch) -> None:
