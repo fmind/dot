@@ -12,7 +12,7 @@ return {
   { "folke/tokyonight.nvim", enabled = false },
   { "catppuccin/nvim", name = "catppuccin", enabled = false },
   -- Tab accepts completions and Enter always inserts a newline. LazyVim chains snippet
-  -- jumps and Copilot suggestions onto Tab for this preset.
+  -- jumps onto Tab for this preset.
   {
     "saghen/blink.cmp",
     opts = {

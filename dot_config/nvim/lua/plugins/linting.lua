@@ -6,9 +6,10 @@ return {
       opts.linters_by_ft = opts.linters_by_ft or {}
       -- Markdown is validated by dprint and repository-specific checks.
       opts.linters_by_ft.markdown = {}
-      -- OpenTofu replaces the terraform extra's terraform_validate.
-      opts.linters_by_ft.terraform = { "tofu" }
-      opts.linters_by_ft.tf = { "tofu" }
+      -- OpenTofu replaces the terraform extra's terraform_validate; the extra installs tflint
+      -- but never runs it, so lint with the global copy too.
+      opts.linters_by_ft.terraform = { "tofu", "tflint" }
+      opts.linters_by_ft.tf = { "tofu", "tflint" }
       return opts
     end,
   },
