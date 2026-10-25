@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-10-21"
+  updated: "2026-10-25"
 ---
 
 # Quality Assurance
@@ -25,7 +25,7 @@ Run a risk-based test campaign over the actual feature journey. Keep one-diff re
 1. **Test non-functional risk**: measure latency, load, resource use, resilience, security boundaries, and observability only where the matrix or spec requires; set the baseline and threshold first with [benchmark](../benchmark/SKILL.md).
 1. **Run regression proof**: execute the relevant package or subsystem suite; run the full gate (`mise run all`) only for release qualification, repository requirements, or cross-cutting risk, applying the [dirty-tree rule](../mise/SKILL.md#gotchas) when unrelated changes are present.
 1. **Retest fixes narrowly**: reproduce the original failure, verify the fix, then rerun the impacted journeys and the checks the fix invalidated; avoid open-ended visual polishing loops.
-1. **Report the matrix**: per case, record the risk and requirement, layer and environment, preconditions, steps or command, expected result, actual evidence, status (pass, fail, blocked, or not run), and cleanup with residual risk. Lead with blockers, then failures, passes, and untested boundaries with the authority or capability needed to test them; distinguish test coverage from operational readiness and hosted behavior, and report the highest proven rung of the [proof ladder](../production-readiness/SKILL.md).
+1. **Record the matrix, report the verdict**: record each case in a matrix file with the risk and requirement, layer and environment, preconditions, steps or command, expected result, actual evidence, status (pass, fail, blocked, or not run), and cleanup with residual risk. Report the verdict and the highest proven rung of the [proof ladder](../production-readiness/SKILL.md) first, then blockers, failures, and untested boundaries with the authority or capability needed to test them, and link the matrix instead of pasting it. Distinguish test coverage from operational readiness and hosted behavior.
 
 ## Gotchas
 

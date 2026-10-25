@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # Full Review
@@ -46,13 +46,23 @@ Parse the request into one line and state it before starting: scope (paths, othe
 
 ## Report template
 
-```text
-**Result**: <one line: ready / ready with caveats / blocked, and the proven rung>
-**Fixed** (<n>): <finding> — `path:line` — <check that proves it>
-**Decisions for you** (<n>): <numbered, each with options and a recommendation>
-**Suggestions** (<n>): <numbered improvements beyond defects, ranked by value>
-**Checks**: <command> pass/fail/blocked/not run
-**Not covered**: <areas, credentials, or services outside this pass>
+```markdown
+<Takeaway: ready, ready with caveats, or blocked, the proven rung, and what it means for the user.>
+
+**Why it matters**: <one sentence>
+
+- **Fixed (<n>)**: <the most important fixes, each with its `path:line`>
+- **Remaining risk**: <what could still break, or that none was found>
+
+**Decisions**
+
+1. <Decision with its context, options 1.1 and 1.2, and the recommended one.>
+
+**Suggestions**
+
+1. <Improvement beyond defects, ranked by impact.>
+
+**Details**: <every fix with the check that proves it, each check as pass, fail, blocked, or not run, and the areas, credentials, or services this pass did not cover.>
 ```
 
 Number decisions and suggestions so the user can answer "do 2, 3" or "all but 1".

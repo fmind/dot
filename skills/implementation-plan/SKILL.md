@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/implementation-plan
   created: "2026-08-08"
-  updated: "2026-10-21"
+  updated: "2026-10-25"
 ---
 
 # Implementation Plan
@@ -23,7 +23,7 @@ To write a plan, follow the steps below. To challenge an existing plan, read onl
 1. **Choose useful slices**: order the smallest independently verifiable changes by dependency; identify shared files and real compatibility or migration risks.
 1. **Specify proof**: each slice names its outcome, affected files, dependencies, implementation steps, focused checks with expected results, and objective acceptance criteria. Record decisions (signatures, files, test names and assertions, spec values), not implementation bodies; write code only where an algorithm would otherwise be ambiguous.
 1. **Review the plan**: map every requirement to a slice, verify unfamiliar APIs, remove speculative flexibility, and state any decision that truly blocks execution. Name the input classes or failure modes the requirements imply but no slice tests, and add each test to its owning slice.
-1. **Deliver at the right scale**: use a compact task table for linear work; add interface contracts, concurrency, rollout, or rollback details where needed, retaining every applicable risk and proof boundary. A plan much longer than its requirements is transcribing the program; replace bodies with signatures and assertions.
+1. **Deliver at the right scale**: use a compact numbered task list for linear work; add interface contracts, concurrency, rollout, or rollback details where needed, retaining every applicable risk and proof boundary. A plan much longer than its requirements is transcribing the program; replace bodies with signatures and assertions.
 1. **Hand off**: identify the first executable slice and the full project gate.
 
 ## Gotchas
