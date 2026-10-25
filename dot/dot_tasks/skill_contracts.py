@@ -155,7 +155,7 @@ def _reachable_resources(skill: Path, texts: dict[Path, str], resources: set[Pat
                 # Output templates are artifacts, not routing documents.
                 if (
                     resource in texts
-                    and (resource.suffix == ".md" or resource.name == "openai.yaml")
+                    and resource.suffix == ".md"
                     and "templates" not in resource.relative_to(skill.parent).parts[:-1]
                 ):
                     pending.append(resource)
