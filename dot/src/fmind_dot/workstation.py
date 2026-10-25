@@ -7,7 +7,7 @@ import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Annotated, Any, get_args
+from typing import IO, Annotated, Any, Literal
 
 import typer
 
@@ -70,8 +70,9 @@ CACHE_TOOLS = {
 # Long-running `uv run` processes (services, agent loops) hold the cache lock: fail fast instead of
 # waiting, and never pass --force, which would delete files those processes are using.
 _UV_LOCK_TIMEOUT_SECONDS = "10"
-_CACHE_PROVIDERS: tuple[str, ...] = get_args(CacheProvider)
-_PRUNE_PROVIDERS: tuple[str, ...] = get_args(PruneProvider)
+# Typed choices give Fish completion and --help the provider names, and Typer rejects others.
+CacheTarget = Literal["all", CacheProvider]
+PruneTarget = Literal["all", PruneProvider]
 _CACHE_TIMEOUT_SECONDS = 120
 DryRun = Annotated[
     bool, typer.Option("--dry-run", help="Show possible commands without running probes or making changes")
@@ -230,10 +231,12 @@ def run_prune(
     if not dry_run:
         require_tools(state, list(commands.values()))
         # The default tier only drops stale entries, so it runs unattended; emptying caches asks first.
-        if aggressive and not yes:
+        # Providers without an aggressive step (hf, mise) run their default cleanup unasked.
+        emptied = [name for name in commands if CACHE_TOOLS[name].aggressive] if aggressive else []
+        if emptied and not yes:
             if not state.stdin.isatty():
                 raise DotError("aggressive cleanup requires confirmation; preview with --dry-run, then pass --yes")
-            _confirm_prune(state, list(commands))
+            _confirm_prune(state, emptied)
     for name, args in plan.items():
         if args is None:
             print(f"[{name}] skipped: only --aggressive clears it", file=state.stdout, flush=True)
@@ -251,9 +254,6 @@ def run_prune(
 
 
 def register(app: typer.Typer) -> None:
-    cache_choices = ", ".join(_CACHE_PROVIDERS)
-    prune_choices = ", ".join(_PRUNE_PROVIDERS)
-
     @app.command(
         "cache",
         help="Show how much disk tool caches use (read-only); defaults to the configured providers",
@@ -262,14 +262,10 @@ def register(app: typer.Typer) -> None:
     )
     def cache(
         context: typer.Context,
-        provider: Annotated[
-            str, typer.Argument(help=f"all, {cache_choices}; all uses cache.providers", metavar="provider")
-        ] = "all",
+        provider: Annotated[CacheTarget, typer.Argument(help="all uses cache.providers")] = "all",
         dry_run: DryRun = False,
         json_output: JsonOption = False,
     ) -> None:
-        if provider != "all" and provider not in _CACHE_PROVIDERS:
-            raise typer.BadParameter(f"choose all, {cache_choices}", param_hint="provider")
         state = state_from(context)
         selected = state.config.cache.providers if provider == "all" else [provider]
         names = list(dict.fromkeys(selected))
@@ -287,17 +283,13 @@ def register(app: typer.Typer) -> None:
     )
     def prune(
         context: typer.Context,
-        provider: Annotated[
-            str, typer.Argument(help=f"all, {prune_choices}; all uses prune.providers", metavar="provider")
-        ] = "all",
+        provider: Annotated[PruneTarget, typer.Argument(help="all uses prune.providers")] = "all",
         aggressive: Annotated[
             bool, typer.Option("--aggressive", help="Empty whole caches; they download or rebuild on next use")
         ] = False,
         dry_run: DryRun = False,
         yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm --aggressive without prompting")] = False,
     ) -> None:
-        if provider != "all" and provider not in _PRUNE_PROVIDERS:
-            raise typer.BadParameter(f"choose all, {prune_choices}", param_hint="provider")
         state = state_from(context)
         names = list(dict.fromkeys(state.config.prune.providers if provider == "all" else [provider]))
         run_prune(state, names, aggressive=aggressive, dry_run=dry_run, yes=yes)
