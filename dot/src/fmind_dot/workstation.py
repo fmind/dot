@@ -11,7 +11,7 @@ from typing import IO, Annotated, Any, get_args
 
 import typer
 
-from fmind_dot.command_group import JsonOption, help_group
+from fmind_dot.command_group import JsonOption
 from fmind_dot.config import CacheProvider, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.reporting import write_json
@@ -20,42 +20,56 @@ from fmind_dot.state import State, require_tools, state_from
 
 @dataclass(frozen=True)
 class CacheTool:
-    """One provider's native cache commands; `inspect_json` is the machine-readable variant."""
+    """One provider's native cache commands; `inspect_json` is the machine-readable variant.
 
-    prune: list[str]
-    prune_help: str
+    `prune` removes only stale or unused entries (None: nothing is safe without --aggressive);
+    `aggressive` empties the whole rebuildable cache (None: reuse `prune`, since anything deeper is data).
+    """
+
+    prune: list[str] | None
+    aggressive: list[str] | None = None
     inspect: list[str] | None = None
     inspect_json: list[str] | None = None
 
+    def cleanup(self, *, aggressive: bool) -> list[str] | None:
+        return (self.aggressive or self.prune) if aggressive else self.prune
+
 
 # The single registry for `dot cache` and `dot prune`; config.CacheProvider/PruneProvider name its keys.
-# Machine-readable variants: Docker emits JSON lines, hf a JSON array, uv a byte count.
+# Cleanup never touches repositories, installed tool versions (virtualenvs link to them), models in
+# use, Docker images, containers, or volumes. Machine-readable inspection: Docker emits JSON lines,
+# hf a JSON array, uv a byte count.
 CACHE_TOOLS = {
+    # Dangling build cache by default; every unused build-cache layer with --aggressive.
     "docker": CacheTool(
         ["docker", "builder", "prune", "--force"],
-        "Remove unused build cache from the selected Docker builder",
+        ["docker", "builder", "prune", "--all", "--force"],
         ["docker", "system", "df"],
         ["docker", "system", "df", "--format", "json"],
     ),
-    "dprint": CacheTool(["dprint", "clear-cache"], "Clear downloaded dprint plugins and formatting cache"),
+    # Downloaded plugins only: offline formatting (and commit hooks) fail until they download again.
+    "dprint": CacheTool(None, ["dprint", "clear-cache"]),
+    # Detached revisions and incomplete downloads; current model revisions are data, never cache.
     "hf": CacheTool(
-        ["hf", "cache", "prune", "--yes"],
-        "Remove detached Hugging Face revisions and incomplete downloads",
-        ["hf", "cache", "ls"],
-        ["hf", "cache", "ls", "--format", "json"],
+        ["hf", "cache", "prune", "--yes"], None, ["hf", "cache", "ls"], ["hf", "cache", "ls", "--format", "json"]
     ),
-    "mise": CacheTool(["mise", "cache", "clear"], "Clear mise metadata and task caches, retaining installed tools"),
-    "npm": CacheTool(["npm", "cache", "verify"], "Verify npm cache integrity and remove unneeded entries"),
-    "trivy": CacheTool(
-        ["trivy", "clean", "--scan-cache"], "Clear scan results, retaining vulnerability databases and checks"
-    ),
+    # Metadata and download caches; `mise prune` would uninstall versions that virtualenvs still use.
+    "mise": CacheTool(["mise", "cache", "clear"]),
+    # Garbage-collect unreachable entries; --aggressive empties the cache.
+    "npm": CacheTool(["npm", "cache", "verify"], ["npm", "cache", "clean", "--force"]),
+    # Scan results; --aggressive also drops the vulnerability databases, which the next scan downloads.
+    "trivy": CacheTool(["trivy", "clean", "--scan-cache"], ["trivy", "clean", "--all"]),
+    # Unused entries; --aggressive empties the cache (hardlinked virtualenvs keep their files).
     "uv": CacheTool(
         ["uv", "cache", "prune"],
-        "Prune unused uv package entries and cached environments",
+        ["uv", "cache", "clean"],
         ["uv", "cache", "size", "--human", "--preview-features", "cache-size"],
         ["uv", "cache", "size", "--preview-features", "cache-size"],
     ),
 }
+# Long-running `uv run` processes (services, agent loops) hold the cache lock: fail fast instead of
+# waiting, and never pass --force, which would delete files those processes are using.
+_UV_LOCK_TIMEOUT_SECONDS = "10"
 _CACHE_PROVIDERS: tuple[str, ...] = get_args(CacheProvider)
 _PRUNE_PROVIDERS: tuple[str, ...] = get_args(PruneProvider)
 _CACHE_TIMEOUT_SECONDS = 120
@@ -87,8 +101,15 @@ def execute(
     require_tools(state, [args])
     if args[:2] == ["hf", "cache"]:
         _ensure_hf_cache_dir()
+    if args[:2] == ["uv", "cache"]:
+        env = {"UV_LOCK_TIMEOUT": os.environ.get("UV_LOCK_TIMEOUT", _UV_LOCK_TIMEOUT_SECONDS)} | (env or {})
     code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env)
     if code != 0:
+        if args[:2] == ["uv", "cache"]:
+            raise DotError(
+                f"{shlex.join(args[:3])} failed (exit {code}); if a running `uv run` process holds the cache "
+                "(a service or agent loop), stop it and retry"
+            )
         raise DotError(f"{shlex.join(args[:3])} failed (exit {code}); resolve the native diagnostic and retry")
 
 
@@ -187,7 +208,8 @@ def _confirm_prune(state: State, names: list[str]) -> None:
     while True:
         try:
             # Prompts go to stderr so stdout stays the command's report.
-            print(f"Clean caches for {', '.join(names)}? [y/N]: ", end="", file=state.stderr, flush=True)
+            question = f"Empty the whole caches for {', '.join(names)} (they rebuild on next use)? [y/N]: "
+            print(question, end="", file=state.stderr, flush=True)
             _wait_for_line(state.stdin)
             answer = state.stdin.readline().strip().lower()
         except KeyboardInterrupt, EOFError:
@@ -199,12 +221,42 @@ def _confirm_prune(state: State, names: list[str]) -> None:
         print("Error: invalid input", file=state.stderr)
 
 
+def run_prune(
+    state: State, names: Sequence[str], *, aggressive: bool = False, dry_run: bool = False, yes: bool = False
+) -> None:
+    """Clean each provider, continuing past failures so one busy cache never blocks the others."""
+    plan = {name: CACHE_TOOLS[name].cleanup(aggressive=aggressive) for name in names}
+    commands = {name: args for name, args in plan.items() if args is not None}
+    if not dry_run:
+        require_tools(state, list(commands.values()))
+        # The default tier only drops stale entries, so it runs unattended; emptying caches asks first.
+        if aggressive and not yes:
+            if not state.stdin.isatty():
+                raise DotError("aggressive cleanup requires confirmation; preview with --dry-run, then pass --yes")
+            _confirm_prune(state, list(commands))
+    for name, args in plan.items():
+        if args is None:
+            print(f"[{name}] skipped: only --aggressive clears it", file=state.stdout, flush=True)
+    failed = []
+    for name, args in commands.items():
+        if len(commands) > 1 and not dry_run:
+            print(f"[{name}]", file=state.stdout, flush=True)
+        try:
+            execute(state, args, dry_run=dry_run)
+        except (DotError, OSError) as error:
+            failed.append(name)
+            print(f"✗ {error}", file=state.stderr, flush=True)
+    if failed:
+        raise DotError(f"cache cleanup failed for {', '.join(failed)}; the other providers were cleaned")
+
+
 def register(app: typer.Typer) -> None:
     cache_choices = ", ".join(_CACHE_PROVIDERS)
+    prune_choices = ", ".join(_PRUNE_PROVIDERS)
 
     @app.command(
         "cache",
-        help="Inspect native cache usage; defaults to the configured providers",
+        help="Show how much disk tool caches use (read-only); defaults to the configured providers",
         epilog="With all, providers that are not installed are skipped. Exit 1 when any inspection fails; "
         "the other providers still report.",
     )
@@ -223,33 +275,29 @@ def register(app: typer.Typer) -> None:
         names = list(dict.fromkeys(selected))
         run_cache(state, names, as_json=json_output, dry_run=dry_run, optional=provider == "all")
 
-    prune_app = help_group("Clean tool caches after confirmation; all excludes Docker by default")
-    app.add_typer(prune_app, name="prune")
-
-    def add_prune(name: str, description: str) -> None:
-        @prune_app.command(
-            name,
-            help=description,
-            epilog="Without a terminal, preview with --dry-run, then pass --yes. Stops at the first native failure.",
-        )
-        def prune(
-            context: typer.Context,
-            dry_run: DryRun = False,
-            yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm cleanup without prompting")] = False,
-        ) -> None:
-            state = state_from(context)
-            names = list(dict.fromkeys(state.config.prune.providers if name == "all" else [name]))
-            commands = [CACHE_TOOLS[provider].prune for provider in names]
-            if not dry_run:
-                require_tools(state, commands)
-                if not yes:
-                    if not state.stdin.isatty():
-                        raise DotError("cache cleanup requires confirmation; preview with --dry-run, then pass --yes")
-                    _confirm_prune(state, names)
-            # Native noninteractive flags follow Dot's aggregate confirmation.
-            for args in commands:
-                execute(state, args, dry_run=dry_run)
-
-    add_prune("all", "Clean the configured providers (all except Docker by default)")
-    for name in _PRUNE_PROVIDERS:
-        add_prune(name, CACHE_TOOLS[name].prune_help)
+    @app.command(
+        "prune",
+        help="Clean tool caches: stale entries by default, whole rebuildable caches with --aggressive",
+        epilog=(
+            "Never touches repositories, installed tool versions, current models, Docker images, containers, "
+            "or volumes. all uses prune.providers (every provider but Docker by default). --aggressive asks "
+            "first; without a terminal, preview with --dry-run, then pass --yes. Every provider runs; "
+            "exit 1 when any fails, such as uv while a `uv run` process holds its cache."
+        ),
+    )
+    def prune(
+        context: typer.Context,
+        provider: Annotated[
+            str, typer.Argument(help=f"all, {prune_choices}; all uses prune.providers", metavar="provider")
+        ] = "all",
+        aggressive: Annotated[
+            bool, typer.Option("--aggressive", help="Empty whole caches; they download or rebuild on next use")
+        ] = False,
+        dry_run: DryRun = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm --aggressive without prompting")] = False,
+    ) -> None:
+        if provider != "all" and provider not in _PRUNE_PROVIDERS:
+            raise typer.BadParameter(f"choose all, {prune_choices}", param_hint="provider")
+        state = state_from(context)
+        names = list(dict.fromkeys(state.config.prune.providers if provider == "all" else [provider]))
+        run_prune(state, names, aggressive=aggressive, dry_run=dry_run, yes=yes)

@@ -778,18 +778,54 @@ def test_cache_json_dry_run_lists_commands_without_probes(provider: RecordingRun
     assert not provider.calls
 
 
-def test_prune_requires_confirmation_and_default_excludes_docker(provider: RecordingRunner) -> None:
-    result = CliRunner().invoke(app, ["prune", "all"])
-    assert result.exit_code != 0
+def test_prune_default_runs_unattended_and_only_drops_stale_entries(provider: RecordingRunner) -> None:
+    result = cli(["prune"])
+
+    assert provider.actions == [
+        ["hf", "cache", "prune", "--yes"],
+        ["mise", "cache", "clear"],
+        ["npm", "cache", "verify"],
+        ["trivy", "clean", "--scan-cache"],
+        ["uv", "cache", "prune"],
+    ]
+    # dprint has no safe tier: clearing its plugins would break offline formatting and commit hooks.
+    assert "[dprint] skipped: only --aggressive clears it" in result.stdout
+    # A running `uv run` holds the cache lock, so uv fails fast instead of waiting or forcing.
+    assert provider.envs[-1] == {"UV_LOCK_TIMEOUT": "10"}
+    assert all(env is None for env in provider.envs[:-1])
+
+
+def test_prune_aggressive_asks_first_then_empties_whole_caches(provider: RecordingRunner) -> None:
+    refused = CliRunner().invoke(app, ["prune", "--aggressive"])
+    assert refused.exit_code == 1
+    assert "requires confirmation" in str(refused.exception)
     assert not provider.actions
-    result = cli(["prune", "all", "--yes"])
-    assert {args[0] for args in provider.actions} == {"dprint", "hf", "mise", "npm", "trivy", "uv"}
-    assert ["hf", "cache", "prune", "--yes"] in provider.actions
+
+    cli(["prune", "--aggressive", "--yes"])
+
+    assert provider.actions == [
+        ["dprint", "clear-cache"],
+        ["hf", "cache", "prune", "--yes"],
+        ["mise", "cache", "clear"],
+        ["npm", "cache", "clean", "--force"],
+        ["trivy", "clean", "--all"],
+        ["uv", "cache", "clean"],
+    ]
 
 
 def test_docker_prune_requires_explicit_selection(provider: RecordingRunner) -> None:
-    cli(["prune", "docker", "--yes"])
-    assert provider.actions == [["docker", "builder", "prune", "--force"]]
+    cli(["prune", "docker"])
+    cli(["prune", "docker", "--aggressive", "--yes"])
+    assert provider.actions == [
+        ["docker", "builder", "prune", "--force"],
+        ["docker", "builder", "prune", "--all", "--force"],
+    ]
+
+
+def test_prune_rejects_unknown_providers(provider: RecordingRunner) -> None:
+    result = CliRunner().invoke(app, ["prune", "pip"])
+    assert result.exit_code == 2
+    assert not provider.calls
 
 
 def test_prune_missing_tools_fails_before_any_cleanup(provider: RecordingRunner) -> None:
@@ -799,11 +835,16 @@ def test_prune_missing_tools_fails_before_any_cleanup(provider: RecordingRunner)
     assert not provider.actions
 
 
-def test_native_failure_stops_aggregate(provider: RecordingRunner) -> None:
+def test_native_failure_continues_and_names_the_failed_providers(provider: RecordingRunner) -> None:
     provider.action_code = 17
-    result = CliRunner().invoke(app, ["prune", "all", "--yes"])
-    assert result.exit_code != 0
-    assert len(provider.actions) == 1
+    result = CliRunner().invoke(app, ["prune"])
+    assert result.exit_code == 1
+    # One busy or broken cache must not block the others.
+    assert len(provider.actions) == 5
+    assert str(result.exception) == (
+        "cache cleanup failed for hf, mise, npm, trivy, uv; the other providers were cleaned"
+    )
+    assert "if a running `uv run` process holds the cache" in result.stderr
 
 
 def test_workspace_setup_verifies_changes_and_second_run_is_noop(provider: RecordingRunner) -> None:
