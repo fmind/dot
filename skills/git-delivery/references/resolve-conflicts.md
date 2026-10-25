@@ -1,13 +1,6 @@
 ---
 name: resolve-conflicts
 description: "Resolve Git merge or rebase conflicts by both sides' intent; verify the result."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/resolve-conflicts
-  created: "2026-09-03"
-  updated: "2026-10-09"
 ---
 
 # Resolve Conflicts
@@ -37,7 +30,7 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
    git add <file>...
    git rebase --continue   # or: git merge --continue
    ```
-1. **Prove it**: Run the repository's owning gate (e.g. `mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
+1. **Prove it**: Run the repository's owning gate (e.g. `mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
 1. **Push only when already authorized**: a rewritten private branch may need `git push --force-with-lease`; resolving conflicts alone does not authorize that history update, and never force-push a shared branch (`main`, or one others build on), merge into it instead.
 
 ## Gotchas
@@ -52,4 +45,4 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 
 - [git merge](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) · [git rebase](https://git-scm.com/docs/git-rebase) · [git rerere](https://git-scm.com/docs/git-rerere)
 - Adapted from [mattpocock/skills resolving-merge-conflicts](https://github.com/mattpocock/skills/blob/321658273cb1d20b76026717d027d505790106d4/skills/engineering/resolving-merge-conflicts/SKILL.md) (removed upstream in `daa01d8`).
-- Companion skills: [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) (commit and push), [repository-history](../repository-history/SKILL.md) (why a change exists), [mise](../mise/SKILL.md) (the gate).
+- Companion skills: [git-add-commit-push](git-add-commit-push.md) (commit and push), [repository-history](../../repository-history/SKILL.md) (why a change exists), [mise](../../mise/SKILL.md) (the gate).

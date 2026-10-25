@@ -40,4 +40,4 @@ Turn the staged changes into one Conventional Commits subject and commit them; [
 ## Documentation
 
 - [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-- Companion skills: [git-worktree](../../git-worktree/SKILL.md) (branch first), [git-add-commit-push](git-add-commit-push.md) (stage, commit, push), [github-pull-request](../../github-pull-request/SKILL.md) (open the PR).
+- Companion skills: [git-worktree](git-worktree/GUIDE.md) (branch first), [git-add-commit-push](git-add-commit-push.md) (stage, commit, push), [github-pull-request](../../github-pull-request/SKILL.md) (open the PR).

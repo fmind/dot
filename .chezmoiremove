@@ -1,4 +1,5 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiremove/
+# Temporary: delete this file once every machine, the Mac included, has applied the release that ships it.
 # Zellij zen layout retired on 2026-10-25.
 .config/zellij/layouts/zen.kdl
 # technical-publishing deleted on 2026-10-25: publishing projects own their skills.
@@ -22,5 +23,12 @@
 .agents/skills/benchmark
 .agents/skills/handoff
 .agents/skills/sops-secrets
+# Unused skills deleted on 2026-10-25 (usage review); git-worktree and resolve-conflicts became git-delivery guides.
+.agents/skills/ast-grep
+.agents/skills/data-migration
+.agents/skills/git-worktree
+.agents/skills/product-design-review
+.agents/skills/product-management
+.agents/skills/resolve-conflicts
 # Neovim copilot-native extra dropped on 2026-10-25 (review-only editor; RAM).
 .config/nvim/lua/plugins/copilot.lua

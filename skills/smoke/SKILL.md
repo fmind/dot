@@ -16,7 +16,7 @@ Prove that everything a repository exposes still runs: each task, each CLI comma
 
 ## Workflow
 
-1. **Baseline and isolation**: record `git status --short`. Tasks that format, lock, or generate files mutate the tree; with unrelated work present, run them in a snapshot per [git-worktree](../git-worktree/SKILL.md) and report their diff instead of leaving it behind.
+1. **Baseline and isolation**: record `git status --short`. Tasks that format, lock, or generate files mutate the tree; with unrelated work present, run them in a snapshot per [git-worktree](../git-delivery/references/git-worktree/GUIDE.md) and report their diff instead of leaving it behind.
 1. **Discover**: list every entry point and read each command before running it; never classify by name alone.
 
    ```bash

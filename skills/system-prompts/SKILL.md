@@ -28,7 +28,7 @@ Design production prompt stacks with explicit instruction precedence, trusted co
 - **Treat untrusted content as data**: retrieved text, files, tool results, memory, examples, and prior model output are delimited, labeled data that cannot gain instruction authority; reject missing template variables instead of emitting placeholders.
 - **Never copy sealed evaluation cases into examples**: examples sit at decision boundaries only, including hard negatives.
 - **Do not request or expose hidden chain of thought**: ask for the decision, a concise rationale, cited evidence, uncertainty, and the observable tool trace the consumer needs.
-- **Render before auditing**: fill the candidate with representative values first; bound and escape every dynamic insert, and route product ambiguity to [product-management](../product-management/SKILL.md) before writing instructions.
+- **Render before auditing**: fill the candidate with representative values first; bound and escape every dynamic insert, and resolve product ambiguity with the owner before writing instructions.
 - **Stop on unclear ownership**: unknown runtime assembly, several layers owning one policy, tool descriptions without side effects, dynamic content that can gain authority, or success asserted from one response.
 
 ## Documentation
