@@ -16,7 +16,7 @@ return {
       end
       -- Ruff is the single Python formatting and import-order owner.
       opts.formatters_by_ft.python = { "ruff_organize_imports", "ruff_format" }
-      -- The terraform extra calls a terraform binary; this workstation installs only OpenTofu.
+      -- The terraform extra calls a terraform binary; the workstation installs OpenTofu instead.
       for _, filetype in ipairs({ "terraform", "terraform-vars", "tf" }) do
         opts.formatters_by_ft[filetype] = { "tofu_fmt" }
       end
