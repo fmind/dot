@@ -30,7 +30,7 @@ Verify every material claim and link in a draft article, post, talk, or README s
    ```
 
 1. **Add sources**: for an unsupported but true claim, propose the primary link at the claim, not a generic homepage; keep the existing link style (inline, reference, footnote). For an outdated or inflated claim, propose the smaller true form. Never invent a URL; name the missing source instead.
-1. **Report**: verdict counts first (`supported`, `outdated`, `unsupported`, `wrong`, `broken link`), then the ledger rows that need action, ranked by reader impact. Include the date checked: versions, prices, and availability drift.
+1. **Report**: verdict counts (`supported`, `outdated`, `unsupported`, `wrong`, `broken link`) and the ledger rows that need action, ranked by reader impact. Include the date checked: versions, prices, and availability drift.
 
 ## Gotchas
 

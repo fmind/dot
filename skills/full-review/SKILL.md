@@ -16,7 +16,7 @@ Answer "perform a full review", "final check before release", "make sure everyth
 
 ## Arguments
 
-Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope; `upkeep` skips the coverage inventory and covers the Current, Simple, Consistent, and Documented dimensions plus the adopted security scans), mode (default fix; `report` stays read-only, skips the Fix and Prove steps, and lists findings under **Fixed** renamed **Findings**, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
+Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope; `upkeep` skips the coverage inventory and covers the Current, Simple, Consistent, and Documented dimensions plus the adopted security scans), mode (default fix; `report` stays read-only, skips the Fix and Prove steps, and reports findings instead of fixes, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
 
 ## Workflow
 
@@ -33,7 +33,7 @@ Parse the request into one line and state it before starting: scope (paths, othe
    - **Fast**: slow tasks, tests, CI, or pages with a measured cause ([benchmark](../systematic-debugging/references/benchmark.md)).
 1. **Fix**: apply each verified finding with the smallest change; add a regression test for behavior fixes. Prefer one coherent change per finding so selective reverts stay easy. Hold back changes that are irreversible, outward-facing, costly, or that change a deliberate design, and list them as decisions.
 1. **Prove**: rerun only the checks a fix invalidated, then the full gate (`mise run all` or the repository's equivalent) on the final tree. Confirm the tested snapshot equals the candidate.
-1. **Report**: per the template below. Keep it short; evidence goes in file:line references, not narration.
+1. **Report**: the verdict (ready, ready with caveats, or blocked) with the highest proven rung; each fix with its `path:line` and the check that proves it; remaining risk; held-back changes as decisions with options and a recommendation; improvements beyond defects as suggestions; each check as pass, fail, blocked, or not run; and the areas, credentials, or services this pass did not cover.
 1. **Follow up on request**: release or commit through [git-delivery](../git-delivery/SKILL.md) or the repository's release skill; propagate to dependent repositories by repeating this pass there; when the user says "apply all" after a report-mode run, resume at the Fix step.
 
 ## Task guides
@@ -43,29 +43,6 @@ Parse the request into one line and state it before starting: scope (paths, othe
 - [update-ignores](references/update-ignores/GUIDE.md): Audit and fix .gitignore, .ignore, .dockerignore, and tool excludes for the stack.
 
 <!-- guides:end -->
-
-## Report template
-
-```markdown
-<Takeaway: ready, ready with caveats, or blocked, the proven rung, and what it means for the user.>
-
-**Why it matters**: <one sentence>
-
-- **Fixed (<n>)**: <the most important fixes, each with its `path:line`>
-- **Remaining risk**: <what could still break, or that none was found>
-
-**Decisions**
-
-1. <Decision with its context, options 1.1 and 1.2, and the recommended one.>
-
-**Suggestions**
-
-1. <Improvement beyond defects, ranked by impact.>
-
-**Details**: <every fix with the check that proves it, each check as pass, fail, blocked, or not run, and the areas, credentials, or services this pass did not cover.>
-```
-
-Number decisions and suggestions so the user can answer "do 2, 3" or "all but 1".
 
 ## Gotchas
 

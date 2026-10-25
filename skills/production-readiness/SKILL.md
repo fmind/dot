@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/production-readiness
   created: "2026-08-08"
-  updated: "2026-10-21"
+  updated: "2026-10-25"
 ---
 
 # Production Readiness
@@ -41,7 +41,7 @@ Decide whether the exact candidate can be operated safely. The audit produces a 
    - `runtime-proven`: the built artifact works across the authorized runtime boundary.
    - `deployed`: that artifact is running in the target environment.
    - `release-published`: the intended audience can obtain the released result (see [release](../git-delivery/references/release/GUIDE.md)).
-1. **Record the gates**: for each material gate report its status (pass, fail, blocked, or not run), exact evidence, owner, and smallest next step; lead with blockers, then gaps, verified gates, rollback plan, highest proven rung, and recommendation.
+1. **Record the gates**: for each material gate report its status (pass, fail, blocked, or not run), exact evidence, owner, and smallest next step; also cover blockers, gaps, verified gates, the rollback plan, the highest proven rung, and the recommendation.
 1. **Decide**: return `GO`, `GO WITH CHANGES`, or `NO-GO`; authority, schedule pressure, and sunk cost cannot turn a failed hard gate into `GO`.
 
 ## Gotchas
