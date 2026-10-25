@@ -50,11 +50,13 @@ Pick the outline that matches the decision you need from the reader, then turn e
 1. **Context**: two or three sentences.
 1. **Next step**: one, with a date.
 
-### PR or issue description
+### PR description
 
 1. **Change**: what changes for users or operators, and why.
 1. **Verification**: how it was verified and what reviewers should check first.
 1. **Risks**: rollout and rollback.
+
+Issue drafts follow the github-issues [draft contract](../../github-issues/references/backlog.md#draft-contract).
 
 ## Reader lenses
 

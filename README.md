@@ -87,7 +87,7 @@ mise run apply
 
 The [Dot CLI guide](skills/dot-cli/SKILL.md) covers commands, diagnostics, and recovery.
 
-Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repositories needing attention (with fetch), `hp` → pull, `ho` → orphans, `hc` → caches, and `ha` → agent statistics.
+Fish shortcuts: `h` runs `dot`, `hd` doctor, `hh` headroom, `hs` repositories needing attention (with fetch), `hp` pull, `ho` orphans, `hc` caches, and `ha` agent statistics.
 
 In Neovim, `<leader>gm` toggles the current buffer's Git comparison between the index and the default branch's merge-base; other buffers keep their own comparison. Tab accepts completions and Enter always inserts a newline; in Markdown, text, commit-message, and unnamed buffers, Enter continues or splits list items, and on an empty item it outdents or ends the list. Clipboard selection uses macOS's native provider, or xclip when Linux has an X display; Wayland-only sessions use Neovim's native detection. mise config files get diagnostics, completion, and hover from `mise lsp`.
 
@@ -95,7 +95,7 @@ Zellij tiles new panes (`Alt n`) as equal columns, up to four, to suit wide scre
 
 ### Dot configuration
 
-Machine-local settings live in `~/.config/dot.yaml` and merge with [built-in defaults](dot/src/fmind_dot/config.py). Configuration selection is `dot --config <path>` → `DOT_CONFIG_PATH` → the default path. A missing default file is fine; a missing explicitly selected file is an error. An unreadable file always fails instead of falling back to defaults.
+Machine-local settings live in `~/.config/dot.yaml` and merge with [built-in defaults](dot/src/fmind_dot/config.py). dot reads the file named by `dot --config <path>`, else `DOT_CONFIG_PATH`, else the default path. A missing default file is fine; a missing explicitly selected file is an error. An unreadable file always fails instead of falling back to defaults.
 
 Use `dot config edit` to edit settings; it validates them when the editor exits. Alternate `~/.config/dot.*.yaml` profiles are loaded only when selected; these files stay outside Git and chezmoi management.
 
@@ -115,7 +115,7 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 | `mise run apply`   | Apply files and eligible hooks                                                |
 | `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                           |
 | `mise run full`    | Synchronize files, locked tools, CLI, and completions; retire old lock graphs |
-| `mise run upgrade` | Upgrade dependencies, tools, theme, and plugins, then run `full`              |
+| `mise run upgrade` | Upgrade dependencies, tools, the theme pin, and plugins (includes `full`)     |
 | `mise run all`     | Format, check, test, and build the repository                                 |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
@@ -159,12 +159,12 @@ GitHub pushes use SSH, even for HTTPS clones: register an SSH key in [GitHub set
 
 Agent harnesses use their own logins:
 
-| Harness     | Command                 |
-| ----------- | ----------------------- |
-| Antigravity | `agy`                   |
-| Claude Code | `claude auth login`     |
-| Copilot     | `copilot login`         |
-| OpenCode    | `opencode` → `/connect` |
+| Harness     | Command                     |
+| ----------- | --------------------------- |
+| Antigravity | `agy`                       |
+| Claude Code | `claude auth login`         |
+| Copilot     | `copilot login`             |
+| OpenCode    | `opencode`, then `/connect` |
 
 For hooks, notifications, and provider overrides, see [agent harnesses](skills/agent-harnesses/SKILL.md) and [Antigravity](skills/agy/SKILL.md). Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 

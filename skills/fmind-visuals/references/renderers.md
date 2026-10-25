@@ -56,7 +56,7 @@ README and user-doc illustrations copy [illustration.svg](../../diagrams-as-code
 
 [diagram.d2](../templates/diagram.d2) implements the DESIGN.md `diagram-*` components as D2 classes (`group`, `container`, `component`, `actor`, `external`, `step`, `terminal`) on a light surface. Fmind diagrams import it and use its classes instead of declaring colors.
 
-Elsewhere, start from a built-in D2 theme and use `theme-overrides` or `dark-theme-overrides` under `vars.d2-config`. Supply all eight D2 font slots from static TTF faces: Google Sans for `--font-regular`, `--font-italic`, `--font-semibold`, and `--font-bold`; Google Sans Code for `--font-mono`, `--font-mono-italic`, `--font-mono-semibold`, and `--font-mono-bold`. Missing slots fall back to D2 fonts. Instantiate variable fonts at the intended weights before assigning them to these slots; one variable font reused for every slot can render every weight as regular. In Pub, `pub render diagram` loads these faces from `assets/fonts/`.
+Elsewhere, start from a built-in D2 theme and use `theme-overrides` or `dark-theme-overrides` under `vars.d2-config`. Supply all eight D2 font slots from static TTF faces: Google Sans for `--font-regular`, `--font-italic`, `--font-semibold`, and `--font-bold`; Google Sans Code for `--font-mono`, `--font-mono-italic`, `--font-mono-semibold`, and `--font-mono-bold`. Missing slots fall back to D2 fonts. Instantiate variable fonts at the intended weights before assigning them to these slots; one variable font reused for every slot can render every weight as regular.
 
 ## Typst
 

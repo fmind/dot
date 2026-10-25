@@ -1,13 +1,14 @@
 {{- /*
   Merge managed keys into a configuration file the tool also writes: fill `defaults` keys the
-  host has not set, preserve host state, enforce `managed`, and rewrite only on drift so a converged file
-  keeps the tool's own comments, key order, and indentation.
+  host has not set, preserve host state, enforce `managed`, and rewrite only on drift so a
+  converged file keeps the tool's own comments, key order, and indentation.
 
   Params: stdin (current content), managed (keys this repository owns), defaults (optional,
   seeded only), replace (optional top-level keys whose managed value replaces the host's whole
-  value instead of merging into it, so a nested key this repository stops managing disappears), format ("json" by default, "jsonc" for hosts that accept comments and trailing
-  commas, or "toml"). Callers use includeTemplate: on chezmoi 2.72.0 a modify_ script cannot
-  reach the .chezmoitemplates namespace through a template action.
+  value instead of merging into it, so a nested key this repository stops managing disappears),
+  format ("json" by default, "jsonc" for hosts that accept comments and trailing commas, or
+  "toml"). Callers use includeTemplate: on chezmoi 2.72.0 a modify_ script cannot reach the
+  .chezmoitemplates namespace through a template action.
 
   chezmoi's fromJson, not sprig's mustFromJson: sprig decodes every number as float64, so
   deepEqual never matched an integer and integers above 2^53 lost precision. deepCopy is
