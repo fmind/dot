@@ -2,6 +2,48 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.0.0] - 2026-10-25
+
+### 🚀 Features
+
+- _(dot)_ Add safe and aggressive prune tiers; report diverged pulls
+- _(mise)_ Install stylua, tflint, and OpenTofu for Neovim
+- _(skills)_ Add stakeholder-writing for reports to busy readers
+- _(dot)_ [**breaking**] Request key and package writes as one-off login grants
+- _(nvim)_ Lint Terraform files with tflint
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Disambiguate colliding Claude subagent sidechains by parent session
+- Correct retired-agent reports, agy exclusions, and leftovers
+- _(tasks)_ Let mise run lock add newly declared tools
+- _(dot)_ Stop advising recapture for retired agent archives
+- _(dot)_ Type cache and prune providers; confirm only emptied caches
+- _(agy)_ Start the Remote Control daemon through the agy fish function
+
+### ♻️ Refactor
+
+- [**breaking**] Trim tools, harnesses, and skills for agy-first work
+- _(skills)_ Drop four unused skills; fold two into git-delivery
+- _(skills)_ Drop agents/openai.yaml host metadata guidance
+
+### 📚 Documentation
+
+- _(agents)_ Rewrite the persona for audience-aware, readable output
+- _(agents)_ Add security, agent-ready, and report-shape rules
+- _(skills)_ Align report steps with the persona report shape
+- _(skills)_ Drop the AgentOps course reference profile from course-development
+- _(agents)_ Split communication rules by audience
+- _(agents)_ Record the global tool choice rule
+- _(agents)_ Add rigor, honesty, and review-speed rules
+- _(skills)_ Describe report coverage instead of fixed formats
+- Align skills, README, and comments with current behavior
+
+### 🧹 Miscellaneous
+
+- Stop managing the ChromeOS Downloads link
+- _(mise)_ Resolve latest only after a one-day release age
+
 ## [13.1.0] - 2026-10-24
 
 ### 🚀 Features
