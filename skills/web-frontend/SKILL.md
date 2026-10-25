@@ -12,7 +12,7 @@ metadata:
 
 # Web Frontend
 
-Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an existing frontend stack and use Tailwind when the project selects it. [python-web](../python-web/SKILL.md) owns server applications, including server rendering, APIs, and application tests through [litestar](../python-web/references/litestar/GUIDE.md) or [django](../python-web/references/django/GUIDE.md); [product-design-review](../product-design-review/SKILL.md) owns interface critique, and [playwright](../playwright/SKILL.md) owns browser automation.
+Build browser interfaces with native HTML, CSS, and JavaScript. Preserve an existing frontend stack and use Tailwind when the project selects it. [python-web](../python-web/SKILL.md) owns server applications, including server rendering, APIs, and application tests through [litestar](../python-web/references/litestar/GUIDE.md) or [django](../python-web/references/django/GUIDE.md); [playwright](../playwright/SKILL.md) owns browser automation.
 
 ## Workflow
 

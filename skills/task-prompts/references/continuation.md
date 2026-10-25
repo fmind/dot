@@ -11,7 +11,7 @@ Let the next session continue without the user re-explaining. Prefer agy's nativ
 
 - **Same conversation later**: `agy -c` resumes the most recent conversation, `agy --conversation <id>` a specific one, and `/resume` picks one inside the session. No handoff is needed.
 - **Long session**: `/compact [message]` summarizes the conversation to free context, then answers `message` if given; `/context` shows usage.
-- **Alternative approach**: `/fork` copies the conversation history, not the checkout or a Git branch; use [git-worktree](../../git-worktree/SKILL.md) for competing edits.
+- **Alternative approach**: `/fork` copies the conversation history, not the checkout or a Git branch; use [git-worktree](../../git-delivery/references/git-worktree/GUIDE.md) for competing edits.
 - **Fresh start**: write and copy a handoff with the workflow below, then `/clear`, which clears the conversation and starts a new one. Paste the handoff, or its pointer line, as the first prompt.
 
 ## Handoff workflow

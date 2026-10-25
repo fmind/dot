@@ -37,7 +37,7 @@ Both interactive and batch invocations can load `~/.duckdbrc` or `~/.sqliterc`, 
 1. **Persist derived data as Parquet**: keep rebuildable `.duckdb` files out of Git and commit the SQL that produces them; use `-readonly` for inspection of an existing database.
 1. **Export for the reader**: `-markdown` for a report, `-json` for another tool, `COPY ... TO 'out.csv' (HEADER)` for a spreadsheet.
 
-Use [data-migration](../data-migration/SKILL.md) when changing an application schema or persisted format; analysis and export alone do not establish migration or recovery safety.
+Analysis and export alone do not establish migration or recovery safety for an application schema or persisted format.
 
 ## Gotchas
 

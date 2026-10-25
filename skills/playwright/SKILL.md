@@ -12,7 +12,7 @@ metadata:
 
 # Playwright
 
-Use Playwright for browser automation and end-to-end tests. Test strategy belongs to [quality-assurance](../quality-assurance/SKILL.md) and interface critique to [product-design-review](../product-design-review/SKILL.md); this skill owns the tool: browsers, commands, and the official skills.
+Use Playwright for browser automation and end-to-end tests. Test strategy belongs to [quality-assurance](../quality-assurance/SKILL.md); this skill owns the tool: browsers, commands, and the official skills.
 
 ## Workflow
 
@@ -34,4 +34,4 @@ Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli
 
 - [Playwright for Python](https://playwright.dev/python/docs/intro) · [pytest plugin](https://playwright.dev/python/docs/test-runners) · [Trace Viewer](https://playwright.dev/python/docs/trace-viewer)
 - Releases: [Playwright release notes](https://playwright.dev/python/docs/release-notes) · [playwright-python](https://github.com/microsoft/playwright-python/releases)
-- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md) (accessibility, Lighthouse, and performance audits), [benchmark](../systematic-debugging/references/benchmark.md) (load, not browser, testing).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md) (accessibility, Lighthouse, and performance audits), [benchmark](../systematic-debugging/references/benchmark.md) (load, not browser, testing).

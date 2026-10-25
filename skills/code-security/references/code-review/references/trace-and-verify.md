@@ -30,7 +30,7 @@ For an authorized fix, add a regression at the public boundary and prove it fail
 
 ## Search for related defects
 
-Describe the confirmed root cause without its incidental variable names. Use `rg` for names and text, or [ast-grep](../../../../ast-grep/SKILL.md) when Python syntax is the useful discriminator. Verify the search finds the known case, then vary one relevant feature at a time: another entry point, equivalent API, data type, or configuration source. Search the agreed repository scope, not just the first affected module.
+Describe the confirmed root cause without its incidental variable names. Use `rg` for names and text, or `ast-grep` when Python syntax is the useful discriminator. Verify the search finds the known case, then vary one relevant feature at a time: another entry point, equivalent API, data type, or configuration source. Search the agreed repository scope, not just the first affected module.
 
 Review every candidate against its own callers and controls. Keep a compact record of confirmed instances, rejected lookalikes, unresolved candidates, and excluded paths. Stop expanding when additional patterns no longer represent the root cause; a zero-result search is meaningful only with its tested pattern and scope.
 

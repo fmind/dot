@@ -37,4 +37,4 @@ Prepare instructions the receiving agent can use without this conversation. [sys
 
 ## Documentation
 
-- Companion skills: [research-brief](../implementation-plan/references/research-brief.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [agent-project](../agent-project/SKILL.md) (host layout), [clipboard](../clipboard/SKILL.md) (verified copy), [git-worktree](../git-worktree/SKILL.md) (isolated continuation).
+- Companion skills: [research-brief](../implementation-plan/references/research-brief.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [agent-project](../agent-project/SKILL.md) (host layout), [clipboard](../clipboard/SKILL.md) (verified copy), [git-worktree](../git-delivery/references/git-worktree/GUIDE.md) (isolated continuation).

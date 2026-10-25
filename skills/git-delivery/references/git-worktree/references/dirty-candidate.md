@@ -11,4 +11,4 @@ Use a disposable local clone when the tested files must include uncommitted work
 1. **Qualify and compare**: run the full gate, then compare the tested paths with the source again. If formatters changed files, review those edits before transferring them and rerun affected validation as needed. Concurrent source changes invalidate proof for those files.
 1. **Finish**: preserve useful logs outside the source and verify the source index is unchanged. Dispose of only the clone created for this task once no unique work remains.
 
-A filesystem copy is an execution workspace, not a backup of a running database. Use [data-migration](../../data-migration/SKILL.md) for consistent data snapshots.
+A filesystem copy is an execution workspace, not a backup of a running database. Take consistent data snapshots with the database's own backup tool.

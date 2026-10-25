@@ -41,7 +41,7 @@ Cross-cutting owners:
 
 - **This skill**: [uv](../uv.md) for dependencies, environments, Python versions, and builds; [ruff](../ruff.md) and [ty](../ty.md) for lint/format and type diagnostics; [pydantic](../pydantic.md) for input validation.
 - **Tasks, hooks, markup/config formatting**: [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [dprint](../../../dprint/SKILL.md).
-- **Persisted schema or data changes**: [data-migration](../../../data-migration/SKILL.md), including Alembic; use installed database/framework documentation for query APIs.
+- **Persisted schema or data changes**: use the project's migration tool (Alembic, Django migrations), rehearse on a copy, and keep a restorable backup; use installed database/framework documentation for query APIs.
 - **Logging and external HTTP**: [observability](../observability.md), [api-client](../api-client/GUIDE.md).
 - **Tests**: [python-testing](../python-testing/GUIDE.md) for pytest mechanics and Hypothesis property tests; [quality-assurance](../../../quality-assurance/SKILL.md) for broader campaigns.
 - **CPU and allocation profiling**: [systematic-debugging](../../../systematic-debugging/SKILL.md), including its Python profiler recipes.

@@ -12,7 +12,7 @@ metadata:
 
 # GitHub Pull Request
 
-Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [git-worktree](../git-worktree/SKILL.md) owns branch creation; [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) owns commit and push repair.
+Create or update a pull request for the intended branch and base, using the repository's template and a description proportional to the change. [git-worktree](../git-delivery/references/git-worktree/GUIDE.md) owns branch creation; [git-add-commit-push](../git-delivery/references/git-add-commit-push.md) owns commit and push repair.
 
 ## Workflow
 
@@ -37,4 +37,4 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
 
 - [gh pr manual](https://cli.github.com/manual/gh_pr)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [git-worktree](../git-worktree/SKILL.md), [conventional-commit](../git-delivery/references/conventional-commit.md), [github-issues](../github-issues/SKILL.md).
+- Companion skills: [git-worktree](../git-delivery/references/git-worktree/GUIDE.md), [conventional-commit](../git-delivery/references/conventional-commit.md), [github-issues](../github-issues/SKILL.md).

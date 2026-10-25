@@ -1,13 +1,6 @@
 ---
 name: git-worktree
 description: "Create Git branches, worktrees, or isolated snapshots of uncommitted work."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/git-worktree
-  created: "2026-09-09"
-  updated: "2026-10-19"
 ---
 
 # Git Worktree
@@ -43,4 +36,4 @@ Choose a branch in the current checkout or an isolated workspace according to th
 ## Documentation
 
 - [Git worktree](https://git-scm.com/docs/git-worktree) · [Git clone](https://git-scm.com/docs/git-clone)
-- Companion skills: [mise](../mise/SKILL.md) (gates), [resolve-conflicts](../resolve-conflicts/SKILL.md) (integration conflicts).
+- Companion skills: [mise](../../../mise/SKILL.md) (gates), [resolve-conflicts](../resolve-conflicts.md) (integration conflicts).
