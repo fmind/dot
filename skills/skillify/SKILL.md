@@ -36,7 +36,7 @@ Keep durable preferences in the global persona and repository invariants in proj
 - **Descriptions route, bodies instruct**: the description decides when the skill loads; the body decides what happens. Do not summarize the workflow in the description.
 - **Keep dates current**: set `created` and `updated` to today; bump `updated` on every later edit.
 - **Follow vendor policy for third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
-- **Promote or publish per portability**: promoting a guide to a package, publishing one standalone, or adding `agents/openai.yaml` follows [portability](references/portability.md).
+- **Promote or publish per portability**: promoting a guide to a package or publishing one standalone follows [portability](references/portability.md).
 
 ## Documentation
 
