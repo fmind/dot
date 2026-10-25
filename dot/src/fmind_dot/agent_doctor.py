@@ -3,7 +3,6 @@
 import json
 import os
 import shlex
-import tomllib
 from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -30,8 +29,8 @@ _CLI_NAME = "dot"
 class HostDeployment:
     """What the chezmoi source deploys for one agent host: notify hooks and discovery links."""
 
+    # Every remaining host keeps its notification settings in JSON.
     config_path: str
-    config_format: str
     notify_events: tuple[str, ...]
     persona: str
     # Host link to the shared skills; empty when the host reads ~/.agents/skills natively.
@@ -46,43 +45,25 @@ _SHARED_SKILLS = "~/.agents/skills"
 HOSTS = {
     "agy": HostDeployment(
         "~/.gemini/config/hooks.json",
-        "json",
         ("stop",),
         "~/.gemini/GEMINI.md",
         "~/.gemini/config/skills",
     ),
     "claude": HostDeployment(
         "~/.claude/settings.json",
-        "json",
         ("needs-input", "ready"),
         "~/.claude/CLAUDE.md",
         "~/.claude/skills",
         "disableAllHooks",
     ),
-    "codex": HostDeployment(
-        "~/.codex/config.toml",
-        "toml",
-        ("native",),
-        "~/.codex/AGENTS.md",
-        "",
-        "tui.notifications",
-    ),
-    "grok": HostDeployment(
-        "~/.grok/hooks/hooks.json",
-        "json",
-        ("needs-input", "ready"),
-        "~/.grok/AGENTS.md",
-        "~/.grok/skills",
-    ),
     "copilot": HostDeployment(
         "~/.copilot/settings.json",
-        "json",
         ("native",),
         "~/.copilot/copilot-instructions.md",
         "",
     ),
     # OpenCode collection is database-based; this integration does not install notification hooks.
-    "opencode": HostDeployment("", "", (), "~/.config/opencode/AGENTS.md", ""),
+    "opencode": HostDeployment("", (), "~/.config/opencode/AGENTS.md", ""),
 }
 
 
@@ -147,26 +128,15 @@ def _check_hooks(agent: str, definition: HostDeployment) -> str:
     except OSError:
         return "unreadable"
     try:
-        config = json.loads(content) if definition.config_format == "json" else tomllib.loads(content.decode())
-    except UnicodeError, ValueError, RecursionError, tomllib.TOMLDecodeError:
+        config = json.loads(content)
+    except UnicodeError, ValueError, RecursionError:
         return "malformed"
     if not isinstance(config, dict):
         return "malformed"
     if agent == "claude" and config.get("disableAllHooks") is True:
         return "disabled"
     if definition.notify_events == ("native",):
-        settings = config.get("tui", {}) if agent == "codex" else config
-        if not isinstance(settings, dict):
-            return "malformed"
-        notifications = settings.get("notifications")
-        # Codex also accepts the list of notification types to deliver.
-        enabled = notifications is True or (
-            agent == "codex"
-            and isinstance(notifications, list)
-            and bool(notifications)
-            and all(isinstance(item, str) for item in notifications)
-        )
-        return "configured" if enabled else "disabled"
+        return "configured" if config.get("notifications") is True else "disabled"
     configured = set(_command_hooks(config, agent))
     missing = [
         event

@@ -1,25 +1,33 @@
 ---
 name: task-prompts
-description: "Write grounded task and delegation prompts for coding agents."
+description: "Write grounded task, delegation, and handoff prompts for coding agents; resume or compact agy sessions."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-10-09"
+  updated: "2026-10-25"
 ---
 
 # Task and Continuation Prompts
 
-Prepare instructions the receiving agent can use without this conversation. [system-prompts](../system-prompts/SKILL.md) owns prompts embedded in applications; native resume or compaction is preferable when it already preserves the needed state.
+Prepare instructions the receiving agent can use without this conversation. [system-prompts](../system-prompts/SKILL.md) owns prompts embedded in applications; native resume or compaction is preferable when it already preserves the needed state; the [continuation](references/continuation.md) guide chooses between them and a handoff.
 
 ## Workflow
 
 1. **Choose the mode**: fresh task, or continuation of work already underway; resolve the requested outcome, latest corrections, scope, and acceptance criteria.
-1. **Record continuation state**: check `git status --short --branch`, record completed proof, the exact stopping point, outstanding work, failed approaches, and reasons for material decisions. Before `/clear` or a harness switch, use [handoff](../handoff/SKILL.md), which also copies the result to the clipboard.
+1. **Record continuation state**: check `git status --short --branch`, record completed proof, the exact stopping point, outstanding work, failed approaches, and reasons for material decisions. Before `/clear`, follow the [continuation](references/continuation.md) guide, which also copies the result to the clipboard.
 1. **Draft** from [prompt-template.md](references/prompt-template.md); omit empty sections and add ordered slices only when execution needs them.
 1. **Write and check**: resolve the root with `git rev-parse --show-toplevel`; save `.agents/prompts/<file>.md`, defaulting to `<YYYY-MM-DD>-<slug>.md`, or `~/.agents/prompts/` outside a repository. Verify the receiver can act without hidden context, then report the path.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [continuation](references/continuation.md): Resume, compact, or fork an agy session, or save and copy a handoff prompt before /clear.
+
+<!-- guides:end -->
 
 ## Gotchas
 
@@ -29,4 +37,4 @@ Prepare instructions the receiving agent can use without this conversation. [sys
 
 ## Documentation
 
-- Companion skills: [research-brief](../implementation-plan/references/research-brief.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [agent-project](../agent-project/SKILL.md) (host layout), [handoff](../handoff/SKILL.md) (save and copy before `/clear`).
+- Companion skills: [research-brief](../implementation-plan/references/research-brief.md) (decision evidence), [implementation-plan](../implementation-plan/SKILL.md) (ordered slices), [agent-project](../agent-project/SKILL.md) (host layout), [clipboard](../clipboard/SKILL.md) (verified copy), [git-worktree](../git-worktree/SKILL.md) (isolated continuation).

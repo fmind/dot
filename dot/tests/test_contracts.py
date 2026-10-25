@@ -13,6 +13,7 @@ import pytest
 from dot_tasks import skill_contracts as checker
 from dot_tasks.mise_locks import LOCK_REVISION, bundle
 from dot_tasks.mise_refresh import validate
+from tests.chezmoi_helpers import chezmoi
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -407,8 +408,7 @@ def test_repository_mise_lock_includes_valid_dependency_files() -> None:
 def test_encrypted_targets_are_ignored_without_the_age_key(tmp_path: Path) -> None:
     # A host without the owner's age key must skip every encrypted source, not fail apply.
     # Render from a minimal copy: scanning the live checkout races with parallel test files.
-    source, home = tmp_path / "source", tmp_path / "home"
-    home.mkdir()
+    source = tmp_path / "source"
     shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates")
     shutil.copy2(ROOT / ".chezmoiignore", source / ".chezmoiignore")
     listed = subprocess.run(
@@ -419,21 +419,13 @@ def test_encrypted_targets_are_ignored_without_the_age_key(tmp_path: Path) -> No
     for relative in encrypted:
         (source / relative).parent.mkdir(parents=True, exist_ok=True)
         (source / relative).touch()
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("")
-    common = ["--source", str(source), "--config", str(config), "--destination", str(home)]
-    environment = {**os.environ, "HOME": str(home)}
-
-    def chezmoi(*arguments: str) -> list[str]:
-        command = ["chezmoi", *arguments[:1], *common, *arguments[1:]]
-        result = subprocess.run(command, env=environment, check=True, capture_output=True, text=True, timeout=30)
-        return result.stdout.splitlines()
-
-    patterns = [line.strip() for line in chezmoi("execute-template", "--file", str(source / ".chezmoiignore"))]
+    rendered = chezmoi(source, "execute-template", "--file", str(source / ".chezmoiignore"))
+    patterns = [line.strip() for line in rendered.splitlines()]
     patterns = [pattern for pattern in patterns if pattern and not pattern.startswith(("#", "!"))]
     unignored = []
-    for target in chezmoi("target-path", *(str(source / relative) for relative in encrypted)):
-        relative = Path(target).relative_to(home).as_posix().removesuffix(".age")
+    # The destination defaults to HOME (tmp_path), which holds no age key.
+    for target in chezmoi(source, "target-path", *(str(source / relative) for relative in encrypted)).splitlines():
+        relative = Path(target).relative_to(tmp_path).as_posix().removesuffix(".age")
         if not any(
             relative == pattern or relative.startswith(f"{pattern}/") or fnmatch.fnmatchcase(relative, pattern)
             for pattern in patterns
@@ -448,18 +440,8 @@ def test_chromeos_downloads_link_deploys_only_where_its_target_exists(tmp_path: 
     source = tmp_path / "source"
     shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates")
     shutil.copy2(ROOT / ".chezmoiignore", source / ".chezmoiignore")
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("")
-    command = ["chezmoi", "execute-template", "--source", str(source), "--config", str(config)]
-    rendered = subprocess.run(
-        [*command, "--file", str(source / ".chezmoiignore")],
-        env={**os.environ, "HOME": str(tmp_path)},
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    ignored = "Downloads" in (line.strip() for line in rendered.stdout.splitlines())
+    rendered = chezmoi(source, "execute-template", "--file", str(source / ".chezmoiignore"))
+    ignored = "Downloads" in (line.strip() for line in rendered.splitlines())
     assert ignored == (not target.is_dir())
 
 

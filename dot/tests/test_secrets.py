@@ -11,13 +11,13 @@ import pytest
 
 from fmind_dot.errors import DotError
 from fmind_dot.secrets import personal_token
+from tests.chezmoi_helpers import chezmoi
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
 def secret_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
     for name in tuple(os.environ):
         if name in {"UV_PUBLISH_TOKEN", "TEST_API_KEY", "OTHER_API_KEY"}:
@@ -187,19 +187,8 @@ def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login:
         path = source / relative.replace("encrypted_", "").removesuffix(".age")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("synthetic-personal\n")
-    command = [
-        "chezmoi",
-        "apply",
-        "--force",
-        "--source",
-        str(source),
-        "--destination",
-        str(home),
-        "--config",
-        str(config),
-    ]
     environment = {**os.environ, "HOME": str(home)}
-    subprocess.run(command, check=True, capture_output=True, timeout=60, env=environment)
+    chezmoi(source, "apply", "--force", config=config, env=environment)
     if login == "no-age-key":
         assert all(not (home / relative).exists() for relative in targets.values())
         return
@@ -211,6 +200,6 @@ def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login:
         assert path.read_text() == "synthetic-personal\n"
         assert path.stat().st_mode & 0o777 == 0o600
         path.write_text("synthetic-customer\n")
-    subprocess.run(command, check=True, capture_output=True, timeout=60, env=environment)
+    chezmoi(source, "apply", "--force", config=config, env=environment)
     for relative in targets.values():
         assert (home / relative).read_text() == "synthetic-customer\n"

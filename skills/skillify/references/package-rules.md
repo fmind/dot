@@ -1,6 +1,6 @@
 # Package Rules
 
-Keep a small discovery catalog and load procedures only for the task at hand. [skillify](../SKILL.md) owns admission; [catalog review](catalog-review.md) owns measurement. Package checks prove structure, not host selection or successful execution.
+Keep a small discovery catalog and load procedures only for the task at hand. This page owns admission; [catalog review](catalog-review.md) owns measurement. Package checks prove structure, not host selection or successful execution.
 
 ## Categories and scope
 
@@ -9,7 +9,7 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 - **Collection** (`metadata.kind: collection`): a cohesive domain such as Python, application frameworks, or project creation. Its entrypoint selects a guide and states essential shared prerequisites. Group by task/domain coherence, not simply infrequent use.
 - **Category and installation scope are independent**: any kind can be a reusable global owner or a repository-only owner in `.agents/skills/`.
 - **Classify only with `metadata.kind`**: it is the single classification tag; do not duplicate it in `tags`, `type`, directory groups, or description prefixes. Classify by the current workflow; names and descriptions must still route without it.
-- **Gate global owners on evidence**: admit a global owner only for a distinct recurring trigger and demonstrated behavioral benefit. First extend an existing owner or choose project scope. An installed tool does not automatically need a skill; rarely used recovery guidance may still deserve direct discovery.
+- **Gate global owners on evidence**: first extend an existing owner or choose project scope. Admit a new global owner only for a distinct recurring trigger, demonstrated behavioral benefit, and room within the [discovery and instruction budgets](#size-and-budgets); if only general product knowledge remains, link documentation instead. An installed tool does not automatically need a skill; rarely used recovery guidance may still deserve direct discovery.
 
 ## Naming and ownership
 
@@ -41,7 +41,7 @@ Keep a small discovery catalog and load procedures only for the task at hand. [s
 ## Size and budgets
 
 - **Target compact routers and procedures**: collection routers should usually cost 300–600 estimated body tokens; ordinary procedures should usually stay below 1,500. These are review targets, not padding requirements or automatic deletion rules. Hard ceiling: 500 lines per entrypoint/guide. Put detailed examples, configurations, and output templates in resources.
-- **Stay below 5,000 tokens per scope**: global and local instructions plus discovery each stay below 5,000, independently (exactly the limit fails); recheck the actual project's local catalog before admitting a global entry. Measure both limits and task loads with [catalog review](catalog-review.md).
+- **Stay below 5,000 tokens per scope**: global and local instructions plus discovery each stay below 5,000 independently, per [context budgets](../../dot-cli/references/context.md); recheck the actual project's local catalog before admitting a global entry. Measure both limits and task loads with [catalog review](catalog-review.md).
 
 ## Resources and portability
 

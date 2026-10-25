@@ -1,8 +1,7 @@
 # Docs: https://fishshell.com/docs/current/index.html
-# Go xdg libraries (lazygit, lazydocker, k9s) and ptpython default to
+# Go xdg libraries (lazygit, lazydocker) default to
 # ~/Library/Application Support on macOS; keep their managed ~/.config files active.
 set -q XDG_CONFIG_HOME; or set -gx XDG_CONFIG_HOME $HOME/.config
-set -gx PTPYTHON_CONFIG_HOME $XDG_CONFIG_HOME/ptpython
 
 # Editors
 # Opens nvim on a terminal and fails fast without one (agent shells).
@@ -17,17 +16,12 @@ set -gx LESS -FRSXMK
 set -gx LESSHISTFILE -
 # Agents inherit this; less prints like cat without a terminal.
 set -gx MANPAGER less
-set -gx PAGER "bat --plain"
+set -gx PAGER bat
 
 # Tools
-set -gx CARAPACE_BRIDGES 'zsh,fish,bash'
-# Native completion owns these names; Carapace's dot command means Graphviz.
-set -gx CARAPACE_EXCLUDES 'agy,dot,bf'
 # 1 auto-approves tools only; the exact value "true" would also trust every working
 # directory and load its hooks, bypassing the folders curated by `dot trust`.
 set -gx COPILOT_ALLOW_ALL 1
-# Match the skin installed by chezmoi externals.
-set -gx K9S_SKIN theme
 # ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively;
 # loading both resolves each duplicate name nondeterministically.
 set -gx OPENCODE_DISABLE_CLAUDE_CODE_SKILLS 1

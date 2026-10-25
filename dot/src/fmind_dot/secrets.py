@@ -12,6 +12,7 @@ from fmind_dot.command_group import help_group
 from fmind_dot.errors import DotError
 from fmind_dot.state import require_tools, state_from
 
+_MAX_SECRET_BYTES = 64 << 10
 secret_app = help_group("Use personal credentials for one command without exporting them globally")
 
 
@@ -30,8 +31,8 @@ def personal_token(name: str) -> str:
                 info = os.fstat(stream.fileno())
                 if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
                     raise DotError(f"{name}: personal secret must be an owner-only regular file (chmod 600)")
-                raw = stream.read(65537)
-                if len(raw) > 65536:
+                raw = stream.read(_MAX_SECRET_BYTES + 1)
+                if len(raw) > _MAX_SECRET_BYTES:
                     raise DotError(f"{name}: personal secret exceeds 64 KiB")
                 value = raw.decode("utf-8").rstrip("\r\n")
         except (OSError, UnicodeError) as error:

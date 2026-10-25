@@ -1,6 +1,6 @@
 """Pin fmind/theme externals to one upstream commit with per-file checksums.
 
-The pinned files are native themes under `themes/` and the root DESIGN.md. Several theme files execute (Fish, Neovim Lua, ptpython, Git includes), so apply
+The pinned files are native themes under `themes/` and the root DESIGN.md. Several theme files execute (Fish, Neovim Lua, Git includes), so apply
 must never fetch a moving branch; `mise run upgrade` advances the pin instead.
 Configs that cannot include a second file carry a copy of the upstream theme block;
 the pin only advances while every copy matches the target revision.
@@ -33,9 +33,7 @@ ENTRY = re.compile(r'(    url = "\{\{ \$base \}\}/(?P<path>[^"]+)"\n    checksum
 # Source file -> (upstream theme file, key paths copied from it). The upstream suffix
 # selects the parser for both sides; ripgreprc keeps only its --colors flags.
 COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
-    "dot_config/bottom/bottom.toml": ("themes/bottom/fmind.toml", (("styles",),)),
     "dot_config/fastfetch/config.jsonc": ("themes/fastfetch/fmind.json", (("display", "color"),)),
-    "dot_config/gh-dash/config.yml.tmpl": ("themes/gh-dash/fmind.yml", (("theme",),)),
     "dot_config/lazydocker/config.yml": ("themes/lazydocker/fmind.yml", (("gui", "theme"),)),
     "dot_config/ripgrep/config.tmpl": ("themes/ripgrep/fmind.ripgreprc", (("colors",),)),
     "dot_config/starship.toml": ("themes/starship/fmind.toml", (("palette",), ("palettes",))),

@@ -1,25 +1,25 @@
 """Pre-accept coding-harness folder trust for repositories the owner works in."""
 
+import hashlib
 import json
 import re
-from collections.abc import Callable, MutableMapping, Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import unquote, urlparse
 
-import tomlkit
 import typer
-from tomlkit.exceptions import TOMLKitError
 
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
-from fmind_dot.errors import DotError
+from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.reporting import write_json
 from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State, state_from
 
 # Each harness stores trust in a file it also writes itself; preserve unrelated state.
-# Claude, Codex, Grok, and agy key trust on the repository root, so a trusted parent
+# Claude and agy key trust on the repository root, so a trusted parent
 # never covers the repositories below it; Copilot trusts every path below an entry.
 _COPILOT_COMMENT = re.compile(r"^\s*//")
 # github.com origins over HTTPS, ssh:// URLs, or scp-like SSH; the owner is the first path segment.
@@ -112,46 +112,10 @@ def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
 
 
-def _toml_table(
-    path: Path, text: str, folders: list[str], table: str, key: str, value: str | bool
-) -> tuple[str, list[str]]:
-    """Update trust entries while preserving the host's TOML syntax and comments."""
-    try:
-        document = tomlkit.parse(text)
-    except TOMLKitError as error:
-        raise DotError(f"{path} is not valid TOML; repair it before trusting folders") from error
-    tables = document.setdefault(table, tomlkit.table())
-    if not isinstance(tables, MutableMapping):
-        raise DotError(f"{path}: {table} must be a TOML table")
-    changed = []
-    for folder in folders:
-        # Let the parent choose an inline or regular table for a new entry.
-        entry = tables.setdefault(folder, {})
-        if not isinstance(entry, MutableMapping):
-            raise DotError(f"{path}: {table} entry must be a TOML table")
-        current = entry.get(key)
-        if current == value and (not isinstance(value, bool) or isinstance(current, bool)):
-            continue
-        entry[key] = value
-        changed.append(folder)
-    return tomlkit.dumps(document), changed
-
-
 def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
     # Claude keeps trust in ~/.claude.json but its state directory is ~/.claude.
     return {
         "claude": (home / ".claude.json", _claude),
-        "codex": (
-            home / ".codex" / "config.toml",
-            lambda path, text, folders: _toml_table(path, text, folders, "projects", "trust_level", "trusted"),
-        ),
-        "grok": (
-            home / ".grok" / "trusted_folders.toml",
-            # Grok refuses to trust the home directory itself.
-            lambda path, text, folders: _toml_table(
-                path, text, [folder for folder in folders if folder != str(home)], "folders", "trusted", True
-            ),
-        ),
         "agy": (
             home / ".gemini" / "antigravity-cli" / "settings.json",
             lambda path, text, folders: _json_list(path, text, folders, "trustedWorkspaces"),
@@ -186,6 +150,62 @@ def trust_folders(folders: list[Path], *, dry_run: bool = False, home: Path | No
     return changed
 
 
+def _agy_project_folders(path: Path, text: str) -> set[str]:
+    """Return the folders an agy project lists; agy's default project lists none."""
+    project = _load_json(path, text)
+    resources = project.get("projectResources", {})
+    entries = resources.get("resources", []) if isinstance(resources, dict) else None
+    if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
+        raise DotError(f"{path}: projectResources.resources must be a JSON array of objects")
+    folders = set()
+    for entry in entries:
+        git_folder = entry.get("gitFolder")
+        uri = entry.get("folderUri") or (git_folder.get("folderUri") if isinstance(git_folder, dict) else None)
+        if isinstance(uri, str) and uri.startswith("file://"):
+            folders.add(unquote(urlparse(uri).path))
+    return folders
+
+
+def register_agy_projects(
+    folders: list[Path], exclude: Sequence[str], *, dry_run: bool = False, home: Path | None = None
+) -> list[Path]:
+    """Add trusted repositories to agy's Remote Control project picker; return the ones added.
+
+    Like trust, this only adds: entries agy or the owner created, even for removed checkouts, stay.
+    """
+    home = (home or Path.home()).resolve()
+    registry = home / ".gemini" / "config" / "projects"
+    # agy creates the registry on its first start; until then there is nothing to extend.
+    if not registry.is_dir():
+        return []
+    listed: set[str] = set()
+    for path in sorted(registry.glob("*.json")):
+        listed |= _agy_project_folders(path, path.read_text(encoding="utf-8"))
+    patterns = [expand_path(pattern) for pattern in exclude]
+    added = []
+    for folder in folders:
+        # Workspaces and plain folders are trusted too, but only repositories are projects.
+        if not (folder / ".git").exists() or str(folder) in listed:
+            continue
+        if any(folder.full_match(pattern) for pattern in patterns):
+            continue
+        # agy derives local project IDs from the folder path the same way.
+        project_id = "local-" + hashlib.sha256(str(folder).encode("utf-8")).hexdigest()[:24]
+        target = registry / f"{project_id}.json"
+        if target.exists():
+            continue
+        if not dry_run:
+            name = str(folder.relative_to(home)) if folder.is_relative_to(home) else str(folder)
+            project = {
+                "id": project_id,
+                "name": name,
+                "projectResources": {"resources": [{"folderUri": folder.as_uri()}]},
+            }
+            write_atomic_file(target, (json.dumps(project, indent=2) + "\n").encode("utf-8"), mode=0o600)
+        added.append(folder)
+    return added
+
+
 def github_owner(origin: str) -> str | None:
     """Return the owner of a github.com origin URL, or None for any other remote."""
     match = _GITHUB_ORIGIN.fullmatch(origin.strip())
@@ -217,9 +237,7 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
             raise DotError(f"refusing to trust {path}: it contains the home directory")
         try:
             folders = find_git_repositories(state, [path])
-        except DotError as error:
-            if "not inside a git work tree" not in str(error):
-                raise
+        except NotGitWorkTreeError:
             folders = [path]
         skipped: list[Path] = []
     else:
@@ -253,6 +271,9 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
     folders = sorted(selected)
     skipped = sorted(excluded - selected)
     harnesses = installed_harnesses()
+    # Projects go first: a malformed agy project file then stops the run before any trust write.
+    exclude = state.config.trust.agy_projects_exclude
+    projects = register_agy_projects(folders, exclude, dry_run=dry_run) if "agy" in harnesses else []
     changes = trust_folders(folders, dry_run=dry_run) if harnesses else {}
     if as_json:
         document = {
@@ -261,6 +282,7 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
             "harnesses": harnesses,
             "folders": [{"path": str(folder), "changed": changes.get(folder, [])} for folder in folders],
             "skipped": [str(folder) for folder in skipped],
+            "agy_projects": [str(folder) for folder in projects],
         }
         write_json(state.stdout, document)
         return
@@ -273,6 +295,9 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
         verb = "would trust" if dry_run else "trusted"
         detail = f"{verb} in {', '.join(changed)}" if changed else "already trusted"
         state.stdout.write(f"{'✓' if not changed else '+'} {folder}: {detail}\n")
+    for folder in projects:
+        verb = "would add" if dry_run else "added"
+        state.stdout.write(f"+ {folder}: {verb} to agy Remote Control projects\n")
     for folder in skipped:
         # Skipped repositories sit inside a trusted workspace, which Copilot applies to descendants.
         state.stdout.write(
@@ -285,8 +310,8 @@ def register(app: typer.Typer) -> None:
     @app.command(
         "trust",
         help=(
-            "Pre-accept folder trust in Claude, Codex, Grok, agy, and Copilot; "
-            "'all' covers pull.directories and their trust.github_owners repositories"
+            "Pre-accept folder trust in Claude, agy, and Copilot, and add trusted repositories to "
+            "agy Remote Control projects; 'all' covers pull.directories and their trust.github_owners repositories"
         ),
     )
     def trust(

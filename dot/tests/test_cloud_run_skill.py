@@ -49,57 +49,67 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     assert deployment.index("mise install --locked cosign trivy") < deployment.index("--push")
 
 
+# The launcher supplies API_KEY; an environment value cannot carry a NUL byte or a non-string type.
 @pytest.mark.parametrize(
-    ("payload", "decrypt_exit", "expected"),
+    ("api_key", "expected"),
     [
-        ({"api_key": "literal $(text) `value`"}, 0, b"literal $(text) `value`"),
-        ({"api_key": "preserve spaces "}, 0, b"preserve spaces "),
-        ({"api_key": "partial decryption"}, 7, None),
-        ({}, 0, None),
-        ({"api_key": None}, 0, None),
-        ({"api_key": ""}, 0, None),
-        ({"api_key": 42}, 0, None),
-        ({"api_key": "invalid\nline"}, 0, None),
-        ({"api_key": "invalid\rline"}, 0, None),
-        ({"api_key": "invalid\0byte"}, 0, None),
+        ("literal $(text) `value`", b"literal $(text) `value`"),
+        ("preserve spaces ", b"preserve spaces "),
+        (None, None),
+        ("", None),
+        ("invalid\nline", None),
+        ("invalid\rline", None),
+        ("trailing newline\n", None),
     ],
 )
 def test_secret_seed_validates_before_starting_writer(
-    tmp_path: Path, payload: dict[str, object], decrypt_exit: int, expected: bytes | None
+    tmp_path: Path, api_key: str | None, expected: bytes | None
 ) -> None:
     deployment = (ROOT / "skills/cloud-run/references/deployment.md").read_text(encoding="utf-8")
     section = deployment.split("**Seed a runtime secret when authorized**", 1)[1]
     match = re.search(r"```bash\n(.*?)\n\s*```", section, re.DOTALL)
     assert match is not None
-    fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps(payload))
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    workdir = tmp_path / "work"
+    workdir.mkdir()
     writer_input = tmp_path / "writer-input"
-    for name, code in {
-        "sops": 'import os,sys; print(open(os.environ["FIXTURE"]).read()); sys.exit(int(os.environ["DECRYPT_EXIT"]))',
-        "gcloud": 'import os,sys,pathlib; pathlib.Path(os.environ["WRITER_INPUT"]).write_bytes(sys.stdin.buffer.read())',
-    }.items():
-        executable = tmp_path / name
-        executable.write_text(f"#!{sys.executable}\n{code}\n")
-        executable.chmod(0o700)
+    writer_argv = tmp_path / "writer-argv"
+    gcloud = tools / "gcloud"
+    gcloud.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, pathlib, sys\n"
+        'pathlib.Path(os.environ["WRITER_ARGV"]).write_text(json.dumps(sys.argv[1:]))\n'
+        'pathlib.Path(os.environ["WRITER_INPUT"]).write_bytes(sys.stdin.buffer.read())\n'
+    )
+    gcloud.chmod(0o700)
+    env = {
+        "PATH": str(tools) + os.pathsep + os.environ["PATH"],
+        "WRITER_INPUT": str(writer_input),
+        "WRITER_ARGV": str(writer_argv),
+    }
+    if api_key is not None:
+        env["API_KEY"] = api_key
     result = subprocess.run(
         ["bash", "-c", match[1]],
-        env={
-            "PATH": str(tmp_path) + os.pathsep + os.environ["PATH"],
-            "FIXTURE": str(fixture),
-            "DECRYPT_EXIT": str(decrypt_exit),
-            "WRITER_INPUT": str(writer_input),
-        },
+        cwd=workdir,
+        env=env,
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
     assert (result.returncode == 0) is (expected is not None), result.stderr
+    # Failed validation never starts the writer.
     assert writer_input.exists() is (expected is not None)
     if expected is not None:
         assert writer_input.read_bytes() == expected
+        # The value reaches the writer only on stdin, never as an argument.
+        assert json.loads(writer_argv.read_text()) == ["secrets", "versions", "add", "api-key", "--data-file=-"]
+    # No plaintext on disk beside the snippet, and none in its output.
+    assert list(workdir.iterdir()) == []
     assert result.stdout == ""
-    assert all(value not in result.stderr for value in payload.values() if isinstance(value, str) and value)
+    assert not api_key or api_key not in result.stderr
 
 
 @pytest.mark.parametrize("errexit", [False, True])

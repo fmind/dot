@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # Chrome DevTools
@@ -53,4 +53,4 @@ Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeD
 
 - [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)
 - Releases: [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp/releases)
-- Companion skills: [mcp-setup](../mcp-setup/SKILL.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [benchmark](../benchmark/SKILL.md), [quality-assurance](../quality-assurance/SKILL.md).
+- Companion skills: [mcp-setup](../mcp-setup/SKILL.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [benchmark](../systematic-debugging/references/benchmark.md), [quality-assurance](../quality-assurance/SKILL.md).

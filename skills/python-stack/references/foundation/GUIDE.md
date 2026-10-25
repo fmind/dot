@@ -9,7 +9,7 @@ Own the shared Python foundation and select the specialist for the task. Preserv
 
 ## Defaults
 
-- **Pin Python through mise**: mise owns the interpreter per the [tool version rules](../../../mise/references/tool-versions.md); uv owns package environments and `uv.lock`. Projects pin Python exactly like other tools and upgrade it on their own schedule. Align `.python-version` with the selected pin within `requires-python`; check a library's minimum interpreter with `uv run --isolated --locked --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
+- **Pin Python through mise**: mise owns the interpreter, `.python-version`, and their relation to `requires-python` per the [tool version rules](../../../mise/references/tool-versions.md#workstation-and-projects); uv owns package environments and `uv.lock`. Check a library's minimum interpreter with `uv run --isolated --locked --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
 - **Start minimal with a `src/` layout**: a `src/<package>/` layout and no runtime dependencies until the application uses them. Distribution slugs may contain hyphens; import names use underscores.
 - **Use Ruff, ty, deptry, pytest, and dprint**: Ruff for Python formatting/lint, ty for types, deptry for dependency declarations (missing, unused, transitive, or dev-only imports in shipped code; it treats test code outside a top-level `tests/` as shipped, so extend `[tool.deptry] extend_exclude`, and list packages loaded only by URL, command, or settings string under `per_rule_ignores` `DEP002`), pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests and an initial 85% branch-coverage target adapted to the project. The task template keeps test counts and coverage totals visible; `mise run report:coverage` reads per-file detail from the last run without rerunning tests. Rerun tests when saved coverage is stale.
 - **Document APIs with Zensical**: the starter's `build:docs` renders an API reference from docstrings through mkdocstrings and `api-autonav`, never pdoc; [documentation-site](../../../documentation-site/SKILL.md) grows it into a full site.
@@ -50,7 +50,7 @@ Cross-cutting owners:
 ## Foundation resources
 
 - [pyproject.toml.template](templates/pyproject.toml.template), [mise.toml](templates/mise.toml), and [lefthook.yml](templates/lefthook.yml) define the shared foundation. Preserve supported package ranges; resolve scaffold tool selectors to exact baseline pins before installation.
-- [AGENTS.md](templates/AGENTS.md), [gitignore](templates/gitignore), and [ignore](templates/ignore) supply project conventions.
+- [AGENTS.md](templates/AGENTS.md.template), [gitignore](templates/gitignore), and [ignore](templates/ignore) supply project conventions.
 - [init-library.py](templates/init-library.py) and [test_library.py](templates/test_library.py) supply the minimal library example; application code and tests live with the selected specialist.
 - [zensical.toml](templates/zensical.toml) and [docs-index.md](templates/docs-index.md) supply the API documentation starter.
 

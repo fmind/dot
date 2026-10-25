@@ -30,7 +30,7 @@ if [ ! -d "${SOURCE_DIR}" ]; then
   chezmoi init --force https://github.com/fmind/dot.git --source "${SOURCE_DIR}" "$@"
 else
   echo "=> Updating dot repository..."
-  if [ "${SKIP_GIT_PULL:-}" = "true" ] || [ "${CI:-}" = "true" ]; then
+  if [ "${SKIP_GIT_PULL:-}" = "true" ]; then
     echo "=> Skipping git pull as requested by environment variable."
   else
     git -C "${SOURCE_DIR}" pull --ff-only
@@ -42,7 +42,7 @@ fi
 echo "=> Trusting mise config..."
 mise trust -y "${SOURCE_DIR}/mise.toml"
 
-# Complete the ordered bootstrap: trust, full (install, apply, deploy), hooks, and editor.
+# Complete the ordered bootstrap: full (install, apply, deploy), hooks, and editor.
 echo "=> Completing environment bootstrap..."
 mise -C "${SOURCE_DIR}" run install
 

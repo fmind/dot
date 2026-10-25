@@ -3,8 +3,10 @@
 import io
 import json
 import os
+import sqlite3
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
 from threading import Event, current_thread
@@ -52,30 +54,20 @@ def _claude(tokens: int | None = None, *, identity: str = "answer", model: str =
 def test_malformed_usage_line_never_publishes_partial_measurement(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, existing: bool
 ) -> None:
-    state = _state(tmp_path, "codex", monkeypatch)
-    source = tmp_path / "source/rollout-2026-09-01T10-00-00-session.jsonl"
-    conversation = {
-        "type": "response_item",
-        "timestamp": "2026-09-01T10:00:00Z",
-        "payload": {"role": "assistant", "content": "Synthetic answer"},
-    }
-    metric = {
-        "type": "event_msg",
-        "timestamp": "2026-09-01T10:00:01Z",
-        "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "output_tokens": 30}}},
-    }
-    _write(source, [conversation, metric])
-    bundle = session_bundle_path("codex", "session")
+    state = _state(tmp_path, "claude", monkeypatch)
+    source = tmp_path / "source/project/session.jsonl"
+    _write(source, [_claude(130)])
+    bundle = session_bundle_path("claude", "session")
     if existing:
-        sync_sessions(state, agent="codex")
+        sync_sessions(state, agent="claude")
     before = bundle.read_bytes() if existing else None
-    _write(source, [conversation])
+    _write(source, [_claude()])
     with source.open("a") as stream:
-        stream.write('{"type":"event_msg","payload":')
+        stream.write('{"type":"assistant","message":')
 
     for _ in range(2):
         with pytest.raises(DotError, match="1 failure"):
-            sync_sessions(state, agent="codex")
+            sync_sessions(state, agent="claude")
         manifest, records = read_session_bundle(bundle)
         assert len(records) == 1
         if existing:
@@ -85,31 +77,6 @@ def test_malformed_usage_line_never_publishes_partial_measurement(
             assert manifest.usage is None
             assert manifest.source_signature == ""
             assert manifest.completeness == "partial"
-
-
-def test_grok_truncated_chunks_keep_the_longer_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state = _state(tmp_path, "grok", monkeypatch)
-    source = tmp_path / "source/project/session/updates.jsonl"
-
-    def chunk(role: str, text: str) -> dict:
-        return {
-            "timestamp": 1_788_256_800,
-            "params": {"_meta": {"promptId": "prompt"}, "update": {"sessionUpdate": role, "content": {"text": text}}},
-        }
-
-    rows = [
-        chunk("user_message_chunk", "Question"),
-        chunk("agent_message_chunk", "First part. "),
-        chunk("agent_message_chunk", "Final part."),
-    ]
-    _write(source, rows)
-    sync_sessions(state, agent="grok")
-    bundle = session_bundle_path("grok", "session")
-    before = bundle.read_bytes()
-    _write(source, rows[:-1])
-
-    assert sync_sessions(state, agent="grok").retained == 1
-    assert bundle.read_bytes() == before
 
 
 @pytest.mark.parametrize("missing", [None, {}], ids=["absent", "empty"])
@@ -131,8 +98,7 @@ def test_missing_claude_counters_retain_existing_measurement(
     assert bundle.read_bytes() == before
 
 
-def test_public_report_does_not_price_absent_counters_at_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_public_report_does_not_price_absent_counters_at_zero(tmp_path: Path) -> None:
     source = tmp_path / ".claude/projects/project/session.jsonl"
     _write(source, [_claude()])
 
@@ -286,50 +252,47 @@ def test_parser_upgrade_retains_an_older_parser_measurement(
     assert bundle.read_bytes() == republished
 
 
-@pytest.mark.parametrize("agent", ["codex", "grok"])
-def test_disappearing_provider_measurement_never_becomes_zero(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, agent: str
-) -> None:
-    state = _state(tmp_path, agent, monkeypatch)
-    if agent == "codex":
-        source = tmp_path / "source/rollout-2026-09-01T10-00-00-session.jsonl"
-        conversation = {"type": "response_item", "payload": {"role": "assistant", "content": "Answer"}}
-        metric = {
-            "type": "event_msg",
-            "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 10}}},
-        }
-    else:
-        source = tmp_path / "source/project/session/updates.jsonl"
-        conversation = {"params": {"update": {"sessionUpdate": "agent_message_chunk", "content": {"text": "Answer"}}}}
-        metric = {"params": {"update": {"sessionUpdate": "turn_completed", "usage": {"inputTokens": 10}}}}
-    _write(source, [conversation, metric])
-    sync_sessions(state, agent=agent)
-    bundle = session_bundle_path(agent, "session")
+def test_disappearing_database_measurement_never_becomes_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _state(tmp_path, "copilot", monkeypatch)
+    source = tmp_path / "source"
+    with closing(sqlite3.connect(source)) as connection:
+        connection.executescript(
+            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
+            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT,
+                assistant_response TEXT, timestamp TEXT);
+            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER,
+                output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
+            INSERT INTO sessions VALUES('session', '', '2026-09-01T10:00:00Z');
+            INSERT INTO turns VALUES(1, 'session', 1, 'Question', 'Answer', '2026-09-01T10:00:00Z');
+            INSERT INTO assistant_usage_events VALUES('session', 'gpt-test', 10, 0, 0, 0, 0);"""
+        )
+    sync_sessions(state, agent="copilot")
+    bundle = session_bundle_path("copilot", "session")
     before = bundle.read_bytes()
-    _write(source, [conversation])
+    with closing(sqlite3.connect(source)) as connection:
+        connection.execute("DELETE FROM assistant_usage_events")
+        connection.commit()
 
-    assert sync_sessions(state, agent=agent).retained == 1
+    assert sync_sessions(state, agent="copilot").retained == 1
     assert bundle.read_bytes() == before
+    assert next(iter_usage_records()).input_tokens == 10
 
 
 @pytest.mark.parametrize("append", [False, True], ids=["equal-count", "new-message"])
-def test_changed_capture_checks_each_message_and_allows_metadata_changes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, append: bool
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_changed_capture_checks_each_message_and_allows_metadata_changes(append: bool) -> None:
     records = [
-        store.SessionLog("", "grok", "session", "user", "Question", model="old"),
-        store.SessionLog("", "grok", "session", "assistant", "Long answer", model="old"),
+        store.SessionLog("", "claude", "session", "user", "Question", model="old"),
+        store.SessionLog("", "claude", "session", "assistant", "Long answer", model="old"),
     ]
-    store.ingest_session("grok", "session", records)
+    store.ingest_session("claude", "session", records)
     updated = [replace(record, model="new", cwd="/new") for record in records]
-    assert store.ingest_session("grok", "session", updated).status == "ingested"
+    assert store.ingest_session("claude", "session", updated).status == "ingested"
     shortened = [replace(updated[0], content="Question with much more text"), replace(updated[1], content="Long")]
     if append:
-        shortened.append(store.SessionLog("later", "grok", "session", "user", "Another question"))
+        shortened.append(store.SessionLog("later", "claude", "session", "user", "Another question"))
 
-    assert store.ingest_session("grok", "session", shortened).status == "retained"
-    assert read_session_bundle(session_bundle_path("grok", "session"))[1] == updated
+    assert store.ingest_session("claude", "session", shortened).status == "retained"
+    assert read_session_bundle(session_bundle_path("claude", "session"))[1] == updated
 
 
 def test_known_provider_cost_survives_missing_token_measurement(tmp_path: Path) -> None:
@@ -379,55 +342,24 @@ def test_optional_cache_zero_does_not_demonstrate_a_zero_token_request(tmp_path:
     assert parsers.parse_claude_session(source, "session").usage is None
 
 
-@pytest.mark.parametrize("incomplete", [False, True], ids=["repair-known-cost", "retain-incomplete-evidence"])
-def test_grok_parser_upgrade_repairs_cost_without_erasing_old_measurements(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, incomplete: bool
+@pytest.mark.parametrize(("harness", "legacy"), [("grok", True), ("claude", False)])
+def test_archived_parser_7_usage_is_legacy_only_for_grok(
+    monkeypatch: pytest.MonkeyPatch, harness: str, legacy: bool
 ) -> None:
-    state = _state(tmp_path, "grok", monkeypatch)
-    source = tmp_path / "source/project/session/updates.jsonl"
-    metric: dict[str, object] = {"costUsdTicks": 5_000_000, "modelUsage": {"grok-test": {"inputTokens": 10}}}
-    if incomplete:
-        metric["usageIsIncomplete"] = True
-    _write(source, [{"timestamp": 1, "params": {"update": {"sessionUpdate": "turn_completed", "usage": metric}}}])
-    parsed = parsers.parse_grok_session(source, "session")
-    old_usage = UsageRecord(
-        harness="grok",
+    # Grok's parser 7 accounting stays flagged as legacy in its retired archive; other harnesses' does not.
+    usage = UsageRecord(
+        harness=harness,
         session_id="session",
         measurement_kind="provider-reported",
-        model="grok-test",
+        model="fixture",
         input_tokens=10,
-        cost_known=not incomplete,
-    ).finalize(fallback_timestamp="1970-01-01T00:00:01Z")
-    with monkeypatch.context() as legacy:
-        legacy.setattr(store, "SESSION_PARSER_VERSION", "7")
-        store.ingest_session(
-            "grok",
-            "session",
-            parsed.logs,
-            store.SessionSource(type=parsed.source_type, fingerprint=parsed.fingerprint),
-            usage=old_usage.to_dict(),
-        )
-    bundle = session_bundle_path("grok", "session")
-    before = bundle.read_bytes()
+    ).finalize(fallback_timestamp="2026-09-01T10:00:00Z")
+    with monkeypatch.context() as older:
+        older.setattr(store, "SESSION_PARSER_VERSION", "7")
+        store.ingest_session(harness, "session", [], usage=usage.to_dict())
 
-    if incomplete:
-        outcome = sync_sessions(state, agent="grok")
-        # The current parser republishes the transcript; the retained usage keeps parser 7 accounting.
-        assert outcome.retained == 1
-        assert store.read_session_manifest(bundle).usage_parser_version == "7"
-        assert next(iter_usage_records()).legacy_accounting
-        republished = bundle.read_bytes()
-        assert republished != before
-        outcome = sync_sessions(state, agent="grok")
-        assert outcome.retained == 1
-        assert bundle.read_bytes() == republished
-    else:
-        assert sync_sessions(state, agent="grok").ingested == 1
-        record = next(iter_usage_records())
-        assert record.cost_known
-        assert record.cost_usd == pytest.approx(0.0005)
-        assert record.input_tokens == 10
-        assert not record.legacy_accounting
+    [record] = list(iter_usage_records())
+    assert (record.input_tokens, record.legacy_accounting) == (10, legacy)
 
 
 def _sync_json(state: State, agent: str) -> dict[str, object]:
@@ -462,22 +394,14 @@ def test_sync_json_proves_only_retained_transcripts_that_match_the_source(
     assert (current["failed"], current["retained"], current["retained_current_transcripts"]) == (0, 1, 1)
 
     # Retained but stale: the source shrank, so the archive keeps a transcript that no longer matches it.
-    state = _state(tmp_path / "stale", "grok", monkeypatch)
-    source = tmp_path / "stale/source/project/session/updates.jsonl"
-
-    def chunk(role: str, text: str) -> dict:
-        return {
-            "timestamp": 1_788_256_800,
-            "params": {"_meta": {"promptId": "prompt"}, "update": {"sessionUpdate": role, "content": {"text": text}}},
-        }
-
+    state = _state(tmp_path / "stale", "claude", monkeypatch)
+    source = tmp_path / "stale/source/session.jsonl"
     rows = [
-        chunk("user_message_chunk", "Question"),
-        chunk("agent_message_chunk", "First. "),
-        chunk("agent_message_chunk", "Last."),
+        {"type": "user", "timestamp": "2026-09-01T09:59:00Z", "message": {"content": "Question"}},
+        _claude(130),
     ]
     _write(source, rows)
-    sync_sessions(state, agent="grok")
+    sync_sessions(state, agent="claude")
     _write(source, rows[:-1])
-    stale = _sync_json(state, "grok")
+    stale = _sync_json(state, "claude")
     assert (stale["failed"], stale["retained"], stale["retained_current_transcripts"]) == (0, 1, 0)

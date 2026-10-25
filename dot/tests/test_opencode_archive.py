@@ -44,8 +44,7 @@ def database(path: Path) -> None:
         )
 
 
-def test_opencode_discovery_projection_and_shared_archive(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_opencode_discovery_projection_and_shared_archive(tmp_path) -> None:
     path = tmp_path / "opencode.db"
     database(path)
     assert AGENT_ADAPTERS["opencode"].enumerate(path) == [("ses_test", "/work/project", path)]
@@ -84,8 +83,7 @@ def test_opencode_summary_is_not_an_owner_request(tmp_path) -> None:
     assert [log.role for log in parse_opencode_session(path, "ses_test").logs] == ["assistant"]
 
 
-def test_opencode_sync_catches_wal_updates_and_keeps_user_summary_metadata(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_opencode_sync_catches_wal_updates_and_keeps_user_summary_metadata(tmp_path) -> None:
     path = tmp_path / ".local/share/opencode/opencode.db"
     path.parent.mkdir(parents=True)
     database(path)

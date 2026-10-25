@@ -5,9 +5,7 @@
 .agents/tmp/
 .claude/*
 !.claude/skills
-.codex/
 .gemini/
-.grok/
 
 # Python environments, caches, and generated distributions at any depth.
 *.py[co]

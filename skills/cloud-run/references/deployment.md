@@ -34,15 +34,11 @@
    printf '%s\n' "$IMAGE" >tmp/image-ref.txt
    ```
 
-1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Public Sigstore discloses permanent signing identity and digest metadata even for a private image; include this in publication authority per [Cosign](../../docker/references/cosign.md). Replace the certificate identity with the authorized workflow or developer identity.
+1. **Scan, sign, and attest the same digest**: stop on any scan or verification failure. Scan `$IMAGE` and write its SBOM, then sign `$IMAGE`, verify it, attest `tmp/sbom.cdx.json`, and verify the attestation with the [Cosign commands](../../docker/references/cosign.md#commands), whose public-disclosure rule governs publication authority even for a private image. Replace the certificate identity with the authorized workflow or developer identity.
 
    ```bash
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 "$IMAGE"
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
-   cosign sign --yes "$IMAGE"
-   cosign verify --certificate-identity '<identity>' --certificate-oidc-issuer '<issuer>' "$IMAGE"
-   cosign attest --yes --type cyclonedx --predicate tmp/sbom.cdx.json "$IMAGE"
-   cosign verify-attestation --type cyclonedx --certificate-identity '<identity>' --certificate-oidc-issuer '<issuer>' "$IMAGE"
    ```
 
 1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history. The Python web starter requires `HOST=0.0.0.0`, `ENVIRONMENT=production`, and a `DATABASE_URL` secret accessible to its runtime identity. Adapt these names to the application; Cloud Run supplies `PORT`. Environment secrets resolve at instance startup, so pin explicit [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) instead of `latest` and record them with the image digest; rotation adds a version and redeploys. Mount a secret as a volume only when it must rotate without a redeploy.
@@ -57,20 +53,15 @@
 
    Treat private invocation as a postcondition, not a successful deploy exit code. Run the `Verify private invocation` checks in [deploy.yml](../templates/deploy.yml) after imperative or declarative deployment, using [verify-private.py](../templates/verify-private.py) at `.github/scripts/verify-private.py`: the Invoker IAM check must be enabled, and service/project IAM policies must contain neither `allUsers` nor `allAuthenticatedUsers`. Reject those principals even in conditional bindings or custom roles. A failed policy read, unknown setting, or remaining grant fails verification; gcloud can otherwise turn a failed IAM removal into a warning. Resolve inherited organization/folder access during bootstrap; these service/project checks are not a general IAM policy evaluator. Verify an unauthenticated request is denied before exposing sensitive traffic.
 
-1. **Seed a runtime secret when authorized**: decrypt and validate in memory before starting the cloud writer; a failed pipeline can still create an invalid secret version. Require a non-empty, single-line string, preserve its bytes, and keep plaintext off disk, arguments, and logs. Pin the version it creates in the next deployment.
+1. **Seed a runtime secret when authorized**: receive the value as an environment variable from the project's secret store or a scoped launcher, and validate it in memory before starting the cloud writer; a failed pipeline can still create an invalid secret version. Require a non-empty, single-line string, preserve its bytes, and keep plaintext off disk, arguments, and logs. Pin the version it creates in the next deployment.
 
    ```bash
    (
      set +x
      set -euo pipefail
-     cloud_run_secrets=$(sops --decrypt --output-type json secrets.enc.yaml) || exit
-     cloud_run_api_key=$(printf '%s' "$cloud_run_secrets" | jq -er \
-       '.api_key | select(type == "string" and length > 0) | select(test("[\r\n\u0000]") | not)') || {
-       printf '%s\n' 'api_key must be a non-empty, single-line string.' >&2
-       exit 1
-     }
-     unset cloud_run_secrets
-     printf '%s' "$cloud_run_api_key" | gcloud secrets versions add api-key --data-file=-
+     : "${API_KEY:?API_KEY must be supplied by the secret store or a scoped launcher}"
+     case $API_KEY in *[$'\r\n']*) printf '%s\n' 'API_KEY must be a single-line string.' >&2; exit 1 ;; esac
+     printf '%s' "$API_KEY" | gcloud secrets versions add api-key --data-file=-
    )
    ```
 

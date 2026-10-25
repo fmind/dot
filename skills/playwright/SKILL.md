@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Playwright
@@ -34,4 +34,4 @@ Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli
 
 - [Playwright for Python](https://playwright.dev/python/docs/intro) · [pytest plugin](https://playwright.dev/python/docs/test-runners) · [Trace Viewer](https://playwright.dev/python/docs/trace-viewer)
 - Releases: [Playwright release notes](https://playwright.dev/python/docs/release-notes) · [playwright-python](https://github.com/microsoft/playwright-python/releases)
-- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md) (accessibility, Lighthouse, and performance audits), [benchmark](../benchmark/SKILL.md) (load, not browser, testing).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [quality-assurance](../quality-assurance/SKILL.md), [product-design-review](../product-design-review/SKILL.md), [chrome-devtools](../chrome-devtools/SKILL.md) (accessibility, Lighthouse, and performance audits), [benchmark](../systematic-debugging/references/benchmark.md) (load, not browser, testing).

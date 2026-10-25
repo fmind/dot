@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+import fmind_dot.hooks
+
 # Tests import skill scripts from skills/, which harnesses read through ~/.agents/skills:
 # direct pytest runs outside mise (no PYTHONDONTWRITEBYTECODE) must not leave bytecode there.
 sys.dont_write_bytecode = True
@@ -24,16 +26,20 @@ def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def isolated_home(
-    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
-) -> None:
-    """Point HOME at a fresh directory so no test can read or write the real archive, config, or secrets.
+def isolated_home(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point HOME at the test's tmp_path so no test can read or write the real archive, config, or secrets.
 
-    Tests that need their own layout still set HOME themselves. Only `real_home` tests, which run
+    Tests that need a separate layout still set HOME themselves. Only `real_home` tests, which run
     repository tasks through mise shims that resolve tools from the real HOME, keep it.
     """
     if request.node.get_closest_marker("real_home") is None:
-        monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("home")))
+        monkeypatch.setenv("HOME", str(request.getfixturevalue("tmp_path")))
+
+
+@pytest.fixture(autouse=True)
+def interactive_agy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A suite launched by a headless agy run must still exercise agy notifications."""
+    monkeypatch.setattr(fmind_dot.hooks, "agy_print_mode", lambda: False)
 
 
 @pytest.fixture(autouse=True)

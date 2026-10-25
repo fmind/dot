@@ -19,6 +19,7 @@ from typer.completion import get_completion_script
 from fmind_dot.auth import (
     GCLOUD_CLI_TOKEN,
     GITHUB_KEYRING_REMEDY,
+    PROBE_TIMEOUT_SECONDS,
     adc_ready,
     gcloud_ready,
     github_status,
@@ -40,7 +41,6 @@ _DISK_FAIL_GIB = 10
 _DISK_WARN_GIB = 20
 _MEMORY_FAIL_GIB = 1
 _COMPLETION_TIMEOUT_SECONDS = 60.0
-_PROBE_TIMEOUT_SECONDS = 45.0
 _PROBE_CONCURRENCY = 8
 _SECRET_PERMISSIONS = 0o600
 _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
@@ -176,28 +176,17 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
     except OSError:
         failures.append("fish cache directory: failed to create")
         typer.echo("  ✗ Failed to create fish cache directory", file=state.stdout)
-        cache_ready = False
     else:
-        cache_ready = True
-    if cache_ready:
-        for tool, filename, args in (
-            # This setup does not use Atuin AI; omit its "?" key binding.
-            ("atuin", "atuin-init.fish", ["init", "fish", "--disable-ai"]),
-            ("carapace", "carapace-init.fish", ["_carapace", "fish"]),
-        ):
-            try:
-                if not _completion_available(state, tool):
-                    continue
-                # Native scripts must win over Carapace's generic completers;
-                # in particular its "dot" completer is for Graphviz, not this CLI.
-                excludes = set(os.environ.get("CARAPACE_EXCLUDES", "").split(",")) | set(COMPLETION_SOURCES)
-                environment = {"CARAPACE_EXCLUDES": ",".join(sorted(excludes - {""}))} if tool == "carapace" else None
-                result = state.runner.run([tool, *args], timeout=_COMPLETION_TIMEOUT_SECONDS, env=environment)
-                _write_validated_fish(state, cache / filename, result.stdout, 0o600)
-                typer.echo(f"  ✓ Generated {filename}", file=state.stdout)
-            except (DotError, OSError) as error:
-                failures.append(f"{filename}: {error}")
-                typer.echo(f"  ✗ Failed to generate {filename}", file=state.stdout)
+        try:
+            if _completion_available(state, "atuin"):
+                # This setup does not use Atuin AI; omit its "?" key binding.
+                args = ["atuin", "init", "fish", "--disable-ai"]
+                result = state.runner.run(args, timeout=_COMPLETION_TIMEOUT_SECONDS)
+                _write_validated_fish(state, cache / "atuin-init.fish", result.stdout, 0o600)
+                typer.echo("  ✓ Generated atuin-init.fish", file=state.stdout)
+        except (DotError, OSError) as error:
+            failures.append(f"atuin-init.fish: {error}")
+            typer.echo("  ✗ Failed to generate atuin-init.fish", file=state.stdout)
     return failures
 
 
@@ -247,7 +236,7 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
 def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
     """Run one doctor probe; a string names why it produced no usable result."""
     try:
-        return state.runner.run(list(args), timeout=_PROBE_TIMEOUT_SECONDS, check=False)
+        return state.runner.run(list(args), timeout=PROBE_TIMEOUT_SECONDS, check=False)
     except CommandTimeoutError:
         return "timed out"
     except DotError, OSError:

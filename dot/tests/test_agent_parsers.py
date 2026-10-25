@@ -11,26 +11,26 @@ import pytest
 from fmind_dot.archive import parsers as parser_module
 from fmind_dot.archive.parsers import (
     AGENT_ADAPTERS,
+    RETIRED_AGENTS,
     ParsedSession,
     parse_agy_session,
     parse_claude_session,
-    parse_codex_session,
     parse_copilot_session,
-    parse_grok_session,
 )
-from fmind_dot.archive.store import SessionLog, fingerprint_bytes, fingerprint_json, marshal_session_logs
+from fmind_dot.archive.store import SessionLog, fingerprint_bytes, marshal_session_logs
 from fmind_dot.archive.usage import UsageRecord
+
+COPILOT_SCHEMA = """
+CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
+CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
+CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
+"""
 
 
 def _usage(parsed: ParsedSession) -> UsageRecord:
     if parsed.usage is None:
         raise parsed.usage_error or AssertionError("parser returned neither usage nor its error")
     return parsed.usage
-
-
-def _grok_usage(directory, session_id: str, cwd: str = "") -> UsageRecord:
-    path = directory / "updates.jsonl"
-    return _usage(parse_grok_session(path if path.is_file() else directory / "signals.json", session_id, cwd))
 
 
 def _jsonl(path, rows) -> None:
@@ -120,51 +120,6 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed.usage.total_tokens == 9
     assert parsed.usage.measurement_kind == "provider-reported"
 
-    codex = tmp_path / "rollout.jsonl"
-    _jsonl(
-        codex,
-        [
-            {
-                "timestamp": "2026-01-01T00:00:04Z",
-                "type": "turn_context",
-                "payload": {"cwd": "/repo", "model": "gpt"},
-            },
-            {
-                "timestamp": "2026-01-01T00:00:05Z",
-                "type": "response_item",
-                "payload": {"role": "user", "content": [{"text": "ask"}]},
-            },
-            {
-                "timestamp": "2026-01-01T00:00:06Z",
-                "type": "response_item",
-                "payload": {"role": "assistant", "content": "reply"},
-            },
-            {
-                "timestamp": "2026-01-01T00:00:07Z",
-                "type": "event_msg",
-                "payload": {
-                    "type": "token_count",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 10,
-                            "output_tokens": 5,
-                            "cached_input_tokens": 2,
-                            "reasoning_output_tokens": 1,
-                            "total_tokens": 17,
-                        }
-                    },
-                },
-            },
-        ],
-    )
-    parsed = parse_codex_session(codex, "codex-id")
-    assert [(line.role, line.model, line.cwd) for line in parsed.logs] == [
-        ("user", "gpt", "/repo"),
-        ("assistant", "gpt", "/repo"),
-    ]
-    assert parsed.usage is not None
-    assert (parsed.usage.total_tokens, parsed.usage.turn_count, parsed.usage.reasoning_tokens) == (17, 1, 1)
-
 
 @pytest.mark.parametrize(
     ("parser", "row"),
@@ -174,22 +129,8 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
             {"created_at": "t1", "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "first"},
         ),
         (parse_claude_session, {"type": "user", "timestamp": "t1", "message": {"content": "first"}}),
-        (
-            parse_codex_session,
-            {"timestamp": "t1", "type": "response_item", "payload": {"role": "user", "content": "first"}},
-        ),
-        (
-            parse_grok_session,
-            {
-                "timestamp": 1,
-                "params": {
-                    "_meta": {"promptId": "p"},
-                    "update": {"sessionUpdate": "user_message_chunk", "content": {"text": "first"}},
-                },
-            },
-        ),
     ],
-    ids=["agy", "claude", "codex", "grok"],
+    ids=["agy", "claude"],
 )
 def test_jsonl_parser_binds_logs_and_fingerprint_to_one_snapshot(
     tmp_path, monkeypatch: pytest.MonkeyPatch, parser, row
@@ -218,12 +159,7 @@ def test_jsonl_parser_binds_logs_and_fingerprint_to_one_snapshot(
 
     assert appended
     assert [log.content for log in parsed.logs] == ["first"]
-    expected = (
-        fingerprint_json({"transcript": fingerprint_bytes(snapshot), "signals": None})
-        if parser is parse_grok_session
-        else fingerprint_bytes(snapshot)
-    )
-    assert parsed.fingerprint == expected
+    assert parsed.fingerprint == fingerprint_bytes(snapshot)
     assert parsed.fingerprint != fingerprint_bytes(transcript.read_bytes())
 
 
@@ -249,39 +185,15 @@ def test_claude_usage_rejects_invalid_numeric_metrics(tmp_path, rows) -> None:
         _usage(parse_claude_session(transcript, "claude-id"))
 
 
-@pytest.mark.parametrize(
-    ("agent", "keys"),
-    [
-        ("claude", ("message",)),
-        ("claude", ("message", "usage")),
-        ("codex", ("payload", "info")),
-        ("codex", ("payload", "info", "total_token_usage")),
-        ("grok", ("params", "update", "usage")),
-        ("grok", ("params", "update", "usage", "modelUsage")),
-        ("grok", ("params", "update", "usage", "modelUsage", "private-model")),
-    ],
-    ids=["claude-message", "claude-usage", "codex-info", "codex-total", "grok-usage", "grok-models", "grok-model"],
-)
+@pytest.mark.parametrize("keys", [("message",), ("message", "usage")], ids=["claude-message", "claude-usage"])
 @pytest.mark.parametrize(
     "value",
     [Ellipsis, None, {}, [], "private-invalid-container", True, 1],
     ids=["absent", "null", "empty-object", "list", "string", "boolean", "number"],
 )
-def test_usage_containers_reject_wrong_types_without_losing_transcripts(tmp_path: Path, agent, keys, value) -> None:
-    if agent == "claude":
-        prompt = {"type": "user", "message": {"content": "retained prompt"}}
-        row = {"type": "assistant", "message": {"usage": {}}}
-        parser = parse_claude_session
-    elif agent == "codex":
-        prompt = {"type": "response_item", "payload": {"role": "user", "content": "retained prompt"}}
-        row = {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {}}}}
-        parser = parse_codex_session
-    else:
-        prompt = {"params": {"update": {"sessionUpdate": "user_message_chunk", "content": {"text": "retained prompt"}}}}
-        row = {
-            "params": {"update": {"sessionUpdate": "turn_completed", "usage": {"modelUsage": {"private-model": {}}}}}
-        }
-        parser = parse_grok_session
+def test_usage_containers_reject_wrong_types_without_losing_transcripts(tmp_path: Path, keys, value) -> None:
+    prompt = {"type": "user", "message": {"content": "retained prompt"}}
+    row = {"type": "assistant", "message": {"usage": {}}}
     target = row
     for key in keys[:-1]:
         target = target[key]
@@ -290,15 +202,13 @@ def test_usage_containers_reject_wrong_types_without_losing_transcripts(tmp_path
         del target[keys[-1]]
     else:
         target[keys[-1]] = value
-    transcript = tmp_path / "updates.jsonl"
+    transcript = tmp_path / "claude.jsonl"
     _jsonl(transcript, [prompt, row])
 
-    parsed = parser(transcript, "session-id")
+    parsed = parse_claude_session(transcript, "session-id")
 
     assert [log.content for log in parsed.logs] == ["retained prompt"]
-    invalid = (
-        value is not Ellipsis and not isinstance(value, dict) and (value is not None or keys[-1] == "private-model")
-    )
+    invalid = value is not Ellipsis and value is not None and not isinstance(value, dict)
     if invalid:
         assert parsed.usage is None
         assert isinstance(parsed.usage_error, ValueError)
@@ -331,292 +241,12 @@ def test_claude_user_text_blocks_preserve_prompts_without_tool_results(tmp_path:
     assert parsed.usage_error is None
 
 
-def test_grok_stream_groups_chunks_and_reports_observable_usage(tmp_path) -> None:
-    updates = tmp_path / "updates.jsonl"
-    _jsonl(
-        updates,
-        [
-            {
-                "timestamp": 1,
-                "params": {
-                    "_meta": {"promptId": "p"},
-                    "update": {
-                        "sessionUpdate": "user_message_chunk",
-                        "_meta": {"modelId": "grok-4"},
-                        "content": {"text": "he"},
-                    },
-                },
-            },
-            {
-                "timestamp": 1,
-                "params": {
-                    "_meta": {"promptId": "p"},
-                    "update": {"sessionUpdate": "user_message_chunk", "content": {"text": "llo"}},
-                },
-            },
-            {
-                "timestamp": 2,
-                "params": {
-                    "_meta": {"promptId": "p"},
-                    "update": {"sessionUpdate": "agent_message_chunk", "content": {"text": "answer"}},
-                },
-            },
-        ],
-    )
-    parsed = parse_grok_session(updates, "grok-id", "/work")
-    assert [(line.role, line.content, line.model) for line in parsed.logs] == [
-        ("user", "hello", "grok-4"),
-        ("assistant", "answer", "grok-4"),
-    ]
-    (tmp_path / "signals.json").write_text(
-        '{"primaryModelId":"grok-4","contextTokensUsed":21,"turnCount":3}', encoding="utf-8"
-    )
-    usage = _grok_usage(tmp_path, "grok-id")
-    assert (usage.input_tokens, usage.output_tokens, usage.total_tokens, usage.turn_count) == (21, 0, 21, 3)
-
-
-def _grok_turn(timestamp: int, usage: dict) -> dict:
-    return {"timestamp": timestamp, "params": {"update": {"sessionUpdate": "turn_completed", "usage": usage}}}
-
-
-def test_grok_turn_usage_replaces_context_reading_with_billed_requests(tmp_path) -> None:
-    updates = tmp_path / "updates.jsonl"
-    _jsonl(
-        updates,
-        [
-            _grok_turn(
-                1_760_000_000,
-                {
-                    "inputTokens": 1000,
-                    "outputTokens": 40,
-                    "totalTokens": 1040,
-                    "cachedReadTokens": 600,
-                    "cacheCreationTokens": 100,
-                    "reasoningTokens": 30,
-                    "costUsdTicks": 92_854_000,
-                    "modelUsage": {
-                        "grok-4.6-build": {
-                            "inputTokens": 800,
-                            "outputTokens": 30,
-                            "totalTokens": 830,
-                            "cachedReadTokens": 600,
-                            "cacheCreationTokens": 100,
-                            "reasoningTokens": 30,
-                            "costUsdTicks": 82_854_000,
-                        },
-                        "grok-4.6-fast": {
-                            "inputTokens": 200,
-                            "outputTokens": 10,
-                            "totalTokens": 210,
-                            "costUsdTicks": 10_000_000,
-                        },
-                    },
-                },
-            ),
-            _grok_turn(
-                1_760_000_060,
-                {
-                    "inputTokens": 500,
-                    "outputTokens": 20,
-                    "totalTokens": 520,
-                    "cachedReadTokens": 400,
-                    "costUsdTicks": 7_146_000,
-                    "modelUsage": {
-                        "grok-4.6-build": {
-                            "inputTokens": 500,
-                            "outputTokens": 20,
-                            "totalTokens": 520,
-                            "cachedReadTokens": 400,
-                            "costUsdTicks": 7_146_000,
-                        }
-                    },
-                },
-            ),
-        ],
-    )
-    (tmp_path / "signals.json").write_text(
-        '{"primaryModelId":"grok-4.6","contextTokensUsed":21,"turnCount":2}', encoding="utf-8"
-    )
-    usage = _grok_usage(tmp_path, "grok-id", "/work")
-    assert usage.measurement_kind == "provider-reported"
-    # Session totals are the billed requests, not the final 21-token context reading.
-    assert (usage.input_tokens, usage.output_tokens, usage.cached_tokens, usage.cache_write_tokens) == (
-        1500,
-        60,
-        1000,
-        100,
-    )
-    # Grok reports input as the whole prompt, so the total excludes the cache subsets.
-    assert usage.total_tokens == 1560
-    assert usage.reasoning_tokens == 30
-    assert usage.model == "mixed"
-    assert usage.turn_count == 2
-    assert usage.cost_known is True
-    assert usage.cost_usd == pytest.approx(0.01)  # 92,854,000 + 7,146,000 ticks at 1e10 per USD
-    assert [(sample["model"], sample["total_tokens"]) for sample in usage.samples] == [
-        ("grok-4.6-build", 830),
-        ("grok-4.6-fast", 210),
-        ("grok-4.6-build", 520),
-    ]
-    assert usage.timestamp == "2025-10-09T08:54:20Z"  # latest turn, from Unix seconds
-
-
-def test_grok_unstamped_turn_leaves_session_cost_unknown(tmp_path) -> None:
-    updates = tmp_path / "updates.jsonl"
-    _jsonl(
-        updates,
-        [
-            _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "totalTokens": 11, "costUsdTicks": 5_000_000}),
-            _grok_turn(2, {"inputTokens": 20, "outputTokens": 2, "totalTokens": 22}),
-        ],
-    )
-    usage = _grok_usage(tmp_path, "grok-id")
-    assert usage.measurement_kind == "provider-reported"
-    assert (usage.input_tokens, usage.output_tokens, usage.total_tokens) == (30, 3, 33)
-    # A partial bill is never presented as a complete one.
-    assert usage.cost_known is False
-    assert usage.cost_usd == 0.0
-
-
-def test_grok_incomplete_ledger_does_not_claim_complete_token_totals(tmp_path: Path) -> None:
-    transcript = tmp_path / "updates.jsonl"
-    _jsonl(transcript, [_grok_turn(1, {"inputTokens": 10, "usageIsIncomplete": True})])
-
-    parsed = parse_grok_session(transcript, "grok-id")
-
-    assert parsed.usage is None
-    assert parsed.usage_error is None
-
-
-@pytest.mark.parametrize("stop_reason", ["error", "cancelled", "end_turn"])
-def test_grok_incomplete_turn_never_counts_as_unbilled(tmp_path: Path, stop_reason: str) -> None:
-    transcript = tmp_path / "updates.jsonl"
-    incomplete = _grok_turn(2, {"inputTokens": 999, "costUsdTicks": 10_000_000, "usageIsIncomplete": True})
-    incomplete["params"]["update"]["stop_reason"] = stop_reason
-    _jsonl(
-        transcript,
-        [
-            _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "costUsdTicks": 5_000_000}),
-            incomplete,
-        ],
-    )
-
-    parsed = parse_grok_session(transcript, "grok-id")
-
-    assert parsed.usage is None
-    assert parsed.usage_error is None
-
-
-@pytest.mark.parametrize("incomplete", ["true", 1, None])
-def test_grok_rejects_invalid_completeness_flag(tmp_path: Path, incomplete: object) -> None:
-    transcript = tmp_path / "updates.jsonl"
-    _jsonl(transcript, [_grok_turn(1, {"inputTokens": 10, "usageIsIncomplete": incomplete})])
-
-    parsed = parse_grok_session(transcript, "grok-id")
-
-    assert parsed.usage is None
-    assert isinstance(parsed.usage_error, ValueError)
-    assert str(parsed.usage_error) == "usage record field 'usageIsIncomplete' must be a boolean"
-
-
-@pytest.mark.parametrize("measured", [False, True], ids=["cost-only", "tokens-and-cost"])
-def test_grok_aggregate_cost_survives_missing_model_costs(tmp_path: Path, measured: bool) -> None:
-    transcript = tmp_path / "updates.jsonl"
-    counters = {"inputTokens": 10, "outputTokens": 1} if measured else {}
-    _jsonl(transcript, [_grok_turn(1, {"costUsdTicks": 5_000_000, "modelUsage": {"grok-test": counters}})])
-
-    usage = _usage(parse_grok_session(transcript, "grok-id"))
-
-    assert usage.cost_known
-    assert usage.cost_usd == pytest.approx(0.0005)
-    assert usage.measurement_kind == ("provider-reported" if measured else "")
-    assert usage.total_tokens == (11 if measured else 0)
-
-
-@pytest.mark.parametrize("cost", ["private-invalid-cost", True, -1, pytest.param(10**350, id="oversized")])
-def test_grok_rejects_invalid_aggregate_cost_with_model_breakdown(tmp_path: Path, cost: object) -> None:
-    transcript = tmp_path / "updates.jsonl"
-    _jsonl(
-        transcript,
-        [_grok_turn(1, {"costUsdTicks": cost, "modelUsage": {"grok-test": {"inputTokens": 10, "costUsdTicks": 0}}})],
-    )
-
-    parsed = parse_grok_session(transcript, "grok-id")
-
-    assert parsed.usage is None
-    assert isinstance(parsed.usage_error, ValueError)
-    assert "cost_usd" in str(parsed.usage_error)
-    assert "private-invalid-cost" not in str(parsed.usage_error)
-
-
-@pytest.mark.parametrize("stop_reason", ["error", "cancelled"])
-def test_grok_unbilled_failed_turn_keeps_the_session_measured(tmp_path, stop_reason: str) -> None:
-    failed = {"sessionUpdate": "turn_completed", "stop_reason": stop_reason, "agent_result": "API error (status 402)"}
-    _jsonl(
-        tmp_path / "updates.jsonl",
-        [
-            _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "totalTokens": 11, "costUsdTicks": 5_000_000}),
-            {"timestamp": 2, "params": {"update": failed}},
-            _grok_turn(3, {"inputTokens": 20, "outputTokens": 2, "totalTokens": 22, "costUsdTicks": 5_000_000}),
-        ],
-    )
-    usage = _grok_usage(tmp_path, "grok-id")
-    assert usage.measurement_kind == "provider-reported"
-    assert (usage.input_tokens, usage.output_tokens, usage.total_tokens, usage.turn_count) == (30, 3, 33, 2)
-    assert usage.cost_known is True
-
-
-def test_grok_completed_turn_without_usage_leaves_the_session_unmeasured(tmp_path) -> None:
-    _jsonl(
-        tmp_path / "updates.jsonl",
-        [
-            _grok_turn(1, {"inputTokens": 10, "outputTokens": 1, "totalTokens": 11, "costUsdTicks": 5_000_000}),
-            {"timestamp": 2, "params": {"update": {"sessionUpdate": "turn_completed", "stop_reason": "end_turn"}}},
-        ],
-    )
-    assert parse_grok_session(tmp_path / "updates.jsonl", "grok-id").usage is None
-
-
-def test_grok_without_turn_usage_keeps_the_context_reading(tmp_path) -> None:
-    updates = tmp_path / "updates.jsonl"
-    _jsonl(updates, [{"timestamp": 1, "params": {"update": {"sessionUpdate": "agent_message_chunk"}}}])
-    (tmp_path / "signals.json").write_text(
-        '{"primaryModelId":"grok-4.6","contextTokensUsed":21,"turnCount":3}', encoding="utf-8"
-    )
-    usage = _grok_usage(tmp_path, "grok-id")
-    assert usage.measurement_kind == "context-only"
-    assert (usage.input_tokens, usage.total_tokens, usage.turn_count, usage.model) == (21, 21, 3, "grok-4.6")
-
-
-@pytest.mark.parametrize("timestamp", [float("nan"), float("inf"), 10**100], ids=["nan", "infinity", "out-of-range"])
-def test_grok_parser_ignores_unrepresentable_timestamps(tmp_path, timestamp: int | float) -> None:
-    updates = tmp_path / "updates.jsonl"
-    _jsonl(
-        updates,
-        [
-            {
-                "timestamp": timestamp,
-                "params": {
-                    "_meta": {"promptId": "p"},
-                    "update": {"sessionUpdate": "user_message_chunk", "content": {"text": "hello"}},
-                },
-            }
-        ],
-    )
-
-    parsed = parse_grok_session(updates, "grok-id")
-
-    assert [(log.ts, log.content) for log in parsed.logs] == [("", "hello")]
-
-
 def test_copilot_database_parser_and_usage(tmp_path) -> None:
     database = tmp_path / "copilot.db"
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-            INSERT INTO sessions VALUES('cp-id','/repo','2026-01-01T00:00:00Z');
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('cp-id','/repo','2026-01-01T00:00:00Z');
             INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-01-01T00:00:01Z');
             INSERT INTO assistant_usage_events VALUES('cp-id','gpt',10,5,2,3,1);"""
         )
@@ -633,10 +263,8 @@ def test_copilot_usage_rejects_non_numeric_database_values(tmp_path: Path, value
     database = tmp_path / "copilot.db"
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-            INSERT INTO sessions VALUES('cp-id','/repo','2026-01-01T00:00:00Z');
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('cp-id','/repo','2026-01-01T00:00:00Z');
             INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-01-01T00:00:01Z');"""
         )
         connection.execute("INSERT INTO assistant_usage_events VALUES('cp-id','gpt',?,5,2,3,1)", (value,))
@@ -673,40 +301,18 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
     fallback_claude.touch()
     (fallback_claude.parent / "memory.jsonl").touch()
 
-    codex_root = tmp_path / "codex"
-    codex_root.mkdir()
-    codex = codex_root / "rollout-2026-01-01T00-00-00-codex-id.jsonl"
-    codex.touch()
-    (codex_root / "unrecognized.jsonl").touch()
-    (codex_root / "rollout-2026-01-02T00-00-00-dangling-id.jsonl").symlink_to(tmp_path / "missing.jsonl")
-
-    grok_root = tmp_path / "grok"
-    grok = grok_root / "%2Fwork%2Fgrok/grok-id/updates.jsonl"
-    grok.parent.mkdir(parents=True)
-    grok.touch()
-    signals_only = grok_root / "%2Fwork%2Fgrok/signals-id"
-    signals_only.mkdir()
-
-    assert list(AGENT_ADAPTERS) == [
-        "agy",
-        "claude",
-        "codex",
-        "grok",
-        "copilot",
-        "opencode",
-    ]
+    assert list(AGENT_ADAPTERS) == ["agy", "claude", "copilot", "opencode"]
     assert AGENT_ADAPTERS["agy"].enumerate(agy_root) == [("agy-id", "", preferred_agy)]
     assert {candidate[0] for candidate in AGENT_ADAPTERS["claude"].enumerate(claude_root)} == {
         "claude-direct",
         "claude-fallback",
     }
-    assert AGENT_ADAPTERS["codex"].enumerate(codex_root) == [("codex-id", "", codex)]
-    assert AGENT_ADAPTERS["grok"].enumerate(grok_root) == [("grok-id", "/work/grok", grok)]
-    (grok_root / "%2Fwork%2Fgrok/signals-id/signals.json").write_text("{}")
-    assert {candidate[0] for candidate in AGENT_ADAPTERS["grok"].enumerate(grok_root)} == {
-        "grok-id",
-        "signals-id",
-    }
+
+
+def test_retired_agents_have_no_capture_adapter() -> None:
+    # Retired harnesses keep their archived bundles selectable, so their names must never shadow an adapter.
+    assert RETIRED_AGENTS == ("codex", "grok")
+    assert set(RETIRED_AGENTS).isdisjoint(AGENT_ADAPTERS)
 
 
 def test_copilot_discovery_is_read_only_and_filters_invalid_session_ids(tmp_path) -> None:
@@ -766,38 +372,7 @@ def test_parsers_account_for_malformed_and_unsupported_records(tmp_path) -> None
     assert (len(parsed_claude.logs), parsed_claude.malformed, parsed_claude.skipped) == (1, 2, 2)
 
 
-def test_codex_accepts_supported_legacy_record_shapes_and_rejects_bad_metrics(tmp_path) -> None:
-    transcript = tmp_path / "rollout.jsonl"
-    transcript.write_text(
-        "\n".join(
-            (
-                '{"created_at":"t1","role":"user","content":["one",{"content":"two"},{"text":"three"},null],"cwd":"/one","model":"m"}',
-                '{"timestamp":"t2","payload":{"role":"assistant","message":"answer","cwd":"/two","model":"m2"}}',
-                '{"ts":"t3","type":"user_message","text":"question"}',
-                '{"type":"agent_message","message":"reply"}',
-                '{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":-1}}}}',
-                "[]",
-                "{",
-            )
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    parsed = parse_codex_session(transcript, "codex-id")
-    assert [(log.role, log.content) for log in parsed.logs] == [
-        ("user", "one\ntwo\nthree"),
-        ("assistant", "answer"),
-        ("user", "question"),
-        ("assistant", "reply"),
-    ]
-    assert (parsed.malformed, parsed.skipped) == (2, 1)
-    assert [(log.cwd, log.model) for log in parsed.logs[:2]] == [("/one", "m"), ("/two", "m2")]
-    with pytest.raises(ValueError, match="input_tokens"):
-        _usage(parse_codex_session(transcript, "codex-id"))
-
-
-def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path) -> None:
+def test_usage_extractors_cover_system_and_cost_contracts(tmp_path) -> None:
     agy = tmp_path / "agy.jsonl"
     _jsonl(
         agy,
@@ -835,15 +410,6 @@ def test_usage_extractors_cover_system_cost_and_empty_signal_contracts(tmp_path)
     assert (claude_usage.cwd, claude_usage.model, claude_usage.cost_usd) == ("/observed", "m", 0.5)
     assert (claude_usage.input_tokens, claude_usage.cache_write_tokens, claude_usage.turn_count) == (1, 2, 2)
 
-    grok_dir = tmp_path / "grok"
-    grok_dir.mkdir()
-    (grok_dir / "signals.json").write_text("{", encoding="utf-8")
-    with pytest.raises(json.JSONDecodeError):
-        _grok_usage(grok_dir, "grok-id")
-    (grok_dir / "signals.json").write_text("[]", encoding="utf-8")
-    with pytest.raises(ValueError, match="JSON object"):
-        _grok_usage(grok_dir, "grok-id")
-
 
 # 2026-09-03T04:05:06Z: a source modification time far from both the transcript and the test clock.
 _SOURCE_MTIME = 1_788_408_306
@@ -873,25 +439,26 @@ def test_undated_usage_takes_the_latest_transcript_timestamp_never_the_clock(tmp
 
 
 def test_undated_usage_without_transcript_timestamps_takes_the_source_mtime(tmp_path) -> None:
-    signals = tmp_path / "signals.json"
-    signals.write_text('{"contextTokensUsed":21}', encoding="utf-8")
-    os.utime(signals, (_SOURCE_MTIME, _SOURCE_MTIME))
-    assert _grok_usage(tmp_path, "grok-id").timestamp == "2026-09-03T04:05:06Z"
-
-    updates = tmp_path / "updates.jsonl"
-    # An undated turn keeps its tokens but no longer claims a request timestamp.
-    _jsonl(updates, [{"params": {"update": {"sessionUpdate": "turn_completed", "usage": {"inputTokens": 7}}}}])
-    os.utime(updates, (_SOURCE_MTIME - 60, _SOURCE_MTIME - 60))
-    turn = _grok_usage(tmp_path, "grok-id")
+    claude = tmp_path / "claude.jsonl"
+    # An undated request keeps its tokens but never claims a request timestamp.
+    _jsonl(
+        claude,
+        [
+            {
+                "type": "assistant",
+                "message": {"id": "m", "content": [{"type": "text", "text": "a"}], "usage": {"input_tokens": 7}},
+            }
+        ],
+    )
+    os.utime(claude, (_SOURCE_MTIME, _SOURCE_MTIME))
+    turn = _usage(parse_claude_session(claude, "claude-id"))
     assert (turn.timestamp, turn.samples, turn.input_tokens) == ("2026-09-03T04:05:06Z", [], 7)
 
     database = tmp_path / "copilot.db"
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-            INSERT INTO sessions VALUES('cp-id','/repo',NULL);
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('cp-id','/repo',NULL);
             INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-03-01T00:00:01Z');
             INSERT INTO assistant_usage_events VALUES('cp-id','gpt',10,5,0,0,0);"""
         )
@@ -902,10 +469,8 @@ def test_copilot_usage_is_dated_by_the_latest_turn_of_a_resumed_session(tmp_path
     database = tmp_path / "copilot.db"
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-            INSERT INTO sessions VALUES('cp-id','/repo','2026-03-01T00:00:00Z');
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('cp-id','/repo','2026-03-01T00:00:00Z');
             INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-03-01T00:00:01Z');
             INSERT INTO turns VALUES(2,'cp-id',2,'again','reply','2026-03-09T00:00:00Z');
             INSERT INTO assistant_usage_events VALUES('cp-id','gpt',10,5,0,0,0);"""
@@ -920,7 +485,7 @@ def test_copilot_usage_is_dated_by_the_latest_turn_of_a_resumed_session(tmp_path
 
 def test_undated_usage_without_any_remaining_source_stays_undated(tmp_path) -> None:
     # A source removed mid-sync must not crash parsing or invent a capture-time stamp.
-    assert parser_module._undated_usage_timestamp([], tmp_path / "gone.jsonl", tmp_path / "signals.json") == ""  # noqa: SLF001
+    assert parser_module._undated_usage_timestamp([], tmp_path / "gone.jsonl", tmp_path / "gone.db") == ""  # noqa: SLF001
 
 
 def _claude_answer(usage: dict, *, request: str = "r", text: str = "a") -> dict:
@@ -1007,36 +572,11 @@ def test_claude_subagents_are_sidechains_and_workflow_journals_are_not_sessions(
     assert (child.sidechain, child.parent_session_id) == (True, "parent-id")
 
 
-@pytest.mark.parametrize(("declared", "parent"), [("parent-thread", "parent-thread"), ("../escape", "")])
-def test_codex_subagent_rollout_declares_its_parent_thread(tmp_path: Path, declared: str, parent: str) -> None:
-    rollout = tmp_path / "rollout.jsonl"
-    spawn = {"parent_thread_id": declared, "depth": 1}
-    _jsonl(
-        rollout,
-        [
-            {
-                "type": "session_meta",
-                "payload": {"thread_source": "subagent", "source": {"subagent": {"thread_spawn": spawn}}},
-            },
-            # Forked history repeats the parent's metadata; only the first line describes this thread.
-            {"type": "session_meta", "payload": {"thread_source": "user", "source": "cli"}},
-            {"type": "response_item", "payload": {"role": "user", "content": "forked prompt"}},
-        ],
-    )
-    owner = tmp_path / "owner.jsonl"
-    _jsonl(owner, [{"type": "session_meta", "payload": {"thread_source": "user", "source": "cli"}}])
-
-    child = parse_codex_session(rollout, "child")
-
-    assert (child.sidechain, child.parent_session_id) == (True, parent)
-    assert parse_codex_session(owner, "owner").sidechain is False
-
-
 # Python 3.14 measures JSON recursion against the C stack: about a million levels exceed it.
 _DEEP_ARRAY = "[" * 1_000_000 + "]" * 1_000_000
 
 
-@pytest.mark.parametrize("parser", [parse_agy_session, parse_claude_session, parse_codex_session, parse_grok_session])
+@pytest.mark.parametrize("parser", [parse_agy_session, parse_claude_session])
 def test_deeply_nested_json_lines_are_malformed_records(tmp_path: Path, parser) -> None:
     transcript = tmp_path / "updates.jsonl"
     transcript.write_text(_DEEP_ARRAY + "\n" + json.dumps({"type": "unrelated"}) + "\n", encoding="utf-8")
@@ -1044,21 +584,6 @@ def test_deeply_nested_json_lines_are_malformed_records(tmp_path: Path, parser) 
     parsed = parser(transcript, "session-id")
 
     assert parsed.malformed == 1
-
-
-def test_deeply_nested_grok_signals_fail_usage_extraction_only(tmp_path: Path) -> None:
-    transcript = tmp_path / "updates.jsonl"
-    _jsonl(
-        transcript,
-        [{"timestamp": 1, "params": {"update": {"sessionUpdate": "user_message_chunk", "content": {"text": "kept"}}}}],
-    )
-    (tmp_path / "signals.json").write_text(_DEEP_ARRAY, encoding="utf-8")
-
-    parsed = parse_grok_session(transcript, "grok-id")
-
-    assert [log.content for log in parsed.logs] == ["kept"]
-    assert parsed.usage is None
-    assert isinstance(parsed.usage_error, ValueError)
 
 
 def test_unexpandable_home_paths_are_malformed_input() -> None:

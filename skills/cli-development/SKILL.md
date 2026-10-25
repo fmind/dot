@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cli-development
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # CLI Development
@@ -16,7 +16,7 @@ Design the observable command contract before implementing it with Typer. Use th
 
 ## Workflow
 
-Read only the matching guide and its required resources. Use a known guide directly when shared prerequisites are not needed.
+Read only the matching guide and its required resources.
 
 ## Task guides
 

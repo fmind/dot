@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Upgrade Tools
@@ -18,15 +18,15 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 
 1. **Scope to the requested repository**: upgrade only the repository the user named, by default the current one. Each repository owns its pins: never bump another because `fmind/dot` or a sibling changed. A multi-repository upgrade needs the user's explicit list; upgrade each on its own merits with its own candidate, gate, and report, canonicalizing paths and linked worktrees so none is upgraded twice.
 1. **Separate audit from upgrade**: a disk-space or version-reuse check compares current declarations, locks, backends and installed versions without resolving new releases or installing tools. Include restored project directories with mise/runtime files even when `.git` is missing; report recovery gaps and validation limits. Record floating selectors, duplicate installations and justified compatibility exceptions separately.
-1. **Start from a green baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work through [git-worktree](../git-worktree/SKILL.md); report pre-existing failures separately.
+1. **Start from a green baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work and staged selections through [git-worktree](../git-worktree/SKILL.md); report pre-existing failures separately, since a red baseline leaves the repository unqualified until resolved.
 1. **mise first**: in `fmind/dot` run `mise run upgrade`; elsewhere resolve the latest stable releases of the project's own tools and pin them exactly per the [tool version rules](../mise/references/tool-versions.md), keeping incompatible pins with evidence.
 1. **Python dependencies next**: they decide whether the new toolchain builds and tests the project; follow the [playbook](references/playbook.md) for `pyproject.toml` and `uv.lock`, then validate.
 1. **Infrastructure and images after that** (OpenTofu providers, container base images), which consume the language artifacts.
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if the upgrade cannot be qualified.
-1. **Verify the final candidate**: run the repository gate; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
+1. **Verify the final candidate**: run the repository gate and relevant runtime smoke checks on a candidate that matches the source; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
 1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile (`mise run upgrade` spans several ecosystems at once, so split its commits by lockfile), per [conventional-commit](../git-delivery/references/conventional-commit.md).
-1. **Report and preview cleanup**: list the adopted versions, retained exceptions, and gate results, then preview cleanup as in the [playbook](references/playbook.md); deleting installations needs separate authorization.
+1. **Report and preview cleanup**: list old and new versions, retained exceptions, and gate results, then preview cleanup as in the [playbook](references/playbook.md); deleting installations needs separate authorization.
 
 ## Gotchas
 

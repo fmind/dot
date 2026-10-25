@@ -20,6 +20,32 @@ _NOTIFY_EVENTS = {
     "needs-input": ("⏳", "Needs your input"),
 }
 _NOTIFY_EXPIRE_MS = "10000"
+_AGY_PRINT_FLAGS = (b"-p", b"--print", b"--prompt")
+
+
+def agy_print_mode(proc: Path = Path("/proc"), pid: int | None = None) -> bool:
+    """Whether the agy process running this hook answers a non-interactive print turn.
+
+    agy's hook payload has no mode field, so read the nearest agy ancestor's arguments;
+    hooks run through `sh -c`, so it is the parent or grandparent. Without /proc (macOS)
+    or a readable ancestor, the hook keeps notifying as before.
+    """
+    pid = os.getppid() if pid is None else pid
+    for _ in range(4):
+        if pid <= 1:
+            return False
+        try:
+            argv = (proc / str(pid) / "cmdline").read_bytes().split(b"\0")
+            stat = (proc / str(pid) / "stat").read_text(encoding="utf-8", errors="replace")
+            if Path(os.fsdecode(argv[0])).name == "agy":
+                return any(
+                    arg in _AGY_PRINT_FLAGS or arg.startswith((b"-p=", b"--print=", b"--prompt=")) for arg in argv
+                )
+            # The parent PID follows the parenthesized command name, which may contain spaces.
+            pid = int(stat.rsplit(")", 1)[1].split()[1])
+        except OSError, IndexError, ValueError:
+            return False
+    return False
 
 
 @dataclass(frozen=True)
@@ -51,12 +77,9 @@ def build_notification(
     adapter = AGENT_ADAPTERS.get(agent)
     label = adapter.notify_label if adapter else agent
     summary = f"{icon} {label}"
-    project = ""
     if cwd is not None:
-        expanded = cwd.expanduser()
-        resolved = expanded if expanded.is_absolute() else (Path.cwd() / expanded).absolute()
-        project = _short_notification_text(resolved.name)
-        summary += f" · {project}"
+        # Hook payload workspaces are already resolved to absolute paths.
+        summary += f" · {_short_notification_text(cwd.name)}"
     return Notification(summary, headline)
 
 
@@ -64,8 +87,8 @@ def _apple_script_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def notification_command(runner: Runner, notification: Notification, *, system: str | None = None) -> list[str]:
-    host = (system or platform.system()).lower()
+def notification_command(runner: Runner, notification: Notification, *, system: str) -> list[str]:
+    host = system.lower()
     if host == "darwin":
         script = (
             f"display notification {_apple_script_string(notification.headline)} "
@@ -139,14 +162,17 @@ def notification_workspace(stream: IO[str] | None, agent: str, event: str = "sto
             return None
         if any(payload.get(key) for key in ("agent_id", "agentId", "subagentId", "subagentType")):
             return None
-        # Both hosts report only in-flight work. Malformed/unknown values must
+        # Claude and agy report only in-flight work. Malformed/unknown values must
         # not be interpreted as an empty list and announce a false handoff.
         for field in ("background_tasks", "backgroundTasks", "session_crons", "sessionCrons"):
             if field in payload and payload[field] != []:
                 return None
         if agent == "agy" and payload.get("fullyIdle") is not True:
             return None
-    if agent in {"claude", "grok"}:
+    # Headless agy runs (scheduled assistants, loops) end without anyone waiting for them.
+    if agent == "agy" and agy_print_mode():
+        return None
+    if agent == "claude":
         kind = payload.get("notification_type", payload.get("notificationType"))
         if event == "ready" and kind != "idle_prompt":
             return None

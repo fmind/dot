@@ -16,12 +16,6 @@ from fmind_dot.errors import DotError
 runner = CliRunner()
 
 
-@pytest.fixture(autouse=True)
-def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The CLI measures ~/.agents; tests place their global root there."""
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-
 def skill(root: Path, name: str, *, description: str = "Run a fixture.") -> Path:
     path = root / "skills" / name / "SKILL.md"
     path.parent.mkdir(parents=True)
@@ -259,7 +253,6 @@ def test_broken_symlink_and_oversized_input_fail_instead_of_undercounting(tmp_pa
 
 
 def test_empty_roots_and_default_home_are_explicit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["agent", "context", "--json"])
     assert result.exit_code == 0

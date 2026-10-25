@@ -11,7 +11,7 @@ Start a new repository from the package templates; the parent [skill](../SKILL.m
 
 1. **Define the project inputs**: `Slug`, GCP `Project ID`, and default `Region`.
 1. **Add the config files**:
-   - [mise.toml](../templates/mise.toml) and [lefthook.yml](../templates/lefthook.yml); replace the template's `latest` placeholders with exact versions seeded from the workstation lock and commit the generated `mise.lock` per [mise](../../mise/SKILL.md).
+   - [mise.toml](../templates/mise.toml) and [lefthook.yml](../templates/lefthook.yml); replace the template's `latest` placeholders with exact versions (`mise use --pin <tool>`; seed tools the workstation also installs, such as dprint, gitleaks, lefthook, and trivy, from its lock) and commit the generated `mise.lock` per [mise](../../mise/SKILL.md).
    - `.tflint.hcl` from [tflint.hcl](../templates/tflint.hcl) — pins the terraform preset and the GCP ruleset release.
    - `.terraform-docs.yml` from [terraform-docs.yml](../templates/terraform-docs.yml), plus the `TF_DOCS` markers in `README.md`.
    - `dprint.json` per [dprint](../../dprint/SKILL.md), a reviewed project `trivy.yaml` per [trivy](../../code-security/references/trivy/GUIDE.md); `.gitignore` from [gitignore](../templates/gitignore), `.ignore` per [update-ignores](../../full-review/references/update-ignores/GUIDE.md), `LICENSE` per [project-license](../../project-scaffolding/references/project-license/GUIDE.md).

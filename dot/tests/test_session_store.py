@@ -63,8 +63,7 @@ def _write_bundle(home: Path, header: dict[str, object] | bytes, transcript: byt
     return path
 
 
-def test_ingestion_publishes_one_private_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_ingestion_publishes_one_private_bundle() -> None:
     logs = _logs(2)
     usage = {"harness": "codex", "session_id": "session-1"}
 
@@ -91,10 +90,7 @@ def test_ingestion_publishes_one_private_bundle(monkeypatch: pytest.MonkeyPatch,
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
 @pytest.mark.parametrize("blocked", ["ancestor", "root", "agent", "root-search"])
-def test_discovery_never_treats_an_inaccessible_archive_as_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, blocked: str
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_discovery_never_treats_an_inaccessible_archive_as_empty(tmp_path: Path, blocked: str) -> None:
     ingest_session("codex", "session-1", _logs(1))
     root = session_store_root()
     directory = {"ancestor": tmp_path / ".agents", "agent": root / "codex"}.get(blocked, root)
@@ -106,10 +102,7 @@ def test_discovery_never_treats_an_inaccessible_archive_as_empty(
         directory.chmod(0o700)
 
 
-def test_discovery_distinguishes_a_missing_archive_from_a_wrong_file_type(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_discovery_distinguishes_a_missing_archive_from_a_wrong_file_type() -> None:
     assert discover_session_bundles() == []
     root = session_store_root()
     root.parent.mkdir(parents=True)
@@ -118,8 +111,7 @@ def test_discovery_distinguishes_a_missing_archive_from_a_wrong_file_type(
         discover_session_bundles()
 
 
-def test_replacement_never_shrinks_the_archived_transcript(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_replacement_never_shrinks_the_archived_transcript() -> None:
     path = session_bundle_path("codex", "session-1")
 
     assert ingest_session("codex", "session-1", _logs(2), SessionSource(fingerprint="a" * 64)).status == "ingested"
@@ -136,10 +128,7 @@ def test_replacement_never_shrinks_the_archived_transcript(monkeypatch: pytest.M
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
 @pytest.mark.parametrize("empty", [False, True])
-def test_ingestion_never_treats_an_inaccessible_bundle_as_absent(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, empty: bool
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_ingestion_never_treats_an_inaccessible_bundle_as_absent(empty: bool) -> None:
     ingest_session("codex", "session-1", _logs(2))
     path = session_bundle_path("codex", "session-1")
     before = path.read_bytes()
@@ -152,10 +141,7 @@ def test_ingestion_never_treats_an_inaccessible_bundle_as_absent(
     assert path.read_bytes() == before
 
 
-def test_unchanged_content_keeps_capture_time_and_refreshes_signature(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_unchanged_content_keeps_capture_time_and_refreshes_signature() -> None:
     first = ingest_session("codex", "session-1", _logs(1), SessionSource(fingerprint="a" * 64, signature="old"))
     path = session_bundle_path("codex", "session-1")
     content = path.read_bytes()
@@ -171,10 +157,7 @@ def test_unchanged_content_keeps_capture_time_and_refreshes_signature(
     assert (stored.source_signature, stored.ingested_at) == ("new", first.manifest.ingested_at)
 
 
-def test_concurrent_ingestion_converges_without_temporary_residue(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_concurrent_ingestion_converges_without_temporary_residue() -> None:
     logs = _logs(1, "same", "claude")
 
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -191,8 +174,7 @@ def test_concurrent_ingestion_converges_without_temporary_residue(
     assert [item.name for item in path.parent.iterdir()] == ["same.jsonl"]
 
 
-def test_bundle_content_is_compact_native_utf8(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_bundle_content_is_compact_native_utf8() -> None:
     ingest_session("agy", "unicode", [SessionLog("", "agy", "unicode", "user", "café <ok>\u2028")])
 
     content = session_bundle_path("agy", "unicode").read_bytes()
@@ -217,10 +199,7 @@ def test_fingerprints_preserve_native_unicode_json() -> None:
     assert fingerprint_logs(logs) == hashlib.sha256(native_transcript).hexdigest()
 
 
-def test_ingestion_normalizes_models_and_default_source_metadata(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_ingestion_normalizes_models_and_default_source_metadata() -> None:
     logs = [
         SessionLog("2026-08-01T10:00:00Z", "codex", "models", "user", "one"),
         SessionLog("2026-08-01T11:00:00Z", "codex", "models", "assistant", "two", model="first"),
@@ -241,10 +220,7 @@ def test_ingestion_normalizes_models_and_default_source_metadata(
     ).manifest.completeness == ("partial")
 
 
-def test_ingestion_skips_empty_sessions_and_rejects_unsafe_identities(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_ingestion_skips_empty_sessions_and_rejects_unsafe_identities(tmp_path: Path) -> None:
     skipped = ingest_session("codex", "empty", [], SessionSource(type="fixture", malformed=2, skipped=3))
     assert skipped.status == "skipped"
     assert "skipped codex records=0 malformed=2 skipped=3 completeness=partial" in report_ingestion(skipped)
@@ -263,8 +239,7 @@ def test_ingestion_skips_empty_sessions_and_rejects_unsafe_identities(
     assert not (tmp_path / ".agents").exists()
 
 
-def test_corrupt_stored_bundle_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_corrupt_stored_bundle_fails_closed() -> None:
     ingest_session("codex", "session-1", _logs(1))
     path = session_bundle_path("codex", "session-1")
     path.write_text("{}\n")
@@ -337,10 +312,7 @@ def test_bundle_reads_reject_malformed_or_contradictory_content(
         read_session_bundle(path)
 
 
-def test_discovery_ignores_temporary_files_sync_state_and_unsafe_names(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_discovery_ignores_temporary_files_sync_state_and_unsafe_names() -> None:
     ingest_session("codex", "session-1", _logs(1))
     directory = session_store_root() / "codex"
     (directory / ".session-1.jsonl.abc.tmp").write_text("partial")
@@ -372,10 +344,7 @@ def test_transcript_serialization_preserves_empty_required_fields_and_optional_o
     assert SessionLog.from_dict(log.to_dict() | {"future": "ignored"}) == log
 
 
-def test_retained_results_prove_a_current_transcript_only_from_identical_complete_records(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_retained_results_prove_a_current_transcript_only_from_identical_complete_records() -> None:
     measured = {"measurement_kind": "provider-reported", "input_tokens": 10}
     first = ingest_session("codex", "session-1", _logs(2), SessionSource(fingerprint="a" * 64), usage=measured)
     assert not first.current_transcript

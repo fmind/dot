@@ -36,31 +36,24 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "aws-sso-util": ToolConfig(binary="env", args=("_AWS_SSO_UTIL_COMPLETE=fish_source", "aws-sso-util")),
     "bat": ToolConfig(args=("--completion", "fish")),
     "bf": ToolConfig(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
-    "btm": ToolConfig(package="bottom"),
-    "carapace": ToolConfig(args=("carapace", "fish")),
     "cf": ToolConfig(args=("complete", "fish")),
     "chezmoi": ToolConfig(),
-    "codex": ToolConfig(args=("completion", "fish")),
     "colab": ToolConfig(binary="env", args=("_COLAB_COMPLETE=source_fish", "colab")),
     "copilot": ToolConfig(),
-    "cosign": ToolConfig(),
     "databricks": ToolConfig(),
     "delta": ToolConfig(args=("--generate-completion", "fish")),
     "doggo": ToolConfig(args=("completions", "fish")),
     # Rendered in-process from Click; the installed dot may be older than this checkout.
     "dot": ToolConfig(),
     "dprint": ToolConfig(args=("completions", "fish")),
-    "dyff": ToolConfig(),
     "fastfetch": ToolConfig(package="github:fastfetch-cli/fastfetch"),
     "fd": ToolConfig(args=("--gen-completions", "fish")),
     "gh": ToolConfig(args=("completion", "-s", "fish")),
     "git-cliff": ToolConfig(package="git-cliff"),
     "git-lfs": ToolConfig(binary="git", args=("lfs", "completion", "fish")),
     "gitleaks": ToolConfig(),
-    "grok": ToolConfig(args=("completions", "fish")),
     "hf": ToolConfig(binary="env", args=("_HF_COMPLETE=fish_source", "hf")),
     "hyperfine": ToolConfig(package="hyperfine"),
-    "k3d": ToolConfig(),
     "lazygit": ToolConfig(args=("completion", "fish")),
     "lefthook": ToolConfig(),
     "lsd": ToolConfig(package="lsd"),
@@ -70,16 +63,12 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "rg": ToolConfig(args=("--generate", "complete-fish")),
     "ruff": ToolConfig(args=("generate-shell-completion", "fish")),
     "starship": ToolConfig(args=("completions", "fish")),
-    "stern": ToolConfig(args=("--completion", "fish")),
-    "terraform-docs": ToolConfig(),
     "tree-sitter": ToolConfig(args=("complete", "--shell", "fish")),
     "trivy": ToolConfig(),
     "ty": ToolConfig(args=("generate-shell-completion", "fish")),
     "usage": ToolConfig(args=("--completions", "fish")),
     "uv": ToolConfig(args=("generate-shell-completion", "fish")),
     "uvx": ToolConfig(args=("--generate-shell-completion", "fish")),
-    "vhs": ToolConfig(package="vhs"),
-    "watchexec": ToolConfig(args=("--completions", "fish")),
     "xh": ToolConfig(args=("--generate", "complete-fish")),
     "ya": ToolConfig(package="yazi"),
     "yazi": ToolConfig(package="yazi"),
@@ -100,12 +89,23 @@ class PullConfig(StrictModel):
 
 # GitHub account and organization names: alphanumeric runs joined by single hyphens.
 GitHubOwner = Annotated[str, Field(pattern=r"^[A-Za-z0-9](?:-?[A-Za-z0-9])*$", max_length=39)]
+# Absolute or `~/` glob over a whole repository path: `*` stays within one segment, `**` spans several.
+PathPattern = Annotated[str, Field(pattern=r"^(?:~/|/)\S")]
 
 
 class TrustConfig(StrictModel):
     # `dot trust all` trusts a workspace repository only when its origin is a
     # github.com repository of one of these owners (compared case-insensitively).
     github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind", "fmind-ai", "mlops-courses"])
+    # Trusted repositories that `dot trust` keeps out of agy's Remote Control project picker
+    # (owner choices: agent experiments, fgraph, and a checkout idle for 30 days on 2026-10-25).
+    agy_projects_exclude: list[PathPattern] = Field(
+        default_factory=lambda: [
+            "~/fmind/agent-*",
+            "~/fmind/fgraph",
+            "~/fmind/mcp-context-benchmark",
+        ]
+    )
 
 
 TokenPrice = Annotated[float, Field(ge=0, allow_inf_nan=False)]
@@ -136,9 +136,7 @@ class AgentConfig(StrictModel):
         default_factory=lambda: {
             "agy": "~/.gemini/antigravity-cli/brain",
             "claude": "~/.claude/projects",
-            "codex": "~/.codex/sessions",
             "copilot": "~/.copilot/session-store.db",
-            "grok": "~/.grok/sessions",
             "opencode": "~/.local/share/opencode/opencode.db",
         }
     )
@@ -157,7 +155,6 @@ class DoctorConfig(StrictModel):
             "bf",
             "chezmoi",
             "claude",
-            "codex",
             "copilot",
             "dprint",
             "file",
@@ -166,7 +163,6 @@ class DoctorConfig(StrictModel):
             "git",
             "git-cliff",
             "gitleaks",
-            "grok",
             "gws",
             "lefthook",
             "mise",
@@ -373,7 +369,7 @@ def expand_path(value: str | Path) -> Path:
     text = os.fspath(value)
     if text == "~":
         return Path.home()
-    if text.startswith(("~/", "~\\")):
+    if text.startswith("~/"):
         return Path.home() / text[2:]
     return Path(text)
 

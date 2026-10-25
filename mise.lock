@@ -200,10 +200,7 @@ url_api = "https://api.github.com/repos/mvdan/sh/releases/assets/547320930"
 [[tools.stylua]]
 version = "2.6.0"
 backend = "aqua:JohnnyMorganz/StyLua"
-specifiers = [
-    "2.6.0",
-    "latest",
-]
+specifiers = ["latest"]
 
 [tools.stylua."platforms.linux-x64"]
 checksum = "sha256:48ee7db28346f96f4bd545e190ab080a88a7b5a664e97649cf5d5c60426f402d"

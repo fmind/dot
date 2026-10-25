@@ -6,17 +6,21 @@ import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime, timedelta
-from typing import IO, TYPE_CHECKING, Annotated, Any, Literal, Required, TypedDict
+from typing import IO, Annotated, Any, Literal, Required, TypedDict
 
 from pydantic import AfterValidator, Field, StrictBool, StrictStr, TypeAdapter, ValidationError, with_config
 
 from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
-from fmind_dot.archive.store import NonNegativeInt, is_valid_session_id, parse_utc_instant
+from fmind_dot.archive.store import (
+    NonNegativeInt,
+    SessionManifest,
+    discover_session_bundles,
+    is_valid_session_id,
+    parse_utc_instant,
+    read_session_manifest,
+)
 from fmind_dot.config import PricingConfig, default_pricing
 from fmind_dot.reporting import write_report_line
-
-if TYPE_CHECKING:
-    from fmind_dot.archive.store import SessionManifest
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
@@ -319,8 +323,6 @@ def iter_usage_records(since: datetime | None = None, until: datetime | None = N
     outside it: such a family adds no row or cost, while a member outside the window must still
     mark its family partial so a provider session cost is never attributed to only part of it.
     """
-    from fmind_dot.archive.store import discover_session_bundles, read_session_manifest
-
     paths = discover_session_bundles()
     active: set[tuple[str, str]] | None = None
     if since is not None or until is not None:

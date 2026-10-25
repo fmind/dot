@@ -11,12 +11,6 @@ from fmind_dot.archive.usage import UsageRecord
 from fmind_dot.cli import app
 
 
-@pytest.fixture(autouse=True)
-def isolated_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
-
-
 @pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login"]])
 def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> None:
     config = tmp_path / "bad.yaml"
@@ -95,14 +89,14 @@ def test_removed_report_routes_are_usage_errors(command: list[str]) -> None:
 
 @pytest.mark.parametrize("flag", ["--agent", "-a"])
 def test_agent_filter_aliases_select_the_same_usage(flag: str) -> None:
-    for agent in ["codex", "claude"]:
+    for agent in ["agy", "claude"]:
         record = UsageRecord(
             timestamp="2026-09-15T12:00:00Z", harness=agent, session_id=agent, input_tokens=10
         ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
         ingest_session(agent, agent, [], usage=record.to_dict())
-    result = CliRunner().invoke(app, ["agent", "stats", "--sessions", flag, "codex", "--limit", "0", "--json"])
-    assert result.exit_code == 0
-    assert [record["harness"] for record in json.loads(result.stdout)["records"]] == ["codex"]
+    result = CliRunner().invoke(app, ["agent", "stats", "--sessions", flag, "agy", "--limit", "0", "--json"])
+    assert result.exit_code == 0, result.output
+    assert [record["harness"] for record in json.loads(result.stdout)["records"]] == ["agy"]
 
 
 def test_invalid_config_still_blocks_archive_reads(tmp_path: Path) -> None:

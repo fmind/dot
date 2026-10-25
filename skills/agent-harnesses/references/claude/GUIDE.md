@@ -14,7 +14,6 @@ Follow the shared [workflow](../../SKILL.md#workflow).
 - [Anthropic skills](https://github.com/anthropics/skills): reusable examples and document skills; inspect each package's license and scope.
 - [Official plugin directory](https://github.com/anthropics/claude-plugins-official): browse maintained integrations alongside the skill examples.
 - [Skill authoring and discovery](https://code.claude.com/docs/en/skills) · [Plugin discovery](https://code.claude.com/docs/en/discover-plugins).
-- **Select packages by vendor-skill policy**: select a needed package through the [vendor-skill policy](../../../agent-project/references/vendor-skills.md); link to upstream guidance instead of maintaining a copied manual here.
 
 ## Top Links
 
@@ -26,8 +25,6 @@ Follow the shared [workflow](../../SKILL.md#workflow).
 
 ## Operation Links
 
-Use these for session recovery, automation, and integration decisions; discover other capabilities from the official documentation index.
-
 | Need                         | What to resolve                                                   | Official sources                                                                                                                            |
 | ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Session recovery             | Resume, branch, export, rewind, or isolate work.                  | [Sessions](https://code.claude.com/docs/en/sessions) · [Checkpointing](https://code.claude.com/docs/en/checkpointing)                       |
@@ -37,4 +34,4 @@ Use these for session recovery, automation, and integration decisions; discover 
 | MCP, hooks, and events       | Connect tools and distinguish hook execution from inbound events. | [MCP](https://code.claude.com/docs/en/mcp) · [Hooks guide](https://code.claude.com/docs/en/hooks-guide)                                     |
 | Permissions and sandboxing   | Choose approval mode and isolation independently.                 | [Permissions](https://code.claude.com/docs/en/permissions) · [Permission modes](https://code.claude.com/docs/en/permission-modes)           |
 
-Match the installed version, product surface, account, and platform before applying a recipe; the [machine-readable index](https://code.claude.com/docs/llms.txt) covers newly added capabilities. Installed help does not list every supported flag; check the version-specific CLI reference before declaring a feature unavailable.
+The [machine-readable index](https://code.claude.com/docs/llms.txt) covers newly added capabilities.

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # Infrastructure as Code
@@ -16,7 +16,7 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 
 ## Defaults
 
-- **Default to OpenTofu via mise**: `opentofu` tool, `tofu` binary; verify provider, backend, state, and language-feature compatibility before a Terraform migration.
+- **Default to OpenTofu via project mise pins**: `opentofu` tool, `tofu` binary; verify provider, backend, state, and language-feature compatibility before a Terraform migration. The workstation does not install these CLIs globally: declare `opentofu`, `tflint`, and `terraform-docs` in the project's `mise.toml` with `mise use --pin <tool>`, as the [template](templates/mise.toml) does.
 - **Use the template tasks and hooks**: [mise.toml](templates/mise.toml) exposes the canonical vocabulary per [mise](../mise/SKILL.md) — `check` fans out to format, validate, lint (tflint), scan (trivy), and leaks; [lefthook.yml](templates/lefthook.yml) wires the hooks per [lefthook](../github-actions/references/lefthook.md).
 - **Generate docs with terraform-docs**: `mise run build` injects the inputs/outputs table between the `TF_DOCS` markers in `README.md` (add them once at scaffold time) per [terraform-docs.yml](templates/terraform-docs.yml), without cloud access.
 - **Authenticate without service-account keys**: Application Default Credentials locally; Workload Identity Federation in CI per [cloud-run bootstrap](../cloud-run/references/bootstrap.md).
@@ -29,12 +29,12 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 1. **Plan explicitly**: `mise run plan` writes `tmp/plan.tfplan` for the selected backend, workspace, and cloud target; feed secrets per State and secrets below. A plan can access APIs, state, and data sources, so keep plan and apply out of automatic gates.
 1. **Review the plan**: read `tofu show tmp/plan.tfplan` and flag every replacement, destroy, IAM change, and cost-relevant resource before asking for apply authority.
 1. **Apply the reviewed plan when authorized**: `tofu apply tmp/plan.tfplan` against the same target, then delete the saved plan.
-1. **Verify**: re-read the changed resources and run the same target's plan with its secret inputs, e.g. `sops exec-env secrets.enc.env 'tofu plan -input=false -detailed-exitcode'`; exit 0 means no remaining drift, 2 means pending changes, 1 is an error.
+1. **Verify**: re-read the changed resources and run the same target's plan with the same secret inputs, `tofu plan -input=false -detailed-exitcode`; exit 0 means no remaining drift, 2 means pending changes, 1 is an error.
 
 ## State and secrets
 
 - **State is secret**: state can store sensitive resource attributes in plaintext — never in git, always in the versioned GCS bucket, ideally wrapped by OpenTofu's `encryption` block. Read [state-encryption](references/state-encryption.md) before enabling it or migrating existing state.
-- **Keep secrets out of tfvars and plans**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets per [sops-secrets](../sops-secrets/SKILL.md) as `TF_VAR_<name>` entries: `sops exec-env secrets.enc.env 'tofu plan -out=tmp/plan.tfplan'`. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at apply: `sops exec-env secrets.enc.env 'tofu apply tmp/plan.tfplan'`.
+- **Keep secrets out of tfvars and plans**: `*.tfvars` is gitignored; commit only `*.example.tfvars`. Feed secrets as `TF_VAR_<name>` environment variables that the project's secret store or launcher injects into the `tofu` process only, never exported in the shell or passed as arguments. A saved plan stores ordinary variable values, sensitive ones included; declare secret inputs `ephemeral = true`, pass them only to write-only arguments (for example `secret_data_wo` with an incremented `secret_data_wo_version`), and supply them again at `tofu apply tmp/plan.tfplan`.
 
 ## Gotchas
 
@@ -57,4 +57,4 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 - [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/)
 - Releases: [OpenTofu](https://github.com/opentofu/opentofu/releases)
 - Upstream: `hashicorp/agent-skills` per the [vendor-skill policy](../agent-project/references/vendor-skills.md); select only the Terraform or provider guidance the stack needs.
-- Companion skills: [mise](../mise/SKILL.md) (task vocabulary), [sops-secrets](../sops-secrets/SKILL.md) (encrypted variables), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI), [code-security](../code-security/references/code-review/GUIDE.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).
+- Companion skills: [mise](../mise/SKILL.md) (task vocabulary and project pins), [github-actions](../github-actions/references/ci-cd/GUIDE.md) (CI), [code-security](../code-security/references/code-review/GUIDE.md) (full-repo scans), [Google catalog](../google-developer/SKILL.md) (product skills).

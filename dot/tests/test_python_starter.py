@@ -65,6 +65,9 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
 @pytest.mark.parametrize("profile", ["library", "cli", "web"])
 def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, profile: str) -> None:
+    # HOME is tmp_path, so uv and Ruff caches must stay outside the generated project.
+    project = tmp_path / "starter"
+    project.mkdir()
     version = f"{sys.version_info.major}.{sys.version_info.minor}"
     replacements = {
         "<slug>": "starter-py",
@@ -80,26 +83,26 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     if profile != "library":
         manifest += '\n[project.scripts]\nstarter-py = "starter_py:main"\n'
 
-    _write(tmp_path, "pyproject.toml", manifest)
-    _write(tmp_path, ".python-version", f"{version}\n")
-    _write(tmp_path, "README.md", "# Starter Python\n")
-    _write(tmp_path, "LICENSE", "MIT\n")
+    _write(project, "pyproject.toml", manifest)
+    _write(project, ".python-version", f"{version}\n")
+    _write(project, "README.md", "# Starter Python\n")
+    _write(project, "LICENSE", "MIT\n")
     # Match bootstrap order: uv add builds the existing foundation before the profile replaces it.
-    _write(tmp_path, "src/starter_py/__init__.py", _render("init-library.py", replacements))
+    _write(project, "src/starter_py/__init__.py", _render("init-library.py", replacements))
     if profile == "library":
-        _write(tmp_path, "tests/test_library.py", _render("test_library.py", replacements))
+        _write(project, "tests/test_library.py", _render("test_library.py", replacements))
     elif profile == "cli":
-        _run(tmp_path, "uv", "add", "typer>=0.27.2")
-        _write(tmp_path, "src/starter_py/__init__.py", _render("init-cli.py", replacements, owner="cli-development"))
-        _write(tmp_path, "src/starter_py/__main__.py", _render("main.py", replacements, owner="cli-development"))
+        _run(project, "uv", "add", "typer>=0.27.2")
+        _write(project, "src/starter_py/__init__.py", _render("init-cli.py", replacements, owner="cli-development"))
+        _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, owner="cli-development"))
         for name in ("test_smoke.py", "test_cli.py"):
-            _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="cli-development"))
+            _write(project, f"tests/{name}", _render(name, replacements, owner="cli-development"))
     else:
         # Mirrors the guide's temporary pin: multidict 7.2.0 breaks litestar 2.25.0 Headers.
-        with (tmp_path / "pyproject.toml").open("a", encoding="utf-8") as stream:
+        with (project / "pyproject.toml").open("a", encoding="utf-8") as stream:
             stream.write('\n[tool.uv]\nconstraint-dependencies = ["multidict<7.2"]\n')
         _run(
-            tmp_path,
+            project,
             "uv",
             "add",
             "litestar>=2.24.0",
@@ -110,45 +113,45 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "pydantic-settings>=2.15.0",
             "structlog>=26.1.0",
         )
-        _run(tmp_path, "uv", "add", "--dev", "anyio>=4.14.2", "testcontainers>=4.15.0")
+        _run(project, "uv", "add", "--dev", "anyio>=4.14.2", "testcontainers>=4.15.0")
         _write(
-            tmp_path,
+            project,
             "src/starter_py/__init__.py",
             _render("init.py", replacements, owner="python-web"),
         )
-        _write(tmp_path, "src/starter_py/__main__.py", 'from . import main\n\nif __name__ == "__main__":\n    main()\n')
+        _write(project, "src/starter_py/__main__.py", 'from . import main\n\nif __name__ == "__main__":\n    main()\n')
         for name in ("test_web.py", "test_integration.py"):
-            _write(tmp_path, f"tests/{name}", _render(name, replacements, owner="python-web"))
-        _write(tmp_path, "tests/conftest.py", _render("conftest.py", replacements, owner="python-web"))
+            _write(project, f"tests/{name}", _render(name, replacements, owner="python-web"))
+        _write(project, "tests/conftest.py", _render("conftest.py", replacements, owner="python-web"))
         # SQLAlchemy loads asyncpg from the URL scheme, so the guide declares it for deptry.
-        with (tmp_path / "pyproject.toml").open("a", encoding="utf-8") as stream:
+        with (project / "pyproject.toml").open("a", encoding="utf-8") as stream:
             stream.write('\n[tool.deptry.per_rule_ignores]\nDEP002 = ["asyncpg"]\n')
-        _write(tmp_path, ".env", _render("env.example", replacements, owner="python-web"))
+        _write(project, ".env", _render("env.example", replacements, owner="python-web"))
 
-    _run(tmp_path, "uv", "lock")
-    _run(tmp_path, "uv", "sync", "--locked")
-    _run(tmp_path, "uv", "run", "--frozen", "validate-pyproject", "pyproject.toml")
+    _run(project, "uv", "lock")
+    _run(project, "uv", "sync", "--locked")
+    _run(project, "uv", "run", "--frozen", "validate-pyproject", "pyproject.toml")
     # The documented gate formats materialized code for the selected Python target first.
-    _run(tmp_path, "uv", "run", "--frozen", "ruff", "format")
-    _run(tmp_path, "uv", "run", "--frozen", "ruff", "check")
-    _run(tmp_path, "uv", "run", "--frozen", "ruff", "format", "--check")
-    _run(tmp_path, "uv", "run", "--frozen", "ty", "check")
-    _run(tmp_path, "uv", "run", "--frozen", "deptry", ".")
-    _run(tmp_path, "uv", "run", "--frozen", "pytest", "-m", "not integration", "--cov", "--cov-fail-under=85")
-    _run(tmp_path, "uv", "build", "--out-dir", "dist")
+    _run(project, "uv", "run", "--frozen", "ruff", "format")
+    _run(project, "uv", "run", "--frozen", "ruff", "check")
+    _run(project, "uv", "run", "--frozen", "ruff", "format", "--check")
+    _run(project, "uv", "run", "--frozen", "ty", "check")
+    _run(project, "uv", "run", "--frozen", "deptry", ".")
+    _run(project, "uv", "run", "--frozen", "pytest", "-m", "not integration", "--cov", "--cov-fail-under=85")
+    _run(project, "uv", "build", "--out-dir", "dist")
     # The strict docs build renders every module's API page and fails on broken cross-references.
-    _write(tmp_path, "zensical.toml", _render("zensical.toml", replacements))
-    _write(tmp_path, "docs/index.md", _render("docs-index.md", replacements))
-    _run(tmp_path, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
-    assert (tmp_path / "site/reference/starter_py/index.html").is_file()
+    _write(project, "zensical.toml", _render("zensical.toml", replacements))
+    _write(project, "docs/index.md", _render("docs-index.md", replacements))
+    _run(project, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
+    assert (project / "site/reference/starter_py/index.html").is_file()
 
-    runtime = tmp_path / "runtime"
-    _run(tmp_path, "uv", "venv", str(runtime))
-    wheel = next((tmp_path / "dist").glob("*.whl"))
-    requirements = _run(tmp_path, "uv", "export", "--locked", "--no-dev", "--no-emit-project")
-    _write(tmp_path, "runtime-requirements.txt", requirements)
+    runtime = project / "runtime"
+    _run(project, "uv", "venv", str(runtime))
+    wheel = next((project / "dist").glob("*.whl"))
+    requirements = _run(project, "uv", "export", "--locked", "--no-dev", "--no-emit-project")
+    _write(project, "runtime-requirements.txt", requirements)
     _run(
-        tmp_path,
+        project,
         "uv",
         "pip",
         "install",
@@ -158,7 +161,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         "runtime-requirements.txt",
         str(wheel),
     )
-    outside = tmp_path / "outside"
+    outside = project / "outside"
     outside.mkdir()
     if profile == "web":
         _write(outside, ".env", _render("env.example", replacements, owner="python-web"))

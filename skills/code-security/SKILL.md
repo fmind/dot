@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-10-21"
+  updated: "2026-10-25"
 ---
 
 # Code Security
@@ -16,7 +16,7 @@ Investigate and fix security defects with evidence. Choose code review, threat m
 
 ## Workflow
 
-Read only the matching guide and its required resources. Use a known guide directly when shared prerequisites are not needed.
+Read only the matching guide and its required resources.
 
 ## Task guides
 

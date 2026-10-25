@@ -16,9 +16,10 @@ from typer.testing import CliRunner
 from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
 from fmind_dot.archive import sync as archive_sync_module
-from fmind_dot.archive.parsers import AgentAdapter, ParsedSession, SessionParser
+from fmind_dot.archive.parsers import RETIRED_AGENTS, AgentAdapter, ParsedSession, SessionParser
 from fmind_dot.archive.store import (
     SessionLog,
+    ingest_session,
     read_session_bundle,
     read_session_manifest,
     session_bundle_path,
@@ -104,8 +105,7 @@ def _fixture_adapter(
     state.config.agent.sources["fixture"] = str(tmp_path)
 
 
-def test_sync_rejects_configured_source_with_wrong_kind(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_sync_rejects_configured_source_with_wrong_kind(tmp_path: Path) -> None:
     source = tmp_path / "claude-source"
     source.write_text("not a directory\n", encoding="utf-8")
     state = make_state()
@@ -120,10 +120,7 @@ def test_sync_rejects_configured_source_with_wrong_kind(monkeypatch: pytest.Monk
     assert "failed to inspect the session source for Claude: Claude session path is not a directory" in _stderr(state)
 
 
-def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(tmp_path: Path) -> None:
     session_id = "shared-claude-session"
 
     def answer(index: int) -> dict[str, object]:
@@ -157,62 +154,21 @@ def test_session_sync_keeps_the_longest_copy_of_a_duplicated_session(
     assert "agent-session-sync: done (0 failed)" in _stderr(state)
 
 
-def test_session_sync_follows_codex_rollouts_into_archived_sessions(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    name = "rollout-2026-09-06T08-00-00-codex-moved.jsonl"
-
-    def turn(index: int) -> dict[str, object]:
-        return {
-            "timestamp": f"2026-09-06T08:00:0{index}Z",
-            "type": "response_item",
-            "payload": {"role": "user", "content": f"prompt {index}"},
-        }
-
-    live = tmp_path / ".codex/sessions/2026/09/06" / name
-    _write_jsonl(live, turn(1))
-    state = make_state()
-    assert sync_sessions(state, agent="codex").ingested == 1
-
-    # Codex moves an archived thread out of sessions/ and can keep appending to it.
-    archived = tmp_path / ".codex/archived_sessions" / name
-    archived.parent.mkdir(mode=0o700)
-    live.rename(archived)
-    _write_jsonl(archived, turn(1), turn(2))
-    assert sync_sessions(state, agent="codex").ingested == 1
-    manifest, records = read_session_bundle(session_bundle_path("codex", "codex-moved"))
-    assert (manifest.record_count, records[-1].content) == (2, "prompt 2")
-
-    # A live copy of the same id takes precedence over the archived one.
-    _write_jsonl(live, turn(1), turn(2), turn(3))
-    _write_jsonl(archived, turn(1))
-    outcome = sync_sessions(state, agent="codex")
-    assert (outcome.selected, outcome.ingested, outcome.failed) == (1, 1, 0)
-    assert read_session_manifest(session_bundle_path("codex", "codex-moved")).record_count == 3
-
-
-def test_session_sync_dry_run_summary_omits_the_unevaluated_retained_count(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_sync_dry_run_summary_omits_the_unevaluated_retained_count(tmp_path: Path) -> None:
     _write_jsonl(
-        tmp_path / ".codex/sessions/rollout-2026-09-06T08-00-00-codex-dry.jsonl",
-        {"timestamp": "2026-09-06T08:00:00Z", "type": "response_item", "payload": {"role": "user", "content": "hi"}},
+        tmp_path / ".claude/projects/project/claude-dry.jsonl",
+        {"type": "user", "timestamp": "2026-09-06T08:00:00Z", "message": {"content": "hi"}},
     )
     state = make_state()
 
-    assert sync_sessions(state, agent="codex", dry_run=True).selected == 1
+    assert sync_sessions(state, agent="claude", dry_run=True).selected == 1
 
     # Retention is decided only during capture, so a dry run cannot report it.
-    assert "codex: 1 selected, 0 unchanged\n" in _stderr(state)
+    assert "claude: 1 selected, 0 unchanged\n" in _stderr(state)
     assert "retained" not in _stderr(state)
 
 
-def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(tmp_path: Path) -> None:
 
     def claude(text: str, **usage: int) -> dict[str, object]:
         return {
@@ -229,18 +185,18 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
         stream.write(b'{"type":"user","message":{"content":"\xff"}}\n')
     _write_jsonl(projects / "c-negative.jsonl", claude("kept despite bad metrics", input_tokens=-5))
     _write_jsonl(projects / "d-valid.jsonl", claude("fine", input_tokens=3, output_tokens=2))
-    _write_jsonl(
-        tmp_path / ".codex/sessions/rollout-2026-09-06T08-00-00-codex-ok.jsonl",
-        {"timestamp": "2026-09-06T08:00:00Z", "role": "user", "content": "later adapter"},
-    )
-    _write_jsonl(
-        tmp_path / ".grok/sessions/%2Fwork/grok-negative/updates.jsonl",
-        {
-            "timestamp": 1_788_681_600,
-            "params": {"update": {"sessionUpdate": "agent_message_chunk", "content": {"text": "grok answer"}}},
-        },
-        {"params": {"update": {"sessionUpdate": "turn_completed", "usage": {"inputTokens": -1}}}},
-    )
+    # A later adapter still captures its sessions after Claude's failures.
+    database = tmp_path / ".copilot/session-store.db"
+    _create_copilot_database(database)
+    with closing(sqlite3.connect(database)) as connection:
+        connection.executescript(
+            """DELETE FROM sessions; DELETE FROM turns; DELETE FROM assistant_usage_events;
+            INSERT INTO sessions VALUES ('copilot-ok', '/work', '2026-09-06T08:00:00Z', NULL);
+            INSERT INTO turns VALUES (1, 'copilot-ok', 1, 'later adapter', '', '2026-09-06T08:00:00Z');
+            INSERT INTO sessions VALUES ('copilot-negative', '/work', '2026-09-06T08:00:00Z', NULL);
+            INSERT INTO turns VALUES (2, 'copilot-negative', 1, '', 'copilot answer', '2026-09-06T08:00:00Z');
+            INSERT INTO assistant_usage_events VALUES ('copilot-negative', 'gpt-test', -1, 0, 0, 0, 0);"""
+        )
 
     synced = CliRunner().invoke(app, ["agent", "session", "sync", "--json"])
 
@@ -263,16 +219,13 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(
         ("b-rawbyte", "partial", 1, True),
         ("c-negative", "complete", 0, True),
         ("d-valid", "complete", 0, False),
-        ("codex-ok", "complete", 0, True),
-        ("grok-negative", "complete", 0, True),
+        ("copilot-ok", "complete", 0, True),
+        ("copilot-negative", "complete", 0, True),
     }
     assert {record.session_id for record in list(iter_usage_records())} == {"d-valid"}
 
 
-def test_usage_sync_covers_file_database_and_signals_only_sources(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_usage_sync_covers_file_and_database_sources(tmp_path: Path) -> None:
     agy_root = tmp_path / ".gemini/antigravity-cli/brain"
     agy_logs = agy_root / "agy-sync/.system_generated/logs"
     agy_records = (
@@ -307,28 +260,19 @@ def test_usage_sync_covers_file_database_and_signals_only_sources(
     _write_jsonl(claude_root / "claude-sync.jsonl", claude_record)
     _write_jsonl(claude_root / "memory.jsonl", claude_record)
 
-    grok_dir = tmp_path / ".grok/sessions/%2Fwork%2Fgrok/grok-sync"
-    grok_dir.mkdir(mode=0o700, parents=True)
-    (grok_dir / "signals.json").write_text(
-        json.dumps({"primaryModelId": "grok-test", "contextTokensUsed": 21, "turnCount": 3}),
-        encoding="utf-8",
-    )
     _create_copilot_database(tmp_path / ".copilot/session-store.db")
     state = make_state()
 
-    assert sync_sessions(state).ingested == 4
+    assert sync_sessions(state).ingested == 3
 
     usage = {record.harness: record for record in list(iter_usage_records())}
-    assert set(usage) == {"agy", "claude", "copilot", "grok"}
+    assert set(usage) == {"agy", "claude", "copilot"}
     assert usage["agy"].turn_count == 1
     assert usage["agy"].model == "unknown"
-    assert usage["grok"].total_tokens == 21
+    assert usage["copilot"].total_tokens == 17
 
 
-def test_agy_workspace_discovered_later_recaptures_an_unchanged_transcript(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_agy_workspace_discovered_later_recaptures_an_unchanged_transcript(tmp_path: Path) -> None:
     store = tmp_path / ".gemini/antigravity-cli"
     record = {"created_at": "2026-09-06T08:00:00Z", "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "hi"}
     _write_jsonl(store / "brain/agy-cwd/.system_generated/logs/transcript.jsonl", record)
@@ -366,10 +310,7 @@ def test_agy_workspace_discovered_later_recaptures_an_unchanged_transcript(
     assert read_session_bundle(session_bundle_path("agy", "agy-cwd"))[0].cwd == "/work/project"
 
 
-def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_copilot_sessions_are_captured_from_the_database_without_a_hook(tmp_path: Path) -> None:
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
 
@@ -388,11 +329,8 @@ def test_copilot_sessions_are_captured_from_the_database_without_a_hook(
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
-@pytest.mark.parametrize("agent", ["claude", "codex", "grok", "agy"])
-def test_sync_reports_inaccessible_project_directories(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+@pytest.mark.parametrize("agent", ["claude", "agy"])
+def test_sync_reports_inaccessible_project_directories(tmp_path: Path, agent: str) -> None:
     state = make_state()
     source = tmp_path / "source"
     blocked = source / "project"
@@ -410,10 +348,7 @@ def test_sync_reports_inaccessible_project_directories(
     assert "failed to scan sessions" in _stderr(state)
 
 
-def test_copilot_checkpoint_skips_reads_and_keeps_unchanged_bundles(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_copilot_checkpoint_skips_reads_and_keeps_unchanged_bundles(tmp_path: Path) -> None:
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
     with closing(sqlite3.connect(database)) as connection:
@@ -449,7 +384,6 @@ def test_copilot_checkpoint_skips_reads_and_keeps_unchanged_bundles(
 def test_copilot_partial_scans_never_publish_a_skip_checkpoint(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, interruption: str
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
     state = make_state()
@@ -482,7 +416,6 @@ def test_copilot_writes_during_every_parse_still_capture_the_snapshot(
 ) -> None:
     # A running Copilot writes the shared database while sync parses: each parse reads one
     # transaction snapshot, so the capture succeeds and only the pass checkpoint is withheld.
-    monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
     state = make_state()
@@ -504,8 +437,7 @@ def test_copilot_writes_during_every_parse_still_capture_the_snapshot(
     assert sync_sessions(state, agent="copilot").selected == 1
 
 
-def test_copilot_checkpoint_detects_wal_updates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_copilot_checkpoint_detects_wal_updates(tmp_path: Path) -> None:
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
     state = make_state()
@@ -524,10 +456,7 @@ def test_copilot_checkpoint_detects_wal_updates(monkeypatch: pytest.MonkeyPatch,
         assert manifest.usage["input_tokens"] == 20
 
 
-def test_reports_sync_first_and_warn_without_blocking_on_failures(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_reports_sync_first_and_warn_without_blocking_on_failures(tmp_path: Path) -> None:
     _write_jsonl(
         tmp_path / ".claude/projects/project/fresh.jsonl",
         {
@@ -536,7 +465,7 @@ def test_reports_sync_first_and_warn_without_blocking_on_failures(
             "message": {"model": "m", "content": [{"type": "text", "text": "a"}], "usage": {"input_tokens": 4}},
         },
     )
-    broken = tmp_path / ".codex/sessions"
+    broken = tmp_path / ".gemini/antigravity-cli/brain"
     broken.parent.mkdir(parents=True)
     broken.write_text("not a directory")
 
@@ -545,16 +474,13 @@ def test_reports_sync_first_and_warn_without_blocking_on_failures(
 
     assert stats.exit_code == 0
     assert [row["harness"] for row in json.loads(stats.stdout)["usage"]] == ["claude"]
-    assert "failed to inspect the session source for Codex" in stats.stderr
+    assert "failed to inspect the session source for agy" in stats.stderr
     assert "agent-session-sync" not in stats.stderr
     assert listed.exit_code == 0
     assert "fresh" in listed.stdout
 
 
-def test_session_and_usage_cli_surfaces_report_ingested_evidence(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_and_usage_cli_surfaces_report_ingested_evidence(tmp_path: Path) -> None:
     session_id = "claude-cli"
     _write_jsonl(
         tmp_path / f".claude/projects/project/{session_id}.jsonl",
@@ -591,7 +517,6 @@ def test_session_and_usage_cli_surfaces_report_ingested_evidence(
 def test_session_sync_main_normalizes_empty_copilot_database_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     database = tmp_path / ".copilot/session-store.db"
     database.parent.mkdir(parents=True)
     database.touch()
@@ -610,8 +535,7 @@ def test_session_sync_main_normalizes_empty_copilot_database_error(
     )
 
 
-def test_session_cli_rejects_inverted_date_window(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_cli_rejects_inverted_date_window() -> None:
 
     result = CliRunner().invoke(
         app,
@@ -626,20 +550,19 @@ def test_notification_workspace_accepts_host_aliases_and_honors_guards() -> None
     aliased = io.StringIO(json.dumps({"workspacePaths": [None, "/work/project"], "fullyIdle": True}))
     assert notification_workspace(aliased, "agy") == "/work/project"
     assert notification_workspace(io.StringIO(json.dumps({"cwd": "/work/direct"})), "claude") == "/work/direct"
-    assert notification_workspace(io.StringIO(""), "codex") is None
+    assert notification_workspace(io.StringIO(""), "copilot") is None
     assert notification_workspace(io.StringIO('{"stop_hook_active":true}'), "claude") is None
     assert notification_workspace(io.StringIO('{"cwd":"/work"}'), "agy") is None
 
     with pytest.raises(DotError, match="expected a JSON object"):
-        notification_workspace(io.StringIO("[]"), "codex")
+        notification_workspace(io.StringIO("[]"), "copilot")
     with pytest.raises(DotError, match="stopHookActive must be a boolean"):
-        notification_workspace(io.StringIO('{"stopHookActive":"false"}'), "grok")
+        notification_workspace(io.StringIO('{"stopHookActive":"false"}'), "agy")
 
 
 def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     session_id = "01a0685e-853d-7c12-99a8-4866999e6f55"
 
     def parser(_path: Path, _session_id: str, _cwd: str) -> ParsedSession:
@@ -665,7 +588,6 @@ def test_sync_failures_name_the_agent_operation_and_redact_session_ids(
 def test_session_sync_archives_transcript_then_reports_failed_usage(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     log = SessionLog("2026-09-06T08:00:00Z", "fixture", "fixture-id", "user", "kept")
     state = make_state()
     _fixture_adapter(
@@ -685,7 +607,6 @@ def test_session_sync_archives_transcript_then_reports_failed_usage(
 
 
 def test_sync_publishes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     usage = UsageRecord(
         harness="fixture", agent="fixture", session_id="fixture-id", measurement_kind="provider-reported"
     ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
@@ -698,7 +619,6 @@ def test_sync_publishes_usage_from_the_same_parse(monkeypatch: pytest.MonkeyPatc
 
 
 def test_sync_normalizes_publication_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     state = make_state()
     _fixture_adapter(monkeypatch, state, tmp_path, lambda *_args: ParsedSession([], "a" * 64, "fixture"))
 
@@ -717,8 +637,45 @@ def test_sync_rejects_unknown_agents() -> None:
         sync_sessions(make_state(), agent="fixture")
 
 
-def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+@pytest.mark.parametrize("agent", RETIRED_AGENTS)
+def test_retired_agents_stay_queryable_but_never_sync(tmp_path: Path, agent: str) -> None:
+    usage = UsageRecord(
+        timestamp="2026-09-01T00:00:00Z",
+        harness=agent,
+        session_id="archived",
+        model="fixture",
+        measurement_kind="provider-reported",
+        input_tokens=10,
+        turn_count=1,
+    ).finalize()
+    ingest_session(
+        agent,
+        "archived",
+        [SessionLog("2026-09-01T00:00:00Z", agent, "archived", "user", "kept")],
+        usage=usage.to_dict(),
+    )
+    ingest_session("claude", "current", [SessionLog("2026-09-01T00:00:00Z", "claude", "current", "user", "other")])
+
+    synced = CliRunner().invoke(app, ["agent", "session", "sync", "--agent", agent])
+    listed = CliRunner().invoke(app, ["agent", "session", "list", "--agent", agent, "--json"])
+    stats = CliRunner().invoke(app, ["agent", "stats", "--agent", agent, "--tokens-only", "--json"])
+
+    assert synced.exit_code == 1
+    assert isinstance(synced.exception, DotError)
+    assert (
+        str(synced.exception)
+        == f"{agent} is retired: its archived sessions stay queryable, but dot no longer captures them"
+    )
+    assert not (tmp_path / f".agents/sessions/v3/{agent}/.sync.json").exists()
+    assert listed.exit_code == 0, listed.output
+    assert [(item["agent"], item["session_id"]) for item in json.loads(listed.stdout)["sessions"]] == [
+        (agent, "archived")
+    ]
+    assert stats.exit_code == 0, stats.output
+    assert [(row["harness"], row["input_tokens"]) for row in json.loads(stats.stdout)["usage"]] == [(agent, 10)]
+
+
+def test_usage_and_session_empty_cli_contracts() -> None:
 
     usage = CliRunner().invoke(app, ["agent", "stats", "--sessions"])
     shown = CliRunner().invoke(app, ["agent", "session", "show"])
@@ -745,7 +702,6 @@ def test_usage_and_session_empty_cli_contracts(monkeypatch: pytest.MonkeyPatch, 
 def test_reports_reject_unknown_agents_before_any_sync(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, arguments: list[str]
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
 
     def forbidden(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("an unknown agent must not trigger a sync")
@@ -758,7 +714,6 @@ def test_reports_reject_unknown_agents_before_any_sync(
 
 
 def test_reports_with_no_sync_read_the_archive_as_stored(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     session_id = "stored"
     _write_jsonl(
         tmp_path / f".claude/projects/project/{session_id}.jsonl",
@@ -790,13 +745,10 @@ def test_reports_with_no_sync_read_the_archive_as_stored(monkeypatch: pytest.Mon
     assert (record["session_id"], record["input_tokens"]) == (session_id, 4)
 
 
-def test_subagent_transcripts_count_once_with_their_parent_session(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_subagent_transcripts_count_once_with_their_parent_session(tmp_path: Path) -> None:
     from fmind_dot.archive.query import SessionQuery
     from fmind_dot.archive.statistics import prompt_statistics
 
-    monkeypatch.setenv("HOME", str(tmp_path))
     project = tmp_path / "claude/-work-project"
     state = make_state()
     state.config.agent.sources["claude"] = str(tmp_path / "claude")

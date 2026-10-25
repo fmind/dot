@@ -6,9 +6,7 @@ format = "$directory$git_branch$git_state$git_status$cmd_duration$character"
 
 palette = "fmind"
 
-# Native theme block copied from fmind/theme.
-# source: https://github.com/fmind/theme/blob/main/themes/starship/fmind.toml
-# Update from starship/fmind.toml after changing the upstream theme.
+# Source: https://github.com/fmind/theme/blob/main/themes/starship/fmind.toml
 [palettes.fmind]
 text = "#202124"
 green = "#0d652d"
@@ -34,17 +32,12 @@ format = "on [$symbol$branch]($style) "
 
 [git_status]
 style = "bold orange"
-format = '([\[$all_status$ahead_behind\]]($style) )'
 
 [cmd_duration]
 min_time = 1500
 style = "bold gray"
-format = "took [$duration]($style) "
 
 [character]
-error_symbol = "[❯](bold red)"
-success_symbol = "[❯](bold green)"
 vimcmd_replace_one_symbol = "[❮](bold bright_green)"
 vimcmd_replace_symbol = "[❮](bold bright_green)"
-vimcmd_symbol = "[❮](bold green)"
 vimcmd_visual_symbol = "[❮](bold orange)"

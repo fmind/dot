@@ -1,6 +1,6 @@
 # Python Profiling
 
-Locate a measured slowdown with a representative, bounded workload run through `uv`; [benchmark](../../benchmark/SKILL.md) owns uninstrumented before/after comparisons. Add a profiler as a development dependency only for a concrete need; keep captures private (they reveal paths and workload details) and read only trusted profile files.
+Locate a measured slowdown with a representative, bounded workload run through `uv`; [benchmark](benchmark.md) owns uninstrumented before/after comparisons. Add a profiler as a development dependency only for a concrete need; keep captures private (they reveal paths and workload details) and read only trusted profile files.
 
 - **Separate waiting from computation first**: compare elapsed and CPU time for the same work before choosing a tool.
 - **Default to Pyinstrument for time**: `uv run pyinstrument -r html -o profile.html workload.py` (or `-m package.module`) gives sampled elapsed-time trees, waits included; choose async attribution deliberately. `python -m cProfile` remains the zero-install fallback, but its timings are biased and miss worker threads.

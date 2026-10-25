@@ -2,7 +2,7 @@
 {{- /* Docs: https://antigravity.google/docs/remote-control/
        Remote Control reads protobuf JSON, not the CLI settings schema; the daemon reads it
        only at start. autoContinueOnMaxGeneratorInvocations is undocumented (verified in
-       agy 1.4.2): it skips the "continue?" prompt after the step budget. */ -}}
+       agy 1.4.7): it skips the "continue?" prompt after the step budget. */ -}}
 {{- $managed := fromJson `
 {
   "userSettings": {

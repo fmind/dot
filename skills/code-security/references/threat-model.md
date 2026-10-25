@@ -19,5 +19,5 @@ Identify the few plausible abuse paths that should change the design, plan, or v
 ## Documentation
 
 - Upstream: the `codex-security` plugin in `openai/plugins` ships a `threat-model` skill; preview it before installing ([vendor-skill policy](../../agent-project/references/vendor-skills.md#name-collisions)).
-- Companion skills: [sops-secrets](../../sops-secrets/SKILL.md) (secret design), [system-prompts](../../system-prompts/SKILL.md) (prompt-injection boundaries for agents), [skill-security-review](skill-security-review/GUIDE.md) (third-party skill supply chain), [production-readiness](../../production-readiness/SKILL.md) (launch gate).
+- Companion skills: [system-prompts](../../system-prompts/SKILL.md) (prompt-injection boundaries for agents), [skill-security-review](skill-security-review/GUIDE.md) (third-party skill supply chain), [production-readiness](../../production-readiness/SKILL.md) (launch gate).
 - Adapted from [Trail of Bits sharp-edges](https://github.com/trailofbits/skills/blob/7b9bd5f950f89a9ba71b249b9801c1a95be3928e/plugins/sharp-edges/skills/sharp-edges/SKILL.md), [gstack CSO](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/cso/SKILL.md).

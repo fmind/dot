@@ -79,7 +79,6 @@ class BootstrapFixture:
             executable.chmod(0o755)
         self.environment = {
             "BOOTSTRAP_LOG": str(self.log),
-            "CI": "true",
             "HOME": str(self.home),
             "LANG": "C.UTF-8",
             "PATH": f"{self.bin}{os.pathsep}/usr/bin{os.pathsep}/bin",
@@ -276,8 +275,9 @@ def run_task_bootstrap(
     (source / ".chezmoiignore").write_text("mise.toml\n")
     (source / "dot_config/mise").mkdir(parents=True)
     (source / "dot_config/mise/config.toml").write_text("[tools]\n")
-    (source / "dot_codex").mkdir()
-    (source / "dot_codex/config.toml").write_text('model = "fixture"\n')
+    # Copilot state gives the trust hook a harness file to extend.
+    (source / "dot_copilot").mkdir()
+    (source / "dot_copilot/config.json").write_text('{"banner": "never"}\n')
     (source / "dot_config/bat/themes").mkdir(parents=True)
     (source / "dot_config/bat/themes/fmind.tmTheme").write_text("fixture theme\n")
     for name in ("run_after_dot-trust.sh.tmpl", "run_after_bat-theme.sh.tmpl"):
@@ -341,8 +341,8 @@ def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str
         "dot completion",
     ]
     assert events[9:] == (["hooks", "vim"] if task == "install" else [])
-    codex = tomllib.loads((home / ".codex/config.toml").read_text())
-    assert codex["projects"][str(home / "source")]["trust_level"] == "trusted"
+    copilot = json.loads((home / ".copilot/config.json").read_text())
+    assert copilot["trustedFolders"] == [str(home / "source")]
     assert (home / ".cache/bat/fmind-theme.stamp").is_file()
 
 
@@ -363,8 +363,8 @@ def test_full_can_be_rerun_without_rebuilding_unchanged_theme(tmp_path: Path) ->
     assert result.returncode == 0, result.stdout + result.stderr
     assert events.count("theme-cache") == 1
     assert events.count("dot completion") == 2
-    codex = tomllib.loads((home / ".codex/config.toml").read_text())
-    assert codex["projects"] == {str(home / "source"): {"trust_level": "trusted"}}
+    copilot = json.loads((home / ".copilot/config.json").read_text())
+    assert copilot == {"banner": "never", "trustedFolders": [str(home / "source")]}
 
 
 def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Path) -> None:

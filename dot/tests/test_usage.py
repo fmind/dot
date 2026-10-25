@@ -4,7 +4,6 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from io import StringIO
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -395,11 +394,7 @@ def test_write_usage_stats_names_the_harnesses_with_legacy_accounting() -> None:
     assert "Legacy accounting" not in note(UsageStats(harness="claude"))
 
 
-def test_usage_cli_lists_filters_aggregates_and_shows_records(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_usage_cli_lists_filters_aggregates_and_shows_records() -> None:
     for record in (
         UsageRecord(
             timestamp="2026-09-06T09:00:00Z",

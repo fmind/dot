@@ -5,9 +5,8 @@
 # Signature/provenance verification (cosign, minisign, SLSA, GitHub attestations)
 # is deliberately off across every backend: upstream attestation coverage is too
 # patchy to gate routine upgrades on, and this is a single-user workstation. The
-# lockfile records digests for aqua/github/http downloads and conda dependencies,
-# except where the registry publishes none (acli, awscli, gcloud, sonarqube-cli,
-# ttyd): those lock only a URL and version, and dot/dot_tasks/mise_refresh.py names them.
+# lockfile records a digest for every download and conda dependency, and
+# dot/dot_tasks/mise_refresh.py refuses a lock that misses one.
 # Newly published releases are eligible immediately. Lock revision 3 records supported
 # npm and pipx dependency graphs in locks/; keep these native files with mise.lock
 # and install with --locked. First fetches are unverified.
@@ -54,6 +53,9 @@ neovim = "aqua:neovim/neovim"
 [env]
 # agents-cli 1.9.0 turned usage telemetry on by default.
 AGENTS_CLI_TELEMETRY = "0"
+# The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
+# vendor skills go through the vendor-skill policy instead.
+AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 ASTRO_TELEMETRY_DISABLED = "1"
 CF_SEND_TELEMETRY = "0"
 # Also covers ad-hoc chrome-devtools-mcp runs that omit --no-usage-statistics.
@@ -64,14 +66,10 @@ COPILOT_AUTO_UPDATE = "false"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
-# The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
-# vendor skills go through the vendor-skill policy instead.
-AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 
 [tools]
-"aqua:dlvhdr/gh-dash" = "latest" # TUI dashboard for GitHub PRs, issues, and notifications
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
-"conda:file" = "latest" # File type detection required by Yazi; includes its magic database
+"conda:file" = "latest" # File type detection for agents and Yazi; includes its magic database
 # macOS ships both natively (mandoc renders man pages there).
 "conda:groff" = { version = "latest", os = ["linux"] } # Man-page renderer that `aws <command> help` requires
 "conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
@@ -82,14 +80,6 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "github:duckdb/duckdb" = { version = "latest", matching = "duckdb-cli-" } # Embedded SQL analytical database management system
 # fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
 "github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
-# chromium-bidi moved into Chromium, whose chrome-devtools-npm account publishes without the trusted-publisher
-# evidence of its GitHub releases (reviewed 2026-10-23); exempt each reviewed version that Puppeteer selects.
-"npm:@mermaid-js/mermaid-cli" = { version = "latest", trust_policy_excludes = [
-  "chromium-bidi@157.0.8090-0",
-] } # Renders with system Chrome (PUPPETEER_EXECUTABLE_PATH); no Puppeteer browser download
-# Grok's launcher runs $GROK_HOME/bin/grok when present, and only Grok's own postinstall, which mise skips, moves that
-# link; dropping it makes the next launch extract the installed version.
-"npm:@xai-official/grok" = { version = "latest", postinstall = 'rm -f "${GROK_HOME:-$HOME/.grok}"/bin/grok "${GROK_HOME:-$HOME/.grok}"/bin/grok-[0-9]*' } # Official Grok Build CLI; npm locks platform binaries with integrity hashes
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 "npm:skills" = "latest" # Agent Skills CLI manager
@@ -104,7 +94,6 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 "pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
 # Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
 "pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
-"pipx:ptpython" = "latest" # Interactive Python REPL with autocomplete
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 actionlint = "latest" # Correctness linter for GitHub Actions workflows
 age = "latest" # Simple and secure file encryption tool
@@ -114,21 +103,13 @@ atuin = "latest" # Magical shell history replacement database
 awscli = "latest" # Official Amazon Web Services command-line interface
 bat = "latest" # Cat clone with syntax highlighting and git integration
 bitwarden = "latest" # Official Bitwarden CLI (bw) for password management
-bottom = "latest" # Graphical system and process monitor for terminal
-carapace = "latest" # Multi-shell command argument completion generator
 chezmoi = "latest" # Dotfiles manager across diverse machines
 claude = "latest" # Claude Code terminal-based AI coding agent CLI
-codex = "latest" # OpenAI Codex terminal-based AI coding agent CLI
-cosign = "latest" # Sign and verify container images and attestations (Sigstore)
-d2 = "latest" # Text-to-diagram language for bespoke standalone compositions
 delta = "latest" # Syntax-highlighter for git, diff, and grep output
 doggo = "latest" # Command-line DNS client supporting modern protocols
 dprint = "latest" # Pluggable and ultra-fast code formatter
-duf = "latest" # Disk usage utility with clean tabular layout
-dust = "latest" # Rust-based disk usage analyzer
-dyff = "latest" # Semantic diff for YAML/JSON (Kubernetes-aware)
 fd = "latest" # Simple, fast replacement for the find command
-ffmpeg = "latest" # Media encoder required by VHS to render terminal recordings
+ffmpeg = "latest" # Audio and video converter and probe (ffprobe) for media work outside projects
 fish = "latest" # Friendly interactive shell (Fish)
 fzf = "latest" # Interactive general-purpose fuzzy finder
 gcloud = "latest" # Google Cloud SDK command-line utility
@@ -136,15 +117,9 @@ gh = "latest" # GitHub official command-line tool
 git-cliff = "latest" # Generate changelogs from Conventional Commits
 git-lfs = "latest" # Git Large File Storage helper
 gitleaks = "latest" # Audits git repositories for secrets and keys
-hadolint = "latest" # Dockerfile linter written in Haskell
-helm = "latest" # Package manager for Kubernetes charts
 hyperfine = "latest" # Command-line benchmarking utility
+imagemagick = "latest" # Image converter snacks.nvim needs to preview non-PNG images in Neovim
 jq = "latest" # Command-line JSON processor
-k3d = "latest" # Run lightweight k3s Kubernetes clusters in Docker
-k9s = "latest" # Terminal UI for viewing Kubernetes clusters
-kubeconform = "latest" # Kubernetes manifest schema validator
-kubectl = "latest" # Command-line tool to control Kubernetes clusters
-kustomize = "latest" # Customizes raw Kubernetes YAML configurations
 lazydocker = "latest" # Terminal UI for managing Docker containers
 lazygit = "latest" # Terminal UI for Git commands
 lefthook = "latest" # Fast and powerful Git hooks runner
@@ -152,34 +127,22 @@ lsd = "latest" # Modern, feature-rich replacement for ls
 lychee = "latest" # Fast link checker for Markdown, HTML, and websites
 neovim = "latest" # Extensible Vim-based text editor
 node = "lts" # Runtime for third-party npm CLIs only; active project authoring is Python.
-oha = "latest" # HTTP load generator with live TUI (hyperfine for endpoints)
 opencode = "latest" # OpenCode AI agent CLI tool
-opentofu = "latest" # OpenTofu infrastructure as code CLI (open-source Terraform fork, default)
 python = "3.14" # Python interpreter; required tool wheels are not ready for 3.15
 ripgrep = "latest" # Blazing-fast grep alternative
 ruff = "latest" # High-performance Python linter and formatter
 shellcheck = "latest" # Static analysis tool for shell scripts
 shfmt = "latest" # Parser, formatter, and interpreter for shell code
 sonarqube-cli = "latest" # SonarQube & SonarCloud CLI for code quality, security, and AI agents
-sops = "latest" # Mozilla secrets editor (encrypts YAML/JSON/etc)
 sqlite = "latest" # Lightweight SQL database engine CLI
 starship = "latest" # Minimal and customizable cross-shell prompt
-stern = "latest" # Multi-pod and multi-container log tailing for Kubernetes
-stylua = "latest" # Opinionated Lua formatter
-terraform-docs = "latest" # Generate documentation from Terraform modules
-tflint = "latest" # Terraform code linter
 tree-sitter = "latest" # Parser generator CLI backing nvim-treesitter; Linux binary requires glibc 2.39+
 trivy = "latest" # Security vulnerability and secret scanner
-ttyd = { version = "latest", os = ["linux"] } # VHS terminal backend; upstream binaries are Linux-only
 ty = "latest" # Astral's high-performance Python type checker
 typos = "latest" # Source code and documentation spell checker with low false positives
-typst = "latest" # Typesetting system for Fmind decks (fmind-visuals)
-typstyle = "latest" # Formatter for Typst sources
 usage = "latest" # Specification and completion tool for CLIs (powers mise completions)
 uv = "latest" # Astral's high-performance Python package installer
 vault = "latest" # HashiCorp Vault command-line interface for secrets management
-vhs = "latest" # Records a terminal session to GIF from a .tape script
-watchexec = "latest" # Runs commands in response to file modifications
 xh = "latest" # Fast, friendly tool for sending HTTP requests
 yazi = "latest" # Blazing-fast terminal file manager in Rust
 yq = "latest" # Command-line YAML, XML, and TOML processor
@@ -201,12 +164,3 @@ version = "latest" # Google Workspace CLI (gws)
 [tools."github:googleworkspace/cli".platforms]
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
-
-[tools."github:tailwindlabs/tailwindcss"]
-# Upstream ships glibc and musl assets side by side on Linux; select glibc for standard
-# Linux compatibility (musl asset requires /lib/ld-musl-*.so.1).
-version = "latest" # Standalone Tailwind CSS v4 compiler (Python web assets, no Node.js)
-
-[tools."github:tailwindlabs/tailwindcss".platforms]
-linux-x64 = { asset_pattern = "tailwindcss-linux-x64" }
-macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }

@@ -2,6 +2,7 @@
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -10,7 +11,8 @@ import unittest
 from pathlib import Path
 
 import pytest
-import yaml
+
+from tests.chezmoi_helpers import chezmoi
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -42,7 +44,6 @@ class HarnessConfigTests(unittest.TestCase):
     home: Path
     source: Path
     config: Path
-    chezmoi: str
 
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -54,14 +55,9 @@ class HarnessConfigTests(unittest.TestCase):
         shutil.copytree(ROOT / ".chezmoitemplates", self.source / ".chezmoitemplates")
         self.config = self.home / "chezmoi.toml"
         self.config.write_text("")
-        chezmoi = _native_binary("chezmoi")
-        if chezmoi is None:
-            raise RuntimeError("chezmoi is required for harness configuration tests")
-        self.chezmoi = chezmoi
 
     def render(self, template: str, content: str, overrides: dict[str, str] | None = None) -> str:
-        environment: dict[str, str] = dict(os.environ)
-        environment["HOME"] = str(self.home)
+        environment = dict(os.environ, HOME=str(self.home))
         for name in (
             "OPENCODE_GCP_PROJECT",
             "OPENROUTER_API_KEY",
@@ -76,45 +72,17 @@ class HarnessConfigTests(unittest.TestCase):
         # is lower level, so remove that directive to exercise the same template bytes.
         template_path = self.home / "input.tmpl"
         template_path.write_text((ROOT / template).read_text().removeprefix("# chezmoi:modify-template\n"))
-        command: list[str] = [
-            self.chezmoi,
-            "--source",
-            str(self.source),
-            "--destination",
-            str(self.home),
-            "--config",
-            str(self.config),
-            "execute-template",
-            "--with-stdin",
-            "--file",
-            str(template_path),
-        ]
-        try:
-            result = subprocess.run(
-                command,
-                input=content,
-                encoding="utf-8",
-                capture_output=True,
-                timeout=30,
-                check=True,
-                env=environment,
-            )
-        except subprocess.CalledProcessError as err:
-            raise RuntimeError(
-                f"chezmoi execute-template failed (exit {err.returncode}):\nstdout: {err.stdout}\nstderr: {err.stderr}"
-            ) from err
-        return result.stdout
+        arguments = ("execute-template", "--with-stdin", "--file", str(template_path))
+        return chezmoi(self.source, *arguments, config=self.config, stdin=content, env=environment)
 
     def test_toml_merge_preserves_unmanaged_settings_and_is_repeatable(self):
-        for harness in ["codex", "grok"]:
-            with self.subTest(harness=harness):
-                original = 'custom = "preserved"\n\n[mcp_servers.custom]\ncommand = "/synthetic/tool"\n'
-                template = f"dot_{harness}/modify_private_config.toml"
-                rendered = self.render(template, original)
-                data = tomllib.loads(rendered)
-                assert data["custom"] == "preserved"
-                assert data["mcp_servers"]["custom"]["command"] == "/synthetic/tool"
-                assert self.render(template, rendered) == rendered
+        original = 'custom = "preserved"\n\n[server.custom]\ncommand = "/synthetic/tool"\n'
+        template = "dot_config/marimo/modify_private_marimo.toml"
+        rendered = self.render(template, original)
+        data = tomllib.loads(rendered)
+        assert data["custom"] == "preserved"
+        assert data["server"]["custom"]["command"] == "/synthetic/tool"
+        assert self.render(template, rendered) == rendered
 
     def test_git_identity_preserves_quotes_backslashes_and_comment_characters(self):
         name = 'Ada "Lovelace" # tools \\ engineering'
@@ -183,33 +151,14 @@ class HarnessConfigTests(unittest.TestCase):
         return f"{script} {self.home / 'fmind/brain'}"
 
     def test_brain_session_hook_needs_the_brain_checkout(self):
-        codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))
-        claude = json.loads(self.render("dot_claude/modify_settings.json", ""))
-        assert "hooks" not in codex
+        claude = json.loads(self.render("dot_claude/modify_private_settings.json", ""))
         assert "SessionStart" not in claude["hooks"]
-
-    def test_codex_registers_brain_session_hook_once_beside_host_hooks(self):
-        command = self._brain_hook()
-        original = (
-            '[[hooks.SessionStart]]\n[[hooks.SessionStart.hooks]]\ntype = "command"\ncommand = "/synthetic/host"\n'
-        )
-        template = "dot_codex/modify_private_config.toml"
-        rendered = self.render(template, original)
-        hooks = tomllib.loads(rendered)["hooks"]["SessionStart"]
-        assert hooks == [
-            {"hooks": [{"type": "command", "command": "/synthetic/host"}]},
-            {"matcher": "startup|resume", "hooks": [{"type": "command", "command": command, "timeout": 30}]},
-        ]
-        assert self.render(template, rendered) == rendered
-        # Codex rewrites its config in its own layout; a converged target must stay byte-identical.
-        converged = f"# written by codex\n{rendered}"
-        assert self.render(template, converged) == converged
 
     def test_claude_registers_brain_session_hook_once_beside_host_hooks(self):
         command = self._brain_hook()
         brain = {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
         host = {"hooks": [{"type": "command", "command": "/synthetic/host"}]}
-        template = "dot_claude/modify_settings.json"
+        template = "dot_claude/modify_private_settings.json"
         for existing in ([], [host], [host, brain]):
             with self.subTest(existing=len(existing)):
                 rendered = self.render(template, json.dumps({"hooks": {"SessionStart": existing}}))
@@ -225,90 +174,21 @@ class HarnessConfigTests(unittest.TestCase):
         rendered = self.render(template, json.dumps({"custom": {"Stop": []}}))
         hooks = json.loads(rendered)
         assert hooks["brain-context"] == {
-            "PreInvocation": [{"type": "command", "command": f"{script} {self.home / 'fmind/brain'}", "timeout": 30}]
+            "SessionStart": [{"type": "command", "command": f"{script} {self.home / 'fmind/brain'}", "timeout": 30}]
         }
         assert hooks["custom"] == {"Stop": []}
         assert self.render(template, rendered) == rendered
-
-    def test_codex_merge_keeps_autonomy_memory_and_native_subagents(self):
-        template = "dot_codex/modify_private_config.toml"
-        original = """
-approval_policy = "on-request"
-[features]
-code_mode = { enabled = true }
-concurrent_reasoning_summaries = true
-context_management = true
-deferred_executor = true
-browser_use = true
-[agents]
-max_concurrent_threads_per_session = 4
-default_subagent_reasoning_effort = "xhigh"
-[agents.reviewer]
-description = "Host-owned reviewer"
-"""
-        rendered = self.render(template, original)
-        data = tomllib.loads(rendered)
-        assert data["approval_policy"] == "never"
-        assert data["sandbox_mode"] == "danger-full-access"
-        assert data["check_for_update_on_startup"] is False
-        assert data["analytics"] == {"enabled": False}
-        assert data["feedback"] == {"enabled": False}
-        assert data["features"] == {
-            "browser_use": True,
-            "code_mode": {"enabled": True},
-            "concurrent_reasoning_summaries": True,
-            "context_management": True,
-            "deferred_executor": True,
-            "memories": True,
-            "multi_agent_v2": True,
-            "prevent_idle_sleep": True,
-        }
-        assert data["agents"] == {
-            "max_concurrent_threads_per_session": 4,
-            "default_subagent_reasoning_effort": "xhigh",
-            "reviewer": {"description": "Host-owned reviewer"},
-        }
-        assert self.render(template, rendered) == rendered
-
-    def test_grok_merge_preserves_unmanaged_tuning_and_disables_foreign_hooks(self):
-        template = "dot_grok/modify_private_config.toml"
-        original = """
-[features]
-two_pass_compaction = true
-codebase_indexing = true
-[models]
-default = "old-model"
-default_reasoning_effort = "xhigh"
-max_retries = 8
-[ui]
-fork_secondary_model = "old-fork-model"
-yolo = false
-[compat.claude]
-hooks = true
-sessions = false
-"""
-        rendered = self.render(template, original)
-        data = tomllib.loads(rendered)
-        assert data["features"] == {
-            "feedback": False,
-            "lsp_tools": True,
-            "telemetry": False,
-            "web_fetch": True,
-            "two_pass_compaction": True,
-            "codebase_indexing": True,
-        }
-        assert data["models"] == {"default_reasoning_effort": "xhigh", "default": "old-model", "max_retries": 8}
-        assert data["ui"]["permission_mode"] == "always-approve"
-        assert data["ui"]["fork_secondary_model"] == "old-fork-model"
-        assert data["ui"]["yolo"] is False
-        assert data["compat"]["claude"]["hooks"] is False
-        assert data["compat"]["claude"]["sessions"] is False
-        assert data["memory"]["enabled"] is True
-        assert self.render(template, rendered) == rendered
-        assert tomllib.loads(self.render(template, ""))["models"] == {"default_reasoning_effort": "high"}
+        # A managed named hook replaces its whole value: the former PreInvocation registration and
+        # host edits inside a managed hook leave, while other named hooks stay.
+        legacy = {"PreInvocation": [{"type": "command", "command": "old"}]}
+        host = {"brain-context": legacy, "notify": {"Stop": [], "PreToolUse": []}, "custom": {"Stop": []}}
+        upgraded = json.loads(self.render(template, json.dumps(host)))
+        assert list(upgraded["brain-context"]) == ["SessionStart"]
+        assert list(upgraded["notify"]) == ["Stop"]
+        assert upgraded["custom"] == {"Stop": []}
 
     def test_claude_merge_preserves_host_environment_and_permissions(self):
-        template = "dot_claude/modify_settings.json"
+        template = "dot_claude/modify_private_settings.json"
         original = {
             "advisorModel": "opus",
             "teammateDefaultModel": "sonnet",
@@ -358,7 +238,7 @@ sessions = false
         assert "deny" not in fresh["permissions"]
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
-        template = "dot_config/opencode/modify_opencode.json"
+        template = "dot_config/opencode/modify_private_opencode.json"
         original = {
             "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
             "compaction": {"reserved": 300000, "protect": ["skill"]},
@@ -392,7 +272,7 @@ sessions = false
     def test_opencode_keeps_credentials_out_of_rendered_config(self):
         data = json.loads(
             self.render(
-                "dot_config/opencode/modify_opencode.json",
+                "dot_config/opencode/modify_private_opencode.json",
                 "{}",
                 {"OPENROUTER_API_KEY": "synthetic-private-value", "GOOGLE_CLOUD_PROJECT": "unrelated"},
             )
@@ -412,7 +292,7 @@ sessions = false
         assert self.render(template, rendered) == rendered
 
     def test_json_merge_preserves_mcp_and_unmanaged_hook_events(self):
-        for template in ["dot_claude/modify_settings.json", "dot_config/opencode/modify_opencode.json"]:
+        for template in ["dot_claude/modify_private_settings.json", "dot_config/opencode/modify_private_opencode.json"]:
             with self.subTest(template=template):
                 original = {
                     "mcp": {"custom-team": {"command": ["/synthetic/tool"]}},
@@ -425,7 +305,7 @@ sessions = false
                 assert self.render(template, rendered) == rendered
 
     def test_copilot_merge_preserves_preferences_and_enforces_policy(self):
-        template = "dot_copilot/modify_settings.json"
+        template = "dot_copilot/modify_private_settings.json"
         original = {
             "model": "account-model",
             "effortLevel": "medium",
@@ -474,6 +354,10 @@ sessions = false
         assert data["notifications"] is True
         assert data["queuedMessages"] == "send-immediately"
         assert data["verbosity"] == "high"
+        display = str(self.home / ".agents/skills/agy/scripts/display.py")
+        for field, mode in [("statusLine", "statusline"), ("title", "title")]:
+            assert data[field]["enabled"] is True
+            assert shlex.split(data[field]["command"]) == ["exec", "python3", "-I", "-S", display, mode]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
         assert fresh["queuedMessages"] == "send-immediately"
@@ -552,12 +436,12 @@ sessions = false
 
     def test_json_merge_rejects_malformed_or_non_object_host_state(self):
         for content in ['{"unfinished":', "[]", "null", '"string"']:
-            with self.subTest(content=content), pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
-                self.render("dot_copilot/modify_settings.json", content)
+            with self.subTest(content=content), pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
+                self.render("dot_copilot/modify_private_settings.json", content)
 
     def test_json_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
         # Hook timeouts, feedbackSurveyRate, and Copilot's version are managed integers.
-        template = "dot_claude/modify_settings.json"
+        template = "dot_claude/modify_private_settings.json"
         converged = json.loads(self.render(template, ""))
         converged["hostCounter"] = 9007199254740993
         host = json.dumps(dict(reversed(converged.items())), indent=4)
@@ -568,8 +452,8 @@ sessions = false
 
     def test_native_jsonc_merges_preserve_comments_when_converged_and_keep_host_values(self):
         templates = [
-            "dot_copilot/modify_settings.json",
-            "dot_config/opencode/modify_opencode.json",
+            "dot_copilot/modify_private_settings.json",
+            "dot_config/opencode/modify_private_opencode.json",
             "dot_config/opencode/modify_tui.json",
         ]
         original = '{/* host preference */ "hostCounter":9007199254740993,"hostUrl":"https://example.com/a//b",}'
@@ -581,10 +465,10 @@ sessions = false
                 assert data["hostUrl"] == "https://example.com/a//b"
                 commented = "// host notes\n" + rendered.rstrip()[:-1].rstrip() + ",\n}\n"
                 assert self.render(template, commented) == commented
-                with pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
+                with pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
                     self.render(template, '{"incomplete": /* unfinished')
         # JSONC support belongs to native formats that support it, not every JSON caller.
-        with pytest.raises(RuntimeError, match="chezmoi execute-template failed"):
+        with pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
             self.render("dot_copilot/modify_lsp-config.json", original)
 
     def test_opencode_native_parser_accepts_jsonc_before_and_after_managed_merge(self):
@@ -607,7 +491,7 @@ sessions = false
             "PATH": os.defpath,
             "LANG": "C.UTF-8",
         }
-        for content in (original, self.render("dot_config/opencode/modify_opencode.json", original)):
+        for content in (original, self.render("dot_config/opencode/modify_private_opencode.json", original)):
             target.write_text(content)
             result = subprocess.run(
                 [opencode, "debug", "config", "--pure"],
@@ -634,51 +518,15 @@ sessions = false
                 source.mkdir()
                 shutil.copyfile(ROOT / "run_after_dot-trust.sh.tmpl", source / "run_after_dot-trust.sh.tmpl")
                 log.write_text("")
-                subprocess.run(
-                    [
-                        self.chezmoi,
-                        "--source",
-                        str(source),
-                        "--destination",
-                        str(self.home),
-                        "--config",
-                        str(self.config),
-                        "--persistent-state",
-                        str(self.home / "state.boltdb"),
-                        "apply",
-                        "--force",
-                    ],
-                    env={"HOME": str(self.home), "PATH": os.defpath, "CALL_LOG": str(log)},
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    check=True,
-                )
+                environment = {"HOME": str(self.home), "PATH": os.defpath, "CALL_LOG": str(log)}
+                chezmoi(source, "apply", "--force", config=self.config, env=environment)
                 # One call trusts the workspaces and this source directory, its path passed verbatim.
                 assert log.read_text().splitlines() == ["trust", "all", str(source)]
 
     def test_toml_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
-        template = "dot_codex/modify_private_config.toml"
+        template = "dot_config/marimo/modify_private_marimo.toml"
         host = "# host comment\nhost_counter = 9007199254740993\n" + self.render(template, "")
         assert self.render(template, host) == host
-
-    def test_gh_dash_commands_reach_repo_paths_with_spaces(self):
-        self.home = self.home / "home with spaces"
-        self.home.mkdir()
-        data = yaml.safe_load(self.render("dot_config/gh-dash/config.yml.tmpl", ""))
-        mappings = data["repoPaths"]
-        assert mappings["fmind/dot"] == str(self.home / ".local/share/chezmoi")
-        assert mappings[":owner/:repo"] == str(self.home / ":owner/:repo")
-        binding = next(item["command"] for item in data["keybindings"]["prs"] if item["key"] == "O")
-        for repo in ["fmind/dot", "synthetic/project"]:
-            with self.subTest(repo=repo):
-                owner, name = repo.split("/")
-                path = mappings.get(repo, mappings[":owner/:repo"].replace(":owner", owner).replace(":repo", name))
-                Path(path).mkdir(parents=True)
-                # Observe the working directory reached by the native shell binding.
-                command = binding.replace("{{.RepoPath}}", path).replace("&& lazygit", "&& pwd")
-                result = subprocess.run(["sh", "-c", command], capture_output=True, text=True, check=True, timeout=30)
-                assert result.stdout.strip() == path
 
     def test_marimo_vim_merge_preserves_host_settings_and_is_repeatable(self):
         template = "dot_config/marimo/modify_private_marimo.toml"
@@ -693,25 +541,11 @@ sessions = false
                     assert data["ai"] == {"mode": "manual"}
                 assert self.render(template, rendered) == rendered
 
-    def test_grok_vim_enables_prompt_and_scrollback_after_merge(self):
-        template = "dot_grok/modify_private_config.toml"
-        rendered = self.render(template, "[ui]\nsimple_mode = true\nvim_mode = false\nscroll_speed = 20\n")
-        data = tomllib.loads(rendered)
-        assert data["ui"]["simple_mode"] is False
-        assert data["ui"]["vim_mode"] is True
-        assert data["ui"]["scroll_speed"] == 20
-        assert self.render(template, rendered) == rendered
-
     def test_hooks_only_notify(self):
         # Hooks name the CLI absolutely: a harness may start without ~/.local/bin on PATH.
         dot = str(self.home / ".local/bin/dot")
 
-        # Codex attention alerts come from its TUI, not hooks.
-        codex = tomllib.loads(self.render("dot_codex/modify_private_config.toml", ""))
-        assert "hooks" not in codex
-        assert codex["tui"]["notifications"] is True
-
-        claude_template = "dot_claude/modify_settings.json"
+        claude_template = "dot_claude/modify_private_settings.json"
         claude = json.loads(self.render(claude_template, "{}"))["hooks"]
         assert set(claude) == {"Notification"}
         assert claude["Notification"][1]["matcher"] == "^idle_prompt$"
@@ -722,11 +556,6 @@ sessions = false
         assert [hook["command"] for hook in claude["Notification"][0]["hooks"]] == [
             f"{dot} agent hook notify claude needs-input"
         ]
-
-        grok = json.loads(self.render("dot_grok/hooks/hooks.json.tmpl", ""))["hooks"]
-        assert set(grok) == {"Notification"}
-        assert grok["Notification"][0]["matcher"] == "^(permission_prompt|elicitation_dialog)$"
-        assert grok["Notification"][1]["matcher"] == "^idle_prompt$"
 
         agy = json.loads(self.render("dot_gemini/private_config/modify_private_hooks.json", ""))
         assert set(agy) == {"notify"}
@@ -742,18 +571,15 @@ sessions = false
         assert merged["notify"] == agy["notify"]
 
         # Every hook notifies and names the CLI absolutely; none relies on PATH order.
-        commands = [
-            value for config in (codex, claude, grok, agy) for value in _strings(config) if " agent hook " in value
-        ]
-        assert len(commands) == 5
+        commands = [value for config in (claude, agy) for value in _strings(config) if " agent hook " in value]
+        assert len(commands) == 3
         assert all(command.startswith(f"{dot} agent hook notify ") for command in commands)
 
     def test_hook_commands_reject_home_directories_that_need_shell_quoting(self):
         self.home = self.home / "home with spaces"
         self.home.mkdir()
         for template in [
-            "dot_claude/modify_settings.json",
-            "dot_grok/hooks/hooks.json.tmpl",
+            "dot_claude/modify_private_settings.json",
             "dot_gemini/private_config/modify_private_hooks.json",
         ]:
             with self.subTest(template=template), pytest.raises(RuntimeError, match="not shell-safe"):

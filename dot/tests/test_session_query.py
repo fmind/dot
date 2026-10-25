@@ -54,8 +54,7 @@ def _corrupt_transcript(path: Path) -> None:
     path.write_bytes(header + b"\nnot-json\n")
 
 
-def test_query_filters_metadata_and_reports_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_query_filters_metadata_and_reports_status() -> None:
     older = _ingest("codex", "session-1", cwd="/work/project-a")
     newer = _ingest("codex", "session-3", cwd="/work/project-a")
     partial = _ingest("claude", "session-2", cwd="/work/project-b", malformed=2)
@@ -89,10 +88,7 @@ def test_empty_store_and_inverted_window(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert query_session_summaries(inverted) == []
 
 
-def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript() -> None:
     _ingest("codex", "selected")
     _corrupt_transcript(_ingest("claude", "unselected"))
 
@@ -104,10 +100,7 @@ def test_manifest_filter_avoids_decoding_unselected_corrupt_transcript(
     assert query_session_summaries(SessionQuery(agent="claude"), include_content=True)[0].status == ["invalid"]
 
 
-def test_show_content_of_unreadable_bundle_fails_with_recapture_hint(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_show_content_of_unreadable_bundle_fails_with_recapture_hint() -> None:
     _corrupt_transcript(_ingest("claude", "broken"))
 
     metadata = CliRunner().invoke(app, ["agent", "session", "show", "broken"])
@@ -121,10 +114,7 @@ def test_show_content_of_unreadable_bundle_fails_with_recapture_hint(
     assert "claude/broken.jsonl aside" in str(shown.exception)
 
 
-def test_query_surfaces_partial_unsupported_and_invalid_sessions(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_query_surfaces_partial_unsupported_and_invalid_sessions() -> None:
     path = _ingest("agy", "unsupported", malformed=1)
     _rewrite_manifest(path, schema_version=SESSION_SCHEMA_VERSION + 1)
 
@@ -137,10 +127,7 @@ def test_query_surfaces_partial_unsupported_and_invalid_sessions(
     assert query_session_summaries(include_content=True)[0].status == ["invalid", "partial"]
 
 
-def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity() -> None:
     _ingest("codex", "shared", content="secret-two")
     _ingest("claude", "shared", content="secret-three")
 
@@ -158,10 +145,7 @@ def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity(
         show_session(SessionQuery(identity="missing"))
 
 
-def test_cli_list_is_text_and_show_is_json_without_default_content(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_cli_list_is_text_and_show_is_json_without_default_content() -> None:
     _ingest("codex", "cli-session", cwd="/repo", content="cli secret")
     runner = CliRunner()
 
@@ -181,8 +165,7 @@ def test_cli_list_is_text_and_show_is_json_without_default_content(
     assert json.loads(shown_with_content.stdout)["session"]["records"][0]["content"] == "cli secret"
 
 
-def test_cli_list_is_bounded_and_filters_json_by_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_cli_list_is_bounded_and_filters_json_by_status() -> None:
     legacy = _ingest("codex", "legacy", cwd="/old")
     current = _ingest("codex", "current", cwd="/current")
     other = _ingest("claude", "other", cwd="/other")
@@ -204,10 +187,7 @@ def test_cli_list_is_bounded_and_filters_json_by_status(monkeypatch: pytest.Monk
     assert unknown.exit_code == removed.exit_code == 2
 
 
-def test_query_selects_status_and_limit_without_reading_content(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_query_selects_status_and_limit_without_reading_content(monkeypatch: pytest.MonkeyPatch) -> None:
     _rewrite_manifest(_ingest("codex", "old", cwd="/old"), ingested_at="2026-09-01T10:00:00Z")
     _rewrite_manifest(_ingest("codex", "new", cwd="/current"), ingested_at="2026-09-02T10:00:00Z")
     monkeypatch.setattr(session_query, "read_session_bundle", lambda _path: pytest.fail("content must not be read"))
@@ -219,9 +199,8 @@ def test_query_selects_status_and_limit_without_reading_content(
 
 @pytest.mark.parametrize("include_content", [False, True])
 def test_query_reads_only_matching_transcripts_and_preserves_validation(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, include_content: bool
+    monkeypatch: pytest.MonkeyPatch, include_content: bool
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     current = _ingest("codex", "shared")
     _ingest("codex", "other-project", cwd="/other")
     fallback = _ingest("codex", "missing-cwd")
@@ -250,8 +229,7 @@ def test_query_reads_only_matching_transcripts_and_preserves_validation(
     assert sum(len(item.records) for item in summaries) == (2 if include_content else 0)
 
 
-def test_malformed_manifest_error_includes_path_and_cause(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_malformed_manifest_error_includes_path_and_cause() -> None:
     path = _ingest("codex", "broken")
     path.write_text("{broken\n", encoding="utf-8")
 
@@ -262,8 +240,7 @@ def test_malformed_manifest_error_includes_path_and_cause(monkeypatch: pytest.Mo
     assert "Expecting property name" in str(failure.value)
 
 
-def test_agent_and_identity_filters_skip_unrelated_manifests(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_agent_and_identity_filters_skip_unrelated_manifests() -> None:
     _ingest("codex", "wanted")
     _ingest("claude", "wanted")
     _ingest("codex", "broken").write_text("{broken\n", encoding="utf-8")
@@ -275,8 +252,7 @@ def test_agent_and_identity_filters_skip_unrelated_manifests(monkeypatch: pytest
         query_session_summaries(SessionQuery(agent="codex"))
 
 
-def test_time_filter_excludes_non_rfc3339_manifest_timestamp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_time_filter_excludes_non_rfc3339_manifest_timestamp() -> None:
     path = _ingest("codex", "bad-time")
     _rewrite_manifest(path, ingested_at="2026-09-01T12:00:00")
 
@@ -294,10 +270,7 @@ def test_time_filter_excludes_non_rfc3339_manifest_timestamp(monkeypatch: pytest
         ("2026-09-20T12:00:00+02:00", "2026-09-20T11:00:00Z"),
     ],
 )
-def test_session_limit_selects_latest_instant(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, older: str, newer: str
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_limit_selects_latest_instant(older: str, newer: str) -> None:
     _rewrite_manifest(_ingest("codex", "old"), ingested_at=older)
     _rewrite_manifest(_ingest("codex", "new"), ingested_at=newer)
 
@@ -305,10 +278,7 @@ def test_session_limit_selects_latest_instant(
 
 
 @pytest.mark.parametrize("timestamp", ["0001-01-01T00:00:00+23:59", "9999-12-31T23:59:59-23:59"])
-def test_out_of_range_utc_timestamps_do_not_crash_queries_or_prompt_statistics(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, timestamp: str
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_out_of_range_utc_timestamps_do_not_crash_queries_or_prompt_statistics(timestamp: str) -> None:
     ingest_session("codex", "bad-time", [SessionLog(timestamp, "codex", "bad-time", "user", "synthetic")])
     _rewrite_manifest(session_bundle_path("codex", "bad-time"), ingested_at=timestamp)
 
@@ -331,10 +301,7 @@ def test_out_of_range_utc_timestamps_do_not_crash_queries_or_prompt_statistics(
         ["stats", "--no-sync", "--project", "~dot-test-no-such-user/project"],
     ],
 )
-def test_unexpandable_project_is_a_usage_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, command: list[str]
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_unexpandable_project_is_a_usage_error(command: list[str]) -> None:
 
     result = CliRunner().invoke(app, ["agent", *command])
 
@@ -344,8 +311,7 @@ def test_unexpandable_project_is_a_usage_error(
     assert not isinstance(result.exception, RuntimeError)
 
 
-def test_session_show_bounds_content_by_role_and_tail(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_session_show_bounds_content_by_role_and_tail() -> None:
     logs = [
         SessionLog(f"2026-09-06T10:00:0{index}Z", "claude", "bounded", role, f"message {index}")
         for index, role in enumerate(["user", "assistant", "user", "assistant", "user"])

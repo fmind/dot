@@ -2,39 +2,33 @@
 # Docs: https://lefthook.dev/configuration/
 
 glob_matcher: doublestar
-# Jobs run sequentially in list order: formatters, Python fixes before style, then checks.
+# Jobs run in list order: formatters fix and restage only the staged files, then checks
+# validate the tree. format:dprint explains why generated skill indexes are not refreshed here.
 pre-commit:
   jobs:
-    # Formatters receive only staged files and restage them; format:dprint explains
-    # why generated skill indexes are not refreshed here.
-    - name: format:dprint
+    - name: format docs and config
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
       run: mise run format:dprint {staged_files}
       stage_fixed: true
-    - name: format:lua:files
+    - name: format Lua
       glob: "**/*.lua"
-      run: mise run format:lua:files {staged_files}
+      run: mise run format:lua {staged_files}
       stage_fixed: true
     # ruff.toml's extend-exclude and force-exclude own the template exclusions.
-    - name: format:python:fix
+    - name: format Python
       glob: "**/*.py"
-      run: mise run format:python:fix {staged_files}
+      run: mise run format:python {staged_files}
       stage_fixed: true
-    - name: format:python:style
-      glob: "**/*.py"
-      run: mise run format:python:style {staged_files}
-      stage_fixed: true
-    - name: format:shell:files
-      # Shell templates are lint-only; format only staged plain scripts.
+    - name: format shell scripts
       glob: "{install.sh,run_*.sh,dot_local/bin/executable_*}"
-      run: mise run format:shell:files {staged_files}
+      run: mise run format:shell {staged_files}
       stage_fixed: true
-    - name: check:local
+    - name: check
       run: mise run check:local
 pre-push:
   jobs:
     # Vulnerability databases need the network; CI runs the same tasks through `check`.
-    - name: check:network
+    - name: scan vulnerabilities
       run: mise run check:network
     - name: test
       run: mise run test

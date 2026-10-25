@@ -101,11 +101,9 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
     unrelated.write_text(text)
     hooks = yaml.safe_load((ROOT / "skills/python-stack/references/foundation/templates/lefthook.yml").read_text())[
         "pre-commit"
-    ]["commands"]
-    formatters = sorted(
-        (hook for name, hook in hooks.items() if name.startswith("format:") and hook["glob"] == "*.py"),
-        key=lambda hook: hook["priority"],
-    )
+    ]["jobs"]
+    formatters = [hook for hook in hooks if hook.get("glob") == "*.py"]
+    assert formatters
     for hook in formatters:
         task = hook["run"].split()[2]
         result = run(tmp_path, env, "mise", "run", task, selected.name)
@@ -118,7 +116,7 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
 
 
 def test_repository_python_hooks_format_only_staged_files(tmp_path: Path) -> None:
-    env = materialize(tmp_path, "mise.toml", prefix="format:python:")
+    env = materialize(tmp_path, "mise.toml", prefix="format:python")
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     ruff = ROOT / "dot/.venv/bin/ruff"
@@ -143,10 +141,12 @@ def test_repository_python_hooks_format_only_staged_files(tmp_path: Path) -> Non
         assert hook["stage_fixed"] is True
         result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], selected.name)
         assert result.returncode == 0, result.stderr
-    # Ruff's defaults apply in the fixture: the fix task drops the unused import, the style task reflows.
+    # Ruff's defaults apply in the fixture: the safe fix drops the unused import, then formatting reflows.
     assert selected.read_text() == "x = 1\n"
     assert unrelated.read_text() == text
     assert not (tmp_path / "injected").exists()
+    assert run(tmp_path, env, "mise", "run", "format:python").returncode == 0
+    assert unrelated.read_text() == "x = 1\n"
 
 
 def test_repository_lua_hook_preserves_unselected_files(tmp_path: Path) -> None:
@@ -179,7 +179,7 @@ def test_repository_shell_hook_preserves_unselected_files(tmp_path: Path) -> Non
     selected.write_text(source)
     unrelated.write_text(source)
     hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["jobs"]
-    [hook] = [hook for hook in hooks if hook["name"].startswith("format:shell")]
+    [hook] = [hook for hook in hooks if hook["run"].startswith("mise run format:shell ")]
     assert hook["run"].endswith(" {staged_files}")
     assert hook["stage_fixed"] is True
     result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], selected.name)

@@ -31,8 +31,6 @@ def _text(stream: IO[str]) -> str:
 NOTIFY = {
     "agy": ["stop"],
     "claude": ["needs-input", "ready"],
-    "codex": ["stop"],
-    "grok": ["needs-input", "ready"],
     "copilot": ["stop"],
 }
 
@@ -50,20 +48,18 @@ def _configure_hooks(home: Path, binary: str = "dot") -> None:
         home / ".gemini/config/hooks.json",
         json.dumps({"notify": {"Stop": [{"type": "command", "command": commands("agy")[0]}]}}),
     )
-    for agent, name in (("claude", ".claude/settings.json"), ("grok", ".grok/hooks/hooks.json")):
-        _write(
-            home / name,
-            json.dumps(
-                {
-                    "hooks": {
-                        "Notification": [
-                            {"hooks": [{"type": "command", "command": command} for command in commands(agent)]}
-                        ],
-                    }
+    _write(
+        home / ".claude/settings.json",
+        json.dumps(
+            {
+                "hooks": {
+                    "Notification": [
+                        {"hooks": [{"type": "command", "command": command} for command in commands("claude")]}
+                    ],
                 }
-            ),
-        )
-    _write(home / ".codex/config.toml", "[tui]\nnotifications = true\n")
+            }
+        ),
+    )
     _write(home / ".copilot/settings.json", json.dumps({"notifications": True}))
 
 
@@ -74,14 +70,12 @@ def _configure_discovery(home: Path) -> None:
     for persona in (
         ".gemini/GEMINI.md",
         ".claude/CLAUDE.md",
-        ".codex/AGENTS.md",
-        ".grok/AGENTS.md",
         ".copilot/copilot-instructions.md",
         ".config/opencode/AGENTS.md",
     ):
         (home / persona).parent.mkdir(parents=True, exist_ok=True)
         (home / persona).symlink_to(home / ".agents/AGENTS.md")
-    for link in (".gemini/config/skills", ".claude/skills", ".grok/skills"):
+    for link in (".gemini/config/skills", ".claude/skills"):
         (home / link).parent.mkdir(parents=True, exist_ok=True)
         (home / link).symlink_to(home / ".agents/skills", target_is_directory=True)
 
@@ -114,7 +108,7 @@ def test_doctor_reports_three_checks_per_agent_without_content(monkeypatch: pyte
 
     results = {result.agent: result for result in run_agent_doctor(state)}
 
-    assert list(results) == ["agy", "claude", "codex", "grok", "copilot", "opencode"]
+    assert list(results) == ["agy", "claude", "copilot", "opencode"]
     assert results["opencode"].hooks == "not-required"
     claude = results["claude"]
     assert (claude.hooks, claude.source, claude.archive, claude.sessions, claude.sync_failures) == (
@@ -126,7 +120,7 @@ def test_doctor_reports_three_checks_per_agent_without_content(monkeypatch: pyte
     )
     assert claude.last_sync.endswith("Z")
     # A missing provider store needs no sync; an unused agent is healthy.
-    assert (results["codex"].source, results["codex"].last_sync, results["codex"].healthy) == ("missing", "never", True)
+    assert (results["agy"].source, results["agy"].last_sync, results["agy"].healthy) == ("missing", "never", True)
     assert "private prompt" not in _text(state.stdout)
 
 
@@ -212,30 +206,13 @@ def test_doctor_rejects_inactive_claude_hooks(monkeypatch: pytest.MonkeyPatch, t
         assert "disableAllHooks" in details["next"]
 
 
-@pytest.mark.parametrize("feature", ["hooks", "codex_hooks"])
-def test_doctor_native_codex_notifications_do_not_require_hooks(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, feature: str
-) -> None:
-    state = _state(monkeypatch, tmp_path)
-    path = tmp_path / ".codex/config.toml"
-    path.write_text(f"[features]\n{feature} = false\n" + path.read_text())
-
-    [result] = gather_agent_doctor(state, agent="codex")
-
-    assert result.hooks == "configured"
-    assert result.healthy
-
-
-@pytest.mark.parametrize("agent", ["codex", "copilot"])
+@pytest.mark.parametrize("value", ["false", '"true"', "1"], ids=["disabled", "string", "number"])
 def test_doctor_requires_native_attention_notifications(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
 ) -> None:
     state = _state(monkeypatch, tmp_path)
-    if agent == "codex":
-        (tmp_path / ".codex/config.toml").write_text("[tui]\nnotifications = false\n")
-    else:
-        (tmp_path / ".copilot/settings.json").write_text('{"notifications": false}')
-    [result] = gather_agent_doctor(state, agent=agent)
+    (tmp_path / ".copilot/settings.json").write_text(f'{{"notifications": {value}}}')
+    [result] = gather_agent_doctor(state, agent="copilot")
     assert result.hooks == "disabled"
     assert not result.healthy
     assert "notifications" in result.next
@@ -245,12 +222,12 @@ def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest
     state = _state(monkeypatch, tmp_path)
     ingest_session("claude", "readable", [SessionLog("2026-09-01T10:00:00Z", "claude", "readable", "user", "hi")])
     (session_store_root() / "claude/broken.jsonl").write_text("{}\n")
-    sync_state = session_store_root() / "codex/.sync.json"
+    sync_state = session_store_root() / "agy/.sync.json"
     sync_state.parent.mkdir()
     sync_state.write_text(
         json.dumps({"schema": "dot.agent.session.sync-state/v1", "synced_at": "2026-09-01T10:00:00Z", "failed": 2})
     )
-    (tmp_path / "sources/codex").mkdir(parents=True)
+    (tmp_path / "sources/agy").mkdir(parents=True)
 
     results = {result.agent: result for result in gather_agent_doctor(state)}
 
@@ -259,8 +236,8 @@ def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest
         1,
         False,
     )
-    assert (results["codex"].sync_failures, results["codex"].healthy) == (2, False)
-    assert results["codex"].next == "dot agent session sync --agent codex"
+    assert (results["agy"].sync_failures, results["agy"].healthy) == (2, False)
+    assert results["agy"].next == "dot agent session sync --agent agy"
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
@@ -299,17 +276,16 @@ def test_doctor_never_reports_an_inaccessible_source_as_missing(
 def test_doctor_json_is_a_diagnostic_envelope(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state = _state(monkeypatch, tmp_path)
 
-    run_agent_doctor(state, as_json=True, agent="grok")
+    run_agent_doctor(state, as_json=True, agent="agy")
 
     document = json.loads(_text(state.stdout))
     assert document["schema"] == "dot.diagnostics/v1"
     assert document["passed"] is True
-    assert [check["name"] for check in document["checks"]] == ["grok"]
+    assert [check["name"] for check in document["checks"]] == ["agy"]
     assert document["checks"][0]["details"]["hooks"] == "configured"
 
 
-def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_doctor_cli_keeps_only_json_and_agent_options() -> None:
     root = get_command(app)
     assert isinstance(root, TyperGroup)
     agent = root.commands["agent"]
@@ -326,7 +302,7 @@ def test_doctor_cli_keeps_only_json_and_agent_options(monkeypatch: pytest.Monkey
 
 def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state = _state(monkeypatch, tmp_path)
-    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state = session_store_root() / "agy/.sync.json"
     sync_state.parent.mkdir(parents=True, exist_ok=True)
     sync_state.write_text(
         json.dumps(
@@ -339,12 +315,12 @@ def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.Mo
         )
     )
 
-    results = run_agent_doctor(state, agent="grok")
+    results = run_agent_doctor(state, agent="agy")
 
     assert (results[0].sync_retained, results[0].sync_failures) == (3, 0)
     assert (
         "note: 3 session(s) kept their archived copy (truncated source or a parse that would lose usage); "
-        "dot agent session sync --agent grok reports each one"
+        "dot agent session sync --agent agy reports each one"
     ) in _text(state.stdout)
 
 
@@ -353,16 +329,16 @@ def test_doctor_rejects_an_invalid_retained_count(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, retained: object
 ) -> None:
     state = _state(monkeypatch, tmp_path)
-    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state = session_store_root() / "agy/.sync.json"
     sync_state.parent.mkdir(parents=True, exist_ok=True)
     document = {"schema": "dot.agent.session.sync-state/v1", "synced_at": "2026-09-01T10:00:00Z", "failed": 0}
     sync_state.write_text(json.dumps({**document, "retained": retained}))
 
-    (result,) = gather_agent_doctor(state, agent="grok")
+    (result,) = gather_agent_doctor(state, agent="agy")
 
     assert (result.last_sync, result.sync_retained) == ("unreadable", 0)
     assert not result.healthy
-    assert result.next == "dot agent session sync --agent grok"
+    assert result.next == "dot agent session sync --agent agy"
 
 
 @pytest.mark.parametrize("timestamp", ["", "invalid", "2026-09-01", "2026-09-01T10:00:00"])
@@ -372,15 +348,15 @@ def test_doctor_rejects_invalid_sync_timestamps_even_without_source(
 ) -> None:
     state = _state(monkeypatch, tmp_path)
     if source_present:
-        Path(state.config.agent.sources["grok"]).mkdir(parents=True)
-    sync_state = session_store_root() / "grok/.sync.json"
+        Path(state.config.agent.sources["agy"]).mkdir(parents=True)
+    sync_state = session_store_root() / "agy/.sync.json"
     sync_state.parent.mkdir(parents=True)
     sync_state.write_text(
         json.dumps({"schema": "dot.agent.session.sync-state/v1", "synced_at": timestamp, "failed": 0})
     )
 
     with pytest.raises(DotError, match="unhealthy"):
-        run_agent_doctor(state, agent="grok", as_json=True)
+        run_agent_doctor(state, agent="agy", as_json=True)
 
     report = json.loads(_text(state.stdout))
     assert report["passed"] is False
@@ -394,40 +370,20 @@ def test_doctor_reports_a_sync_by_another_parser_as_stale(
 ) -> None:
     state = _state(monkeypatch, tmp_path)
     if source_present:
-        Path(state.config.agent.sources["grok"]).mkdir(parents=True)
+        Path(state.config.agent.sources["agy"]).mkdir(parents=True)
     document = {"schema": "dot.agent.session.sync-state/v1", "synced_at": "2026-09-01T10:00:00Z", "failed": 0}
     if parser_version:
         document["parser_version"] = parser_version
-    sync_state = session_store_root() / "grok/.sync.json"
+    sync_state = session_store_root() / "agy/.sync.json"
     sync_state.parent.mkdir(parents=True)
     sync_state.write_text(json.dumps(document))
 
-    (result,) = gather_agent_doctor(state, agent="grok")
+    (result,) = gather_agent_doctor(state, agent="agy")
 
     assert result.last_sync == "stale"
     # A missing source has nothing to recapture.
     assert result.healthy is not source_present
-    assert result.next == ("dot agent session sync --agent grok" if source_present else "")
-
-
-@pytest.mark.parametrize(
-    ("notifications", "status"),
-    [
-        ('["agent-turn-complete", "approval-requested"]', "configured"),
-        ("[]", "disabled"),
-        ("[1]", "disabled"),
-        ('"agent-turn-complete"', "disabled"),
-    ],
-)
-def test_doctor_accepts_codex_notification_type_lists(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, notifications: str, status: str
-) -> None:
-    state = _state(monkeypatch, tmp_path)
-    (tmp_path / ".codex/config.toml").write_text(f"[tui]\nnotifications = {notifications}\n")
-
-    (result,) = gather_agent_doctor(state, agent="codex")
-
-    assert result.hooks == status
+    assert result.next == ("dot agent session sync --agent agy" if source_present else "")
 
 
 def test_doctor_reports_deeply_nested_settings_as_malformed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -472,32 +428,32 @@ def test_doctor_requires_a_complete_pass_and_ignores_legacy_window_state(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, complete: str | None
 ) -> None:
     state = _state(monkeypatch, tmp_path)
-    Path(state.config.agent.sources["grok"]).mkdir(parents=True)
+    Path(state.config.agent.sources["agy"]).mkdir(parents=True)
     if complete:
-        _sync_state("grok", ".sync.json", "2026-09-01T10:00:00Z", parser=complete)
-    _sync_state("grok", ".sync-window.json", "2026-09-02T10:00:00Z")
+        _sync_state("agy", ".sync.json", "2026-09-01T10:00:00Z", parser=complete)
+    _sync_state("agy", ".sync-window.json", "2026-09-02T10:00:00Z")
 
-    (result,) = gather_agent_doctor(state, agent="grok")
+    (result,) = gather_agent_doctor(state, agent="agy")
 
     assert (result.last_sync, result.healthy) == ("stale" if complete else "never", False)
-    assert result.next == "dot agent session sync --agent grok"
+    assert result.next == "dot agent session sync --agent agy"
 
 
 def test_doctor_reports_broken_discovery_per_host(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state = _state(monkeypatch, tmp_path)
-    (tmp_path / ".grok/skills").unlink()
-    (tmp_path / ".grok/skills").mkdir()
-    (tmp_path / ".codex/AGENTS.md").unlink()
+    (tmp_path / ".gemini/config/skills").unlink()
+    (tmp_path / ".gemini/config/skills").mkdir()
+    (tmp_path / ".claude/CLAUDE.md").unlink()
 
     with pytest.raises(DotError, match="unhealthy"):
         run_agent_doctor(state)
 
     results = {result.agent: result for result in gather_agent_doctor(state)}
-    assert results["grok"].discovery == "broken:skills"
-    assert results["codex"].discovery == "broken:persona"
+    assert results["agy"].discovery == "broken:skills"
+    assert results["claude"].discovery == "broken:persona"
     assert results["copilot"].discovery == "ok"
-    assert results["claude"].discovery == "ok"
-    assert "chezmoi apply --force" in results["grok"].next
+    assert results["opencode"].discovery == "ok"
+    assert "chezmoi apply --force" in results["agy"].next
 
 
 def test_doctor_notes_opencode_duplicate_skills_without_failing(
