@@ -191,30 +191,40 @@ PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
 
 
 class GitHubConfig(StrictModel):
+    # Keys and packages stay readable so security reviews can spot planted keys or images; writing
+    # them is a one-off grant (`dot login github --grant write:public_key`) that the next
+    # `dot setup github` removes, because a stolen token could otherwise add a persistent SSH key
+    # or replace a public image that CI publishes with its own token. gh always requests its minimum
+    # scopes (repo, read:org, gist) and cannot remove them, so gist stays listed.
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "gist",
             "notifications",
             "project",
+            "read:gpg_key",
             "read:org",
             "read:packages",
+            "read:public_key",
+            "read:ssh_signing_key",
             "read:user",
             "repo",
             "user:email",
             "workflow",
-            "write:packages",
-            "write:public_key",
-            "write:ssh_signing_key",
         ]
     )
     remove_scopes: list[Scope] = Field(
         default_factory=lambda: [
+            "admin:gpg_key",
             "admin:org",
             "admin:public_key",
             "admin:ssh_signing_key",
             "delete:packages",
             "delete_repo",
             "user",
+            "write:gpg_key",
+            "write:packages",
+            "write:public_key",
+            "write:ssh_signing_key",
         ]
     )
 
@@ -229,16 +239,28 @@ class WorkspaceConfig(StrictModel):
     project: Project | None = None
     # gws replaces its whole grant on login, so this list is the single owner of every scope
     # borrowed from it: the read-only analytics, Search Console, YouTube, Workspace and audit
-    # scopes that brain sensors narrow their tokens to, and the Analytics, Search Console and
-    # Business Profile management scopes the brain's google CLI narrows its explicit writes to;
-    # dropping one breaks those consumers on the next login.
+    # scopes that brain sensors narrow their tokens to, the read-only Admin and Chrome management
+    # scopes the brain's google CLI reads with, and the Analytics, Search Console and Business
+    # Profile management scopes it narrows its explicit writes to; dropping one breaks those
+    # consumers on the next login. Admin writes stay one-off: `dot login workspace --grant SCOPE`.
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/admin.directory.customer.readonly",
+            "https://www.googleapis.com/auth/admin.directory.device.chromeos.readonly",
+            "https://www.googleapis.com/auth/admin.directory.device.mobile.readonly",
+            "https://www.googleapis.com/auth/admin.directory.domain.readonly",
+            "https://www.googleapis.com/auth/admin.directory.group.readonly",
+            "https://www.googleapis.com/auth/admin.directory.orgunit.readonly",
+            "https://www.googleapis.com/auth/admin.directory.rolemanagement.readonly",
+            "https://www.googleapis.com/auth/admin.directory.user.readonly",
             "https://www.googleapis.com/auth/admin.reports.audit.readonly",
+            "https://www.googleapis.com/auth/admin.reports.usage.readonly",
             "https://www.googleapis.com/auth/analytics.edit",
+            "https://www.googleapis.com/auth/analytics.manage.users",
+            "https://www.googleapis.com/auth/analytics.manage.users.readonly",
             "https://www.googleapis.com/auth/analytics.readonly",
             "https://www.googleapis.com/auth/business.manage",
             "https://www.googleapis.com/auth/calendar",
@@ -251,6 +273,8 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/chat.spaces",
             "https://www.googleapis.com/auth/chat.spaces.readonly",
             "https://www.googleapis.com/auth/chat.users.readstate",
+            "https://www.googleapis.com/auth/chrome.management.policy.readonly",
+            "https://www.googleapis.com/auth/chrome.management.reports.readonly",
             "https://www.googleapis.com/auth/cloudsupport",
             "https://www.googleapis.com/auth/contacts",
             "https://www.googleapis.com/auth/contacts.other.readonly",
@@ -292,6 +316,8 @@ class WorkspaceConfig(StrictModel):
             "businessprofileperformance.googleapis.com",
             "calendar-json.googleapis.com",
             "chat.googleapis.com",
+            "chromemanagement.googleapis.com",
+            "chromepolicy.googleapis.com",
             "cloudsupport.googleapis.com",
             "docs.googleapis.com",
             "drive.googleapis.com",
