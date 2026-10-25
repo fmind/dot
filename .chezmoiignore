@@ -52,12 +52,6 @@ trivy.yaml
 .config/systemd/user/cros-garcon.service.d
 {{- end }}
 
-# ChromeOS shares its Downloads folder with Linux; elsewhere ~/Downloads is a real folder,
-# which a forced apply would delete, contents included, to place the link.
-{{- if not (stat "/mnt/chromeos/shared/MyFiles/Downloads") }}
-Downloads
-{{- end }}
-
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
 .cache/huggingface/token
 .kaggle/access_token

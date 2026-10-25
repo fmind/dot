@@ -44,6 +44,6 @@ Key routines:
 
 - `dot/` contains the runtime package, repository-only `dot_tasks/`, uv lock, and pytest suite.
 - `dot_gemini/` (agy, the primary harness), `dot_claude/`, `dot_copilot/`, and `dot_config/opencode/` adapt the shared persona to each host; other host state is gitignored.
-- `.chezmoitemplates/` holds the JSON/TOML merge, shell managed-block, skill-catalog, and hook `dot`-path helpers; `.chezmoiignore` gates platform-specific targets, including darwin-only `.zprofile` and Crostini-only notification, garcon, and shared `Downloads` targets.
+- `.chezmoitemplates/` holds the JSON/TOML merge, shell managed-block, skill-catalog, and hook `dot`-path helpers; `.chezmoiignore` gates platform-specific targets, including darwin-only `.zprofile` and Crostini-only notification and garcon targets.
 - `.github/` owns CI, release, security, and dependency-update automation; `.github/assets/` holds the README's SVG illustrations, outside chezmoi deployment.
 - Mise trust is machine-local (`mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`); apply's `run_after_dot-trust` hook pre-trusts harness workspaces and this checkout.
