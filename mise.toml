@@ -151,7 +151,8 @@ run = [
 
 [tasks."check:scan"]
 description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
-# Pass the config explicitly: trivy fs does not load ./trivy.yaml (and its ignorefile) on its own.
+# Pass the config explicitly: the workstation's TRIVY_CONFIG (fish env.fish) replaces trivy's
+# ./trivy.yaml default, which would drop this repository's ignorefile.
 run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]

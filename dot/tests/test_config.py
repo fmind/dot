@@ -54,7 +54,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     assert not retired.intersection(COMPLETION_SOURCES)
 
 
-def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
+def test_cloud_connectors_are_included_in_default_completions() -> None:
     assert {"astro", "aws-sso-util", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
 
 
