@@ -28,6 +28,8 @@ USAGE_EXTRACTOR_VERSION = "2"
 _USAGE_IDENTITY_FIELDS = ("timestamp", "harness", "agent", "session_id")
 # Harnesses whose turn_count counts model requests; agy counts prompts and Grok completed turns.
 REQUEST_COUNTING_HARNESSES = frozenset({"claude", "codex", "copilot", "opencode"})
+# Harnesses dot no longer captures (removed 2026-10-25); their archived bundles stay queryable.
+RETIRED_AGENTS = ("codex", "grok")
 _USAGE_INTEGER_FIELDS = (
     "input_tokens",
     "output_tokens",
@@ -579,18 +581,22 @@ def write_usage_stats(
         ):
             setattr(total, name, getattr(total, name) + getattr(row, name))
     if flagged := sorted({row.harness for row in rows if row.legacy_accounting_sessions}):
-        # Retained sessions keep their measuring parser, so a sync cannot clear them.
-        note = (
-            f"Legacy accounting in {', '.join(flagged)}: recapture available sources with 'dot agent session sync'; "
-            "sessions retained from truncated sources keep their archived measurement."
-        )
+        # Retained sessions keep their measuring parser, so a sync cannot clear them; retired agents never sync.
+        live = [name for name in flagged if name not in RETIRED_AGENTS]
+        kept = "sessions retained from truncated sources" if live else ""
+        if len(live) < len(flagged):
+            kept = f"{kept} and retired agents" if kept else "retired agents"
+        advice = "recapture available sources with 'dot agent session sync'; " if live else ""
+        note = f"Legacy accounting in {', '.join(flagged)}: {advice}{kept} keep their archived measurement."
         if "claude" in flagged:
             note += " Old Claude totals may count repeated response blocks."
         write(note)
     if retained := sum(row.retained_usage_sessions for row in rows):
+        final = any(row.retained_usage_sessions and row.harness in RETIRED_AGENTS for row in rows)
         write(
             f"{retained:,} session(s) keep usage from an earlier capture of a source that has grown; "
-            "their tokens and cost are incomplete until the source measures again."
+            "their tokens and cost are incomplete until the source measures again"
+            + ("; retired agents never measure again." if final else ".")
         )
     if any(row.session_timestamp_sessions for row in rows):
         write("Some usage has only a session timestamp; its monthly allocation is approximate.")

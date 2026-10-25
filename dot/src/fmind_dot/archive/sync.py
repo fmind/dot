@@ -11,7 +11,6 @@ from pathlib import Path
 
 from fmind_dot.archive.parsers import (
     AGENT_ADAPTERS,
-    RETIRED_AGENTS,
     AgentAdapter,
     ParsedSession,
     SessionCandidate,
@@ -31,6 +30,7 @@ from fmind_dot.archive.store import (
     session_store_root,
     upgrade_session_bundle,
 )
+from fmind_dot.archive.usage import RETIRED_AGENTS
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import private_directory, write_private_file

@@ -67,7 +67,7 @@ Claude blocks sharing request/message identity are deduplicated, retaining peak 
 
 Usage statistics add [sidechain](../../dot-cli/references/contracts.md#session-archive) tokens to the parent's session and project rows without counting another session or recorded cost; prompt statistics count only top-level sessions and report `sidechain_sessions`.
 
-[Contracts](../../dot-cli/references/contracts.md#session-archive) owns the readable parsers and legacy accounting versions; reports count sessions needing recapture in `legacy_accounting_sessions`. Measurements captured before parser 10 price Claude 1-hour cache writes at the 5-minute rate and omit Codex compaction requests until sync recaptures their sources. Request samples reconcile to session totals and carry no prompt text. Token queries read only manifest and usage lines, never transcript content.
+[Contracts](../../dot-cli/references/contracts.md#session-archive) owns the readable parsers and legacy accounting versions; reports count sessions needing recapture in `legacy_accounting_sessions`. Measurements captured before parser 10 price Claude 1-hour cache writes at the 5-minute rate until sync recaptures their sources, and omit Codex compaction requests for good, since retired agents never sync. Request samples reconcile to session totals and carry no prompt text. Token queries read only manifest and usage lines, never transcript content.
 
 ## Monthly reports
 

@@ -11,14 +11,13 @@ import pytest
 from fmind_dot.archive import parsers as parser_module
 from fmind_dot.archive.parsers import (
     AGENT_ADAPTERS,
-    RETIRED_AGENTS,
     ParsedSession,
     parse_agy_session,
     parse_claude_session,
     parse_copilot_session,
 )
 from fmind_dot.archive.store import SessionLog, fingerprint_bytes, marshal_session_logs
-from fmind_dot.archive.usage import UsageRecord
+from fmind_dot.archive.usage import RETIRED_AGENTS, UsageRecord
 
 COPILOT_SCHEMA = """
 CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
@@ -483,9 +482,9 @@ def test_copilot_usage_is_dated_by_the_latest_turn_of_a_resumed_session(tmp_path
     assert _usage(parse_copilot_session(database, "cp-id")).timestamp == "2026-03-01T00:00:00Z"
 
 
-def test_undated_usage_without_any_remaining_source_stays_undated(tmp_path) -> None:
+def test_undated_usage_without_its_source_stays_undated(tmp_path) -> None:
     # A source removed mid-sync must not crash parsing or invent a capture-time stamp.
-    assert parser_module._undated_usage_timestamp([], tmp_path / "gone.jsonl", tmp_path / "gone.db") == ""  # noqa: SLF001
+    assert parser_module._undated_usage_timestamp([], tmp_path / "gone.jsonl") == ""  # noqa: SLF001
 
 
 def _claude_answer(usage: dict, *, request: str = "r", text: str = "a") -> dict:
@@ -578,7 +577,7 @@ _DEEP_ARRAY = "[" * 1_000_000 + "]" * 1_000_000
 
 @pytest.mark.parametrize("parser", [parse_agy_session, parse_claude_session])
 def test_deeply_nested_json_lines_are_malformed_records(tmp_path: Path, parser) -> None:
-    transcript = tmp_path / "updates.jsonl"
+    transcript = tmp_path / "transcript.jsonl"
     transcript.write_text(_DEEP_ARRAY + "\n" + json.dumps({"type": "unrelated"}) + "\n", encoding="utf-8")
 
     parsed = parser(transcript, "session-id")
