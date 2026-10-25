@@ -9,8 +9,8 @@
        local.
        GIT_TERMINAL_PROMPT and CLOUDSDK_CORE_DISABLE_PROMPTS make git credential and gcloud
        prompts fail or take their default instead of waiting on a terminal no agent answers;
-       the agy function and Remote Control daemon set CLOUDSDK_CORE_DISABLE_PROMPTS too, plus
-       GH_PROMPT_DISABLED; other hosts expose no shell-environment setting.
+       the agy fish function sets CLOUDSDK_CORE_DISABLE_PROMPTS too, plus GH_PROMPT_DISABLED,
+       for terminal and Remote Control sessions; other hosts expose no shell-environment setting.
        CLAUDE_CODE_FORCE_SESSION_PERSISTENCE keeps transcripts and resume entries when
        a terminal or launcher inherits CLAUDE_CODE_CHILD_SESSION from an earlier session.
        theme: light-ansi paints the TUI from the terminal's own sixteen slots,
