@@ -29,12 +29,7 @@ Create and switch to a `<type>/<slug>` branch from the selected base for the wor
    git switch -c <branch> <base-ref>
    ```
 
-1. **Report**: only these two lines after success:
-
-   ```text
-   Branch: <branch>
-   From: <base-ref>
-   ```
+1. **Report the branch**: its name and base ref.
 
 For a separate checkout or qualification of dirty changes, use [git-worktree](../GUIDE.md); switching branches alone does not isolate files or test output.
 

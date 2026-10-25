@@ -9,15 +9,7 @@ Use for a diff, patch, branch, PR, or self-review; shared candidate, intent, ris
 1. **Classify scope**: compare every changed dependency, config, public API, generated artifact, and unrelated-looking hunk with the stated contract and its real call or build path.
    - Classify it as **keep** (necessary and connected), **split** (independently valuable or unrelated), or **justify** (real but non-obvious coupling).
    - Path names alone do not prove scope creep; never stage, revert, discard, or rewrite the candidate because a detector labels a path unrelated.
-1. **Report**: verify and rank findings with the shared rules, quoting the file and line that make each one real. A finding can use this compact shape:
-
-   ```text
-   [P1] Short imperative title — path/to/file.ext:line
-   Evidence: the exact behavior or code path.
-   Impact: who or what fails, under which condition.
-   Reproduction: the smallest command, scenario, or trace.
-   Correction: the minimum direction, without implementing it.
-   ```
+1. **Report**: verify and rank findings with the shared rules, quoting the file and line that make each one real.
 
 ## Sources
 

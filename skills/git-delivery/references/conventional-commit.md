@@ -28,12 +28,7 @@ Turn the staged changes into one Conventional Commits subject and commit them; [
    git commit -m "<subject>"
    ```
 
-1. **Report only these two lines after success**:
-
-   ```text
-   Subject: <subject>
-   Commit: <hash>
-   ```
+1. **Report the commit**: its subject and short hash.
 
 1. **Stop on failure**: for a pre-commit hook failure or nothing staged, show the failure briefly; do not amend.
 

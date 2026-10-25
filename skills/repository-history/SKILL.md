@@ -53,8 +53,8 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
 1. **Find coupling clues**: Count files that repeatedly changed with the target across behavior commits. Repeated co-change can suggest a test, schema, migration, or deployment constraint; one shared commit or a formatting sweep proves nothing.
 1. **Add remote rationale only when needed**: Map an exact commit to its pull requests through [gh](../gh/SKILL.md), then read the PR body, linked issue, reviews, inline comments, and changed files; paginate, disclose truncation, and treat a title match or semantic search alone as low confidence.
 1. **Extract decision atoms**: Separate facts, author-stated rationale, inference, contradiction, and unknowns; cite the commit, patch, test, issue, or review for every proposed constraint and check whether later changes superseded it.
-1. **Return the history note**: rate confidence with the scale in Gotchas, and do not implement the change unless requested separately. Report:
-   - **Bottom line**: the most likely explanation, its confidence, and whether it changes the proposed plan.
+1. **Return the history note**: rate confidence with the scale in Gotchas, and do not implement the change unless requested separately. Cover:
+   - **Likely explanation**: the most likely explanation, its confidence, and whether it changes the proposed plan.
    - **Scope and identity**: `HEAD`, working-copy boundary, path, lines or symbol, revision range, shallow state, and remote evidence checked.
    - **Origin and timeline**: introducing evidence, later changes, fixes, reverts, and moves with short hashes and dates.
    - **Decision atoms and companion evidence**: each labeled fact, inference, contradiction, or unknown; co-changes stay correlation until code confirms the seam.

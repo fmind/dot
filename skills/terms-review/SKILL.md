@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terms-review
   created: "2026-09-15"
-  updated: "2026-10-07"
+  updated: "2026-10-25"
 ---
 
 # Terms Review
@@ -21,7 +21,7 @@ Assess whether a defined use of a product or service fits its applicable terms a
 1. **Collect authoritative evidence**: browse current official sources and inspect the applicable signed agreement when available. Follow incorporated documents: terms of service, license/EULA, order form, service-specific terms, acceptable-use policy, privacy notice, data processing agreement (DPA), subprocessors, and relevant model, dataset, or dependency licenses. Record each document's title, URL or private reference, version/effective date, retrieval date, scope, and clause identifiers. Verify the license of the exact release or artifact being used.
 1. **Resolve applicability**: distinguish consumer, business, API, free, paid, trial, and preview terms. Check incorporation, stated precedence, amendments, renewal, and change-notice provisions; establish which version governs the planned use instead of assuming the latest public page controls an existing contract. If an agreement is unavailable or documents conflict without clear precedence, mark the affected conclusions unresolved.
 1. **Map requirements to clauses**: use the relevant items of the [assessment checklist](references/assessment.md). For each requirement, record the applicable clause, a short quotation or faithful paraphrase, its practical effect, evidence of fulfillment, and any remaining action. Clearly label direct text, interpretation, and unverified claims. Silence is not a grant; a proposed setting or process is not proof that an obligation is met.
-1. **Decide and report**: lead with the scoped verdict using the [assessment](references/assessment.md) output contract. Rank blockers before lesser risks. Make conditional use concrete with an owner, action, and verification criterion for each unmet obligation; identify changes of plan, configuration, or use that could resolve a conflict. For consequential legal ambiguity, prepare the precise question and clauses for qualified counsel or the authorized contract owner.
+1. **Decide and report**: give the scoped verdict and cover the [assessment](references/assessment.md) output contract. Rank blockers before lesser risks. Make conditional use concrete with an owner, action, and verification criterion for each unmet obligation; identify changes of plan, configuration, or use that could resolve a conflict. For consequential legal ambiguity, prepare the precise question and clauses for qualified counsel or the authorized contract owner.
 1. **Verify the conclusion**: confirm that every material requirement has evidence or an explicit gap, links support the claims, and dates and product scope match. A blocker or material unknown prevents a supported verdict. State when to re-review: changed terms, plan, version, data, jurisdiction, distribution, or intended use.
 
 ## Boundaries
