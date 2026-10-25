@@ -67,6 +67,7 @@ HF_HUB_DISABLE_TELEMETRY = "1"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
 
+# Selection rule: "Choose global tools for agent coding" in fmind/dot's AGENTS.md; each comment says why a tool is global.
 [tools]
 "aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 "conda:file" = "latest" # File type detection for agents and Yazi; includes its magic database
