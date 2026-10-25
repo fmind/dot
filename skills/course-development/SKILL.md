@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Develop a Technical Course
@@ -23,10 +23,6 @@ Build a course learners can understand, execute, and finish. Use [documentation-
 1. **Make practice executable**: state the goal, starting state, a prediction, ordered work, verification, and what remains afterward; label temporary changes and external access/cost.
 1. **Validate progressively**: run the changed lesson's checks and examples, then the repository's learner gate from a clean environment; record unexercised platforms or live services.
 1. **Prepare acceptance**: connect outcomes to evidence, known limitations, and a correction path; publication follows the user's authorized scope.
-
-## Optional Reference Profile
-
-Read [reference-course.md](references/reference-course.md) only for a course that adopts the conventions, exercise fields, and task names of the reference course (`~/mlops-courses/agentops-open-course`, whose `AGENTS.md` owns the page frame, gates, and authoring rules). Otherwise use the course's own authoring contract.
 
 ## Gotchas
 
