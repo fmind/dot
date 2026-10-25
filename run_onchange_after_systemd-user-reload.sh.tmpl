@@ -13,5 +13,5 @@ systemctl --user daemon-reload 2>/dev/null || exit 0
 systemctl --user start antigravity-cli-daemon-update.timer
 # Never restart from apply: the agy daemon hosts remote-control sessions, possibly this one.
 if systemctl --user is-active --quiet antigravity-cli-daemon.service; then
-  echo "systemd drop-ins reloaded; restart agy's daemon to apply them: systemctl --user restart antigravity-cli-daemon.service"
+  echo "systemd units reloaded; if the agy daemon drop-in changed, restart it: systemctl --user restart antigravity-cli-daemon.service"
 fi

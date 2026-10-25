@@ -5,7 +5,7 @@
 
   Params: stdin (current content), managed (keys this repository owns), defaults (optional,
   seeded only), replace (optional top-level keys whose managed value replaces the host's whole
-  value instead of merging into it, so a key this repository stops managing disappears), format ("json" by default, "jsonc" for hosts that accept comments and trailing
+  value instead of merging into it, so a nested key this repository stops managing disappears), format ("json" by default, "jsonc" for hosts that accept comments and trailing
   commas, or "toml"). Callers use includeTemplate: on chezmoi 2.72.0 a modify_ script cannot
   reach the .chezmoitemplates namespace through a template action.
 

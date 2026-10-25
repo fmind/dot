@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" role="img" aria-labelledby="title desc">
 <title id="title">How dot works</title>
-<desc id="desc">This repository holds dotfiles and templates, the agent persona and skills, the tool baseline and lockfile, encrypted credentials, the pinned theme and fonts, the dot CLI and its tasks, and CI. Cloning it and running install.sh installs mise and chezmoi, then the locked tools. chezmoi applies files, hooks and encrypted seeds; mise installs locked tools and runs tasks and checks; the dot CLI checks health, handles logins and secrets and reports agent usage. The result is a Linux or macOS workstation in user space with Ghostty, Zellij, Fish, Starship, Atuin, zoxide, Neovim with LazyVim, Python with uv, Ruff and ty, cloud and infrastructure CLIs, four agent harnesses and health and usage reports. Changes go back into the source, never the deployed copy: preview the diff, then apply.</desc>
+<desc id="desc">This repository holds dotfiles and templates, the agent persona and skills, the tool baseline and lockfile, encrypted credentials, the pinned theme and fonts, the dot CLI and its tasks, and CI. Cloning it and running install.sh installs mise and chezmoi, then the locked tools. chezmoi applies files, hooks and encrypted seeds; mise installs locked tools and runs tasks and checks; the dot CLI checks health, handles logins and secrets and reports agent usage. The result is a Linux or macOS workstation in user space with Ghostty, Zellij, Fish, Starship, Atuin, zoxide, Neovim with LazyVim, Python with uv, Ruff and ty, cloud and service CLIs, four agent harnesses and health and usage reports. Changes go back into the source, never the deployed copy: preview the diff, then apply.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
 <style>
@@ -66,7 +66,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <rect class="chip" x="704" y="106" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="128">Starship · Atuin · zoxide</text>
 <rect class="chip" x="704" y="148" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="170">Neovim · LazyVim</text>
 <rect class="chip" x="704" y="190" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="212">Python · uv · Ruff · ty</text>
-<rect class="chip" x="704" y="232" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="254">Cloud · infra CLIs</text>
+<rect class="chip" x="704" y="232" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="254">Cloud · service CLIs</text>
 <rect class="chip" x="704" y="274" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="296">Four agent harnesses</text>
 <rect class="chip" x="704" y="316" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="338">Health · usage reports</text>
 </g>

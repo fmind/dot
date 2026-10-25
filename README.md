@@ -19,7 +19,7 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 - **Terminal:** Fish, Starship, Atuin, zoxide, fzf, Ghostty, and Zellij.
 - **Editor:** Neovim with LazyVim, styled with [fmind/theme](https://github.com/fmind/theme).
 - **Agents:** Antigravity (the primary harness), Claude Code, Copilot, and OpenCode share a persona and [skills](skills/); `dot agent session sync` archives their local sessions for [usage reports](skills/agent-usage/SKILL.md), and retired Codex and Grok archives stay queryable.
-- **Development:** Python with uv, Ruff, ty, and pytest, plus cloud and infrastructure tools.
+- **Development:** Python with uv, Ruff, ty, and pytest, plus cloud and service CLIs; projects pin their own infrastructure tools.
 - **Automation:** the `dot` CLI checks workstation health, manages workspaces, and reports agent usage.
 
 ## Prerequisites

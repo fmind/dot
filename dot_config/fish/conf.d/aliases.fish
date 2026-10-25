@@ -31,8 +31,6 @@ if status is-interactive
     abbr -a i fastfetch
     # j:bf
     abbr -a j bf
-    # k:kubectl
-    abbr -a k kubectl
     # l:lsd
     alias ls="lsd"
     abbr -a l "lsd --long --all"
@@ -61,8 +59,6 @@ if status is-interactive
     abbr -a r rg
     # s:ssh
     abbr -a s ssh
-    # t:tofu
-    abbr -a t tofu
     # u:uv
     abbr -a u uv
     abbr -a uf "uv run --frozen"
