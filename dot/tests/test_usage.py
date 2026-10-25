@@ -386,10 +386,22 @@ def test_write_usage_stats_names_the_harnesses_with_legacy_accounting() -> None:
         write_usage_stats(output, list(rows), by_model=False)
         return " ".join(output.getvalue().split())
 
+    claude = note(UsageStats(harness="claude", sessions=3, legacy_accounting_sessions=3))
+    assert "Legacy accounting in claude: recapture available sources with 'dot agent session sync'" in claude
+    assert "sessions retained from truncated sources keep their archived measurement." in claude
+
+    # Sync rejects retired agents, so their legacy rows can never be recaptured.
     grok = note(UsageStats(harness="grok", sessions=3, legacy_accounting_sessions=3), UsageStats(harness="claude"))
-    assert "Legacy accounting in grok: recapture available sources with 'dot agent session sync'" in grok
-    assert "sessions retained from truncated sources keep their archived measurement." in grok
+    assert "Legacy accounting in grok: retired agents keep their archived measurement." in grok
+    assert "session sync" not in grok
     assert "Claude" not in grok
+
+    both = note(
+        UsageStats(harness="claude", sessions=1, legacy_accounting_sessions=1),
+        UsageStats(harness="grok", sessions=1, legacy_accounting_sessions=1),
+    )
+    assert "Legacy accounting in claude, grok: recapture available sources" in both
+    assert "truncated sources and retired agents keep their archived measurement." in both
 
     assert "Legacy accounting" not in note(UsageStats(harness="claude"))
 
@@ -601,3 +613,4 @@ def test_retained_usage_marks_cost_and_usage_incomplete() -> None:
     output = StringIO()
     write_usage_stats(output, aggregate_usage([record]), by_model=False)
     assert "keep usage from an earlier capture" in output.getvalue()
+    assert "retired agents never measure again" in " ".join(output.getvalue().split())

@@ -16,7 +16,7 @@ from typer.testing import CliRunner
 from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
 from fmind_dot.archive import sync as archive_sync_module
-from fmind_dot.archive.parsers import RETIRED_AGENTS, AgentAdapter, ParsedSession, SessionParser
+from fmind_dot.archive.parsers import AgentAdapter, ParsedSession, SessionParser
 from fmind_dot.archive.store import (
     SessionLog,
     ingest_session,
@@ -26,7 +26,7 @@ from fmind_dot.archive.store import (
     session_store_root,
 )
 from fmind_dot.archive.sync import sync_sessions
-from fmind_dot.archive.usage import UsageRecord, iter_usage_records
+from fmind_dot.archive.usage import RETIRED_AGENTS, UsageRecord, iter_usage_records
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import notification_workspace

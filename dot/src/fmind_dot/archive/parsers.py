@@ -10,7 +10,6 @@ from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from fnmatch import fnmatchcase
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -157,23 +156,21 @@ def _usage_cost(value: object) -> float | None:
     return cost
 
 
-def _undated_usage_timestamp(logs: list[SessionLog], *sources: Path) -> str:
-    """Date usage without its own timestamp by the latest transcript record, else the newest source mtime.
+def _undated_usage_timestamp(logs: list[SessionLog], source: Path | None = None) -> str:
+    """Date usage without its own timestamp by the latest transcript record, else the source mtime.
 
     The clock is never evidence: a capture-time stamp would move usage between periods and change on recapture.
     """
     dated = [(instant, log.ts) for log in logs if (instant := parse_utc_instant(log.ts)) is not None]
     if dated:
         return max(dated, key=lambda item: item[0])[1]
-    mtimes: list[float] = []
-    for source in sources:
-        try:
-            mtimes.append(source.stat().st_mtime)
-        except FileNotFoundError:
-            continue  # A source removed mid-sync leaves the others as evidence.
-    if not mtimes:
+    if source is None:
         return ""
-    return datetime.fromtimestamp(max(mtimes), UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    try:
+        mtime = source.stat().st_mtime
+    except FileNotFoundError:
+        return ""  # A source removed mid-sync leaves no evidence.
+    return datetime.fromtimestamp(mtime, UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _finalize_parsed_usage(
@@ -729,14 +726,14 @@ def _raise_walk_error(error: OSError) -> None:
     raise error
 
 
-def _session_files(root: Path, names: tuple[str, ...]) -> list[Path]:
-    """Enumerate without hiding inaccessible directories or following directory links."""
+def _jsonl_files(root: Path) -> list[Path]:
+    """Enumerate JSONL transcripts without hiding inaccessible directories or following directory links."""
     return sorted(
         directory / name
         for directory, _, files in root.walk(on_error=_raise_walk_error)
         for name in files
         # A dangling symlink is no session; parsing it would fail every sync with a bare ENOENT.
-        if any(fnmatchcase(name, pattern) for pattern in names) and (directory / name).exists()
+        if name.endswith(".jsonl") and (directory / name).exists()
     )
 
 
@@ -761,7 +758,7 @@ def _enumerate_agy(root: Path) -> list[SessionCandidate]:
 def _enumerate_claude(root: Path) -> list[SessionCandidate]:
     return [
         (session_id, "", path)
-        for path in _session_files(root, ("*.jsonl",))
+        for path in _jsonl_files(root)
         if is_valid_session_id(session_id := claude_session_id(path))
     ]
 
@@ -787,9 +784,6 @@ def _enumerate_opencode(root: Path) -> list[SessionCandidate]:
         candidates.append((identifier, directory or "", root))
     return candidates
 
-
-# Harnesses dot no longer captures (removed 2026-10-25); their archived bundles stay queryable.
-RETIRED_AGENTS = ("codex", "grok")
 
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "agy": AgentAdapter("agy", "agy", False, parse_agy_session, _enumerate_agy, "Antigravity", external_cwd=True),

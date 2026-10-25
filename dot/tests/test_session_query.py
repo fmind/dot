@@ -114,6 +114,17 @@ def test_show_content_of_unreadable_bundle_fails_with_recapture_hint() -> None:
     assert "claude/broken.jsonl aside" in str(shown.exception)
 
 
+def test_show_content_of_unreadable_retired_bundle_never_suggests_recapture() -> None:
+    _corrupt_transcript(_ingest("codex", "broken"))
+
+    shown = CliRunner().invoke(app, ["agent", "session", "show", "broken", "--content"])
+
+    assert shown.exit_code == 1
+    # Sync rejects retired agents, so moving the bundle aside would lose the session for good.
+    assert "restore" in str(shown.exception)
+    assert "session sync" not in str(shown.exception)
+
+
 def test_query_surfaces_partial_unsupported_and_invalid_sessions() -> None:
     path = _ingest("agy", "unsupported", malformed=1)
     _rewrite_manifest(path, schema_version=SESSION_SCHEMA_VERSION + 1)

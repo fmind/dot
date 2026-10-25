@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 import typer
 
 from fmind_dot.agent_doctor import run_agent_doctor
-from fmind_dot.archive.parsers import AGENT_ADAPTERS, RETIRED_AGENTS, resolve_cwd
+from fmind_dot.archive.parsers import AGENT_ADAPTERS, resolve_cwd
 from fmind_dot.archive.query import (
     SESSION_STATUSES,
     SessionQuery,
@@ -19,6 +19,7 @@ from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.store import session_bundle_path
 from fmind_dot.archive.sync import bounded_failure, sync_sessions
 from fmind_dot.archive.usage import (
+    RETIRED_AGENTS,
     USAGE_TIME_BASIS,
     UsageRecord,
     aggregate_usage,
@@ -173,6 +174,12 @@ def session_show(
     )
     # The metadata above stays useful, but requested content that cannot be read is a failure.
     if content and "invalid" in summary.status:
+        if summary.agent in RETIRED_AGENTS:
+            raise DotError(
+                f"archived transcript for {summary.agent} session {summary.session_id} is unreadable, and dot no "
+                f"longer captures {summary.agent}: restore {session_bundle_path(summary.agent, summary.session_id)} "
+                "from a backup instead of moving it aside"
+            )
         raise DotError(
             f"archived transcript for {summary.agent} session {summary.session_id} is unreadable; "
             f"move {session_bundle_path(summary.agent, summary.session_id)} aside (sync skips an unchanged source), "
