@@ -39,8 +39,9 @@ register_context(agent_app)
 session_app = help_group("Manage agent session logs")
 hook_app = help_group("Run native agent notification hooks")
 # Choices render in --help and Fish completions and are validated before any sync.
-# Retired agents stay selectable so their archived sessions remain queryable.
+# Retired agents stay selectable where their archived sessions are queried; the doctor inspects live adapters only.
 AgentName = StrEnum("AgentName", {name: name for name in (*AGENT_ADAPTERS, *RETIRED_AGENTS)})
+LiveAgentName = StrEnum("LiveAgentName", {name: name for name in AGENT_ADAPTERS})
 SessionStatus = StrEnum("SessionStatus", {name: name for name in SESSION_STATUSES})
 
 
@@ -89,7 +90,7 @@ SinceOption = Annotated[str, typer.Option("--since", help=f"Ingested since {_SIN
 UntilOption = Annotated[str, typer.Option("--until", help=f"Ingested until {_UNTIL_VALUES}")]
 
 
-def _agent(agent: AgentName | None) -> str:
+def _agent(agent: AgentName | LiveAgentName | None) -> str:
     """Typer rejects a misspelled agent before a report syncs, so a typo never becomes an all-agent capture."""
     return str(agent) if agent else ""
 
@@ -309,7 +310,8 @@ def agent_stats(
         raise typer.BadParameter("--monthly and --by-model require token statistics", param_hint="--prompts-only")
     query = _query(selected, cwd, "", since, until)
     # A retired agent has nothing to capture: report its archive as stored.
-    if not no_sync and selected not in RETIRED_AGENTS:
+    synced = not no_sync and selected not in RETIRED_AGENTS
+    if synced:
         sync_sessions(state, agent=selected, quiet=True)
     if sessions:
         records = list_usage_records(
@@ -338,7 +340,13 @@ def agent_stats(
             monthly=monthly,
         )
     )
-    coverage = " without a sync (--no-sync)" if no_sync else " after an incremental sync"
+    coverage = (
+        " after an incremental sync"
+        if synced
+        else " without a sync (--no-sync)"
+        if no_sync
+        else f" without a sync ({selected} is retired)"
+    )
     if as_json:
         write_json(
             state.stdout,
@@ -371,7 +379,7 @@ def agent_stats(
 )
 def agent_doctor(
     context: typer.Context,
-    agent: Annotated[AgentName | None, typer.Option("--agent", "-a", help="Inspect only one agent")] = None,
+    agent: Annotated[LiveAgentName | None, typer.Option("--agent", "-a", help="Inspect only one agent")] = None,
     as_json: JsonOption = False,
 ) -> None:
     run_agent_doctor(state_from(context), as_json=as_json, agent=_agent(agent))

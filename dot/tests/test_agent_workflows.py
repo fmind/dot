@@ -672,7 +672,11 @@ def test_retired_agents_stay_queryable_but_never_sync(tmp_path: Path, agent: str
         (agent, "archived")
     ]
     assert stats.exit_code == 0, stats.output
-    assert [(row["harness"], row["input_tokens"]) for row in json.loads(stats.stdout)["usage"]] == [(agent, 10)]
+    report = json.loads(stats.stdout)
+    assert [(row["harness"], row["input_tokens"]) for row in report["usage"]] == [(agent, 10)]
+    assert report["coverage"].startswith(f"Archived records without a sync ({agent} is retired).")
+    # The doctor inspects live adapters only, so a retired name is a usage error, never an empty pass.
+    assert CliRunner().invoke(app, ["agent", "doctor", "--agent", agent, "--json"]).exit_code == 2
 
 
 def test_usage_and_session_empty_cli_contracts() -> None:

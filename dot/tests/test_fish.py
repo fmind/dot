@@ -20,7 +20,7 @@ def test_fish_aliases_load_without_errors() -> None:
             # abbr --query succeeds when any name exists, so check each one.
             (
                 "source dot_config/fish/conf.d/aliases.fish; "
-                "for name in a ac ai ap h ha hc hd hh ho hp hs i k ux vd vi; "
+                "for name in a ac ai ap h ha hc hd hh ho hp hs i j ux vd vi; "
                 "abbr --query $name; or echo missing $name >&2; end"
             ),
         ],

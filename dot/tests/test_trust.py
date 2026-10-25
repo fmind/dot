@@ -422,6 +422,23 @@ def test_trust_adds_repositories_to_agy_projects_except_excluded(
     assert len(list(registry.iterdir())) == len(before) + 1
 
 
+def test_agy_project_exclusions_match_through_a_symlinked_home(tmp_path: Path) -> None:
+    real_home = tmp_path / "real-home"
+    real_home.mkdir()
+    linked_home = tmp_path / "home"
+    linked_home.symlink_to(real_home)
+    registry = agy_registry(real_home)
+    excluded = git_repository(real_home / "work/agent-docs", "https://github.com/fmind/agent-docs")
+    kept = git_repository(real_home / "work/one", "https://github.com/fmind/one")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("HOME", str(linked_home))
+        added = register_agy_projects([excluded.resolve(), kept.resolve()], ["~/work/agent-*"], home=linked_home)
+
+    assert added == [kept.resolve()]
+    assert len(list(registry.iterdir())) == 2  # agy's default project plus the kept repository
+
+
 def test_agy_projects_wait_for_agy_to_create_its_registry(tmp_path: Path) -> None:
     repository = git_repository(tmp_path / "repo", "https://github.com/fmind/repo")
     (tmp_path / "home/.gemini/antigravity-cli").mkdir(parents=True)

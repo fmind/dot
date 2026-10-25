@@ -181,7 +181,8 @@ def register_agy_projects(
     listed: set[str] = set()
     for path in sorted(registry.glob("*.json")):
         listed |= _agy_project_folders(path, path.read_text(encoding="utf-8"))
-    patterns = [expand_path(pattern) for pattern in exclude]
+    # Folders arrive resolved, so patterns resolve too: a symlinked home would otherwise never match.
+    patterns = [expand_path(pattern).resolve() for pattern in exclude]
     added = []
     for folder in folders:
         # Workspaces and plain folders are trusted too, but only repositories are projects.

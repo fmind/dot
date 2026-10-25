@@ -340,8 +340,8 @@ alias = "mu"
 description = "Upgrade Python dependencies, mise tools, the theme pin, dprint plugins, and Neovim plugins"
 run = [
   "uv lock --upgrade --project dot",
-  # Refresh version pins before installing the selected releases.
-  "mise lock --bump --yes",
+  # Refresh version pins before installing the selected releases; like lock, without the home config.
+  'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise lock --bump --yes',
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
   # Advance the checksummed fmind/theme pin; several theme files execute.
   "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
