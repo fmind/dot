@@ -50,7 +50,7 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
 - **Expect silent no-ops on Free**: secret-scanning validity checks and non-provider patterns stay `disabled` after a PATCH on a public repository without an error; they need GitHub Secret Protection. Do not retry them.
 - **Rely on the owner's default security policy**: the public `fmind/.github` and `MLOps-Courses/.github` repositories supply `SECURITY.md` to every public repository without one, and point reporters to private vulnerability reporting; add a repository file only for a product-specific scope or supported-versions policy.
 - **Grant personal-repository access as write or nothing**: a repository owned by a user account has no read-only collaborator role (the API answers 422), so remove an inactive collaborator instead of downgrading; organization repositories accept `pull`.
-- **Apply organization settings once**: for `fmind-ai` and `MLOps-Courses`, require 2FA and SHA-pinned actions and set the "GitHub recommended" code security configuration as the default for new repositories at the organization level; those endpoints need the `admin:org` scope, and the 2FA requirement is a web setting.
+- **Apply organization settings once**: for `fmind-ai` and `MLOps-Courses`, require 2FA and SHA-pinned actions and set the "GitHub recommended" code security configuration as the default for new repositories at the organization level; those endpoints need the `admin:org` scope (`dot login github --grant admin:org`, then `dot setup github` to remove it), and the 2FA requirement is a web setting.
 
 ## Documentation
 

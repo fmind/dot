@@ -3,7 +3,7 @@
 import contextlib
 import json
 import os
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import PurePath
 from typing import Annotated, Any
 
@@ -11,7 +11,7 @@ import typer
 from pydantic import TypeAdapter, ValidationError
 
 from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, help_group
-from fmind_dot.config import LoginProvider, Project
+from fmind_dot.config import LoginProvider, Project, Scope
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.state import State, require_tools, state_from
@@ -93,6 +93,7 @@ _GOOGLE_SCOPE_ALIASES = {
     "email": "https://www.googleapis.com/auth/userinfo.email",
     "profile": "https://www.googleapis.com/auth/userinfo.profile",
 }
+_GOOGLE_SCOPE_PREFIX = "https://www.googleapis.com/auth/"
 
 
 def probe(state: State, args: list[str]) -> CommandResult:
@@ -170,21 +171,54 @@ def workspace_token_valid(status: object) -> bool | None:
     return True if status.get("token_valid") is True else None
 
 
-def workspace_ready(state: State) -> bool:
+def _google_scopes(scopes: Iterable[str]) -> set[str]:
+    return {_GOOGLE_SCOPE_ALIASES.get(scope, scope) for scope in scopes}
+
+
+def _google_scope(name: str) -> str:
+    """Expand a --grant short name; the OpenID Connect names openid, email, and profile take no URL prefix."""
+    if "://" in name or name == "openid":
+        return name
+    return _GOOGLE_SCOPE_ALIASES.get(name, f"{_GOOGLE_SCOPE_PREFIX}{name}")
+
+
+def one_off_scopes(
+    grants: Sequence[str], configured: Sequence[str], *, expand: Callable[[str], str] | None = None
+) -> list[str]:
+    """Validate --grant values, expand short names, and drop scopes the policy already requests."""
+    scopes: list[str] = []
+    for grant in grants:
+        scope = expand(grant) if expand else grant
+        try:
+            TypeAdapter(Scope).validate_python(scope)
+        except ValidationError as error:
+            raise typer.BadParameter(f"invalid scope {grant!r}", param_hint="--grant") from error
+        if scope not in configured and scope not in scopes:
+            scopes.append(scope)
+    return scopes
+
+
+def workspace_granted(state: State) -> set[str] | None:
+    """Granted Workspace scopes with aliases expanded: None when unauthenticated; raises when unknown."""
     status = probe_json(state, WORKSPACE_STATUS)
     valid = workspace_token_valid(status)
     if valid is False:
-        return False
+        return None
     scopes = status.get("scopes") if valid and isinstance(status, dict) else None
     if not isinstance(scopes, list) or not all(isinstance(scope, str) for scope in scopes):
         raise unknown("workspace")
-    granted = {_GOOGLE_SCOPE_ALIASES.get(scope, scope) for scope in scopes}
-    requested = {_GOOGLE_SCOPE_ALIASES.get(scope, scope) for scope in state.config.auth.workspace.scopes}
-    return requested <= granted
+    return _google_scopes(scopes)
 
 
-def login_workspace(state: State, *, force: bool = False, dry_run: bool = False) -> None:
-    args = ["gws", "auth", "login", "--scopes", ",".join(state.config.auth.workspace.scopes)]
+def workspace_ready(state: State, grants: Sequence[str] = ()) -> bool:
+    granted = workspace_granted(state)
+    return granted is not None and _google_scopes([*state.config.auth.workspace.scopes, *grants]) <= granted
+
+
+def login_workspace(state: State, *, force: bool = False, dry_run: bool = False, grants: Sequence[str] = ()) -> None:
+    configured = state.config.auth.workspace.scopes
+    extra = one_off_scopes(grants, configured, expand=_google_scope)
+    args = ["gws", "auth", "login", "--scopes", ",".join([*configured, *extra])]
     if dry_run:
         execute(state, args, dry_run=True)
         return
@@ -194,13 +228,36 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False)
         raise DotError(
             "external Workspace credentials override stored OAuth; unset GOOGLE_WORKSPACE_CLI_TOKEN or GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE before using dot login workspace"
         )
-    if not force and workspace_ready(state):
+    granted = None if force else workspace_granted(state)
+    if granted is not None and _google_scopes([*configured, *extra]) <= granted:
         print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
+        # gws keeps a one-off grant until a forced login replaces it with the configured list.
+        lingering = sorted(granted - _google_scopes([*configured, *extra]))
+        if lingering and not extra:
+            print(
+                f"Workspace also holds scopes outside auth.workspace.scopes: {', '.join(lingering)}. "
+                "Run dot login workspace --force to drop them.",
+                file=state.stderr,
+            )
         return
     # gws prints its OAuth URL on stderr; the user opens it.
+    if os.environ.get("SOMMELIER_VERSION"):
+        # gws redirects to http://localhost:PORT but listens on 127.0.0.1 only; ChromeOS forwards the
+        # IPv4 loopback into Crostini, while its localhost attempt stalls, so the tab hangs after Allow.
+        print(
+            "ChromeOS: if the tab hangs after Allow, replace localhost with 127.0.0.1 in its address and press Enter.",
+            file=state.stderr,
+        )
     change(state, args)
-    if not workspace_ready(state):
-        raise DotError("Workspace login did not satisfy the configured scopes; inspect gws auth status and retry")
+    if not workspace_ready(state, extra):
+        requested = "configured and one-off scopes" if extra else "configured scopes"
+        raise DotError(f"Workspace login did not satisfy the {requested}; inspect gws auth status and retry")
+    if extra:
+        print(
+            f"One-off Workspace scopes granted: {', '.join(extra)}. "
+            "Run dot login workspace --force to return to the configured grant.",
+            file=state.stderr,
+        )
 
 
 def github_status(state: State) -> dict[str, Any] | None:
@@ -232,7 +289,7 @@ def github_entry(status: object) -> dict[str, Any] | None:
     raise unknown("github")
 
 
-def github_ready(state: State, entry: dict[str, Any] | None, *, reconcile: bool) -> bool:
+def github_ready(state: State, entry: dict[str, Any] | None, *, reconcile: bool, grants: Sequence[str] = ()) -> bool:
     if entry is None:
         return False
     raw = entry.get("scopes")
@@ -243,12 +300,16 @@ def github_ready(state: State, entry: dict[str, Any] | None, *, reconcile: bool)
     scopes = {scope.strip() for scope in raw.split(",")}
     granted = scopes | set().union(*(_GITHUB_IMPLIED.get(scope, set()) for scope in scopes))
     policy = state.config.auth.github
-    return set(policy.scopes) <= granted and (not reconcile or not set(policy.remove_scopes) & scopes)
+    return {*policy.scopes, *grants} <= granted and (not reconcile or not set(policy.remove_scopes) & scopes)
 
 
-def login_github(state: State, *, reconcile: bool = False, force: bool = False, dry_run: bool = False) -> None:
+def login_github(
+    state: State, *, reconcile: bool = False, force: bool = False, dry_run: bool = False, grants: Sequence[str] = ()
+) -> None:
     policy = state.config.auth.github
-    args = ["gh", "auth", "login", "--hostname", GITHUB_HOST, "--scopes", ",".join(policy.scopes)]
+    # A one-off grant is a deliberate exception to the policy, so setup never requests one.
+    extra = [] if reconcile else one_off_scopes(grants, policy.scopes)
+    args = ["gh", "auth", "login", "--hostname", GITHUB_HOST, "--scopes", ",".join([*policy.scopes, *extra])]
     refresh = ["gh", "auth", "refresh", *args[3:]]
     if reconcile and policy.remove_scopes:
         refresh.extend(["--remove-scopes", ",".join(policy.remove_scopes)])
@@ -261,7 +322,7 @@ def login_github(state: State, *, reconcile: bool = False, force: bool = False, 
             execute(state, refresh, dry_run=True)
         return
     entry = None if force else github_status(state)
-    if not force and github_ready(state, entry, reconcile=reconcile):
+    if not force and github_ready(state, entry, reconcile=reconcile, grants=extra):
         print("GitHub is already authenticated with the requested scope policy.", file=state.stderr)
         warn_plaintext_github_token(state, entry)
         return
@@ -278,11 +339,17 @@ def login_github(state: State, *, reconcile: bool = False, force: bool = False, 
         if reconcile and policy.remove_scopes:
             change(state, refresh, env=env)
     entry = github_status(state)
-    if not github_ready(state, entry, reconcile=reconcile):
-        raise DotError(
-            "GitHub authentication did not satisfy the configured scope policy; inspect gh auth status and retry"
-        )
+    if not github_ready(state, entry, reconcile=reconcile, grants=extra):
+        requested = "configured scope policy and one-off scopes" if extra else "configured scope policy"
+        raise DotError(f"GitHub authentication did not satisfy the {requested}; inspect gh auth status and retry")
     warn_plaintext_github_token(state, entry)
+    if extra:
+        excluded = [scope for scope in extra if scope in policy.remove_scopes]
+        others = [scope for scope in extra if scope not in policy.remove_scopes]
+        notes = [f"dot setup github removes {', '.join(excluded)}"] if excluded else []
+        if others:
+            notes.append(f"gh auth refresh -h {GITHUB_HOST} --remove-scopes {','.join(others)} removes the rest")
+        print(f"One-off GitHub scopes granted: {', '.join(extra)}; {'; '.join(notes)}.", file=state.stderr)
 
 
 def github_git_protocol(state: State) -> list[str]:
@@ -574,7 +641,39 @@ def login_default(
         raise typer.BadParameter("place options after the provider, as in dot login gcp --check")
 
 
+GrantScopes = Annotated[
+    list[str] | None,
+    typer.Option("--grant", metavar="SCOPE", help="Also request this one-off scope; repeat for several"),
+]
+_GRANT_EPILOGS: dict[LoginProvider, str] = {
+    "workspace": "A --grant scope (a URL, or a short name such as admin.directory.user.security) "
+    "lasts until dot login workspace --force restores the configured grant.",
+    "github": "A --grant scope listed in auth.github.remove_scopes (such as write:public_key) lasts until "
+    "dot setup github or dot login removes it; for any other scope, the login prints its removal command.",
+}
+
+
 def _add_login(provider: LoginProvider, description: str, login: Callable[..., None]) -> None:
+    if provider in _GRANT_EPILOGS:
+
+        @login_app.command(provider, help=description, epilog=f"{_GRANT_EPILOGS[provider]} {_LOGIN_EPILOG}")
+        def grant_command(
+            context: typer.Context,
+            force: ForceLogin = False,
+            dry_run: DryRun = False,
+            check: CheckLogin = False,
+            grant: GrantScopes = None,
+        ) -> None:
+            state = state_from(context)
+            if check:
+                if grant:
+                    raise typer.BadParameter("--check cannot be combined with --grant", param_hint="--check")
+                check_logins(state, [provider], f"dot login {provider}", force=force, dry_run=dry_run)
+                return
+            login(state, force=force, dry_run=dry_run, grants=grant or ())
+
+        return
+
     @login_app.command(provider, help=description, epilog=_LOGIN_EPILOG)
     def command(
         context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False

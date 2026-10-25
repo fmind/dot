@@ -22,7 +22,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    dot doctor --deep --json | jq -c '.checks[] | select(.group == "auth") | {name, status, condition, details}'
    ```
 
-1. **Check scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes`, `auth.workspace.scopes`, and `auth.gcp.adc_scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes.
+1. **Check scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes`, `auth.workspace.scopes`, and `auth.gcp.adc_scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes; a scope beyond the policy is a one-off grant still held, so report it with its removal command (`dot setup github`, `dot login workspace --force`).
 1. **Probe other named connectors**: only those the task or user names, each read-only with its exit status checked:
 
    | Provider     | Probe                                                                                       | Recovery                                                 |
@@ -45,7 +45,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    done
    ```
 
-1. **Report and hand off**: one table of provider, account (no token), status, scopes gap, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login` or `dot login github|workspace|gcp|colab` over native commands. When the user says they logged in, re-run only the failed probes.
+1. **Report and hand off**: for each provider, give the account (no token), status, scope gaps, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login` or `dot login github|workspace|gcp|colab` over native commands. When the user says they logged in, re-run only the failed probes.
 
 ## Gotchas
 

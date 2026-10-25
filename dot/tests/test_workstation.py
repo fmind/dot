@@ -237,8 +237,16 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "yt-analytics.readonly",
         # Management scopes the brain's google CLI narrows its explicit writes to.
         "analytics.edit",
+        "analytics.manage.users",
         "business.manage",
         "webmasters",
+        # Read-only Admin, Analytics access and Chrome management scopes the google CLI reads with.
+        "admin.directory.user.readonly",
+        "admin.directory.group.readonly",
+        "admin.reports.usage.readonly",
+        "analytics.manage.users.readonly",
+        "chrome.management.policy.readonly",
+        "chrome.management.reports.readonly",
         # Read-only scopes the brain's gws collectors narrow their tokens to, and the audit-log reader.
         "admin.reports.audit.readonly",
         "calendar.readonly",
@@ -260,6 +268,8 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "analyticsadmin",
         "analyticsdata",
         "businessprofileperformance",
+        "chromemanagement",
+        "chromepolicy",
         "mybusinessaccountmanagement",
         "mybusinessbusinessinformation",
         "pagespeedonline",
@@ -283,6 +293,87 @@ def test_workspace_grant_missing_borrowed_scope_logs_in(provider: RecordingRunne
     provider.responses = [workspace_status(scopes=granted), workspace_status()]
     cli(["login", "workspace"])
     assert borrowed in provider.actions[0][-1].split(",")
+
+
+ONE_OFF = "https://www.googleapis.com/auth/admin.directory.user.security"
+
+
+def test_workspace_one_off_grant_extends_the_login_and_names_the_restore(provider: RecordingRunner) -> None:
+    configured = Config().auth.workspace.scopes
+    provider.responses = [workspace_status(), workspace_status(scopes=[*configured, ONE_OFF])]
+    # OpenID Connect names take no URL prefix, so these match configured scopes instead of inventing invalid ones.
+    grants = ["--grant", "admin.directory.user.security", "--grant", "email", "--grant", "openid"]
+    result = cli(["login", "workspace", *grants])
+    assert provider.actions == [["gws", "auth", "login", "--scopes", ",".join([*configured, ONE_OFF])]]
+    assert "dot login workspace --force" in result.stderr
+
+
+@pytest.mark.parametrize(("sommelier", "hinted"), [("1", True), ("", False)])
+def test_workspace_login_explains_the_chromeos_loopback_hang(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, sommelier: str, hinted: bool
+) -> None:
+    monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
+    provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
+    result = cli(["login", "workspace"])
+    assert ("replace localhost with 127.0.0.1" in result.stderr) is hinted
+
+
+def test_workspace_lingering_one_off_scope_is_reported_without_login(provider: RecordingRunner) -> None:
+    provider.responses = [workspace_status(scopes=[*Config().auth.workspace.scopes, ONE_OFF])]
+    result = cli(["login", "workspace"])
+    assert not provider.actions
+    assert ONE_OFF in result.stderr
+    assert "--force" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["login", "workspace", "--grant", "bad scope"],
+        ["login", "github", "--grant", "write public key"],
+        ["login", "github", "--grant", "write:public_key", "--check"],
+    ],
+)
+def test_invalid_or_checked_grant_fails_before_probes(provider: RecordingRunner, arguments: list[str]) -> None:
+    result = CliRunner().invoke(app, arguments)
+    assert result.exit_code != 0
+    assert not provider.calls
+
+
+def test_github_one_off_grant_refreshes_and_names_its_removal(provider: RecordingRunner) -> None:
+    configured = Config().auth.github.scopes
+    provider.responses = [github_status(), github_status(scopes=[*configured, "write:public_key"])]
+    result = cli(["login", "github", "--grant", "write:public_key"])
+    [refresh] = provider.actions
+    assert refresh[:3] == ["gh", "auth", "refresh"]
+    assert "write:public_key" in refresh[refresh.index("--scopes") + 1].split(",")
+    assert "--remove-scopes" not in refresh
+    assert "dot setup github removes write:public_key" in result.stderr
+
+
+def test_github_one_off_grant_outside_the_policy_names_its_own_removal(provider: RecordingRunner) -> None:
+    configured = Config().auth.github.scopes
+    provider.responses = [github_status(), github_status(scopes=[*configured, "write:discussion"])]
+    result = cli(["login", "github", "--grant", "write:discussion"])
+    assert "gh auth refresh -h github.com --remove-scopes write:discussion removes the rest" in result.stderr
+    assert "dot setup github removes" not in result.stderr
+
+
+def test_github_unsatisfied_one_off_grant_is_named_in_the_failure(provider: RecordingRunner) -> None:
+    provider.responses = [github_status(), github_status()]
+    result = CliRunner().invoke(app, ["login", "github", "--grant", "write:public_key"])
+    assert result.exit_code == 1
+    assert "configured scope policy and one-off scopes" in str(result.exception)
+
+
+def test_github_defaults_read_keys_and_packages_but_exclude_their_writes() -> None:
+    github = Config().auth.github
+    assert {"read:gpg_key", "read:packages", "read:public_key", "read:ssh_signing_key", "project"} <= set(github.scopes)
+    one_off = {"write:gpg_key", "write:packages", "write:public_key", "write:ssh_signing_key"}
+    assert one_off <= set(github.remove_scopes)
+    assert not one_off & set(github.scopes)
+    # gh always requests repo, read:org and gist and cannot remove them, so removing one would never settle.
+    assert {"gist", "read:org", "repo"} <= set(github.scopes)
 
 
 @pytest.mark.parametrize("arguments", [["login", "github"], ["setup", "github"]])
@@ -313,8 +404,9 @@ def test_github_keyring_or_environment_token_does_not_warn(provider: RecordingRu
 
 
 def test_github_normalized_grants_skip_login(provider: RecordingRunner) -> None:
+    # GitHub reports write:packages alone once it is granted: it implies read:packages.
     scopes = [scope for scope in Config().auth.github.scopes if scope != "read:packages"]
-    provider.responses = [github_status(scopes=scopes)]
+    provider.responses = [github_status(scopes=[*scopes, "write:packages"])]
     cli(["login", "github"])
     assert not provider.actions
 
@@ -333,21 +425,27 @@ def test_github_setup_reconciles_excluded_scopes_once(provider: RecordingRunner)
 
 
 def test_github_admin_signing_key_scope_satisfies_login(provider: RecordingRunner) -> None:
-    scopes = [scope for scope in Config().auth.github.scopes if scope != "write:ssh_signing_key"]
+    scopes = [scope for scope in Config().auth.github.scopes if scope != "read:ssh_signing_key"]
     provider.responses = [github_status(scopes=[*scopes, "admin:ssh_signing_key"])]
     cli(["login", "github"])
     assert not provider.actions
 
 
-def test_github_setup_removes_admin_scopes_and_keeps_signing_key_writes(provider: RecordingRunner) -> None:
-    granted = [*Config().auth.github.scopes, "admin:org", "admin:ssh_signing_key"]
+def test_github_setup_removes_one_off_writes_and_keeps_key_reads(provider: RecordingRunner) -> None:
+    granted = [*Config().auth.github.scopes, "admin:org", "write:public_key", "write:ssh_signing_key"]
     provider.responses = [github_status(scopes=granted), github_status()]
     cli(["setup", "github"])
     [refresh] = provider.actions
     requested = set(refresh[refresh.index("--scopes") + 1].split(","))
     removed = set(refresh[refresh.index("--remove-scopes") + 1].split(","))
-    assert "write:ssh_signing_key" in requested
-    assert {"admin:org", "admin:ssh_signing_key", "delete_repo"} <= removed
+    assert {"read:public_key", "read:ssh_signing_key"} <= requested
+    assert {
+        "admin:org",
+        "delete_repo",
+        "write:packages",
+        "write:public_key",
+        "write:ssh_signing_key",
+    } <= removed
     assert not requested & removed
 
 
