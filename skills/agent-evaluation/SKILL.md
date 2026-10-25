@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Agent Evaluation
@@ -20,7 +20,7 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 1. **Change one factor at a time**: freeze code, prompt, tools, retrieval snapshot, model version, settings, and grader versions; label unpinned provider behavior as a reproducibility limit.
 1. **Keep held-out cases sealed**: never tune on decision cases and still call them unseen.
 1. **Grade outcomes, not prose**: prefer executable checks and inspected state; calibrate semantic judges against labeled examples, blind candidate identity, and escalate consequential disagreements to a human.
-1. **Report every trial**: paired repeated trials on the same cases with fresh state; keep failures, timeouts, and refusals, never cherry-pick retries; report per-case outcomes, cost, and latency with the uncertainty method fixed in the brief.
+1. **Report every trial**: paired repeated trials on the same cases with fresh state; keep failures, timeouts, and refusals, never cherry-pick retries; record per-case outcomes, cost, and latency in a results file, and report the verdict with its uncertainty, using the method fixed in the brief.
 1. **Decide against the declared criteria**: adopt, iterate, reject, or inconclusive; adoption does not authorize production changes.
 
 ## Gotchas

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Trim
@@ -31,7 +31,7 @@ Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a reque
    - **Verbose constructions**: lists that can be one sentence, sentences that can be a clause, examples that only repeat the rule.
 1. **Never cut**: facts with their evidence, numbers and dates, exact commands and flags, non-obvious gotchas with their reason, security and authority boundaries, links and citations, required structure (frontmatter, anchored headings, generated-index markers), the documentation URL comment at the top of a configuration, comments explaining a non-default choice, and anything the user asked to keep. Preserve the author's voice and stance; do not rewrite into a different style.
 1. **Prove equivalence**: re-capture the effective configuration and diff it (it must be identical); re-run affected checks and tests; for prose, walk the survival list and confirm each item is still present or deliberately dropped with a reason. Run the repository's formatter and link checks for edited files.
-1. **Report**: before/after lines, words, and tokens with the percentage, the categories removed, and any candidate cut you kept because it looked load-bearing. Ask before removing anything ambiguous instead of guessing.
+1. **Report**: before/after lines, words, and tokens with the percentage, the categories removed, and any candidate cut you kept because it seemed necessary. Ask before removing anything ambiguous instead of guessing.
 
 ## Gotchas
 
