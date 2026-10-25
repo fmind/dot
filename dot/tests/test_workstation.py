@@ -1,5 +1,6 @@
 """Public workstation workflows use recorded providers, never real credentials or caches."""
 
+import io
 import json
 import threading
 from collections.abc import Mapping, Sequence
@@ -14,7 +15,8 @@ from fmind_dot.cli import app
 from fmind_dot.config import CacheProvider, Config, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
-from fmind_dot.workstation import CACHE_TOOLS
+from fmind_dot.state import State
+from fmind_dot.workstation import CACHE_TOOLS, run_prune
 
 
 def test_setup_without_arguments_shows_help() -> None:
@@ -135,6 +137,8 @@ def provider(monkeypatch: pytest.MonkeyPatch) -> RecordingRunner:
         "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE",
         "CLOUDSDK_AUTH_ACCESS_TOKEN",
         "DOT_CONFIG_PATH",
+        # A caller's own uv lock timeout would replace the one prune sets.
+        "UV_LOCK_TIMEOUT",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(Runner, "which", fake.which)
@@ -811,6 +815,40 @@ def test_prune_aggressive_asks_first_then_empties_whole_caches(provider: Recordi
         ["trivy", "clean", "--all"],
         ["uv", "cache", "clean"],
     ]
+
+
+class _TerminalInput(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_prune_aggressive_asks_only_about_caches_it_empties(provider: RecordingRunner) -> None:
+    prompts = io.StringIO()
+    state = State(stdin=_TerminalInput("y\n"), stdout=io.StringIO(), stderr=prompts)
+    state.__dict__["_config"] = Config()
+    run_prune(state, ["hf", "uv"], aggressive=True)
+    assert "Empty the whole caches for uv (" in prompts.getvalue()
+
+    # hf has no aggressive step, so its default cleanup runs without a prompt or terminal.
+    cli(["prune", "hf", "--aggressive"])
+    assert provider.actions == [
+        ["hf", "cache", "prune", "--yes"],
+        ["uv", "cache", "clean"],
+        ["hf", "cache", "prune", "--yes"],
+    ]
+
+
+@pytest.mark.parametrize(
+    ("command", "providers"), [("cache", get_args(CacheProvider)), ("prune", get_args(PruneProvider))]
+)
+def test_cache_and_prune_complete_provider_names(
+    monkeypatch: pytest.MonkeyPatch, command: str, providers: tuple[str, ...]
+) -> None:
+    monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
+    monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
+    monkeypatch.setenv("_TYPER_COMPLETE_ARGS", f"dot {command} ")
+    result = CliRunner().invoke(app, prog_name="dot")
+    assert result.stdout.split() == ["all", *providers]
 
 
 def test_docker_prune_requires_explicit_selection(provider: RecordingRunner) -> None:
