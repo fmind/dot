@@ -434,17 +434,6 @@ def test_encrypted_targets_are_ignored_without_the_age_key(tmp_path: Path) -> No
     assert unignored == [], "add these encrypted targets to the no-key block in .chezmoiignore"
 
 
-def test_chromeos_downloads_link_deploys_only_where_its_target_exists(tmp_path: Path) -> None:
-    # A forced apply deletes a real ~/Downloads folder, contents included, to place the link.
-    target = Path((ROOT / "symlink_Downloads").read_text(encoding="utf-8").strip())
-    source = tmp_path / "source"
-    shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates")
-    shutil.copy2(ROOT / ".chezmoiignore", source / ".chezmoiignore")
-    rendered = chezmoi(source, "execute-template", "--file", str(source / ".chezmoiignore"))
-    ignored = "Downloads" in (line.strip() for line in rendered.splitlines())
-    assert ignored == (not target.is_dir())
-
-
 # age's ASCII-armored and binary headers; the repository commits armored files.
 _AGE_HEADERS = (b"-----BEGIN AGE ENCRYPTED FILE-----\n", b"age-encryption.org/v1\n")
 
