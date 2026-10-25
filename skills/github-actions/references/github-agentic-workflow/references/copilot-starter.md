@@ -54,20 +54,4 @@ Inspect only this repository. Produce one concise maintainer report with evidenc
 Do not speculate, modify files, or request any output other than the configured report issue. If evidence is missing, state the gap.
 ```
 
-Validate and compile it locally:
-
-```bash
-gh aw validate repository-report --strict
-gh aw compile repository-report
-git diff -- .github/workflows/repository-report.md .github/workflows/repository-report.lock.yml
-```
-
-After committing both files, preview the dispatch. A live run consumes GitHub Actions and Copilot capacity, while `safe-outputs.staged: true` prevents the proposed issue from being created.
-
-```bash
-gh aw run repository-report --dry-run
-gh aw run repository-report
-gh aw logs repository-report
-```
-
-Review the staged-output preview in the Actions summary. Only then remove `staged: true`, recompile, review the lock-file diff, and authorize another run.
+Then follow the [guide's validate, compile, and pilot steps](../GUIDE.md#workflow) with `repository-report` as the workflow name. A live run consumes GitHub Actions and Copilot capacity, while `safe-outputs.staged: true` prevents the proposed issue from being created.

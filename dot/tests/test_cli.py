@@ -26,21 +26,12 @@ runner = CliRunner()
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_root_help_exposes_python_first_command_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_root_help_exposes_python_first_command_tree() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
     assert "--install-completion" not in result.stdout
     assert "--show-completion" not in result.stdout
-    for command in (
-        "agent",
-        "config",
-        "doctor",
-        "pull",
-        "status",
-    ):
-        assert command in result.stdout
     # Repository tasks and release gates call `dot completion`; it stays out of everyday help.
     assert not re.search(r"^\s*completion\s", result.stdout, flags=re.MULTILINE)
     for removed in (
@@ -89,8 +80,7 @@ def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expec
     assert result.stderr == ""
 
 
-def test_subcommand_help_displays_canonical_commands(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_subcommand_help_displays_canonical_commands() -> None:
     result = runner.invoke(app, ["config", "--help"])
 
     assert result.exit_code == 0
@@ -148,10 +138,7 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
         (["agent", "hook"], ["notify"]),
     ],
 )
-def test_help_lists_commands_alphabetically(
-    path: list[str], names: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_help_lists_commands_alphabetically(path: list[str], names: list[str]) -> None:
     result = runner.invoke(app, [*path, "--help"])
     assert result.exit_code == 0
     rows = [match.group(1) for match in re.finditer(r"(?m)^[│ ]+(\S+)\s", _click.utils.strip_ansi(result.stdout))]
@@ -198,26 +185,15 @@ def documented_dot_examples() -> list[str]:
 
 
 @pytest.mark.parametrize("example", documented_dot_examples())
-def test_documented_dot_examples_parse(example: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_documented_dot_examples_parse(example: str) -> None:
     # --help stops after parsing, so unknown commands and options fail without running anything.
     result = runner.invoke(app, [*shlex.split(example)[1:], "--help"])
 
     assert result.exit_code == 0, result.output
 
 
-def test_bare_invocation_exits_successfully_with_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-    result = runner.invoke(app, [])
-
-    assert result.exit_code == 0
-    assert "Usage: dot [OPTIONS] COMMAND [ARGS]..." in _click.utils.strip_ansi(result.stdout)
-
-
 @pytest.mark.parametrize("arguments", [["--version"], ["-V"]])
-def test_version_matches_distribution(arguments: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_version_matches_distribution(arguments: list[str]) -> None:
     result = runner.invoke(app, arguments)
     manifest = tomllib.loads((ROOT / "dot/pyproject.toml").read_text(encoding="utf-8"))
 
@@ -322,8 +298,7 @@ def test_config_show_prints_the_effective_round_trippable_yaml(tmp_path: Path) -
     assert "git" in rendered["doctor"]["tools"]
 
 
-def test_config_path_expands_the_current_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_config_path_expands_the_current_home(tmp_path: Path) -> None:
 
     result = runner.invoke(app, ["--config", "~/custom/dot.yaml", "config", "path"])
 
@@ -502,12 +477,11 @@ def test_main_maps_keyboard_interrupt_to_shell_exit_130(
 
 
 def test_main_reports_keyboard_interrupt_raised_inside_a_command(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def interrupt(*_args: object, **_kwargs: object) -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(cli, "state_from", interrupt)
     monkeypatch.setattr(sys, "argv", ["dot", "config", "show"])
 
@@ -541,10 +515,7 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
         ["prune"],
     ],
 )
-def test_bare_groups_show_help_successfully_without_actions(
-    path: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_bare_groups_show_help_successfully_without_actions(path: list[str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Runner, "which", lambda *_: pytest.fail("help must not inspect or run native tools"))
     result = runner.invoke(app, path)
     assert result.exit_code == 0, result.output

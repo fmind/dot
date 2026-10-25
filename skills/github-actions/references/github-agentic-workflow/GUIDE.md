@@ -9,11 +9,23 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 
 ## Workflow
 
-1. **Choose the job**: use reasoning only where context changes the work; resolve repository, candidate git revision, expected output, and existing authority.
-1. **Inspect native support**: read `gh aw version` and the repository's generated dispatcher. Use [authoring.md](references/authoring.md) for setup, runtime identity, and lifecycle commands.
-1. **Constrain the candidate**: begin with read permissions, narrow tools/network, explicit budgets, staged safe outputs, and the [Copilot starter](references/copilot-starter.md).
-1. **Validate locally**: run `gh aw validate --strict` and `gh aw compile`; inspect source and lock output together before publication.
-1. **Pilot when authorized**: preview dispatch, then run within Actions/Copilot spend authority; inspect output, audit traces and credits, and remove staging only after evidence supports it.
+1. **Choose the job**: use reasoning only where context changes the work; use ordinary Actions when fixed inputs should produce predictable steps and outputs. Resolve repository, candidate git revision, expected output, and existing authority.
+1. **Install and diagnose**: require GitHub Actions, repository write access, an authenticated `gh` CLI, and Copilot access, then read the repository's generated dispatcher when present. Install the extension once; run `gh extension upgrade github/gh-aw` only when an upgrade is in scope, then review generated changes and revalidate.
+
+   ```bash
+   gh auth status
+   gh extension install github/gh-aw
+   gh aw version
+   gh aw doctor
+   ```
+
+1. **Initialize Copilot authoring**: run `gh aw init --engine copilot`, then review its `.gitattributes`, `.github/skills/`, `.github/agents/`, `.github/mcp.json`, and Copilot setup workflow changes with `git diff -- .gitattributes .github/`.
+1. **Choose one runtime identity** within authorized GitHub scope, per the [starter's authentication paths](references/copilot-starter.md#authentication): prefer organization-billed inference with `copilot-requests: write`; otherwise store a fine-grained PAT with the Copilot Requests account permission through `gh secret set COPILOT_GITHUB_TOKEN`, and never expose it to the prompt or agent tools.
+1. **Create the Markdown source**: run `gh aw new <workflow-name> --engine copilot` or ask the initialized Copilot agent `agentic-workflows create ...`; define the trigger, read permissions, tools, network, budgets, safe outputs, and precise instructions, adapting the [bounded Copilot starter](references/copilot-starter.md).
+1. **Constrain capabilities**: grant only required reads; restrict GitHub tools to the current repository and relevant toolsets; allowlist individual shell commands and network domains; prefer safe outputs over direct writes; set `staged: true`, `max-turns`, and both agent and threat-detection AI-credit caps for the first runs.
+1. **Validate and compile locally**: `gh aw validate --strict` runs the compiler linters without emitting files; `gh aw compile` writes `.github/workflows/<workflow-name>.lock.yml`. Review both with `git diff -- .github/workflows/` and commit the `.md` source and generated `.lock.yml` together.
+1. **Pilot when authorized**: preview with `gh aw run <workflow-name> --dry-run`; with explicit approval for Actions and Copilot spend, `gh aw run <workflow-name>` the committed workflow while safe outputs stay staged, then inspect `gh aw status --ref main`, `gh aw logs <workflow-name>`, and the Actions summary. Remove staging only after outputs are consistently correct, then recompile, review the lock diff, and authorize another run.
+1. **Audit and maintain**: `gh aw audit <run-id>` shows prompts, tool calls, network activity, tokens, and AI Credits. Run `gh aw upgrade` intentionally, review migrations and generated diffs, then repeat strict validation and compilation.
 
 ## Gotchas
 

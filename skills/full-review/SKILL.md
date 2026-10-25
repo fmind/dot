@@ -30,7 +30,7 @@ Parse the request into one line and state it before starting: scope (paths, othe
    - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; the layout follows its stack owner (such as [python-stack](../python-stack/SKILL.md)) and the [bootstrap layer](../project-scaffolding/references/bootstrap.md); hooks and CI call the canonical [mise](../mise/SKILL.md) tasks; ignore files fit the stack ([update-ignores](references/update-ignores/GUIDE.md); for an ignore-only request, run that guide alone).
    - **Secure and private**: secrets, permissions, dependencies, and agent tools ([code-security](../code-security/SKILL.md)); private repositories stay private and public ones disclose nothing sensitive.
    - **Documented**: `README.md`, `AGENTS.md`, skills, and `*.md` match behavior, stay concise, and convince their audience ([repository-docs](../repository-docs/SKILL.md)); repeated instructions become skills ([skillify](../skillify/SKILL.md)).
-   - **Fast**: slow tasks, tests, CI, or pages with a measured cause ([benchmark](../benchmark/SKILL.md)).
+   - **Fast**: slow tasks, tests, CI, or pages with a measured cause ([benchmark](../systematic-debugging/references/benchmark.md)).
 1. **Fix**: apply each verified finding with the smallest change; add a regression test for behavior fixes. Prefer one coherent change per finding so selective reverts stay easy. Hold back changes that are irreversible, outward-facing, costly, or that change a deliberate design, and list them as decisions.
 1. **Prove**: rerun only the checks a fix invalidated, then the full gate (`mise run all` or the repository's equivalent) on the final tree. Confirm the tested snapshot equals the candidate.
 1. **Report**: per the template below. Keep it short; evidence goes in file:line references, not narration.
@@ -76,4 +76,4 @@ Number decisions and suggestions so the user can answer "do 2, 3" or "all but 1"
 
 ## Documentation
 
-- Companion skills: [repository-review](../repository-review/SKILL.md) (severity and evidence), [production-readiness](../production-readiness/SKILL.md) (proof ladder), [quality-assurance](../quality-assurance/SKILL.md) (user-journey campaigns), [handoff](../handoff/SKILL.md) (continue in a fresh session).
+- Companion skills: [repository-review](../repository-review/SKILL.md) (severity and evidence), [production-readiness](../production-readiness/SKILL.md) (proof ladder), [quality-assurance](../quality-assurance/SKILL.md) (user-journey campaigns), [continuation](../task-prompts/references/continuation.md) (continue in a fresh session).

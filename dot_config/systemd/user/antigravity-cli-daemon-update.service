@@ -1,0 +1,11 @@
+# Docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html
+# Run nightly by antigravity-cli-daemon-update.timer. Any agy launch, background jobs included,
+# can update ~/.local/bin/agy at any hour, while the daemon keeps the replaced binary until it
+# restarts. A restart ends any remote task in progress, so only an outdated daemon restarts, at night.
+[Unit]
+Description=Restart agy's remote-control daemon if it runs an outdated binary
+
+[Service]
+Type=oneshot
+# stat -L follows /proc/PID/exe to the running binary, even once deleted; $$ and %% escape systemd.
+ExecStart=/bin/sh -c 'pid=$$(systemctl --user show -p MainPID --value antigravity-cli-daemon.service); [ "$${pid:-0}" -gt 0 ] || exit 0; [ "$$(stat -Lc %%i /proc/$$pid/exe)" = "$$(stat -Lc %%i %h/.local/bin/agy)" ] || exec systemctl --user try-restart antigravity-cli-daemon.service'

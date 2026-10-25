@@ -27,20 +27,17 @@ def test_jsonl_unicode_preserves_valid_conversation(separator: str, tmp_path: Pa
     path = tmp_path / "session.jsonl"
     content = f"private{separator}message"
     raw = {
-        "type": "response_item",
+        "type": "user",
         "timestamp": "2026-09-09T10:00:00Z",
-        "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": content}]},
+        "message": {"content": [{"type": "text", "text": content}]},
     }
     path.write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8")
-    parsed = agent_parsers.parse_codex_session(path, "test-session")
+    parsed = agent_parsers.parse_claude_session(path, "test-session")
     assert parsed.malformed == 0
     assert [log.content for log in parsed.logs] == [content]
 
 
-def test_recaptured_sessions_and_statistics_do_not_double_count(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_recaptured_sessions_and_statistics_do_not_double_count() -> None:
     logs = [
         SessionLog("2026-09-01T10:00:00Z", "codex", "example", "user", "private two words", "/work"),
         SessionLog("2026-09-01T10:00:01Z", "codex", "example", "assistant", "private answer", "/work"),
@@ -60,7 +57,6 @@ def test_recaptured_sessions_and_statistics_do_not_double_count(
 
 
 def test_project_dot_and_prompt_json_contract(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     ingest_session(
         "codex",
@@ -77,25 +73,14 @@ def test_project_dot_and_prompt_json_contract(monkeypatch: pytest.MonkeyPatch, t
     assert "hidden text" not in result.stdout
 
 
-def test_mixed_models_unknown_cost_and_comparable_statistics(tmp_path: Path) -> None:
-    path = tmp_path / "session.jsonl"
-    rows = []
-    for model, total in (("first", 100), ("second", 150)):
-        rows.extend(
-            [
-                {"type": "turn_context", "payload": {"model": model}},
-                {
-                    "type": "event_msg",
-                    "payload": {
-                        "type": "token_count",
-                        "info": {"total_token_usage": {"input_tokens": total, "total_tokens": total}},
-                    },
-                },
-            ]
-        )
-    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-    record = agent_parsers.parse_codex_session(path, "example").usage
-    assert record is not None
+def test_mixed_models_unknown_cost_and_comparable_statistics() -> None:
+    # An archived Codex session that switched models without dated requests stays one mixed measurement.
+    record = UsageRecord(
+        harness="codex", session_id="example", measurement_kind="provider-reported", input_tokens=150, total_tokens=150
+    )
+    for model in ("first", "second"):
+        record.observe_model(model)
+    record = record.finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     assert record.model == "mixed"
     assert record.total_tokens == 150
     assert record.to_dict()["cost_usd"] is None
@@ -166,8 +151,7 @@ def test_real_repository_selection_and_attention_statistics(tmp_path: Path) -> N
     assert not (checkout / ".git/FETCH_HEAD").exists()
 
 
-def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
     status = [repository.RepositoryStatus("repo", "work", error="inspection failed")]
     monkeypatch.setattr(repository, "gather_status", lambda *_args, **_kwargs: status)
     result = CliRunner().invoke(app, ["status", "--json"])
@@ -175,8 +159,7 @@ def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.Monke
     assert json.loads(result.stdout)["complete"] is False
 
 
-def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_targeted_sync_preview_preserves_archive(tmp_path: Path) -> None:
     source = tmp_path / "claude"
     source.mkdir()
     (source / "selected.jsonl").write_text(
@@ -193,16 +176,14 @@ def test_targeted_sync_preview_preserves_archive(monkeypatch: pytest.MonkeyPatch
         sync_sessions(state, agent="typo")
 
 
-def test_prompt_stats_treat_offsetless_timestamps_as_utc(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_prompt_stats_treat_offsetless_timestamps_as_utc() -> None:
     ingest_session("codex", "naive-time", [SessionLog("2026-09-02T10:00:00", "codex", "naive-time", "user", "text")])
     report = prompt_statistics(SessionQuery(since=datetime(2026, 9, 2, 9, tzinfo=UTC)))
     assert report["invalid_timestamps"] == 0
     assert report["prompts"] == 1
 
 
-def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_prompt_stats_report_timestamp_and_archive_gaps() -> None:
     ingest_session("codex", "missing-time", [SessionLog("", "codex", "missing-time", "user", "text")])
     bounded = SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC))
     report = prompt_statistics(bounded, by_project=True)
@@ -214,25 +195,22 @@ def test_prompt_stats_report_timestamp_and_archive_gaps(monkeypatch: pytest.Monk
     assert prompt_statistics(inverted)["prompts"] == 0
 
 
-def test_prompt_stats_validate_selected_sessions_and_report_corruption(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    logs = [SessionLog("2026-09-09T10:00:00Z", "codex", "example", "user", "private text")]
-    ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64))
-    other = [SessionLog("2026-09-09T10:00:00Z", "claude", "other", "user", "other text")]
-    ingest_session("claude", "other", other)
-    path = session_bundle_path("codex", "example")
+def test_prompt_stats_validate_selected_sessions_and_report_corruption() -> None:
+    logs = [SessionLog("2026-09-09T10:00:00Z", "claude", "example", "user", "private text")]
+    ingest_session("claude", "example", logs, SessionSource(fingerprint="a" * 64))
+    other = [SessionLog("2026-09-09T10:00:00Z", "agy", "other", "user", "other text")]
+    ingest_session("agy", "other", other)
+    path = session_bundle_path("claude", "example")
     header = path.read_bytes().split(b"\n", 1)[0]
-    assert prompt_statistics(SessionQuery(agent="codex"))["complete"]
-    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--agent", "codex"])
+    assert prompt_statistics(SessionQuery(agent="claude"))["complete"]
+    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--agent", "claude"])
     assert human.exit_code == 0
     assert "Prompt activity · 1 archived user messages" in human.stdout
     assert "Sessions: 1 · Prompts: 1 · Responses: 0" in human.stdout
     assert "Prompt coverage: complete" in human.stdout
     assert "private text" not in human.stdout
     path.write_bytes(header + b"\ncorrupt\n")
-    broken = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--json", "--agent", "codex"])
+    broken = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--json", "--agent", "claude"])
     assert broken.exit_code != 0
     document = json.loads(broken.stdout)["prompts"]
     assert not document["complete"]

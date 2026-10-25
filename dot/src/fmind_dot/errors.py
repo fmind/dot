@@ -7,3 +7,7 @@ class DotError(RuntimeError):
 
 class CommandTimeoutError(DotError):
     """A bounded command exceeded its deadline and was terminated."""
+
+
+class NotGitWorkTreeError(DotError):
+    """A path that git does not place inside any work tree."""

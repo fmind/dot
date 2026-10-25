@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # Cloud Run Deployment
@@ -41,4 +41,4 @@ Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google
 
 - [Cloud Run](https://docs.cloud.google.com/run/docs) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs) · [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation)
 - Releases: [Cloud Run](https://docs.cloud.google.com/run/docs/release-notes) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs/release-notes)
-- Companion skills: [containerize](../docker/references/containerize/GUIDE.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [sops-secrets](../sops-secrets/SKILL.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), and [code-security](../code-security/references/code-review/GUIDE.md).
+- Companion skills: [containerize](../docker/references/containerize/GUIDE.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), and [code-security](../code-security/references/code-review/GUIDE.md).

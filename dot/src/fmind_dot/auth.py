@@ -84,7 +84,7 @@ GCLOUD_CLI_TOKEN = ["gcloud", "auth", "print-access-token"]
 GITHUB_STATUS = ["gh", "auth", "status", "--active", "--hostname", GITHUB_HOST, "--json", "hosts"]
 WORKSPACE_STATUS = ["gws", "auth", "status"]
 COLAB_SESSIONS = ["colab", "--auth=adc", "sessions"]
-_PROBE_TIMEOUT_SECONDS = 45.0
+PROBE_TIMEOUT_SECONDS = 45.0
 # Workspace setup lists and enables APIs through gcloud and Colab shares ADC, so GCP precedes both.
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace", "colab")
 # One worker per distinct readiness probe: the five probes are I/O-bound native CLIs.
@@ -104,7 +104,7 @@ def probe(state: State, args: list[str]) -> CommandResult:
         return cached
     require_tools(state, [args])
     try:
-        result = state.runner.run(args, timeout=_PROBE_TIMEOUT_SECONDS, check=False)
+        result = state.runner.run(args, timeout=PROBE_TIMEOUT_SECONDS, check=False)
     except DotError as error:
         # Reuse a timeout too: the sequential step after warm_probes must not wait for it again.
         state.probes[key] = error

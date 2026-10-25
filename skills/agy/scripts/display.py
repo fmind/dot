@@ -182,17 +182,21 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
     artifacts = number(payload.get("artifact_count"), 10000)
     if artifacts:
         segments.append((f"{ICONS['artifacts']} {artifacts:.0f} artifacts", "90", 7))
-    quotas = [
-        (fraction, number(record(bucket).get("reset_in_seconds"), 10**8))
-        for bucket in record(payload.get("quota")).values()
-        if (fraction := number(record(bucket).get("remaining_fraction"), 1)) is not None
+    buckets = [
+        (str(key).lower(), (fraction, number(item.get("reset_in_seconds"), 10**8)))
+        for key, raw in record(payload.get("quota")).items()
+        if (item := record(raw)).get("disabled") is not True
+        and (fraction := number(item.get("remaining_fraction"), 1)) is not None
     ]
-    # Multiple buckets need not belong to the selected model; label the minimum explicitly.
+    model_key = f"{clean(model.get('id'))} {model_name}".lower()
+    family = ("gemini-" if "gemini" in model_key or "flash" in model_key else "3p-") if model_name else ""
+    # Prefer the active model family's enabled buckets (gemini-* vs 3p-*); fall back to all enabled buckets.
+    quotas = [q for key, q in buckets if family and key.startswith(family)] or [q for _, q in buckets]
     if quotas:
         fraction, reset = min(quotas, key=lambda q: q[0])
         remaining = fraction * 100
         # Battery glyphs run full (U+F240) to empty (U+F244).
-        text = f"{chr(0xF244 - round(fraction * 4))} quota min {remaining:.0f}% left"
+        text = f"{chr(0xF244 - round(fraction * 4))} quota {remaining:.0f}% left"
         if reset:
             text += f" ↻ {duration(reset)}"
         segments.append((text, "31" if remaining <= 5 else "33" if remaining <= 20 else "90", 4))

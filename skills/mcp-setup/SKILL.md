@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-setup
   created: "2026-06-23"
-  updated: "2026-10-07"
+  updated: "2026-10-25"
 ---
 
 # MCP Setup

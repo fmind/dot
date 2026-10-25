@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Fmind Visual Communication
 
-Apply the customer's brand when the work belongs to one; otherwise the Fmind design in `~/.agents/DESIGN.md` ([source](https://github.com/fmind/theme/blob/main/DESIGN.md)): readable typography, spacious composition, and evidence-backed claims. [Technical publishing](../technical-publishing/SKILL.md) owns article production.
+Apply the customer's brand when the work belongs to one; otherwise the Fmind design in `~/.agents/DESIGN.md` ([source](https://github.com/fmind/theme/blob/main/DESIGN.md)): readable typography, spacious composition, and evidence-backed claims. A publishing project's local skills own article production.
 
 ## Workflow
 
@@ -40,4 +40,4 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind des
 - [Fmind website](https://www.fmind.dev/) · [Typst](https://typst.app/docs/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
 - Releases: [Typst](https://github.com/typst/typst/releases)
 - [VHS documentation](https://github.com/charmbracelet/vhs) · Releases: [VHS](https://github.com/charmbracelet/vhs/releases)
-- Companion skills: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2) and [technical-publishing](../technical-publishing/SKILL.md) (Fmind articles).
+- Companion skills: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2).

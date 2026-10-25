@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-10-05"
+  updated: "2026-10-25"
 ---
 
 # GitHub Issues
@@ -28,7 +28,7 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 
 1. **Load discussion when relevant**: fetch comments separately when decisions, acceptance criteria, or requested replies depend on them; preserve that context before editing. Narrow or paginate a search that reaches its limit before claiming no duplicate exists.
 1. **Deduplicate**: update the existing issue that represents the same outcome; keep reproduction, acceptance criteria, dependencies, decisions, and proof; drop stale logs and duplicate checklists.
-1. **Draft before creating**: for multiple findings or dependency-aware work, apply the [backlog workflow](references/backlog.md) and [draft contract](references/draft-contract.md), present the reviewable set, and stop unless issue creation is already authorized.
+1. **Draft before creating**: for multiple findings or dependency-aware work, apply the [backlog workflow](references/backlog.md), present the reviewable set, and stop unless issue creation is already authorized.
 1. **Apply one bounded mutation** the user authorized. Write substantial bodies to a temporary file and pass `--body-file`; avoid shell interpolation and interactive prompts:
 
    ```bash

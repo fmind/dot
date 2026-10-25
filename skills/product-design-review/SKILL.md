@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/product-design-review
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-25"
 ---
 
 # Product Design Review
 
-Judge whether a real user can understand, trust, and complete the surface's primary job, then improve only what the requested scope authorizes; [quality-assurance](../quality-assurance/SKILL.md) owns the test campaign and [fmind-visuals](../fmind-visuals/SKILL.md) owns Fmind brand truth.
+Judge whether a real user can understand, trust, and complete the surface's primary job, then improve only what the requested scope authorizes; [quality-assurance](../quality-assurance/SKILL.md) owns the test campaign and `~/.agents/DESIGN.md` owns the Fmind brand.
 
 ## Workflow
 

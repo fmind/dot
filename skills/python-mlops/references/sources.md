@@ -1,4 +1,4 @@
-# Source Map and Local Adaptations
+# Source Map
 
 Reviewed on 2026-09-16. These immutable snapshots ground the workflow; they do not pin dependencies in projects using this skill. Read the relevant installed implementation or current primary documentation before using version-sensitive APIs.
 
@@ -9,16 +9,6 @@ Reviewed on 2026-09-16. These immutable snapshots ground the workflow; they do n
 | [Cookiecutter MLOps package](https://github.com/fmind/cookiecutter-mlops-package/tree/68cb3f1d34f3edc3ca6bd41afda84fb2216e1ebd) | `68cb3f1d34f3edc3ca6bd41afda84fb2216e1ebd` | `cookiecutter.json`, generated package/configuration, README qualification boundaries, and `tests/test_cookiecutter.py`.                                    | [MIT, Médéric Hurier](https://github.com/fmind/cookiecutter-mlops-package/blob/68cb3f1d34f3edc3ca6bd41afda84fb2216e1ebd/LICENSE.txt) |
 | [MLOps Python package](https://github.com/fmind/mlops-python-package/tree/a8a6ab1a4a479c72f8eb989b4390cae42995f751)             | `a8a6ab1a4a479c72f8eb989b4390cae42995f751` | `src/bikes/core`, `io/configs.py`, `io/registries.py`, `io/services.py`, `jobs/`, `utils/splitters.py`, `confs/`, and `mise.toml`.                          | [MIT, Médéric Hurier](https://github.com/fmind/mlops-python-package/blob/a8a6ab1a4a479c72f8eb989b4390cae42995f751/LICENSE.txt)       |
 
-Attribution: Médéric Hurier (Fmind) and MLOps Courses. This is an original, condensed operational synthesis with the changes below; upstream prose, code, and complete chapter skills are not vendored. Their licenses continue to govern their source material. Use the [vendor-skill policy](../../agent-project/references/vendor-skills.md) if a project needs an actual upstream skill installation.
+Attribution: Médéric Hurier (Fmind) and MLOps Courses. This is an original, condensed operational synthesis whose guides record each deliberate adaptation; upstream prose, code, and complete chapter skills are not vendored. Their licenses continue to govern their source material. Use the [vendor-skill policy](../../agent-project/references/vendor-skills.md) if a project needs an actual upstream skill installation.
 
-## Deliberate adaptations
-
-- **Route work to existing owners**: reuse existing Python, testing, CI, container, documentation, and connector owners instead of exposing seven overlapping chapter skills. The course structures learning; this collection routes work.
-- **Keep project versions and formats**: preserve the project's Python baseline and tested dependencies. Do not impose the snapshots' Python minor, dependency versions, editor, or notebook format. Retain the existing marimo procedure; Jupyter projects may remain Jupyter.
-- **Separate template foundation from example**: extract the template's foundation separately from the bike example's domain model and job architecture. Schemas, two-month temporal splits, thresholds, and model names are examples requiring project decisions.
-- **Validate first and keep warnings visible**: validate before starting services, return bounded typed results instead of `locals()`, and keep warnings visible. The reference's blanket `UserWarning` filter is not adopted.
-- **Evaluate explicit candidates before promotion**: require evaluation of an explicit candidate before promotion. The reference's aggregate project task promotes before evaluation, and its promotion job can choose the latest version. Neither behavior is adopted.
-- **Inspect autologging destinations and data capture**: retain authorized lineage without uploading input examples by default. Do not claim that lockfiles, seeds, tracking, a rendered template, or a green local gate alone establish reproducibility or production readiness.
-- **Keep model-quality monitoring separate from infrastructure telemetry**: data drift and SHAP explanations do not establish concept drift or causation.
-
-For upstream refreshes, compare these snapshots with the proposed revision and review only changed guidance and referenced implementations; update this record with the resulting adaptations.
+For upstream refreshes, compare these snapshots with the proposed revision and review only changed guidance and referenced implementations; update this record and the affected guides.

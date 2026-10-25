@@ -5,14 +5,16 @@ import re
 import sqlite3
 import stat
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
 from fmind_dot.archive.parsers import (
     AGENT_ADAPTERS,
+    RETIRED_AGENTS,
     AgentAdapter,
     ParsedSession,
+    SessionCandidate,
     claude_parent_session_id,
     resolve_cwd,
 )
@@ -88,8 +90,6 @@ def _validated_source_root(state: State, adapter: AgentAdapter) -> Path | None:
 
 def _source_files(adapter: AgentAdapter, path: Path) -> list[Path]:
     """Name every file whose change can change the parse."""
-    if adapter.companions:
-        return [path.parent / name for name in adapter.companions]
     if adapter.database:
         # SQLite write-ahead logging can commit rows without touching the main file.
         return [path, path.with_name(f"{path.name}-wal")]
@@ -121,15 +121,15 @@ def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
         return stored
     # glob() suppresses scan errors, hiding captures that publication must retain.
     for path in paths:
-        if path.suffix != ".jsonl":
+        if path.suffix != BUNDLE_SUFFIX:
             continue
         try:
+            # Keep only capture metadata in memory, not every session's request samples.
             manifest = read_session_manifest(path, usage=False)
         except OSError, ValueError:
             # Publication reports the unreadable bundle for this session instead of skipping it.
             continue
-        # Keep only capture metadata in memory, not every session's request samples.
-        stored[manifest.session_id] = replace(manifest, usage=None)
+        stored[manifest.session_id] = manifest
     return stored
 
 
@@ -245,6 +245,209 @@ def _write_sync_state(
     write_private_file(directory / SYNC_STATE_NAME, (json.dumps(document) + "\n").encode())
 
 
+def _stored_signature(adapter: AgentAdapter, signature: str, source_cwd: str, previous: SessionManifest | None) -> str:
+    """Return the source evidence that proves an archived capture current."""
+    if not (adapter.external_cwd and signature):
+        return signature
+    if source_cwd:
+        # A workspace discovered after capture must recapture an unchanged transcript.
+        return f"{signature};cwd={source_cwd}"
+    if previous is not None and previous.source_signature.startswith(f"{signature};cwd="):
+        # Pruned metadata must not recapture an unchanged transcript without its workspace.
+        return previous.source_signature
+    return signature
+
+
+def _claim_subagents(
+    adapter: AgentAdapter, candidates: list[SessionCandidate], stored: dict[str, SessionManifest]
+) -> list[SessionCandidate]:
+    """Qualify a Claude subagent ID that a second parent session also claims.
+
+    Resuming a subagent in a forked parent writes `<new-parent>/subagents/agent-<id>.jsonl`;
+    keep the first owner's stem and qualify later parents so neither overwrites the other.
+    """
+    if adapter.name != "claude":
+        return candidates
+    owners = {sid: manifest.parent_session_id for sid, manifest in stored.items() if manifest.parent_session_id}
+    claimed: list[SessionCandidate] = []
+    for session_id, source_cwd, path in candidates:
+        if (parent_id := claude_parent_session_id(path)) and owners.setdefault(session_id, parent_id) != parent_id:
+            session_id = f"{session_id}-{parent_id}"
+        claimed.append((session_id, source_cwd, path))
+    return claimed
+
+
+@dataclass
+class _AgentScan:
+    """State one adapter's sessions share during a sync pass."""
+
+    adapter: AgentAdapter
+    source: Path
+    stored: dict[str, SessionManifest] = field(default_factory=dict)
+    counts: SyncOutcome = field(default_factory=SyncOutcome)
+    # A database store has one signature for all its sessions, proven by the last complete pass.
+    signature: str = ""
+    modified: float = 0.0
+    database_signature: str = ""
+    checkpoint: str = ""
+    announced: bool = False
+
+
+@dataclass
+class _SyncPass:
+    """One sync invocation: its filters, reporting mode, and running totals."""
+
+    state: State
+    root: Path
+    session: str
+    cwd: str
+    since: datetime | None
+    dry_run: bool
+    quiet: bool
+    verbose: bool
+    outcome: SyncOutcome = field(default_factory=SyncOutcome)
+
+    @property
+    def complete(self) -> bool:
+        """Only an unfiltered pass proves every available session of an agent was considered."""
+        return not (self.session or self.cwd or self.since or self.dry_run)
+
+    def fail(self, adapter: AgentAdapter, operation: str, error: BaseException, session_id: str = "") -> None:
+        self.outcome.failed += 1
+        detail = bounded_failure(error, session_id)
+        self.state.stderr.write(f"agent-session: failed to {operation} for {adapter.label}: {detail}\n")
+
+    def sync_agent(self, adapter: AgentAdapter) -> None:
+        if not self.dry_run and not self.session:
+            # Schema 3 bundles embed usage in their manifest line: rewrite them once, even when the
+            # provider deleted the source, so later metadata reads skip the usage samples.
+            _upgrade_bundles(self.root, adapter, self.fail)
+        # An unreadable legacy bundle fails the command, but never this pass's capture state: it would
+        # otherwise clear a database checkpoint and force a full re-parse on every later sync.
+        failed_before = self.outcome.failed
+        try:
+            source = _validated_source_root(self.state, adapter)
+        except DotError as error:
+            if not self.quiet:
+                raise
+            self.fail(adapter, "inspect the session source", error)
+            return
+        if source is None:
+            return
+        scan = _AgentScan(adapter, source, announced=not self.quiet)
+        scanned = True
+        try:
+            if adapter.database:
+                scan.signature, scan.modified = _source_signature(_source_files(adapter, source))
+                scan.database_signature = f"{source.resolve()}:{scan.signature}"
+                scan.checkpoint = _database_checkpoint(self.root, adapter.name)
+            candidates = adapter.enumerate(source)
+        except _SESSION_ERRORS as error:
+            # One unreadable store must not block the adapters after it.
+            self.fail(adapter, "scan sessions", error)
+            candidates, scanned = [], False
+        try:
+            scan.stored = _stored_sources(self.root, adapter.name)
+        except _SESSION_ERRORS as error:
+            self.fail(adapter, "inspect the session archive", error)
+            return
+        for session_id, source_cwd, path in _claim_subagents(adapter, candidates, scan.stored):
+            if self.session and session_id != self.session:
+                continue
+            try:
+                captured = self._capture_session(scan, session_id, source_cwd, path)
+            except _SESSION_ERRORS as error:
+                # One malformed session must not block the sessions and adapters after it.
+                self.fail(adapter, "capture session", error, session_id)
+                continue
+            if captured is not None:
+                self._record(scan, session_id, *captured)
+        for name in ("selected", "ingested", "unchanged", "retained", "retained_current_transcripts", "skipped"):
+            setattr(self.outcome, name, getattr(self.outcome, name) + getattr(scan.counts, name))
+        if not self.quiet and scanned:
+            counts = scan.counts
+            # Retention is decided during capture, which a dry run never reaches.
+            summary = (
+                f"{counts.selected} selected, {counts.unchanged} unchanged"
+                if self.dry_run
+                else f"{counts.ingested} ingested, {counts.unchanged} unchanged, {counts.retained} retained"
+            )
+            self.state.stderr.write(f"{adapter.name}: {summary}\n")
+        if self.complete:
+            self._write_state(scan, self.outcome.failed - failed_before)
+
+    def _capture_session(
+        self, scan: _AgentScan, session_id: str, source_cwd: str, path: Path
+    ) -> tuple[SessionIngestionResult, DotError | None] | None:
+        """Parse and publish one changed session; return nothing when it is unchanged or filtered out."""
+        adapter = scan.adapter
+        previous = scan.stored.get(session_id)
+        if adapter.database:
+            signature, modified = scan.signature, scan.modified
+        else:
+            signature, modified = _source_signature(_source_files(adapter, path))
+        stored_signature = _stored_signature(adapter, signature, source_cwd, previous)
+        if self.since and datetime.fromtimestamp(modified, UTC) < self.since:
+            return None
+        unchanged = (
+            bool(scan.database_signature) and scan.database_signature == scan.checkpoint
+            if adapter.database
+            else bool(signature) and previous is not None and previous.source_signature == stored_signature
+        )
+        current_parser = previous is not None and previous.parser_version == SESSION_PARSER_VERSION
+        if previous and current_parser and unchanged:
+            if not self.cwd or previous.cwd == self.cwd:
+                scan.counts.unchanged += 1
+            return None
+        if previous and not current_parser and not scan.announced:
+            # Quiet callers (stats, usage) would otherwise sit silent through a full recapture.
+            scan.announced = True
+            self.state.stderr.write(
+                f"agent-session: upgrading archived {adapter.name} sessions to parser "
+                f"{SESSION_PARSER_VERSION}; this can take minutes\n"
+            )
+        # A grown transcript keeps the captured workspace after its metadata row is pruned.
+        parse_cwd = source_cwd or (previous.cwd if adapter.external_cwd and previous else "")
+        parsed, observed = _stable_parse(adapter, path, session_id, parse_cwd, signature)
+        if not adapter.database and observed != signature:
+            # The retry parsed a newer stable source; record that file evidence instead.
+            stored_signature = observed + stored_signature[len(signature) :]
+        parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), parse_cwd)
+        if self.cwd and resolve_cwd(parsed_cwd) != self.cwd:
+            return None
+        scan.counts.selected += 1
+        if self.dry_run:
+            return None
+        # Database stat changes belong to the shared checkpoint, not every bundle.
+        bundle_signature = parsed.fingerprint if adapter.database else stored_signature
+        return _capture(adapter, session_id, parsed, bundle_signature, previous)
+
+    def _record(
+        self, scan: _AgentScan, session_id: str, result: SessionIngestionResult, failure: DotError | None
+    ) -> None:
+        scan.stored[session_id] = replace(result.manifest, usage=None)
+        counts = scan.counts
+        setattr(counts, result.status, getattr(counts, result.status) + 1)
+        if result.status == "retained" and result.current_transcript:
+            counts.retained_current_transcripts += 1
+        if not self.quiet and (result.status == "retained" or (self.verbose and result.status == "ingested")):
+            self.state.stderr.write(report_ingestion(result) + "\n")
+        if failure is not None:
+            self.fail(scan.adapter, "capture session", failure, session_id)
+
+    def _write_state(self, scan: _AgentScan, failed: int) -> None:
+        database_signature = scan.database_signature
+        try:
+            if database_signature:
+                current, _ = _source_signature(_source_files(scan.adapter, scan.source))
+                # A failure, a retained session, or a database written mid-pass leaves the checkpoint unproven.
+                if failed or scan.counts.retained or database_signature != f"{scan.source.resolve()}:{current}":
+                    database_signature = ""
+            _write_sync_state(self.root, scan.adapter.name, failed, database_signature, retained=scan.counts.retained)
+        except OSError as error:
+            self.fail(scan.adapter, "record sync state", error)
+
+
 def sync_sessions(
     state: State,
     *,
@@ -263,155 +466,15 @@ def sync_sessions(
     adds one per ingested session: a parser bump recaptures thousands, which would flood an agent's
     context. Lines carry the agent and counts, never session identities.
     """
+    if agent in RETIRED_AGENTS:
+        raise DotError(f"{agent} is retired: its archived sessions stay queryable, but dot no longer captures them")
     if agent and agent not in AGENT_ADAPTERS:
         raise DotError(f"unknown session agent {agent!r}")
-    root = session_store_root()
-    outcome = SyncOutcome()
-    # Only an unfiltered pass proves every available session of an agent was considered.
-    complete_pass = not (session or cwd or since or dry_run)
-
-    def fail(adapter: AgentAdapter, operation: str, error: BaseException, session_id: str = "") -> None:
-        outcome.failed += 1
-        detail = bounded_failure(error, session_id)
-        state.stderr.write(f"agent-session: failed to {operation} for {adapter.label}: {detail}\n")
-
+    run = _SyncPass(state, session_store_root(), session, cwd, since, dry_run, quiet, verbose)
     for adapter in AGENT_ADAPTERS.values():
-        if agent and adapter.name != agent:
-            continue
-        if not dry_run and not session:
-            # Schema 3 bundles embed usage in their manifest line: rewrite them once, even when the
-            # provider deleted the source, so later metadata reads skip the usage samples.
-            _upgrade_bundles(root, adapter, fail)
-        # An unreadable legacy bundle fails the command, but never this pass's capture state: it would
-        # otherwise clear a database checkpoint and force a full re-parse on every later sync.
-        failed_before = outcome.failed
-        try:
-            source = _validated_source_root(state, adapter)
-        except DotError as error:
-            if not quiet:
-                raise
-            fail(adapter, "inspect the session source", error)
-            continue
-        if source is None:
-            continue
-        database_signature = checkpoint = ""
-        signature, modified = "", 0.0
-        scanned = True
-        try:
-            if adapter.database:
-                signature, modified = _source_signature(_source_files(adapter, source))
-                database_signature = f"{source.resolve()}:{signature}"
-                checkpoint = _database_checkpoint(root, adapter.name)
-            candidates = adapter.enumerate(source)
-        except _SESSION_ERRORS as error:
-            # One unreadable store must not block the adapters after it.
-            fail(adapter, "scan sessions", error)
-            candidates = []
-            scanned = False
-        try:
-            stored = _stored_sources(root, adapter.name)
-        except _SESSION_ERRORS as error:
-            fail(adapter, "inspect the session archive", error)
-            continue
-        counts = SyncOutcome()
-        announced = not quiet
-        claimed_parents = {
-            sid: manifest.parent_session_id for sid, manifest in stored.items() if manifest.parent_session_id
-        }
-        for session_id, source_cwd, path in candidates:
-            if adapter.name == "claude" and (parent_id := claude_parent_session_id(path)):
-                # Resuming a subagent in a forked parent writes `<new-parent>/subagents/agent-<id>.jsonl`;
-                # keep the first owner's stem and qualify later parents so neither overwrites the other.
-                owner = claimed_parents.get(session_id)
-                if owner and owner != parent_id:
-                    session_id = f"{session_id}-{parent_id}"
-                else:
-                    claimed_parents[session_id] = parent_id
-            if session and session_id != session:
-                continue
-            try:
-                if not adapter.database:
-                    signature, modified = _source_signature(_source_files(adapter, path))
-                previous = stored.get(session_id)
-                stored_signature = signature
-                if adapter.external_cwd and signature:
-                    if source_cwd:
-                        # A workspace discovered after capture must recapture an unchanged transcript.
-                        stored_signature = f"{signature};cwd={source_cwd}"
-                    elif previous is not None and previous.source_signature.startswith(f"{signature};cwd="):
-                        # Pruned metadata must not recapture an unchanged transcript without its workspace.
-                        stored_signature = previous.source_signature
-                if since and datetime.fromtimestamp(modified, UTC) < since:
-                    continue
-                unchanged = (
-                    bool(database_signature) and database_signature == checkpoint
-                    if adapter.database
-                    else bool(signature) and previous is not None and previous.source_signature == stored_signature
-                )
-                if previous and previous.parser_version == SESSION_PARSER_VERSION and unchanged:
-                    if not cwd or previous.cwd == cwd:
-                        counts.unchanged += 1
-                    continue
-                if not announced and previous and previous.parser_version != SESSION_PARSER_VERSION:
-                    # Quiet callers (stats, usage) would otherwise sit silent through a full recapture.
-                    announced = True
-                    state.stderr.write(
-                        f"agent-session: upgrading archived {adapter.name} sessions to parser "
-                        f"{SESSION_PARSER_VERSION}; this can take minutes\n"
-                    )
-                # A grown transcript keeps the captured workspace after its metadata row is pruned.
-                parse_cwd = source_cwd or (previous.cwd if adapter.external_cwd and previous else "")
-                parsed, observed = _stable_parse(adapter, path, session_id, parse_cwd, signature)
-                if not adapter.database and observed != signature:
-                    # The retry parsed a newer stable source; record that file evidence instead.
-                    stored_signature = observed + stored_signature[len(signature) :]
-                parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), parse_cwd)
-                if cwd and resolve_cwd(parsed_cwd) != cwd:
-                    continue
-                counts.selected += 1
-                if dry_run:
-                    continue
-                # Database stat changes belong to the shared checkpoint, not every bundle.
-                result, failure = _capture(
-                    adapter, session_id, parsed, parsed.fingerprint if adapter.database else stored_signature, previous
-                )
-            except _SESSION_ERRORS as error:
-                # One malformed session must not block the sessions and adapters after it.
-                fail(adapter, "capture session", error, session_id)
-                continue
-            stored[session_id] = replace(result.manifest, usage=None)
-            setattr(counts, result.status, getattr(counts, result.status) + 1)
-            if result.status == "retained" and result.current_transcript:
-                counts.retained_current_transcripts += 1
-            if not quiet and (result.status == "retained" or (verbose and result.status == "ingested")):
-                state.stderr.write(report_ingestion(result) + "\n")
-            if failure is not None:
-                fail(adapter, "capture session", failure, session_id)
-        for name in ("selected", "ingested", "unchanged", "retained", "retained_current_transcripts", "skipped"):
-            setattr(outcome, name, getattr(outcome, name) + getattr(counts, name))
-        if not quiet and scanned:
-            # Retention is decided during capture, which a dry run never reaches.
-            summary = (
-                f"{counts.selected} selected, {counts.unchanged} unchanged"
-                if dry_run
-                else f"{counts.ingested} ingested, {counts.unchanged} unchanged, {counts.retained} retained"
-            )
-            state.stderr.write(f"{adapter.name}: {summary}\n")
-        if complete_pass:
-            try:
-                if database_signature:
-                    current, _ = _source_signature(_source_files(adapter, source))
-                    if (
-                        outcome.failed != failed_before
-                        or counts.retained
-                        or database_signature != f"{source.resolve()}:{current}"
-                    ):
-                        database_signature = ""
-                _write_sync_state(
-                    root, adapter.name, outcome.failed - failed_before, database_signature, retained=counts.retained
-                )
-            except OSError as error:
-                fail(adapter, "record sync state", error)
+        if not agent or adapter.name == agent:
+            run.sync_agent(adapter)
+    outcome = run.outcome
     if not quiet:
         state.stderr.write(f"agent-session-sync: done ({outcome.failed} failed)\n")
     if as_json:

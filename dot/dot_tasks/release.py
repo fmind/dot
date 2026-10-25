@@ -152,7 +152,7 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
     if _interactive(state, push, root) != 0:
         raise DotError(
             f"push failed; the release commit and tag {bumped} are local. Retry with: "
-            f"git push --atomic {remote} HEAD:refs/heads/{branch} refs/tags/{bumped}, then: mise run deploy"
+            f"{' '.join(push)}, then: mise run deploy"
         )
     # The release commit changes package metadata, so refresh the installed CLI.
     if _interactive(state, ["mise", "run", "deploy"], root) != 0:

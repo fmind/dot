@@ -24,7 +24,8 @@ WORKDIR /app
 RUN python -m pip uninstall --yes --root-user-action=ignore pip \
   && groupadd --gid 10001 app \
   && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
+# Root-owned: the runtime user can read and run the environment but never rewrite it.
+COPY --from=build /app/.venv /app/.venv
 USER 10001:10001
-COPY --from=build --chown=10001:10001 /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 ENTRYPOINT ["<slug>"]

@@ -9,8 +9,7 @@
       "args": ["server"],
       "fileExtensions": {
         ".py": "python",
-        ".pyi": "python",
-        ".pyw": "python"
+        ".pyi": "python"
       }
     }
   }

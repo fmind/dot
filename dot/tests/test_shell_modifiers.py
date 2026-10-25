@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.chezmoi_helpers import chezmoi
+
 ROOT = Path(__file__).resolve().parents[2]
 MODIFIERS = {
     "modify_dot_bashrc": ("# chezmoi: mise-bash-path", "mise activate bash"),
@@ -16,22 +18,14 @@ MODIFIERS = {
 
 
 def render(tmp_path: Path, modifier: str, content: str) -> str:
-    chezmoi = shutil.which("chezmoi")
-    assert chezmoi is not None, "chezmoi is required for shell modifier tests"
     # apply consumes the modify-template directive; execute-template needs it removed.
     directive, template = (ROOT / modifier).read_text(encoding="utf-8").split("\n", 1)
     assert directive == "# chezmoi:modify-template"
     template_path = tmp_path / "input.tmpl"
     template_path.write_text(template, encoding="utf-8")
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("", encoding="utf-8")
     source = tmp_path / "source"
     shutil.copytree(ROOT / ".chezmoitemplates", source / ".chezmoitemplates", dirs_exist_ok=True)
-    command = [chezmoi, "--source", str(source), "--destination", str(tmp_path), "--config", str(config)]
-    command += ["execute-template", "--with-stdin", "--file", str(template_path)]
-    result = subprocess.run(command, input=content, encoding="utf-8", capture_output=True, check=False, timeout=30)
-    assert result.returncode == 0, result.stderr
-    return result.stdout
+    return chezmoi(source, "execute-template", "--with-stdin", "--file", str(template_path), stdin=content)
 
 
 @pytest.mark.parametrize("modifier", sorted(MODIFIERS))

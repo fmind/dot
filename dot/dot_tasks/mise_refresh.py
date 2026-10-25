@@ -13,8 +13,6 @@ from pathlib import Path
 from dot_tasks import ROOT
 from dot_tasks.mise_locks import bundle, capture
 
-# Their registry entries publish no checksum.
-UNCHECKSUMMED_TOOLS = frozenset({"acli", "awscli", "gcloud", "sonarqube-cli", "ttyd"})
 _CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
 
 
@@ -44,12 +42,8 @@ def validate(configuration: Path) -> None:
                 findings.append(f"{name} {platform}: missing locked download")
             # Every tool must be verifiable from the lockfile alone: relock an unverifiable
             # tool on a checksummed backend (aqua, core, github) instead of exempting it.
-            checksummed = any(
-                str(artifact.get("checksum", "")).startswith(_CHECKSUM_PREFIXES) for artifact in artifacts
-            )
-            if checksummed == (name in UNCHECKSUMMED_TOOLS):
-                state = "now available; drop the exemption" if checksummed else "missing"
-                findings.append(f"{name} {platform}: checksum {state}")
+            if not any(str(artifact.get("checksum", "")).startswith(_CHECKSUM_PREFIXES) for artifact in artifacts):
+                findings.append(f"{name} {platform}: checksum missing")
     if findings:
         raise ValueError("Incomplete mise lock: " + "; ".join(findings))
     bundle(configuration / "mise.lock")

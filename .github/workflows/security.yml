@@ -29,9 +29,7 @@ jobs:
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Scan full checkout
-        # Delegate to the task so this never drifts from the local gate again; the
-        # hand-written copy had already lost --tf-vars and scanned the Terraform
-        # module with unresolved variables.
+        # Delegate to the task so this never drifts from the local gate.
         run: mise run check:scan
       - name: Audit workflows online
         # The CI gate stays offline for speed and determinism. This weekly pass adds

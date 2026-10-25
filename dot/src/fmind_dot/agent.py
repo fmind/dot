@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 import typer
 
 from fmind_dot.agent_doctor import run_agent_doctor
-from fmind_dot.archive.parsers import AGENT_ADAPTERS, resolve_cwd
+from fmind_dot.archive.parsers import AGENT_ADAPTERS, RETIRED_AGENTS, resolve_cwd
 from fmind_dot.archive.query import (
     SESSION_STATUSES,
     SessionQuery,
@@ -39,7 +39,8 @@ register_context(agent_app)
 session_app = help_group("Manage agent session logs")
 hook_app = help_group("Run native agent notification hooks")
 # Choices render in --help and Fish completions and are validated before any sync.
-AgentName = StrEnum("AgentName", {name: name for name in AGENT_ADAPTERS})
+# Retired agents stay selectable so their archived sessions remain queryable.
+AgentName = StrEnum("AgentName", {name: name for name in (*AGENT_ADAPTERS, *RETIRED_AGENTS)})
 SessionStatus = StrEnum("SessionStatus", {name: name for name in SESSION_STATUSES})
 
 
@@ -272,7 +273,7 @@ def _print_session_usage(state: State, records: list[UsageRecord]) -> None:
     "stats",
     help="Sync changed sessions (unless --no-sync), then report prompts, tokens, costs, and API equivalents",
     epilog="Examples: dot agent stats --since 7d --tokens-only --json · dot agent stats --sessions -n 10 --since 7d · "
-    "dot agent stats --monthly --agent codex. Exit 1 when prompt statistics are incomplete; JSON is still printed.",
+    "dot agent stats --monthly --agent agy. Exit 1 when prompt statistics are incomplete; JSON is still printed.",
 )
 def agent_stats(
     context: typer.Context,
@@ -307,7 +308,8 @@ def agent_stats(
     if prompts_only and (monthly or by_model):
         raise typer.BadParameter("--monthly and --by-model require token statistics", param_hint="--prompts-only")
     query = _query(selected, cwd, "", since, until)
-    if not no_sync:
+    # A retired agent has nothing to capture: report its archive as stored.
+    if not no_sync and selected not in RETIRED_AGENTS:
         sync_sessions(state, agent=selected, quiet=True)
     if sessions:
         records = list_usage_records(
@@ -320,6 +322,7 @@ def agent_stats(
             _print_session_usage(state, records)
         return
     prompts = None if tokens_only else prompt_statistics(query, by_project=by_project)
+    rates = state.config.agent.pricing
     rows = (
         []
         if prompts_only
@@ -331,11 +334,10 @@ def agent_stats(
             cwd=query.cwd,
             by_model=by_model,
             by_project=by_project,
-            pricing=state.config.agent.pricing,
+            pricing=rates,
             monthly=monthly,
         )
     )
-    rates = state.config.agent.pricing
     coverage = " without a sync (--no-sync)" if no_sync else " after an incremental sync"
     if as_json:
         write_json(

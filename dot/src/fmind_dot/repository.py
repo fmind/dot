@@ -11,7 +11,7 @@ import typer
 
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
-from fmind_dot.errors import DotError
+from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.process import CommandResult, diagnostic_line, run_parallel
 from fmind_dot.reporting import write_json
 from fmind_dot.state import State, require_tools, state_from
@@ -134,7 +134,7 @@ def git_root(state: State, cwd: Path | None = None) -> Path:
     except (DotError, OSError) as error:
         raise DotError(f"failed to inspect {location} with git: {error}") from error
     if result.returncode:
-        raise DotError(f"{location} is not inside a git work tree")
+        raise NotGitWorkTreeError(f"{location} is not inside a git work tree")
     output = result.stdout.strip()
     if not output:
         raise DotError("git returned an empty repository root")

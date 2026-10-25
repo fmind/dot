@@ -4,7 +4,16 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
 
 ## Workflow
 
-1. **Inspect the toolchain and build**: `tailwindcss --help`, the lock, template locations, static-file serving, and the production build. Use `github:tailwindlabs/tailwindcss` in mise with the platform's official standalone asset; the dot toolchain selects the glibc Linux asset (the musl one needs `/lib/ld-musl-*`) and the native macOS asset.
+1. **Inspect the toolchain and build**: `tailwindcss --help`, the lock, template locations, static-file serving, and the production build. The workstation does not install Tailwind globally: declare `github:tailwindlabs/tailwindcss` in the project's `mise.toml` with the platform's official standalone asset, selecting the glibc Linux asset (the musl one needs `/lib/ld-musl-*`) and the native macOS asset:
+   ```toml
+   # Docs: https://mise.jdx.dev/dev-tools/backends/github.html
+   [tools."github:tailwindlabs/tailwindcss"]
+   version = "<exact>"
+
+   [tools."github:tailwindlabs/tailwindcss".platforms]
+   linux-x64 = { asset_pattern = "tailwindcss-linux-x64" }
+   macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }
+   ```
 1. **Choose one input and one generated output**: for example `assets/styles.css` and `static/css/app.css`. Create the output directory and exclude generated CSS from source formatting. Commit or build it in CI according to the project's existing artifact policy.
 1. **Register source roots explicitly**: for that example layout, adapt:
    ```css

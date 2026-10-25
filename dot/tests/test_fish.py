@@ -65,7 +65,7 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     # Avoid starting real shell integrations or touching their caches.
-    for name in ("mise", "carapace", "fzf", "atuin", "starship", "zoxide"):
+    for name in ("mise", "fzf", "atuin", "starship", "zoxide"):
         executable = bin_dir / name
         executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         executable.chmod(0o755)

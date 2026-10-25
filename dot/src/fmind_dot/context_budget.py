@@ -47,7 +47,6 @@ class ContextEntry:
     path: str
     characters: int
     discovery_characters: int = 0
-    first_party: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,9 +89,6 @@ def _skill_entry(path: Path, scope: Scope, *, catalog: Path) -> ContextEntry:
         raise DotError(f"invalid skill name: {path}; match its directory name")
     if not isinstance(description, str) or not description.strip():
         raise DotError(f"missing skill description: {path}; describe its capability and trigger")
-    provenance = metadata.get("metadata")
-    source = provenance.get("source", "") if isinstance(provenance, dict) else ""
-    first_party = isinstance(source, str) and source.startswith("github.com/fmind/dot/tree/")
     return ContextEntry(
         scope,
         "skill",
@@ -100,7 +96,6 @@ def _skill_entry(path: Path, scope: Scope, *, catalog: Path) -> ContextEntry:
         str(path),
         len(text),
         len(skill_index_entry(name, description, scope, relative=path.relative_to(catalog).as_posix())),
-        first_party,
     )
 
 

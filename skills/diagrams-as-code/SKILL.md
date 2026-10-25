@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diagrams-as-code
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # Diagrams as Code
@@ -22,7 +22,7 @@ Choose the simplest picture that explains the system, or none when prose, a list
 
 ## Workflow
 
-Read only the matching guide and its required resources. Use a known guide directly when shared prerequisites are not needed.
+Read only the matching guide and its required resources.
 
 ## Task guides
 

@@ -23,12 +23,11 @@ Reuse these names for their stated concerns instead of inventing synonyms such a
 
 ## Conventions
 
-- **Run hooks through mise tasks**: see [lefthook](../../github-actions/references/lefthook.md); each hook command is `mise run <task>` and its name mirrors the task.
+- **Run hooks through mise tasks**: see [lefthook](../../github-actions/references/lefthook.md); each hook job runs `mise run <task>` and its name says what it does (`format Python`, `check`).
 - **Fan checks out in parallel**: `check` fans out with `depends = ["check:deps", "check:format", "check:leaks", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
 - **Skip unchanged tasks incrementally**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Limit staged files to formatters**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
-- **Forward arguments without dispatch wrappers**: mise appends CLI args to the last command. When two tools need the same staged files, give each a direct task and invoke them sequentially from hooks; keep a whole-tree aggregate for ordinary formatting. Use `usage` only for a real argument contract; do not add shell argument dispatch.
-- **Keep complex logic out of TOML**: short command arrays and small setup/cleanup sequences are acceptable. Prefer native flags to conditions and explicit tasks to mode detection. Do not wrap commands in `bash -c` or `sh -c`, compress a program onto one line, or relocate a large shell block into TOML. Keep unavoidable branching, retries, and response parsing in maintained source.
+- **Forward arguments without dispatch wrappers**: without `usage`, mise appends CLI args to the last command; keep shell quoting and tool arguments intact, and verify raw argument behavior with a small local example when adding a wrapper task. A formatter that runs several commands on the same files, or needs a whole-tree default, declares `usage = 'arg "[files]..."'` (plus `default=` for one path) and starts its script with `eval "set -- $usage_files"`: mise passes variadic arguments as one shell-quoted string. One task then serves both the hook and ordinary formatting; never add per-hook `:files` variants.
 
 ## Concise Output
 
@@ -53,7 +52,6 @@ mise upgrade --bump --local  # rewrite this project's pins only; without --local
 
 ## Additional task gotchas
 
-- **Dotenv and dirty trees**: the [mise gotchas](../SKILL.md#gotchas) own dotenv loading and the full gate on a tree with unrelated changes.
 - **Run `mise trust` only when needed**: in normal mode `mise run`, `mise install`, `mise exec`, and `mise watch` trust the active config automatically; `mise trust` is only needed for other commands or in paranoid mode.
 - **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
 - **Non-interactive scripts**: pass `-y` (`mise install -y`) in scripts and CI steps that would otherwise prompt.

@@ -9,7 +9,7 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 <a href=".github/assets/dot-overview.svg">
   <img
     src=".github/assets/dot-overview.svg"
-    alt="How dot works: clone this repository of dotfiles, persona, skills, tool baseline and encrypted credentials; install.sh bootstraps mise and chezmoi; chezmoi applies files, mise installs locked tools and the dot CLI checks health, so your Linux or macOS workstation gets its terminal, editor, Python, cloud tools and six agent harnesses. Change the source, never the deployed copy."
+    alt="How dot works: clone this repository of dotfiles, persona, skills, tool baseline and encrypted credentials; install.sh bootstraps mise and chezmoi; chezmoi applies files, mise installs locked tools and the dot CLI checks health, so your Linux or macOS workstation gets its terminal, editor, Python, cloud tools and four agent harnesses. Change the source, never the deployed copy."
     width="960"
   >
 </a>
@@ -18,7 +18,7 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 - **Terminal:** Fish, Starship, Atuin, zoxide, fzf, Ghostty, and Zellij.
 - **Editor:** Neovim with LazyVim, styled with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share a persona and [skills](skills/); `dot agent session sync` archives their local sessions for [usage reports](skills/agent-usage/SKILL.md).
+- **Agents:** Antigravity (the primary harness), Claude Code, Copilot, and OpenCode share a persona and [skills](skills/); `dot agent session sync` archives their local sessions for [usage reports](skills/agent-usage/SKILL.md), and retired Codex and Grok archives stay queryable.
 - **Development:** Python with uv, Ruff, ty, and pytest, plus cloud and infrastructure tools.
 - **Automation:** the `dot` CLI checks workstation health, manages workspaces, and reports agent usage.
 
@@ -91,7 +91,7 @@ Fish shortcuts: `h` → `dot`, `hd` → doctor, `hh` → headroom, `hs` → repo
 
 In Neovim, `<leader>gm` toggles the current buffer's Git comparison between the index and the default branch's merge-base; other buffers keep their own comparison. Tab accepts completions and Enter always inserts a newline; in Markdown, text, commit-message, and unnamed buffers, Enter continues or splits list items, and on an empty item it outdents or ends the list. Clipboard selection uses macOS's native provider, or xclip when Linux has an X display; Wayland-only sessions use Neovim's native detection. mise config files get diagnostics, completion, and hover from `mise lsp`.
 
-Zellij tiles new panes (`Alt n`) as equal columns, up to four, to suit wide screens such as 21:9 or 32:9 glasses; a fifth pane, or `Ctrl b`, `Space`, switches to a half-stacked arrangement for narrow screens. `Alt z` opens a tab with one 140-column pane centred between blank margins; `Ctrl p`, `f` toggles that pane to full width, and exiting or closing it closes the whole tab; narrower terminals get an empty tab instead (`Ctrl t`, `x` closes it). Restored sessions keep their saved layouts. On ChromeOS, `Alt [` and `Alt ]` snap windows to the left or right half and never reach Zellij; on a 32:9 screen, each half is about one 16:9 display.
+Zellij tiles new panes (`Alt n`) as equal columns, up to four, to suit wide screens such as 21:9 or 32:9 glasses; a fifth pane, or `Ctrl b`, `Space`, switches to a half-stacked arrangement for narrow screens. Restored sessions keep their saved layouts. On ChromeOS, `Alt [` and `Alt ]` snap windows to the left or right half and never reach Zellij; on a 32:9 screen, each half is about one 16:9 display.
 
 ### Dot configuration
 
@@ -127,12 +127,12 @@ Python follows the latest 3.14 patch release until the required tools ship Pytho
 <a href=".github/assets/agent-layer.svg">
   <img
     src=".github/assets/agent-layer.svg"
-    alt="One agent layer for six harnesses: the persona, skill catalog and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, Codex, GitHub Copilot, Grok and OpenCode; dot agent session sync archives their sessions and dot agent stats reports usage."
+    alt="One agent layer for four harnesses: the persona, skill catalog and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, GitHub Copilot and OpenCode; dot agent session sync archives their sessions and dot agent stats reports usage."
     width="960"
   >
 </a>
 
-Antigravity, Claude Code, Codex, Copilot, Grok, and OpenCode share one persona and one skill catalog. No custom subagent roles are deployed: each host's general-purpose subagents load the same persona and skills. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) before adding one.
+Antigravity, Claude Code, Copilot, and OpenCode share one persona and one skill catalog. Launch agy from Fish or Zellij (`Alt a`): its wrapper puts mise shims first so agent commands follow each project's tool pins. No custom subagent roles are deployed: each host's general-purpose subagents load the same persona and skills. See [cross-harness agents](skills/agent-project/references/cross-harness-agents.md) before adding one.
 
 ## Agent skills
 
@@ -140,7 +140,7 @@ Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alo
 
 Use `/clipboard` to copy the requested deliverable from the preceding exchange, or `/clipboard <selection>` to choose a result. The [clipboard skill](skills/clipboard/SKILL.md) verifies the copied text using native macOS or ChromeOS/Linux tools.
 
-Other everyday shortcuts: `/full-review` reviews a whole project and applies verified fixes, `/smoke` runs every task and CLI command, `/trim <path>` shortens without losing meaning, `/auth-status` lists expired logins with the exact re-login command, and `/handoff` saves a continuation prompt before `/clear`. For writing, `/draft-mail` creates Gmail drafts only and `/fact-check` verifies claims and links.
+Other everyday shortcuts: `/full-review` reviews a whole project and applies verified fixes, `/smoke` runs every task and CLI command, `/trim <path>` shortens without losing meaning, `/auth-status` lists expired logins with the exact re-login command, and `/task-prompts` writes delegation or continuation prompts (resume agy with `agy -c`, compact with `/compact`). For writing, `/draft-mail` creates Gmail drafts only and `/fact-check` verifies claims and links.
 
 ## Credentials
 
@@ -163,14 +163,12 @@ Agent harnesses use their own logins:
 | ----------- | ----------------------- |
 | Antigravity | `agy`                   |
 | Claude Code | `claude auth login`     |
-| Codex       | `codex login`           |
 | Copilot     | `copilot login`         |
-| Grok        | `grok login`            |
 | OpenCode    | `opencode` → `/connect` |
 
 For hooks, notifications, and provider overrides, see [agent harnesses](skills/agent-harnesses/SKILL.md) and [Antigravity](skills/agy/SKILL.md). Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 
-mise installs and locks every harness except Antigravity, which updates itself; see the [Grok guide](skills/agent-harnesses/references/grok/GUIDE.md) to retire a former Grok self-install.
+mise installs and locks every harness except Antigravity, which updates itself.
 
 ### Commit signing
 
@@ -189,7 +187,7 @@ Commit the new [`allowed_signers`](dot_config/git/allowed_signers) line so every
 
 Secrets are not exported at shell startup. Hugging Face, Kaggle, and OpenCode use native credential files, seeded only when absent so later logins survive apply. Use `hf auth login`, `kaggle auth login`, or OpenCode's `/connect` for your own accounts. For customer work, select credentials explicitly using the [account override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
 
-Supply a personal key to one command with `dot secret run`; PyPI packages publish through Trusted Publishing, not a personal token. Delete any retired `~/.config/dot/secrets/UV_PUBLISH_TOKEN` seed and revoke that token on pypi.org. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
+Supply a personal key to one command with `dot secret run`; PyPI packages publish through Trusted Publishing, not a personal token. Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md); OpenCode uses OpenRouter.
 
 ```bash
 dot secret run STITCH_ACCESS_TOKEN -- <command>
@@ -199,8 +197,6 @@ The helper preserves existing environment values; an empty value fails instead o
 
 **Encrypted sources:** only the owner's age key decrypts the committed credentials. Without `~/.config/chezmoi/key.txt`, apply skips them; a different key fails decryption. Back up your key. To capture a credential, set its file mode to `0600` and use `chezmoi add --encrypt` (`--create` for native login seeds). Never put secret values in command arguments. Rotate native credentials through their tool and refresh the encrypted seed separately.
 
-**Migrating from shell exports:** apply files and install the updated CLI together (`mise run full`), remove duplicate key exports from `~/.private.fish`, then restart terminals, editors, and agents from a clean login session. Existing processes retain their old credentials; sourcing a file or opening a child shell does not clear them.
-
 ## Adapting this
 
 Fork and replace these personal defaults:
@@ -208,7 +204,7 @@ Fork and replace these personal defaults:
 1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and the clone URL in [`install.sh`](install.sh). Use unmanaged `~/.config/git/config.local` for Git overrides and `includeIf` profiles. Replace [`allowed_signers`](dot_config/git/allowed_signers) and its `*@fmind.dev` principal before adding your own [signing key](#commit-signing).
 1. **Secrets:** replace the age recipient and remove or re-encrypt credential sources before applying; see [Secret Management](#secret-management).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md), which every harness loads.
-1. **Workspaces:** change `pull.directories` and `trust.github_owners` in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_settings.json`](dot_claude/modify_settings.json) and the personal-checkout `includeIf` directories in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl), which commit with the personal-repository email. Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.
+1. **Workspaces:** change `pull.directories`, `trust.github_owners`, and `trust.agy_projects_exclude` (repositories kept out of agy's Remote Control picker) in `~/.config/dot.yaml`, plus Claude's directories in [`dot_claude/modify_private_settings.json`](dot_claude/modify_private_settings.json) and the personal-checkout `includeIf` directories in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl), which commit with the personal-repository email. Mise trust is separate: use `mise trust /path/to/mise.toml` or unmanaged `~/.config/mise/conf.d/trust.toml`.
 1. **Theme and design:** change [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl); theme files and the [`DESIGN.md`](https://github.com/fmind/theme/blob/main/DESIGN.md) design system deployed to `~/.agents/DESIGN.md` are pinned to an [fmind/theme](https://github.com/fmind/theme) commit that `mise run upgrade` advances. The persona makes it the default for personal work, never for customer work.
 
 ## Uninstall / rollback

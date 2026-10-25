@@ -11,7 +11,7 @@ Mermaid is the default format for technical documentation because the same edita
 
 1. **Write portable source**: a fenced `mermaid` block when the diagram belongs to one Markdown document, a `.mmd` file when it is reused or rendered independently.
 1. **Configure in frontmatter**: put configuration in Mermaid frontmatter, never in `%%{init: ...}%%` directives or renderer-specific fence options; apply the Fmind frontmatter from [renderers](../../fmind-visuals/references/renderers.md) when the work represents Médéric or `www.fmind.dev`.
-1. **Validate and render**:
+1. **Validate and render** with `mmdc`, declared in the project because the workstation does not install it globally: `mise use --pin npm:@mermaid-js/mermaid-cli`.
 
    ```bash
    mmdc -i diagram.mmd -o diagram.svg -b transparent
@@ -23,6 +23,7 @@ Mermaid is the default format for technical documentation because the same edita
 ## Gotchas
 
 - **Point `mmdc` at system Chrome**: `mmdc` fails with `Could not find chrome-headless-shell` because the Puppeteer browser download is disabled; interactive Fish exports `PUPPETEER_EXECUTABLE_PATH`, otherwise point it at system Chrome: `PUPPETEER_EXECUTABLE_PATH="$(command -v google-chrome)" mmdc -i diagram.mmd -o diagram.svg` (macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
+- **Review rejected Puppeteer dependencies**: the npm install can reject `chromium-bidi` because Chromium's `chrome-devtools-npm` account publishes it without trusted-publisher evidence. Review that exact version, then exempt only it in the tool's options: `"npm:@mermaid-js/mermaid-cli" = { version = "<exact>", trust_policy_excludes = ["chromium-bidi@<version>"] }`.
 - **Set one renderer-stable font stack**: use root-level `config.fontFamily`; late-loading web fonts change label measurements after layout and clip inside fixed bounds.
 - **Pin the layout engine**: Mermaid 12 (local `mmdc`) defaults to ELK, while renderers still on Mermaid 11 use dagre; set root-level `config.layout: dagre` so local previews match them. ELK also ignores `flowchart.diagramPadding`.
 - **Label clearly, never cryptically**: use clear, self-explanatory labels for nodes, edges, and subgraphs instead of cryptic IDs or abbreviations; diagrams must be effortless for humans to read at a glance in documentation.

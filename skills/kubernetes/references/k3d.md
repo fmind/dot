@@ -5,7 +5,7 @@ description: "Create, budget, and tear down disposable local k3d clusters for ru
 
 # Local k3d Clusters
 
-Local k3d clusters need an existing Docker-compatible engine (see [docker](../../docker/SKILL.md)); run `dot doctor --headroom` before creating one. Prefer manifest checks when they can answer the question.
+Local k3d clusters need an existing Docker-compatible engine (see [docker](../../docker/SKILL.md)) and `k3d` declared in the project with `mise use --pin k3d`; run `dot doctor --headroom` before creating one. Prefer manifest checks when they can answer the question.
 
 1. **Create only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name. Keep the current kubeconfig context unchanged and pass `--context k3d-<task-cluster>` afterwards.
 

@@ -7,14 +7,14 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-10-07"
+  updated: "2026-10-25"
 ---
 
 # Apache Airflow with Astronomer CLI
 
 Use `astro` for local Apache Airflow development, DAG authoring, task testing, and debugging. [python-stack](../python-stack/SKILL.md) owns Python package conventions and [docker](../docker/SKILL.md) manages container runtimes.
 
-Docker mode (the default) needs an existing Docker-compatible engine; run `dot doctor --headroom` before the first image pull or build. `--standalone` runs Airflow on the host without Docker. Workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing service flags (`--api-server` and `--dag-processor` for Airflow 3; `--webserver` for Airflow 2).
+Docker mode (the default) needs an existing Docker-compatible engine; run `dot doctor --headroom` before the first image pull or build. `--standalone` runs Airflow on the host without Docker. Workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing component flags for `astro dev logs` and `astro dev bash` (`--api-server` and `--dag-processor` for Airflow 3; `--webserver` for Airflow 2).
 
 ## Workflow
 

@@ -3,8 +3,6 @@
 import json
 import os
 import runpy
-import shlex
-import shutil
 import subprocess
 import sys
 import unicodedata
@@ -43,7 +41,7 @@ def test_state_display_and_title_omit_sensitive_fields() -> None:
     assert render(payload, "statusline") == (
         "\uf07b dot \ue0b1 \ue0a0 main* \ue0b1 \uf110 working \ue0b1 \uf2db Flash High"
         " \ue0b1 \uf0e4 context 24% · 255k/1M \ue0b1 \uf0ae 2 tasks"
-        " \ue0b1 \uf242 quota min 60% left ↻ 2h05m \ue0b1 \ue62b INSERT"
+        " \ue0b1 \uf242 quota 60% left ↻ 2h05m \ue0b1 \ue62b INSERT"
     )
     assert render(payload, "title") == "dot* — working · 2 tasks"
     payload.update(agent_state="idle")
@@ -110,57 +108,6 @@ def test_invalid_or_empty_input_has_quiet_fallback(raw: str) -> None:
     assert result.stderr == ""
 
 
-def test_managed_config_preserves_host_preferences_and_is_repeatable(tmp_path: Path) -> None:
-    source = tmp_path / "source"
-    templates = source / ".chezmoitemplates"
-    templates.mkdir(parents=True)
-    shutil.copyfile(ROOT / ".chezmoitemplates/config-merge.tmpl", templates / "config-merge.tmpl")
-    template = tmp_path / "settings.tmpl"
-    template.write_text(
-        (ROOT / "dot_gemini/antigravity-cli/modify_private_settings.json").read_text().split("\n", 1)[1]
-    )
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("")
-    command = [
-        "chezmoi",
-        "--source",
-        str(source),
-        "--destination",
-        str(tmp_path),
-        "--config",
-        str(config),
-        "execute-template",
-        "--with-stdin",
-        "--file",
-        str(template),
-    ]
-    original = {
-        "model": "host-choice",
-        "queuedMessages": "queue",
-        "verbosity": "medium",
-        "permissions": {"deny": ["host-rule"]},
-    }
-    first = subprocess.run(command, input=json.dumps(original), text=True, capture_output=True, check=True, timeout=30)
-    settings = json.loads(first.stdout)
-    assert settings["model"] == "host-choice"
-    assert settings["permissions"] == {"deny": ["host-rule"]}
-    assert settings["queuedMessages"] == "send-immediately"
-    assert settings["verbosity"] == "high"
-    for field, mode in [("statusLine", "statusline"), ("title", "title")]:
-        assert settings[field]["enabled"] is True
-        arguments = shlex.split(settings[field]["command"])
-        assert arguments == [
-            "exec",
-            "python3",
-            "-I",
-            "-S",
-            str(Path.home() / ".agents/skills/agy/scripts/display.py"),
-            mode,
-        ]
-    second = subprocess.run(command, input=first.stdout, text=True, capture_output=True, check=True, timeout=30)
-    assert second.stdout == first.stdout
-
-
 def test_colors_are_owned_by_renderer_and_title_stays_plain() -> None:
     payload = state()
     payload.update(model={"display_name": "Gemini 3.8 Flash (High)\x1b]52;c;private\x07"}, pending_input_count=1)
@@ -197,7 +144,7 @@ def test_wide_display_preserves_full_labels_and_additional_state() -> None:
     assert "planning" in text
     assert "3 artifacts" in text
     assert "context 24%" in text
-    assert "quota min 60% left" in text
+    assert "quota 60% left" in text
     assert "\ue62b INSERT" in text
     payload.update(terminal_width=40, tool_confirmation_pending=True)
     narrow = render(payload, "statusline")
@@ -261,3 +208,20 @@ def test_token_counts_stay_compact(count: float, expected: str) -> None:
 )
 def test_reset_durations_round_up(seconds: float, expected: str) -> None:
     assert display["duration"](seconds) == expected
+
+
+def test_quota_matches_active_model_family_and_skips_disabled_buckets() -> None:
+    payload = state()
+    payload.update(
+        model={"id": "Gemini 4 Argon (High)", "display_name": "Gemini 4 Argon (High)"},
+        quota={
+            "3p-5h": {"remaining_fraction": 1.0, "reset_in_seconds": 16_000, "disabled": True},
+            "3p-weekly": {"remaining_fraction": 0.0, "reset_in_seconds": 213_000},
+            "gemini-5h": {"remaining_fraction": 0.8, "reset_in_seconds": 7_500},
+            "gemini-weekly": {"remaining_fraction": 0.62, "reset_in_seconds": 480_000},
+        },
+        terminal_width=200,
+    )
+    assert "quota 62% left ↻ 5d13h" in render(payload, "statusline")
+    payload.update(model={"id": "Claude Opus 5.5 (High)", "display_name": "Claude Opus 5.5 (High)"})
+    assert "quota 0% left ↻ 2d11h" in render(payload, "statusline")

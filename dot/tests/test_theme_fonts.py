@@ -9,27 +9,17 @@ from pathlib import Path
 import pytest
 
 from dot_tasks import theme_pin
+from tests.chezmoi_helpers import chezmoi
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize(("platform", "prefix"), [("linux", ".local/share/fonts"), ("darwin", "Library/Fonts")])
 def test_font_installation_targets(platform: str, prefix: str, tmp_path: Path) -> None:
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("")
     # Render the actual conditional source using synthetic platform data.
     template = '{{ with dict "chezmoi" (dict "os" "' + platform + '") }}\n'
     template += (ROOT / ".chezmoiexternal.toml.tmpl").read_text() + "\n{{ end }}"
-    result = subprocess.run(
-        ["chezmoi", "--source", str(tmp_path), "--config", str(config), "execute-template"],
-        input=template,
-        text=True,
-        capture_output=True,
-        check=True,
-        timeout=15,
-    )
-    assert not result.stderr
-    targets = tomllib.loads(result.stdout)
+    targets = tomllib.loads(chezmoi(tmp_path, "execute-template", stdin=template))
     for family in ("GoogleSans", "GoogleSansCodeOfficial", "GoogleSansCode"):
         entry = targets[f"{prefix}/{family}"]
         assert entry["type"] == "archive"
@@ -41,20 +31,10 @@ def test_font_installation_targets(platform: str, prefix: str, tmp_path: Path) -
 
 
 def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path) -> None:
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("")
-    result = subprocess.run(
-        ["chezmoi", "--source", str(tmp_path), "--config", str(config), "execute-template"],
-        input=(ROOT / ".chezmoiexternal.toml.tmpl").read_text(),
-        text=True,
-        capture_output=True,
-        check=True,
-        timeout=15,
-    )
-    themes = {
-        target: entry for target, entry in tomllib.loads(result.stdout).items() if "fmind/theme" in entry.get("url", "")
-    }
-    # Fish, Neovim, ptpython, and Git execute their theme files; agents read DESIGN.md.
+    template = (ROOT / ".chezmoiexternal.toml.tmpl").read_text()
+    rendered = tomllib.loads(chezmoi(tmp_path, "execute-template", stdin=template))
+    themes = {target: entry for target, entry in rendered.items() if "fmind/theme" in entry.get("url", "")}
+    # Fish, Neovim, and Git execute their theme files; agents read DESIGN.md.
     assert {
         ".agents/DESIGN.md",
         ".config/fish/conf.d/theme.fish",

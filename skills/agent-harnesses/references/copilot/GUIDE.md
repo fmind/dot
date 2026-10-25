@@ -17,7 +17,6 @@ Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
 - [CLI skills documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills): supported layout and discovery.
 - [Awesome Copilot](https://github.com/github/awesome-copilot): GitHub-hosted, community-contributed skills, agents, and plugins; hosting does not make every contribution first-party.
-- **Select only relevant packages**: through the [vendor-skill policy](../../../agent-project/references/vendor-skills.md) when installation is requested.
 
 ## Top Links
 
@@ -28,8 +27,6 @@ Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
 ## Operation Links
 
-Use these for session recovery, automation, and integration decisions; discover other capabilities from the official documentation index.
-
 | Need                           | What to resolve                                                       | Official sources                                                                                                                                                                                                                                                  |
 | ------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Session lifecycle and recovery | Manage concurrent work, steering, context, and rollback.              | [Multiple sessions](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/work-with-multiple-sessions) · [Steering](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/steer-agents)                                         |
@@ -39,4 +36,4 @@ Use these for session recovery, automation, and integration decisions; discover 
 | Instructions, hooks, and tools | Resolve instructions and connect code intelligence or external tools. | [Custom instructions](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions) · [Hooks](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks)                                             |
 | Permissions and limits         | Check tool access, isolation, and session budgets.                    | [Allowing tools](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/allowing-tools) · [Local sandboxing](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/understanding-local-sandboxing)                 |
 
-Match the installed version, product surface, account, and platform before applying a recipe. Cloud-agent delegation and local CLI execution have different environments; the SDK and ACP links above cover embedding the harness.
+Cloud-agent delegation and local CLI execution have different environments; the SDK and ACP links above cover embedding the harness.

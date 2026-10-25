@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fact-check
   created: "2026-10-04"
-  updated: "2026-10-07"
+  updated: "2026-10-25"
 ---
 
 # Fact-Check
 
-Verify every material claim and link in a draft article, post, talk, or README section, and add primary sources where a claim needs one. Report findings with narrowed wording that would be true today; rewrite only when asked. [technical-publishing](../technical-publishing/SKILL.md) owns the publication pipeline, and a publishing project's local review skill (for example `review-content`) takes precedence for its own packages.
+Verify every material claim and link in a draft article, post, talk, or README section, and add primary sources where a claim needs one. Report findings with narrowed wording that would be true today; rewrite only when asked. A publishing project's local skills own its publication pipeline, and its review skill (for example `review-content`) takes precedence for its own packages.
 
 ## Workflow
 
@@ -42,4 +42,4 @@ Verify every material claim and link in a draft article, post, talk, or README s
 ## Documentation
 
 - [lychee](https://lychee.cli.rs/) · [releases](https://github.com/lycheeverse/lychee/releases)
-- Companion skills: [technical-publishing](../technical-publishing/SKILL.md) (publication), [repository-docs](../repository-docs/SKILL.md) (README and docs accuracy).
+- Companion skills: [repository-docs](../repository-docs/SKILL.md) (README and docs accuracy).

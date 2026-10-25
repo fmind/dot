@@ -8,7 +8,7 @@ import sqlite3
 import stat
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from io import BytesIO
@@ -21,6 +21,7 @@ from fmind_dot.archive.store import (
     fingerprint_bytes,
     fingerprint_json,
     is_valid_session_id,
+    parse_utc_instant,
     propagate_models,
 )
 from fmind_dot.archive.usage import UsageRecord
@@ -30,20 +31,6 @@ AGY_TRANSCRIPT_NAMES = ("transcript_full.jsonl", "transcript.jsonl")
 # beside the conversation directories root.
 AGY_SUMMARIES_NAME = "conversation_summaries.db"
 _AGY_SUMMARIES_LIMIT = 100_000
-# Codex moves archived rollouts here, beside its sessions root.
-CODEX_ARCHIVED_NAME = "archived_sessions"
-GROK_TRANSCRIPT_NAME = "updates.jsonl"
-GROK_SIGNALS_NAME = "signals.json"
-# xAI reports exact integer cost ticks; its headless-mode guide defines 1 USD = 10^10 ticks.
-_GROK_TICKS_PER_USD = 10**10
-_GROK_TOKEN_FIELDS = (
-    ("inputTokens", "input_tokens"),
-    ("outputTokens", "output_tokens"),
-    ("cachedReadTokens", "cached_tokens"),
-    ("cacheCreationTokens", "cache_write_tokens"),
-    ("reasoningTokens", "reasoning_tokens"),
-    ("totalTokens", "total_tokens"),
-)
 
 
 @dataclass
@@ -79,8 +66,6 @@ class AgentAdapter:
     notify_label: str = ""
     # The CWD comes from metadata outside the transcript file, so it joins the source signature.
     external_cwd: bool = False
-    # Files beside the source whose change can change the parse (Grok keeps usage in signals.json).
-    companions: tuple[str, ...] = ()
 
 
 def resolve_cwd(value: str) -> str:
@@ -105,7 +90,7 @@ def _json_document(content: str | bytes, label: str) -> object:
 def _decode_jsonl(content: bytes) -> Iterator[dict[str, Any] | None]:
     """Yield each JSON object record, or None for a malformed one."""
     # JSONL records end at LF, not at Unicode separators embedded in JSON strings.
-    # Decode one LF-delimited record at a time: large Codex snapshots can be
+    # Decode one LF-delimited record at a time: large transcript snapshots can be
     # nearly a gigabyte, and splitting a decoded copy multiplies peak memory.
     for raw_line in BytesIO(content):
         try:
@@ -177,17 +162,9 @@ def _undated_usage_timestamp(logs: list[SessionLog], *sources: Path) -> str:
 
     The clock is never evidence: a capture-time stamp would move usage between periods and change on recapture.
     """
-    latest: tuple[datetime, str] | None = None
-    for log in logs:
-        try:
-            parsed = datetime.fromisoformat(log.ts)
-        except ValueError:
-            continue
-        parsed = parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-        if latest is None or parsed > latest[0]:
-            latest = (parsed, log.ts)
-    if latest is not None:
-        return latest[1]
+    dated = [(instant, log.ts) for log in logs if (instant := parse_utc_instant(log.ts)) is not None]
+    if dated:
+        return max(dated, key=lambda item: item[0])[1]
     mtimes: list[float] = []
     for source in sources:
         try:
@@ -210,6 +187,9 @@ def _finalize_parsed_usage(
         # Transcript archival stays useful when a provider emits bad metrics:
         # ingestion publishes the transcript without usage, then reports this error.
         return None, usage_error
+
+
+_AGY_ROLES = {("USER_EXPLICIT", "USER_INPUT"): "user", ("MODEL", "PLANNER_RESPONSE"): "assistant"}
 
 
 def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -236,10 +216,11 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             usage.timestamp = timestamp
         source, kind, content = raw.get("source"), raw.get("type"), raw.get("content")
         text = content if isinstance(content, str) else ""
-        if source == "USER_EXPLICIT" and kind == "USER_INPUT":
+        role = _AGY_ROLES.get((source, kind), "")
+        if role == "user":
             usage.turn_count += 1
             input_bytes += len(text.encode())
-        elif source == "MODEL" and kind == "PLANNER_RESPONSE":
+        elif role == "assistant":
             output_bytes += len(text.encode())
             thinking = raw.get("thinking")
             if isinstance(thinking, str):
@@ -249,13 +230,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         truncated = raw.get("truncated_fields")
         if raw.get("is_truncated") is True or (isinstance(truncated, list) and "content" in truncated):
             continue
-        role = ""
-        if source == "USER_EXPLICIT" and kind == "USER_INPUT":
-            role = "user"
-        elif source == "MODEL" and kind == "PLANNER_RESPONSE":
-            role = "assistant"
         if role and isinstance(content, str) and content.strip():
-            logs.append(SessionLog(str(raw.get("created_at", "")), "agy", session_id, role, content, resolve_cwd(cwd)))
+            logs.append(SessionLog(str(raw.get("created_at", "")), "agy", session_id, role, content, usage.cwd))
     usage.input_tokens = (input_bytes + 3) // 4
     usage.output_tokens = (output_bytes + 3) // 4
     usage.source_bytes = source_bytes
@@ -456,451 +432,8 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     )
 
 
-def codex_session_id(path: Path) -> str:
-    name = path.stem
-    if not name.startswith("rollout-"):
-        return ""
-    parts = name.split("-")
-    return "-".join(parts[6:]) if len(parts) >= 7 else ""
-
-
 def _mapping(value: object) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
-
-
-def _codex_text(value: object) -> str:
-    if isinstance(value, str):
-        return value
-    if not isinstance(value, list):
-        return ""
-    texts: list[str] = []
-    for part in value:
-        if isinstance(part, str):
-            texts.append(part)
-        elif isinstance(part, dict):
-            text = part.get("text") or part.get("content")
-            if isinstance(text, str) and text:
-                texts.append(text)
-    return "\n".join(texts)
-
-
-def _codex_role(raw: dict[str, Any]) -> str:
-    if isinstance(raw.get("role"), str) and raw["role"]:
-        return raw["role"]
-    payload = _mapping(raw.get("payload"))
-    if isinstance(payload.get("role"), str) and payload["role"]:
-        return payload["role"]
-    kind = raw.get("type")
-    if kind in {"user", "user_message"}:
-        return "user"
-    return "assistant" if kind in {"assistant", "assistant_message", "agent_message"} else ""
-
-
-def _codex_content(raw: dict[str, Any]) -> str:
-    content = _codex_text(raw.get("content"))
-    if content:
-        return content
-    payload = _mapping(raw.get("payload"))
-    content = _codex_text(payload.get("content"))
-    if content:
-        return content
-    for value in (payload.get("message"), payload.get("text"), raw.get("message"), raw.get("text")):
-        if isinstance(value, str) and value:
-            return value
-    return ""
-
-
-def _codex_field(raw: dict[str, Any], key: str) -> str:
-    value = raw.get(key)
-    if isinstance(value, str) and value:
-        return value
-    value = _mapping(raw.get("payload")).get(key)
-    return value if isinstance(value, str) else ""
-
-
-_CODEX_TOKEN_FIELDS = (
-    ("input_tokens", "input_tokens"),
-    ("output_tokens", "output_tokens"),
-    ("cached_input_tokens", "cached_tokens"),
-    ("cache_write_input_tokens", "cache_write_tokens"),
-    ("reasoning_output_tokens", "reasoning_tokens"),
-    ("total_tokens", "total_tokens"),
-)
-
-
-def _codex_counts(value: object, field: str) -> dict[str, int]:
-    """Read one complete Codex token usage object; absent counters inside it are zero."""
-    usage = _usage_mapping(value, field, optional=False)
-    counts = {target: _usage_token_count(usage.get(source), target) for source, target in _CODEX_TOKEN_FIELDS}
-    if all(counts[name] is None for name in ("input_tokens", "output_tokens", "total_tokens")):
-        raise ValueError(f"usage record field {field!r} has no token counters")
-    result = {name: count or 0 for name, count in counts.items()}
-    if not result["total_tokens"]:
-        result["total_tokens"] = result["input_tokens"] + result["output_tokens"]
-    return result
-
-
-def _observe_codex_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
-    timestamp = raw.get("timestamp")
-    if isinstance(timestamp, str) and timestamp:
-        record.timestamp = timestamp
-    payload = _mapping(raw.get("payload"))
-    kind = raw.get("type")
-    if kind in {"turn_context", "session_meta"}:
-        model = payload.get("model")
-        if kind == "turn_context" and isinstance(model, str) and model:
-            record.observe_model(model)
-        cwd = payload.get("cwd")
-        if isinstance(cwd, str) and cwd and not record.cwd:
-            record.cwd = resolve_cwd(cwd)
-    elif kind == "response_item" and payload.get("role") == "assistant":
-        record.turn_count += 1
-    elif kind == "event_msg" and payload.get("type") == "token_count":
-        info = _usage_mapping(payload.get("info"), "info")
-        total = _usage_mapping(info.get("total_token_usage"), "total_token_usage")
-        _apply_counters(record, total, _CODEX_TOKEN_FIELDS)
-
-
-def parse_codex_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
-    logs: list[SessionLog] = []
-    malformed = decoded = 0
-    usage_error: Exception | None = None
-    active_model = ""
-    active_cwd = resolve_cwd(cwd)
-    usage = UsageRecord(
-        harness="codex",
-        agent="codex",
-        session_id=session_id,
-        cwd=active_cwd,
-    )
-    samples: list[UsageRecord] = []
-    previous_counts = dict.fromkeys((target for _, target in _CODEX_TOKEN_FIELDS), 0)
-    timed = True
-    # Codex 0.153+ records every response, including compactions that cumulative snapshots omit.
-    responses: dict[str, UsageRecord] = {}
-    thread_total: dict[str, int] = {}
-    recorded = True
-    meta: dict[str, Any] | None = None
-    records, fingerprint, source_bytes = _jsonl_snapshot(path)
-    for raw in records:
-        if raw is None:
-            malformed += 1
-            continue
-        decoded += 1
-        if meta is None and raw.get("type") == "session_meta":
-            # The first metadata line is this thread's; a subagent's forked history repeats its parent's.
-            meta = _mapping(raw.get("payload"))
-        try:
-            _observe_codex_usage(usage, raw)
-            payload = _mapping(raw.get("payload"))
-            if raw.get("type") == "token_usage_record":
-                response = payload.get("response_id")
-                if not isinstance(response, str) or not response:
-                    raise ValueError("usage record field 'response_id' must be a non-empty string")
-                counts = _codex_counts(payload.get("usage"), "usage")
-                thread_total = _codex_counts(payload.get("thread_token_usage"), "thread_token_usage")
-                if response not in responses:
-                    recorded = recorded and bool(raw.get("timestamp"))
-                    responses[response] = replace(
-                        usage,
-                        model=active_model,
-                        samples=[],
-                        cost_usd=0,
-                        cost_known=False,
-                        turn_count=1,
-                        measurement_kind="provider-reported",
-                        **counts,
-                    )
-            elif (
-                raw.get("type") == "event_msg"
-                and payload.get("type") == "token_count"
-                and _mapping(payload.get("info")).get("total_token_usage")
-            ):
-                counts = {name: getattr(usage, name) for name in previous_counts}
-                if not counts["total_tokens"]:
-                    counts["total_tokens"] = counts["input_tokens"] + counts["output_tokens"]
-                delta = {name: counts[name] - previous_counts[name] for name in counts}
-                timed = timed and bool(raw.get("timestamp")) and all(value >= 0 for value in delta.values())
-                if timed and any(delta.values()):
-                    samples.append(
-                        replace(
-                            usage, model=active_model, samples=[], cost_usd=0, cost_known=False, turn_count=1, **delta
-                        )
-                    )
-                previous_counts = counts
-        except ValueError as error:
-            usage_error = error
-        if model := _codex_field(raw, "model"):
-            active_model = model
-        if line_cwd := _codex_field(raw, "cwd"):
-            active_cwd = resolve_cwd(line_cwd)
-        role = _codex_role(raw)
-        content = _codex_content(raw)
-        if role not in {"user", "assistant"} or not content.strip():
-            continue
-        timestamp = next(
-            (raw[key] for key in ("timestamp", "created_at", "ts") if isinstance(raw.get(key), str) and raw[key]),
-            "",
-        )
-        logs.append(
-            SessionLog(
-                timestamp,
-                "codex",
-                session_id,
-                role,
-                content,
-                resolve_cwd(_codex_field(raw, "cwd")) or active_cwd,
-                _codex_field(raw, "model") or active_model,
-            )
-        )
-    propagate_models(logs)
-    if responses:
-        requests = list(responses.values())
-        usage.measurement_kind = "provider-reported"
-        if all(sum(getattr(request, name) for request in requests) == count for name, count in thread_total.items()):
-            usage.set_samples(requests, timed=recorded)
-        else:
-            # The provider's thread counter disagrees with its response records, for example when
-            # usage predates them: keep the provider's total, without inventing request allocation.
-            for name, count in thread_total.items():
-                setattr(usage, name, count)
-            usage.samples = []
-    elif samples and timed:
-        usage.set_samples(samples)
-    usage.source_bytes = source_bytes
-    parsed_usage = None
-    if usage.measurement_kind:
-        parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
-    meta = meta or {}
-    spawn = _mapping(_mapping(_mapping(meta.get("source")).get("subagent")).get("thread_spawn"))
-    parent = spawn.get("parent_thread_id")
-    return ParsedSession(
-        logs,
-        fingerprint,
-        "codex-jsonl",
-        malformed,
-        decoded - len(logs),
-        parsed_usage,
-        usage_error,
-        sidechain=meta.get("thread_source") == "subagent",
-        parent_session_id=parent if isinstance(parent, str) and is_valid_session_id(parent) else "",
-    )
-
-
-def grok_cwd_from_path(root: Path, path: Path) -> str:
-    try:
-        relative = path.relative_to(root)
-    except ValueError:
-        return ""
-    return unquote(relative.parts[0]) if len(relative.parts) >= 2 else ""
-
-
-def _grok_timestamp(value: object) -> str:
-    if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
-        return ""
-    try:
-        timestamp = datetime.fromtimestamp(int(value), UTC)
-    except OverflowError, OSError, ValueError:
-        return ""
-    return timestamp.isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def parse_grok_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
-    logs: list[SessionLog] = []
-    malformed = decoded = 0
-    active_model = ""
-    current_role = current_prompt = current_ts = current_model = ""
-    parts: list[str] = []
-
-    def flush() -> None:
-        nonlocal current_role, current_prompt, current_ts, current_model, parts
-        content = "".join(parts)
-        if current_role and content.strip():
-            logs.append(
-                SessionLog(
-                    current_ts,
-                    "grok",
-                    session_id,
-                    current_role,
-                    content,
-                    resolve_cwd(cwd),
-                    current_model,
-                )
-            )
-        current_role = current_prompt = current_ts = current_model = ""
-        parts = []
-
-    roles = {"user_message_chunk": "user", "agent_message_chunk": "assistant"}
-    samples: list[UsageRecord] = []
-    cost_ticks = 0
-    cost_complete = True
-    usage: UsageRecord | None = None
-    usage_error: Exception | None = None
-    usage_complete = True
-    timed = True
-    # Both provider files participate in the generation identity. Read each once
-    # so an updated measurement cannot be hidden by an unchanged transcript.
-    transcript = b"" if path.name == GROK_SIGNALS_NAME else path.read_bytes()
-    signals_path = path.parent / GROK_SIGNALS_NAME
-    try:
-        signals = signals_path.read_bytes()
-    except FileNotFoundError:
-        signals = None
-    records = _decode_jsonl(transcript)
-    sample_fallback = _undated_usage_timestamp([], path, signals_path)
-    fingerprint = fingerprint_json(
-        {
-            "transcript": fingerprint_bytes(transcript),
-            "signals": fingerprint_bytes(signals) if signals is not None else None,
-        }
-    )
-    for raw in records:
-        if raw is None:
-            malformed += 1
-            continue
-        decoded += 1
-        params = _mapping(raw.get("params"))
-        update = _mapping(params.get("update"))
-        model = _mapping(update.get("_meta")).get("modelId")
-        if isinstance(model, str) and model:
-            active_model = model
-        if update.get("sessionUpdate") == "turn_completed":
-            turn_timestamp = _grok_timestamp(raw.get("timestamp"))
-            try:
-                turn, ticks, complete = _grok_turn_usage(update, turn_timestamp, session_id, cwd, sample_fallback)
-            except ValueError as error:
-                usage_error = error
-            else:
-                timed = timed and (bool(turn_timestamp) or not turn)
-                # A failed or cancelled turn without usage (e.g. an HTTP 402) billed nothing
-                # measurable; only a turn that should have reported usage leaves a gap.
-                unbilled = not update.get("usage") and update.get("stop_reason") in {"error", "cancelled"}
-                measured = bool(turn) and all(sample.measurement_kind for sample in turn)
-                usage_complete = usage_complete and (unbilled or measured)
-                samples.extend(turn)
-                cost_ticks += ticks
-                cost_complete = cost_complete and (unbilled or complete)
-        role = roles.get(update.get("sessionUpdate"))
-        text = _mapping(update.get("content")).get("text")
-        if role is None or not isinstance(text, str) or not text:
-            continue
-        prompt = _mapping(params.get("_meta")).get("promptId")
-        prompt_id = prompt if isinstance(prompt, str) else ""
-        if current_role != role or current_prompt != prompt_id:
-            flush()
-            current_role = role
-            current_prompt = prompt_id
-            current_ts = _grok_timestamp(raw.get("timestamp"))
-            current_model = active_model
-        parts.append(text)
-    flush()
-    propagate_models(logs)
-    if usage_error is None:
-        try:
-            usage = _parse_grok_usage(
-                signals,
-                session_id,
-                cwd,
-                samples,
-                cost_ticks,
-                cost_complete,
-                timed=timed,
-                fallback_timestamp=_undated_usage_timestamp(logs, path, signals_path),
-            )
-            # Both provider files are inspected to produce one measurement.
-            if not usage_complete:
-                if usage is not None and usage.cost_known:
-                    # A complete bill is independent from absent token counters.
-                    usage.set_samples([])
-                    usage.measurement_kind = ""
-                else:
-                    usage = None
-            if usage is not None:
-                usage.source_bytes = len(transcript) + len(signals or b"")
-        except (OSError, ValueError) as error:
-            usage_error = error
-    return ParsedSession(logs, fingerprint, "grok-jsonl", malformed, decoded - len(logs), usage, usage_error)
-
-
-def _grok_turn_usage(
-    update: dict[str, Any], timestamp: str, session_id: str, cwd: str, fallback_timestamp: str
-) -> tuple[list[UsageRecord], int, bool]:
-    """Return request measurements, reported cost ticks, and completeness for one turn."""
-    usage = _usage_mapping(update.get("usage"), "usage")
-    incomplete = usage.get("usageIsIncomplete", False)
-    if not isinstance(incomplete, bool):
-        raise ValueError("usage record field 'usageIsIncomplete' must be a boolean")
-    if incomplete:
-        # The provider explicitly has no complete measurement. Keep the transcript,
-        # but never present partial counters or cost as the session's total.
-        return [], 0, False
-    if not usage:
-        return [], 0, False
-    # Per-model counters partition the turn exactly, including finished subagents.
-    models = _usage_mapping(usage.get("modelUsage"), "modelUsage") or {"": usage}
-    samples: list[UsageRecord] = []
-    # The turn total remains authoritative when a per-model cost breakdown is absent.
-    ticks = _usage_token_count(usage.get("costUsdTicks"), "cost_usd")
-    for index, model in enumerate(sorted(models)):
-        counters = _usage_mapping(models[model], "modelUsage entry", optional=False)
-        sample = UsageRecord(
-            harness="grok",
-            session_id=session_id,
-            cwd=resolve_cwd(cwd),
-            model=model if isinstance(model, str) else "",
-            timestamp=timestamp,
-            # One completed turn is one prompt however many models billed it.
-            turn_count=1 if index == 0 else 0,
-        )
-        _apply_counters(sample, counters, _GROK_TOKEN_FIELDS)
-        samples.append(sample.finalize(fallback_timestamp=fallback_timestamp))
-    # A turn without a reported cost cannot establish a complete bill, including a known zero.
-    return samples, ticks or 0, ticks is not None
-
-
-def _parse_grok_usage(
-    content: bytes | None,
-    session_id: str,
-    cwd: str,
-    samples: list[UsageRecord],
-    cost_ticks: int,
-    cost_complete: bool,
-    *,
-    timed: bool,
-    fallback_timestamp: str,
-) -> UsageRecord | None:
-    record = UsageRecord(
-        harness="grok", agent="grok", session_id=session_id, cwd=resolve_cwd(cwd), measurement_kind="context-only"
-    )
-    context_known = False
-    if content is not None:
-        record.source_bytes = len(content)
-        value = _json_document(content, "Grok signals")
-        if not isinstance(value, dict):
-            raise ValueError("Grok signals must contain a JSON object")
-        model = value.get("primaryModelId")
-        if isinstance(model, str):
-            record.model = model
-        tokens = _usage_token_count(value.get("contextTokensUsed"), "input_tokens")
-        if tokens is not None:
-            record.input_tokens = tokens
-            context_known = True
-        turns = _usage_token_count(value.get("turnCount"), "turn_count")
-        if turns is not None:
-            record.turn_count = turns
-    if not samples:
-        # Signals hold one final context reading, not what the session consumed.
-        return record.finalize(fallback_timestamp=fallback_timestamp) if context_known else None
-    record.measurement_kind = "provider-reported"
-    record.set_samples(samples, timed=timed)
-    record.timestamp = max(sample.timestamp for sample in samples) if timed else ""
-    if cost_complete:
-        try:
-            record.cost_usd = cost_ticks / _GROK_TICKS_PER_USD
-        except OverflowError as error:
-            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number") from error
-        record.cost_known = True
-    return record.finalize(fallback_timestamp=fallback_timestamp)
 
 
 def _connect_read_only(path: Path) -> sqlite3.Connection:
@@ -1045,6 +578,11 @@ def _opencode_request(message: dict[str, Any], created: int, session_id: str, cw
     return sample.finalize()
 
 
+_OPENCODE_MAX_MESSAGES = 20_000
+_OPENCODE_MAX_PARTS = 100_000
+_OPENCODE_MAX_BYTES = 16 << 20
+
+
 def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
     """Read text turns and per-step usage from OpenCode's SQLite store.
 
@@ -1066,18 +604,21 @@ def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> Parsed
             "UNION ALL SELECT COUNT(*), COALESCE(SUM(LENGTH(CAST(data AS BLOB))), 0) FROM part WHERE session_id = ?",
             (session_id, session_id),
         ).fetchall()
-        if sizes[0][0] > 20000 or sizes[1][0] > 100000 or sum(row[1] for row in sizes) > 16 << 20:
+        if (
+            sizes[0][0] > _OPENCODE_MAX_MESSAGES
+            or sizes[1][0] > _OPENCODE_MAX_PARTS
+            or sum(row[1] for row in sizes) > _OPENCODE_MAX_BYTES
+        ):
             raise ValueError("OpenCode session exceeds transcript bounds")
+        # The same read transaction keeps these rows within the bounds checked above.
         messages = connection.execute(
-            "SELECT id, time_created, data FROM message WHERE session_id = ? ORDER BY time_created, id LIMIT 20001",
+            "SELECT id, time_created, data FROM message WHERE session_id = ? ORDER BY time_created, id",
             (session_id,),
         ).fetchall()
         parts = connection.execute(
-            "SELECT id, message_id, data FROM part WHERE session_id = ? ORDER BY time_created, id LIMIT 100001",
+            "SELECT id, message_id, data FROM part WHERE session_id = ? ORDER BY time_created, id",
             (session_id,),
         ).fetchall()
-    if len(messages) > 20000 or len(parts) > 100000 or sum(len(row[2]) for row in [*messages, *parts]) > 16 << 20:
-        raise ValueError("OpenCode session exceeds transcript bounds")
     content: dict[str, list[str]] = {}
     message_ids = {row[0] for row in messages}
     for _, message_id, raw in parts:
@@ -1225,41 +766,6 @@ def _enumerate_claude(root: Path) -> list[SessionCandidate]:
     ]
 
 
-def _enumerate_codex(root: Path) -> list[SessionCandidate]:
-    # Archived rollouts can still grow after the move; the live copy wins a duplicate id.
-    candidates: list[SessionCandidate] = []
-    live: set[str] = set()
-    for path in _session_files(root, ("*.jsonl",)):
-        session_id = codex_session_id(path)
-        if is_valid_session_id(session_id):
-            live.add(session_id)
-            candidates.append((session_id, "", path))
-    archived = root.parent / CODEX_ARCHIVED_NAME
-    try:
-        archived_mode = archived.lstat().st_mode
-    except FileNotFoundError:
-        archived_mode = 0
-    if stat.S_ISDIR(archived_mode):
-        for path in _session_files(archived, ("*.jsonl",)):
-            session_id = codex_session_id(path)
-            if is_valid_session_id(session_id) and session_id not in live:
-                candidates.append((session_id, "", path))
-    return candidates
-
-
-def _enumerate_grok(root: Path) -> list[SessionCandidate]:
-    candidates: list[SessionCandidate] = []
-    directories = {path.parent for path in _session_files(root, (GROK_TRANSCRIPT_NAME, GROK_SIGNALS_NAME))}
-    for directory in sorted(directories):
-        path = directory / GROK_TRANSCRIPT_NAME
-        if not path.is_file():
-            path = directory / GROK_SIGNALS_NAME
-        session_id = path.parent.name
-        if is_valid_session_id(session_id):
-            candidates.append((session_id, grok_cwd_from_path(root, path), path))
-    return candidates
-
-
 def _enumerate_copilot(root: Path) -> list[SessionCandidate]:
     with closing(_connect_read_only(root)) as connection:
         return [
@@ -1282,19 +788,12 @@ def _enumerate_opencode(root: Path) -> list[SessionCandidate]:
     return candidates
 
 
+# Harnesses dot no longer captures (removed 2026-10-25); their archived bundles stay queryable.
+RETIRED_AGENTS = ("codex", "grok")
+
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "agy": AgentAdapter("agy", "agy", False, parse_agy_session, _enumerate_agy, "Antigravity", external_cwd=True),
     "claude": AgentAdapter("claude", "Claude", False, parse_claude_session, _enumerate_claude, "Claude Code"),
-    "codex": AgentAdapter("codex", "Codex", False, parse_codex_session, _enumerate_codex, "Codex"),
-    "grok": AgentAdapter(
-        "grok",
-        "Grok",
-        False,
-        parse_grok_session,
-        _enumerate_grok,
-        "Grok Build",
-        companions=(GROK_TRANSCRIPT_NAME, GROK_SIGNALS_NAME),
-    ),
     "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session, _enumerate_copilot, "Copilot"),
     "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session, _enumerate_opencode, "OpenCode"),
 }

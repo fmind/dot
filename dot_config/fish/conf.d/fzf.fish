@@ -1,7 +1,7 @@
 # Docs: https://fishshell.com/docs/current/index.html
 # Base commands
-set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --strip-cwd-prefix'
-set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden --strip-cwd-prefix'
+set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden'
+set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden'
 
 # Colours live in the theme, not here. The file is fetched from
 # github.com/fmind/theme by .chezmoiexternal.toml.tmpl and is read before

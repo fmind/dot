@@ -109,9 +109,8 @@ def test_zero_token_synthetic_sample_is_priced_at_zero_and_keeps_pricing_complet
 
 @pytest.mark.parametrize("harness", ["claude", "codex", "copilot"])
 def test_parser_seven_explicit_zero_remains_known_without_recapture(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, harness: str
+    monkeypatch: pytest.MonkeyPatch, harness: str
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     usage = UsageRecord(harness=harness, session_id="known-zero", measurement_kind="provider-reported").finalize(
         fallback_timestamp="2026-09-01T00:00:00Z"
     )
@@ -157,7 +156,6 @@ def test_aggregate_partial_pricing_is_separate_from_recorded_cost() -> None:
 
 
 def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     ingest_session(
         "codex", "example", [SessionLog("2026-09-09T10:00:00Z", "codex", "example", "user", "SECRET PROMPT", "/work")]
@@ -194,8 +192,7 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
 
 
 @pytest.mark.parametrize("price", ["-1", ".inf", ".nan", "true", "'wrong'"])
-def test_invalid_price_fails_through_public_cli(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, price: str) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_invalid_price_fails_through_public_cli(tmp_path: Path, price: str) -> None:
     config = tmp_path / "config.yaml"
     config.write_text(f"agent:\n  pricing:\n    models:\n      gpt-5.4:\n        input: {price}\n")
     result = CliRunner().invoke(app, ["--config", str(config), "agent", "stats", "--json"])
@@ -325,9 +322,8 @@ def test_configured_grok_build_rate_overrides_its_served_model() -> None:
 
 @pytest.mark.parametrize("sampled", [False, True], ids=["session-measurement", "request-measurement"])
 def test_public_stats_leave_unproven_legacy_zero_unpriced_without_changing_archive(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sampled: bool
+    monkeypatch: pytest.MonkeyPatch, sampled: bool
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
     usage = UsageRecord(
         harness="copilot",
         session_id="legacy-zero",

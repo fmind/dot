@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-10-23"
+  updated: "2026-10-25"
 ---
 
 # Auth Status
@@ -41,7 +41,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    for name in GH_TOKEN GITHUB_TOKEN GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_AUTH_ACCESS_TOKEN_FILE \
      GOOGLE_WORKSPACE_CLI_TOKEN GEMINI_API_KEY GOOGLE_API_KEY HF_TOKEN KAGGLE_API_TOKEN \
      AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SESSION_TOKEN DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_CLIENT_SECRET; do
-     [ -n "$(printenv "$name")" ] && echo "$name is set"
+     if [ -n "$(printenv "$name")" ]; then echo "$name is set"; fi
    done
    ```
 

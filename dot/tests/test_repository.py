@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 from collections.abc import Mapping, Sequence
+from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import chain, repeat
 from pathlib import Path
@@ -112,6 +113,14 @@ class InterruptingPullRunner(RecordingRunner):
         )
 
 
+def _git(runner: Runner, path: Path, *args: str) -> str:
+    return runner.run(
+        ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args],
+        cwd=path,
+        timeout=10,
+    ).stdout.strip()
+
+
 def result(stdout: str = "", returncode: int = 0) -> CommandResult:
     return CommandResult(stdout=stdout, stderr="", returncode=returncode)
 
@@ -161,12 +170,7 @@ def test_pull_fast_forwards_a_local_remote_and_rejects_divergence(
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     runner = Runner()
 
-    def git(path: Path, *args: str) -> str:
-        return runner.run(
-            ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args],
-            cwd=path,
-            timeout=10,
-        ).stdout.strip()
+    git = partial(_git, runner)
 
     remote, seed, checkout = (tmp_path / name for name in ("remote.git", "seed", "checkout"))
     git(tmp_path, "init", "--bare", "--initial-branch=main", str(remote))
@@ -247,12 +251,7 @@ def test_pull_rechecks_worktree_after_fetch_before_push(tmp_path: Path, monkeypa
 
     runner = EditingRunner()
 
-    def git(path: Path, *args: str) -> str:
-        return runner.run(
-            ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args],
-            cwd=path,
-            timeout=10,
-        ).stdout.strip()
+    git = partial(_git, runner)
 
     remote, checkout = tmp_path / "remote.git", tmp_path / "checkout"
     git(tmp_path, "init", "--bare", "--initial-branch=main", str(remote))
@@ -803,12 +802,7 @@ def test_status_reads_branch_divergence_and_detached_heads_from_real_git(
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     runner = Runner()
 
-    def git(path: Path, *args: str) -> str:
-        return runner.run(
-            ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args],
-            cwd=path,
-            timeout=10,
-        ).stdout.strip()
+    git = partial(_git, runner)
 
     remote, checkout = tmp_path / "remote.git", tmp_path / "checkout"
     git(tmp_path, "init", "--bare", "--initial-branch=main", str(remote))

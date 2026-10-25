@@ -10,12 +10,11 @@ scroll_mode_sync false
 keybinds {
     // Alt bindings also work in Locked mode (Ctrl g) when an app needs the Ctrl keys.
     shared {
-        bind "Alt a" { Run "agy" { close_on_exit true; }; }
+        // Through fish so the agy function (functions/agy.fish) sets the agent environment.
+        bind "Alt a" { Run "fish" "-c" "agy" { close_on_exit true; }; }
         bind "Alt y" { Run "yazi" { floating true; close_on_exit true; x "10%"; y "10%"; width "80%"; height "80%"; }; }
         bind "Alt g" { Run "lazygit" { floating true; close_on_exit true; x "1%"; y "1%"; width "98%"; height "98%"; }; }
         bind "Alt /" { LaunchOrFocusPlugin "session-manager" { floating true; move_to_focused_tab true; }; }
-        // Centred reading tab for wide screens (layouts/zen.kdl); fzf keeps Alt c in Fish.
-        bind "Alt z" { NewTab { layout "zen"; }; }
     }
     shared_except "locked" {
         unbind "Ctrl h" // Conflicts with nvim

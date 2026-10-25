@@ -39,13 +39,23 @@ Use `opencode mcp add --help` for the installed setup interface and [mcp-setup](
 
 - [Skill discovery and permissions](https://opencode.ai/docs/skills/): the official consumer-facing contract.
 - [Upstream repository](https://github.com/anomalyco/opencode): distinguish contributor skills and fixtures from consumer packages; do not install internal examples as a general OpenCode skill.
-- **Use the [vendor-skill policy](../../../agent-project/references/vendor-skills.md) for requested third-party packages.**
 
 ## Top Links
 
-For session recovery, automation, and integration decisions, read the [operation links](references/features.md). Use the official documentation index for other capabilities.
-
-- [OpenCode CLI](https://opencode.ai/docs/cli/) · [Agents](https://opencode.ai/docs/agents/) · [Skills](https://opencode.ai/docs/skills/) · [Providers](https://opencode.ai/docs/providers/)
+- [Documentation](https://opencode.ai/docs/) · [OpenCode CLI](https://opencode.ai/docs/cli/) · [Agents](https://opencode.ai/docs/agents/) · [Skills](https://opencode.ai/docs/skills/) · [Providers](https://opencode.ai/docs/providers/)
 - [Changelog](https://opencode.ai/changelog) · [Releases](https://github.com/anomalyco/opencode/releases)
 - [Configuration](https://opencode.ai/docs/config/) · [Permissions](https://opencode.ai/docs/permissions/) · [MCP servers](https://opencode.ai/docs/mcp-servers/)
 - Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [model-providers](../../../model-providers/SKILL.md), [mcp-setup](../../../mcp-setup/SKILL.md), [agent-project](../../../agent-project/SKILL.md).
+
+## Operation Links
+
+| Need                        | What to resolve                                                    | Official sources                                                                                                |
+| --------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Sessions and recovery       | Find resume, fork, undo/redo, export/import, and session commands. | [TUI session commands](https://opencode.ai/docs/tui/) · [CLI session interfaces](https://opencode.ai/docs/cli/) |
+| Agent roles and automation  | Choose agent roles, custom commands, and headless execution.       | [Agents](https://opencode.ai/docs/agents/) · [Commands](https://opencode.ai/docs/commands/)                     |
+| Server and editor protocols | Read server, client attachment, SDK, and ACP contracts.            | [Server](https://opencode.ai/docs/server/) · [SDK](https://opencode.ai/docs/sdk/)                               |
+| Instructions and skills     | Check instruction precedence and skill discovery.                  | [Rules](https://opencode.ai/docs/rules/) · [Skills](https://opencode.ai/docs/skills/)                           |
+| Plugins and external tools  | Find plugin events, MCP connections, and tool authoring.           | [Plugins](https://opencode.ai/docs/plugins/) · [MCP](https://opencode.ai/docs/mcp-servers/)                     |
+| Permissions and policy      | Check tool approvals and policy enforcement.                       | [Permissions](https://opencode.ai/docs/permissions/) · [Policies](https://opencode.ai/docs/policies/)           |
+
+Use the [CLI reference](https://opencode.ai/docs/cli/) for session, export/import, stats, debug, and server-attachment commands. The [plugin guide](https://opencode.ai/docs/plugins/) owns event-hook integrations; do not translate another harness's hook schema into OpenCode settings.

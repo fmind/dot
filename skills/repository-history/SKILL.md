@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-10-07"
+  updated: "2026-10-25"
 ---
 
 # Repository History
@@ -17,8 +17,49 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
 ## Workflow
 
 1. **Bound the question**: path, symbol, revision range, and the decision the history should inform; keep it small enough that every cited commit can be inspected.
-1. **Trace evidence**: follow [investigation.md](references/investigation.md) for coverage, blame, line history, pickaxe, renames, commit inspection, and exact PR mapping through [gh](../gh/SKILL.md).
-1. **Report**: the investigation's history note, rating confidence with the scale in Gotchas.
+1. **Establish coverage**: Use `git` to record branch, `HEAD`, dirty state, available refs (remote names, never raw remote URLs, which can contain credentials), and whether the clone is shallow; say which evidence Git cannot supply when the path is untracked, generated, vendored, or absent at `HEAD`. Preserve staged, unstaged, and untracked work.
+
+   ```bash
+   git status --short
+   git rev-parse HEAD
+   git rev-parse --is-shallow-repository
+   ```
+
+1. **Seed line provenance**: Treat movement and copy detection as clues, not guarantees; review a repository-owned `.git-blame-ignore-revs` before honoring it and disclose ignored revisions.
+
+   ```bash
+   git blame -w -M -C -C -C -L <start>,<end> -- <path>
+   ```
+
+1. **Trace the timeline**: Use the smallest relevant view and name the exact revision range instead of treating every ref as one lineage.
+
+   ```bash
+   git log --follow -n 20 --format='%h %ad %s' --date=short -- <path> # candidate commits across renames
+   git log -n 10 -L <start>,<end>:<path>                             # patches for the selected line range
+   git log -n 20 --oneline -S '<literal>' -- <path>                   # occurrence count changed
+   git log -n 20 --oneline -G '<regex>' -- <path>                     # matching changed lines
+   ```
+
+   These limits are discovery windows, not complete history. Continue through the needed revision range when the origin or a superseding change remains unresolved; use porcelain blame only for machine parsing.
+
+1. **Inspect candidate commits**: Read subject, body, changed tests, schemas, migrations, configuration, and docs together; preserve reverts and behavior changes, and group mechanical edits only after verifying they are mechanical.
+
+   ```bash
+   git show --format=fuller --find-renames --find-copies --stat <sha>
+   git show --format=fuller <sha> -- <relevant-path>
+   ```
+
+1. **Resolve ancestry anomalies**: Check renames, splits, copies, bulk formatting, generated files, squashes, rebases, cherry-picks, backports, merge parents, and revert pairs; when line history stops at a rewrite, compare file history, pickaxe searches, and neighboring tests, and report the break rather than forcing one origin.
+1. **Find coupling clues**: Count files that repeatedly changed with the target across behavior commits. Repeated co-change can suggest a test, schema, migration, or deployment constraint; one shared commit or a formatting sweep proves nothing.
+1. **Add remote rationale only when needed**: Map an exact commit to its pull requests through [gh](../gh/SKILL.md), then read the PR body, linked issue, reviews, inline comments, and changed files; paginate, disclose truncation, and treat a title match or semantic search alone as low confidence.
+1. **Extract decision atoms**: Separate facts, author-stated rationale, inference, contradiction, and unknowns; cite the commit, patch, test, issue, or review for every proposed constraint and check whether later changes superseded it.
+1. **Return the history note**: rate confidence with the scale in Gotchas, and do not implement the change unless requested separately. Report:
+   - **Bottom line**: the most likely explanation, its confidence, and whether it changes the proposed plan.
+   - **Scope and identity**: `HEAD`, working-copy boundary, path, lines or symbol, revision range, shallow state, and remote evidence checked.
+   - **Origin and timeline**: introducing evidence, later changes, fixes, reverts, and moves with short hashes and dates.
+   - **Decision atoms and companion evidence**: each labeled fact, inference, contradiction, or unknown; co-changes stay correlation until code confirms the seam.
+   - **Change risk**: what could break, which evidence may be stale, and the smallest current test or human answer that resolves the rest.
+   - **Evidence sources**: local objects, remote discussion, runtime behavior, and human intent kept separate.
 
 ## Gotchas
 

@@ -1,18 +1,18 @@
 ---
 name: systematic-debugging
-description: "Debug failures to root cause: DNS/TLS, Python CPU/memory with Pyinstrument and Memray."
+description: "Debug failures to root cause and benchmark fixes: DNS/TLS, Pyinstrument, Memray, hyperfine, oha, Locust."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-21"
+  updated: "2026-10-25"
 ---
 
 # Systematic Debugging
 
-Replace guess-and-check with an evidence loop that localizes where and why behavior diverges; [python-testing](../python-stack/references/python-testing/GUIDE.md) implements the fix and [incident-response](../production-readiness/references/incident-response.md) owns live outages.
+Replace guess-and-check with an evidence loop that localizes where and why behavior diverges; [python-testing](../python-stack/references/python-testing/GUIDE.md) implements the fix and [incident-response](../production-readiness/references/incident-response.md) owns live outages. Measure performance questions and before/after comparisons with the [benchmark](references/benchmark.md) guide.
 
 ## Workflow
 
@@ -28,10 +28,18 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 - **Diagnosis does not authorize fixes**: a request to diagnose authorizes investigation, not implementation; observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
 - **Stop stacking failed fixes**: after three failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
 - **Instrument every pipeline boundary once**: record presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
+- **Reproduce dependency failures with the same resolver**: for package resolver, lockfile, wheel, or build-backend failures, distinguish direct constraints, transitive conflicts, platform markers, yanked releases, build-backend or wheel failures, authentication, network reachability, and stale locks before changing any constraint. Inspect the lock and installed source without executing it and apply the smallest constraint fix only when authorized; route upgrades to [upgrade-tools](../upgrade-tools/SKILL.md), registry facts to [research-brief](../implementation-plan/references/research-brief.md), and CVE or license triage to [code-security](../code-security/references/code-review/GUIDE.md).
+
+## Task guides
+
+<!-- guides:start -->
+
+- [benchmark](references/benchmark.md): Benchmark commands with hyperfine and HTTP load with oha or Locust against a same-session baseline.
+
+<!-- guides:end -->
 
 ## References
 
-- [Dependency resolution](references/dependency-resolution.md): read for package resolver, lockfile, wheel, or build-backend failures before changing any constraint.
 - [Network troubleshooting](references/network.md): isolate DNS, connection, TLS, HTTP, proxy, and authentication failures with `doggo`, Python, and `xh` before changing configuration.
 - [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument, Memray, and py-spy captures; use `uv` to run the project Python.
 

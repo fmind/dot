@@ -26,9 +26,7 @@ scan:
     - "**/__pycache__"
     - .agents
     - .claude
-    - .codex
     - .gemini
     - .git
-    - .grok
 vulnerability:
   ignore-unfixed: true

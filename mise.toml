@@ -120,7 +120,7 @@ run = "dprint check"
 [tasks."check:fish"]
 description = "Validate Fish syntax without loading user configuration (behavior tests run in test)"
 run = """
-for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish; do
+for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish dot_config/fish/functions/*.fish; do
   fish --no-config --no-execute "$file"
 done
 """
@@ -140,7 +140,7 @@ run = "stylua --check dot_config/nvim"
 
 [tasks."check:python"]
 description = "Lint, format-check, type-check, and validate Python packaging"
-# ruff.toml scopes Ruff. ty skips dot_config/ptpython, whose prompt_toolkit import is outside the dot environment.
+# ruff.toml scopes Ruff.
 run = [
   "uv run --frozen --project dot ruff check .",
   "uv run --frozen --project dot ruff format --check .",
@@ -209,36 +209,30 @@ run = "dprint fmt --allow-no-files"
 description = "Generate parent routing indexes from guide metadata"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --sync"
 
+# Lefthook passes staged files to these formatters; mise hands variadic arguments
+# over as one shell-quoted string, which `eval "set -- ..."` splits back safely.
 [tasks."format:lua"]
-description = "Format Neovim Lua sources"
-run = "mise run format:lua:files dot_config/nvim"
-
-[tasks."format:lua:files"]
-description = "Format only the supplied Lua files (pre-commit passes staged files)"
-run = "stylua"
+description = "Format Neovim Lua sources, or only the given files"
+usage = 'arg "[files]..." default="dot_config/nvim"'
+run = 'eval "set -- $usage_files" && stylua "$@"'
 
 [tasks."format:python"]
-description = "Apply safe lint fixes and format Python sources"
-run = [
-  "mise run format:python:fix .",
-  "mise run format:python:style .",
-]
-
-[tasks."format:python:fix"]
-description = "Apply safe lint fixes to the given Python files (pre-commit passes staged files)"
-run = "uv run --frozen --project dot ruff check --fix-only"
-
-[tasks."format:python:style"]
-description = "Format the given Python files (pre-commit passes staged files)"
-run = "uv run --frozen --project dot ruff format"
+description = "Apply safe lint fixes and format Python sources, or only the given files"
+usage = 'arg "[files]..." default="."'
+run = '''
+eval "set -- $usage_files"
+uv run --frozen --project dot ruff check --fix-only "$@"
+uv run --frozen --project dot ruff format "$@"
+'''
 
 [tasks."format:shell"]
-description = "Format shell scripts"
-run = "mise run format:shell:files install.sh run_*.sh dot_local/bin/executable_*"
-
-[tasks."format:shell:files"]
-description = "Format only the supplied shell files (pre-commit passes staged files)"
-run = "shfmt -w -i 2 -s"
+description = "Format plain shell scripts, or only the given files (templates stay lint-only)"
+usage = 'arg "[files]..."'
+run = '''
+eval "set -- $usage_files"
+[ "$#" -gt 0 ] || set -- install.sh run_*.sh dot_local/bin/executable_*
+shfmt -w -i 2 -s "$@"
+'''
 
 [tasks.install]
 alias = "i"
@@ -312,7 +306,9 @@ description = "Refresh Python, repo, and home lockfiles"
 # re-adding here would copy an older deployed lock over a newer pulled source.
 run = [
   "uv lock --project dot",
-  "mise lock --yes",
+  # Like CI, lock repository tools without the workstation's home config: its disabled provenance
+  # checks make mise refuse a lockfile that records GitHub attestations.
+  'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise lock --yes',
   # Resolve the portable source baseline, without machine-local tool overrides.
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
 ]

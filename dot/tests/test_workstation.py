@@ -17,8 +17,7 @@ from fmind_dot.process import CommandResult, Runner
 from fmind_dot.workstation import CACHE_TOOLS
 
 
-def test_setup_without_arguments_shows_help(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_setup_without_arguments_shows_help() -> None:
     result = cli(["setup"])
     assert "workspace" in result.stdout
     assert "github" in result.stdout
@@ -124,9 +123,8 @@ def github_status(*, scopes: list[str] | None = None, **kwargs: Any) -> CommandR
 
 
 @pytest.fixture
-def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner:
+def provider(monkeypatch: pytest.MonkeyPatch) -> RecordingRunner:
     fake = RecordingRunner()
-    monkeypatch.setenv("HOME", str(tmp_path))
     for name in (
         "GWS_PROJECT",
         "GH_TOKEN",

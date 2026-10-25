@@ -23,12 +23,12 @@ Key routines:
 - **Iterate**: Edit source → run the relevant checks above → preview the affected chezmoi diff → apply when deployment is in scope. Apply executes eligible installation hooks as well as writing managed files. Lefthook runs commit/push checks; pre-run them only to diagnose a failure. CI retains the full gate.
 - **Documentation**: `mise run check:skills` checks both skill catalogs, their context budgets, and local links in skills and root documentation. [repository-docs](skills/repository-docs/SKILL.md) owns documentation synchronization.
 - **Workstation vs Gate**: `mise run doctor` inspects local workstation health (`dot`, chezmoi, and mise); `mise run check`, `test`, and `all` validate the repository. `all` also formats files; isolate it when unrelated edits are present.
-- **Add tool**: Insert into `[tools]` in `dot_config/mise/config.toml`, alphabetically within its group (backend-prefixed entries, registry names, then per-platform tables) → `mise run lock` → `mise run full`.
+- **Add tool**: Only connectors and cross-project tools belong globally; project-specific tools go in that project's `mise.toml` ([mise](skills/mise/SKILL.md)). Insert into `[tools]` in `dot_config/mise/config.toml`, alphabetically within its group (backend-prefixed entries, registry names, then per-platform tables) → `mise run lock` → `mise run full`.
 - **Upgrade tools**: `mise run upgrade` upgrades this workstation's dependencies, tools, theme pin, and plugins only. Upgrade another repository only on an explicit request for it, inside that repository, per [upgrade-tools](skills/upgrade-tools/SKILL.md).
 - **Workstation commands**: `dot login`, `setup`, `cache`, and `prune` own native provider operations; mise owns repository installation and validation. Authentication and cleanup are explicit commands, not apply hooks.
 - **Usage statistics**: [agent-usage](skills/agent-usage/SKILL.md) owns reports and measurement rules.
 - **CLI (`dot`)**: Follow [dot-development](.agents/skills/dot-development/SKILL.md) for implementation, tests, and installation proof; [dot-cli](skills/dot-cli/SKILL.md) owns command operation.
-- **Manage skills**: [dot-skills](.agents/skills/dot-skills/SKILL.md) owns catalog changes, validation, and the 5,000-token scope budget; [skillify](skills/skillify/SKILL.md) owns authoring and admission.
+- **Manage skills**: [dot-skills](.agents/skills/dot-skills/SKILL.md) owns catalog changes and validation; [skillify](skills/skillify/SKILL.md) owns authoring and admission.
 - **Completions**: `mise run completions` installs Fish completions from the deployed CLI; the host-dependent `check:completions` runs outside `all` and gates every release.
 - **Verify**: [dot-verify](.agents/skills/dot-verify/SKILL.md) qualifies the checkout (review, docs sync, all gates, CLI smoke tests) without committing.
 - **Release**: `/dot-release` runs dot-verify, commits, pushes, then follows [dot-release](.agents/skills/dot-release/SKILL.md) for `mise run release`, recovery, and publication verification.
@@ -42,7 +42,7 @@ Key routines:
 ## Layout
 
 - `dot/` contains the runtime package, repository-only `dot_tasks/`, uv lock, and pytest suite.
-- `dot_claude/`, `dot_codex/`, `dot_copilot/`, `dot_gemini/`, `dot_grok/`, and `dot_config/opencode/` adapt the shared persona to each host; other host state is gitignored.
+- `dot_gemini/` (agy, the primary harness), `dot_claude/`, `dot_copilot/`, and `dot_config/opencode/` adapt the shared persona to each host; other host state is gitignored.
 - `.chezmoitemplates/` holds the JSON/TOML merge, shell managed-block, skill-catalog, and hook `dot`-path helpers; `.chezmoiignore` gates platform-specific targets, including darwin-only `.zprofile` and Crostini-only notification, garcon, and shared `Downloads` targets.
 - `.github/` owns CI, release, security, and dependency-update automation; `.github/assets/` holds the README's SVG illustrations, outside chezmoi deployment.
 - Mise trust is machine-local (`mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`); apply's `run_after_dot-trust` hook pre-trusts harness workspaces and this checkout.

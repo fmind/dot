@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # Python Stack
@@ -16,7 +16,7 @@ Maintain a small typed Python foundation and choose libraries for demonstrated r
 
 ## Workflow
 
-Read only the matching guide and its required resources. Use a known guide directly when shared prerequisites are not needed. Dataframe code in any profile, scripts included, defaults to [Polars](../python-mlops/references/polars.md).
+Read only the matching guide and its required resources. Dataframe code in any profile, scripts included, defaults to [Polars](../python-mlops/references/polars.md).
 
 ## Task guides
 

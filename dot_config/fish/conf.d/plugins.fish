@@ -8,14 +8,6 @@ if status is-interactive
     if set -q XDG_CACHE_HOME
         set fish_cache_dir "$XDG_CACHE_HOME/fish"
     end
-    if command -q carapace
-        set -l carapace_init "$fish_cache_dir/carapace-init.fish"
-        if test -r "$carapace_init"
-            source "$carapace_init"
-        else
-            carapace _carapace | source
-        end
-    end
     if command -q fzf
         fzf --fish | source
     end

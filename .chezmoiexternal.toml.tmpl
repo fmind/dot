@@ -1,9 +1,9 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
 # Theme files are pinned to one fmind/theme commit with checksums because several execute
-# (Fish, Neovim Lua, ptpython, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
+# (Fish, Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 # DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/026c1976c5ecb1979b6f624bc7f3a00b68a5ec59" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/a37bdadcb113818b0fba2e9b9c31cd98d89a3d5c" }}
 
 [".agents/DESIGN.md"]
     type = "file"
@@ -45,11 +45,6 @@
     url = "{{ $base }}/themes/fish/fmind.fish"
     checksum.sha256 = "2c9138a0de6e48937e5ba11366617cfbfacd2dde10b4221d78f58f37007c8190"
 
-[".config/k9s/skins/theme.yaml"]
-    type = "file"
-    url = "{{ $base }}/themes/k9s/fmind.yaml"
-    checksum.sha256 = "0b1a0b316828ec6509ddef75a5e0c56a02265292b04c668befafa838d57c3074"
-
 [".config/nvim/colors/fmind.lua"]
     type = "file"
     url = "{{ $base }}/themes/nvim/colors/fmind.lua"
@@ -74,11 +69,6 @@
     type = "file"
     url = "{{ $base }}/themes/opencode/fmind.json"
     checksum.sha256 = "ed0a2c7453a401d10e94f78f7cf3c182cf0a2f25ff12af2fe56dffc27faf7906"
-
-[".config/ptpython/theme.py"]
-    type = "file"
-    url = "{{ $base }}/themes/ptpython/fmind.py"
-    checksum.sha256 = "9969689460b6f3b4235d07060fee046f44aecc4da1438968f2223e0493e31b75"
 
 [".config/atuin/themes/fmind.toml"]
     type = "file"

@@ -25,6 +25,20 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "prune",
     }
     assert config.trust.github_owners == ["fmind", "fmind-ai", "mlops-courses"]
+    assert config.trust.agy_projects_exclude == [
+        "~/fmind/agent-*",
+        "~/fmind/fgraph",
+        "~/fmind/mcp-context-benchmark",
+    ]
+
+
+@pytest.mark.parametrize("pattern", ["fmind/agent-*", "", "~", "~/ x", "./repo"])
+def test_agy_project_exclusions_must_name_absolute_or_home_paths(tmp_path: Path, pattern: str) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text(f"trust:\n  agy_projects_exclude: ['{pattern}']\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        load_config(path)
 
 
 def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
@@ -41,7 +55,7 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
 
 
 def test_cloud_and_k8s_tools_are_included_in_default_completions() -> None:
-    assert {"astro", "aws-sso-util", "cf", "databricks", "k3d", "pup", "stern"} <= set(COMPLETION_SOURCES)
+    assert {"astro", "aws-sso-util", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
 
 
 @pytest.mark.parametrize("source", COMPLETION_SOURCES.values())
@@ -99,10 +113,7 @@ def test_load_config_wraps_yaml_and_decode_failures_with_path_context(tmp_path: 
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
-def test_unreadable_default_config_never_falls_back_to_default_policy(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_unreadable_default_config_never_falls_back_to_default_policy(tmp_path: Path) -> None:
     path = tmp_path / ".config/dot.yaml"
     path.parent.mkdir()
     path.write_text("prune:\n  providers: [mise]\n")
@@ -117,8 +128,7 @@ def test_unreadable_default_config_never_falls_back_to_default_policy(
     assert load_config().prune.providers == ["mise"]
 
 
-def test_path_resolution_expands_only_current_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def test_path_resolution_expands_only_current_home(tmp_path: Path) -> None:
 
     assert expand_path("~") == tmp_path
     assert expand_path("~/project") == tmp_path / "project"

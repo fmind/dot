@@ -1,0 +1,26 @@
+# Docs: https://www.chezmoi.io/reference/special-files/chezmoiremove/
+# Zellij zen layout retired on 2026-10-25.
+.config/zellij/layouts/zen.kdl
+# technical-publishing deleted on 2026-10-25: publishing projects own their skills.
+.agents/skills/technical-publishing
+# Human-only tools dropped on 2026-10-25 (agy-first trim): bottom, carapace, gh-dash, k9s, ptpython.
+.config/bottom/bottom.toml
+.config/carapace/specs/acli.yaml
+.config/gh-dash/config.yml
+.config/k9s/skins/theme.yaml
+.config/ptpython/config.py
+.config/ptpython/theme.py
+# Codex and Grok harnesses removed on 2026-10-25; their sessions stay archived in dot. Native state
+# (~/.codex, ~/.grok: credentials and settings) is left in place for the owner to delete.
+.codex/AGENTS.md
+.grok/AGENTS.md
+.grok/hooks/hooks.json
+.grok/lsp.json
+.grok/skills
+# Skills retired on 2026-10-25: sops-secrets deleted with sops; benchmark folded into
+# systematic-debugging, handoff into task-prompts.
+.agents/skills/benchmark
+.agents/skills/handoff
+.agents/skills/sops-secrets
+# Neovim copilot-native extra dropped on 2026-10-25 (review-only editor; RAM).
+.config/nvim/lua/plugins/copilot.lua

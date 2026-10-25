@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-10-24"
+  updated: "2026-10-25"
 ---
 
 # GitHub Actions
@@ -16,7 +16,7 @@ Keep local hooks, CI, security checks, and publishing aligned with the repositor
 
 ## Workflow
 
-Read only the matching guide and its required resources. Use a known guide directly when shared prerequisites are not needed.
+Read only the matching guide and its required resources.
 
 ## Task guides
 

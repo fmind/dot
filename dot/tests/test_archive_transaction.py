@@ -3,9 +3,10 @@
 import io
 import json
 import os
+import sqlite3
 import time
+from contextlib import closing
 from dataclasses import replace
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO, Any
 
@@ -13,7 +14,6 @@ import pytest
 
 from fmind_dot.archive import parsers
 from fmind_dot.archive import store as session_store
-from fmind_dot.archive.parsers import GROK_TRANSCRIPT_NAME
 from fmind_dot.archive.query import SessionQuery, query_session_summaries
 from fmind_dot.archive.store import (
     read_session_bundle,
@@ -52,8 +52,7 @@ def _answer(identity: str, timestamp: str, input_tokens: int, output_tokens: int
     )
 
 
-def source_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[State, Path]:
-    monkeypatch.setenv("HOME", str(tmp_path))
+def source_session(tmp_path: Path) -> tuple[State, Path]:
     source = tmp_path / "claude"
     source.mkdir()
     transcript = source / "fixture-id.jsonl"
@@ -74,7 +73,7 @@ def _tokens() -> list[tuple[int, int]]:
 
 
 def test_failed_publication_leaves_no_bundle_and_retries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
+    state, _ = source_session(tmp_path)
 
     def fail(_path: Path, _content: bytes) -> None:
         raise OSError("synthetic write failure")
@@ -93,10 +92,8 @@ def test_failed_publication_leaves_no_bundle_and_retries(tmp_path: Path, monkeyp
     assert _tokens() == [(10, 5)]
 
 
-def test_latest_copy_grows_with_its_source_and_survives_source_removal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+def test_latest_copy_grows_with_its_source_and_survives_source_removal(tmp_path: Path) -> None:
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     with source.open("a") as stream:
         stream.write(_answer("answer-2", "2026-09-01T10:02:00Z", 20, 7))
@@ -110,8 +107,8 @@ def test_latest_copy_grows_with_its_source_and_survives_source_removal(
     assert _tokens() == [(30, 12)]
 
 
-def test_sync_lists_ingested_sessions_only_when_verbose(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+def test_sync_lists_ingested_sessions_only_when_verbose(tmp_path: Path) -> None:
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     assert "agent-session: ingested" not in _text(state.stderr)
     assert "claude: 1 ingested, 0 unchanged, 0 retained" in _text(state.stderr)
@@ -123,8 +120,8 @@ def test_sync_lists_ingested_sessions_only_when_verbose(tmp_path: Path, monkeypa
     assert "agent-session: ingested claude records=3" in _text(state.stderr)
 
 
-def test_truncated_source_never_shrinks_the_archived_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+def test_truncated_source_never_shrinks_the_archived_copy(tmp_path: Path) -> None:
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     source.write_text(json.dumps({"type": "user", "message": {"content": "rotated"}}) + "\n")
 
@@ -138,20 +135,25 @@ def test_truncated_source_never_shrinks_the_archived_copy(tmp_path: Path, monkey
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
 @pytest.mark.parametrize("quiet", [False, True])
-def test_unreadable_archive_preserves_capture_and_syncs_later_agents(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet: bool
-) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+def test_unreadable_archive_preserves_capture_and_syncs_later_agents(tmp_path: Path, quiet: bool) -> None:
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     before = path.read_bytes()
     source.write_text(json.dumps({"type": "user", "message": {"content": "rotated"}}) + "\n")
-    later = tmp_path / "grok/project/later/updates.jsonl"
-    later.parent.mkdir(parents=True)
-    later.write_text(
-        json.dumps({"params": {"update": {"sessionUpdate": "user_message_chunk", "content": {"text": "later"}}}}) + "\n"
-    )
-    state.config.agent.sources["grok"] = str(tmp_path / "grok")
+    # Copilot syncs after Claude: one unreadable agent archive must not stop it.
+    later = tmp_path / "copilot.db"
+    with closing(sqlite3.connect(later)) as connection:
+        connection.executescript(
+            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
+            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT,
+                assistant_response TEXT, timestamp TEXT);
+            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER,
+                output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
+            INSERT INTO sessions VALUES('later', '', '2026-09-01T10:00:00Z');
+            INSERT INTO turns VALUES(1, 'later', 1, 'later', '', '2026-09-01T10:00:00Z');"""
+        )
+    state.config.agent.sources["copilot"] = str(later)
     path.parent.chmod(0)
     try:
         if quiet:
@@ -164,14 +166,12 @@ def test_unreadable_archive_preserves_capture_and_syncs_later_agents(
     finally:
         path.parent.chmod(0o700)
     assert path.read_bytes() == before
-    assert read_session_bundle(session_bundle_path("grok", "later"))[1][0].content == "later"
+    assert read_session_bundle(session_bundle_path("copilot", "later"))[1][0].content == "later"
 
 
-def test_usage_error_keeps_the_last_measurement_and_grows_the_transcript(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_usage_error_keeps_the_last_measurement_and_grows_the_transcript(tmp_path: Path) -> None:
     """Regression for 2b5fbbd: a failed extraction must never cost the measured usage."""
-    state, source = source_session(tmp_path, monkeypatch)
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     with source.open("a") as stream:
@@ -191,9 +191,9 @@ def test_usage_error_keeps_the_last_measurement_and_grows_the_transcript(
     assert _tokens() == [(30, 12)]
 
 
-def test_malformed_line_never_freezes_the_transcript(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_malformed_line_never_freezes_the_transcript(tmp_path: Path) -> None:
     """A persistent malformed record keeps the measurement but still archives later messages."""
-    state, source = source_session(tmp_path, monkeypatch)
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     with source.open("a") as stream:
@@ -225,10 +225,8 @@ _INVALID_CONTAINERS = [[], "private-invalid-container", True, 1]
         *(("usage", value) for value in _INVALID_CONTAINERS),
     ],
 )
-def test_invalid_usage_keeps_the_last_measured_copy(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, value: object
-) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+def test_invalid_usage_keeps_the_last_measured_copy(tmp_path: Path, field: str, value: object) -> None:
+    state, source = source_session(tmp_path)
     rows = [json.loads(line) for line in source.read_text().splitlines()]
     rows.append({"type": "cost-state", "totalCostUSD": 0.25})
     source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
@@ -258,7 +256,7 @@ def test_invalid_usage_keeps_the_last_measured_copy(
 def test_sync_recaptures_older_parser_bundles(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from fmind_dot.archive.sync import _source_signature
 
-    state, source = source_session(tmp_path, monkeypatch)
+    state, source = source_session(tmp_path)
     rows = [json.loads(line) for line in source.read_text().splitlines()]
     rows[0]["message"]["content"] = [{"type": "text", "text": "fixture"}]
     source.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
@@ -291,7 +289,7 @@ def test_sync_recaptures_meta_flags_from_unchanged_parser_13_source(
 ) -> None:
     from fmind_dot.archive.sync import _source_signature
 
-    state, source = source_session(tmp_path, monkeypatch)
+    state, source = source_session(tmp_path)
     with source.open("a") as stream:
         stream.write(json.dumps({"type": "user", "isMeta": True, "message": {"content": "injected skill"}}) + "\n")
     parsed = parsers.parse_claude_session(source, "fixture-id")
@@ -325,10 +323,8 @@ def test_sync_recaptures_meta_flags_from_unchanged_parser_13_source(
     assert sync_sessions(state, agent="claude").unchanged == 1
 
 
-def test_new_session_with_failed_usage_archives_its_transcript_and_retries(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+def test_new_session_with_failed_usage_archives_its_transcript_and_retries(tmp_path: Path) -> None:
+    state, source = source_session(tmp_path)
     source.write_text(source.read_text().replace('"input_tokens": 10', '"input_tokens": -1'))
 
     with pytest.raises(DotError, match="1 failure"):
@@ -343,7 +339,7 @@ def test_new_session_with_failed_usage_archives_its_transcript_and_retries(
 
 
 def test_incremental_sync_skips_unchanged_sources(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, source = source_session(tmp_path, monkeypatch)
+    state, source = source_session(tmp_path)
     adapter = parsers.AGENT_ADAPTERS["claude"]
     parsed: list[str] = []
 
@@ -366,10 +362,8 @@ def test_incremental_sync_skips_unchanged_sources(tmp_path: Path, monkeypatch: p
     assert parsed == ["fixture-id", "fixture-id"]
 
 
-def test_corrupt_bundle_fails_sync_and_usage_without_modification(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
+def test_corrupt_bundle_fails_sync_and_usage_without_modification(tmp_path: Path) -> None:
+    state, _ = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     path.write_text("{}\n")
@@ -379,30 +373,6 @@ def test_corrupt_bundle_fails_sync_and_usage_without_modification(
     with pytest.raises(ValueError, match="unsupported session format"):
         list(iter_usage_records())
     assert path.read_text() == "{}\n"
-
-
-def test_recent_grok_signals_update_an_unchanged_transcript(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    root = tmp_path / "grok"
-    directory = root / "project/session-1"
-    directory.mkdir(parents=True)
-    transcript = directory / GROK_TRANSCRIPT_NAME
-    transcript.write_text("")
-    signals = directory / "signals.json"
-    signals.write_text(json.dumps({"contextTokensUsed": 21}))
-    state = State(stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO())
-    state.config.agent.sources["grok"] = str(root)
-    sync_sessions(state, agent="grok")
-    before = datetime(2026, 9, 1, tzinfo=UTC).timestamp()
-    after = datetime(2026, 9, 3, tzinfo=UTC).timestamp()
-    os.utime(transcript, (before, before))
-    signals.write_text(json.dumps({"contextTokensUsed": 42}))
-    os.utime(signals, (after, after))
-
-    sync_sessions(state, agent="grok", since=datetime(2026, 9, 2, tzinfo=UTC))
-
-    assert len(query_session_summaries()) == 1
-    assert [record.total_tokens for record in list(iter_usage_records())] == [42]
 
 
 @pytest.mark.parametrize(
@@ -415,9 +385,9 @@ def test_recent_grok_signals_update_an_unchanged_transcript(tmp_path: Path, monk
     ],
 )
 def test_active_store_rejects_other_formats_without_modification(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, version: int | str, message: str
+    tmp_path: Path, field: str, version: int | str, message: str
 ) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
+    state, _ = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     header, rest = path.read_bytes().split(b"\n", 1)
@@ -439,7 +409,7 @@ def test_public_queries_report_unsupported_store_without_traceback(
 
     from fmind_dot.cli import main
 
-    state, _ = source_session(tmp_path, monkeypatch)
+    state, _ = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     header, rest = path.read_bytes().split(b"\n", 1)
@@ -459,7 +429,7 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event
 
-    state, source = source_session(tmp_path, monkeypatch)
+    state, source = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     adapter = parsers.AGENT_ADAPTERS["claude"]
     with source.open("a") as stream:
@@ -510,64 +480,45 @@ def test_concurrent_sync_never_replaces_a_longer_copy(tmp_path: Path, monkeypatc
     assert read_session_manifest(session_bundle_path("claude", "fixture-id")).record_count == 4
 
 
-@pytest.mark.parametrize("stop_reason", ["end_turn", "error", "cancelled"])
-def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(tmp_path, monkeypatch, stop_reason):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    state = State(stdout=io.StringIO(), stderr=io.StringIO())
-    root = tmp_path / "grok"
-    folder = root / "%2Fwork" / "grok-incomplete"
-    folder.mkdir(parents=True)
-    state.config.agent.sources["grok"] = str(root)
-    path = folder / GROK_TRANSCRIPT_NAME
+def test_unavailable_usage_publishes_new_turns_and_retains_the_measurement(tmp_path: Path) -> None:
+    state, path = source_session(tmp_path)
     rows: list[dict[str, Any]] = [
+        {"type": "user", "timestamp": "2026-09-18T10:00:00Z", "message": {"content": "Keep this owner request"}},
+        json.loads(_answer("answer-1", "2026-09-18T10:00:30Z", 10, 1)),
+        # A response without counters leaves the whole session measurement unavailable.
         {
-            "timestamp": "2026-09-18T10:00:00Z",
-            "params": {
-                "update": {"sessionUpdate": "user_message_chunk", "content": {"text": "Keep this owner request"}}
-            },
-        },
-        {
-            "timestamp": "2026-09-18T10:00:30Z",
-            "params": {
-                "update": {
-                    "sessionUpdate": "turn_completed",
-                    "usage": {"inputTokens": 10, "outputTokens": 1, "costUsdTicks": 5_000_000},
-                }
-            },
-        },
-        {
+            "type": "assistant",
             "timestamp": "2026-09-18T10:01:00Z",
-            "params": {
-                "update": {
-                    "sessionUpdate": "turn_completed",
-                    "stop_reason": stop_reason,
-                    "usage": {"inputTokens": 100, "usageIsIncomplete": True},
-                }
-            },
+            "message": {"id": "answer-2", "model": "fixture", "content": [{"type": "text", "text": "response"}]},
         },
     ]
-    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
-    sync_sessions(state, agent="grok")
-    bundle = session_bundle_path("grok", "grok-incomplete")
+
+    def write(usage: dict[str, int] | None) -> None:
+        if usage is None:
+            rows[-1]["message"].pop("usage", None)
+        else:
+            rows[-1]["message"]["usage"] = usage
+        path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+
+    write(None)
+    sync_sessions(state, agent="claude")
+    bundle = session_bundle_path("claude", "fixture-id")
     manifest, records = read_session_bundle(bundle)
     assert manifest.usage is None
     assert manifest.completeness == "complete"
     assert records[0].content == "Keep this owner request"
     # A complete measurement can later replace the unavailable one.
-    rows[-1]["params"]["update"]["usage"] = {"inputTokens": 100, "outputTokens": 2, "costUsdTicks": 10_000_000}
-    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
-    sync_sessions(state, agent="grok")
+    write({"input_tokens": 100, "output_tokens": 2})
+    sync_sessions(state, agent="claude")
     measured = bundle.read_bytes()
     assert read_session_manifest(bundle).usage is not None
-    rows[-1]["params"]["update"]["usage"]["usageIsIncomplete"] = True
-    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
-    outcome = sync_sessions(state, agent="grok")
+    write(None)
+    outcome = sync_sessions(state, agent="claude")
     assert bundle.read_bytes() == measured
-    assert outcome.retained == 1
-    assert outcome.ingested == 0
-    rows[0]["params"]["update"]["content"]["text"] += " with a new instruction"
-    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
-    outcome = sync_sessions(state, agent="grok")
+    assert (outcome.retained, outcome.ingested) == (1, 0)
+    rows[0]["message"]["content"] += " with a new instruction"
+    write(None)
+    outcome = sync_sessions(state, agent="claude")
     # New turns publish; the measurement the source can no longer provide stays, marked as retained.
     manifest, records = read_session_bundle(bundle)
     assert records[0].content == "Keep this owner request with a new instruction"
@@ -576,20 +527,19 @@ def test_grok_incomplete_usage_publishes_new_turns_and_retains_the_measurement(t
     assert (outcome.retained, outcome.ingested) == (1, 0)
     # Sync retries the source without rewriting a current transcript.
     published = bundle.read_bytes()
-    assert sync_sessions(state, agent="grok").retained == 1
+    assert sync_sessions(state, agent="claude").retained == 1
     assert bundle.read_bytes() == published
-    # A complete ledger measures the session again.
-    del rows[-1]["params"]["update"]["usage"]["usageIsIncomplete"]
-    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
-    assert sync_sessions(state, agent="grok").ingested == 1
+    # A complete measurement measures the session again.
+    write({"input_tokens": 100, "output_tokens": 2})
+    assert sync_sessions(state, agent="claude").ingested == 1
     manifest = read_session_manifest(bundle)
     assert manifest.usage_parser_version == ""
     assert manifest.source_signature
     assert [record.input_tokens for record in list(iter_usage_records())] == [110]
 
 
-def test_quiet_sync_announces_a_parser_upgrade_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    state, _ = source_session(tmp_path, monkeypatch)
+def test_quiet_sync_announces_a_parser_upgrade_once(tmp_path: Path) -> None:
+    state, _ = source_session(tmp_path)
     sync_sessions(state, agent="claude")
     path = session_bundle_path("claude", "fixture-id")
     header, rest = path.read_bytes().split(b"\n", 1)

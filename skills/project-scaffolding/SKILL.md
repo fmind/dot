@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-scaffolding
   created: "2026-09-02"
-  updated: "2026-10-21"
+  updated: "2026-10-25"
 ---
 
 # Project Scaffolding
@@ -16,7 +16,7 @@ Create the smallest useful repository or maintain its reusable template. Copier 
 
 ## Workflow
 
-Read only the matching guide and its required resources. Use a known guide directly when shared prerequisites are not needed.
+Read only the matching guide and its required resources.
 
 ## Task guides
 

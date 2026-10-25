@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-10-19"
+  updated: "2026-10-25"
 ---
 
 # GitHub Repository
@@ -23,7 +23,7 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
    - `README.md`: the first paragraphs give a one-line description under ~140 characters.
    - Homepage: use the configured, verified canonical site; do not infer a live Pages site merely from the repository name.
    - Topics: 3 to 6 lowercase tags for language, frameworks, tools, or domain (`agent`, `python`, `cli`); letters, numbers, and hyphens only, 50 characters max, 20 per repository.
-1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated:
+1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated. Shell variables do not persist between agent tool calls, so run this step and the edit as one script:
 
    ```bash
    state="$(gh repo view --json nameWithOwner,visibility,description,homepageUrl,repositoryTopics)"
@@ -41,15 +41,15 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
    done < <(jq -r '(.repositoryTopics // [])[].name' <<<"$state")
    ```
 
-1. **Extend for a settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) appends merge policy, sidebar features, and secret scanning to the same `args`, then enables Dependabot security updates, hardens Actions, locks releases, and protects a public repository after the edit.
 1. **Apply** once with `gh repo edit "$repository" "${args[@]}"`.
-1. **Verify** with the same `gh repo view --json ...` fields and report the ones that changed; a settings pass also runs the guide's read-back, which covers fields `gh repo view` does not expose.
+1. **Verify** with the same `gh repo view --json ...` fields and report the ones that changed.
+1. **Run the settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) script applies merge policy, sidebar features, secret scanning, Dependabot security updates, Actions hardening, immutable releases, and public-repository protection in its own run, then prints a read-back that covers fields `gh repo view` does not expose.
 
 ## Task guides
 
 <!-- guides:start -->
 
-- [settings-baseline](references/settings-baseline.md): Apply the solo-maintainer merge, feature, secret-scanning, Dependabot, Actions hardening, immutable-release, and default-branch protection baseline idempotently.
+- [settings-baseline](references/settings-baseline.md): Apply or check the solo-maintainer merge, feature, secret-scanning, Dependabot, Actions, immutable-release, and branch-protection baseline with one script.
 
 <!-- guides:end -->
 

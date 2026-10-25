@@ -17,7 +17,6 @@ if status is-interactive
     abbr -a f fd
     # g:git
     abbr -a g git
-    abbr -a gd gh-dash
     abbr -a gl lazygit
     # h:dot
     abbr -a h dot
@@ -39,7 +38,6 @@ if status is-interactive
     abbr -a l "lsd --long --all"
     abbr -a la "lsd --all"
     abbr -a ll "lsd --long"
-    abbr -a lg "lsd --long --git"
     abbr -a lt "lsd --tree"
     # m:mise
     abbr -a m mise
@@ -55,7 +53,6 @@ if status is-interactive
     end
     # p:python
     abbr -a p python3
-    abbr -a pt ptpython
     # q:fzf
     abbr -a q fzf
     # r:ripgrep

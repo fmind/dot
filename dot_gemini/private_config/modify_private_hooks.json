@@ -16,11 +16,14 @@
   }
 }
 `) -}}
-{{- /* The brain's agy adapter injects its session context on a conversation's first invocation,
-       only where the brain is checked out; it is a named hook of its own, like notify. */ -}}
+{{- /* The brain's agy adapter injects its session context once per conversation (SessionStart; a
+       PreInvocation hook re-ran on every turn and agent loop), only where the brain is checked out;
+       it is a named hook of its own, like notify. */ -}}
 {{- $agyContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/agy-context.py" -}}
 {{- if stat $agyContext -}}
 {{-   $command := printf "%s %s" $agyContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
-{{-   $_ := set $managedConfig "brain-context" (fromJson (printf `{"PreInvocation": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command))) -}}
+{{-   $_ := set $managedConfig "brain-context" (fromJson (printf `{"SessionStart": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command))) -}}
 {{- end -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+{{- /* Managed named hooks replace their whole value, so an event they drop (brain-context's former
+       PreInvocation) leaves the host file instead of surviving the merge. */ -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "replace" (keys $managedConfig)) -}}

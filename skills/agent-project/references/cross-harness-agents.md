@@ -13,21 +13,19 @@ Delegation pays off in two cases: read-heavy work that would flood the coordinat
 
 ## Native definitions
 
-| Host        | Personal profile                      | Project profile                  | Invoke or inspect                                       |
-| ----------- | ------------------------------------- | -------------------------------- | ------------------------------------------------------- |
-| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agents`; `agy --agent <role>`; `/agents`           |
-| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name             |
-| Codex       | `~/.codex/agents/<role>.toml`         | `.codex/agents/<role>.toml`      | Ask the parent to use `<role>`                          |
-| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`                      |
-| Grok        | `~/.grok/agents/<role>.md`            | `.grok/agents/<role>.md`         | `grok inspect --json`; `/agents`; `grok --agent <role>` |
-| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agent <role>`; invoke `@<role>`         |
+| Host        | Personal profile                      | Project profile                  | Invoke or inspect                               |
+| ----------- | ------------------------------------- | -------------------------------- | ----------------------------------------------- |
+| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agents`; `agy --agent <role>`; `/agents`   |
+| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name     |
+| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`              |
+| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agent <role>`; invoke `@<role>` |
 
-Markdown hosts take YAML frontmatter plus a Markdown body; Codex takes TOML with the body in `developer_instructions`. Claude's `skills` field injects skills when a parent delegates to the role, not when `claude --agent <role>` runs it as the main session, so preload only skills the role always needs. Name conditional skills in the body by path for the other hosts. Inherit model selection where the host supports it, and always pass task context explicitly: discovery does not imply transcript inheritance or automatic delegation.
+Every listed host takes YAML frontmatter plus a Markdown body. Claude's `skills` field injects skills when a parent delegates to the role, not when `claude --agent <role>` runs it as the main session, so preload only skills the role always needs. Name conditional skills in the body by path for the other hosts. Inherit model selection where the host supports it, and always pass task context explicitly: discovery does not imply transcript inheritance or automatic delegation.
 
-Claude's `claude agents` lists background sessions, not definitions. Codex's `debug prompt-input` omits custom-role tool schemas, so absence from that dump is not a discovery failure. Native invocation syntax varies by version; verify with the installed host.
+Claude's `claude agents` lists background sessions, not definitions. Native invocation syntax varies by version; verify with the installed host.
 
 ## Permission limits
 
-Antigravity is the exception to host defaults: omitting `tools` leaves a small read, web, and messaging baseline without shell or edit tools, and an explicit list replaces that baseline. A role that must act lists `view_file`, `run_command` (which also covers search through `rg`/`fd`), `write_to_file`, `replace_file_content`, `read_url_content`, `search_web`, and `finish`; without `finish`, `--json-schema` print runs never return `structured_output`. Use only names verified at runtime: Antigravity rejects an unknown name before the session starts, and its `skills` field neither preloads nor filters skills. Other hosts receive no tool allowlist, sandbox, or MCP restriction, so the parent session's runtime policy applies (Codex inherits the parent sandbox).
+Antigravity is the exception to host defaults: omitting `tools` leaves a small read, web, and messaging baseline without shell or edit tools, and an explicit list replaces that baseline. A role that must act lists `view_file`, `run_command` (which also covers search through `rg`/`fd`), `write_to_file`, `replace_file_content`, `read_url_content`, `search_web`, and `finish`; without `finish`, `--json-schema` print runs never return `structured_output`. Use only names verified at runtime: Antigravity rejects an unknown name before the session starts, and its `skills` field neither preloads nor filters skills. Other hosts receive no tool allowlist, sandbox, or MCP restriction, so the parent session's runtime policy applies.
 
 Instructions are not operating-system access control. For an enforced read-only review, run the host in a read-only mode or add a native restriction to that role. Validate the definition's syntax, native discovery, and a bounded runtime task separately.

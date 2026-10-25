@@ -229,7 +229,7 @@ def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path,
     assert (source / "skills/python-stack/SKILL.md").read_text() == "# Fixture\n"
 
 
-@pytest.mark.parametrize("link", [".claude/skills", ".gemini/config/skills", ".grok/skills"])
+@pytest.mark.parametrize("link", [".claude/skills", ".gemini/config/skills"])
 def test_existing_host_skill_directory_blocks_forced_apply(
     installation: tuple[Path, Path, list[str]], link: str
 ) -> None:
