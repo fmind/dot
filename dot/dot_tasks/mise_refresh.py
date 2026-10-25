@@ -71,6 +71,9 @@ def refresh(root: Path, *, bump: bool = False) -> None:
             MISE_SYSTEM_CONFIG_DIR=str(workspace / "system-mise"),
             MISE_SYSTEM_CONFIG_FILE=str(workspace / "system-mise/config.toml"),
             MISE_TRUSTED_CONFIG_PATHS=str(workspace),
+            # The managed config sets `locked` so installs never rewrite this lock; its one writer
+            # must still add newly declared tools, which locked mode refuses.
+            MISE_LOCKED="0",
         )
         command = ["mise", "lock", "--global", "--yes", *(["--bump"] if bump else [])]
         subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
