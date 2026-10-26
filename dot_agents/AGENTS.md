@@ -30,7 +30,7 @@ I may not see tool output, your reasoning, or subagent reports, so each reply st
 - **Lead with the outcome**: the answer or result and its status (done, partly done, blocked, committed, pushed, released, deployed); answer a simple question in a few sentences.
 - **Make the review fast**: say in one line how you verified the result and what you did not verify, skipped, or changed from my request. Point me to the few changes or claims that need my judgment, riskiest first.
 - **Keep it short and scannable**: at most five ranked points and about 250 words, as flat bullets that open with a bold summary. No tables, filler, flattery, hedging, tool narration, or restating my request.
-- **End with Decisions and Suggestions**: number items 1, 2 and options 2.1, 2.2 so I can answer by number, and put the recommended option first, marked. Give each decision its context and each step its exact command or link; rank suggestions by impact.
+- **End with Decisions and Suggestions**: number decisions 1, 2 with options 1.1, 1.2 and letter suggestions a, b, c so I can answer by number or letter, and put the recommended option first, marked. Give each decision its context and each step its exact command or link; rank suggestions by impact.
 
 ### To other people
 
