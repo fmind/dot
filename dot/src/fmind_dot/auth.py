@@ -330,14 +330,13 @@ def login_github(
         raise DotError(
             "an environment token controls GitHub authentication; update or unset it before changing OAuth scopes"
         )
-    env = github_login_env()
     if entry is not None:
-        change(state, refresh, env=env)
+        change(state, refresh)
     else:
-        change(state, [*web, *github_git_protocol(state)], env=env)
+        change(state, [*web, *github_git_protocol(state)])
         # A fresh login cannot remove grants retained from an earlier authorization.
         if reconcile and policy.remove_scopes:
-            change(state, refresh, env=env)
+            change(state, refresh)
     entry = github_status(state)
     if not github_ready(state, entry, reconcile=reconcile, grants=extra):
         requested = "configured scope policy and one-off scopes" if extra else "configured scope policy"
@@ -357,15 +356,6 @@ def github_git_protocol(state: State) -> list[str]:
     result = probe(state, ["gh", "config", "get", "git_protocol", "--host", GITHUB_HOST])
     value = result.stdout.strip()
     return ["--git-protocol", value] if result.returncode == 0 and value in {"https", "ssh"} else []
-
-
-def github_login_env() -> dict[str, str] | None:
-    """Route gh's one-time code copy through X11 on ChromeOS Crostini."""
-    # gh copies the device code by default; under Sommelier wl-copy never learns it owns the
-    # selection, so it never forks and gh waits forever. X11 syncs with ChromeOS (clipboard skill).
-    if os.environ.get("SOMMELIER_VERSION") and os.environ.get("DISPLAY"):
-        return {"WAYLAND_DISPLAY": ""}
-    return None
 
 
 def github_token_plaintext(entry: dict[str, Any] | None) -> bool:

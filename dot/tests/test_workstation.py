@@ -368,7 +368,9 @@ def test_github_unsatisfied_one_off_grant_is_named_in_the_failure(provider: Reco
 
 def test_github_defaults_read_keys_and_packages_but_exclude_their_writes() -> None:
     github = Config().auth.github
-    assert {"read:gpg_key", "read:packages", "read:public_key", "read:ssh_signing_key", "project"} <= set(github.scopes)
+    assert {"read:gpg_key", "read:packages", "read:public_key", "read:ssh_signing_key"} <= set(github.scopes)
+    # Nothing uses GitHub Projects, so the policy removes that write scope.
+    assert "project" in github.remove_scopes
     one_off = {"write:gpg_key", "write:packages", "write:public_key", "write:ssh_signing_key"}
     assert one_off <= set(github.remove_scopes)
     assert not one_off & set(github.scopes)
@@ -469,21 +471,6 @@ def test_github_unknown_protocol_keeps_the_native_prompt(provider: RecordingRunn
     result = cli(["login", "github"])
     assert provider.actions[0][-1] == "--web"
     assert "private" not in result.output
-
-
-@pytest.mark.parametrize(
-    ("sommelier", "display", "expected"),
-    [("1", ":0", {"WAYLAND_DISPLAY": ""}), ("", ":0", None), ("1", "", None)],
-)
-def test_github_login_copies_the_device_code_through_x11_on_crostini(
-    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, sommelier: str, display: str, expected: object
-) -> None:
-    # Under Sommelier, wl-copy never forks, so gh would wait on it forever after printing nothing.
-    monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
-    monkeypatch.setenv("DISPLAY", display)
-    provider.responses = [response({"hosts": {}}), PROTOCOL, github_status()]
-    cli(["login", "github"])
-    assert provider.envs == [expected]
 
 
 @pytest.mark.parametrize(

@@ -7,6 +7,9 @@ aliases:
   prs: pr list
   rv: repo view
   rvw: repo view --web
+# Print device sign-in codes instead of copying them: wl-copy hangs on the Chromebook, which froze `gh auth login`
+# and `gh auth refresh` before they showed the code (2026-10-24).
+clipboard: disabled
 git_protocol: ssh
 pager: delta --paging=never
 telemetry: disabled
