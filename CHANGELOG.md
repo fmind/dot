@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.1.1] - 2026-10-26
+
+### 📚 Documentation
+
+- _(stakeholder-writing)_ Frame rules as guidelines, add link sensitivity, platform features, and a Markdown template
+
 ## [14.1.0] - 2026-10-26
 
 ### 🚀 Features
