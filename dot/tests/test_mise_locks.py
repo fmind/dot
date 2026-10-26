@@ -147,13 +147,22 @@ def test_retire_removes_only_unreferenced_generated_graphs(tmp_path: Path) -> No
     retired_tool = tmp_path / "locks/removed/0.1"
     retired_tool.mkdir(parents=True)
     (retired_tool / "package.json").write_text("{}")
+    nested = tmp_path / "locks/mise.local/pipx-example/1.0"
+    nested.mkdir(parents=True)
+    (nested / "pyproject.toml").write_text("# Generated manifest\n")
+    (nested / "uv.lock").write_text("old")
     personal = tmp_path / "locks/personal/0.1"
     personal.mkdir(parents=True)
     (personal / "notes.txt").write_text("keep")
     (tmp_path / "locks/personal.txt").write_text("keep")
 
-    assert retire(lock) == [Path("locks/example/1.0"), Path("locks/removed/0.1")]
+    assert retire(lock) == [
+        Path("locks/example/1.0"),
+        Path("locks/mise.local/pipx-example/1.0"),
+        Path("locks/removed/0.1"),
+    ]
     assert not stale.exists()
+    assert not (tmp_path / "locks/mise.local").exists()
     assert not retired_tool.parent.exists()
     assert (personal / "notes.txt").read_text() == "keep"
     assert (tmp_path / "locks/personal.txt").read_text() == "keep"
