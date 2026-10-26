@@ -3,6 +3,8 @@
 import contextlib
 import json
 import os
+import sys
+import webbrowser
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import PurePath
 from typing import Annotated, Any
@@ -143,6 +145,28 @@ def change(state: State, args: list[str], **options: Any) -> None:
         state.probes.clear()
 
 
+def google_signin_opener() -> Callable[[str], None] | None:
+    """Open the first Google sign-in URL a login prints; None where only a text browser could open it."""
+    # webbrowser follows $BROWSER (garcon-url-handler on ChromeOS) and `open` on macOS. Without a
+    # display it would launch lynx or w3m inside the login's terminal, and over SSH the browser is remote.
+    if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
+        return None
+    graphical = ("BROWSER", "DISPLAY", "WAYLAND_DISPLAY")
+    if sys.platform != "darwin" and not any(os.environ.get(name) for name in graphical):
+        return None
+    opened = False
+
+    def open_once(line: str) -> None:
+        nonlocal opened
+        url = line.strip()
+        if not opened and url.startswith("https://accounts.google.com/"):
+            opened = True
+            # A failed launch leaves the printed URL, so it needs no separate diagnostic.
+            webbrowser.open(url)
+
+    return open_once
+
+
 def probe_json(state: State, args: list[str]) -> object:
     result = probe(state, args)
     if result.returncode and args[0] == "gcloud" and any(m in result.stderr.lower() for m in GCLOUD_LOGIN_MARKERS):
@@ -240,7 +264,7 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False,
                 file=state.stderr,
             )
         return
-    # gws prints its OAuth URL on stderr; the user opens it.
+    # gws prints its OAuth URL on stderr but, unlike gh and gcloud, never opens a browser (gws 0.22.5).
     if os.environ.get("SOMMELIER_VERSION"):
         # gws redirects to http://localhost:PORT but listens on 127.0.0.1 only; ChromeOS forwards the
         # IPv4 loopback into Crostini, while its localhost attempt stalls, so the tab hangs after Allow.
@@ -248,7 +272,7 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False,
             "ChromeOS: if the tab hangs after Allow, replace localhost with 127.0.0.1 in its address and press Enter.",
             file=state.stderr,
         )
-    change(state, args)
+    change(state, args, on_stderr_line=google_signin_opener())
     if not workspace_ready(state, extra):
         requested = "configured and one-off scopes" if extra else "configured scopes"
         raise DotError(f"Workspace login did not satisfy the {requested}; inspect gws auth status and retry")

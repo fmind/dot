@@ -237,12 +237,14 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
         """Run with the caller's terminal.
 
         A child using the terminal stays in dot's process group, so the terminal delivers Ctrl+C and
         Ctrl+Z to both. Without one, it gets its own group so that a SIGTERM to dot (timeout, a
-        supervisor, CI cancellation) also stops the child's descendants.
+        supervisor, CI cancellation) also stops the child's descendants. `on_stderr_line` sees each
+        stderr line after it is forwarded unchanged; its errors never interrupt the child.
         """
         if not args:
             raise DotError("cannot run an empty command")
@@ -253,6 +255,7 @@ class Runner:
             stream.flush()
         with nullcontext() if detached else _deferred_interrupts():
             process: subprocess.Popen[str] | None = None
+            forwarder: threading.Thread | None = None
             try:
                 with _deferred_launch_interrupts():
                     process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
@@ -261,12 +264,19 @@ class Runner:
                         env=_environment(env),
                         stdin=stdin,
                         stdout=stdout,
-                        stderr=stderr,
+                        stderr=stderr if on_stderr_line is None else subprocess.PIPE,
                         text=True,
                         errors="replace",
                         process_group=0 if detached else None,
                     )
+                if on_stderr_line is not None and process.stderr is not None:
+                    forwarder = threading.Thread(
+                        target=_forward_lines, args=(process.stderr, stderr or sys.stderr, on_stderr_line), daemon=True
+                    )
+                    forwarder.start()
                 code = process.wait()
+                if forwarder is not None:
+                    forwarder.join(_TERMINATION_TIMEOUT_SECONDS)
                 if code == -signal.SIGINT:
                     raise KeyboardInterrupt
                 return code
@@ -274,6 +284,16 @@ class Runner:
                 if process is not None:
                     _terminate(process, group=detached)
                 raise
+
+
+def _forward_lines(source: IO[str], target: IO[str], on_line: Callable[[str], None]) -> None:
+    """Copy a child's stream line by line, then offer each line to a best-effort observer."""
+    with source:
+        for line in source:
+            target.write(line)
+            target.flush()
+            with suppress(Exception):
+                on_line(line)
 
 
 def run_parallel[T, R](runner: Runner, function: Callable[[T], R], items: Sequence[T], workers: int) -> list[R]:
