@@ -195,12 +195,12 @@ class GitHubConfig(StrictModel):
     # them is a one-off grant (`dot login github --grant write:public_key`) that the next
     # `dot setup github` removes, because a stolen token could otherwise add a persistent SSH key
     # or replace a public image that CI publishes with its own token. gh always requests its minimum
-    # scopes (repo, read:org, gist) and cannot remove them, so gist stays listed.
+    # scopes (repo, read:org, gist) and cannot remove them, so gist stays listed. Nothing uses GitHub
+    # Projects, so `project` is removed too.
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "gist",
             "notifications",
-            "project",
             "read:gpg_key",
             "read:org",
             "read:packages",
@@ -220,6 +220,7 @@ class GitHubConfig(StrictModel):
             "admin:ssh_signing_key",
             "delete:packages",
             "delete_repo",
+            "project",
             "user",
             "write:gpg_key",
             "write:packages",
