@@ -2,8 +2,9 @@
 
 import io
 import json
+import sys
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import IO, Any, get_args
 
@@ -34,6 +35,7 @@ class RecordingRunner(Runner):
         self.action_code = 0
         self.missing: set[str] = set()
         self.envs: list[Mapping[str, str] | None] = []
+        self.stderr_lines: list[str] = []
 
     def which(self, command: str) -> Path | None:
         return None if command in self.missing else Path("/bin") / command
@@ -67,6 +69,7 @@ class RecordingRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
         assert cwd is None
         assert stdin is not None
@@ -75,6 +78,10 @@ class RecordingRunner(Runner):
         self.calls.append(list(args))
         self.actions.append(list(args))
         self.envs.append(env)
+        # Replay a native login's output so line observers run without a real process.
+        if on_stderr_line is not None:
+            for line in self.stderr_lines:
+                on_stderr_line(line)
         return self.action_code
 
 
@@ -316,6 +323,64 @@ def test_workspace_login_explains_the_chromeos_loopback_hang(
     provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
     result = cli(["login", "workspace"])
     assert ("replace localhost with 127.0.0.1" in result.stderr) is hinted
+
+
+SIGNIN = "https://accounts.google.com/o/oauth2/auth?client_id=example&redirect_uri=http://localhost:4242"
+
+
+def browser_env(monkeypatch: pytest.MonkeyPatch, **values: str) -> list[str]:
+    for name in ("SSH_CONNECTION", "SSH_TTY", "BROWSER", "DISPLAY", "WAYLAND_DISPLAY"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    opened: list[str] = []
+    monkeypatch.setattr(auth.webbrowser, "open", opened.append)
+    return opened
+
+
+def test_workspace_login_opens_the_printed_signin_url_once(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opened = browser_env(monkeypatch, BROWSER="/usr/bin/garcon-url-handler")
+    provider.stderr_lines = ["Open this URL in your browser to authenticate:\n", "\n", f"  {SIGNIN}\n", f"{SIGNIN}\n"]
+    provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
+    cli(["login", "workspace"])
+    assert opened == [SIGNIN]
+
+
+@pytest.mark.parametrize(
+    "environment",
+    [{}, {"DISPLAY": ":0", "SSH_CONNECTION": "10.0.0.1 22 10.0.0.2 22"}, {"BROWSER": "x", "SSH_TTY": "/dev/pts/1"}],
+)
+def test_signin_opener_skips_text_only_and_remote_sessions(
+    monkeypatch: pytest.MonkeyPatch, environment: dict[str, str]
+) -> None:
+    browser_env(monkeypatch, **environment)
+    monkeypatch.setattr(auth.sys, "platform", "linux")
+    assert auth.google_signin_opener() is None
+
+
+def test_signin_opener_ignores_other_urls(monkeypatch: pytest.MonkeyPatch) -> None:
+    opened = browser_env(monkeypatch, DISPLAY=":0")
+    opener = auth.google_signin_opener()
+    assert opener is not None
+    opener("https://example.com/phish?next=https://accounts.google.com/\n")
+    assert opened == []
+
+
+def test_interactive_forwards_stderr_and_survives_a_failing_observer() -> None:
+    stderr = io.StringIO()
+    seen: list[str] = []
+
+    def observe(line: str) -> None:
+        seen.append(line)
+        raise RuntimeError("observer bug")
+
+    script = "import sys; sys.stderr.write('one\\ntwo\\n')"
+    code = Runner().interactive([sys.executable, "-c", script], stderr=stderr, on_stderr_line=observe)
+    assert code == 0
+    assert stderr.getvalue() == "one\ntwo\n"
+    assert seen == ["one\n", "two\n"]
 
 
 def test_workspace_lingering_one_off_scope_is_reported_without_login(provider: RecordingRunner) -> None:

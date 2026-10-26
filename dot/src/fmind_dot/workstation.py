@@ -4,7 +4,7 @@ import json
 import os
 import select
 import shlex
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Annotated, Any, Literal
@@ -94,6 +94,7 @@ def execute(
     *,
     dry_run: bool = False,
     env: dict[str, str] | None = None,
+    on_stderr_line: Callable[[str], None] | None = None,
 ) -> None:
     """Preserve caller environment, directory, terminal, and native diagnostics."""
     if dry_run:
@@ -104,7 +105,9 @@ def execute(
         _ensure_hf_cache_dir()
     if args[:2] == ["uv", "cache"]:
         env = {"UV_LOCK_TIMEOUT": os.environ.get("UV_LOCK_TIMEOUT", _UV_LOCK_TIMEOUT_SECONDS)} | (env or {})
-    code = state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env)
+    code = state.runner.interactive(
+        args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, env=env, on_stderr_line=on_stderr_line
+    )
     if code != 0:
         if args[:2] == ["uv", "cache"]:
             raise DotError(
