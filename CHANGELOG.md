@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.1.0] - 2026-10-26
+
+### 🚀 Features
+
+- _(auth)_ Open the Workspace sign-in URL in the local browser
+
+### 🐛 Bug Fixes
+
+- _(auth)_ Drop the unused GitHub project scope and print gh device codes
+- _(python-web)_ Annotate the Granian server with its concrete classes
+
+### 📚 Documentation
+
+- _(stakeholder-writing)_ Add key terms, bold skimming, figures, and designed layout
+- _(agents)_ Split the persona intro and widen the learning rule
+
+### ⚙️ Build & CI
+
+- _(mise)_ Install OpenCode 2.x from npm and exempt beta-only cf from release age
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Update ty, dprint markdown plugin, and Neovim plugins
+
 ## [14.0.0] - 2026-10-25
 
 ### 🚀 Features
