@@ -13,7 +13,7 @@ from typer.testing import CliRunner, Result
 
 from fmind_dot import auth
 from fmind_dot.cli import app
-from fmind_dot.config import CacheProvider, Config, PruneProvider
+from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, CacheProvider, Config, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
@@ -287,6 +287,16 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         assert f"{api}.googleapis.com" in workspace.apis
 
 
+def test_workspace_defaults_exclude_admin_writes_and_refused_scopes() -> None:
+    prefix = "https://www.googleapis.com/auth/"
+    names = [scope.removeprefix(prefix) for scope in Config().auth.workspace.scopes]
+    admin = ("admin.", "chat.admin.", "chrome.management.", "cloud-identity.", "drive.admin.", "ediscovery")
+    # Read-only and lookup scopes only; device lookup reads endpoint-verification records.
+    assert [name for name in names if name.startswith(admin) and not name.endswith((".readonly", ".lookup"))] == []
+    refused = {"https://mail.google.com/", "gmail.settings.sharing", "cloud-platform", "tagmanager.publish"}
+    assert not refused & set(names)
+
+
 def test_adc_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
     # ADC login replaces its whole grant: the brain's sensors narrow their tokens to these read-only scopes.
     scopes = Config().auth.gcp.adc_scopes
@@ -313,6 +323,19 @@ def test_workspace_one_off_grant_extends_the_login_and_names_the_restore(provide
     result = cli(["login", "workspace", *grants])
     assert provider.actions == [["gws", "auth", "login", "--scopes", ",".join([*configured, ONE_OFF])]]
     assert "dot login workspace --force" in result.stderr
+
+
+def test_workspace_defaults_leave_one_off_slots_under_the_consent_limit() -> None:
+    assert len(Config().auth.workspace.scopes) <= WORKSPACE_SCOPE_LIMIT - 3
+
+
+def test_workspace_login_refuses_more_scopes_than_consent_accepts(provider: RecordingRunner) -> None:
+    configured = Config().auth.workspace.scopes
+    grants = [f"drive.extra{index}" for index in range(WORKSPACE_SCOPE_LIMIT - len(configured) + 1)]
+    result = CliRunner().invoke(app, ["login", "workspace", *(arg for grant in grants for arg in ("--grant", grant))])
+    assert result.exit_code == 1
+    assert "consent page hangs above 50" in str(result.exception)
+    assert not provider.calls
 
 
 @pytest.mark.parametrize(("sommelier", "hinted"), [("1", True), ("", False)])
@@ -434,8 +457,9 @@ def test_github_unsatisfied_one_off_grant_is_named_in_the_failure(provider: Reco
 def test_github_defaults_read_keys_and_packages_but_exclude_their_writes() -> None:
     github = Config().auth.github
     assert {"read:gpg_key", "read:packages", "read:public_key", "read:ssh_signing_key"} <= set(github.scopes)
-    # Nothing uses GitHub Projects, so the policy removes that write scope.
-    assert "project" in github.remove_scopes
+    # Administration, deletion and billable scopes stay one-off grants that dot setup github removes.
+    assert not any(scope.startswith(("admin:", "delete")) for scope in github.scopes)
+    assert {"admin:org", "codespace", "delete_repo", "delete:packages", "write:org"} <= set(github.remove_scopes)
     one_off = {"write:gpg_key", "write:packages", "write:public_key", "write:ssh_signing_key"}
     assert one_off <= set(github.remove_scopes)
     assert not one_off & set(github.scopes)

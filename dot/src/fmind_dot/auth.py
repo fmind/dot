@@ -13,7 +13,7 @@ import typer
 from pydantic import TypeAdapter, ValidationError
 
 from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, help_group
-from fmind_dot.config import LoginProvider, Project, Scope
+from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, LoginProvider, Project, Scope
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.state import State, require_tools, state_from
@@ -243,6 +243,12 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False,
     configured = state.config.auth.workspace.scopes
     extra = one_off_scopes(grants, configured, expand=_google_scope)
     args = ["gws", "auth", "login", "--scopes", ",".join([*configured, *extra])]
+    if len(configured) + len(extra) > WORKSPACE_SCOPE_LIMIT:
+        raise DotError(
+            f"Workspace login would request {len(configured) + len(extra)} scopes, but Google's consent page hangs "
+            f"above {WORKSPACE_SCOPE_LIMIT}; grant fewer one-off scopes at once, or drop unused entries from "
+            "auth.workspace.scopes with dot config edit"
+        )
     if dry_run:
         execute(state, args, dry_run=True)
         return
