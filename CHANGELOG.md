@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.2.0] - 2026-10-26
+
+### 🚀 Features
+
+- _(dot)_ Fit Workspace scopes under Google's consent limit
+
+### 📚 Documentation
+
+- _(skills)_ Date the OAuth scope guidance updates
+
 ## [14.1.2] - 2026-10-26
 
 ### 🐛 Bug Fixes
