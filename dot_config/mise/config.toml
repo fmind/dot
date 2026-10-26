@@ -34,6 +34,8 @@ locked_scopes = ["global"]
 lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 minimum_release_age = "1d"
+# The age filter drops npm prereleases and ignores dist-tags, so beta-only cf would fall back to 0.x.
+minimum_release_age_excludes = ["npm:cf"]
 # Never set python.uv_venv_auto globally: it puts any cloned repository's .venv/bin first
 # on PATH without `mise trust`. Opt in per project with `[settings]` in a trusted mise.toml.
 # Update the workstation mise binary before interactive commands on the same 24h cadence
@@ -80,6 +82,9 @@ HF_HUB_DISABLE_TELEMETRY = "1"
 "github:duckdb/duckdb" = { version = "latest", matching = "duckdb-cli-" } # Embedded SQL analytical database management system
 # fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
 "github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
+# OpenCode 2.x ships through npm (the mise registry moved here from aqua). mise skips its postinstall, which links
+# the locked platform binary that fits this CPU into bin/; run it offline so it never fetches an unlocked package.
+"npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' } # OpenCode AI agent CLI tool
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 "npm:skills" = "latest" # Agent Skills CLI manager
@@ -127,7 +132,6 @@ lsd = "latest" # Modern, feature-rich replacement for ls
 lychee = "latest" # Fast link checker for Markdown, HTML, and websites
 neovim = "latest" # Extensible Vim-based text editor
 node = "lts" # Runtime for third-party npm CLIs only; active project authoring is Python.
-opencode = "latest" # OpenCode AI agent CLI tool
 opentofu = "latest" # OpenTofu (tofu) for Neovim's Terraform formatting and validation outside projects; projects pin their own
 python = "3.14" # Python interpreter; required tool wheels are not ready for 3.15
 ripgrep = "latest" # Blazing-fast grep alternative

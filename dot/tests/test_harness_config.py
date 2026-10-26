@@ -4,6 +4,7 @@ import json
 import os
 import shlex
 import shutil
+import socket
 import subprocess
 import tempfile
 import tomllib
@@ -491,20 +492,37 @@ class HarnessConfigTests(unittest.TestCase):
             "PATH": os.defpath,
             "LANG": "C.UTF-8",
         }
-        for content in (original, self.render("dot_config/opencode/modify_private_opencode.json", original)):
-            target.write_text(content)
-            result = subprocess.run(
-                [opencode, "debug", "config", "--pure"],
+        # OpenCode 2.x answers through a background server; give it a free port so it never
+        # collides with the workstation's service, and stop it so no process outlives the test.
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        (target.parent / "service.json").write_text(json.dumps({"port": port}))
+        try:
+            for content in (original, self.render("dot_config/opencode/modify_private_opencode.json", original)):
+                target.write_text(content)
+                result = subprocess.run(
+                    [opencode, "debug", "config"],
+                    env=environment,
+                    cwd=self.home,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=True,
+                )
+                # 2.x lists config sources and normalizes 1.x keys (provider.options -> providers.settings).
+                [config] = [source["info"] for source in json.loads(result.stdout) if source.get("path") == str(target)]
+                assert config["providers"]["openrouter"]["settings"]["timeout"] == 65432
+                assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-3.8-flash"}
+        finally:
+            subprocess.run(
+                [opencode, "service", "stop"],
                 env=environment,
                 cwd=self.home,
                 capture_output=True,
-                text=True,
                 timeout=30,
-                check=True,
+                check=False,
             )
-            config = json.loads(result.stdout)
-            assert config["provider"]["openrouter"]["options"]["timeout"] == 65432
-            assert config["model"] == "openrouter/google/gemini-3.8-flash"
 
     def test_trust_hook_passes_source_path_literally_during_apply(self):
         executable = self.home / ".local/bin/dot"

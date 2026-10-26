@@ -2450,6 +2450,12 @@ url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.gz"
 checksum = "sha256:89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7"
 url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-darwin-arm64.tar.gz"
 
+[[tools."npm:@opencode/cli"]]
+version = "2.1.4"
+aube = { path = "locks/npm-opencode-cli/2.1.4", digest = "sha256:187c80319242b8bff1621fad922121343f6287db16e5902b35571868a17e9fe5" }
+backend = "npm:@opencode/cli"
+specifiers = ["latest"]
+
 [[tools."npm:cf"]]
 version = "1.0.0-beta.21"
 aube = { path = "locks/npm-cf/1.0.0-beta.21", digest = "sha256:a1db6b994d0d0b902714964cf3a843616cd432d7edd5d13fe51cc5a4314e4634" }
@@ -2461,21 +2467,6 @@ version = "1.7.4"
 aube = { path = "locks/npm-skills/1.7.4", digest = "sha256:0fc828a5def0f23c2336c3e5094fc52f74b3b73e8f86a28c338a63c4324b902b" }
 backend = "npm:skills"
 specifiers = ["latest"]
-
-[[tools.opencode]]
-version = "1.19.4"
-backend = "aqua:anomalyco/opencode"
-specifiers = ["latest"]
-
-[tools.opencode."platforms.linux-x64"]
-checksum = "sha256:849bd6b3d959a1d2ef200ed1634a51c79a45ca236aa26665d75debd694805cce"
-url = "https://github.com/anomalyco/opencode/releases/download/v1.19.4/opencode-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/anomalyco/opencode/releases/assets/665821750"
-
-[tools.opencode."platforms.macos-arm64"]
-checksum = "sha256:c400a2f8c8ab7e99478a7f4dd1a466b57bf33888e520d85c55780a5464c4b689"
-url = "https://github.com/anomalyco/opencode/releases/download/v1.19.4/opencode-darwin-arm64.zip"
-url_api = "https://api.github.com/repos/anomalyco/opencode/releases/assets/665836811"
 
 [[tools.opentofu]]
 version = "1.13.2"
@@ -2498,49 +2489,49 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:ee3778305d41b287ab635147477af608d5a6e3e92066da40573d81e0a31ebf90" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:9698f28622337cb51fbf1dab8bb306ddb57fa2ffc0f78b8835a02faa6b6abdf1" }
 
 [[tools."pipx:brain-framework"]]
 version = "19.0.1"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:d137269438c4a726fa96bec609582644bd192519e74c03ae3eb7eb945109efda" }
+uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:3af2baca9a77b765f3c752e6bdfcc652e9b62cbc01f968ed4c4db20f67336664" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:2adfd276065ad591638b31e10eb68be8f56cb169440701ad06a048de86e678b6" }
+uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:8b9b07cb70571a3e86a3720a3d816b2d144550ce65ac1ecde55b1acda1080f7d" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.3"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:2aad1269dec0411d61abfe23bf583966123b97f8a0371cd93f45ae0d9d2375d0" }
+uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:0767c38dcc40a8b5aad8cbda84b5550c7b7a170adf7c1dc8e4f1a400aad6edfa" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.5"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:6a97d143edbfdaf74df5940b4a90c5f5339db1597eaee09115611c31811905c4" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:8d9d74ea85232ce49db1ac15e9aeb18a8bec1497c72ddfe01f252b4f20f2c9ff" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.3.0"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:c9e615f486dec56baa69411eba130dce0e921da73850d81041cb7ea204f421f5" }
+uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:dd5e8ab3d98db340efa119cf5c2279944702da4a0556d24b8bc0c75eec161c4b" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:f8c18036624dcb1e5d0b781b101dbb8f7c29763799cd7982eb7e3f4a08be1490" }
+uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:3fa775c843e75ef478d168d5500e0d66c3ad4072af3bd82dbd731f5df7df4802" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:7f9df13d51ad2a5d0b44f77d49604227f3bd6420738567e2731a6fca35d4c6e7" }
+uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:269d629e518993da574815cc907be9bb4e2b295e5e42b608f0b8542abd690d85" }
 
 [tools."pipx:pgcli".options]
 with = '["psycopg[binary]"]'
