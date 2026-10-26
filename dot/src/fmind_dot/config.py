@@ -193,24 +193,27 @@ PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
 
 
 class GitHubConfig(StrictModel):
+    # Defaults grant everything except key, package, org and enterprise administration and deletion
+    # (https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps).
     # Keys and packages stay readable so security reviews can spot planted keys or images; writing
     # them is a one-off grant (`dot login github --grant write:public_key`) that the next
     # `dot setup github` removes, because a stolen token could otherwise add a persistent SSH key
     # or replace a public image that CI publishes with its own token. gh always requests its minimum
-    # scopes (repo, read:org, gist) and cannot remove them, so gist stays listed. Nothing uses GitHub
-    # Projects, so `project` is removed too.
+    # scopes (repo, read:org, gist) and cannot remove them, so gist stays listed. The
+    # dot-cli authentication guide lists the possible and refused one-off grants.
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "gist",
             "notifications",
+            "project",
+            "read:audit_log",
             "read:gpg_key",
             "read:org",
             "read:packages",
             "read:public_key",
             "read:ssh_signing_key",
-            "read:user",
             "repo",
-            "user:email",
+            "user",
             "workflow",
         ]
     )
@@ -218,13 +221,14 @@ class GitHubConfig(StrictModel):
         default_factory=lambda: [
             "admin:gpg_key",
             "admin:org",
+            "admin:org_hook",
             "admin:public_key",
             "admin:ssh_signing_key",
+            "codespace",
             "delete:packages",
             "delete_repo",
-            "project",
-            "user",
             "write:gpg_key",
+            "write:org",
             "write:packages",
             "write:public_key",
             "write:ssh_signing_key",
@@ -238,6 +242,10 @@ class GitHubConfig(StrictModel):
         return self
 
 
+# Google's consent page hangs after Allow when one request holds more scopes (bisected 2026-10-26).
+WORKSPACE_SCOPE_LIMIT = 50
+
+
 class WorkspaceConfig(StrictModel):
     project: Project | None = None
     # gws replaces its whole grant on login, so this list is the single owner of every scope
@@ -245,12 +253,17 @@ class WorkspaceConfig(StrictModel):
     # scopes that brain sensors narrow their tokens to, the read-only Admin and Chrome management
     # scopes the brain's google CLI reads with, and the Analytics, Search Console and Business
     # Profile management scopes it narrows its explicit writes to; dropping one breaks those
-    # consumers on the next login. Admin writes stay one-off: `dot login workspace --grant SCOPE`.
+    # consumers on the next login. Google's consent page hangs after Allow above 50 scopes (logins
+    # of 45, 47 and 50 completed; 52 and more hung, bisected 2026-10-26), and one-off grants share
+    # that consent, so defaults stop at 47 to leave three one-off slots. They hold the everyday
+    # user-level writes and only the read-only scopes a consumer narrows its token to, since a write
+    # scope already allows reads. Everything else is a one-off grant (`dot login workspace --grant
+    # SCOPE`) that the dot-cli authentication guide lists
+    # (https://developers.google.com/identity/protocols/oauth2/scopes).
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
             "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile",
             "https://www.googleapis.com/auth/admin.directory.customer.readonly",
             "https://www.googleapis.com/auth/admin.directory.device.chromeos.readonly",
             "https://www.googleapis.com/auth/admin.directory.device.mobile.readonly",
@@ -268,38 +281,26 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/business.manage",
             "https://www.googleapis.com/auth/calendar",
             "https://www.googleapis.com/auth/calendar.readonly",
-            "https://www.googleapis.com/auth/chat.memberships",
             "https://www.googleapis.com/auth/chat.messages",
-            "https://www.googleapis.com/auth/chat.messages.reactions",
-            "https://www.googleapis.com/auth/chat.messages.reactions.readonly",
             "https://www.googleapis.com/auth/chat.messages.readonly",
             "https://www.googleapis.com/auth/chat.spaces",
             "https://www.googleapis.com/auth/chat.spaces.readonly",
-            "https://www.googleapis.com/auth/chat.users.readstate",
             "https://www.googleapis.com/auth/chrome.management.policy.readonly",
             "https://www.googleapis.com/auth/chrome.management.reports.readonly",
-            "https://www.googleapis.com/auth/cloudsupport",
             "https://www.googleapis.com/auth/contacts",
             "https://www.googleapis.com/auth/contacts.other.readonly",
             "https://www.googleapis.com/auth/contacts.readonly",
-            "https://www.googleapis.com/auth/directory.readonly",
             "https://www.googleapis.com/auth/documents",
             "https://www.googleapis.com/auth/documents.readonly",
             "https://www.googleapis.com/auth/drive",
-            "https://www.googleapis.com/auth/drive.activity.readonly",
             "https://www.googleapis.com/auth/drive.readonly",
             "https://www.googleapis.com/auth/forms.body",
             "https://www.googleapis.com/auth/forms.responses.readonly",
             "https://www.googleapis.com/auth/gmail.modify",
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.settings.basic",
-            "https://www.googleapis.com/auth/meetings.conference.media.readonly",
-            "https://www.googleapis.com/auth/meetings.space.created",
             "https://www.googleapis.com/auth/meetings.space.readonly",
-            "https://www.googleapis.com/auth/meetings.space.settings",
             "https://www.googleapis.com/auth/presentations",
-            "https://www.googleapis.com/auth/script.deployments",
-            "https://www.googleapis.com/auth/script.processes",
             "https://www.googleapis.com/auth/script.projects",
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/tasks",
@@ -310,6 +311,7 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/yt-analytics.readonly",
         ],
         min_length=1,
+        max_length=WORKSPACE_SCOPE_LIMIT,
     )
     apis: list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*\.googleapis\.com$")]] = Field(
         default_factory=lambda: [
