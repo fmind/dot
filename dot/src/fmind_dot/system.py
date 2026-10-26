@@ -27,7 +27,7 @@ from fmind_dot.auth import (
     workspace_ready,
 )
 from fmind_dot.command_group import JsonOption
-from fmind_dot.config import COMPLETION_SOURCES, expand_path
+from fmind_dot.config import COMPLETION_SOURCES, MANAGED_COMPLETIONS, expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.orphan import find_orphans
 from fmind_dot.private_files import write_atomic_file
@@ -157,6 +157,13 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
     except OSError as error:
         raise DotError("failed to create completions directory") from error
     failures: list[str] = []
+    keep = {f"{tool}.fish" for tool in COMPLETION_SOURCES} | MANAGED_COMPLETIONS
+    for path in sorted(directory.glob("*.fish")):
+        if path.name not in keep and not path.is_symlink() and path.is_file():
+            try:
+                path.unlink()
+            except OSError as error:
+                failures.append(f"{path.name}: {error}")
     typer.echo(
         f"=> Generating Fish autocompletions for {len(COMPLETION_SOURCES)} tools in {directory}...\n",
         file=state.stdout,
@@ -177,6 +184,12 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         failures.append("fish cache directory: failed to create")
         typer.echo("  ✗ Failed to create fish cache directory", file=state.stdout)
     else:
+        for path in sorted(cache.glob("*-init.fish")):
+            if path.name != "atuin-init.fish" and not path.is_symlink() and path.is_file():
+                try:
+                    path.unlink()
+                except OSError as error:
+                    failures.append(f"{path.name}: {error}")
         try:
             if _completion_available(state, "atuin"):
                 # This setup does not use Atuin AI; omit its "?" key binding.
