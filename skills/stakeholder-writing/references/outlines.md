@@ -1,6 +1,6 @@
 # Outlines and Reader Lenses
 
-Pick the outline that matches the decision you need from the reader. Keep each section name as a short heading, and open the section with a bold sentence that states its conclusion. Every outline opens with the executive summary, followed by a short Key terms block when the reader needs one, and ends with annexes when there is evidence to show. These outlines are a baseline, not a form: merge, reorder, drop, or add sections when the request or the reader calls for it.
+Pick the outline that matches the decision you need from the reader. Keep each section name as a short heading, and open the section with a bold sentence that states its conclusion. Every outline opens with the executive summary, followed by a short Key terms block when the reader needs one, and ends with annexes when there is evidence to show. These outlines are starting points: merge, reorder, drop, or add sections, such as a timeline, a sensitivity table, or a FAQ, when the request or the reader calls for it.
 
 ## Document outlines
 

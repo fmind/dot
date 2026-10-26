@@ -1,10 +1,10 @@
 # Style for Busy Readers
 
-Apply these rules to every document written for people outside the session. Where a rule is easy to misread, a before and after example follows it.
+Defaults for documents read outside the session; adapt them when the reader or the destination calls for it. Where a guideline is easy to misread, a before and after example follows it.
 
 ## Plain, literal language
 
-Write complete sentences with a subject and a verb. Prefer everyday words to jargon and the active voice to the passive. Replace arrows, slash chains, stacked parentheses, and coined labels with sentences, and expand each acronym at first use.
+Write complete sentences with a subject and a verb, everyday words, and the active voice, and keep one idea per short paragraph. Replace arrows, slash chains, stacked parentheses, and coined labels with sentences, and expand each acronym at first use.
 
 Before:
 
@@ -16,7 +16,7 @@ After:
 
 ## Terms and metrics
 
-List the terms, units, and metrics this reader may not know in a **Key terms** block right after the executive summary, one short line each, so the reader meets them before the body uses them. For a metric, say what it measures, its unit, and which direction is better; give its baseline where you use it. Units and plain terms need no direction. Skip terms this reader uses daily, such as CVE for a security team. A short email or chat message defines its one or two terms inline instead.
+Put the terms, units, and metrics this reader may not know in a **Key terms** block right after the executive summary, one line each, and skip those they use daily, such as CVE for a security team. For a metric, give what it measures, its unit, and which direction is better, and its baseline where you use it. A short email or chat message defines its one or two terms inline instead.
 
 Before:
 
@@ -32,16 +32,16 @@ And this sentence in the body:
 
 ## Numbers
 
-- **Give the context of every figure**: unit, currency, period, region, and price date, such as "€4,200 per month at October 2026 list prices in the europe-west1 region".
-- **Round to what the inputs support**: write "about €4,000 to €5,000 per month" for an estimate, not "€4,213.57".
-- **Show conservative ranges for estimates**: say which input drives the range, and show the result at both ends.
+- **Give every figure its context**: unit, currency, period, region, and price date, such as "€4,200 per month at October 2026 list prices in the europe-west1 region".
+- **Round to what the inputs support**: "about €4,000 to €5,000 per month", not "€4,213.57".
+- **Show conservative ranges for estimates**: name the input that drives the range and show the result at both ends.
 - **Separate percent from percentage points**: "the error rate fell from 4% to 3%, one percentage point or a 25% reduction".
 - **Compare with a baseline**: "30% cheaper than today's spend on the managed service, at today's volume".
 - **Follow the reader's conventions**: in French, write "4 200 €" and use a decimal comma.
 
 ## Titles, headings, and section summaries
 
-Titles and headings are short names that help the reader navigate; the conclusion goes in the bold first sentence of the section, where it has room to be precise.
+Titles and headings are short names for navigation; the conclusion goes in the bold first sentence of the section, where it has room to be precise.
 
 | Element        | Before                                                                  | After                                                                                 |
 | -------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -49,7 +49,7 @@ Titles and headings are short names that help the reader navigate; the conclusio
 | Heading        | Moving the jobs keeps all data in the EU but adds two service accounts  | Security                                                                              |
 | First sentence | We reviewed the security of the move.                                   | **Moving the jobs keeps all data in the EU but adds two service accounts to manage.** |
 
-Put the document's metadata at the top, one field per line, instead of one long line:
+Put the metadata at the top, one field per line: type, status (draft or final), audience, author, and date.
 
 > Type: Decision memo\
 > Status: Draft\
@@ -57,17 +57,18 @@ Put the document's metadata at the top, one field per line, instead of one long 
 > Author: {name}\
 > Date: 26 October 2026
 
-Close a long section with a short box titled "Take-home messages", in one to three sentences, so a reader who skimmed the section still leaves with its point:
+Close a section that runs past a few paragraphs or mixes several findings with a "Take-home messages" box of one to three sentences; short sections need none.
 
 > **Take-home messages**: from December, the two models cost the same per token, so the pilot's measure of tokens per task decides the cheaper option.
 
 ## Examples, tables, and visuals
 
 - **Make abstract claims concrete**: "for example, the invoice job that runs at 2:00 and takes 40 minutes".
-- **Use a table for every comparison**: put options or periods in rows and the same criteria in columns, number the options, and mark the recommended row.
-- **Flag ratings with a colored status and a word**: Low, Medium, and High for risk, or Met, Partial, and Not met for requirements, in green, amber, and red, so limitations and issues stand out in tables. In HTML, use the template's status badges, because emoji depend on the reader's fonts and can render blank; in Markdown and chat, use 🟢, 🟡, and 🔴. Never use the color alone, and keep status marks out of running prose.
-- **Prefer a figure to a paragraph**: use a chart for numbers and trends and a diagram for a flow, an architecture, or a timeline; give each a caption that states its conclusion, not its topic. Show benchmark or survey results as a chart with a source line, never as a sentence that lists five numbers.
-- **Bold for skimming**: bold the take-home message, the conclusion sentence that opens each section, and one key phrase in other paragraphs, so the bold text alone tells the argument; bolding more than that defeats it.
+- **Use a table for comparisons**: options or periods in rows, the same criteria in columns, numbered options, and the recommended row marked.
+- **Flag ratings with a color and a word**: Low, Medium, High for risk, or Met, Partial, Not met for requirements, in green, amber, and red. Use the template's badges in HTML, because emoji depend on the reader's fonts, and 🟢 🟡 🔴 in Markdown and chat; never rely on color alone, and keep status marks out of running prose.
+- **Prefer a figure to a paragraph of numbers**: a chart for numbers and trends (inline SVG or matplotlib, following the host's data-visualization skill when it has one) and a diagram for a flow, an architecture, or a timeline. Give each a caption that states its conclusion and a table or text alternative.
+- **Quote third-party figures as a person would**: in a private document for a client team or a small circle, embed a cropped capture of the source's chart with a source line, link, and date; in a public one, redraw it from the published figures or get permission.
+- **Bold for skimming**: bold the take-home message, each section's opening sentence, and about one key phrase in other paragraphs, so the bold text alone tells the argument; more bold defeats it.
 
 Before:
 
@@ -77,13 +78,31 @@ After:
 
 > We compared list prices from both vendors. **Argon is cheaper until 30 November**; after that **the prices are the same, so token use decides the cost**.
 
-## Links for follow-up
+## Links and sensitivity
 
-Link each figure, claim, and process to the page that supports it, inline, where the reader needs it: vendor documentation, standards, and the internal documents, tickets, and dashboards the user provides. Prefer primary sources to articles about them. When an internal page exists but you do not have its address, write a visible placeholder such as `{link to the usage dashboard}` for the user to fill.
+Links let the reader check a claim and follow up, so link generously, inline, where the reader needs them: vendor documentation, standards, and primary sources rather than articles about them, plus the internal documents, tickets, and dashboards the user provides. When an internal page exists but you lack its address, write a visible placeholder such as `{link to the usage dashboard}`.
+
+Before adding a link, ask whether this reader can open it and should see what it reveals:
+
+- **Link only what the reader can access**: a client's wiki suits the client's team, not a vendor or the public; a dead or login-walled link reads as noise.
+- **Read the URL as content**: hostnames, project, customer, or person names, folder paths, and ticket titles disclose information even when the page is locked; describe the source in words instead when the URL says too much.
+- **Never share access by accident**: drop tokens, signed or expiring URLs, and "anyone with the link" shares unless the user meant to grant that access.
+- **Keep our own workspace out**: brain notes, local paths, session or agent links, and private repositories stay out of client and public documents.
+
+## Destination and platform features
+
+A designed document is easier to read and earns trust, so make it beautiful by default: color in headings, the summary card, key-figure tiles, status badges, and framed figures, generous spacing, body text of at least 16 px on screen and 10 pt in print, and a layout that survives phone widths and printing. Use the Fmind design or the client's brand, and prefer each platform's native features to hand-built imitations, because they render, navigate, and stay editable as the reader expects:
+
+- **Standalone HTML**: the [report template](../templates/report.html), self-contained with embedded fonts and images so it renders the same offline and through email gateways.
+- **Markdown**: the [Markdown template](../templates/report.md), adapted to the renderer as its header comment explains.
+- **Zensical sites**: admonitions for take-home boxes and warnings, content tabs for per-option detail, Mermaid diagrams, collapsible blocks for annexes, and the abbreviations glossary as Key terms tooltips ([authoring](../../documentation-site/references/authoring.md)).
+- **GitHub Markdown**: `> [!IMPORTANT]` alerts for the ask, Mermaid diagrams, `<details>` blocks for annexes, and task lists for next steps.
+- **Google Docs**: real heading styles for the outline and tabs, native tables, charts linked from Sheets, people and file chips, and comments for open questions ([gws](../../gws/SKILL.md)).
+- **Email and chat**: plain text or light formatting that the client shows reliably, with no external images; Slack and Chat support only a small Markdown subset.
 
 ## Honest framing
 
 - **State confidence and its basis**: "high confidence: measured on production traffic" or "low confidence: list prices only, no load test yet".
 - **Name what was not checked**: and what result would change the recommendation.
-- **Stay neutral**: describe every option with the same criteria, sources, and tone; report the evidence that favors the option you do not recommend.
+- **Stay neutral**: describe every option with the same criteria, sources, and tone, report the evidence that favors the option you do not recommend, and say when the evidence is not comparable, such as benchmarks run at different settings.
 - **Avoid unsupported superlatives**: "best", "seamless", "guaranteed", and "secure" need evidence or must go.

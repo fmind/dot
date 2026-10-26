@@ -1,37 +1,32 @@
 # Reader Check
 
-Run every item before delivering. Fix each failure, and tell the user about anything you could not verify.
+Review the draft as its reader would. Fix what fails, or keep the exception when it serves this reader better and tell the user why. The items marked **firm** never bend.
 
-## Skim test
+## Skim
 
-- **Summary first**: a reader who reads only the title and the executive summary, about 120 words, knows the conclusion, why it matters to them, and what to decide or do, by when.
-- **Navigable structure**: the title names the subject, section headings are short names, and each section opens with a bold sentence that states its conclusion.
-- **Bold skim**: the bold text alone tells the argument: the opening sentence of each section and about one phrase per other paragraph.
-- **Section summaries**: each long section ends with a short "Take-home messages" box; short sections have none.
-- **Short main body**: as short as the decision allows, with the word count measured, not estimated; technical details, methods, calculations, and raw data sit in annexes, and the main text points to each annex it relies on.
+- **Summary first**: does a reader who stops after the title and the executive summary know the conclusion, why it matters to them, and what to decide or do, by when?
+- **Navigation**: does the title name the subject, are headings short names, and does each section open with a bold conclusion sentence?
+- **Bold skim**: does the bold text alone tell the argument, without bolding everything?
+- **Length**: is the body as short as the decision allows, measured rather than estimated, with methods, calculations, and raw data in annexes the text points to? Do long sections close with a take-home box?
 
 ## Clarity
 
-- **Key terms**: every term, acronym, unit, and metric this reader may not know is explained in the Key terms block after the summary, terms they use daily are not, and each metric has its unit, direction, and baseline.
-- **Literal sentences**: no arrows, slash chains, stacked parentheses, coined labels, metaphors, or unexplained internal names.
-- **Concrete support**: each abstract claim has an example, each comparison has a table with numbered options and a colored status with a word for ratings, numbers and flows that read faster as a figure have one, and each figure has a caption that states its conclusion and a table or text alternative.
-- **Reader's language**: the language, number format, and date format match the reader.
+- **Key terms**: is every unfamiliar term, acronym, unit, and metric explained, each metric with its unit, direction, and baseline, and the reader's daily vocabulary left alone?
+- **Literal sentences**: are arrows, slash chains, stacked parentheses, coined labels, metaphors, and unexplained internal names gone?
+- **Concrete support**: does each abstract claim have an example, each comparison a table with numbered options and worded statuses, and each figure a caption that states its conclusion and a text alternative?
+- **Reader's language**: do the language, number format, and date format match the reader?
 
 ## Trust
 
-- **Sourced figures**: trace every number in the summary, tables, and headings to a cited source or a labeled assumption, and delete or label the rest; each estimate shows its method and range in an annex.
-- **Neutral and private**: options are compared on the same criteria and conditions, and opinions the user shared only as context are absent.
-- **No invented facts**: facts about the client and the author come from the user or a cited source; everything else is a labeled assumption, a proposal, or a placeholder.
-- **Consistent numbers**: each figure matches everywhere it appears, and totals add up; recompute them with a script when there are more than a few.
-- **Stated limits**: assumptions, residual risks, and what would change the recommendation are visible.
-- **Reused figures**: each third-party image or redrawn figure has a source line with a link and date; captures appear only in private documents, and public ones use redrawn figures or permitted images.
-- **Working links**: key claims link to internal or external sources, links resolve, external ones point to primary sources where possible, and missing internal links are visible placeholders.
+- **No invented facts (firm)**: does every fact about the client and the author come from the user or a cited source, with the rest labeled as an assumption, a proposal, or a placeholder?
+- **Sourced, consistent figures (firm)**: does every number in the summary, tables, and headings trace to a source or a labeled assumption, match everywhere it appears, and add up? Recompute with a script when there are more than a few, and show each estimate's method and range in an annex.
+- **Neutral and limited**: are options compared on the same criteria and conditions, opinions shared only as context absent, and assumptions, residual risks, and what would change the recommendation visible?
+- **Reused figures**: does each third-party image or redrawn figure carry a source line with a link and date, with captures only in private documents?
+- **Links**: do key claims link to sources, do the links resolve, can this reader open them, and do their URLs reveal nothing the reader should not see? Are missing internal links visible placeholders?
 
 ## Ready to share
 
-- **No session details**: no "as discussed", agent or tool names, local paths, or internal labels.
-- **No secrets or private data**: the final file passes `gitleaks stdin --redact < <file>`, and it contains only what this reader may see.
-- **Designed look**: the document uses the Fmind design or the customer's brand, with color in headings, summary, figures, and statuses, embedded fonts that load, and badges rather than emoji for statuses in HTML.
-- **Readable layout**: body text is at least 16 px on screen and 10 pt in print, headings and spacing separate sections, paragraphs stay short, and no section is a wall of raw text or unformatted data.
-- **Renders at the destination**: for HTML, desktop and phone screenshots look right, figures are legible in the document's color scheme, and printing keeps colors and tables readable; for Markdown, the target renderer shows tables correctly.
-- **Identified**: the document type, status (draft or final), audience, author, and date appear at the top, one field per line.
+- **No secrets or private data (firm)**: does the final file pass `gitleaks stdin --redact < <file>`, and does it hold only what this reader may see, with no "as discussed", agent or tool names, local paths, or internal labels?
+- **Beautiful and native**: does it look designed, in the Fmind design or the client's brand, with color in headings, summary, figures, and statuses, comfortable type and spacing, and the destination's native features rather than imitations?
+- **Renders at the destination**: do HTML screenshots look right at desktop and phone widths, in print, and with fonts loaded? Does the target renderer show Markdown tables, callouts, and diagrams correctly?
+- **Identified**: do the type, status, audience, author, and date appear at the top, one field per line?
