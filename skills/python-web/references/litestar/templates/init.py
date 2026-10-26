@@ -11,6 +11,7 @@ from typing import Literal
 import structlog
 from granian import Granian
 from granian.constants import Interfaces
+from granian.server import MPServer, MTServer
 from litestar import Litestar, Response, get
 from litestar.config.cors import CORSConfig
 from litestar.di import NamedDependency, Provide
@@ -101,7 +102,8 @@ def create_app(config: Settings) -> Litestar:
 app = create_app(settings)
 
 
-def create_server(config: Settings) -> Granian:
+# Granian aliases MPServer or MTServer by interpreter build, which type checkers reject as a type.
+def create_server(config: Settings) -> MPServer | MTServer:
     """Configure Granian without starting a worker process."""
     # The import package is the ASGI target; the distribution/command may contain hyphens.
     target = f"{__name__}:app"
