@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.1.2] - 2026-10-26
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Prune retired completions and nested mise lock graphs (#108)
+
+### 📚 Documentation
+
+- _(agents)_ Letter suggestions a, b, c for quick replies
+
 ## [14.1.1] - 2026-10-26
 
 ### 📚 Documentation
