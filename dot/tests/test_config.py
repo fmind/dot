@@ -6,7 +6,15 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from fmind_dot.config import COMPLETION_SOURCES, Config, ToolConfig, config_file_path, expand_path, load_config
+from fmind_dot.config import (
+    COMPLETION_SOURCES,
+    MANAGED_COMPLETIONS,
+    Config,
+    ToolConfig,
+    config_file_path,
+    expand_path,
+    load_config,
+)
 
 
 def test_python_first_defaults_replace_retired_stacks() -> None:
@@ -56,6 +64,8 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
 
 def test_cloud_connectors_are_included_in_default_completions() -> None:
     assert {"astro", "aws-sso-util", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
+    managed = Path(__file__).resolve().parents[2] / "dot_config/fish/completions"
+    assert {path.name for path in managed.glob("*.fish")} == MANAGED_COMPLETIONS
 
 
 @pytest.mark.parametrize("source", COMPLETION_SOURCES.values())

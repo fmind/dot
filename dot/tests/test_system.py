@@ -815,13 +815,23 @@ def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path, m
 
 
 def test_completion_selection_is_authoritative(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
     config = Config()
-    config.completions.path = str(tmp_path / "completions")
+    completions = tmp_path / "completions"
+    config.completions.path = str(completions)
+    completions.mkdir()
+    (completions / "agy.fish").write_text("# managed by chezmoi\n")
+    (completions / "retired.fish").write_text("# retired tool\n")
+    (cache / "fish").mkdir(parents=True)
+    (cache / "fish/carapace-init.fish").write_text("# retired integration\n")
     select_completions(monkeypatch, "uv")
     system.run_completion(make_state(ScriptedRunner({"fish", "uv"}), config))
-    assert (tmp_path / "completions/uv.fish").is_file()
-    assert not (tmp_path / "completions/dot.fish").exists()
+    assert (completions / "uv.fish").is_file()
+    assert (completions / "agy.fish").is_file()
+    assert not (completions / "retired.fish").exists()
+    assert not (completions / "dot.fish").exists()
+    assert not (cache / "fish/carapace-init.fish").exists()
 
 
 @pytest.mark.parametrize("active", [True, False])

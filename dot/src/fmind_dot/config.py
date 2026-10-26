@@ -77,6 +77,8 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "zizmor": ToolConfig(args=("--completions", "fish")),
     "zoxide": ToolConfig(package="zoxide"),
 }
+# Static completion scripts deployed by chezmoi in dot_config/fish/completions/.
+MANAGED_COMPLETIONS: frozenset[str] = frozenset({"agy.fish"})
 
 
 class CompletionConfig(StrictModel):
