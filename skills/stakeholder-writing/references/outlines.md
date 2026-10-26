@@ -1,6 +1,6 @@
 # Outlines and Reader Lenses
 
-Pick the outline that matches the decision you need from the reader, then turn each section name into a heading that states its conclusion. Every outline opens with the executive summary and ends with annexes when there is evidence to show.
+Pick the outline that matches the decision you need from the reader. Keep each section name as a short heading, and open the section with a bold sentence that states its conclusion. Every outline opens with the executive summary, followed by a short Key terms block when the reader needs one, and ends with annexes when there is evidence to show. These outlines are a baseline, not a form: merge, reorder, drop, or add sections when the request or the reader calls for it.
 
 ## Document outlines
 
@@ -8,18 +8,18 @@ Pick the outline that matches the decision you need from the reader, then turn e
 
 1. **Executive summary**: the recommendation, the decision needed, its deadline, and the key figure.
 1. **Context**: the problem and why it matters now, in the reader's terms.
-1. **Options**: one table that compares every option on the same criteria, including doing nothing.
+1. **Options**: one table that compares every numbered option on the same criteria, including doing nothing.
 1. **Recommendation**: why it wins and under which assumptions.
 1. **Risks**: each risk with its mitigation, and what would change the recommendation.
 1. **Next steps**: owner, action, and date.
-1. **Annexes**: method, calculations, sources, and glossary.
+1. **Annexes**: method, calculations, and sources.
 
 ### Cost estimate
 
 1. **Executive summary**: the monthly and yearly cost range of each option, the main cost driver, and the recommendation.
 1. **Scope and assumptions**: workload, volumes, region, price date, and currency; each assumption labeled and given a range.
 1. **Cost per option**: one table with infrastructure, licenses or usage fees, people time (operations, security, on-call), and one-off setup.
-1. **Sensitivity**: how the total moves with the two or three most uncertain inputs, and the break-even point between options.
+1. **Sensitivity**: how the total moves with the two or three most uncertain inputs, and the break-even point between options. For usage-priced services, compare cost per completed task, not only price per unit.
 1. **What cost does not show**: security, lock-in, and time to value, when they change the decision.
 1. **Annexes**: formulas and price sources with links and retrieval dates.
 
