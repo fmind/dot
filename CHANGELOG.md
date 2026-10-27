@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.3.0] - 2026-10-27
+
+### 🚀 Features
+
+- _(tasks)_ Retire superseded hash-suffixed mise installs in full
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Refresh global pipx dependency graphs
+
 ## [14.2.1] - 2026-10-27
 
 ### 🧹 Miscellaneous
