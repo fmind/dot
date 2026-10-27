@@ -39,32 +39,23 @@ Google Docs parses native `.md` files with the rules detailed in [references/dia
 ## Workflow
 
 1. **Confirm account and destination**: check `gws auth status` without printing credentials, and resolve the target Drive folder ID or existing file ID with a bounded `gws drive files list` query.
-1. **Author `.src.md` and `.svg` figures in `$SCRATCH`**, then compile, validate, and export the asset bundle with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
+1. **Author `.src.md` and `.svg` figures in `$SCRATCH`, then compile, validate, and upload to Google Drive** with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
 
    ```bash
-   # Compile .src.md -> .md and export editable sources (.src.md, .mmd, .svg) + @2x .png figures to --assets-dir
+   # Compile .src.md -> .md, export editable assets, and upsert both <Title>.md and assets/<doc-slug>/ in Drive
    uv run --no-project python ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
-     "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" --assets-dir "$SCRATCH/assets/report" --json
+     "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" \
+     --drive-folder "<FOLDER_ID>" --doc-name "<Title>.md" --json
+
+   # Update an existing .md document in place by File ID (preserves URL, revisions, and open Docs comments)
+   uv run --no-project python ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
+     "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" \
+     --file-id "<FILE_ID>" --drive-folder "<FOLDER_ID>" --json
    ```
 
-1. **Upload the native `.md` deliverable and its `assets/` folder to Google Drive**:
+   To compile locally without uploading yet, omit `--drive-folder` and pass `--assets-dir "$SCRATCH/assets/<doc-slug>"`.
 
-   ```bash
-   # 1. Create or update the native .md document in the target folder (<FOLDER_ID>)
-   gws drive files create --params '{"supportsAllDrives":true,"fields":"id,name,mimeType,webViewLink"}' \
-     --json '{"name":"<Title>.md","mimeType":"text/markdown","parents":["<FOLDER_ID>"]}' \
-     --upload "$SCRATCH/report.md" --upload-content-type text/markdown
-
-   # Update an existing .md document in place (preserves File ID, URL, revisions, and open Docs comments)
-   gws drive files update --params '{"fileId":"<FILE_ID>","supportsAllDrives":true,"fields":"id,name,version,modifiedTime,webViewLink"}' \
-     --upload "$SCRATCH/report.md" --upload-content-type text/markdown
-
-   # 2. Create or reuse an assets/<doc-slug>/ subfolder in Drive and upload the exported sources (.src.md, .mmd, .svg, .png)
-   gws drive files create --params '{"supportsAllDrives":true,"fields":"id,name"}' \
-     --json '{"name":"assets","mimeType":"application/vnd.google-apps.folder","parents":["<FOLDER_ID>"]}'
-   ```
-
-1. **Verify by reading back**: confirm `inlineObjects` and heading structure via `gws docs documents get --params '{"documentId":"<FILE_ID>"}'`, and report both the Google Docs Editor URL (`https://docs.google.com/document/d/<FILE_ID>/edit`) and the Drive `assets/` folder link.
+1. **Verify by reading back**: confirm `inlineObjects` and heading structure via `gws docs documents get --params '{"documentId":"<FILE_ID>"}'`, and report both `drive.docs_url` (`https://docs.google.com/document/d/<FILE_ID>/edit`) and `drive.assets_folder_url` (`assets/<doc-slug>/`).
 
 ## Gotchas
 

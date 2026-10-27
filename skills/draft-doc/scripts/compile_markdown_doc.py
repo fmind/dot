@@ -37,6 +37,13 @@ SVG_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.svg)\)")
 MERMAID_ALT_RE = re.compile(r"^\s*%%\s*alt\s*:\s*(.+?)\s*$", re.MULTILINE)
 CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\n]+)\*|_([^_\n]+)_)\s*$")
 INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,128}$")
+ASSET_MIME_TYPES = {
+    ".md": "text/markdown",
+    ".mmd": "text/plain",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+}
 
 
 def _local_tag(tag: str) -> str:
@@ -399,6 +406,259 @@ def compile_markdown(
     return compiled, figures
 
 
+def _validate_drive_id(value: str, label: str = "Drive ID") -> str:
+    """Validate a Google Drive file or folder ID before embedding in API queries."""
+    cleaned = value.strip()
+    if not DRIVE_ID_RE.fullmatch(cleaned):
+        msg = f"Invalid {label}: {value!r}"
+        raise ValueError(msg)
+    return cleaned
+
+
+def _escape_drive_q(value: str) -> str:
+    """Escape backslashes and single quotes for Google Drive q filter strings."""
+    return value.replace("\\", "\\\\").replace("'", "\\'")
+
+
+def _slugify_doc(name: str) -> str:
+    """Derive a clean Drive assets/<doc-slug> directory name from a document filename."""
+    stem = name.removesuffix(".src.md").removesuffix(".gdoc.md").removesuffix(".md")
+    return re.sub(r"[^a-zA-Z0-9._-]+", "-", stem).strip("-") or "document"
+
+
+def run_gws(args: list[str]) -> dict[str, Any]:
+    """Execute a gws CLI command with --format json and return the parsed JSON object."""
+    gws_bin = shutil.which("gws")
+    if not gws_bin:
+        msg = "`gws` not found in PATH; install @googleworkspace/cli (e.g. `mise install`)."
+        raise RuntimeError(msg)
+    proc = subprocess.run(  # noqa: S603 - fixed gws binary and validated arguments
+        [gws_bin, *args, "--format", "json"],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
+        msg = f"gws {' '.join(args[:3])} failed (exit {proc.returncode}): {detail}"
+        raise RuntimeError(msg)
+    out = proc.stdout.strip()
+    return json.loads(out) if out else {}
+
+
+def _ensure_drive_folder(parent_id: str, folder_name: str) -> str:
+    """Find or create a child folder named folder_name inside parent_id."""
+    valid_parent = _validate_drive_id(parent_id, "parent folder ID")
+    q = (
+        "trashed = false and mimeType = 'application/vnd.google-apps.folder' "
+        f"and '{valid_parent}' in parents and name = '{_escape_drive_q(folder_name)}'"
+    )
+    resp = run_gws(
+        [
+            "drive",
+            "files",
+            "list",
+            "--params",
+            json.dumps(
+                {
+                    "pageSize": 5,
+                    "q": q,
+                    "supportsAllDrives": True,
+                    "includeItemsFromAllDrives": True,
+                    "fields": "files(id,name)",
+                }
+            ),
+        ]
+    )
+    files = resp.get("files") or []
+    if files:
+        return str(files[0]["id"])
+    created = run_gws(
+        [
+            "drive",
+            "files",
+            "create",
+            "--params",
+            json.dumps({"supportsAllDrives": True, "fields": "id,name"}),
+            "--json",
+            json.dumps(
+                {
+                    "name": folder_name,
+                    "mimeType": "application/vnd.google-apps.folder",
+                    "parents": [valid_parent],
+                }
+            ),
+        ]
+    )
+    return str(created["id"])
+
+
+def _list_folder_files(parent_id: str) -> dict[str, str]:
+    """Return {name: file_id} for non-trashed non-folder files directly inside parent_id."""
+    valid_parent = _validate_drive_id(parent_id, "folder ID")
+    q = f"trashed = false and mimeType != 'application/vnd.google-apps.folder' and '{valid_parent}' in parents"
+    resp = run_gws(
+        [
+            "drive",
+            "files",
+            "list",
+            "--params",
+            json.dumps(
+                {
+                    "pageSize": 100,
+                    "q": q,
+                    "supportsAllDrives": True,
+                    "includeItemsFromAllDrives": True,
+                    "fields": "files(id,name)",
+                }
+            ),
+        ]
+    )
+    return {str(item["name"]): str(item["id"]) for item in (resp.get("files") or []) if "id" in item and "name" in item}
+
+
+def _upsert_drive_file(
+    local_path: Path,
+    *,
+    name: str,
+    content_type: str,
+    parent_id: str | None = None,
+    file_id: str | None = None,
+    existing_by_name: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Create or update a file in Google Drive while preserving its File ID when updating."""
+    target_id = file_id or (existing_by_name or {}).get(name)
+    fields = "id,name,mimeType,version,modifiedTime,webViewLink"
+    if target_id:
+        valid_id = _validate_drive_id(target_id, "file ID")
+        return run_gws(
+            [
+                "drive",
+                "files",
+                "update",
+                "--params",
+                json.dumps({"fileId": valid_id, "supportsAllDrives": True, "fields": fields}),
+                "--json",
+                json.dumps({"name": name}),
+                "--upload",
+                str(local_path),
+                "--upload-content-type",
+                content_type,
+            ]
+        )
+    if not parent_id:
+        msg = f"Cannot create {name!r} without a target Drive folder ID."
+        raise ValueError(msg)
+    valid_parent = _validate_drive_id(parent_id, "folder ID")
+    return run_gws(
+        [
+            "drive",
+            "files",
+            "create",
+            "--params",
+            json.dumps({"supportsAllDrives": True, "fields": fields}),
+            "--json",
+            json.dumps({"name": name, "mimeType": content_type, "parents": [valid_parent]}),
+            "--upload",
+            str(local_path),
+            "--upload-content-type",
+            content_type,
+        ]
+    )
+
+
+def upload_to_drive(
+    compiled_md: Path,
+    asset_paths: list[Path],
+    *,
+    drive_folder: str | None = None,
+    file_id: str | None = None,
+    doc_name: str | None = None,
+    doc_slug: str | None = None,
+) -> dict[str, Any]:
+    """Upload the compiled .md file and its assets/<doc-slug>/ bundle to Google Drive."""
+    if not drive_folder and not file_id:
+        msg = "Provide --drive-folder <FOLDER_ID> and/or --file-id <FILE_ID> to upload to Google Drive."
+        raise ValueError(msg)
+
+    parent_folder_id = _validate_drive_id(drive_folder, "folder ID") if drive_folder else None
+    resolved_name = doc_name or compiled_md.name
+    if not resolved_name.endswith(".md"):
+        resolved_name = f"{resolved_name}.md"
+
+    if file_id and not parent_folder_id:
+        meta = run_gws(
+            [
+                "drive",
+                "files",
+                "get",
+                "--params",
+                json.dumps(
+                    {
+                        "fileId": _validate_drive_id(file_id, "file ID"),
+                        "supportsAllDrives": True,
+                        "fields": "id,name,parents",
+                    }
+                ),
+            ]
+        )
+        parents = meta.get("parents") or []
+        if parents:
+            parent_folder_id = str(parents[0])
+        if not doc_name and meta.get("name"):
+            resolved_name = str(meta["name"])
+
+    resolved_slug = doc_slug or _slugify_doc(resolved_name)
+    existing_in_parent = _list_folder_files(parent_folder_id) if (parent_folder_id and not file_id) else {}
+    doc_result = _upsert_drive_file(
+        compiled_md,
+        name=resolved_name,
+        content_type="text/markdown",
+        parent_id=parent_folder_id,
+        file_id=file_id,
+        existing_by_name=existing_in_parent,
+    )
+    uploaded_file_id = str(doc_result["id"])
+
+    assets_folder_id: str | None = None
+    uploaded_assets: list[dict[str, Any]] = []
+    if parent_folder_id and asset_paths:
+        assets_root_id = _ensure_drive_folder(parent_folder_id, "assets")
+        assets_folder_id = _ensure_drive_folder(assets_root_id, resolved_slug)
+        existing_assets = _list_folder_files(assets_folder_id)
+        for asset_path in asset_paths:
+            if not asset_path.is_file():
+                continue
+            mime = ASSET_MIME_TYPES.get(asset_path.suffix.lower(), "application/octet-stream")
+            res = _upsert_drive_file(
+                asset_path,
+                name=asset_path.name,
+                content_type=mime,
+                parent_id=assets_folder_id,
+                existing_by_name=existing_assets,
+            )
+            uploaded_assets.append(
+                {
+                    "id": res.get("id"),
+                    "name": res.get("name", asset_path.name),
+                    "mimeType": res.get("mimeType", mime),
+                }
+            )
+
+    return {
+        "file_id": uploaded_file_id,
+        "name": doc_result.get("name", resolved_name),
+        "docs_url": f"https://docs.google.com/document/d/{uploaded_file_id}/edit",
+        "web_view_link": doc_result.get("webViewLink"),
+        "assets_folder_id": assets_folder_id,
+        "assets_folder_path": f"assets/{resolved_slug}" if assets_folder_id else None,
+        "assets_folder_url": f"https://drive.google.com/drive/folders/{assets_folder_id}" if assets_folder_id else None,
+        "uploaded_assets": uploaded_assets,
+    }
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, help="Input .src.md / .md document or .svg figure to validate/compile.")
@@ -413,7 +673,31 @@ def _build_parser() -> argparse.ArgumentParser:
         "--assets-dir",
         type=Path,
         default=None,
-        help="Optional directory to export editable sources (.src.md, .mmd, .svg) and @2x .png figures for Drive upload.",
+        help="Directory to export editable sources (.src.md, .mmd, .svg) and @2x .png figures for Drive upload.",
+    )
+    parser.add_argument(
+        "--drive-folder",
+        type=str,
+        default=None,
+        help="Google Drive parent folder ID to upload the compiled .md and its assets/<doc-slug>/ bundle.",
+    )
+    parser.add_argument(
+        "--file-id",
+        type=str,
+        default=None,
+        help="Existing Google Drive .md file ID to update in place while syncing assets/<doc-slug>/.",
+    )
+    parser.add_argument(
+        "--doc-name",
+        type=str,
+        default=None,
+        help="Target filename in Google Drive (e.g. 'Nightly Batch Review.md'). Defaults to output filename.",
+    )
+    parser.add_argument(
+        "--doc-slug",
+        type=str,
+        default=None,
+        help="Subfolder slug under assets/<doc-slug>/ in Google Drive. Defaults to slugified document stem.",
     )
     parser.add_argument(
         "--check-only",
@@ -480,6 +764,9 @@ def main(argv: list[str] | None = None) -> int:
                     if source.name.endswith(".src.md")
                     else f"{source.stem}.gdoc.md"
                 )
+                doc_slug = args.doc_slug or _slugify_doc(args.doc_name or out_path.name)
+                if (args.drive_folder or args.file_id) and assets_dir is None:
+                    assets_dir = out_path.parent / "assets" / doc_slug
                 compiled, figures = compile_markdown(
                     text,
                     source.parent,
@@ -498,6 +785,16 @@ def main(argv: list[str] | None = None) -> int:
                         for key in ("source_asset", "png_asset"):
                             if fig.get(key) and fig[key] not in exported_assets:
                                 exported_assets.append(fig[key])
+                drive_info: dict[str, Any] | None = None
+                if args.drive_folder or args.file_id:
+                    drive_info = upload_to_drive(
+                        out_path,
+                        [Path(p) for p in exported_assets],
+                        drive_folder=args.drive_folder,
+                        file_id=args.file_id,
+                        doc_name=args.doc_name,
+                        doc_slug=doc_slug,
+                    )
                 payload = {
                     "status": "ok",
                     "source": str(source),
@@ -506,6 +803,7 @@ def main(argv: list[str] | None = None) -> int:
                     "figures": figures,
                     "assets_dir": str(assets_dir) if assets_dir is not None else None,
                     "assets": exported_assets,
+                    "drive": drive_info,
                 }
 
         if args.json_output:

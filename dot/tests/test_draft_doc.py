@@ -176,3 +176,84 @@ def test_cli_json_check_and_compile(
     assert mod.main([str(bad_md), "--check-only", "--json"]) == 1
     err_payload = json.loads(capsys.readouterr().err)
     assert "YAML frontmatter" in err_payload["error"]
+
+
+def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    svg_file = tmp_path / "card.svg"
+    svg_file.write_text(VALID_SVG, encoding="utf-8")
+    src_md = tmp_path / "memo.src.md"
+    src_md.write_text("# Memo\n\n![Card](card.svg)\n", encoding="utf-8")
+
+    def fake_render_svg(_svg_path: Path, out: Path, *, scale: int = 2) -> tuple[int, int]:
+        out.write_bytes(b"PNG")
+        return (960 * scale, 220 * scale)
+
+    gws_calls: list[list[str]] = []
+
+    def fake_run_gws(args: list[str]) -> dict[str, object]:
+        gws_calls.append(args)
+        if args[:3] == ["drive", "files", "list"]:
+            params = json.loads(args[args.index("--params") + 1])
+            q = params["q"]
+            if "name = 'assets'" in q:
+                return {"files": [{"id": "folder_assets_1", "name": "assets"}]}
+            if "name = 'memo'" in q:
+                return {"files": []}
+            if "'folder_memo_assets_2' in parents" in q:
+                return {"files": [{"id": "existing_svg_9", "name": "card.svg"}]}
+            return {"files": []}
+        if args[:3] == ["drive", "files", "create"]:
+            body = json.loads(args[args.index("--json") + 1])
+            if body.get("mimeType") == "application/vnd.google-apps.folder":
+                return {"id": "folder_memo_assets_2", "name": body["name"]}
+            return {
+                "id": f"new_{body['name']}",
+                "name": body["name"],
+                "mimeType": body["mimeType"],
+                "webViewLink": f"https://drive.google.com/file/d/new_{body['name']}/view",
+            }
+        if args[:3] == ["drive", "files", "update"]:
+            params = json.loads(args[args.index("--params") + 1])
+            body = json.loads(args[args.index("--json") + 1])
+            return {"id": params["fileId"], "name": body["name"], "mimeType": "image/svg+xml"}
+        msg = f"Unexpected gws call: {args}"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
+    monkeypatch.setattr(mod, "run_gws", fake_run_gws)
+
+    assert (
+        mod.main(
+            [
+                str(src_md),
+                "--drive-folder",
+                "parent_folder_123",
+                "--doc-name",
+                "Memo.md",
+                "--doc-slug",
+                "memo",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    drive = payload["drive"]
+    assert drive["file_id"] == "new_Memo.md"
+    assert drive["docs_url"] == "https://docs.google.com/document/d/new_Memo.md/edit"
+    assert drive["assets_folder_id"] == "folder_memo_assets_2"
+    assert drive["assets_folder_path"] == "assets/memo"
+    uploaded_by_name = {item["name"]: item["id"] for item in drive["uploaded_assets"]}
+    assert uploaded_by_name == {
+        "memo.src.md": "new_memo.src.md",
+        "card.svg": "existing_svg_9",
+        "fig-1.png": "new_fig-1.png",
+    }
+
+    with pytest.raises(ValueError, match="Invalid folder ID"):
+        mod.upload_to_drive(tmp_path / "memo.md", [], drive_folder="bad id with spaces'; DROP")

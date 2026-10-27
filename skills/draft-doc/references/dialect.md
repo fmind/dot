@@ -47,13 +47,11 @@ When `compile_markdown_doc.py` compiles a fenced ` ```mermaid ` block, it resolv
 
 Keep the parent Drive folder clean for readers while preserving editable diagram sources on Drive right next to the document:
 
-1. Compile with `--assets-dir "$SCRATCH/assets/<doc-slug>"`. The compiler writes:
-   - `<doc-slug>.src.md` (the uncompiled Markdown source with inline Mermaid blocks and `.svg` links)
-   - `fig-N.mmd` (each extracted Mermaid diagram source)
-   - `<name>.svg` (each validated standalone SVG figure)
-   - `fig-N.png` (each `@2x` rasterized PNG)
-1. In the target Google Drive folder (`<FOLDER_ID>`), create or reuse an `assets` folder (`mimeType: application/vnd.google-apps.folder`) and a `<doc-slug>` subfolder inside it (or upload directly into `assets/` when the parent folder is dedicated to a single document).
-1. Upload or update each file listed in the compiler's JSON `"assets"` array into that Drive folder via `gws drive files create` / `gws drive files update`.
+1. Pass `--drive-folder "<FOLDER_ID>"` (and optional `--file-id "<FILE_ID>"`, `--doc-name "<Title>.md"`, `--doc-slug "<doc-slug>"`) to `compile_markdown_doc.py`:
+   - Exports `<doc-slug>.src.md`, extracted `fig-N.mmd` Mermaid sources, validated `<name>.svg` vector figures, and `@2x` `fig-N.png` rasters into `--assets-dir` (defaulting to `assets/<doc-slug>/` next to `--output`).
+   - Upserts `<Title>.md` (`mimeType: text/markdown`) in `<FOLDER_ID>` (or updates `<FILE_ID>` in place, preserving its URL, revision history, and open Docs comments).
+   - Creates or reuses `assets/<doc-slug>/` inside `<FOLDER_ID>` and upserts every exported source and PNG file via `gws drive files`.
+   - Returns `drive.docs_url`, `drive.assets_folder_url`, and `drive.uploaded_assets` in the JSON output.
 
 ## Branding and Mermaid Styling
 
