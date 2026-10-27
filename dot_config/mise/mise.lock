@@ -2489,49 +2489,49 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:afbc8d7bc0aed0a1616de46a5a4db49d29615b6656b026e1a57503daf4c87079" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:5e00591eeb620336cb3a790025de7d8faab25df38212024cd4aab96be830b704" }
 
 [[tools."pipx:brain-framework"]]
 version = "19.0.1"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:f63b658b6434ff1d9708656e4f9f7cbab753f3be3c2fcd7af6e275b24221328a" }
+uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:b4a9cc20629679808693b62c76444936e4d22242bb3dbd0ca8cd00aa8e21c236" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:3f9a457bf86f549144718396b66f7c638fa5636750d57ca237e2c9de80b9a2d2" }
+uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:52eae1e8f0a77de910a43dc6e728299c122cf3868f3c976daa947dc5f9b2f834" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.3"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:a752075e30d60eb9d6a14bc3e5b8063a53575767ab34d46a5ffaa1403830d14a" }
+uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:850eeceace11e04430e6de86c66cff6a36cb125fccf115cde3f6a8b826af65f6" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.5"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:aba70c06afc2cc7b7dabd9de07a3dc84e41c1bd42fb50a5ad84e091619a2c9b1" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:a92f3ac5037d21b73b63ff3dd489920299910a8fee3eda89ee5aec21580a31c6" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.3.0"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:5ee47f2c0029979baf36f477181f33deed0a1057240a33fc54bfa4bdfa25bd2e" }
+uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:61a976407516774fdade4dfc8b7883d5cf5097b4a0ee975d5c36a39fbf077b5d" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:c57d82c963f8e0189c47e1bf8aa2de315eb224be5ed885bee6883899fc815180" }
+uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:ed5816e2ecfdff475c72b0ab9740e64c309861580d9eef393110bb357c498415" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:5e84de9c0e043c0786f0a6f335406b7697ffbcdc88d4673e2997808e7fefd50c" }
+uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:a018b4102c44dfab2f152c086ba34c9c6ee8a7a87aca1ca20e3f37bc8b85edbe" }
 
 [tools."pipx:pgcli".options]
 with = '["psycopg[binary]"]'
