@@ -2457,8 +2457,8 @@ backend = "npm:@opencode/cli"
 specifiers = ["latest"]
 
 [[tools."npm:cf"]]
-version = "1.0.0-beta.21"
-aube = { path = "locks/npm-cf/1.0.0-beta.21", digest = "sha256:a1db6b994d0d0b902714964cf3a843616cd432d7edd5d13fe51cc5a4314e4634" }
+version = "1.0.0-beta.23"
+aube = { path = "locks/npm-cf/1.0.0-beta.23", digest = "sha256:24e4c8adf30663901642017ea336eba6d782db6735d1487d79fff0d9e27724d7" }
 backend = "npm:cf"
 specifiers = ["latest"]
 
@@ -2489,49 +2489,49 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:9698f28622337cb51fbf1dab8bb306ddb57fa2ffc0f78b8835a02faa6b6abdf1" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:afbc8d7bc0aed0a1616de46a5a4db49d29615b6656b026e1a57503daf4c87079" }
 
 [[tools."pipx:brain-framework"]]
 version = "19.0.1"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:3af2baca9a77b765f3c752e6bdfcc652e9b62cbc01f968ed4c4db20f67336664" }
+uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:f63b658b6434ff1d9708656e4f9f7cbab753f3be3c2fcd7af6e275b24221328a" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:8b9b07cb70571a3e86a3720a3d816b2d144550ce65ac1ecde55b1acda1080f7d" }
+uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:3f9a457bf86f549144718396b66f7c638fa5636750d57ca237e2c9de80b9a2d2" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.3"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:0767c38dcc40a8b5aad8cbda84b5550c7b7a170adf7c1dc8e4f1a400aad6edfa" }
+uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:a752075e30d60eb9d6a14bc3e5b8063a53575767ab34d46a5ffaa1403830d14a" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.5"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:8d9d74ea85232ce49db1ac15e9aeb18a8bec1497c72ddfe01f252b4f20f2c9ff" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:aba70c06afc2cc7b7dabd9de07a3dc84e41c1bd42fb50a5ad84e091619a2c9b1" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.3.0"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:dd5e8ab3d98db340efa119cf5c2279944702da4a0556d24b8bc0c75eec161c4b" }
+uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:5ee47f2c0029979baf36f477181f33deed0a1057240a33fc54bfa4bdfa25bd2e" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:3fa775c843e75ef478d168d5500e0d66c3ad4072af3bd82dbd731f5df7df4802" }
+uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:c57d82c963f8e0189c47e1bf8aa2de315eb224be5ed885bee6883899fc815180" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:269d629e518993da574815cc907be9bb4e2b295e5e42b608f0b8542abd690d85" }
+uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:5e84de9c0e043c0786f0a6f335406b7697ffbcdc88d4673e2997808e7fefd50c" }
 
 [tools."pipx:pgcli".options]
 with = '["psycopg[binary]"]'
@@ -2733,19 +2733,21 @@ url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.7
 url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/662254764"
 
 [[tools.ty]]
-version = "0.0.91"
+version = "0.0.92"
 backend = "aqua:astral-sh/ty"
 specifiers = ["latest"]
 
 [tools.ty."platforms.linux-x64"]
-checksum = "sha256:f9ab9cef6d2d96ea4d8bac06aa464bbe6622e57d0476e91156bc0df3478b2c08"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.91/ty-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/666701025"
+checksum = "sha256:c5c1278e43201d05838c3787df89658785fbd5c32c68b6d63202ff334ac86761"
+checksum_source = "mise-versions"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.92/ty-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/676856443"
 
 [tools.ty."platforms.macos-arm64"]
-checksum = "sha256:8ec3e0315cab3f8969a974db1fb1d431ef38525793455dda411089e733c71fbe"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.91/ty-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/666700720"
+checksum = "sha256:8db29940906b7c9627d43f2dd458dbe11a975577ec7748a63a3c83bc84c9f957"
+checksum_source = "mise-versions"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.92/ty-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/676856243"
 
 [[tools.typos]]
 version = "1.51.1"

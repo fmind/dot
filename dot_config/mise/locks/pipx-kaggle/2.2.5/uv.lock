@@ -3,7 +3,7 @@ revision = 5
 requires-python = ">=3.11"
 
 [options]
-exclude-newer = "2026-10-25T05:54:37.222809641Z"
+exclude-newer = "2026-10-26T05:51:59.015390697Z"
 
 [[package]]
 name = "attrs"
