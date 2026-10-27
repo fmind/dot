@@ -29,9 +29,10 @@ FRONTMATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---(?:\r?\n|\Z)", re.DOTALL)
 FENCED_BLOCK_RE = re.compile(r"(?m)^(`{3,}|~{3,})([^\n]*)\n(.*?)\n\1[ \t]*$", re.DOTALL)
 GITHUB_ALERT_RE = re.compile(r"(?m)^[ \t]*>[ \t]*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]")
 RAW_HTML_RE = re.compile(
-    r"</?(?:details|summary|mark|u|div|span|table|thead|tbody|tr|td|th|img|script|iframe|style)\b[^>]*>",
+    r"</?(?:details|summary|mark|u|br|div|span|table|thead|tbody|tr|td|th|img|script|iframe|style)\b[^>]*>",
     re.IGNORECASE,
 )
+SETEXT_H2_RE = re.compile(r"(?m)^(?!\s*$)(?![ \t]*[>|#*+-])[^\n|]+\n[ \t]*---+[ \t]*$")
 SVG_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.svg)\)")
 MERMAID_ALT_RE = re.compile(r"^\s*%%\s*alt\s*:\s*(.+?)\s*$", re.MULTILINE)
 CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\n]+)\*|_([^_\n]+)_)\s*$")
@@ -142,6 +143,12 @@ def check_markdown_dialect(markdown: str) -> list[str]:
             "use a bold blockquote (`> **Important:** ...`) instead."
         )
 
+    if SETEXT_H2_RE.search(outside_code):
+        problems.append(
+            "Setext H2 underline (`---` directly below a line of text) turns that line into HEADING_2 in Google Docs; "
+            "add a blank line before `---` for a horizontal rule or use `## Heading`."
+        )
+
     html_match = RAW_HTML_RE.search(outside_code)
     if html_match:
         problems.append(
@@ -184,39 +191,52 @@ def render_svg_png(svg_path: Path, out_png: Path, scale: int = 2) -> tuple[int, 
     w_px, h_px = math.ceil(width), math.ceil(height)
     binary = find_chrome()
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".svg-render-") as tmp:
-        profile = Path(tmp) / "profile"
-        prefs = profile / "Default" / "Preferences"
-        prefs.parent.mkdir(parents=True)
-        prefs.write_text(
-            json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}),
-            encoding="utf-8",
-        )
-        proc = subprocess.run(  # noqa: S603 - fixed browser binary and local file URI
-            [
-                binary,
-                "--headless=new",
-                "--hide-scrollbars",
-                "--disable-gpu",
-                "--host-resolver-rules=MAP * ^NOTFOUND",
-                "--no-proxy-server",
-                f"--user-data-dir={profile}",
-                f"--force-device-scale-factor={scale}",
-                "--default-background-color=00000000",
-                f"--window-size={w_px},{h_px}",
-                f"--screenshot={out_png.resolve()}",
-                svg_path.resolve().as_uri(),
-            ],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
-        if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
-            detail = " ".join(proc.stderr.split())[-300:]
-            msg = f"Chrome failed to render {svg_path.name} (exit {proc.returncode}): {detail}"
-            raise RuntimeError(msg)
+    for attempt in range(3):
+        with tempfile.TemporaryDirectory(prefix=".svg-render-") as tmp:
+            profile = Path(tmp) / "profile"
+            prefs = profile / "Default" / "Preferences"
+            prefs.parent.mkdir(parents=True)
+            prefs.write_text(
+                json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}),
+                encoding="utf-8",
+            )
+            try:
+                proc = subprocess.run(  # noqa: S603 - fixed browser binary and local file URI
+                    [
+                        binary,
+                        "--headless=new",
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                        "--disable-extensions",
+                        "--disable-background-networking",
+                        "--disable-sync",
+                        "--hide-scrollbars",
+                        "--disable-gpu",
+                        "--host-resolver-rules=MAP * ^NOTFOUND",
+                        "--no-proxy-server",
+                        f"--user-data-dir={profile}",
+                        f"--force-device-scale-factor={scale}",
+                        "--default-background-color=00000000",
+                        f"--window-size={w_px},{h_px}",
+                        f"--screenshot={out_png.resolve()}",
+                        svg_path.resolve().as_uri(),
+                    ],
+                    stdin=subprocess.DEVNULL,
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                if attempt < 2:
+                    continue
+                msg = f"Chrome timed out rendering {svg_path.name} after 3 attempts"
+                raise RuntimeError(msg) from exc
+            if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
+                detail = " ".join(proc.stderr.split())[-300:]
+                msg = f"Chrome failed to render {svg_path.name} (exit {proc.returncode}): {detail}"
+                raise RuntimeError(msg)
+            break
     return w_px * scale, h_px * scale
 
 
@@ -253,11 +273,14 @@ def compile_markdown(
     *,
     scale: int = 2,
     svg_width: float = 960.0,
+    assets_dir: Path | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Compile fenced ```mermaid blocks and local .svg image links into Base64 PNG references."""
     figures: list[dict[str, Any]] = []
     ref_definitions: list[str] = []
     fig_counter = 0
+    if assets_dir is not None:
+        assets_dir.mkdir(parents=True, exist_ok=True)
 
     def next_fig_id() -> str:
         nonlocal fig_counter
@@ -294,14 +317,20 @@ def compile_markdown(
             render_mermaid_png(raw_code, png_path, scale=scale)
             b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
             ref_definitions.append(f"[{fig_id}]: <data:image/png;base64,{b64}>")
-            figures.append(
-                {
-                    "id": fig_id,
-                    "kind": "mermaid",
-                    "alt": alt_text,
-                    "bytes": png_path.stat().st_size,
-                }
-            )
+            fig_entry: dict[str, Any] = {
+                "id": fig_id,
+                "kind": "mermaid",
+                "alt": alt_text,
+                "bytes": png_path.stat().st_size,
+            }
+            if assets_dir is not None:
+                mmd_asset = assets_dir / f"{fig_id}.mmd"
+                png_asset = assets_dir / f"{fig_id}.png"
+                mmd_asset.write_text(raw_code.strip() + "\n", encoding="utf-8")
+                shutil.copy2(png_path, png_asset)
+                fig_entry["source_asset"] = str(mmd_asset)
+                fig_entry["png_asset"] = str(png_asset)
+            figures.append(fig_entry)
             pieces.append(f"![{alt_text}][{fig_id}]")
             last_idx = match.end()
 
@@ -335,15 +364,24 @@ def compile_markdown(
             render_svg_png(svg_path, png_path, scale=scale)
             b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
             ref_definitions.append(f"[{fig_id}]: <data:image/png;base64,{b64}>")
-            figures.append(
-                {
-                    "id": fig_id,
-                    "kind": "svg",
-                    "source": str(svg_rel),
-                    "alt": alt_text,
-                    "bytes": png_path.stat().st_size,
-                }
-            )
+            fig_entry = {
+                "id": fig_id,
+                "kind": "svg",
+                "source": str(svg_rel),
+                "alt": alt_text,
+                "bytes": png_path.stat().st_size,
+            }
+            if assets_dir is not None:
+                svg_asset = assets_dir / svg_path.name
+                if svg_asset.exists() and svg_asset.resolve() != svg_path.resolve():
+                    svg_asset = assets_dir / f"{fig_id}-{svg_path.name}"
+                if svg_asset.resolve() != svg_path.resolve():
+                    shutil.copy2(svg_path, svg_asset)
+                png_asset = assets_dir / f"{fig_id}.png"
+                shutil.copy2(png_path, png_asset)
+                fig_entry["source_asset"] = str(svg_asset)
+                fig_entry["png_asset"] = str(png_asset)
+            figures.append(fig_entry)
             svg_pieces.append(intermediate[last_svg_idx : match.start()])
             svg_pieces.append(f"![{alt_text}][{fig_id}]")
             last_svg_idx = match.end()
@@ -370,6 +408,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Output path (.md for compiled Markdown or .png for rendered SVG).",
+    )
+    parser.add_argument(
+        "--assets-dir",
+        type=Path,
+        default=None,
+        help="Optional directory to export editable sources (.src.md, .mmd, .svg) and @2x .png figures for Drive upload.",
     )
     parser.add_argument(
         "--check-only",
@@ -404,6 +448,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     source: Path = args.source
     output: Path | None = args.output
+    assets_dir: Path | None = args.assets_dir
     try:
         if not source.is_file():
             msg = f"File not found: {source}"
@@ -440,14 +485,27 @@ def main(argv: list[str] | None = None) -> int:
                     source.parent,
                     scale=args.scale,
                     svg_width=args.svg_width,
+                    assets_dir=assets_dir,
                 )
                 out_path.write_text(compiled, encoding="utf-8")
+                exported_assets: list[str] = []
+                if assets_dir is not None:
+                    src_asset = assets_dir / source.name
+                    if src_asset.resolve() != source.resolve():
+                        shutil.copy2(source, src_asset)
+                    exported_assets.append(str(src_asset))
+                    for fig in figures:
+                        for key in ("source_asset", "png_asset"):
+                            if fig.get(key) and fig[key] not in exported_assets:
+                                exported_assets.append(fig[key])
                 payload = {
                     "status": "ok",
                     "source": str(source),
                     "output": str(out_path),
                     "bytes": len(compiled.encode("utf-8")),
                     "figures": figures,
+                    "assets_dir": str(assets_dir) if assets_dir is not None else None,
+                    "assets": exported_assets,
                 }
 
         if args.json_output:

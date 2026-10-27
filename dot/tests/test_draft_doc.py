@@ -39,6 +39,7 @@ def test_check_markdown_dialect_accepts_clean_doc(mod: ModuleType) -> None:
         "> **Important — Decision needed by 2026-11-15:** Approve Option 2.\n\n"
         "## Executive summary\n\n"
         "**Moving nightly batch jobs to spot virtual machines reduces compute spend by 60%.**\n\n"
+        "---\n\n"
         "- [x] Validate retry backoff (`<details>` and `> [!IMPORTANT]` inside inline code are ignored)\n"
         "- [ ] Deploy policy gate\n\n"
         "![Figure 1 — Summary Card][fig-1]\n\n"
@@ -55,8 +56,10 @@ def test_check_markdown_dialect_accepts_clean_doc(mod: ModuleType) -> None:
     ("snippet", "expected"),
     [
         ("---\ntitle: Doc\n---\n\n# Heading\n", "YAML frontmatter"),
+        ("# Heading\n\nParagraph without blank line\n---\n", "Setext H2 underline"),
         ("# Heading\n\n> [!IMPORTANT]\n> Act now.\n", "GitHub Alert syntax"),
         ("# Heading\n\n<details><summary>More</summary>Text</details>\n", "Raw HTML tag"),
+        ("# Heading\n\nLine one<br>Line two\n", "Raw HTML tag"),
         ("# Heading\n\n```mermaid\nflowchart LR\n  A --> B\n```\n", "Uncompiled ```mermaid block"),
         ("# Heading\n\n![Card](card.svg)\n", "Uncompiled .svg image link"),
     ],
@@ -118,7 +121,8 @@ def test_compile_markdown_replaces_mermaid_and_svg_with_base64_refs(
         "Inline code `![ignored](other.svg)` stays untouched.\n"
     )
 
-    compiled, figures = mod.compile_markdown(source_md, tmp_path)
+    assets_dir = tmp_path / "assets"
+    compiled, figures = mod.compile_markdown(source_md, tmp_path, assets_dir=assets_dir)
     assert "```mermaid" not in compiled
     assert "(card.svg)" not in compiled
     assert "`![ignored](other.svg)`" in compiled
@@ -128,7 +132,11 @@ def test_compile_markdown_replaces_mermaid_and_svg_with_base64_refs(
     assert "[fig-2]: <data:image/png;base64,RkFLRV9TVkdfUE5H>" in compiled
     assert len(figures) == 2
     assert figures[0]["kind"] == "mermaid"
+    assert Path(figures[0]["source_asset"]).read_text(encoding="utf-8").startswith("%% alt:")
+    assert Path(figures[0]["png_asset"]).read_bytes() == b"FAKE_MERMAID_PNG"
     assert figures[1]["kind"] == "svg"
+    assert Path(figures[1]["source_asset"]).name == "card.svg"
+    assert Path(figures[1]["png_asset"]).read_bytes() == b"FAKE_SVG_PNG"
 
 
 def test_cli_json_check_and_compile(
@@ -151,6 +159,17 @@ def test_cli_json_check_and_compile(
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "ok"
     assert payload["dimensions_px"] == [1920, 440]
+
+    src_md = tmp_path / "memo.src.md"
+    src_md.write_text("# Memo\n\n![Card](card.svg)\n", encoding="utf-8")
+    out_md = tmp_path / "memo.md"
+    bundle_dir = tmp_path / "bundle"
+    assert mod.main([str(src_md), "-o", str(out_md), "--assets-dir", str(bundle_dir), "--json"]) == 0
+    md_payload = json.loads(capsys.readouterr().out)
+    assert md_payload["assets_dir"] == str(bundle_dir)
+    assert str(bundle_dir / "memo.src.md") in md_payload["assets"]
+    assert str(bundle_dir / "card.svg") in md_payload["assets"]
+    assert str(bundle_dir / "fig-1.png") in md_payload["assets"]
 
     bad_md = tmp_path / "bad.md"
     bad_md.write_text("---\ntitle: Bad\n---\n# Title\n", encoding="utf-8")
