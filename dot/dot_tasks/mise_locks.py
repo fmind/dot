@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+import os
+import shutil
 import sys
 import tomllib
 from pathlib import Path
@@ -42,7 +45,12 @@ def bundle(lock: Path, *, verify: bool = True) -> dict[Path, bytes]:
                 ):
                     raise ValueError("Dependency references must contain string path and digest fields")
                 relative = Path(graph["path"])
-                if relative.is_absolute() or relative.parts[:1] != ("locks",) or ".." in relative.parts:
+                if (
+                    relative.is_absolute()
+                    or len(relative.parts) < 2
+                    or relative.parts[0] != "locks"
+                    or ".." in relative.parts
+                ):
                     raise ValueError(f"Dependency path must remain under locks/: {relative}")
                 for name in names:
                     path = relative / name
@@ -120,20 +128,103 @@ def retire(lock: Path) -> list[Path]:
     return retired
 
 
+def _valid_install(candidate: Path, version: str, backend: str, allowed: set[tuple[str, str, str]]) -> bool:
+    if backend == "uv":
+        metadata = candidate / ".mise-uv"
+        if metadata.is_symlink() or not metadata.is_dir():
+            return False
+        lockfile = metadata / "uv.lock"
+        python_json = metadata / "python.json"
+        if python_json.is_symlink() or not python_json.is_file():
+            return False
+        try:
+            interpreter = json.loads(python_json.read_text(encoding="utf-8"))
+        except OSError, UnicodeDecodeError, ValueError:
+            return False
+        if (
+            not isinstance(interpreter, list)
+            or not interpreter
+            or not isinstance(interpreter[0], str)
+            or not Path(interpreter[0]).exists()
+        ):
+            return False
+    else:
+        lockfile = candidate / "aube-lock.yaml"
+    if lockfile.is_symlink() or not lockfile.is_file():
+        return False
+    digest = hashlib.sha256(lockfile.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    return (version, backend, f"sha256:{digest}") in allowed
+
+
+def retire_installs(lock: Path, installs: Path) -> list[Path]:
+    """Remove hash-suffixed uv/aube tool installs whose graph or interpreter was retired.
+
+    mise names revision-3 pipx and npm installs `<version>~<backend>~<hash>` and strips the
+    suffix during `mise prune`, so superseded dependency graphs accumulate under installs/.
+    """
+    bundle(lock, verify=False)
+    if installs.is_symlink() or not installs.is_dir():
+        return []
+    document = tomllib.loads(_bundle_path(lock.parent, Path(lock.name)).read_text(encoding="utf-8"))
+    active: dict[str, set[tuple[str, str, str]]] = {}
+    for entries in document["tools"].values():
+        for entry in entries:
+            version = entry.get("version")
+            if not isinstance(version, str):
+                continue
+            for backend in _GRAPH_FILES:
+                if backend in entry:
+                    slug = Path(entry[backend]["path"]).parts[1]
+                    active.setdefault(slug, set()).add((version, backend, entry[backend]["digest"]))
+    retired: list[Path] = []
+    for slug, allowed in sorted(active.items()):
+        tool_dir = installs / slug
+        if tool_dir.is_symlink() or not tool_dir.is_dir():
+            continue
+        removed = False
+        for candidate in sorted(tool_dir.iterdir()):
+            if candidate.is_symlink() or not candidate.is_dir():
+                continue
+            parts = candidate.name.split("~")
+            if len(parts) != 3 or parts[1] not in _GRAPH_FILES or not parts[0] or not parts[2]:
+                continue
+            # Other versions belong to project pins; `mise prune` owns them.
+            if not any(version == parts[0] for version, _, _ in allowed):
+                continue
+            if _valid_install(candidate, parts[0], parts[1], allowed):
+                continue
+            shutil.rmtree(candidate)
+            retired.append(candidate)
+            removed = True
+        if removed:
+            global_link = tool_dir / "global"
+            target = global_link.readlink() if global_link.is_symlink() and global_link.exists() else None
+            for entry in sorted(tool_dir.iterdir()):
+                if entry.is_symlink() and not entry.exists():
+                    entry.unlink()
+                    if target is not None:
+                        entry.symlink_to(target)
+    return retired
+
+
 def main() -> int:
-    """Retire stale graphs next to a deployed global lock."""
+    """Retire stale graphs and hash-suffixed installs next to a deployed global lock."""
     parser = argparse.ArgumentParser(
-        description="Remove deployed dependency graphs that mise.lock no longer references."
+        description="Remove deployed dependency graphs and hash-suffixed installs that mise.lock no longer references."
     )
     parser.add_argument("lock", type=Path, help="deployed global mise.lock")
     arguments = parser.parse_args()
+    installs = Path(os.environ.get("MISE_DATA_DIR", Path.home() / ".local/share/mise")) / "installs"
     try:
-        retired = retire(arguments.lock)
+        retired = [
+            *(arguments.lock.parent / relative for relative in retire(arguments.lock)),
+            *retire_installs(arguments.lock, installs),
+        ]
     except (OSError, ValueError) as error:
         sys.stderr.write(f"Cannot retire mise dependency graphs: {error}\n")
         return 1
-    for relative in retired:
-        sys.stdout.write(f"Retired {arguments.lock.parent / relative}\n")
+    for path in retired:
+        sys.stdout.write(f"Retired {path}\n")
     return 0
 
 

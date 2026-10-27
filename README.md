@@ -109,14 +109,14 @@ Session capture preserves longer archived transcripts and recorded usage. An unr
 
 Run these from the checkout; `mise tasks` lists every task and alias.
 
-| Command            | Purpose                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `mise run diff`    | Preview dotfile changes                                                       |
-| `mise run apply`   | Apply files and eligible hooks                                                |
-| `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                           |
-| `mise run full`    | Synchronize files, locked tools, CLI, and completions; retire old lock graphs |
-| `mise run upgrade` | Upgrade dependencies, tools, the theme pin, and plugins (includes `full`)     |
-| `mise run all`     | Format, check, test, and build the repository                                 |
+| Command            | Purpose                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `mise run diff`    | Preview dotfile changes                                                                    |
+| `mise run apply`   | Apply files and eligible hooks                                                             |
+| `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                                        |
+| `mise run full`    | Synchronize files, locked tools, CLI, and completions; retire old lock graphs and installs |
+| `mise run upgrade` | Upgrade dependencies, tools, the theme pin, and plugins (includes `full`)                  |
+| `mise run all`     | Format, check, test, and build the repository                                              |
 
 `all` rewrites formatting but does not deploy. Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md).
 
