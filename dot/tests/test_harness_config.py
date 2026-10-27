@@ -237,6 +237,19 @@ class HarnessConfigTests(unittest.TestCase):
             self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
         # No managed deny rules: the host's own list passes through untouched.
         assert "deny" not in fresh["permissions"]
+        dot_config = self.home / ".config/dot.yaml"
+        dot_config.parent.mkdir(parents=True, exist_ok=True)
+        dot_config.write_text("pull:\n  directories:\n    - ~/custom-work\n    - /synthetic/abs-work\n")
+        custom = json.loads(self.render(template, ""))
+        assert custom["permissions"]["additionalDirectories"] == [
+            str(self.home / ".agents"),
+            str(self.home / ".local/share/chezmoi"),
+            str(self.home / "custom-work"),
+            "/synthetic/abs-work",
+        ]
+        dot_config.write_text("pull:\n  directories: /synthetic/not-an-array\n")
+        with pytest.raises(RuntimeError, match=r"pull\.directories in ~/.config/dot\.yaml must be an array"):
+            self.render(template, "")
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/opencode/modify_private_opencode.json"

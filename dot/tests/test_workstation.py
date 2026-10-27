@@ -132,7 +132,7 @@ def github_status(*, scopes: list[str] | None = None, **kwargs: Any) -> CommandR
 
 
 @pytest.fixture
-def provider(monkeypatch: pytest.MonkeyPatch) -> RecordingRunner:
+def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner:
     fake = RecordingRunner()
     for name in (
         "GWS_PROJECT",
@@ -148,6 +148,7 @@ def provider(monkeypatch: pytest.MonkeyPatch) -> RecordingRunner:
         "UV_LOCK_TIMEOUT",
     ):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", str(tmp_path / "gws"))
     monkeypatch.setattr(Runner, "which", fake.which)
     monkeypatch.setattr(Runner, "run", fake.run)
     monkeypatch.setattr(Runner, "interactive", fake.interactive)
@@ -192,6 +193,27 @@ def test_workspace_missing_auth_or_scopes_logs_in_and_verifies(
     cli(["login", "workspace"])
     assert provider.actions == [["gws", "auth", "login", "--scopes", ",".join(Config().auth.workspace.scopes)]]
     assert len(provider.calls) == 3
+
+
+@pytest.mark.parametrize("custom_dir", [True, False])
+def test_workspace_login_clears_stale_token_caches(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, custom_dir: bool
+) -> None:
+    if custom_dir:
+        config_dir = tmp_path / "custom-gws"
+        monkeypatch.setenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", str(config_dir))
+    else:
+        monkeypatch.delenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config_dir = tmp_path / ".config" / "gws"
+    config_dir.mkdir(parents=True)
+    for name in ("token_cache.json", "sa_token_cache.json", "credentials.enc"):
+        (config_dir / name).write_text("cached", encoding="utf-8")
+    provider.responses = [response({"auth_method": "none"}), workspace_status()]
+    cli(["login", "workspace"])
+    assert not (config_dir / "token_cache.json").exists()
+    assert not (config_dir / "sa_token_cache.json").exists()
+    assert (config_dir / "credentials.enc").exists()
 
 
 @pytest.mark.parametrize(

@@ -95,8 +95,31 @@
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- $directories := dig "permissions" "additionalDirectories" (list) $current -}}
 {{- if not (kindIs "slice" $directories) }}{{ fail "permissions.additionalDirectories must be an array" }}{{ end -}}
-{{- /* Add the managed roots without replacing directories the host added. */ -}}
-{{- $_ := set $managedConfig.permissions "additionalDirectories" (concat $directories (list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") (joinPath .chezmoi.homeDir "fmind") (joinPath .chezmoi.homeDir "fmind-ai") (joinPath .chezmoi.homeDir "mlops-courses")) | uniq) -}}
+{{- /* Add the managed roots (.agents, chezmoi, and pull.directories from ~/.config/dot.yaml)
+       without replacing directories the host added. */ -}}
+{{- $pullDirectories := list "~/fmind" "~/fmind-ai" "~/mlops-courses" -}}
+{{- $dotConfigPath := joinPath .chezmoi.homeDir ".config/dot.yaml" -}}
+{{- if stat $dotConfigPath -}}
+{{-   $dotConfig := include $dotConfigPath | fromYaml -}}
+{{-   if kindIs "map" $dotConfig -}}
+{{-     $pullDirectories = dig "pull" "directories" $pullDirectories $dotConfig -}}
+{{-   end -}}
+{{- end -}}
+{{- if not (kindIs "slice" $pullDirectories) }}{{ fail "pull.directories in ~/.config/dot.yaml must be an array" }}{{ end -}}
+{{- $managedDirectories := list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") -}}
+{{- range $directory := $pullDirectories -}}
+{{-   if not (kindIs "string" $directory) }}{{ fail "pull.directories entries in ~/.config/dot.yaml must be strings" }}{{ end -}}
+{{-   if eq $directory "~" -}}
+{{-     $managedDirectories = append $managedDirectories $.chezmoi.homeDir -}}
+{{-   else if hasPrefix "~/" $directory -}}
+{{-     $managedDirectories = append $managedDirectories (joinPath $.chezmoi.homeDir (trimPrefix "~/" $directory)) -}}
+{{-   else if hasPrefix "/" $directory -}}
+{{-     $managedDirectories = append $managedDirectories $directory -}}
+{{-   else -}}
+{{-     $managedDirectories = append $managedDirectories (joinPath $.chezmoi.homeDir $directory) -}}
+{{-   end -}}
+{{- end -}}
+{{- $_ := set $managedConfig.permissions "additionalDirectories" (concat $directories $managedDirectories | uniq) -}}
 {{- /* The brain's session-context hook joins host SessionStart hooks only where the brain is
        checked out. The entry is decoded from JSON so its integer matches the deployed one and
        uniq keeps a single copy; removing the brain later leaves the entry for the host to drop. */ -}}

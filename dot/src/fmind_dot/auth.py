@@ -6,7 +6,7 @@ import os
 import sys
 import webbrowser
 from collections.abc import Callable, Iterable, Sequence
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Annotated, Any
 
 import typer
@@ -239,6 +239,12 @@ def workspace_ready(state: State, grants: Sequence[str] = ()) -> bool:
     return granted is not None and _google_scopes([*state.config.auth.workspace.scopes, *grants]) <= granted
 
 
+def _workspace_config_dir() -> Path:
+    if custom := os.environ.get("GOOGLE_WORKSPACE_CLI_CONFIG_DIR"):
+        return Path(custom).expanduser()
+    return Path.home() / ".config" / "gws"
+
+
 def login_workspace(state: State, *, force: bool = False, dry_run: bool = False, grants: Sequence[str] = ()) -> None:
     configured = state.config.auth.workspace.scopes
     extra = one_off_scopes(grants, configured, expand=_google_scope)
@@ -279,6 +285,11 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False,
             file=state.stderr,
         )
     change(state, args, on_stderr_line=google_signin_opener())
+    # gws 0.22.5 overwrites credentials.enc on login without clearing its yup-oauth2
+    # token caches, which can still hold ADC fallback tokens or dropped --grant scopes.
+    config_dir = _workspace_config_dir()
+    for name in ("token_cache.json", "sa_token_cache.json"):
+        (config_dir / name).unlink(missing_ok=True)
     if not workspace_ready(state, extra):
         requested = "configured and one-off scopes" if extra else "configured scopes"
         raise DotError(f"Workspace login did not satisfy the {requested}; inspect gws auth status and retry")
