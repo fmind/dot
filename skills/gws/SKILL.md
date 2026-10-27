@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-10-26"
+  updated: "2026-10-27"
 ---
 
 # Google Workspace CLI
@@ -52,4 +52,4 @@ Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tr
 
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) · [Workspace API reference](https://developers.google.com/workspace)
 - Releases: [Workspace CLI](https://github.com/googleworkspace/cli/releases) · [changelog](https://github.com/googleworkspace/cli/blob/main/CHANGELOG.md)
-- Companion skills: [draft-mail](../draft-mail/SKILL.md) (draft-only email and replies), [acli](../acli/SKILL.md) (same authority rules for Atlassian), [gcloud](../gcloud/SKILL.md) (Google Cloud), [mcp-setup](../mcp-setup/SKILL.md) (connected apps).
+- Companion skills: [draft-doc](../draft-doc/SKILL.md) (Google Docs with native Drive `.md` by default), [draft-mail](../draft-mail/SKILL.md) (draft-only email and replies), [acli](../acli/SKILL.md) (same authority rules for Atlassian), [gcloud](../gcloud/SKILL.md) (Google Cloud), [mcp-setup](../mcp-setup/SKILL.md) (connected apps).
