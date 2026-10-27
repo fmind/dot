@@ -113,3 +113,48 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
     assert result.stderr == "", result.stderr
     assert result.stdout.splitlines() == ["shell-survived", "second-prompt"]
     assert calls.read_text(encoding="utf-8").splitlines() == ["attach --create main"]
+
+
+def test_zellij_wrapper_persists_background_and_killed_sessions(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    zellij = bin_dir / "zellij"
+    zellij.write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$ZELLIJ_TEST_CALLS"\nexit 0\n',
+        encoding="utf-8",
+    )
+    zellij.chmod(0o755)
+    calls = tmp_path / "calls"
+    result = subprocess.run(
+        [
+            "fish",
+            "--no-config",
+            "--command",
+            (
+                'set -gx PATH "$ZELLIJ_TEST_BIN" $PATH; '
+                "source dot_config/fish/functions/zellij.fish; "
+                "zellij a -bc docs; "
+                "zellij k docs; "
+                "zellij a docs; "
+                "zellij d docs"
+            ),
+        ],
+        cwd=root,
+        env={**os.environ, "ZELLIJ_TEST_BIN": str(bin_dir), "ZELLIJ_TEST_CALLS": str(calls)},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == "", result.stderr
+    assert calls.read_text(encoding="utf-8").splitlines() == [
+        "a -bc docs",
+        "--session docs action save-session",
+        "--session docs action save-session",
+        "k docs",
+        "a docs",
+        "d docs",
+    ]
