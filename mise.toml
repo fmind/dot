@@ -320,7 +320,7 @@ description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
 [tasks.full]
-description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, retire stale lock graphs, and regenerate completions"
+description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, retire stale lock graphs and their hash-suffixed installs, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
   'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise --locked install -y',

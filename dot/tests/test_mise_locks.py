@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
 
-from dot_tasks.mise_locks import bundle, capture, retire
+from dot_tasks.mise_locks import bundle, capture, retire, retire_installs
 
 
 def _lock(root: Path, version: str = "1.0", backend: str = "uv") -> Path:
@@ -188,3 +189,70 @@ def test_retire_preserves_graphs_under_symlinked_directories(tmp_path: Path, lin
     assert retire(lock) == []
     assert target.is_symlink()
     assert graph.read_text() == "keep"
+
+
+def _uv_install(tool_dir: Path, name: str, lock_bytes: bytes, python_path: Path) -> Path:
+    install = tool_dir / name
+    metadata = install / ".mise-uv"
+    metadata.mkdir(parents=True)
+    (metadata / "uv.lock").write_bytes(lock_bytes)
+    (metadata / "python.json").write_text(json.dumps([str(python_path), f"core:python:{python_path}"]))
+    return install
+
+
+def test_retire_installs_removes_superseded_graphs_and_repoints_dangling_symlinks(tmp_path: Path) -> None:
+    lock = _lock(tmp_path, "1.0")
+    current_bytes = (tmp_path / "locks/example/1.0/uv.lock").read_bytes()
+    aube_dir = tmp_path / "locks/npm-cli/2.0"
+    aube_dir.mkdir(parents=True)
+    aube_bytes = b"lockfileVersion: 9\n"
+    (aube_dir / "package.json").write_text("{}\n")
+    (aube_dir / "aube-lock.yaml").write_bytes(aube_bytes)
+    aube_digest = hashlib.sha256(aube_bytes).hexdigest()
+    lock.write_text(
+        lock.read_text()
+        + '[[tools."npm:cli"]]\nversion = "2.0"\n'
+        + f'aube = {{ path = "locks/npm-cli/2.0", digest = "sha256:{aube_digest}" }}\n'
+    )
+
+    py_current = tmp_path / "python-3.14.9"
+    py_current.write_text("binary")
+    py_project = tmp_path / "python-3.14.8"
+    py_project.write_text("binary")
+    py_removed = tmp_path / "python-3.14.7"
+
+    installs = tmp_path / "installs"
+    uv_tool = installs / "example"
+    keep_global = _uv_install(uv_tool, "1.0~uv~globalhash", current_bytes, py_current)
+    keep_project = _uv_install(uv_tool, "1.0~uv~projecthash", current_bytes, py_project)
+    stale_graph = _uv_install(uv_tool, "1.0~uv~oldgraph", b"old lock\n", py_current)
+    stale_python = _uv_install(uv_tool, "1.0~uv~oldpython", current_bytes, py_removed)
+    project_version = _uv_install(uv_tool, "0.8.0~uv~projectpin", b"project lock\n", py_current)
+    plain_version = uv_tool / "0.9.0"
+    plain_version.mkdir()
+    (uv_tool / "global").symlink_to("./1.0~uv~globalhash")
+    (uv_tool / "latest").symlink_to("./1.0~uv~oldgraph")
+    (uv_tool / "1").symlink_to("./1.0~uv~oldpython")
+    (uv_tool / "0.9").symlink_to("./0.9.0")
+
+    aube_tool = installs / "npm-cli"
+    keep_aube = aube_tool / "2.0~aube~currenthash"
+    keep_aube.mkdir(parents=True)
+    (keep_aube / "aube-lock.yaml").write_bytes(aube_bytes)
+    stale_aube = aube_tool / "2.0~aube~oldhash"
+    stale_aube.mkdir(parents=True)
+    (stale_aube / "aube-lock.yaml").write_bytes(b"old aube\n")
+
+    assert retire_installs(lock, installs) == [stale_graph, stale_python, stale_aube]
+    assert keep_global.is_dir()
+    assert keep_project.is_dir()
+    assert plain_version.is_dir()
+    assert project_version.is_dir()
+    assert keep_aube.is_dir()
+    assert not stale_graph.exists()
+    assert not stale_python.exists()
+    assert not stale_aube.exists()
+    assert (uv_tool / "latest").readlink() == Path("./1.0~uv~globalhash")
+    assert (uv_tool / "1").readlink() == Path("./1.0~uv~globalhash")
+    assert (uv_tool / "0.9").readlink() == Path("./0.9.0")
+    assert retire_installs(lock, installs) == []
