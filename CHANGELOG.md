@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.2.1] - 2026-10-27
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade cf, ty, ruff, dprint markdown, and tool locks
+
 ## [14.2.0] - 2026-10-26
 
 ### 🚀 Features
