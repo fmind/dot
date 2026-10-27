@@ -19,6 +19,8 @@ For a Google-native file, inspect `drive.files.export` and use an allowed export
 
 ## Docs
 
+Prefer native Drive Markdown (`.md`, `mimeType: text/markdown`) via [draft-doc](../../draft-doc/SKILL.md) for single-file documents: files open in Google Docs Editor with inline comments and revision history, update atomically through `drive.files.create` / `drive.files.update --upload`, and embed `@2x` Mermaid and SVG figures as bottom `[fig-N]: <data:image/png;base64,...>` reference definitions. Use converted Google Docs (`mimeType: application/vnd.google-apps.document`) only when a document requires multiple **Document Tabs** or Docs-native smart chips (`docs.documents.batchUpdate` is rejected on native `text/markdown` files).
+
 ```bash
 gws docs documents get --params '{"documentId":"DOC_ID","includeTabsContent":true}' > document.json
 uv run --no-project python ~/.agents/skills/gws/scripts/docs_text.py document.json > sections.json

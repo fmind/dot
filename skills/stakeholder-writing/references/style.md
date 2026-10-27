@@ -97,7 +97,7 @@ A designed document is easier to read and earns trust, so make it beautiful by d
 - **Markdown**: the [Markdown template](../templates/report.md), adapted to the renderer as its header comment explains.
 - **Zensical sites**: admonitions for take-home boxes and warnings, content tabs for per-option detail, Mermaid diagrams, collapsible blocks for annexes, and the abbreviations glossary as Key terms tooltips ([authoring](../../documentation-site/references/authoring.md)).
 - **GitHub Markdown**: `> [!IMPORTANT]` alerts for the ask, Mermaid diagrams, `<details>` blocks for annexes, and task lists for next steps.
-- **Google Docs**: real heading styles for the outline and tabs, native tables, charts linked from Sheets, people and file chips, and comments for open questions ([gws](../../gws/SKILL.md)).
+- **Google Docs**: native Drive Markdown (`.md`, `mimeType: text/markdown`) by default via [draft-doc](../../draft-doc/SKILL.md) — ATX `#`–`######` headings for the document outline, native GFM tables, interactive checklists (`- [ ]`), LaTeX equations (`$...$` / `$$...$$`), footnotes (`[^1]`), inline comments, and `@2x` Mermaid/SVG figures compiled to bottom `[fig-N]: <data:image/png;base64,...>` reference definitions (no YAML frontmatter, no `> [!IMPORTANT]` alerts, no raw HTML tags). Use converted Google Docs (`application/vnd.google-apps.document`) via [gws](../../gws/SKILL.md) only when multiple Document Tabs or Docs-native smart chips are required.
 - **Email and chat**: plain text or light formatting that the client shows reliably, with no external images; Slack and Chat support only a small Markdown subset.
 
 ## Honest framing

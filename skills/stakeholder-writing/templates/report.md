@@ -1,9 +1,13 @@
 <!--
   Markdown report template for busy readers: decision memos, analyses, and status reports.
   Replace every {placeholder}, write in the reader's language, and delete sections that do not apply.
-  Adapt the syntax to the destination's renderer: `> [!IMPORTANT]` alerts render on GitHub and on Zensical
-  with gh-admonitions, Zensical prefers `!!!` admonitions, and other renderers show a plain quote.
-  `<details>` and Mermaid work on GitHub and Zensical; elsewhere, use a heading and an image instead.
+  Adapt the syntax to the destination's renderer:
+  - Google Docs native Markdown (.md, default via draft-doc): no YAML frontmatter (---), use a bold blockquote
+    (`> **Important — Decision needed:** ...`) instead of `> [!IMPORTANT]`, use standard `## Annex` headings
+    instead of `<details>`, and compile fenced ```mermaid blocks and .svg links into `@2x` Base64 PNG reference
+    definitions (`[fig-N]: <data:image/png;base64,...>`) with `draft-doc/scripts/compile_markdown_doc.py`.
+  - GitHub and Zensical: `> [!IMPORTANT]` alerts render on GitHub and on Zensical with gh-admonitions
+    (Zensical prefers `!!!` admonitions); `<details>` and fenced Mermaid blocks work natively.
   Delete this comment before sharing.
 -->
 
