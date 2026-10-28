@@ -35,7 +35,7 @@ Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) an
 ## Workflow
 
 1. **Confirm account and destination**: check `gws auth status` without printing credentials, and resolve the target Drive folder ID or existing file ID with a bounded `gws drive files list` query.
-1. **Author `.src.md` and `.svg` figures in `$SCRATCH`, then compile, validate, and upload** with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
+1. **Author `.src.md` and `.svg` figures in a scratch folder (`SCRATCH`: the host's scratchpad, else `SCRATCH="$(mktemp -d)"`), then compile, validate, and upload** with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
 
    ```bash
    # Create or upsert <Title>.md and assets/<doc-slug>/ in a Drive folder
