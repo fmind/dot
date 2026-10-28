@@ -29,9 +29,10 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.command_group import JsonOption, help_group
+from fmind_dot.config import NotifyConfig
 from fmind_dot.context_budget import register as register_context
 from fmind_dot.errors import DotError
-from fmind_dot.hooks import build_notification, notification_workspace, send_notification
+from fmind_dot.hooks import build_notification, notification_workspace, send_notification, zellij_pane
 from fmind_dot.reporting import write_json, write_report_line
 from fmind_dot.state import State, state_from
 
@@ -258,7 +259,15 @@ def hook_notify(
         if workspace is None:
             return
         cwd = Path(workspace) if workspace else None
-        send_notification(state, build_notification(agent, event, cwd))
+        try:
+            settings = state.config.agent.notify
+        except (OSError, ValueError, DotError) as error:
+            # A broken config must not silence the turn alert; it only loses its overrides.
+            state.stderr.write(f"agent hook notify used default settings: {bounded_failure(error)}\n")
+            settings = NotifyConfig()
+        pane = zellij_pane(state.runner) if settings.tab or settings.title else None
+        notification = build_notification(agent, event, cwd, pane=pane, tab=settings.tab, title=settings.title)
+        send_notification(state, notification, sound=settings.sound)
     except (OSError, ValueError, DotError) as error:
         # Notifications are best effort: a failing hook would surface as a failed agent turn.
         state.stderr.write(f"agent hook notify failed: {bounded_failure(error)}\n")

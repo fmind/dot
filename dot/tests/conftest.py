@@ -26,6 +26,13 @@ def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def isolated_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep suites run inside Zellij from querying the live session or writing the real cache."""
+    for key in ("ZELLIJ", "ZELLIJ_PANE_ID", "ZELLIJ_SESSION_NAME", "XDG_CACHE_HOME"):
+        monkeypatch.delenv(key, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def isolated_home(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Point HOME at the test's tmp_path so no test can read or write the real archive, config, or secrets.
 

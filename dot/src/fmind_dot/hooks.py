@@ -2,9 +2,13 @@
 
 import html
 import json
+import math
 import os
 import platform
 import re
+import struct
+import unicodedata
+import wave
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
@@ -20,6 +24,8 @@ _NOTIFY_EVENTS = {
     "needs-input": ("⏳", "Needs your input"),
 }
 _NOTIFY_EXPIRE_MS = "10000"
+_DARWIN_SOUND = "Glass"
+_SOUND_PLAYERS = ("pw-play", "paplay")
 _AGY_PRINT_FLAGS = (b"-p", b"--print", b"--prompt")
 
 
@@ -52,6 +58,15 @@ def agy_print_mode(proc: Path = Path("/proc"), pid: int | None = None) -> bool:
 class Notification:
     summary: str
     headline: str = ""
+    # Second body line (the pane title); macOS shows it as the subtitle.
+    detail: str = ""
+
+
+@dataclass(frozen=True)
+class ZellijPane:
+    session: str
+    tab: str
+    title: str
 
 
 def _short_notification_text(value: str) -> str:
@@ -62,10 +77,46 @@ def _short_notification_text(value: str) -> str:
     return text if len(text) <= 80 else text[:79].rstrip() + "…"
 
 
+def _pane_title(value: str) -> str:
+    # Harnesses prefix titles with a status glyph (Claude's ✳ or braille spinner); keep the topic.
+    text = _short_notification_text(value)
+    while text and (unicodedata.category(text[0]) == "So" or text[0].isspace()):
+        text = text[1:]
+    return text
+
+
+def zellij_pane(runner: Runner) -> ZellijPane | None:
+    """Find the Zellij pane that runs this hook; hooks inherit the harness pane's environment.
+
+    Context is optional: outside Zellij, or when the lookup fails, the notification goes without it.
+    """
+    session, pane_id = os.environ.get("ZELLIJ_SESSION_NAME", ""), os.environ.get("ZELLIJ_PANE_ID", "")
+    if not session or not pane_id.isdecimal() or runner.which("zellij") is None:
+        return None
+    try:
+        result = runner.run(["zellij", "action", "list-panes", "--tab", "--json"], timeout=3, check=False)
+        panes = json.loads(result.stdout) if result.returncode == 0 else []
+    except DotError, OSError, ValueError, RecursionError:
+        return None
+    for pane in panes if isinstance(panes, list) else []:
+        if isinstance(pane, dict) and pane.get("is_plugin") is False and pane.get("id") == int(pane_id):
+            tab, title = pane.get("tab_name"), pane.get("title")
+            return ZellijPane(
+                _short_notification_text(session),
+                _short_notification_text(tab) if isinstance(tab, str) else "",
+                _pane_title(title) if isinstance(title, str) else "",
+            )
+    return None
+
+
 def build_notification(
     agent: str,
     event: str,
     cwd: Path | None,
+    *,
+    pane: ZellijPane | None = None,
+    tab: bool = False,
+    title: bool = False,
 ) -> Notification:
     if not agent:
         raise DotError("agent name is required")
@@ -80,27 +131,81 @@ def build_notification(
     if cwd is not None:
         # Hook payload workspaces are already resolved to absolute paths.
         summary += f" · {_short_notification_text(cwd.name)}"
-    return Notification(summary, headline)
+    # The icon already states the event, so pane context replaces the status words when present.
+    location = (pane.session + (f"/{pane.tab}" if pane.tab else "")) if pane and tab else ""
+    topic = pane.title if pane and title else ""
+    lines = [line for line in (location, topic) if line] or [headline]
+    return Notification(summary, *lines)
 
 
 def _apple_script_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def notification_command(runner: Runner, notification: Notification, *, system: str) -> list[str]:
+def notification_command(runner: Runner, notification: Notification, *, system: str, sound: bool = False) -> list[str]:
     host = system.lower()
     if host == "darwin":
         script = (
             f"display notification {_apple_script_string(notification.headline)} "
             f"with title {_apple_script_string(notification.summary)}"
         )
+        if notification.detail:
+            script += f" subtitle {_apple_script_string(notification.detail)}"
+        if sound:
+            script += f" sound name {_apple_script_string(_DARWIN_SOUND)}"
         return ["osascript", "-e", script]
     if host != "linux":
         raise DotError(f"desktop notifications are unsupported on {host}")
-    body = html.escape(notification.headline, quote=False)
+    body = "\n".join(line for line in (notification.headline, notification.detail) if line)
     if runner.which("notify-send") is None:
         raise DotError("install notify-send (libnotify-bin) to send desktop notifications")
-    return ["notify-send", "--app-name=dot", f"--expire-time={_NOTIFY_EXPIRE_MS}", notification.summary, body]
+    # dot plays its own chime on Linux (servers such as ChromeOS notificationd play none), so the
+    # server's theme sound stays off and the setting behaves the same on every desktop.
+    return [
+        "notify-send",
+        "--app-name=dot",
+        f"--expire-time={_NOTIFY_EXPIRE_MS}",
+        "--hint=boolean:suppress-sound:true",
+        notification.summary,
+        html.escape(body, quote=False),
+    ]
+
+
+def chime_path() -> Path:
+    """Write dot's two-note chime once; the WAV is generated, so no sound theme is required."""
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    path = cache / "dot" / "notify.wav"
+    if path.is_file():
+        return path
+    rate, frames = 44_100, bytearray()
+    for frequency, seconds in ((880.0, 0.12), (1318.5, 0.24)):
+        count = int(rate * seconds)
+        for index in range(count):
+            # A 5 ms attack avoids a click; the exponential decay sounds like a soft bell.
+            envelope = min(1.0, index / (rate * 0.005)) * math.exp(-12 * index / rate)
+            sample = 0.3 * envelope * math.sin(2 * math.pi * frequency * index / rate)
+            frames += struct.pack("<h", round(sample * 32_767))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_name(f".{path.name}.{os.getpid()}")
+    with wave.open(str(partial), "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(rate)
+        audio.writeframes(bytes(frames))
+    partial.replace(path)
+    return path
+
+
+def play_chime(runner: Runner) -> None:
+    player = next((name for name in _SOUND_PLAYERS if runner.which(name) is not None), None)
+    if player is None:
+        raise DotError(
+            "install pw-play (PipeWire) or paplay (PulseAudio) to play notification sounds, "
+            "or set agent.notify.sound: false with dot config edit"
+        )
+    result = runner.run([player, str(chime_path())], timeout=5, check=False)
+    if result.returncode != 0:
+        raise DotError(f"failed to play notification sound with {player}")
 
 
 def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
@@ -130,11 +235,11 @@ def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
     return decoded
 
 
-def send_notification(state: State, notification: Notification) -> None:
+def send_notification(state: State, notification: Notification, *, sound: bool = False) -> None:
     host = platform.system().lower()
     if host not in {"darwin", "linux"} or (host == "linux" and not os.environ.get("DBUS_SESSION_BUS_ADDRESS")):
         return
-    command = notification_command(state.runner, notification, system=host)
+    command = notification_command(state.runner, notification, system=host, sound=sound)
     try:
         result = state.runner.run(command, timeout=10, check=False)
     except (DotError, OSError) as error:
@@ -146,6 +251,8 @@ def send_notification(state: State, notification: Notification) -> None:
             state.stderr.write("Desktop notification skipped: no desktop notification service.\n")
             return
         raise DotError(f"failed to send desktop notification with {command[0]}")
+    if sound and host == "linux":
+        play_chime(state.runner)
 
 
 def notification_workspace(stream: IO[str] | None, agent: str, event: str = "stop") -> str | None:
