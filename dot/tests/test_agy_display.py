@@ -43,11 +43,13 @@ def test_state_display_and_title_omit_sensitive_fields() -> None:
         " \ue0b1 \uf0e4 context 24% · 255k/1M \ue0b1 \uf0ae 2 tasks"
         " \ue0b1 \uf242 quota 60% left ↻ 2h05m \ue0b1 \ue62b INSERT"
     )
-    assert render(payload, "title") == "dot* — working · 2 tasks"
+    assert render(payload, "title") == "◐ dot* · 2 tasks"
     payload.update(agent_state="idle")
-    assert "background" in render(payload, "title")
+    assert render(payload, "title") == "◷ dot* · 2 tasks"
     payload.update(tool_confirmation_pending=True)
-    assert "needs input" in render(payload, "title")
+    assert render(payload, "title").startswith("⚠ dot*")
+    payload.update(tool_confirmation_pending=False, task_count=0, conversation_title="Fix \x1b[31mhooks\x1b[0m")
+    assert render(payload, "title") == "✳ Fix hooks"
 
 
 @pytest.mark.parametrize("width", [1, 2, 20, 40])
@@ -104,7 +106,7 @@ def test_invalid_or_empty_input_has_quiet_fallback(raw: str) -> None:
         [sys.executable, str(SCRIPT), "title"], input=raw, capture_output=True, text=True, check=False, timeout=10
     )
     assert result.returncode == 0
-    assert result.stdout == "agy — starting\n"
+    assert result.stdout == "◐ agy\n"
     assert result.stderr == ""
 
 
@@ -177,7 +179,7 @@ def test_location_tokens_reset_and_sandbox_details() -> None:
     text = render(payload, "statusline")
     assert text.startswith("\uf07b dot/skills/agy ")
     assert "sandbox +net" in text
-    assert render(payload, "title") == "dot* — working · 2 tasks"
+    assert render(payload, "title") == "◐ dot* · 2 tasks"
     payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/elsewhere"})
     assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
     payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot-other"})
