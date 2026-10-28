@@ -19,7 +19,7 @@ For a Google-native file, inspect `drive.files.export` and use an allowed export
 
 ## Docs
 
-By default use native Drive Markdown (`.md`, `mimeType: text/markdown`) via [draft-doc](../../draft-doc/SKILL.md), except if the user says to use `.gdoc` format (`mimeType: application/vnd.google-apps.document`) or when multiple **Document Tabs** or Docs-native smart chips are required (`docs.documents.batchUpdate` is rejected on native `text/markdown` files). Native `.md` files open in Google Docs Editor with inline comments and revision history, update atomically through `drive.files.create` / `drive.files.update --upload`, embed `@2x` Mermaid and SVG figures as bottom `[fig-N]: <data:image/png;base64,...>` reference definitions, and keep editable figure sources in a Drive `assets/` folder.
+Choose the format with [draft-doc](../../draft-doc/SKILL.md): native Drive Markdown (`.md`, `mimeType: text/markdown`) for living, agent-maintained, or frequently updated documents, which update in place through `drive.files.update --upload` and compile figures to Base64 PNG references; a converted Google Doc (`mimeType: application/vnd.google-apps.document`) for polished deliverables that need styling or smart chips, and for multi-tab documents, edited with `documents.batchUpdate` as below.
 
 ```bash
 gws docs documents get --params '{"documentId":"DOC_ID","includeTabsContent":true}' > document.json

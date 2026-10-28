@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import importlib.util
 import json
 import math
 import os
@@ -13,26 +14,37 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from collections import Counter
+from functools import cache
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
-SVG_NS = "{http://www.w3.org/2000/svg}"
-XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
-MIN_FONT_PX = 12.0
-FORBIDDEN_SVG_TAGS = {"script", "foreignObject", "iframe", "object", "embed"}
-FONT_SIZE_RE = re.compile(r"font-size\s*:\s*([0-9.]+)(?:px)?\s*(?=[;}\s!]|$)", re.IGNORECASE)
-CHROMES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
-MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+# Reuse the diagrams-as-code SVG contract checker; it sits beside this package in the skill catalog.
+SVG_CHECKER = Path(__file__).resolve().parents[2] / "diagrams-as-code/references/svg/scripts/check_svg.py"
+# Pinned Mermaid CLI, run through `mise exec` so no global install is needed. chromium-bidi is published
+# without trusted-publisher evidence; this exact version was reviewed on 2026-10-23 (diagrams-as-code mermaid.md).
+MERMAID_CLI = "npm:@mermaid-js/mermaid-cli[trust_policy_excludes=chromium-bidi@157.0.8090-0]@12.0.0"
+MAX_SCALE = 4
+# Google Docs displays an embedded PNG at 0.75 pt per pixel and ignores its pHYs density (verified 2026-10-28),
+# so cap figures at 600 px (450 pt), which fits the Letter and A4 text columns.
+MAX_FIGURE_WIDTH_PX = 600
+# Draw SVG figures on a canvas as wide as the cap so they embed at 1:1 and 12 px labels read at 9 pt.
+SVG_CANVAS_WIDTH = float(MAX_FIGURE_WIDTH_PX)
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---(?:\r?\n|\Z)", re.DOTALL)
 FENCED_BLOCK_RE = re.compile(r"(?m)^(`{3,}|~{3,})([^\n]*)\n(.*?)\n\1[ \t]*$", re.DOTALL)
 GITHUB_ALERT_RE = re.compile(r"(?m)^[ \t]*>[ \t]*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]")
+# HTML comments also render as literal text in native .md (verified 2026-10-28).
 RAW_HTML_RE = re.compile(
-    r"</?(?:details|summary|mark|u|br|div|span|table|thead|tbody|tr|td|th|img|script|iframe|style)\b[^>]*>",
+    r"<!--|</?(?:details|summary|mark|u|br|div|span|table|thead|tbody|tr|td|th|img|script|iframe|style)\b[^>]*>",
     re.IGNORECASE,
 )
-SETEXT_H2_RE = re.compile(r"(?m)^(?!\s*$)(?![ \t]*[>|#*+-])[^\n|]+\n[ \t]*---+[ \t]*$")
+# CommonMark setext headings: a paragraph line directly followed by a `---` or `===` underline. A list item,
+# blockquote, table row, or indented code line cannot become one, because the underline is never a lazy
+# continuation line (https://spec.commonmark.org/0.31.2/#setext-headings).
+SETEXT_UNDERLINE_RE = re.compile(r" {0,3}(?:-+|=+)[ \t]*")
+SINGLE_LINE_BLOCK_RE = re.compile(r" {0,3}(?:#{1,6}(?:[ \t]|$)|([-*_])(?:[ \t]*\1){2,}[ \t]*$)")
+NON_PARAGRAPH_START_RE = re.compile(r"(?: {0,3}(?:>|\||[-+*](?:[ \t]|$)|\d{1,9}[.)](?:[ \t]|$))| {4}|\t)")
 SVG_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.svg)\)")
 MERMAID_ALT_RE = re.compile(r"^\s*%%\s*alt\s*:\s*(.+?)\s*$", re.MULTILINE)
 CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\n]+)\*|_([^_\n]+)_)\s*$")
@@ -46,90 +58,38 @@ ASSET_MIME_TYPES = {
 }
 
 
-def _local_tag(tag: str) -> str:
-    return tag.removeprefix(SVG_NS)
+@cache
+def _svg_checker() -> ModuleType:
+    """Load the shared diagrams-as-code SVG checker module."""
+    spec = importlib.util.spec_from_file_location("check_svg", SVG_CHECKER)
+    if spec is None or spec.loader is None or not SVG_CHECKER.is_file():
+        msg = f"SVG checker not found at {SVG_CHECKER}; install the diagrams-as-code skill beside draft-doc."
+        raise RuntimeError(msg)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def svg_view_box(root: ET.Element) -> tuple[float, float] | None:
-    """Return (width, height) from root <svg viewBox='0 0 W H'> or None if invalid."""
-    parts = (root.get("viewBox") or "").replace(",", " ").split()
-    if len(parts) != 4:
-        return None
-    try:
-        values = tuple(float(part) for part in parts)
-    except ValueError:
-        return None
-    if not all(math.isfinite(value) for value in values) or values[2] <= 0 or values[3] <= 0:
-        return None
-    return values[2], values[3]
-
-
-def check_svg(path: Path, expected_width: float = 960.0) -> list[str]:
-    """Validate an SVG file for security, accessibility, font floor, and viewBox."""
+def check_svg(path: Path, expected_width: float = SVG_CANVAS_WIDTH) -> list[str]:
+    """Validate an SVG figure with the diagrams-as-code contract (security, accessibility, fonts, viewBox)."""
     if not path.is_file():
         return [f"{path}: SVG file not found"]
-    try:
-        root = ET.parse(path).getroot()  # noqa: S314 - local user/agent SVG; ElementTree does not expand external entities
-    except ET.ParseError as exc:
-        return [f"{path}: not well-formed XML ({exc})"]
-    if _local_tag(root.tag) != "svg":
-        return [f"{path}: root element is <{_local_tag(root.tag)}>, expected <svg>"]
+    return [f"{path}: {problem}" for problem in _svg_checker().check(path, expected_width)]
 
-    problems: list[str] = []
-    size = svg_view_box(root)
-    if size is None:
-        problems.append(f"{path}: missing or invalid viewBox")
-    elif expected_width > 0 and size[0] != expected_width:
-        problems.append(f"{path}: viewBox width is {size[0]:g}, expected {expected_width:g}")
 
-    if root.get("role") != "img":
-        problems.append(f'{path}: root <svg> needs role="img"')
-
-    ids = Counter(el.get("id") for el in root.iter() if el.get("id"))
-    problems.extend(f"{path}: duplicate id {ident!r}" for ident, count in ids.items() if count > 1)
-
-    labelled = (root.get("aria-labelledby") or "").split()
-    for name in ("title", "desc"):
-        child = root.find(SVG_NS + name)
-        if child is None or not "".join(child.itertext()).strip():
-            problems.append(f"{path}: missing non-empty <{name}> as a direct child of <svg>")
-        elif not child.get("id") or child.get("id") not in labelled:
-            problems.append(f"{path}: <{name}> needs an id referenced by aria-labelledby")
-    if not labelled:
-        problems.append(f"{path}: root <svg> needs aria-labelledby pointing at <title> and <desc>")
-    problems.extend(f"{path}: aria-labelledby references missing id {ref!r}" for ref in labelled if ref not in ids)
-
-    for el in root.iter():
-        tag = _local_tag(el.tag)
-        if tag in FORBIDDEN_SVG_TAGS:
-            problems.append(f"{path}: <{tag}> is forbidden in standalone SVG figures")
-        for attr, value in el.attrib.items():
-            attr_name = attr.rsplit("}", 1)[-1]
-            if attr_name.lower().startswith("on"):
-                problems.append(f"{path}: <{tag}> has event handler attribute {attr_name!r}")
-            if re.sub(r"[\x00-\x20]", "", value).lower().startswith("javascript:"):
-                problems.append(f"{path}: <{tag}> has a javascript: URL in {attr_name!r}")
-        href = el.get("href") or el.get(XLINK_HREF) or ""
-        if tag in {"image", "use", "feImage"} and href and not href.startswith("#"):
-            problems.append(f"{path}: <{tag}> loads external/raster href {href[:60]!r}; inline vector shapes instead")
-        css = (el.text or "") if tag == "style" else (el.get("style") or "")
-        if tag == "style" and re.search(r"@import|@font-face|url\(\s*['\"]?(https?:|data:)", css, re.IGNORECASE):
-            problems.append(f"{path}: <style> imports or loads external URLs; use installed/system fonts only")
-        sizes = FONT_SIZE_RE.findall(css)
-        attr_size = el.get("font-size")
-        if attr_size:
-            match = re.fullmatch(r"\s*([0-9.]+)(px)?\s*", attr_size)
-            if match:
-                sizes.append(match.group(1))
-        for raw_size in sizes:
-            try:
-                px = float(raw_size)
-            except ValueError:
-                problems.append(f"{path}: <{tag}> has invalid font-size {raw_size!r}")
-                continue
-            if px < MIN_FONT_PX:
-                problems.append(f"{path}: <{tag}> uses font-size {px:g}px, below minimum {MIN_FONT_PX:g}px")
-    return problems
+def _has_setext_heading(markdown: str) -> bool:
+    """Return True when a paragraph line is directly followed by a setext underline."""
+    block_start: str | None = None  # first line of the current paragraph-like block
+    for line in markdown.splitlines():
+        if block_start is not None and SETEXT_UNDERLINE_RE.fullmatch(line):
+            if not NON_PARAGRAPH_START_RE.match(block_start):
+                return True
+            block_start = None  # under a list item, blockquote, or table, `---` is a thematic break
+        elif not line.strip() or SINGLE_LINE_BLOCK_RE.match(line):
+            block_start = None
+        elif block_start is None or NON_PARAGRAPH_START_RE.match(line):
+            block_start = line
+    return False
 
 
 def check_markdown_dialect(markdown: str) -> list[str]:
@@ -142,7 +102,7 @@ def check_markdown_dialect(markdown: str) -> list[str]:
         )
 
     outside_fences = FENCED_BLOCK_RE.sub("", markdown)
-    outside_code = INLINE_CODE_RE.sub("", outside_fences)
+    outside_code = INLINE_CODE_RE.sub("code", outside_fences)
 
     if GITHUB_ALERT_RE.search(outside_code):
         problems.append(
@@ -150,9 +110,9 @@ def check_markdown_dialect(markdown: str) -> list[str]:
             "use a bold blockquote (`> **Important:** ...`) instead."
         )
 
-    if SETEXT_H2_RE.search(outside_code):
+    if _has_setext_heading(outside_code):
         problems.append(
-            "Setext H2 underline (`---` directly below a line of text) turns that line into HEADING_2 in Google Docs; "
+            "Setext heading underline (`---` or `===` directly below a paragraph line) turns that line into a heading; "
             "add a blank line before `---` for a horizontal rule or use `## Heading`."
         )
 
@@ -176,27 +136,15 @@ def check_markdown_dialect(markdown: str) -> list[str]:
     return problems
 
 
-def find_chrome() -> str:
-    """Locate Google Chrome or Chromium executable for headless rendering."""
-    candidates = [
-        os.environ.get("CHROME", ""),
-        os.environ.get("PUPPETEER_EXECUTABLE_PATH", ""),
-        *(shutil.which(name) or "" for name in CHROMES),
-        MAC_CHROME,
-    ]
-    for candidate in candidates:
-        if candidate and os.access(candidate, os.X_OK):
-            return candidate
-    msg = "Google Chrome or Chromium not found; install Google Chrome or set CHROME=/path/to/chrome."
-    raise RuntimeError(msg)
-
-
-def render_svg_png(svg_path: Path, out_png: Path, scale: int = 2) -> tuple[int, int]:
-    """Rasterize an SVG file to a PNG using headless Chrome and its viewBox dimensions."""
+def render_svg_png(svg_path: Path, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> tuple[int, int]:
+    """Rasterize an SVG file to a PNG with headless Chrome at its viewBox size, optionally capped in width."""
+    checker = _svg_checker()
     root = ET.parse(svg_path).getroot()  # noqa: S314 - already checked local SVG file
-    width, height = svg_view_box(root) or (960.0, 540.0)
+    width, height = checker.view_box(root) or (SVG_CANVAS_WIDTH, SVG_CANVAS_WIDTH * 9 / 16)
     w_px, h_px = math.ceil(width), math.ceil(height)
-    binary = find_chrome()
+    if max_width_px:
+        scale = min(scale, max_width_px / w_px)
+    binary = checker.chrome()
     out_png.parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(3):
         with tempfile.TemporaryDirectory(prefix=".svg-render-") as tmp:
@@ -222,7 +170,7 @@ def render_svg_png(svg_path: Path, out_png: Path, scale: int = 2) -> tuple[int, 
                         "--host-resolver-rules=MAP * ^NOTFOUND",
                         "--no-proxy-server",
                         f"--user-data-dir={profile}",
-                        f"--force-device-scale-factor={scale}",
+                        f"--force-device-scale-factor={scale:g}",
                         "--default-background-color=00000000",
                         f"--window-size={w_px},{h_px}",
                         f"--screenshot={out_png.resolve()}",
@@ -244,34 +192,69 @@ def render_svg_png(svg_path: Path, out_png: Path, scale: int = 2) -> tuple[int, 
                 msg = f"Chrome failed to render {svg_path.name} (exit {proc.returncode}): {detail}"
                 raise RuntimeError(msg)
             break
-    return w_px * scale, h_px * scale
+    return png_size(out_png)
 
 
-def render_mermaid_png(mermaid_code: str, out_png: Path, scale: int = 2) -> None:
-    """Render a Mermaid diagram string to PNG via mmdc (@mermaid-js/mermaid-cli)."""
-    mmdc_bin = shutil.which("mmdc")
-    if not mmdc_bin:
-        msg = "`mmdc` not found in PATH; install @mermaid-js/mermaid-cli (e.g. `mise use -g npm:@mermaid-js/mermaid-cli`)."
-        raise RuntimeError(msg)
-    chrome_bin = find_chrome()
+def png_size(path: Path) -> tuple[int, int]:
+    """Return (width, height) in pixels from a PNG file's IHDR header."""
+    header = path.read_bytes()[:24]
+    if not header.startswith(b"\x89PNG\r\n\x1a\n") or header[12:16] != b"IHDR":
+        msg = f"{path.name} is not a PNG file"
+        raise ValueError(msg)
+    return int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
+
+
+def _mmdc_command() -> tuple[list[str], int]:
+    """Return the Mermaid CLI command and timeout: the pinned CLI through mise, else `mmdc` on PATH."""
+    # Prefer mise: once installed, mise leaves an `mmdc` shim on PATH that fails outside a project that pins it.
+    if mise := shutil.which("mise"):
+        # The first run installs the pinned CLI into mise's cache; later runs reuse it.
+        return [mise, "exec", "--quiet", MERMAID_CLI, "--", "mmdc"], 300
+    if mmdc := shutil.which("mmdc"):
+        return [mmdc], 60
+    msg = "Neither `mise` nor `mmdc` is on PATH; install mise (https://mise.jdx.dev) to run the pinned Mermaid CLI."
+    raise RuntimeError(msg)
+
+
+def render_mermaid_png(mermaid_code: str, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> None:
+    """Render a Mermaid diagram string to PNG with the Mermaid CLI and system Chrome, optionally capped in width."""
+    command, timeout = _mmdc_command()
+    chrome_bin = os.environ.get("PUPPETEER_EXECUTABLE_PATH") or _svg_checker().chrome()
     out_png.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".mmd-render-") as tmp:
         mmd_file = Path(tmp) / "diagram.mmd"
         mmd_file.write_text(mermaid_code.strip() + "\n", encoding="utf-8")
         env = {**os.environ, "PUPPETEER_EXECUTABLE_PATH": chrome_bin}
-        proc = subprocess.run(  # noqa: S603 - fixed mmdc binary and local temp paths
-            [mmdc_bin, "-i", str(mmd_file), "-o", str(out_png.resolve()), "-s", str(scale), "-b", "white", "--quiet"],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=60,
-            check=False,
-        )
-        if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
-            detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
-            msg = f"mmdc failed to render Mermaid block (exit {proc.returncode}): {detail}"
-            raise RuntimeError(msg)
+        for _ in range(2):  # the diagram width is known only after a first render
+            out_png.unlink(missing_ok=True)
+            proc = subprocess.run(  # noqa: S603 - fixed CLI command and local temp paths
+                [
+                    *command,
+                    "-i",
+                    str(mmd_file),
+                    "-o",
+                    str(out_png.resolve()),
+                    "-s",
+                    f"{scale:g}",
+                    "-b",
+                    "white",
+                    "--quiet",
+                ],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=timeout,
+                check=False,
+            )
+            if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
+                detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
+                msg = f"mmdc failed to render Mermaid block (exit {proc.returncode}): {detail}"
+                raise RuntimeError(msg)
+            width = png_size(out_png)[0]
+            if not max_width_px or width <= max_width_px:
+                return
+            scale *= max_width_px / width
 
 
 def compile_markdown(
@@ -279,7 +262,7 @@ def compile_markdown(
     base_dir: Path,
     *,
     scale: int = 2,
-    svg_width: float = 960.0,
+    svg_width: float = SVG_CANVAS_WIDTH,
     assets_dir: Path | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Compile fenced ```mermaid blocks and local .svg image links into Base64 PNG references."""
@@ -321,7 +304,7 @@ def compile_markdown(
                 alt_text = f"Figure {fig_counter} — Architecture diagram"
 
             png_path = tmp_dir / f"{fig_id}.png"
-            render_mermaid_png(raw_code, png_path, scale=scale)
+            render_mermaid_png(raw_code, png_path, scale=scale, max_width_px=MAX_FIGURE_WIDTH_PX)
             b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
             ref_definitions.append(f"[{fig_id}]: <data:image/png;base64,{b64}>")
             fig_entry: dict[str, Any] = {
@@ -354,6 +337,7 @@ def compile_markdown(
 
         svg_pieces: list[str] = []
         last_svg_idx = 0
+        claimed_svg_names: set[str] = set()
         for match in SVG_IMAGE_RE.finditer(intermediate):
             if _in_code(match.start()):
                 continue
@@ -368,7 +352,7 @@ def compile_markdown(
             fig_id = next_fig_id()
             alt_text = match.group(1).strip() or f"Figure {fig_counter}"
             png_path = tmp_dir / f"{fig_id}.png"
-            render_svg_png(svg_path, png_path, scale=scale)
+            render_svg_png(svg_path, png_path, scale=scale, max_width_px=MAX_FIGURE_WIDTH_PX)
             b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
             ref_definitions.append(f"[{fig_id}]: <data:image/png;base64,{b64}>")
             fig_entry = {
@@ -379,9 +363,11 @@ def compile_markdown(
                 "bytes": png_path.stat().st_size,
             }
             if assets_dir is not None:
+                # Prefix only a name already taken by another SVG in this run; a previous run's copy is overwritten.
                 svg_asset = assets_dir / svg_path.name
-                if svg_asset.exists() and svg_asset.resolve() != svg_path.resolve():
+                if svg_asset.name in claimed_svg_names and svg_asset.resolve() != svg_path.resolve():
                     svg_asset = assets_dir / f"{fig_id}-{svg_path.name}"
+                claimed_svg_names.add(svg_asset.name)
                 if svg_asset.resolve() != svg_path.resolve():
                     shutil.copy2(svg_path, svg_asset)
                 png_asset = assets_dir / f"{fig_id}.png"
@@ -496,27 +482,31 @@ def _ensure_drive_folder(parent_id: str, folder_name: str) -> str:
 
 
 def _list_folder_files(parent_id: str) -> dict[str, str]:
-    """Return {name: file_id} for non-trashed non-folder files directly inside parent_id."""
+    """Return {name: file_id} for non-trashed non-folder files directly inside parent_id, across all pages."""
     valid_parent = _validate_drive_id(parent_id, "folder ID")
     q = f"trashed = false and mimeType != 'application/vnd.google-apps.folder' and '{valid_parent}' in parents"
-    resp = run_gws(
-        [
-            "drive",
-            "files",
-            "list",
-            "--params",
-            json.dumps(
-                {
-                    "pageSize": 100,
-                    "q": q,
-                    "supportsAllDrives": True,
-                    "includeItemsFromAllDrives": True,
-                    "fields": "files(id,name)",
-                }
-            ),
-        ]
-    )
-    return {str(item["name"]): str(item["id"]) for item in (resp.get("files") or []) if "id" in item and "name" in item}
+    params: dict[str, Any] = {
+        "pageSize": 100,
+        "q": q,
+        "supportsAllDrives": True,
+        "includeItemsFromAllDrives": True,
+        "fields": "nextPageToken,files(id,name)",
+    }
+    found: dict[str, str] = {}
+    while True:
+        resp = run_gws(["drive", "files", "list", "--params", json.dumps(params)])
+        for item in resp.get("files") or []:
+            if "id" in item and "name" in item:
+                found.setdefault(str(item["name"]), str(item["id"]))
+        if not resp.get("nextPageToken"):
+            return found
+        params["pageToken"] = resp["nextPageToken"]
+
+
+def _get_drive_file(file_id: str) -> dict[str, Any]:
+    """Return the id, name, and parents of an existing Drive file."""
+    params = {"fileId": _validate_drive_id(file_id, "file ID"), "supportsAllDrives": True, "fields": "id,name,parents"}
+    return run_gws(["drive", "files", "get", "--params", json.dumps(params)])
 
 
 def _upsert_drive_file(
@@ -527,21 +517,23 @@ def _upsert_drive_file(
     parent_id: str | None = None,
     file_id: str | None = None,
     existing_by_name: dict[str, str] | None = None,
+    rename: bool = False,
 ) -> dict[str, Any]:
-    """Create or update a file in Google Drive while preserving its File ID when updating."""
+    """Create or update a file in Google Drive; updates keep the File ID and rename only when asked."""
     target_id = file_id or (existing_by_name or {}).get(name)
     fields = "id,name,mimeType,version,modifiedTime,webViewLink"
     if target_id:
         valid_id = _validate_drive_id(target_id, "file ID")
+        params = json.dumps({"fileId": valid_id, "supportsAllDrives": True, "fields": fields})
+        body = ["--json", json.dumps({"name": name})] if rename else []
         return run_gws(
             [
                 "drive",
                 "files",
                 "update",
                 "--params",
-                json.dumps({"fileId": valid_id, "supportsAllDrives": True, "fields": fields}),
-                "--json",
-                json.dumps({"name": name}),
+                params,
+                *body,
                 "--upload",
                 str(local_path),
                 "--upload-content-type",
@@ -577,6 +569,7 @@ def upload_to_drive(
     file_id: str | None = None,
     doc_name: str | None = None,
     doc_slug: str | None = None,
+    existing_file: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Upload the compiled .md file and its assets/<doc-slug>/ bundle to Google Drive."""
     if not drive_folder and not file_id:
@@ -585,30 +578,15 @@ def upload_to_drive(
 
     parent_folder_id = _validate_drive_id(drive_folder, "folder ID") if drive_folder else None
     resolved_name = doc_name or compiled_md.name
+    if file_id:
+        # Keep the live document's name and location unless --doc-name asks for a rename.
+        existing = existing_file or _get_drive_file(file_id)
+        if not parent_folder_id and existing.get("parents"):
+            parent_folder_id = _validate_drive_id(str(existing["parents"][0]), "folder ID")
+        if not doc_name and existing.get("name"):
+            resolved_name = str(existing["name"])
     if not resolved_name.endswith(".md"):
         resolved_name = f"{resolved_name}.md"
-
-    if file_id and not parent_folder_id:
-        meta = run_gws(
-            [
-                "drive",
-                "files",
-                "get",
-                "--params",
-                json.dumps(
-                    {
-                        "fileId": _validate_drive_id(file_id, "file ID"),
-                        "supportsAllDrives": True,
-                        "fields": "id,name,parents",
-                    }
-                ),
-            ]
-        )
-        parents = meta.get("parents") or []
-        if parents:
-            parent_folder_id = str(parents[0])
-        if not doc_name and meta.get("name"):
-            resolved_name = str(meta["name"])
 
     resolved_slug = doc_slug or _slugify_doc(resolved_name)
     existing_in_parent = _list_folder_files(parent_folder_id) if (parent_folder_id and not file_id) else {}
@@ -619,6 +597,7 @@ def upload_to_drive(
         parent_id=parent_folder_id,
         file_id=file_id,
         existing_by_name=existing_in_parent,
+        rename=bool(file_id and doc_name),
     )
     uploaded_file_id = str(doc_result["id"])
 
@@ -657,6 +636,18 @@ def upload_to_drive(
         "assets_folder_url": f"https://drive.google.com/drive/folders/{assets_folder_id}" if assets_folder_id else None,
         "uploaded_assets": uploaded_assets,
     }
+
+
+def _scale(value: str) -> int:
+    """Parse --scale as an integer from 1 to MAX_SCALE; larger factors only bloat the Base64 payload."""
+    try:
+        scale = int(value)
+    except ValueError:
+        scale = 0
+    if not 1 <= scale <= MAX_SCALE:
+        msg = f"must be an integer from 1 to {MAX_SCALE}, got {value!r}"
+        raise argparse.ArgumentTypeError(msg)
+    return scale
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -707,15 +698,15 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-s",
         "--scale",
-        type=int,
+        type=_scale,
         default=2,
-        help="Device scale factor for PNG rasterization (default: 2).",
+        help=f"Device scale factor for PNG rasterization, 1 to {MAX_SCALE} (default: 2).",
     )
     parser.add_argument(
         "--svg-width",
         type=float,
-        default=960.0,
-        help="Expected SVG viewBox width in px (0 disables width check).",
+        default=SVG_CANVAS_WIDTH,
+        help=f"Expected SVG viewBox width in px (default: {SVG_CANVAS_WIDTH:g}; 0 disables the check).",
     )
     parser.add_argument(
         "-j",
@@ -764,7 +755,9 @@ def main(argv: list[str] | None = None) -> int:
                     if source.name.endswith(".src.md")
                     else f"{source.stem}.gdoc.md"
                 )
-                doc_slug = args.doc_slug or _slugify_doc(args.doc_name or out_path.name)
+                existing_file = _get_drive_file(args.file_id) if args.file_id and not args.doc_name else None
+                drive_name = args.doc_name or (existing_file or {}).get("name") or out_path.name
+                doc_slug = args.doc_slug or _slugify_doc(str(drive_name))
                 if (args.drive_folder or args.file_id) and assets_dir is None:
                     assets_dir = out_path.parent / "assets" / doc_slug
                 compiled, figures = compile_markdown(
@@ -794,6 +787,7 @@ def main(argv: list[str] | None = None) -> int:
                         file_id=args.file_id,
                         doc_name=args.doc_name,
                         doc_slug=doc_slug,
+                        existing_file=existing_file,
                     )
                 payload = {
                     "status": "ok",

@@ -140,7 +140,7 @@ Setup links this repository's [`skills/`](skills/) into `~/.agents/skills/`, alo
 
 Use `/clipboard` to copy the requested deliverable from the preceding exchange, or `/clipboard <selection>` to choose a result. The [clipboard skill](skills/clipboard/SKILL.md) verifies the copied text using native macOS or ChromeOS/Linux tools.
 
-Other everyday shortcuts: `/full-review` reviews a whole project and applies verified fixes, `/smoke` runs every task and CLI command, `/trim <path>` shortens without losing meaning, `/auth-status` lists expired logins with the exact re-login command, and `/task-prompts` writes delegation or continuation prompts (resume agy with `agy -c`, compact with `/compact`). For writing, `/stakeholder-writing` turns results into reports, proposals, and updates that busy readers can act on, `/draft-doc` creates Google Docs with native Drive Markdown by default, `/draft-mail` creates Gmail drafts only, and `/fact-check` verifies claims and links.
+Other everyday shortcuts: `/full-review` reviews a whole project and applies verified fixes, `/smoke` runs every task and CLI command, `/trim <path>` shortens without losing meaning, `/auth-status` lists expired logins with the exact re-login command, and `/task-prompts` writes delegation or continuation prompts (resume agy with `agy -c`, compact with `/compact`). For writing, `/stakeholder-writing` turns results into reports, proposals, and updates that busy readers can act on, `/draft-doc` creates Google Docs as native Drive Markdown for living docs or converted Google Docs for styled deliverables, `/draft-mail` creates Gmail drafts only, and `/fact-check` verifies claims and links.
 
 ## Credentials
 
