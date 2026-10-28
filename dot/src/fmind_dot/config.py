@@ -85,8 +85,13 @@ class CompletionConfig(StrictModel):
     path: str = "~/.config/fish/completions"
 
 
+# `~`, `~/...`, or absolute: a relative workspace would resolve against the caller's directory.
+WorkspacePath = Annotated[str, Field(pattern=r"^(?:~|~/.+|/.*)$")]
+
+
 class PullConfig(StrictModel):
-    directories: list[str] = Field(default_factory=lambda: ["~/fmind", "~/fmind-ai", "~/mlops-courses"])
+    # dot_claude/modify_private_settings.json repeats this default; test_harness_config keeps them equal.
+    directories: list[WorkspacePath] = Field(default_factory=lambda: ["~/fmind", "~/fmind-ai", "~/mlops-courses"])
 
 
 # GitHub account and organization names: alphanumeric runs joined by single hyphens.

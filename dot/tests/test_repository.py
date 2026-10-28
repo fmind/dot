@@ -152,13 +152,13 @@ def test_repository_discovery_does_not_follow_workspace_symlinks(tmp_path: Path)
     assert linked.is_symlink()
 
 
-def test_repository_discovery_normalizes_and_deduplicates_relative_workspace_paths(
+def test_repository_discovery_normalizes_and_deduplicates_home_workspace_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repository = tmp_path / "work" / "project"
     (repository / ".git").mkdir(parents=True)
-    monkeypatch.chdir(tmp_path)
-    config = Config(pull=PullConfig(directories=["work", str(tmp_path / "work")]))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    config = Config(pull=PullConfig(directories=["~/work", str(tmp_path / "work") + "/"]))
 
     assert find_git_repositories(make_state(RecordingRunner({}, set()), config)) == [repository]
 
