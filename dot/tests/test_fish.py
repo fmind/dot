@@ -121,7 +121,10 @@ def test_zellij_wrapper_persists_background_and_killed_sessions(tmp_path: Path) 
     bin_dir.mkdir()
     zellij = bin_dir / "zellij"
     zellij.write_text(
-        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$ZELLIJ_TEST_CALLS"\nexit 0\n',
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$ZELLIJ_TEST_CALLS"\n'
+        'if [ "$1" = list-sessions ]; then\n'
+        '  printf "%s\\n" "docs [Created 1m ago] (current)" "old [Created 2d ago] (EXITED - attach to resurrect)"\n'
+        "fi\nexit 0\n",
         encoding="utf-8",
     )
     zellij.chmod(0o755)
@@ -137,7 +140,9 @@ def test_zellij_wrapper_persists_background_and_killed_sessions(tmp_path: Path) 
                 "zellij a -bc docs; "
                 "zellij k docs; "
                 "zellij a docs; "
-                "zellij d docs"
+                "zellij d docs; "
+                "zellij ka --help; "
+                "zellij ka -y"
             ),
         ],
         cwd=root,
@@ -157,4 +162,8 @@ def test_zellij_wrapper_persists_background_and_killed_sessions(tmp_path: Path) 
         "k docs",
         "a docs",
         "d docs",
+        "ka --help",
+        "list-sessions --no-formatting",
+        "--session docs action save-session",
+        "ka -y",
     ]
