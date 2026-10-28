@@ -98,9 +98,6 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         for name in ("test_smoke.py", "test_cli.py"):
             _write(project, f"tests/{name}", _render(name, replacements, owner="cli-development"))
     else:
-        # Mirrors the guide's temporary pin: multidict 7.2.0 breaks litestar 2.25.0 Headers.
-        with (project / "pyproject.toml").open("a", encoding="utf-8") as stream:
-            stream.write('\n[tool.uv]\nconstraint-dependencies = ["multidict<7.2"]\n')
         _run(
             project,
             "uv",
