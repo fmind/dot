@@ -83,9 +83,6 @@ HF_HUB_DISABLE_TELEMETRY = "1"
 "conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
 "github:DataDog/pup" = "latest" # Official Datadog command-line interface (pup) for logs, monitors, and OAuth PKCE
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
-# DuckDB 2.0 renamed its CLI assets (duckdb-cli-<os>-<arch>.tar.gz); aquaproj/aqua-registry#62901 (2026-10-24) fixes
-# the registry. Return to `duckdb = "latest"` once a mise release after 2026.10.18 bundles that registry.
-"github:duckdb/duckdb" = { version = "latest", matching = "duckdb-cli-" } # Embedded SQL analytical database management system
 # fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
 "github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
 # OpenCode 2.x ships through npm (the mise registry moved here from aqua). mise skips its postinstall, which links
@@ -118,6 +115,7 @@ chezmoi = "latest" # Dotfiles manager across diverse machines
 claude = "latest" # Claude Code terminal-based AI coding agent CLI
 delta = "latest" # Syntax-highlighter for git, diff, and grep output
 doggo = "latest" # Command-line DNS client supporting modern protocols
+duckdb = "latest" # Embedded SQL analytical database management system
 dprint = "latest" # Pluggable and ultra-fast code formatter
 fd = "latest" # Simple, fast replacement for the find command
 ffmpeg = "latest" # Audio and video converter and probe (ffprobe) for media work outside projects
