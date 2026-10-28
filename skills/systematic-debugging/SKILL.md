@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-25"
+  updated: "2026-10-28"
 ---
 
 # Systematic Debugging
@@ -26,7 +26,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 ## Gotchas
 
 - **Diagnosis does not authorize fixes**: a request to diagnose authorizes investigation, not implementation; observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
-- **Stop stacking failed fixes**: after three failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
+- **Stop stacking failed fixes**: after two failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
 - **Instrument every pipeline boundary once**: record presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
 - **Reproduce dependency failures with the same resolver**: for package resolver, lockfile, wheel, or build-backend failures, distinguish direct constraints, transitive conflicts, platform markers, yanked releases, build-backend or wheel failures, authentication, network reachability, and stale locks before changing any constraint. Inspect the lock and installed source without executing it and apply the smallest constraint fix only when authorized; route upgrades to [upgrade-tools](../upgrade-tools/SKILL.md), registry facts to [research-brief](../implementation-plan/references/research-brief.md), and CVE or license triage to [code-security](../code-security/references/code-review/GUIDE.md).
 

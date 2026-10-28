@@ -35,7 +35,7 @@ Install the host prerequisites first; the rest installs in user space:
 
 ```bash
 # Debian / Ubuntu
-sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin
+sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin pulseaudio-utils
 # ChromeOS Linux with GPU acceleration on: let Ghostty open the GPU, then shut down Linux and restart it
 sudo usermod -aG render "$USER"
 

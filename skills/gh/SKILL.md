@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-10-26"
+  updated: "2026-10-28"
 ---
 
 # GitHub CLI
@@ -26,7 +26,7 @@ Use `gh` for authenticated GitHub input and output. This connector owns account 
 ## Task owners
 
 - [github-issues](../github-issues/SKILL.md): issue planning, drafts, dependencies, updates, and closure.
-- [github-pull-request](../github-pull-request/SKILL.md): PR creation, updates, base/head selection, and verification.
+- [github-pull-request](../github-pull-request/SKILL.md): PR creation, updates, base/head selection, verification, and merging.
 - [github-repository](../github-repository/SKILL.md): repository metadata, visibility, and settings.
 - [github-actions](../github-actions/SKILL.md): workflow authoring and CI/CD policy.
 - [git-delivery](../git-delivery/SKILL.md): authorized commits, pushes, and releases.
