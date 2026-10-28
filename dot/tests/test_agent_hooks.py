@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import wave
 from io import StringIO
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest
     project.mkdir()
     captured: list[Notification] = []
 
-    def capture(_state: State, notification: Notification) -> None:
+    def capture(_state: State, notification: Notification, **_options: bool) -> None:
         captured.append(notification)
 
     monkeypatch.setattr(agent_module, "send_notification", capture)
@@ -46,7 +47,9 @@ def test_turn_notifications_obey_idle_and_reentry_guards(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent: str
 ) -> None:
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     payload = {"cwd": str(tmp_path), "fullyIdle": True}
     command = ["agent", "hook", "notify", agent, "stop"]
     assert CliRunner().invoke(app, command, input=json.dumps(payload)).exit_code == 0
@@ -62,7 +65,9 @@ def test_turn_notifications_obey_idle_and_reentry_guards(
 @pytest.mark.parametrize("field", ["background_tasks", "backgroundTasks", "session_crons", "sessionCrons"])
 def test_background_work_never_announces_a_handoff(monkeypatch: pytest.MonkeyPatch, agent: str, field: str) -> None:
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     for value in ([{"status": "running"}], None, False, "unknown", {}):
         result = CliRunner().invoke(
             app,
@@ -77,7 +82,9 @@ def test_background_work_never_announces_a_handoff(monkeypatch: pytest.MonkeyPat
 def test_only_idle_and_actionable_notifications_reach_the_user(monkeypatch: pytest.MonkeyPatch, key: str) -> None:
     agent = "claude"
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     for kind in ("auth_success", "agent_completed", "task_complete", "quota_auto_resume_fired", "unknown", None):
         for event in ("ready", "needs-input"):
             result = CliRunner().invoke(app, ["agent", "hook", "notify", agent, event], input=json.dumps({key: kind}))
@@ -91,7 +98,9 @@ def test_only_idle_and_actionable_notifications_reach_the_user(monkeypatch: pyte
 
 def test_question_alerts_survive_background_work_and_stop_reentry(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     result = CliRunner().invoke(
         app,
         ["agent", "hook", "notify", "claude", "needs-input"],
@@ -110,7 +119,9 @@ def test_question_alerts_survive_background_work_and_stop_reentry(monkeypatch: p
 @pytest.mark.parametrize("payload", ["", '{"fullyIdle":false}', "{}"])
 def test_agy_stop_requires_explicit_idle(monkeypatch: pytest.MonkeyPatch, payload: str) -> None:
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     result = CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], input=payload)
     assert result.exit_code == 0
     assert captured == []
@@ -153,7 +164,9 @@ def test_agy_print_mode_fails_open_without_process_metadata(tmp_path: Path) -> N
 
 def test_headless_agy_turns_stay_quiet(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     monkeypatch.setattr(hooks, "agy_print_mode", lambda: True)
     payload = json.dumps({"cwd": str(tmp_path), "fullyIdle": True})
     assert CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], input=payload).exit_code == 0
@@ -166,7 +179,9 @@ def test_headless_agy_turns_stay_quiet(monkeypatch: pytest.MonkeyPatch, tmp_path
 )
 def test_child_completion_never_announces_a_handoff(monkeypatch: pytest.MonkeyPatch, payload: dict[str, str]) -> None:
     captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
     result = CliRunner().invoke(app, ["agent", "hook", "notify", "claude", "stop"], input=json.dumps(payload))
     assert result.exit_code == 0
     assert captured == []
@@ -187,25 +202,29 @@ def test_notify_failure_warns_on_stderr_without_failing_the_turn(
 
 
 @pytest.mark.parametrize("exists", [False, True], ids=["missing-config", "malformed-config"])
-def test_notify_does_not_load_unrelated_configuration(
+def test_broken_configuration_keeps_default_notifications(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, exists: bool
 ) -> None:
     config = tmp_path / "broken.yaml"
     if exists:
         config.write_text("prune: [\n")
-    captured: list[Notification] = []
-    monkeypatch.setattr(agent_module, "send_notification", lambda _state, notification: captured.append(notification))
+    captured: list[tuple[Notification, bool]] = []
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, sound: captured.append((notification, sound))
+    )
 
     result = CliRunner().invoke(
         app, ["--config", str(config), "agent", "hook", "notify", "copilot", "stop"], input="{}"
     )
 
     assert result.exit_code == 0
-    assert result.stdout == result.stderr == ""
-    assert len(captured) == 1
+    assert result.stdout == ""
+    assert result.stderr.startswith("agent hook notify used default settings:")
+    assert result.stderr.count("\n") == 1
+    assert captured == [(Notification("✅ Copilot", "Your turn"), True)]
 
 
-def _fail(_state: State, _notification: Notification) -> None:
+def _fail(_state: State, _notification: Notification, **_options: bool) -> None:
     raise DotError("notifier exited with status 7")
 
 
@@ -228,7 +247,14 @@ def test_notification_commands_cover_linux_and_darwin_escaping() -> None:
         hooks.Notification("Done", "Turn finished"),
         system="linux",
     )
-    assert linux == ["notify-send", "--app-name=dot", "--expire-time=10000", "Done", "Turn finished"]
+    assert linux == [
+        "notify-send",
+        "--app-name=dot",
+        "--expire-time=10000",
+        "--hint=boolean:suppress-sound:true",
+        "Done",
+        "Turn finished",
+    ]
 
     darwin = hooks.notification_command(
         ScriptedRunner(),
@@ -347,3 +373,120 @@ def test_linux_notification_renders_body_as_text_without_actions() -> None:
     command = hooks.notification_command(ScriptedRunner({"notify-send"}), notification, system="linux")
     assert "Fix &lt;hooks&gt; &amp; tests" in command
     assert not any("action" in argument for argument in command)
+
+
+_PANES = [
+    {"id": 3, "is_plugin": True, "title": "tab-bar", "tab_name": "Tab #1"},
+    {"id": 7, "is_plugin": False, "title": "~/work", "tab_name": "shell"},
+    {"id": 3, "is_plugin": False, "title": "✳ Fix \x1b[31mhooks\x1b[0m", "tab_name": "review"},
+]
+
+
+def _zellij(stdout: str, returncode: int = 0) -> ScriptedRunner:
+    return ScriptedRunner({"zellij"}, run=lambda _args, _cwd, _input, _check: CommandResult(stdout, "", returncode))
+
+
+def test_zellij_pane_reads_the_hook_pane_tab_and_topic(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "dot")
+    monkeypatch.setenv("ZELLIJ_PANE_ID", "3")
+    runner = _zellij(json.dumps(_PANES))
+
+    assert hooks.zellij_pane(runner) == hooks.ZellijPane("dot", "review", "Fix hooks")
+    assert runner.calls == [["zellij", "action", "list-panes", "--tab", "--json"]]
+
+
+@pytest.mark.parametrize(
+    ("pane_id", "stdout", "returncode"),
+    [("9", json.dumps(_PANES), 0), ("3", "not json", 0), ("3", json.dumps(_PANES), 1), ("3", "{}", 0), ("x", "[]", 0)],
+    ids=["unknown-pane", "malformed", "failed", "not-a-list", "bad-id"],
+)
+def test_zellij_pane_is_optional_context(
+    monkeypatch: pytest.MonkeyPatch, pane_id: str, stdout: str, returncode: int
+) -> None:
+    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "dot")
+    monkeypatch.setenv("ZELLIJ_PANE_ID", pane_id)
+    assert hooks.zellij_pane(_zellij(stdout, returncode)) is None
+
+
+def test_zellij_pane_needs_a_session_and_the_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = _zellij(json.dumps(_PANES))
+    assert hooks.zellij_pane(runner) is None
+    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "dot")
+    monkeypatch.setenv("ZELLIJ_PANE_ID", "3")
+    assert hooks.zellij_pane(ScriptedRunner()) is None
+    assert runner.calls == []
+
+
+def test_notification_context_follows_tab_and_title_settings() -> None:
+    pane = hooks.ZellijPane("dot", "review", "Fix hooks")
+    build = hooks.build_notification
+    assert build("claude", "stop", None, pane=pane, tab=True, title=True) == Notification(
+        "✅ Claude Code", "dot/review", "Fix hooks"
+    )
+    assert build("claude", "stop", None, pane=pane, tab=False, title=True) == Notification(
+        "✅ Claude Code", "Fix hooks"
+    )
+    assert build("claude", "stop", None, pane=pane, tab=True) == Notification("✅ Claude Code", "dot/review")
+    assert build("claude", "stop", None, pane=pane) == Notification("✅ Claude Code", "Your turn")
+    untitled = hooks.ZellijPane("dot", "", "")
+    assert build("claude", "stop", None, pane=untitled, tab=True, title=True) == Notification("✅ Claude Code", "dot")
+
+
+def test_notification_commands_render_detail_and_sound() -> None:
+    notification = Notification("Done", "dot/<tab>", "Fix hooks")
+    linux = hooks.notification_command(ScriptedRunner({"notify-send"}), notification, system="linux", sound=True)
+    assert linux[-1] == "dot/&lt;tab&gt;\nFix hooks"
+    darwin = hooks.notification_command(ScriptedRunner(), notification, system="darwin", sound=True)[2]
+    assert darwin.endswith('subtitle "Fix hooks" sound name "Glass"')
+    silent = hooks.notification_command(ScriptedRunner(), Notification("Done"), system="darwin")[2]
+    assert "subtitle" not in silent
+    assert "sound" not in silent
+
+
+def test_linux_sound_plays_the_generated_chime_after_the_notification(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
+    runner = ScriptedRunner({"notify-send", "paplay"})
+
+    hooks.send_notification(make_state(runner), Notification("Done"), sound=True)
+    hooks.send_notification(make_state(runner), Notification("Done"))
+
+    chime = tmp_path / ".cache/dot/notify.wav"
+    assert [call[0] for call in runner.calls] == ["notify-send", "paplay", "notify-send"]
+    assert runner.calls[1] == ["paplay", str(chime)]
+    with wave.open(str(chime)) as audio:
+        assert (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) == (1, 2, 44_100)
+        assert 0.3 < audio.getnframes() / audio.getframerate() < 0.5
+    assert [path.name for path in chime.parent.iterdir()] == ["notify.wav"]
+
+
+def test_linux_sound_names_its_fix_when_no_player_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
+    runner = ScriptedRunner({"notify-send"})
+    with pytest.raises(DotError, match=r"agent\.notify\.sound: false"):
+        hooks.send_notification(make_state(runner), Notification("Done"), sound=True)
+    assert [call[0] for call in runner.calls] == ["notify-send"]
+
+
+def test_notify_hook_applies_configured_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config = tmp_path / "dot.yaml"
+    config.write_text("agent:\n  notify:\n    sound: false\n    title: false\n")
+    monkeypatch.setattr(hooks, "zellij_pane", lambda _runner: hooks.ZellijPane("dot", "review", "Fix hooks"))
+    monkeypatch.setattr(agent_module, "zellij_pane", hooks.zellij_pane)
+    captured: list[tuple[Notification, bool]] = []
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, sound: captured.append((notification, sound))
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["--config", str(config), "agent", "hook", "notify", "claude", "needs-input"],
+        input=json.dumps({"notification_type": "permission_prompt"}),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert result.stderr == ""
+    assert captured == [(Notification("⏳ Claude Code", "dot/review"), False)]
