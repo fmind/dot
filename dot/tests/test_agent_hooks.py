@@ -149,9 +149,19 @@ def _process(proc: Path, pid: int, parent: int, *argv: str) -> None:
 def test_agy_print_mode_reads_the_nearest_agy_ancestor(
     tmp_path: Path, ancestors: list[tuple[str, ...]], expected: bool
 ) -> None:
+    ps_table: dict[str, str] = {}
     for offset, argv in enumerate(ancestors):
-        _process(tmp_path, 100 + offset, 101 + offset, *argv)
+        pid, parent = 100 + offset, 101 + offset
+        _process(tmp_path, pid, parent, *argv)
+        ps_table[str(pid)] = f" {parent} {' '.join(argv)}\n"
     assert agy_print_mode(tmp_path, 100) is expected
+
+    runner = ScriptedRunner(
+        run=lambda args, _cwd, _input, _check: CommandResult(
+            ps_table.get(args[-1], ""), "", 0 if args[-1] in ps_table else 1
+        )
+    )
+    assert agy_print_mode(tmp_path / "no-proc", 100, runner=runner) is expected
 
 
 def test_agy_print_mode_fails_open_without_process_metadata(tmp_path: Path) -> None:
@@ -160,6 +170,8 @@ def test_agy_print_mode_fails_open_without_process_metadata(tmp_path: Path) -> N
     (tmp_path / "100" / "cmdline").write_bytes(b"sh\0")
     (tmp_path / "100" / "stat").write_text("100 (sh) S not-a-pid\n", encoding="utf-8")
     assert agy_print_mode(tmp_path, 100) is False
+    ps_bad = ScriptedRunner(run=lambda *_: CommandResult("not-a-pid agy -p\n", "", 0))
+    assert agy_print_mode(tmp_path / "no-proc", 100, runner=ps_bad) is False
 
 
 def test_headless_agy_turns_stay_quiet(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

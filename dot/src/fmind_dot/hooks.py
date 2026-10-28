@@ -26,30 +26,38 @@ _NOTIFY_EVENTS = {
 _NOTIFY_EXPIRE_MS = "10000"
 _DARWIN_SOUND = "Glass"
 _SOUND_PLAYERS = ("pw-play", "paplay")
-_AGY_PRINT_FLAGS = (b"-p", b"--print", b"--prompt")
+_AGY_PRINT_FLAGS = ("-p", "--print", "--prompt")
 
 
-def agy_print_mode(proc: Path = Path("/proc"), pid: int | None = None) -> bool:
+def agy_print_mode(proc: Path = Path("/proc"), pid: int | None = None, *, runner: Runner | None = None) -> bool:
     """Whether the agy process running this hook answers a non-interactive print turn.
 
     agy's hook payload has no mode field, so read the nearest agy ancestor's arguments;
-    hooks run through `sh -c`, so it is the parent or grandparent. Without /proc (macOS)
-    or a readable ancestor, the hook keeps notifying as before.
+    hooks run through `sh -c`, so it is the parent or grandparent. Without /proc (macOS),
+    fall back to `ps`; without a readable ancestor, the hook keeps notifying as before.
     """
     pid = os.getppid() if pid is None else pid
+    active_runner = runner or Runner()
+    use_proc = proc.is_dir()
     for _ in range(4):
         if pid <= 1:
             return False
         try:
-            argv = (proc / str(pid) / "cmdline").read_bytes().split(b"\0")
-            stat = (proc / str(pid) / "stat").read_text(encoding="utf-8", errors="replace")
-            if Path(os.fsdecode(argv[0])).name == "agy":
+            if use_proc:
+                argv = [os.fsdecode(arg) for arg in (proc / str(pid) / "cmdline").read_bytes().split(b"\0")]
+                stat = (proc / str(pid) / "stat").read_text(encoding="utf-8", errors="replace")
+                # The parent PID follows the parenthesized command name, which may contain spaces.
+                parent = int(stat.rsplit(")", 1)[1].split()[1])
+            else:
+                result = active_runner.run(["ps", "-o", "ppid=,args=", "-p", str(pid)], timeout=2, check=False)
+                parent_text, args = (result.stdout if result.returncode == 0 else "").strip().split(None, 1)
+                parent, argv = int(parent_text), args.split()
+            if Path(argv[0]).name == "agy":
                 return any(
-                    arg in _AGY_PRINT_FLAGS or arg.startswith((b"-p=", b"--print=", b"--prompt=")) for arg in argv
+                    arg in _AGY_PRINT_FLAGS or arg.startswith(("-p=", "--print=", "--prompt=")) for arg in argv[1:]
                 )
-            # The parent PID follows the parenthesized command name, which may contain spaces.
-            pid = int(stat.rsplit(")", 1)[1].split()[1])
-        except OSError, IndexError, ValueError:
+            pid = parent
+        except DotError, OSError, IndexError, ValueError:
             return False
     return False
 
