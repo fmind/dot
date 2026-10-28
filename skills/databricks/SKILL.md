@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
-  updated: "2026-10-23"
+  updated: "2026-10-24"
 ---
 
 # Databricks CLI
