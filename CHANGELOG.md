@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.4.2] - 2026-10-28
+
+### 📚 Documentation
+
+- _(skills)_ Define the draft-doc scratch folder
+
 ## [14.4.1] - 2026-10-28
 
 ### 🐛 Bug Fixes
