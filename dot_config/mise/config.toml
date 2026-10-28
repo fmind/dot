@@ -46,6 +46,12 @@ slsa = false
 # Trust is machine-local: use `mise trust` for individual configs or keep
 # trusted_config_paths in unmanaged ~/.config/mise/conf.d/trust.toml.
 
+[plugins]
+# mise <= 2026.10.21 vendors vfox-gcloud@a291554 with hooks/python.lua instead of lib/python.lua
+# (jdx/mise#15034), failing `require("python")` in safe mode; omit `#<sha>` because mise 2026.10.20's
+# gix backend panics on SHA revisions. Remove once mise re-vendors >= 8bc2e33.
+"vfox:gcloud" = "https://github.com/mise-plugins/vfox-gcloud"
+
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
