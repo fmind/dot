@@ -11,10 +11,10 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "skills/draft-doc/scripts/compile_markdown_doc.py"
 
-VALID_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 220" role="img" aria-labelledby="title desc">
+VALID_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 220" role="img" aria-labelledby="title desc">
   <title id="title">Figure 1 — Summary Card</title>
-  <desc id="desc">Summary card showing 3 metrics on a 960x220 canvas.</desc>
-  <rect width="960" height="220" rx="16" fill="#FFFFFF"/>
+  <desc id="desc">Summary card showing 3 metrics on a 600x220 canvas.</desc>
+  <rect width="600" height="220" rx="16" fill="#FFFFFF"/>
   <text x="32" y="48" font-size="18" fill="#202124">Summary Card</text>
   <text x="32" y="80" font-size="12" fill="#595D62">Subtitle text</text>
 </svg>
@@ -56,7 +56,10 @@ def test_check_markdown_dialect_accepts_clean_doc(mod: ModuleType) -> None:
     ("snippet", "expected"),
     [
         ("---\ntitle: Doc\n---\n\n# Heading\n", "YAML frontmatter"),
-        ("# Heading\n\nParagraph without blank line\n---\n", "Setext H2 underline"),
+        ("# Heading\n\nParagraph without blank line\n---\n", "Setext heading underline"),
+        ("# Heading\n\n**Bold lead-in**\n---\n", "Setext heading underline"),
+        ("# Heading\n\nTitle\n===\n", "Setext heading underline"),
+        ("# Heading\n\nBefore\n\n<!-- note -->\n", "Raw HTML tag"),
         ("# Heading\n\n> [!IMPORTANT]\n> Act now.\n", "GitHub Alert syntax"),
         ("# Heading\n\n<details><summary>More</summary>Text</details>\n", "Raw HTML tag"),
         ("# Heading\n\nLine one<br>Line two\n", "Raw HTML tag"),
@@ -73,6 +76,12 @@ def test_check_markdown_dialect_rejects_unsupported_constructs(
     assert any(expected in p for p in problems), problems
 
 
+@pytest.mark.parametrize("snippet", ["1. item\n---\n", "- item\n  more\n---\n", "> quote\n---\n", "***\n---\n"])
+def test_check_markdown_dialect_allows_thematic_break_after_blocks(mod: ModuleType, snippet: str) -> None:
+    # CommonMark: a setext underline is never a lazy continuation line, so `---` here is a horizontal rule.
+    assert mod.check_markdown_dialect(f"# Heading\n\n{snippet}") == []
+
+
 def test_check_svg_validates_contract(mod: ModuleType, tmp_path: Path) -> None:
     svg_file = tmp_path / "valid.svg"
     svg_file.write_text(VALID_SVG, encoding="utf-8")
@@ -84,10 +93,11 @@ def test_check_svg_validates_contract(mod: ModuleType, tmp_path: Path) -> None:
         encoding="utf-8",
     )
     problems = mod.check_svg(bad_svg)
-    assert any("expected 960" in p for p in problems)
+    assert any("expected 600" in p for p in problems)
     assert any('role="img"' in p for p in problems)
-    assert any("below minimum 12px" in p for p in problems)
-    assert any("<script> is forbidden" in p for p in problems)
+    assert any("below 12px" in p for p in problems)
+    assert any("<script> is ignored or unsafe" in p for p in problems)
+    assert mod.check_svg(tmp_path / "missing.svg") == [f"{tmp_path / 'missing.svg'}: SVG file not found"]
 
 
 def test_compile_markdown_replaces_mermaid_and_svg_with_base64_refs(
@@ -98,12 +108,12 @@ def test_compile_markdown_replaces_mermaid_and_svg_with_base64_refs(
     svg_file = tmp_path / "card.svg"
     svg_file.write_text(VALID_SVG, encoding="utf-8")
 
-    def fake_mermaid(_code: str, out_png: Path, scale: int = 2) -> None:
-        assert scale == 2
+    def fake_mermaid(_code: str, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> None:
+        assert (scale, max_width_px) == (2, 600)
         out_png.write_bytes(b"FAKE_MERMAID_PNG")
 
-    def fake_svg(_svg_path: Path, out_png: Path, scale: int = 2) -> tuple[int, int]:
-        assert scale == 2
+    def fake_svg(_svg_path: Path, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> tuple[int, int]:
+        assert (scale, max_width_px) == (2, 600)
         out_png.write_bytes(b"FAKE_SVG_PNG")
         return (1920, 440)
 
@@ -148,9 +158,9 @@ def test_cli_json_check_and_compile(
     svg_file = tmp_path / "card.svg"
     svg_file.write_text(VALID_SVG, encoding="utf-8")
 
-    def fake_render_svg(_svg_path: Path, out: Path, *, scale: int = 2) -> tuple[int, int]:
+    def fake_render_svg(_svg_path: Path, out: Path, *, scale: float = 2, **_kwargs: object) -> tuple[int, int]:
         out.write_bytes(b"PNG")
-        return (960 * scale, 220 * scale)
+        return (round(600 * scale), round(220 * scale))
 
     monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
 
@@ -158,7 +168,7 @@ def test_cli_json_check_and_compile(
     assert mod.main([str(svg_file), "-o", str(out_png), "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "ok"
-    assert payload["dimensions_px"] == [1920, 440]
+    assert payload["dimensions_px"] == [1200, 440]
 
     src_md = tmp_path / "memo.src.md"
     src_md.write_text("# Memo\n\n![Card](card.svg)\n", encoding="utf-8")
@@ -189,9 +199,9 @@ def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
     src_md = tmp_path / "memo.src.md"
     src_md.write_text("# Memo\n\n![Card](card.svg)\n", encoding="utf-8")
 
-    def fake_render_svg(_svg_path: Path, out: Path, *, scale: int = 2) -> tuple[int, int]:
+    def fake_render_svg(_svg_path: Path, out: Path, *, scale: float = 2, **_kwargs: object) -> tuple[int, int]:
         out.write_bytes(b"PNG")
-        return (960 * scale, 220 * scale)
+        return (round(600 * scale), round(220 * scale))
 
     gws_calls: list[list[str]] = []
 
@@ -219,8 +229,8 @@ def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
             }
         if args[:3] == ["drive", "files", "update"]:
             params = json.loads(args[args.index("--params") + 1])
-            body = json.loads(args[args.index("--json") + 1])
-            return {"id": params["fileId"], "name": body["name"], "mimeType": "image/svg+xml"}
+            assert "--json" not in args, "asset updates must not rename"
+            return {"id": params["fileId"], "name": "card.svg", "mimeType": "image/svg+xml"}
         msg = f"Unexpected gws call: {args}"
         raise AssertionError(msg)
 
@@ -257,3 +267,156 @@ def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
 
     with pytest.raises(ValueError, match="Invalid folder ID"):
         mod.upload_to_drive(tmp_path / "memo.md", [], drive_folder="bad id with spaces'; DROP")
+
+
+def _png(width: int, height: int = 10) -> bytes:
+    """Return a PNG signature and IHDR header, enough for png_size."""
+    return b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big")
+
+
+def _fake_drive(calls: list[list[str]], *, doc_name: str = "Quarterly Review.md") -> object:
+    """Fake gws for an existing document in folder_parent_1 whose assets folders are created on demand."""
+
+    def fake_run_gws(args: list[str]) -> dict[str, object]:
+        calls.append(args)
+        params = json.loads(args[args.index("--params") + 1])
+        if args[:3] == ["drive", "files", "get"]:
+            return {"id": params["fileId"], "name": doc_name, "parents": ["folder_parent_1"]}
+        if args[:3] == ["drive", "files", "list"]:
+            return {"files": []}
+        if args[:3] == ["drive", "files", "create"]:
+            body = json.loads(args[args.index("--json") + 1])
+            return {"id": f"new_{body['name']}", "name": body["name"], "mimeType": body["mimeType"]}
+        if args[:3] == ["drive", "files", "update"]:
+            body = json.loads(args[args.index("--json") + 1]) if "--json" in args else {}
+            return {"id": params["fileId"], "name": body.get("name", doc_name), "mimeType": "text/markdown"}
+        msg = f"Unexpected gws call: {args}"
+        raise AssertionError(msg)
+
+    return fake_run_gws
+
+
+def test_cli_update_by_file_id_keeps_drive_name_and_asset_slug(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
+    src_md = tmp_path / "report.src.md"
+    src_md.write_text("# Report\n\n![Card](card.svg)\n", encoding="utf-8")
+
+    def fake_render_svg(_svg: Path, out: Path, **_kwargs: object) -> tuple[int, int]:
+        out.write_bytes(_png(600))
+        return (600, 138)
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
+    monkeypatch.setattr(mod, "run_gws", _fake_drive(calls))
+
+    out_md = tmp_path / "report.md"
+    assert mod.main([str(src_md), "-o", str(out_md), "--file-id", "doc_file_42", "--json"]) == 0
+    drive = json.loads(capsys.readouterr().out)["drive"]
+    assert drive["name"] == "Quarterly Review.md"
+    assert drive["assets_folder_path"] == "assets/Quarterly-Review"
+    assert (tmp_path / "assets" / "Quarterly-Review" / "card.svg").is_file()
+    doc_update = next(c for c in calls if c[:3] == ["drive", "files", "update"])
+    assert "--json" not in doc_update, "updating by --file-id without --doc-name must not rename the document"
+    folders = [json.loads(c[c.index("--json") + 1])["name"] for c in calls if c[:3] == ["drive", "files", "create"]]
+    assert folders[:2] == ["assets", "Quarterly-Review"]
+
+
+def test_upload_by_file_id_renames_only_with_doc_name(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compiled = tmp_path / "report.md"
+    compiled.write_text("# Report\n", encoding="utf-8")
+    calls: list[list[str]] = []
+    monkeypatch.setattr(mod, "run_gws", _fake_drive(calls))
+
+    result = mod.upload_to_drive(compiled, [], file_id="doc_file_42", doc_name="Final Report")
+    update = next(c for c in calls if c[:3] == ["drive", "files", "update"])
+    assert json.loads(update[update.index("--json") + 1]) == {"name": "Final Report.md"}
+    assert result["name"] == "Final Report.md"
+
+
+def test_upload_finds_existing_document_on_a_later_page(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compiled = tmp_path / "Memo.md"
+    compiled.write_text("# Memo\n", encoding="utf-8")
+    pages: dict[str | None, dict[str, object]] = {
+        None: {"files": [{"id": "other_1", "name": "Other.md"}], "nextPageToken": "page2"},
+        "page2": {"files": [{"id": "memo_2", "name": "Memo.md"}]},
+    }
+    calls: list[list[str]] = []
+
+    def fake_run_gws(args: list[str]) -> dict[str, object]:
+        calls.append(args)
+        params = json.loads(args[args.index("--params") + 1])
+        if args[:3] == ["drive", "files", "list"]:
+            assert "nextPageToken" in params["fields"]
+            return pages[params.get("pageToken")]
+        if args[:3] == ["drive", "files", "update"]:
+            return {"id": params["fileId"], "name": "Memo.md"}
+        msg = f"Unexpected gws call: {args}"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(mod, "run_gws", fake_run_gws)
+    assert mod.upload_to_drive(compiled, [], drive_folder="parent_folder_123")["file_id"] == "memo_2"
+    assert [c[2] for c in calls] == ["list", "list", "update"]
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "5", "2.5", "big"])
+def test_cli_rejects_invalid_scale(mod: ModuleType, tmp_path: Path, value: str) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main([str(tmp_path / "doc.md"), "--scale", value])
+    assert excinfo.value.code == 2
+
+
+def test_compile_markdown_rerun_reuses_svg_asset_name(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
+
+    def fake_svg(_svg: Path, out_png: Path, **_kwargs: object) -> tuple[int, int]:
+        out_png.write_bytes(b"PNG")
+        return (600, 138)
+
+    monkeypatch.setattr(mod, "render_svg_png", fake_svg)
+    assets_dir = tmp_path / "assets"
+    for _ in range(2):
+        _, figures = mod.compile_markdown("# Doc\n\n![Card](card.svg)\n", tmp_path, assets_dir=assets_dir)
+        assert Path(figures[0]["source_asset"]).name == "card.svg"
+    assert sorted(path.name for path in assets_dir.iterdir()) == ["card.svg", "fig-1.png"]
+
+
+def test_render_mermaid_runs_pinned_cli_through_mise_and_caps_width(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> object:
+        commands.append(command)
+        scale = float(command[command.index("-s") + 1])
+        Path(command[command.index("-o") + 1]).write_bytes(_png(round(360 * scale)))
+        return mod.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+    monkeypatch.setenv("PUPPETEER_EXECUTABLE_PATH", "/bin/chrome")
+    out_png = tmp_path / "fig.png"
+    mod.render_mermaid_png("flowchart LR\n  A --> B\n", out_png, scale=2, max_width_px=600)
+
+    assert commands[0][:6] == ["/bin/mise", "exec", "--quiet", mod.MERMAID_CLI, "--", "mmdc"]
+    assert "@mermaid-js/mermaid-cli" in mod.MERMAID_CLI
+    assert [c[c.index("-s") + 1] for c in commands] == ["2", "1.66667"]
+    assert mod.png_size(out_png) == (600, 10)
