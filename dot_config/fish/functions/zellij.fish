@@ -1,10 +1,17 @@
 # Docs: https://fishshell.com/docs/current/cmds/function.html
 # Zellij only auto-serializes sessions that SessionLayoutMetadata::is_dirty() considers modified
 # (more than one pane or a non-shell command), and kill-session exits without serializing.
-# Save the layout explicitly after background creation and before kill-session so 1-pane
+# Save the layout explicitly after background creation and before kill-session (or kill-all) so 1-pane
 # directory sessions stay in EXITED (resurrectable) state; delete-session (d) still removes them.
 function zellij --description "Run zellij and persist background or killed sessions for resurrection"
-    if test (count $argv) -ge 2
+    if contains -- "$argv[1]" ka kill-all-sessions; and not contains -- -h $argv; and not contains -- --help $argv
+        # Exited sessions have no server to answer save-session; skip them.
+        for line in (command zellij list-sessions --no-formatting 2>/dev/null)
+            if not string match -q -- '*(EXITED*' $line
+                command zellij --session (string split -f1 ' ' -- $line) action save-session >/dev/null 2>&1
+            end
+        end
+    else if test (count $argv) -ge 2
         switch $argv[1]
             case k kill-session
                 set -l target ""
