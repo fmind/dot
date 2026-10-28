@@ -6,7 +6,7 @@ For a new application, create the minimal foundation through [python-stack](../.
 
 The bundled example uses typed settings, SQLAlchemy async sessions with asyncpg, and Granian. A service without a database should omit its engine, dependency, readiness query, and integration fixtures.
 
-1. **Install the minimal dependency set**: add the runtime dependencies through [uv](../../../../python-stack/references/uv.md). Until Litestar supports multidict 7.2 (2.25.0's `Headers` fails with `ctor requires CIMultiDict`), first add `constraint-dependencies = ["multidict<7.2"]` under `[tool.uv]` in `pyproject.toml`; drop it once a fixed release ships.
+1. **Install the minimal dependency set**: add the runtime dependencies through [uv](../../../../python-stack/references/uv.md).
    ```bash
    uv add 'litestar>=2.24.0' 'granian[reload,uvloop]>=2.8.1' 'sqlalchemy[asyncio]>=2.0.52' 'asyncpg>=0.31.0' 'pydantic>=2.13.4' 'pydantic-settings>=2.15.0' 'structlog>=26.1.0'
    uv add --dev 'anyio>=4.14.2' 'testcontainers>=4.15.0'

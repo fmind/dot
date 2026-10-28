@@ -1,5 +1,6 @@
 {
   "$schema": "https://dprint.dev/schemas/v0.json",
+  // Docs: https://dprint.dev/config/
   "lineWidth": 120,
   "excludes": [
     "**/*-lock.json",
