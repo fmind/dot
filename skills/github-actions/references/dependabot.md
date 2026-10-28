@@ -88,6 +88,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 - **Directory is per manifest**: a uv project under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
 - **Group the repositories without a config**: grouping for repositories with no `dependabot.yml` is the "Grouped security updates" toggle in the account (`https://github.com/settings/security_analysis`) or organization security settings, next to "Enable all" and "Automatically enable for new repositories".
 - **Route alerts deliberately**: alert email and web delivery live under the account's notification settings (Dependabot alerts), separate from repository watching.
+- **Dismiss alerts on deleted manifests**: when a generated lockfile directory is renamed or removed (such as a superseded mise lock sidecar), its open alerts keep scheduling security jobs that fail with `<directories> not found`. Confirm the current lock resolves a patched version, then dismiss each alert: `gh api -X PATCH repos/OWNER/REPO/dependabot/alerts/N -f state=dismissed -f dismissed_reason=not_used -f dismissed_comment="Manifest removed; current lock resolves PACKAGE VERSION"`.
 - **No CLI trigger**: forcing an immediate check happens only in the repository's Dependabot tab (Insights, Dependency graph).
 
 ## Documentation

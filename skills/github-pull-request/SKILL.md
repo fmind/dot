@@ -1,13 +1,13 @@
 ---
 name: github-pull-request
-description: "Open, update, and verify GitHub pull requests."
+description: "Open, update, verify, and merge GitHub pull requests."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-10-25"
+  updated: "2026-10-28"
 ---
 
 # GitHub Pull Request
@@ -32,6 +32,12 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
    ```
 
 1. **Verify from GitHub**: re-read the PR's title, body, base, head SHA, state, and URL. Compare the head SHA with the intended local commit before reporting the PR URL and validation; local tests do not establish hosted CI; check it with `gh pr checks <number> -R <owner>/<repo> --watch --fail-fast`.
+1. **Merge only on request, with the repository's author**: a squash merge credits the PR opener's primary GitHub email, so a PR opened from a work account would publish a client address in a personal repository. Pass the checkout's commit identity explicitly, then confirm the merge commit's author:
+
+   ```bash
+   gh pr merge <number> -R <owner>/<repo> --squash --author-email "$(git config user.email)"
+   git fetch && git log -1 --format='%an <%ae>' origin/<base>
+   ```
 
 ## Documentation
 
