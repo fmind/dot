@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.4.1] - 2026-10-28
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Override embedded vfox-gcloud plugin (#112)
+- _(hooks)_ Detect headless agy print mode on macOS
+- _(skills)_ Verify draft-doc against live Google Docs
+- _(zellij)_ Save running sessions before kill-all-sessions
+- _(dot)_ Require home or absolute pull directories
+- _(dot)_ Treat empty XDG_CACHE_HOME as unset and read full ps arguments
+
+### 📚 Documentation
+
+- _(skills)_ Merge PRs with the repository author and dismiss alerts on removed manifests
+- _(skills)_ Correct auth, ADC, completion, and notification guidance
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade tools, Python dependencies, and Neovim plugins
+- Drop resolved cf Trivy exceptions and the multidict pin
+
 ## [14.4.0] - 2026-10-28
 
 ### 🚀 Features
