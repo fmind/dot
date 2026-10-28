@@ -79,6 +79,8 @@ STATES = {
     "background": ("\uf017", "33"),
     "idle": ("\uf00c", "32"),
 }
+# Title glyphs mirror Claude Code's (✳ when idle) so dot notifications strip them and keep the topic.
+TITLE_GLYPHS = {"idle": "✳", "needs input": "⚠", "background": "◷"}
 # Keyed by the first letter so labels such as "-- V-LINE --" share the visual color.
 VIM_COLORS = {"N": "34", "I": "32", "V": "35"}
 
@@ -145,7 +147,8 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
     state = state.replace("tool_use", "working").replace("initializing", "starting") or "starting"
     name, subdirectory = location(workspace, payload.get("cwd"))
     if mode == "title":
-        title = name + ("*" if dirty else "") + " — " + state
+        topic = clean(payload.get("conversation_title")) or name + ("*" if dirty else "")
+        title = TITLE_GLYPHS.get(state, "◐") + " " + topic
         if tasks:
             title += f" · {tasks:.0f} tasks"
         return clip(title, 80)
