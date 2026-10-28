@@ -174,6 +174,9 @@ def test_config_document_requires_a_mapping(tmp_path: Path) -> None:
         "auth:\n  workspace:\n    apis: ['--all']\n",
         "cache:\n  providers: [unknown]\n",
         "prune:\n  providers: []\n",
+        "pull:\n  directories: [relative-work]\n",
+        "pull:\n  directories: ['~work']\n",
+        "pull:\n  directories: ['']\n",
     ],
 )
 def test_workstation_policy_rejects_invalid_settings(tmp_path: Path, document: str) -> None:

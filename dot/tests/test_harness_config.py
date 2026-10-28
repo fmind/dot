@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from fmind_dot.config import PullConfig
 from tests.chezmoi_helpers import chezmoi
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -232,7 +233,9 @@ class HarnessConfigTests(unittest.TestCase):
             "claude-opus-5-5": {"effortLevel": "medium"},
             "claude-fable-5-1": {"effortLevel": "high"},
         }
-        assert fresh["permissions"]["additionalDirectories"][:3] == managed_roots
+        # The template's fallback must match dot's own pull.directories default.
+        pull_defaults = [str(self.home / path.removeprefix("~/")) for path in PullConfig().directories]
+        assert fresh["permissions"]["additionalDirectories"] == [*managed_roots[:2], *pull_defaults]
         with pytest.raises(RuntimeError, match="additionalDirectories must be an array"):
             self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
         # No managed deny rules: the host's own list passes through untouched.
@@ -247,6 +250,9 @@ class HarnessConfigTests(unittest.TestCase):
             str(self.home / "custom-work"),
             "/synthetic/abs-work",
         ]
+        dot_config.write_text("pull:\n  directories:\n    - relative-work\n")
+        with pytest.raises(RuntimeError, match=r'"relative-work" in ~/.config/dot\.yaml must start with ~/ or /'):
+            self.render(template, "")
         dot_config.write_text("pull:\n  directories: /synthetic/not-an-array\n")
         with pytest.raises(RuntimeError, match=r"pull\.directories in ~/.config/dot\.yaml must be an array"):
             self.render(template, "")
