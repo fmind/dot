@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.4.0] - 2026-10-28
+
+### 🚀 Features
+
+- _(skills)_ Add draft-doc skill for native Google Docs Markdown (#110)
+- _(dot)_ Add notification sound and Zellij tab and title context
+- _(agy)_ Show the conversation title in the terminal title
+
+### 🐛 Bug Fixes
+
+- _(zellij)_ Persist background and killed sessions for resurrection (#109)
+- _(dot)_ Clear gws token caches and seed Claude directories from dot.yaml (#111)
+
 ## [14.3.0] - 2026-10-27
 
 ### 🚀 Features
