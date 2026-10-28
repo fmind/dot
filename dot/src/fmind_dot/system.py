@@ -142,7 +142,7 @@ def run_completion(state: State, *, check_only: bool = False) -> None:
         success = "Completion check passed; installed scripts were not changed."
     else:
         directory = expand_path(state.config.completions.path)
-        cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "fish"
+        cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "fish"
         # A failed generator keeps its previous script; the others still install before the exit 1.
         failures = _run_completion(state, directory, cache)
         success = f"\n✓ Completions updated in {directory}"

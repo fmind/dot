@@ -49,7 +49,7 @@ def agy_print_mode(proc: Path = Path("/proc"), pid: int | None = None, *, runner
                 # The parent PID follows the parenthesized command name, which may contain spaces.
                 parent = int(stat.rsplit(")", 1)[1].split()[1])
             else:
-                result = active_runner.run(["ps", "-o", "ppid=,args=", "-p", str(pid)], timeout=2, check=False)
+                result = active_runner.run(["ps", "-ww", "-o", "ppid=,args=", "-p", str(pid)], timeout=2, check=False)
                 parent_text, args = (result.stdout if result.returncode == 0 else "").strip().split(None, 1)
                 parent, argv = int(parent_text), args.split()
             if Path(argv[0]).name == "agy":

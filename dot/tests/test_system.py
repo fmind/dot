@@ -287,6 +287,24 @@ def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     assert list(completions.glob(".dot.fish.*")) == []
 
 
+def test_completion_treats_empty_xdg_cache_home_as_unset(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # The XDG spec treats an empty value as unset; a relative "" would prune and write under the cwd.
+    home, cwd = tmp_path / "home", tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CACHE_HOME", "")
+    monkeypatch.chdir(cwd)
+    config = Config()
+    config.completions.path = str(tmp_path / "completions")
+    select_completions(monkeypatch, "dot")
+    runner = ScriptedRunner({"fish", "atuin"}, run=lambda args, *_: CommandResult(f"# {Path(args[0]).name}\n", "", 0))
+
+    system.run_completion(make_state(runner, config))
+
+    assert (home / ".cache/fish/atuin-init.fish").is_file()
+    assert list(cwd.iterdir()) == []
+
+
 def test_completion_validation_preserves_last_known_good_file(tmp_path: Path) -> None:
     target = tmp_path / "tool.fish"
     target.write_text("# known good\n", encoding="utf-8")
