@@ -14,6 +14,7 @@ import typer
 from fmind_dot.command_group import JsonOption
 from fmind_dot.config import CacheProvider, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
+from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
 from fmind_dot.state import State, require_tools, state_from
 
@@ -74,6 +75,7 @@ _UV_LOCK_TIMEOUT_SECONDS = "10"
 CacheTarget = Literal["all", CacheProvider]
 PruneTarget = Literal["all", PruneProvider]
 _CACHE_TIMEOUT_SECONDS = 120
+CACHE_WORKERS = len(CACHE_TOOLS)
 DryRun = Annotated[
     bool, typer.Option("--dry-run", help="Show possible commands without running probes or making changes")
 ]
@@ -161,31 +163,38 @@ def run_cache(
     else:
         if not optional:
             require_tools(state, list(commands.values()))
-        providers = []
-        for name, args in commands.items():
-            entry: dict[str, Any] = {"name": name, "command": shlex.join(args)}
-            if state.runner.which(args[0]) is None:
-                providers.append(entry | {"skipped": f"{args[0]} not installed"})
-                if not as_json:
+        if as_json:
+
+            def inspect(item: tuple[str, list[str]]) -> dict[str, Any]:
+                name, args = item
+                if state.runner.which(args[0]) is None:
+                    return {"name": name, "command": shlex.join(args), "skipped": f"{args[0]} not installed"}
+                return _cache_report(state, name, args)
+
+            providers = run_parallel(state.runner, inspect, list(commands.items()), CACHE_WORKERS)
+        else:
+            providers = []
+            for name, args in commands.items():
+                entry: dict[str, Any] = {"name": name, "command": shlex.join(args)}
+                if state.runner.which(args[0]) is None:
+                    providers.append(entry | {"skipped": f"{args[0]} not installed"})
                     print(f"[{name}] skipped: {args[0]} not installed", file=state.stdout, flush=True)
-            elif as_json:
-                providers.append(_cache_report(state, name, args))
-            else:
-                # Native human reports keep their tables and units; they rarely name their provider.
-                if len(commands) > 1:
-                    print(f"[{name}]", file=state.stdout, flush=True)
-                try:
-                    execute(state, args)
-                except OSError:
-                    message = f"could not start cache inspection; run {shlex.join(args)} for the native diagnostic"
-                    providers.append(entry | {"error": message})
-                    print(f"✗ {message}", file=state.stderr, flush=True)
-                    continue
-                except DotError as error:
-                    providers.append(entry | {"error": str(error)})
-                    print(f"✗ {error}", file=state.stderr, flush=True)
-                    continue
-                providers.append(entry)
+                else:
+                    # Native human reports keep their tables and units; they rarely name their provider.
+                    if len(commands) > 1:
+                        print(f"[{name}]", file=state.stdout, flush=True)
+                    try:
+                        execute(state, args)
+                    except OSError:
+                        message = f"could not start cache inspection; run {shlex.join(args)} for the native diagnostic"
+                        providers.append(entry | {"error": message})
+                        print(f"✗ {message}", file=state.stderr, flush=True)
+                        continue
+                    except DotError as error:
+                        providers.append(entry | {"error": str(error)})
+                        print(f"✗ {error}", file=state.stderr, flush=True)
+                        continue
+                    providers.append(entry)
     if as_json:
         write_json(state.stdout, {"schema": "dot.cache/v1", "dry_run": dry_run, "providers": providers})
     elif dry_run:

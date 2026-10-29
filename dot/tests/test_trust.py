@@ -3,12 +3,14 @@
 import io
 import json
 import subprocess
+import threading
 from pathlib import Path
 
 import pytest
 
 from fmind_dot.config import Config, PullConfig, TrustConfig
 from fmind_dot.errors import DotError
+from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 from fmind_dot.trust import github_owner, register_agy_projects, run_trust, trust_folders
 
@@ -470,3 +472,29 @@ def test_malformed_agy_project_stops_trust_before_any_write(
     assert {
         path: path.read_bytes() for path in home.rglob("*") if path.is_file() and ".git" not in path.parts
     } == before
+
+
+def test_trust_all_checks_repository_origins_concurrently(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "work"
+    for name in ("one", "two", "three"):
+        (workspace / name / ".git").mkdir(parents=True)
+    barrier = threading.Barrier(3, timeout=5)
+
+    class ConcurrentOriginRunner(Runner):
+        def run(self, args: object, **_: object) -> CommandResult:
+            del args
+            barrier.wait()
+            return CommandResult("https://github.com/fmind/repo.git\n", "", 0)
+
+    stdout = io.StringIO()
+    state = State(runner=ConcurrentOriginRunner(), stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    document = json.loads(stdout.getvalue())
+    assert [item["path"] for item in document["folders"]] == [
+        str(workspace),
+        str(workspace / "one"),
+        str(workspace / "three"),
+        str(workspace / "two"),
+    ]

@@ -17,6 +17,7 @@ import sys
 import tomllib
 import urllib.request
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +69,18 @@ def fetch(url: str) -> bytes:
     if len(content) > MAX_BYTES:
         raise ValueError(f"theme file exceeds {MAX_BYTES} bytes: {url}")
     return content
+
+
+def prefetch(revision: str, template: str, download: Fetch = fetch, *, workers: int = 8) -> Fetch:
+    """Download every distinct upstream theme file for a revision concurrently."""
+    paths = [match.group("path") for match in ENTRY.finditer(template)]
+    if not paths:
+        return download
+    paths.extend(upstream for _, (upstream, _) in COPIED.items())
+    urls = list(dict.fromkeys(RAW.format(revision=revision, path=path) for path in paths))
+    with ThreadPoolExecutor(max_workers=min(workers, len(urls))) as executor:
+        cache = dict(zip(urls, executor.map(download, urls), strict=True))
+    return lambda url: cache[url] if url in cache else download(url)
 
 
 def pin(template: str, revision: str, download: Fetch) -> str:
@@ -165,8 +178,9 @@ def main() -> int:
     try:
         revision = arguments.revision or resolve_head()
         template = path.read_text(encoding="utf-8")
-        updated = pin(template, revision, fetch)
-        if stale := stale_copies(revision, fetch):
+        download = prefetch(revision, template)
+        updated = pin(template, revision, download)
+        if stale := stale_copies(revision, download):
             sys.stderr.write("".join(f"{line}\n" for line in stale))
             sys.stderr.write(f"Copy the upstream blocks from {revision}, then rerun.\n")
             return 1

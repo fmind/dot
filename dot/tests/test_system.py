@@ -1002,6 +1002,31 @@ def test_doctor_runs_auth_probes_concurrently() -> None:
     assert [item["name"] for item in report["auth"]] == ["gh", "gcloud", "gcloud-adc", "gws"]
 
 
+def test_completion_generates_tools_concurrently(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    config = Config()
+    config.completions.path = str(tmp_path / "completions")
+    select_completions(monkeypatch, "alpha", "beta", "gamma")
+    barrier = threading.Barrier(3, timeout=5)
+
+    def scripts(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
+        del cwd, input_text, check
+        if args[0] == "fish":
+            return CommandResult("", "", 0)
+        barrier.wait()
+        return CommandResult(f"# {args[0]}\n", "", 0)
+
+    state = make_state(ScriptedRunner({"fish", "alpha", "beta", "gamma"}, run=scripts), config)
+    system.run_completion(state, check_only=True)
+    assert isinstance(state.stdout, StringIO)
+    lines = [line.strip() for line in state.stdout.getvalue().splitlines() if "Generated completions" in line]
+    assert lines == [
+        "✓ Generated completions for alpha",
+        "✓ Generated completions for beta",
+        "✓ Generated completions for gamma",
+    ]
+
+
 def test_report_lines_wrap_without_splitting_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(reporting.shutil, "get_terminal_size", lambda **_kwargs: os.terminal_size((40, 24)))
     path = "/home/user/projects/very-long-repository-name-with-hyphens"

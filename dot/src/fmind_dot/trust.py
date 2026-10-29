@@ -14,6 +14,7 @@ from fmind_dot.command_group import JsonOption
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.private_files import write_atomic_file
+from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
 from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State, state_from
@@ -29,6 +30,7 @@ _GITHUB_ORIGIN = re.compile(
     re.IGNORECASE,
 )
 _ORIGIN_TIMEOUT_SECONDS = 10
+_ORIGIN_CONCURRENCY = 8
 
 
 # A harness edit applies every folder to the file text: it returns the new text and the folders it changed.
@@ -249,9 +251,16 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
         # and every path below them in Copilot; each repository needs its own entry.
         roots = [expand_path(directory).resolve() for directory in state.config.pull.directories]
         trusted = {root for root in roots if root.is_dir()}
+        candidates = [repository for repository in find_git_repositories(state) if repository not in trusted]
+        allowed = run_parallel(
+            state.runner,
+            lambda repository: _allowed_origin(state, repository),
+            candidates,
+            _ORIGIN_CONCURRENCY,
+        )
         skipped = []
-        for repository in find_git_repositories(state):
-            if repository in trusted or _allowed_origin(state, repository):
+        for repository, is_allowed in zip(candidates, allowed, strict=True):
+            if is_allowed:
                 trusted.add(repository)
             else:
                 skipped.append(repository)
