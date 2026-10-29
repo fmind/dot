@@ -1,4 +1,4 @@
-"""Compile and validate Google Docs native Markdown (.md) with @2x Mermaid and SVG figures."""
+"""Compile and validate Google Docs native Markdown (.md) with Mermaid and SVG figures."""
 
 from __future__ import annotations
 
@@ -664,7 +664,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--assets-dir",
         type=Path,
         default=None,
-        help="Directory to export editable sources (.src.md, .mmd, .svg) and @2x .png figures for Drive upload.",
+        help="Directory to export editable sources (.src.md, .mmd, .svg) and .png figures for Drive upload.",
     )
     parser.add_argument(
         "--drive-folder",
@@ -682,7 +682,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--doc-name",
         type=str,
         default=None,
-        help="Target filename in Google Drive (e.g. 'Nightly Batch Review.md'). Defaults to output filename.",
+        help="Target filename in Google Drive (e.g. 'Nightly Batch Review.md'). Defaults to existing Drive name with --file-id, else output filename.",
     )
     parser.add_argument(
         "--doc-slug",

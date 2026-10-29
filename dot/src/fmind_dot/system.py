@@ -221,7 +221,11 @@ def _inspect_secret(label: str, *, fix: bool) -> CheckResult:
     try:
         info = path.stat()
     except FileNotFoundError:
-        return CheckResult(label, "warn", "MISSING")
+        return (
+            CheckResult(label, "fail", "unable to inspect file")
+            if path.is_symlink()
+            else CheckResult(label, "warn", "MISSING")
+        )
     except OSError:
         return CheckResult(label, "fail", "unable to inspect file")
     if not stat.S_ISREG(info.st_mode):
@@ -255,7 +259,7 @@ def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
         results.append(result)
         if (
             secret.path == _SIGNING_PRIVATE_KEY
-            and result.details != "MISSING"
+            and expand_path(_SIGNING_PRIVATE_KEY).is_file()
             and not expand_path(_SIGNING_PUBLIC_KEY).is_file()
         ):
             results.append(CheckResult(_SIGNING_PUBLIC_KEY, "warn", "MISSING"))

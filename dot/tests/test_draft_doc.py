@@ -1,4 +1,4 @@
-"""Exercise the Google Docs native Markdown (.md) and @2x figure compiler."""
+"""Exercise the Google Docs native Markdown (.md) and figure compiler."""
 
 from __future__ import annotations
 
