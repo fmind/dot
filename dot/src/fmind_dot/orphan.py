@@ -13,6 +13,7 @@ import typer
 
 from fmind_dot.command_group import JsonOption
 from fmind_dot.errors import DotError
+from fmind_dot.process import run_parallel
 from fmind_dot.reporting import display_path, write_json
 from fmind_dot.state import State, require_tools, state_from
 
@@ -81,8 +82,18 @@ def _status(path: Path, kind: str, recorded: object) -> str | None:
 def find_orphans(state: State) -> list[Orphan]:
     """List existing targets in chezmoi's entry state that the source no longer manages."""
     require_tools(state, [["chezmoi"]])
-    entries = _entry_state(state)
-    managed = _managed(state)
+    entries: dict[str, Any] = {}
+    managed: set[str] = set()
+
+    def load_entries() -> None:
+        nonlocal entries
+        entries = _entry_state(state)
+
+    def load_managed() -> None:
+        nonlocal managed
+        managed = _managed(state)
+
+    run_parallel(state.runner, lambda task: task(), (load_entries, load_managed), 2)
     orphans = []
     for raw, entry in sorted(entries.items()):
         kind = entry.get("type") if isinstance(entry, dict) else None

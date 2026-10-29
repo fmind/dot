@@ -11,7 +11,7 @@ from typing import IO, Any, get_args
 import pytest
 from typer.testing import CliRunner, Result
 
-from fmind_dot import auth
+from fmind_dot import auth, workstation
 from fmind_dot.cli import app
 from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, CacheProvider, Config, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -154,6 +154,7 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
     monkeypatch.setattr(Runner, "interactive", fake.interactive)
     # One worker keeps concurrent readiness probes in the order the recorded responses follow.
     monkeypatch.setattr(auth, "PROBE_WORKERS", 1)
+    monkeypatch.setattr(workstation, "CACHE_WORKERS", 1)
     return fake
 
 
@@ -891,6 +892,25 @@ def test_cache_json_parses_native_reports_without_stderr(provider: RecordingRunn
     }
     assert "SECRET-DIAGNOSTIC" not in result.output
     assert not provider.actions
+
+
+@pytest.mark.usefixtures("provider")
+def test_cache_json_probes_providers_concurrently(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(workstation, "CACHE_WORKERS", 3)
+    barrier = threading.Barrier(3, timeout=5)
+    answers = {
+        "docker": CommandResult('{"Type":"Images","Size":"1GB"}\n', "", 0),
+        "hf": CommandResult("[]", "", 0),
+        "uv": CommandResult("1024\n", "", 0),
+    }
+
+    def run(args: Sequence[str], **_: Any) -> CommandResult:
+        barrier.wait()
+        return answers[args[0]]
+
+    monkeypatch.setattr(Runner, "run", lambda _self, args, **options: run(args, **options))
+    result = cli(["cache", "--json"])
+    assert [entry["name"] for entry in json.loads(result.stdout)["providers"]] == ["docker", "hf", "uv"]
 
 
 def test_cache_json_reports_a_failed_provider_and_exits_nonzero(provider: RecordingRunner) -> None:

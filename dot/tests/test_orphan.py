@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -159,3 +160,15 @@ def test_orphan_text_collapses_targets_inside_an_orphaned_directory(tmp_path: Pa
     assert len(lines) == 3
     assert lines[0].endswith("1.0 (+3 orphaned inside, 1 changed)")
     assert lines[1].endswith("1.0-rc")
+
+
+def test_orphan_queries_chezmoi_state_and_managed_concurrently() -> None:
+    barrier = threading.Barrier(2, timeout=5)
+
+    class ConcurrentChezmoi(ChezmoiRunner):
+        def run(self, args: Sequence[str], **kwargs: object) -> CommandResult:
+            barrier.wait()
+            return super().run(args, **kwargs)
+
+    state, _ = _state(ConcurrentChezmoi({}, []))
+    assert run_orphan(state) == []

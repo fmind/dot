@@ -151,6 +151,17 @@ def run_completion(state: State, *, check_only: bool = False) -> None:
     typer.echo(success, file=state.stdout)
 
 
+def _complete_tool(state: State, directory: Path, tool: str) -> tuple[str, str | None]:
+    try:
+        content = _generate_completion(state, tool)
+        _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
+        return f"  ✓ Generated completions for {tool}", None
+    except FileNotFoundError:
+        return f"  ○ {tool} is not installed or active, skipping", None
+    except (DotError, OSError) as error:
+        return f"  ✗ Failed to generate completions for {tool}", f"{tool}: {error}"
+
+
 def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
     try:
         directory.mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -168,16 +179,15 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         f"=> Generating Fish autocompletions for {len(COMPLETION_SOURCES)} tools in {directory}...\n",
         file=state.stdout,
     )
-    for tool in sorted(COMPLETION_SOURCES):
-        try:
-            content = _generate_completion(state, tool)
-            _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
-            typer.echo(f"  ✓ Generated completions for {tool}", file=state.stdout)
-        except FileNotFoundError:
-            typer.echo(f"  ○ {tool} is not installed or active, skipping", file=state.stdout)
-        except (DotError, OSError) as error:
-            failures.append(f"{tool}: {error}")
-            typer.echo(f"  ✗ Failed to generate completions for {tool}", file=state.stdout)
+    for line, failure in run_parallel(
+        state.runner,
+        lambda tool: _complete_tool(state, directory, tool),
+        sorted(COMPLETION_SOURCES),
+        _PROBE_CONCURRENCY,
+    ):
+        typer.echo(line, file=state.stdout)
+        if failure is not None:
+            failures.append(failure)
     try:
         cache.mkdir(mode=0o700, parents=True, exist_ok=True)
     except OSError:

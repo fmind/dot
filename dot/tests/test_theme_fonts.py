@@ -3,6 +3,7 @@
 import hashlib
 import re
 import subprocess
+import threading
 import tomllib
 from pathlib import Path
 
@@ -69,6 +70,32 @@ def test_theme_pin_rewrites_revision_and_checksums() -> None:
     assert hashlib.sha256(b"theme").hexdigest() in pinned
     with pytest.raises(ValueError, match="pinned revision"):
         theme_pin.pin(template.replace("a" * 40, "main"), "b" * 40, download)
+
+
+def test_theme_prefetch_downloads_distinct_urls_concurrently(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(theme_pin, "COPIED", {"dot_config/starship.toml": ("themes/starship/fmind.toml", ())})
+    template = '{{ $base := "https://raw.githubusercontent.com/fmind/theme/' + "a" * 40 + '" }}\n'
+    for path in ("themes/fish/fmind.fish", "themes/starship/fmind.toml"):
+        template += (
+            f'["{path}"]\n    type = "file"\n    url = "{{{{ $base }}}}/{path}"\n    checksum.sha256 = "{"0" * 64}"\n'
+        )
+    barrier = threading.Barrier(2, timeout=5)
+    calls: list[str] = []
+
+    def download(url: str) -> bytes:
+        calls.append(url)
+        if len(calls) <= 2:
+            barrier.wait()
+        return url.encode()
+
+    cached = theme_pin.prefetch("b" * 40, template, download)
+    raw = "https://raw.githubusercontent.com/fmind/theme/" + "b" * 40
+    assert len(calls) == 2
+    assert cached(f"{raw}/themes/starship/fmind.toml") == f"{raw}/themes/starship/fmind.toml".encode()
+    assert len(calls) == 2
+    assert cached(f"{raw}/other") == f"{raw}/other".encode()
+    assert len(calls) == 3
+    assert theme_pin.prefetch("b" * 40, "no entries", download) is download
 
 
 def test_copied_theme_registry_covers_every_upstream_copy() -> None:
