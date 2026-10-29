@@ -638,6 +638,42 @@ def test_verify_reports_secret_edge_cases(tmp_path: Path) -> None:
     assert secrets[str(loop)]["details"] == "unable to inspect file"
 
 
+def test_doctor_checks_optional_private_fish_and_signing_public_key(tmp_path: Path) -> None:
+    config = Config()
+    config.doctor.tools = []
+    key = tmp_path / ".config/chezmoi/key.txt"
+    key.parent.mkdir(parents=True)
+    key.write_text("age-secret", encoding="utf-8")
+    key.chmod(0o600)
+    signing = tmp_path / ".ssh/id_ed25519_signing"
+    signing.parent.mkdir(parents=True)
+    signing.write_text("private-signing-key", encoding="utf-8")
+    signing.chmod(0o600)
+    private_fish = tmp_path / ".private.fish"
+    private_fish.write_text("set -gx SECRET 1\n", encoding="utf-8")
+    private_fish.chmod(0o644)
+
+    initial = doctor_sections(system.run_doctor(make_state(ScriptedRunner(), config), fix=False))
+    by_name = {item["name"]: item for item in initial["secrets"]}
+    assert by_name["~/.config/chezmoi/key.txt"]["status"] == "pass"
+    assert by_name["~/.ssh/id_ed25519_signing"]["status"] == "pass"
+    assert by_name["~/.ssh/id_ed25519_signing.pub"] == {
+        "name": "~/.ssh/id_ed25519_signing.pub",
+        "status": "warn",
+        "details": "MISSING",
+    }
+    assert by_name["~/.private.fish"]["status"] == "fail"
+    assert initial["passed"] is False
+
+    (tmp_path / ".ssh/id_ed25519_signing.pub").write_text("ssh-ed25519 AAAA git-signing@test\n", encoding="utf-8")
+    repaired = doctor_sections(system.run_doctor(make_state(ScriptedRunner(), config), fix=True))
+    repaired_by_name = {item["name"]: item for item in repaired["secrets"]}
+    assert "~/.ssh/id_ed25519_signing.pub" not in repaired_by_name
+    assert repaired_by_name["~/.private.fish"]["status"] == "pass"
+    assert stat.S_IMODE(private_fish.stat().st_mode) == 0o600
+    assert repaired["passed"] is True
+
+
 def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     secret = tmp_path / "key"
     secret.write_text("encrypted", encoding="utf-8")

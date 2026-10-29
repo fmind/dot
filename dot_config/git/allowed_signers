@@ -1,3 +1,4 @@
 # Docs: https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS
 # One public signing key per machine (README: Commit signing); git verifies local signatures against it.
 *@fmind.dev namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILuNby8wMUEfeSRP8ssdn1s3GyTw0xFNGir52uVjok+x git-signing@penguin
+*@fmind.dev namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGKxYrbIfe7wi1MV9KC7p5bf/COKMXCPnu2yE5YweopZ git-signing@macbook

@@ -43,6 +43,9 @@ _MEMORY_FAIL_GIB = 1
 _COMPLETION_TIMEOUT_SECONDS = 60.0
 _PROBE_CONCURRENCY = 8
 _SECRET_PERMISSIONS = 0o600
+_OPTIONAL_SECRETS = ("~/.private.fish",)
+_SIGNING_PRIVATE_KEY = "~/.ssh/id_ed25519_signing"
+_SIGNING_PUBLIC_KEY = "~/.ssh/id_ed25519_signing.pub"
 _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "agy": ("--help",),
     "gitleaks": ("version",),
@@ -203,46 +206,54 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
     return failures
 
 
+def _inspect_secret(label: str, *, fix: bool) -> CheckResult:
+    path = expand_path(label)
+    try:
+        info = path.stat()
+    except FileNotFoundError:
+        return CheckResult(label, "warn", "MISSING")
+    except OSError:
+        return CheckResult(label, "fail", "unable to inspect file")
+    if not stat.S_ISREG(info.st_mode):
+        return CheckResult(label, "fail", "not a regular file")
+    current = stat.S_IMODE(info.st_mode)
+    allowed = _SECRET_PERMISSIONS
+    if current & ~allowed == 0:
+        return CheckResult(label, "pass", f"secure (permissions: {current:04o})")
+    if fix:
+        try:
+            path.chmod(allowed)
+        except OSError:
+            return CheckResult(
+                label,
+                "fail",
+                f"INSECURE permissions: {current:04o} (repair failed; expected {allowed:04o})",
+            )
+        return CheckResult(label, "pass", f"repaired (permissions: {allowed:04o})")
+    return CheckResult(
+        label,
+        "fail",
+        f"INSECURE permissions: {current:04o} (expected {allowed:04o})",
+    )
+
+
 def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
     results: list[CheckResult] = []
+    configured = {secret.path for secret in state.config.doctor.secrets}
     for secret in state.config.doctor.secrets:
-        path = expand_path(secret.path)
-        try:
-            info = path.stat()
-        except FileNotFoundError:
-            results.append(CheckResult(secret.path, "warn", "MISSING"))
-            continue
-        except OSError:
-            results.append(CheckResult(secret.path, "fail", "unable to inspect file"))
-            continue
-        if not stat.S_ISREG(info.st_mode):
-            results.append(CheckResult(secret.path, "fail", "not a regular file"))
-            continue
-        current = stat.S_IMODE(info.st_mode)
-        allowed = _SECRET_PERMISSIONS
-        if current & ~allowed == 0:
-            results.append(CheckResult(secret.path, "pass", f"secure (permissions: {current:04o})"))
-        elif fix:
-            try:
-                path.chmod(allowed)
-            except OSError:
-                results.append(
-                    CheckResult(
-                        secret.path,
-                        "fail",
-                        f"INSECURE permissions: {current:04o} (repair failed; expected {allowed:04o})",
-                    )
-                )
-            else:
-                results.append(CheckResult(secret.path, "pass", f"repaired (permissions: {allowed:04o})"))
-        else:
-            results.append(
-                CheckResult(
-                    secret.path,
-                    "fail",
-                    f"INSECURE permissions: {current:04o} (expected {allowed:04o})",
-                )
-            )
+        result = _inspect_secret(secret.path, fix=fix)
+        results.append(result)
+        if (
+            secret.path == _SIGNING_PRIVATE_KEY
+            and result.details != "MISSING"
+            and not expand_path(_SIGNING_PUBLIC_KEY).is_file()
+        ):
+            results.append(CheckResult(_SIGNING_PUBLIC_KEY, "warn", "MISSING"))
+    results.extend(
+        _inspect_secret(optional, fix=fix)
+        for optional in _OPTIONAL_SECRETS
+        if optional not in configured and os.path.lexists(expand_path(optional))
+    )
     return results
 
 
