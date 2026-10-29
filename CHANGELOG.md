@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.0.0] - 2026-10-29
+
+### 🚀 Features
+
+- _(trust)_ [**breaking**] Replace agy_projects_exclude with agy_projects allowlist
+
+### 🐛 Bug Fixes
+
+- _(doctor)_ Fail on dangling secret symlinks and sync skill docs
+
 ## [14.5.0] - 2026-10-29
 
 ### 🚀 Features
