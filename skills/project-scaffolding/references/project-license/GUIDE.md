@@ -12,7 +12,7 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 1. **Detect the namespace**: use `gh repo view --json nameWithOwner` for an existing GitHub repository; otherwise inspect project metadata and the agreed destination. Do not print raw Git remotes, which can contain embedded credentials.
 1. **Read the existing license first**: `ls LICENSE*` and `gh repo view --json nameWithOwner,isPrivate,licenseInfo`; an existing license stays unless the user asked to replace it.
 1. **Select the license**:
-   - Public code under `fmind`, `fmind-ai`, or `mlops-courses`: MIT, from [MIT](templates/MIT).
+   - Public code under `fmind` or `mlops-courses`: MIT, from [MIT](templates/MIT).
    - Written course material (lessons, exercises, prose): CC-BY-4.0 as `LICENSE.txt`, fetched verbatim with `curl -fsSL https://creativecommons.org/licenses/by/4.0/legalcode.txt -o LICENSE.txt`; `mlops-courses/mlops-coding-course` is the reference example.
    - Every private repository and every other namespace: proprietary, from [PROPRIETARY](templates/PROPRIETARY); never an open-source license.
 1. **Write the file** at the repository root:
