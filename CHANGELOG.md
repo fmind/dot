@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [14.5.0] - 2026-10-29
+
+### 🚀 Features
+
+- _(doctor)_ Check signing key and optional private.fish permissions
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Slug agy project IDs and expand default exclusions
+
+### ⚡ Performance
+
+- _(dot)_ Parallelize completion, cache, orphan, trust, and theme I/O
+
+### 📚 Documentation
+
+- _(agents)_ Add concurrent and async I/O guidance
+
+### 🧹 Miscellaneous
+
+- _(theme)_ Advance the fmind/theme pin to v4.0.0
+- _(deps)_ Upgrade mise tools to latest
+- _(deps)_ Upgrade neovim plugins to latest
+
 ## [14.4.2] - 2026-10-28
 
 ### 📚 Documentation
