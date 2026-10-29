@@ -1,6 +1,6 @@
 ---
 name: bf
-description: "Search, read, and update Brain Framework brains (bf): project notes, decisions, actions, and collected mail, calendar, Git, chat, and agent-session records."
+description: "Search, read, and update Brain Framework brains (bf): projects, decisions, actions, mail, calendar, Git, chat, and session records."
 license: MIT
 compatibility: "Requires Brain Framework 19 (the bf command) on Linux or macOS."
 metadata:
@@ -9,7 +9,7 @@ metadata:
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-10-24"
+  updated: "2026-10-29"
 ---
 
 # Use Brain Framework

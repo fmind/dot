@@ -1,13 +1,13 @@
 ---
 name: google-developer
-description: "Find official Google developer docs and vendor skills (google/skills): Cloud, Ads, Analytics."
+description: "Find Google developer docs and vendor skills (google/skills): Cloud, Ads, Analytics."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Google Developer Catalog

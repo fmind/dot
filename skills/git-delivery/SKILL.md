@@ -1,13 +1,13 @@
 ---
 name: git-delivery
-description: "Commit, push, and release with Conventional Commits; branches, worktrees, merge or rebase conflicts, hook failures."
+description: "Commit, push, and release with Conventional Commits; branches, worktrees, conflicts, and hook fixes."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Git Delivery

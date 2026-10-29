@@ -1,13 +1,13 @@
 ---
 name: diagrams-as-code
-description: "Create and check Mermaid, SVG, and D2 diagrams and README illustrations."
+description: "Create and check Mermaid, SVG, and D2 diagrams and illustrations."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diagrams-as-code
   created: "2026-09-16"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Diagrams as Code

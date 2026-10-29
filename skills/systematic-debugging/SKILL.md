@@ -1,13 +1,13 @@
 ---
 name: systematic-debugging
-description: "Debug failures to root cause and benchmark fixes: DNS/TLS, Pyinstrument, Memray, hyperfine, oha, Locust."
+description: "Debug to root cause and benchmark: DNS/TLS, Pyinstrument, Memray, hyperfine, oha, Locust."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-28"
+  updated: "2026-10-29"
 ---
 
 # Systematic Debugging

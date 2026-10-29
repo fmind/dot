@@ -1,13 +1,13 @@
 ---
 name: project-scaffolding
-description: "Create repos and licenses; author Copier, Cookiecutter, or Cruft templates and apply their updates."
+description: "Create repos and licenses; author and update Copier, Cookiecutter, or Cruft templates."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-scaffolding
   created: "2026-09-02"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Project Scaffolding

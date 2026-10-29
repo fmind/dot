@@ -1,13 +1,13 @@
 ---
 name: code-security
-description: "Review code security, threat-model designs, and vet third-party skills; scan secrets and vulnerabilities with Gitleaks and Trivy."
+description: "Review code security, threat-model designs, vet third-party skills, and scan with Gitleaks and Trivy."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Code Security

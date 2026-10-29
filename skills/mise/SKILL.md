@@ -1,13 +1,13 @@
 ---
 name: mise
-description: "Manage mise tool pins, lockfiles, environments, and tasks shared by hooks and CI."
+description: "Manage mise tool pins, lockfiles, environments, and tasks for hooks and CI."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-10-27"
+  updated: "2026-10-29"
 ---
 
 # Mise

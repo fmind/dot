@@ -1,13 +1,13 @@
 ---
 name: task-prompts
-description: "Write grounded task, delegation, and handoff prompts for coding agents; resume or compact agy sessions."
+description: "Write task, delegation, and handoff prompts for agents; resume or compact agy sessions."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Task and Continuation Prompts

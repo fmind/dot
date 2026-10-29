@@ -27,6 +27,7 @@ Test-only maintenance follows [pytest mechanics](references/pytest.md) directly 
 - **Preserve code written before tests**: Never delete or overwrite user work because it preceded the test; preserve it, add a red-capable test, and disclose the sequence.
 - **Disclose when test-first does not fit**: For a spike, generated code, or configuration-only change, say why and define another failing validation signal; do not call tests written afterward TDD.
 - **Prefer real collaborators over mocks**: Prefer real parsers, databases, filesystems, and HTTP handlers at lightweight boundaries over mocks of the unit under test; fake only paid, destructive, slow, or unreliable systems behind a narrow owned interface.
+- **Keep routine suites sub-minute**: unit and subsystem tests avoid real sleeps, live network calls, and repeated heavy subprocess startup so `pre-push` and `mise run all` stay fast.
 
 ## References
 

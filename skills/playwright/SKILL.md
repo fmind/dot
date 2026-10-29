@@ -1,13 +1,13 @@
 ---
 name: playwright
-description: "Automate browsers and E2E tests with Python Playwright: screenshots, traces."
+description: "Automate browsers and E2E tests with Playwright: screenshots and traces."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Playwright

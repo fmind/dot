@@ -1,13 +1,13 @@
 ---
 name: full-review
-description: "Full review or routine upkeep: read every repo area, fix tools, dead code, stale config, and ignore files, and prove all checks pass."
+description: "Full repo review or routine upkeep: fix tools, dead code, stale config, and ignore files."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Full Review

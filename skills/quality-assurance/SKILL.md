@@ -1,13 +1,13 @@
 ---
 name: quality-assurance
-description: "Plan and run QA test campaigns over user journeys, failure modes, and release risks."
+description: "Plan and run QA campaigns over user journeys, failures, and release risks."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/quality-assurance
   created: "2026-08-08"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Quality Assurance
