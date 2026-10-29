@@ -204,7 +204,12 @@ class DoctorConfig(StrictModel):
         ]
     )
     # Each secret must exist with owner-only permissions (0600 or stricter).
-    secrets: list[SecretConfig] = Field(default_factory=lambda: [SecretConfig(path="~/.config/chezmoi/key.txt")])
+    secrets: list[SecretConfig] = Field(
+        default_factory=lambda: [
+            SecretConfig(path="~/.config/chezmoi/key.txt"),
+            SecretConfig(path="~/.ssh/id_ed25519_signing"),
+        ]
+    )
 
 
 # Policy values are data; native command arguments and safety boundaries stay in code.

@@ -17,19 +17,23 @@ from fmind_dot.config import PullConfig
 from tests.chezmoi_helpers import chezmoi
 
 ROOT = Path(__file__).resolve().parents[2]
+_REAL_HOME = os.environ.get("HOME")
 
 
 def _native_binary(name: str) -> str | None:
     executable = shutil.which(name)
     if executable and Path(executable).resolve().name == "mise":
-        # Resolve a shim before changing HOME so fixtures never install tools or consult native state.
-        executable = subprocess.run(
+        # Resolve a shim against the workstation HOME before isolated_home replaces it.
+        env = os.environ | ({"HOME": _REAL_HOME} if _REAL_HOME else {})
+        result = subprocess.run(
             [str(Path(executable).resolve()), "which", name],
+            env=env,
             capture_output=True,
             text=True,
             timeout=30,
-            check=True,
-        ).stdout.strip()
+            check=False,
+        )
+        return result.stdout.strip() or None if result.returncode == 0 else None
     return executable
 
 
