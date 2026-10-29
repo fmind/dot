@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.0.1] - 2026-10-29
+
+### 🐛 Bug Fixes
+
+- _(prune)_ Drop broken and temporary mise tracked-config links
+
+### ♻️ Refactor
+
+- _(config)_ Drop retired fmind-ai workspace and owner defaults
+- _(config)_ Drop retired mlops-courses workspace and owner defaults
+
+### 📚 Documentation
+
+- _(agents)_ Require fast CI and trim startup context budget
+
 ## [15.0.0] - 2026-10-29
 
 ### 🚀 Features
