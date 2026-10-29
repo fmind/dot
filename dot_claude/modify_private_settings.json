@@ -98,7 +98,7 @@
 {{- /* Add the managed roots (.agents, chezmoi, and pull.directories from ~/.config/dot.yaml)
        without replacing directories the host added. */ -}}
 {{- /* Same default as PullConfig in dot/src/fmind_dot/config.py; test_harness_config keeps them equal. */ -}}
-{{- $pullDirectories := list "~/fmind" "~/mlops-courses" -}}
+{{- $pullDirectories := list "~/fmind" -}}
 {{- $dotConfigPath := joinPath .chezmoi.homeDir ".config/dot.yaml" -}}
 {{- if stat $dotConfigPath -}}
 {{-   $dotConfig := include $dotConfigPath | fromYaml -}}

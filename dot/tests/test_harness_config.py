@@ -127,7 +127,6 @@ class HarnessConfigTests(unittest.TestCase):
         }
         for directory, expected in (
             ("fmind/project", "ada@personal.example"),
-            ("mlops-courses/course", "ada@personal.example"),
             ("source", "ada@personal.example"),
             ("work/project", "ada@work.example"),
         ):
