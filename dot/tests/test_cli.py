@@ -294,7 +294,7 @@ def test_config_show_prints_the_effective_round_trippable_yaml(tmp_path: Path) -
     assert result.exit_code == 0
     rendered = yaml.safe_load(result.stdout)
     assert rendered["trust"]["github_owners"] == ["example"]
-    assert rendered["pull"]["directories"] == ["~/fmind", "~/fmind-ai", "~/mlops-courses"]
+    assert rendered["pull"]["directories"] == ["~/fmind", "~/mlops-courses"]
     assert "git" in rendered["doctor"]["tools"]
 
 

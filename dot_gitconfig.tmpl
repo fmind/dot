@@ -178,7 +178,7 @@
 # Git resolves symlinks in a "~/" pattern (macOS /var, linked homes) but not in an absolute one.
 {{- $source := printf "%s/" .chezmoi.sourceDir }}
 {{- if hasPrefix (printf "%s/" .chezmoi.homeDir) $source }}{{ $source = printf "~/%s" (trimPrefix (printf "%s/" .chezmoi.homeDir) $source) }}{{ end }}
-{{- range list $source "~/fmind/" "~/fmind-ai/" "~/mlops-courses/" }}
+{{- range list $source "~/fmind/" "~/mlops-courses/" }}
 [includeIf {{ printf "gitdir:%s" . | quote }}]
     path = {{ joinPath $.chezmoi.homeDir ".config/git/personal.gitconfig" | quote }}
 {{- end }}

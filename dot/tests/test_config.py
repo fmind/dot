@@ -32,7 +32,7 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "cache",
         "prune",
     }
-    assert config.trust.github_owners == ["fmind", "fmind-ai", "mlops-courses"]
+    assert config.trust.github_owners == ["fmind", "mlops-courses"]
     assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
 
 
