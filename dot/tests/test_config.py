@@ -33,23 +33,13 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "prune",
     }
     assert config.trust.github_owners == ["fmind", "fmind-ai", "mlops-courses"]
-    assert config.trust.agy_projects_exclude == [
-        "~/fmind/agent-*",
-        "~/fmind/bug",
-        "~/fmind/cli",
-        "~/fmind/fgraph",
-        "~/fmind/kag",
-        "~/fmind/mcp-context-benchmark",
-        "~/fmind/theme",
-        "~/fmind-ai/news",
-        "~/mlops-courses/*",
-    ]
+    assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
 
 
 @pytest.mark.parametrize("pattern", ["fmind/agent-*", "", "~", "~/ x", "./repo"])
-def test_agy_project_exclusions_must_name_absolute_or_home_paths(tmp_path: Path, pattern: str) -> None:
+def test_agy_projects_must_name_absolute_or_home_paths(tmp_path: Path, pattern: str) -> None:
     path = tmp_path / "dot.yaml"
-    path.write_text(f"trust:\n  agy_projects_exclude: ['{pattern}']\n", encoding="utf-8")
+    path.write_text(f"trust:\n  agy_projects: ['{pattern}']\n", encoding="utf-8")
 
     with pytest.raises(ValidationError):
         load_config(path)
