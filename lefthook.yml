@@ -26,6 +26,7 @@ pre-commit:
     - name: check
       run: mise run check:local
 pre-push:
+  parallel: true
   jobs:
     # Vulnerability databases need the network; CI runs the same tasks through `check`.
     - name: scan vulnerabilities
