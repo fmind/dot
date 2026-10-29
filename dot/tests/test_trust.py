@@ -369,16 +369,15 @@ def git_repository(path: Path, origin: str) -> Path:
     return path
 
 
-def test_trust_adds_repositories_to_agy_projects_except_excluded(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_trust_adds_selected_repositories_to_agy_projects(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path.resolve()
     monkeypatch.setenv("HOME", str(home))
     harness_home(home)
     registry = agy_registry(home)
     workspace = home / "work"
     one = git_repository(workspace / "one", "https://github.com/fmind/one")
-    excluded = git_repository(workspace / "agent-docs", "https://github.com/fmind/agent-docs")
+    unlisted = git_repository(workspace / "agent-docs", "https://github.com/fmind/agent-docs")
+    chezmoi = git_repository(home / ".local/share/chezmoi", "https://github.com/fmind/dot")
     git_repository(workspace / "foreign", "https://github.com/someone-else/foreign")
     # An entry agy wrote with a percent-encoded URI already lists this checkout.
     listed = git_repository(workspace / "listed copy", "https://github.com/fmind/listed")
@@ -388,58 +387,60 @@ def test_trust_adds_repositories_to_agy_projects_except_excluded(
     (workspace / "notes").mkdir()
     state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
     state.__dict__["_config"] = Config(
-        pull=PullConfig(directories=[str(workspace)]), trust=TrustConfig(agy_projects_exclude=["~/work/agent-*"])
+        pull=PullConfig(directories=[str(workspace)]),
+        trust=TrustConfig(agy_projects=["~/work/one", "~/work/listed copy", "~/.local/share/chezmoi"]),
     )
     before = sorted(registry.iterdir())
 
-    run_trust(state, ["all"], dry_run=True, as_json=True)
+    run_trust(state, ["all", str(chezmoi)], dry_run=True, as_json=True)
 
     assert isinstance(state.stdout, io.StringIO)
-    assert json.loads(state.stdout.getvalue())["agy_projects"] == [str(one)]
+    assert json.loads(state.stdout.getvalue())["agy_projects"] == [str(chezmoi), str(one)]
     assert sorted(registry.iterdir()) == before
 
     state.stdout = io.StringIO()
-    run_trust(state, ["all"])
+    run_trust(state, ["all", str(chezmoi)])
 
     assert f"+ {one}: added to agy Remote Control projects\n" in state.stdout.getvalue()
-    added = set(registry.iterdir()) - set(before)
-    assert len(added) == 1
-    entry = added.pop()
-    assert entry.name == "local-work-one.json"
-    project = json.loads(entry.read_text())
-    assert project == {
+    assert f"+ {chezmoi}: added to agy Remote Control projects\n" in state.stdout.getvalue()
+    added = sorted(set(registry.iterdir()) - set(before))
+    assert [entry.name for entry in added] == ["local-fmind-dot.json", "local-work-one.json"]
+    assert json.loads(added[0].read_text()) == {
+        "id": "local-fmind-dot",
+        "name": "fmind/dot",
+        "projectResources": {"resources": [{"folderUri": chezmoi.as_uri()}]},
+    }
+    assert json.loads(added[1].read_text()) == {
         "id": "local-work-one",
         "name": "work/one",
         "projectResources": {"resources": [{"folderUri": one.as_uri()}]},
     }
-    assert entry.stat().st_mode & 0o777 == 0o600
-    # Excluded repositories stay trusted; exclusion only keeps them out of the picker.
+    assert all(entry.stat().st_mode & 0o777 == 0o600 for entry in added)
+    # Unlisted repositories stay trusted; trust.agy_projects only selects the Remote Control picker.
     assert (
-        str(excluded) in json.loads((home / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"]
+        str(unlisted) in json.loads((home / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"]
     )
 
-    for targets in (["all"], [str(excluded)]):
+    for targets in (["all", str(chezmoi)], [str(unlisted)]):
         state.stdout = io.StringIO()
         run_trust(state, targets, as_json=True)
         assert json.loads(state.stdout.getvalue())["agy_projects"] == []
-    assert len(list(registry.iterdir())) == len(before) + 1
+    assert len(list(registry.iterdir())) == len(before) + 2
 
 
-def test_agy_project_exclusions_match_through_a_symlinked_home(tmp_path: Path) -> None:
+def test_agy_projects_match_through_a_symlinked_home(tmp_path: Path) -> None:
     real_home = tmp_path / "real-home"
     real_home.mkdir()
     linked_home = tmp_path / "home"
     linked_home.symlink_to(real_home)
     registry = agy_registry(real_home)
-    excluded = git_repository(real_home / "work/agent-docs", "https://github.com/fmind/agent-docs")
+    unlisted = git_repository(real_home / "work/agent-docs", "https://github.com/fmind/agent-docs")
     kept = git_repository(real_home / "work/one", "https://github.com/fmind/one")
 
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setenv("HOME", str(linked_home))
-        added = register_agy_projects([excluded.resolve(), kept.resolve()], ["~/work/agent-*"], home=linked_home)
+    added = register_agy_projects([unlisted.resolve(), kept.resolve()], ["~/work/one"], home=linked_home)
 
     assert added == [kept.resolve()]
-    assert len(list(registry.iterdir())) == 2  # agy's default project plus the kept repository
+    assert len(list(registry.iterdir())) == 2  # agy's default project plus the selected repository
 
 
 def test_agy_projects_wait_for_agy_to_create_its_registry(tmp_path: Path) -> None:

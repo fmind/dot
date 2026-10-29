@@ -169,9 +169,9 @@ def _agy_project_folders(path: Path, text: str) -> set[str]:
 
 
 def register_agy_projects(
-    folders: list[Path], exclude: Sequence[str], *, dry_run: bool = False, home: Path | None = None
+    folders: list[Path], include: Sequence[str], *, dry_run: bool = False, home: Path | None = None
 ) -> list[Path]:
-    """Add trusted repositories to agy's Remote Control project picker; return the ones added.
+    """Add selected trusted repositories to agy's Remote Control project picker; return the ones added.
 
     Like trust, this only adds: entries agy or the owner created, even for removed checkouts, stay.
     """
@@ -184,15 +184,23 @@ def register_agy_projects(
     for path in sorted(registry.glob("*.json")):
         listed |= _agy_project_folders(path, path.read_text(encoding="utf-8"))
     # Folders arrive resolved, so patterns resolve too: a symlinked home would otherwise never match.
-    patterns = [expand_path(pattern).resolve() for pattern in exclude]
+    patterns = [
+        (home / pattern.removeprefix("~/") if pattern.startswith("~/") else expand_path(pattern)).resolve()
+        for pattern in include
+    ]
+    chezmoi = (home / ".local" / "share" / "chezmoi").resolve()
     added = []
     for folder in folders:
-        # Workspaces and plain folders are trusted too, but only repositories are projects.
+        # Workspaces and plain folders are trusted too, but only selected repositories become projects.
         if not (folder / ".git").exists() or str(folder) in listed:
             continue
-        if any(folder.full_match(pattern) for pattern in patterns):
+        if not any(folder.full_match(pattern) for pattern in patterns):
             continue
-        name = str(folder.relative_to(home)) if folder.is_relative_to(home) else str(folder)
+        name = (
+            "fmind/dot"
+            if folder == chezmoi
+            else (str(folder.relative_to(home)) if folder.is_relative_to(home) else str(folder))
+        )
         # agy lists projects in filename order; a slugged ID keeps local repositories alphabetical.
         slug = re.sub(r"[^a-z0-9-.:]+", "-", name.casefold()).strip("-.:")
         project_id = (
@@ -285,8 +293,8 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
     skipped = sorted(excluded - selected)
     harnesses = installed_harnesses()
     # Projects go first: a malformed agy project file then stops the run before any trust write.
-    exclude = state.config.trust.agy_projects_exclude
-    projects = register_agy_projects(folders, exclude, dry_run=dry_run) if "agy" in harnesses else []
+    include = state.config.trust.agy_projects
+    projects = register_agy_projects(folders, include, dry_run=dry_run) if "agy" in harnesses else []
     changes = trust_folders(folders, dry_run=dry_run) if harnesses else {}
     if as_json:
         document = {

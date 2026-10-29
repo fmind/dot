@@ -1,6 +1,6 @@
 #!/bin/sh
 # Pre-accept coding-harness folder trust for the configured workspaces, their
-# repositories, and this source directory, and add those repositories to agy's
+# repositories, and this source directory, and add selected repositories to agy's
 # Remote Control projects; `dot trust` only adds missing entries.
 set -eu
 dot={{ joinPath .chezmoi.homeDir ".local/bin/dot" | shellQuote }}

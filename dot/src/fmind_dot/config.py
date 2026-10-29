@@ -104,21 +104,9 @@ class TrustConfig(StrictModel):
     # `dot trust all` trusts a workspace repository only when its origin is a
     # github.com repository of one of these owners (compared case-insensitively).
     github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind", "fmind-ai", "mlops-courses"])
-    # Trusted repositories that `dot trust` keeps out of agy's Remote Control project picker
-    # (owner choices: agent experiments, fgraph, idle/retired repos, and mlops-courses).
-    agy_projects_exclude: list[PathPattern] = Field(
-        default_factory=lambda: [
-            "~/fmind/agent-*",
-            "~/fmind/bug",
-            "~/fmind/cli",
-            "~/fmind/fgraph",
-            "~/fmind/kag",
-            "~/fmind/mcp-context-benchmark",
-            "~/fmind/theme",
-            "~/fmind-ai/news",
-            "~/mlops-courses/*",
-        ]
-    )
+    # Trusted repositories that `dot trust` adds to agy's Remote Control project picker;
+    # other repositories are curated per machine in `~/.gemini/config/projects/`.
+    agy_projects: list[PathPattern] = Field(default_factory=lambda: ["~/.local/share/chezmoi"])
 
 
 TokenPrice = Annotated[float, Field(ge=0, allow_inf_nan=False)]
