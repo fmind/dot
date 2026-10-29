@@ -105,12 +105,18 @@ class TrustConfig(StrictModel):
     # github.com repository of one of these owners (compared case-insensitively).
     github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind", "fmind-ai", "mlops-courses"])
     # Trusted repositories that `dot trust` keeps out of agy's Remote Control project picker
-    # (owner choices: agent experiments, fgraph, and a checkout idle for 30 days on 2026-10-25).
+    # (owner choices: agent experiments, fgraph, idle/retired repos, and mlops-courses).
     agy_projects_exclude: list[PathPattern] = Field(
         default_factory=lambda: [
             "~/fmind/agent-*",
+            "~/fmind/bug",
+            "~/fmind/cli",
             "~/fmind/fgraph",
+            "~/fmind/kag",
             "~/fmind/mcp-context-benchmark",
+            "~/fmind/theme",
+            "~/fmind-ai/news",
+            "~/mlops-courses/*",
         ]
     )
 

@@ -190,13 +190,16 @@ def register_agy_projects(
             continue
         if any(folder.full_match(pattern) for pattern in patterns):
             continue
-        # agy derives local project IDs from the folder path the same way.
-        project_id = "local-" + hashlib.sha256(str(folder).encode("utf-8")).hexdigest()[:24]
+        name = str(folder.relative_to(home)) if folder.is_relative_to(home) else str(folder)
+        # agy lists projects in filename order; a slugged ID keeps local repositories alphabetical.
+        slug = re.sub(r"[^a-z0-9-.:]+", "-", name.casefold()).strip("-.:")
+        project_id = (
+            f"local-{slug}" if slug else "local-" + hashlib.sha256(str(folder).encode("utf-8")).hexdigest()[:24]
+        )
         target = registry / f"{project_id}.json"
         if target.exists():
             continue
         if not dry_run:
-            name = str(folder.relative_to(home)) if folder.is_relative_to(home) else str(folder)
             project = {
                 "id": project_id,
                 "name": name,
