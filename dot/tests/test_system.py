@@ -617,16 +617,19 @@ def test_verify_reports_secret_edge_cases(tmp_path: Path) -> None:
     insecure = tmp_path / "insecure"
     strict = tmp_path / "strict"
     loop = tmp_path / "loop"
+    dangling = tmp_path / "dangling"
     insecure.write_text("encrypted", encoding="utf-8")
     insecure.chmod(0o644)
     strict.write_text("encrypted", encoding="utf-8")
     strict.chmod(0o400)
     loop.symlink_to(loop)
+    dangling.symlink_to(tmp_path / "nonexistent")
     config.doctor.secrets = [
         SecretConfig(path=str(missing)),
         SecretConfig(path=str(insecure)),
         SecretConfig(path=str(strict)),
         SecretConfig(path=str(loop)),
+        SecretConfig(path=str(dangling)),
     ]
 
     results = doctor_sections(system.run_doctor(make_state(ScriptedRunner(), config), fix=False, deep=True))
@@ -636,6 +639,11 @@ def test_verify_reports_secret_edge_cases(tmp_path: Path) -> None:
     assert secrets[str(insecure)]["status"] == "fail"
     assert secrets[str(strict)]["status"] == "pass"
     assert secrets[str(loop)]["details"] == "unable to inspect file"
+    assert secrets[str(dangling)] == {
+        "name": str(dangling),
+        "status": "fail",
+        "details": "unable to inspect file",
+    }
 
 
 def test_doctor_checks_optional_private_fish_and_signing_public_key(tmp_path: Path) -> None:
