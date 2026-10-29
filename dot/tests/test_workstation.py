@@ -144,11 +144,14 @@ def provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> RecordingRunner
         "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE",
         "CLOUDSDK_AUTH_ACCESS_TOKEN",
         "DOT_CONFIG_PATH",
+        "MISE_STATE_DIR",
+        "XDG_STATE_HOME",
         # A caller's own uv lock timeout would replace the one prune sets.
         "UV_LOCK_TIMEOUT",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", str(tmp_path / "gws"))
+    monkeypatch.setenv("MISE_STATE_DIR", str(tmp_path / "mise-state"))
     monkeypatch.setattr(Runner, "which", fake.which)
     monkeypatch.setattr(Runner, "run", fake.run)
     monkeypatch.setattr(Runner, "interactive", fake.interactive)
@@ -1189,6 +1192,51 @@ def test_hf_cache_creates_the_native_cache_location(
     cli(["cache", "hf"])
     assert (tmp_path / target).is_dir()
     assert provider.actions == [["hf", "cache", "ls"]]
+
+
+@pytest.mark.parametrize("use_xdg_state", [False, True])
+def test_mise_prune_drops_broken_and_temporary_tracked_configs(
+    provider: RecordingRunner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    use_xdg_state: bool,
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    if use_xdg_state:
+        monkeypatch.delenv("MISE_STATE_DIR", raising=False)
+        monkeypatch.setenv("XDG_STATE_HOME", str(home / ".local/state"))
+        tracked = home / ".local/state/mise/tracked-configs"
+    else:
+        state_dir = home / "custom-mise-state"
+        monkeypatch.setenv("MISE_STATE_DIR", str(state_dir))
+        tracked = state_dir / "tracked-configs"
+    tracked.mkdir(parents=True)
+
+    kept_config = home / "fmind/repo/mise.toml"
+    kept_config.parent.mkdir(parents=True)
+    kept_config.write_text("[tools]\n", encoding="utf-8")
+    scratch_config = tmp_path / "claude-scratch/work/fgraph/mise.toml"
+    scratch_config.parent.mkdir(parents=True)
+    scratch_config.write_text("[tools]\ngo = '1.27.3'\n", encoding="utf-8")
+
+    (tracked / "kept").symlink_to(kept_config)
+    (tracked / "scratch").symlink_to(scratch_config)
+    (tracked / "broken").symlink_to(home / "fmind/deleted/mise.toml")
+    (tracked / "loop").symlink_to(tracked / "loop")
+    (tracked / "note.txt").write_text("keep", encoding="utf-8")
+
+    cli(["prune", "mise", "--dry-run"])
+    assert (tracked / "scratch").is_symlink()
+    assert (tracked / "broken").is_symlink()
+
+    cli(["prune", "mise"])
+    assert provider.actions == [["mise", "cache", "clear"]]
+    assert (tracked / "kept").is_symlink()
+    assert (tracked / "note.txt").is_file()
+    assert not (tracked / "scratch").is_symlink()
+    assert not (tracked / "broken").is_symlink()
+    assert not (tracked / "loop").is_symlink()
 
 
 def workspace_client_status(**kwargs: Any) -> CommandResult:

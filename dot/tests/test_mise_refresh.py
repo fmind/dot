@@ -81,6 +81,7 @@ def test_refresh_uses_portable_source_and_isolated_config(
         configuration = Path(env["MISE_CONFIG_DIR"])
         assert configuration == cwd / ".config/mise"
         assert env["MISE_GLOBAL_CONFIG_FILE"] == str(configuration / "config.toml")
+        assert env["MISE_STATE_DIR"] == str(cwd / "state-mise")
         # Locked mode would refuse a newly declared tool; only this writer lifts it.
         assert env["MISE_LOCKED"] == "0"
         assert (configuration / "config.toml").read_text() == CONFIG

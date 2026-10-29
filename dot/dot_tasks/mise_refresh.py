@@ -68,6 +68,7 @@ def refresh(root: Path, *, bump: bool = False) -> None:
         environment.update(
             MISE_CONFIG_DIR=str(configuration),
             MISE_GLOBAL_CONFIG_FILE=str(configuration / "config.toml"),
+            MISE_STATE_DIR=str(workspace / "state-mise"),
             MISE_SYSTEM_CONFIG_DIR=str(workspace / "system-mise"),
             MISE_SYSTEM_CONFIG_FILE=str(workspace / "system-mise/config.toml"),
             MISE_TRUSTED_CONFIG_PATHS=str(workspace),
