@@ -35,8 +35,14 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
     assert config.trust.github_owners == ["fmind", "fmind-ai", "mlops-courses"]
     assert config.trust.agy_projects_exclude == [
         "~/fmind/agent-*",
+        "~/fmind/bug",
+        "~/fmind/cli",
         "~/fmind/fgraph",
+        "~/fmind/kag",
         "~/fmind/mcp-context-benchmark",
+        "~/fmind/theme",
+        "~/fmind-ai/news",
+        "~/mlops-courses/*",
     ]
 
 

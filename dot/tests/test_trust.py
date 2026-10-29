@@ -403,9 +403,10 @@ def test_trust_adds_repositories_to_agy_projects_except_excluded(
     added = set(registry.iterdir()) - set(before)
     assert len(added) == 1
     entry = added.pop()
+    assert entry.name == "local-work-one.json"
     project = json.loads(entry.read_text())
     assert project == {
-        "id": entry.stem,
+        "id": "local-work-one",
         "name": "work/one",
         "projectResources": {"resources": [{"folderUri": one.as_uri()}]},
     }
