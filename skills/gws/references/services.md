@@ -38,9 +38,9 @@ For `values.update`, put `spreadsheetId`, `range` and `valueInputOption` in para
 
 ## Gmail
 
-Use `gws gmail +read --id MESSAGE_ID --headers --format json` for decoded bodies; `--html` selects HTML. It handles multipart/base64 and HTML-only messages. Inspect `+send`, `+reply`, `+reply-all` and `+forward --help` before use; prefer these to hand-built MIME. A reply's `threadId` alone does not establish correct threading; the helper handles reply headers. Check the resolved recipient list, particularly reply-all and forwarding.
+Use `gws gmail +read --id MESSAGE_ID --headers --format json` for decoded bodies; `--html` selects HTML. It handles multipart/base64 and HTML-only messages. For creating or updating drafts and replies, use [draft-mail](../../draft-mail/SKILL.md) (`scripts/draft_email.py`), which constructs RFC 5322 `multipart/alternative` (`text/plain` + `text/html` `<div dir="ltr">`), dynamically injects the user's `sendAs` HTML signature (`<div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">`), and preserves `threadId`, `Subject`, `In-Reply-To`, `References`, and collapsible `<div class="gmail_quote gmail_quote_container">` history via `users.drafts.create` / `users.drafts.update`.
 
-`+send --body "$(cat body.txt)"` uses plain text; `--html` explicitly selects HTML and `--attach` accepts files. `--draft` creates a remote draft, while `--dry-run` only previews the request. For raw API work, construct RFC 5322 MIME with Python's `email` package, encode the full bytes with URL-safe base64, and set `raw`; JSON text is not MIME and Gmail is not a Markdown renderer. Check attachment/body identifiers separately when reading raw multipart messages.
+The CLI's `+send`, `+reply`, `+reply-all`, and `+forward` helpers emit single-part `text/plain` or `text/html` bodies without `sendAs` signatures. Check attachment/body identifiers separately when reading raw multipart messages; JSON text is not MIME and Gmail is not a Markdown renderer.
 
 ## Calendar and Slides
 
