@@ -3,19 +3,19 @@ revision = 5
 requires-python = ">=3.10"
 
 [options]
-exclude-newer = "2026-10-27T19:38:31.598287574Z"
+exclude-newer = "2026-10-28T09:03:33.208778Z"
 
 [[package]]
 name = "cli-helpers"
-version = "2.15.2"
+version = "2.15.3"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "configobj" },
     { name = "tabulate", extra = ["widechars"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/e0/70b2e992f089bd34c79d7154eadb45aa9d798e48e8c8bfe4f64895da8616/cli_helpers-2.15.2.tar.gz", hash = "sha256:730ddf07bff25b566c64453e543496364e88cbab2a0554e0bee0de98feedc68f", size = 42204, upload-time = "2026-10-16T16:15:49.686Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/9c/b52e0c1d6d15b16a98d5ddbeda318943f2c3638a9566f740aab251f1c3ad/cli_helpers-2.15.3.tar.gz", hash = "sha256:fde47d1495e49897acd3e084d93600dba5885a79073b89ead14c40d28c610c19", size = 42639, upload-time = "2026-10-28T08:29:15.441Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/19/4fd3adb5cc7f5879e96837b6dd2a55848269774ce42a7747a873d168a163/cli_helpers-2.15.2-py3-none-any.whl", hash = "sha256:327aeda1f98295189702c2be11f980dde6bb4477d2b973473c74aaf6751597ed", size = 21578, upload-time = "2026-10-16T16:15:48.765Z" },
+    { url = "https://files.pythonhosted.org/packages/87/ee/1930544ce426a493f00ae9c0f00684ec4d58b2acc5d33f8929eacf733492/cli_helpers-2.15.3-py3-none-any.whl", hash = "sha256:1229eda553e378afe4b75ec3078b80489cb652d59e1437eb59fb0018b8121c7e", size = 21582, upload-time = "2026-10-28T08:29:14.443Z" },
 ]
 
 [package.optional-dependencies]
