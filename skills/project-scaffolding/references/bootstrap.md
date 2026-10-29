@@ -9,7 +9,7 @@ Bootstrap a repository by composing the selected foundation and application owne
 
 ## Workflow
 
-1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to private visibility; public resources require explicit user instruction. Default to `~/fmind` for personal `fmind` repositories and `~/mlops-courses` for `mlops-courses`; ask only for consequential details not established by the task.
+1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to private visibility; public resources require explicit user instruction. Default to `~/fmind` for personal `fmind` repositories; ask only for consequential details not established by the task.
 1. **Choose template ownership**: a one-off repository needs no new template. Reusable templates default to [Copier](copier.md); existing Cookiecutter/Cruft projects stay on [their workflow](cookiecutter/GUIDE.md) unless migration is requested.
 1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and project `AGENTS.md` where supplied:
    - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md) owns the minimal package and quality defaults.

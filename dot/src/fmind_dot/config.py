@@ -91,7 +91,7 @@ WorkspacePath = Annotated[str, Field(pattern=r"^(?:~|~/.+|/.*)$")]
 
 class PullConfig(StrictModel):
     # dot_claude/modify_private_settings.json repeats this default; test_harness_config keeps them equal.
-    directories: list[WorkspacePath] = Field(default_factory=lambda: ["~/fmind", "~/mlops-courses"])
+    directories: list[WorkspacePath] = Field(default_factory=lambda: ["~/fmind"])
 
 
 # GitHub account and organization names: alphanumeric runs joined by single hyphens.
@@ -103,7 +103,7 @@ PathPattern = Annotated[str, Field(pattern=r"^(?:~/|/)\S")]
 class TrustConfig(StrictModel):
     # `dot trust all` trusts a workspace repository only when its origin is a
     # github.com repository of one of these owners (compared case-insensitively).
-    github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind", "mlops-courses"])
+    github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind"])
     # Trusted repositories that `dot trust` adds to agy's Remote Control project picker;
     # other repositories are curated per machine in `~/.gemini/config/projects/`.
     agy_projects: list[PathPattern] = Field(default_factory=lambda: ["~/.local/share/chezmoi"])

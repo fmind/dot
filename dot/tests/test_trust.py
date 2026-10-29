@@ -110,7 +110,7 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
     workspace = tmp_path / "work"
     origins = {
         "one": "https://github.com/fmind/one.git",
-        "two": "git@github.com:MLOps-Courses/two.git",
+        "two": "git@github.com:Fmind/two.git",
         "foreign": "https://github.com/someone-else/foreign",
         "lookalike": "https://github.com.evil.example/fmind/lookalike",
         "local": "",
