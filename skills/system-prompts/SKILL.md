@@ -1,13 +1,13 @@
 ---
 name: system-prompts
-description: "Design AI app system prompts: instructions, context, tools, and output contracts."
+description: "Design AI app system prompts: instructions, context, tools, output contracts."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/system-prompts
   created: "2026-08-08"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # System Prompts

@@ -1,13 +1,13 @@
 ---
 name: cli-development
-description: "Design and build Python CLIs with Typer: commands, output contracts, and tests."
+description: "Build Python CLIs with Typer: commands, output contracts, and tests."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cli-development
   created: "2026-09-16"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # CLI Development

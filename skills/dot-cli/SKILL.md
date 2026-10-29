@@ -1,6 +1,6 @@
 ---
 name: dot-cli
-description: "Run dot: doctor, login/setup, status/pull, trust, secret run, cache/prune, disk space, orphans, context budgets, archives."
+description: "Run dot: doctor, login, setup, status, pull, trust, secret, cache, prune, disk space, orphans, context, archives."
 license: MIT
 metadata:
   kind: connector

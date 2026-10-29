@@ -1,13 +1,13 @@
 ---
 name: agent-evaluation
-description: "Evaluate prompt, model, retrieval, and agent changes with repeated graded trials."
+description: "Evaluate prompt, model, retrieval, and agent changes with graded trials."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Agent Evaluation

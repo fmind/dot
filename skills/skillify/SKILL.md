@@ -1,13 +1,13 @@
 ---
 name: skillify
-description: "Capture proven workflows as skills or guides, or move AGENTS.md procedures to their owning skill."
+description: "Capture workflows as skills or guides, or move AGENTS.md procedures to skills."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Skillify

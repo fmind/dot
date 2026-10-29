@@ -1,13 +1,13 @@
 ---
 name: fmind-visuals
-description: "Create Typst decks, VHS terminal demos, and logo or cover variants in Fmind or client branding."
+description: "Create Typst decks, VHS demos, and logo or cover variants in Fmind/client branding."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Fmind Visual Communication

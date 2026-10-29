@@ -1,13 +1,13 @@
 ---
 name: documentation-site
-description: "Build Zensical docs and course sites: navigation, API docs, Pages, MkDocs/Hugo migration."
+description: "Build Zensical docs sites: navigation, API docs, Pages, MkDocs/Hugo migration."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-29"
 ---
 
 # Documentation Sites

@@ -1,13 +1,13 @@
 ---
 name: stakeholder-writing
-description: "Write reports, proposals, status updates, and executive summaries for busy readers, in HTML or Markdown."
+description: "Write reports, proposals, status updates, and executive summaries in HTML/Markdown."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/stakeholder-writing
   created: "2026-10-25"
-  updated: "2026-10-27"
+  updated: "2026-10-29"
 ---
 
 # Stakeholder Writing

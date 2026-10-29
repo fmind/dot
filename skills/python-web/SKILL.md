@@ -1,13 +1,13 @@
 ---
 name: python-web
-description: "Build Python web apps and APIs with Django, Litestar, FastAPI, Gradio, or NiceGUI."
+description: "Build Python web apps/APIs with Django, Litestar, FastAPI, Gradio, or NiceGUI."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-web
   created: "2026-09-16"
-  updated: "2026-10-28"
+  updated: "2026-10-29"
 ---
 
 # Python Web Applications

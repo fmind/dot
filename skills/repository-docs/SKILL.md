@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-docs
   created: "2026-09-07"
-  updated: "2026-10-25"
+  updated: "2026-10-29"
 ---
 
 # Repository Documentation
@@ -29,7 +29,7 @@ Keep human and agent documentation aligned with the implementation, with one can
 - **Report each status claim separately**: setup, tests, hosted CI, deployment, and publication are separate claims.
 - **Documentation work authorizes relevant reversible edits**: committing, publishing, or contacting others follows the current task authority.
 - **Preserve conventions; exclude secrets**: preserve repository conventions, public anchors, and the author's voice; never include secrets or transient session state.
-- **Default to portable Markdown**: where no convention exists, number every ordered item `1.` so reordering never needs renumbering, tag code fences with a language, keep each paragraph on one line, and use relative or `~`-relative paths in skills and `AGENTS.md`.
+- **Default to portable Markdown**: where no convention exists, number every ordered item `1.` so reordering never needs renumbering, tag code fences with a language, keep each paragraph on one line, use relative or `~`-relative paths in skills and `AGENTS.md`, and start comment-capable configs with their official docs URL below any schema directive.
 
 ## Documentation
 

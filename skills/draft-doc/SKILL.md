@@ -1,6 +1,6 @@
 ---
 name: draft-doc
-description: "Create and update Google Docs with gws: native Markdown with Mermaid/SVG figures, or styled .gdoc."
+description: "Create and update Google Docs with gws: Markdown with Mermaid/SVG figures or .gdoc."
 license: MIT
 metadata:
   kind: task

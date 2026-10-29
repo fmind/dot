@@ -1,6 +1,6 @@
 ---
 name: python-stack
-description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest tests, async, HTTPX API clients, structlog/OpenTelemetry, LangExtract; fix lint/types."
+description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest, async, HTTPX, structlog, OpenTelemetry, LangExtract."
 license: MIT
 metadata:
   kind: collection
