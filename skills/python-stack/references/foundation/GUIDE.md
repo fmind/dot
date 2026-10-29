@@ -35,7 +35,7 @@ Choose the smallest profile that fits the project; its owner supplies applicatio
 - **Data, ML, notebooks**: [polars](../../../python-mlops/references/polars.md) for dataframes; [python-mlops](../../../python-mlops/SKILL.md) for training, experiments, registry, model delivery, and monitoring; [duckdb](../../../duckdb/SKILL.md) for local queries and exports; [marimo](../../../python-mlops/references/marimo.md) for reactive notebooks. Retain project-selected workload dependencies, keep runtime dependencies separate from development tools, and consult installed source and official docs for dataframe, schema, and chart APIs.
 - **Single-file utility**: [python-script](../python-script/GUIDE.md) for PEP 723 metadata and execution.
 
-Default to synchronous code. Choose async only for I/O-bound concurrency — many simultaneous network calls, streaming responses, or long-lived connections — and keep CPU-bound work, blocking drivers, and scripts synchronous; [python-async](../python-async/GUIDE.md) owns task lifetime, cancellation, deadlines, and shutdown once async is chosen.
+Default to async I/O (`asyncio`) for I/O-bound agent, LLM, MCP, and web profiles — concurrent network or tool calls, streaming responses, and long-lived connections — and keep CPU-bound work, blocking drivers, and local CLIs or scripts synchronous (with bounded worker pools for subprocess or file fan-out); [python-async](../python-async/GUIDE.md) owns task lifetime, cancellation, deadlines, and shutdown.
 
 Cross-cutting owners:
 
