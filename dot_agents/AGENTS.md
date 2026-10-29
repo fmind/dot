@@ -58,6 +58,7 @@ Reports, documents, slides, emails, and PR or issue text that others read. Reade
 ## Engineering
 
 - **Default to Python and Zensical**: Python for new apps, agents, CLIs, and automation, uv with PEP 723 metadata for scripts with dependencies, and Zensical for documentation sites. Existing projects keep their stack.
+- **Run independent I/O concurrently**: AI agents and services are I/O-bound; use `asyncio` for concurrent network, LLM, and MCP calls, and bounded worker pools for subprocess or file fan-out in CLIs (`python-stack` skill).
 - **Prefer deletion and existing tools**: keep code, configuration, flags, checks, CI, and templates minimal. Consolidate before adding, abstract only existing repetition or real boundaries, and prefer a few high-impact changes over many small tweaks.
 - **Document configuration, enforce invariants in code**: document defaults, precedence, and validation. Prefer native formats, else YAML for people and JSON with a schema for programs. Comment-capable configs start with their official docs URL below any schema directive. Comment non-obvious decisions, and keep operations re-runnable.
 - **Update docs in the same change**: when behavior, commands, configuration, or layout change, update every affected README, AGENTS.md, skill, and doc.
