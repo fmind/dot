@@ -4,6 +4,7 @@ import json
 import os
 import select
 import shlex
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -90,6 +91,51 @@ def _ensure_hf_cache_dir() -> None:
     Path(os.path.expandvars(str(selected))).mkdir(parents=True, exist_ok=True)
 
 
+def _mise_tracked_configs_dir() -> Path:
+    if state_dir := os.environ.get("MISE_STATE_DIR"):
+        base = Path(os.path.expandvars(state_dir)).expanduser()
+    else:
+        xdg_state = Path(os.environ.get("XDG_STATE_HOME", "~/.local/state"))
+        base = Path(os.path.expandvars(str(xdg_state))).expanduser() / "mise"
+    return base / "tracked-configs"
+
+
+def _prune_mise_tracked_configs() -> None:
+    # Scratch checkouts (/tmp, /var/tmp) and deleted directories leave tracked-config symlinks
+    # that keep obsolete tool versions from appearing in `mise prune`.
+    tracked_dir = _mise_tracked_configs_dir()
+    if not tracked_dir.is_dir():
+        return
+    home = Path.home()
+    resolved_home = home.resolve()
+    temp_dir = Path(tempfile.gettempdir())
+    temp_roots = (
+        Path("/tmp"),  # noqa: S108
+        Path("/var/tmp"),  # noqa: S108
+        Path("/private/tmp"),
+        Path("/private/var/tmp"),
+        temp_dir,
+        temp_dir.resolve(),
+    )
+    for entry in tracked_dir.iterdir():
+        if not entry.is_symlink():
+            continue
+        try:
+            exists = entry.exists()
+            raw = entry.readlink()
+            resolved = entry.resolve()
+        except OSError:
+            exists = False
+        if not exists:
+            entry.unlink(missing_ok=True)
+            continue
+        target = raw if raw.is_absolute() else tracked_dir / raw
+        if target.is_relative_to(home) or resolved.is_relative_to(resolved_home):
+            continue
+        if any(path.is_relative_to(root) for path in (target, resolved) for root in temp_roots):
+            entry.unlink(missing_ok=True)
+
+
 def execute(
     state: State,
     args: list[str],
@@ -105,6 +151,8 @@ def execute(
     require_tools(state, [args])
     if args[:2] == ["hf", "cache"]:
         _ensure_hf_cache_dir()
+    if args[:2] == ["mise", "cache"]:
+        _prune_mise_tracked_configs()
     if args[:2] == ["uv", "cache"]:
         env = {"UV_LOCK_TIMEOUT": os.environ.get("UV_LOCK_TIMEOUT", _UV_LOCK_TIMEOUT_SECONDS)} | (env or {})
     code = state.runner.interactive(
