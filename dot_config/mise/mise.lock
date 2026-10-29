@@ -2495,10 +2495,10 @@ specifiers = ["latest"]
 uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:8dd1ce500b2aebb0a5f0998ba5a5fa24a89c0ba8380faa8ef77bf31a7623e123" }
 
 [[tools."pipx:fmind"]]
-version = "2.0.3"
+version = "2.0.4"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.3", digest = "sha256:c0bb49dbaac62fe32b76acde41d3edbfbac25c241463af94d49a17a5b3cae6c8" }
+uv = { path = "locks/pipx-fmind/2.0.4", digest = "sha256:3458c5b39f85db6ba87c16e6ad6f6c8a2f84412fc7cf4085efa708aeee78c8c5" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.5"

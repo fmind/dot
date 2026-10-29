@@ -3,7 +3,7 @@ revision = 5
 requires-python = ">=3.11"
 
 [options]
-exclude-newer = "2026-10-28T09:03:33.208778Z"
+exclude-newer = "2099-01-01T00:00:00Z"
 
 [[package]]
 name = "annotated-doc"
@@ -25,15 +25,15 @@ wheels = [
 
 [[package]]
 name = "fmind"
-version = "2.0.3"
+version = "2.0.4"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/2c/9d222667eff49fd64577055ab3bc0e54ab1da336ffb284c42ba54ccb2e62/fmind-2.0.3.tar.gz", hash = "sha256:783c8b3b149a2fed4b1495a1c65196ecd4b9ca88643920f6f8c68e0a6706e444", size = 16299, upload-time = "2026-10-06T04:57:28.41Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/1d/a0f26d31d4c0ba4ebba833f93dd46661a355921861d2d33775ff58fb4ec7/fmind-2.0.4.tar.gz", hash = "sha256:2ac46094e4397646a4f41c84324673307434330489d2c423d20bc826546af53a", size = 18061, upload-time = "2026-10-29T14:03:39.868Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/23/00/80f9aa8e71d75c8c0a0b21c9212cf863cf65319f26a3f5718126d3d56a66/fmind-2.0.3-py3-none-any.whl", hash = "sha256:4385b1ed80833078eae11855cf9b971137ffd23c6f16082725517625fd4f35ed", size = 18958, upload-time = "2026-10-06T04:57:27.056Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/c4/1c2d331a9f70f8d4b04eaef363c071c072557304386dd08819c6456957cf/fmind-2.0.4-py3-none-any.whl", hash = "sha256:5cbaf988ee4f1778d7f439c79d89f2ae0e9e4112ecd5f00538c0eb48a76e5cfd", size = 20338, upload-time = "2026-10-29T14:03:38.438Z" },
 ]
 
 [[package]]
@@ -66,7 +66,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "fmind", specifier = "==2.0.3" }]
+requires-dist = [{ name = "fmind", specifier = "==2.0.4" }]
 
 [[package]]
 name = "pygments"
