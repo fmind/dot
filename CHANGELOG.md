@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.1.0] - 2026-10-29
+
+### 🚀 Features
+
+- _(draft-mail)_ Enforce rich HTML multipart drafts with sendAs signature
+
 ## [15.0.1] - 2026-10-29
 
 ### 🐛 Bug Fixes
