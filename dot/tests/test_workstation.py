@@ -280,6 +280,7 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "analytics.manage.users.readonly",
         "chrome.management.policy.readonly",
         "chrome.management.reports.readonly",
+        "postmaster.readonly",
         # Read-only scopes the brain's gws collectors narrow their tokens to, and the audit-log reader.
         "admin.reports.audit.readonly",
         "calendar.readonly",
@@ -303,6 +304,7 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "businessprofileperformance",
         "chromemanagement",
         "chromepolicy",
+        "gmailpostmastertools",
         "mybusinessaccountmanagement",
         "mybusinessbusinessinformation",
         "pagespeedonline",
@@ -352,7 +354,7 @@ def test_workspace_one_off_grant_extends_the_login_and_names_the_restore(provide
 
 
 def test_workspace_defaults_leave_one_off_slots_under_the_consent_limit() -> None:
-    assert len(Config().auth.workspace.scopes) <= WORKSPACE_SCOPE_LIMIT - 3
+    assert len(Config().auth.workspace.scopes) <= WORKSPACE_SCOPE_LIMIT - 2
 
 
 def test_workspace_login_refuses_more_scopes_than_consent_accepts(provider: RecordingRunner) -> None:

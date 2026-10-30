@@ -271,7 +271,7 @@ class WorkspaceConfig(StrictModel):
     # Profile management scopes it narrows its explicit writes to; dropping one breaks those
     # consumers on the next login. Google's consent page hangs after Allow above 50 scopes (logins
     # of 45, 47 and 50 completed; 52 and more hung, bisected 2026-10-26), and one-off grants share
-    # that consent, so defaults stop at 47 to leave three one-off slots. They hold the everyday
+    # that consent, so defaults stop at 48 to leave two one-off slots. They hold the everyday
     # user-level writes and only the read-only scopes a consumer narrows its token to, since a write
     # scope already allows reads. Everything else is a one-off grant (`dot login workspace --grant
     # SCOPE`) that the dot-cli authentication guide lists
@@ -316,6 +316,7 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.settings.basic",
             "https://www.googleapis.com/auth/meetings.space.readonly",
+            "https://www.googleapis.com/auth/postmaster.readonly",
             "https://www.googleapis.com/auth/presentations",
             "https://www.googleapis.com/auth/script.projects",
             "https://www.googleapis.com/auth/spreadsheets",
@@ -345,6 +346,7 @@ class WorkspaceConfig(StrictModel):
             "driveactivity.googleapis.com",
             "forms.googleapis.com",
             "gmail.googleapis.com",
+            "gmailpostmastertools.googleapis.com",
             "meet.googleapis.com",
             "mybusinessaccountmanagement.googleapis.com",
             "mybusinessbusinessinformation.googleapis.com",
