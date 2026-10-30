@@ -70,7 +70,15 @@ def _prepare(state: State, root: Path, tag: str) -> None:
         timeout=_TOOL_TIMEOUT_SECONDS,
     )
     state.runner.run(
-        ["git-cliff", "--config", str(_RELEASE_CLIFF_CONFIG), "--bump", "-o", str(_RELEASE_CHANGELOG_FILE)],
+        [
+            "git-cliff",
+            "--config",
+            str(_RELEASE_CLIFF_CONFIG),
+            "--unreleased",
+            "--bump",
+            "--prepend",
+            str(_RELEASE_CHANGELOG_FILE),
+        ],
         cwd=root,
         timeout=_TOOL_TIMEOUT_SECONDS,
     )

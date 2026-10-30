@@ -523,7 +523,7 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
 
     if has_git:
         log_out = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
-            ["git", "-C", str(root), "log", "--all", "--format=%h%x09%ae%x09%ce"],  # noqa: S607
+            ["git", "-C", str(root), "log", "HEAD", "--format=%h%x09%ae%x09%ce"],  # noqa: S607
             check=True,
             capture_output=True,
             text=True,

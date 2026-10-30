@@ -108,6 +108,15 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
 
     assert read_release_version(project) == "1.27.0"
     assert 'version = "1.27.0"' in (project / "dot/uv.lock").read_text()
+    assert (
+        "git-cliff",
+        "--config",
+        "dot_config/git-cliff/cliff.toml",
+        "--unreleased",
+        "--bump",
+        "--prepend",
+        "CHANGELOG.md",
+    ) in runner.calls
     assert ("dprint", "fmt", "CHANGELOG.md") in runner.calls
     assert runner.interactive_calls == [
         ("mise", "run", "check:network"),
