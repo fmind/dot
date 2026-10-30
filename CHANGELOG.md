@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.3.0] - 2026-10-30
+
+### 🚀 Features
+
+- _(security)_ Enforce email domain and workstation token privacy contracts
+
+### 🐛 Bug Fixes
+
+- _(mise,skills)_ Store sonarqube-cli tokens in file and forbid security -w on third-party keychain items
+- _(release)_ Preserve changelog history and bound release notes after tag retirement
+
 ## [15.2.0] - 2026-10-30
 
 ### 🚀 Features
