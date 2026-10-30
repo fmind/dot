@@ -71,6 +71,8 @@ CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
 # cached builds, so the mise-locked version is the one that runs.
 COPILOT_AUTO_UPDATE = "false"
 HF_HUB_DISABLE_TELEMETRY = "1"
+# Keep sonarqube-cli off the macOS Keychain (whose partition ACL blocks background probes and prompts repeatedly).
+SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
 
