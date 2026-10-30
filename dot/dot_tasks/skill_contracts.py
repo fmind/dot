@@ -6,7 +6,9 @@ import argparse
 import functools
 import os
 import re
+import socket
 import stat
+import subprocess
 import sys
 import unicodedata
 from pathlib import Path
@@ -43,6 +45,58 @@ FRONTMATTER_FIELDS = {
 }
 RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
 MARKDOWN = MarkdownIt("commonmark")
+
+ALLOWED_EMAIL_DOMAINS = {
+    "fmind.dev",
+    "fmind.ai",
+    "github.com",
+    "users.noreply.github.com",
+    "example.iam.gserviceaccount.com",
+    "example.com",
+    "example.org",
+    "example.net",
+    "example.edu",
+}
+ALLOWED_EMAIL_SUFFIXES = (
+    ".fmind.dev",
+    ".fmind.ai",
+    ".example.com",
+    ".example.org",
+    ".example.net",
+    ".example.edu",
+    ".example",
+    ".test",
+    ".invalid",
+    ".localhost",
+)
+EMAIL_PATTERN = re.compile(
+    r"(?:(?<=\\n)|(?<=\\r)|(?<=\\t)|(?<![A-Za-z0-9._%+-\\]))"
+    r"([A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}))\b"
+)
+PRIVACY_SKIP_PATHS = {
+    "dot/uv.lock",
+    "dot_config/mise/mise.lock",
+    "dot_config/nvim/lazy-lock.json",
+    "mise.lock",
+}
+PRIVACY_SKIP_PREFIXES = ("dot_config/mise/locks/",)
+SAFE_HOST_TOKENS = {
+    "courses",
+    "debian",
+    "default",
+    "example",
+    "fmind",
+    "github",
+    "google",
+    "hurier",
+    "local",
+    "localhost",
+    "macbook",
+    "mederic",
+    "mlops-courses",
+    "penguin",
+    "ubuntu",
+}
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -344,6 +398,156 @@ def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
     return findings
 
 
+def _is_allowed_email_domain(domain: str) -> bool:
+    lowered = domain.lower().strip(".")
+    return lowered in ALLOWED_EMAIL_DOMAINS or lowered.endswith(ALLOWED_EMAIL_SUFFIXES)
+
+
+def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[str]:
+    """Extract non-public employer/workstation identifiers from untracked local config."""
+    tokens: set[str] = set()
+
+    def _add(candidate: str) -> None:
+        cleaned = candidate.strip().lower()
+        if (
+            len(cleaned) >= 4
+            and cleaned not in SAFE_HOST_TOKENS
+            and not cleaned.startswith(("fmind-", "fmind.", "fmind_"))
+        ):
+            tokens.add(cleaned)
+
+    dot_yaml = home / ".config/dot.yaml"
+    if dot_yaml.is_file():
+        try:
+            config = yaml.safe_load(dot_yaml.read_text(encoding="utf-8"))
+        except OSError, yaml.YAMLError:
+            config = None
+        if isinstance(config, dict):
+            auth = config.get("auth")
+            if isinstance(auth, dict):
+                for section in auth.values():
+                    if isinstance(section, dict) and isinstance(project := section.get("project"), str):
+                        _add(project)
+            pull = config.get("pull")
+            if isinstance(pull, dict) and isinstance(dirs := pull.get("directories"), list):
+                for entry in dirs:
+                    if isinstance(entry, str):
+                        _add(Path(entry.rstrip("/")).name)
+            trust = config.get("trust")
+            if isinstance(trust, dict) and isinstance(owners := trust.get("github_owners"), list):
+                for owner in owners:
+                    if isinstance(owner, str):
+                        _add(owner)
+
+    git_dir = home / ".config/git"
+    if git_dir.is_dir():
+        for path in sorted(git_dir.iterdir()):
+            if not path.is_file() or path.name in {"allowed_signers", "personal.gitconfig", "theme.gitconfig"}:
+                continue
+            if path.name.startswith("config.") and len(suffix := path.name.removeprefix("config.")) >= 4:
+                _add(suffix)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            for match in EMAIL_PATTERN.finditer(text):
+                full_email, domain = match.group(1), match.group(2)
+                if not _is_allowed_email_domain(domain):
+                    _add(full_email)
+                    _add(domain)
+                    for label in domain.split(".")[:-1]:
+                        _add(label)
+            for user_match in re.finditer(r"^\s*user\s*=\s*(.+?)\s*$", text, re.MULTILINE):
+                _add(user_match.group(1))
+
+    if include_hostname:
+        _add(socket.gethostname().split(".")[0])
+
+    return tokens
+
+
+def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
+    """Check tracked sources and git history for unapproved email domains and local host tokens."""
+    root = root.resolve()
+    resolved_home = (home if home is not None else Path.home()).resolve()
+    tokens = _workstation_tokens(resolved_home, include_hostname=(home is None and root == ROOT))
+    token_pattern = (
+        re.compile(
+            r"(?<![A-Za-z0-9])(?:"
+            + "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
+            + r")(?![A-Za-z0-9])",
+            re.IGNORECASE,
+        )
+        if tokens
+        else None
+    )
+
+    has_git = (root / ".git").exists()
+    if has_git:
+        listed = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+            ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", "-z"],  # noqa: S607
+            check=True,
+            capture_output=True,
+            timeout=30,
+        ).stdout
+        relatives = [item.decode("utf-8", errors="replace") for item in listed.split(b"\0") if item]
+    else:
+        relatives = [
+            path.relative_to(root).as_posix()
+            for path in sorted(root.rglob("*"))
+            if path.is_file() and not path.is_symlink()
+        ]
+
+    findings: list[str] = []
+    for relative in sorted(relatives):
+        if relative in PRIVACY_SKIP_PATHS or relative.startswith(PRIVACY_SKIP_PREFIXES) or relative.endswith(".age"):
+            continue
+        path = root / relative
+        if not path.is_file() or path.is_symlink():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError, UnicodeDecodeError:
+            continue
+        for match in EMAIL_PATTERN.finditer(text):
+            email, domain = match.group(1), match.group(2)
+            if not _is_allowed_email_domain(domain):
+                findings.append(
+                    f"{relative}: unapproved email domain {domain!r} in {email!r}; "
+                    "use fmind.dev, fmind.ai, or RFC 2606 domains (@example.com, @example.test)"
+                )
+        if token_pattern is not None and (hit := token_pattern.search(text)) is not None:
+            findings.append(
+                f"{relative}: contains local workstation identifier {hit.group(0)!r} from untracked host config"
+            )
+
+    if has_git:
+        log_out = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+            ["git", "-C", str(root), "log", "--all", "--format=%h%x09%ae%x09%ce"],  # noqa: S607
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+        for line in log_out.splitlines():
+            parts = line.split("\t")
+            if len(parts) != 3:
+                continue
+            sha, author_email, committer_email = parts
+            for role, email in (("author", author_email), ("committer", committer_email)):
+                domain = email.partition("@")[2]
+                if not domain or not _is_allowed_email_domain(domain):
+                    findings.append(
+                        f"git commit {sha}: unapproved {role} email {email!r}; use fmind.dev, fmind.ai, or github.com"
+                    )
+                elif token_pattern is not None and (hit := token_pattern.search(email)) is not None:
+                    findings.append(
+                        f"git commit {sha}: {role} email contains local workstation identifier {hit.group(0)!r}"
+                    )
+
+    return sorted(set(findings))
+
+
 def repository_findings(root: Path) -> list[str]:
     """Return every deterministic catalog, package, and budget finding."""
     root = root.resolve()
@@ -351,6 +555,7 @@ def repository_findings(root: Path) -> list[str]:
 
     for name, path in sorted(discovered.items()):
         findings.extend(_skill_findings(root, name, path))
+    findings.extend(privacy_findings(root))
     # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
     try:
         context = context_report(root, source=root)

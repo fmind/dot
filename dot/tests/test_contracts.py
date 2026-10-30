@@ -458,3 +458,73 @@ def test_age_sources_are_encrypted() -> None:
             if not stream.read(64).startswith(_AGE_HEADERS):
                 plaintext.append(path.relative_to(ROOT).as_posix())
     assert plaintext == [], "source .age files without an age header"
+
+
+@pytest.mark.real_home
+def test_repository_privacy_contracts() -> None:
+    assert checker.privacy_findings(ROOT) == []
+
+
+def test_privacy_findings_rejects_unapproved_emails_and_local_tokens(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    (home / ".config/git").mkdir(parents=True)
+    (home / ".config/dot.yaml").write_text(
+        "auth:\n  workspace:\n    project: acme-sec-9999\npull:\n  directories:\n    - ~/code/acme-internal/\ntrust:\n  github_owners:\n    - acme-corp\n",
+        encoding="utf-8",
+    )
+    bad_work_email = "@".join(("alice.partner", "acmecorp.net"))
+    bad_peer_email = "@".join(("bob", "corp-domain.io"))
+    (home / ".config/git/config.acmecorp").write_text(
+        f"[user]\n\temail = {bad_work_email}\n\tuser = alice-partner\n",
+        encoding="utf-8",
+    )
+
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, timeout=30)
+    clean_file = repo / "sample.py"
+    clean_file.write_text(
+        'SEND_AS = "github@fmind.dev"\n'
+        'TEAM = "team@fmind.ai"\n'
+        'PEER = "alice@example.com"\n'
+        'MSG = "<msg-1@mail.example.com>"\n'
+        'SA = "bot@example.iam.gserviceaccount.com"\n'
+        'NOREPLY = "123+fmind@users.noreply.github.com"\n',
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "-C", str(repo), "add", "sample.py"], check=True, timeout=30)
+    git_env = os.environ | {
+        "GIT_AUTHOR_NAME": "Fmind",
+        "GIT_AUTHOR_EMAIL": "github@fmind.dev",
+        "GIT_COMMITTER_NAME": "Fmind",
+        "GIT_COMMITTER_EMAIL": "github@fmind.dev",
+    }
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"],
+        env=git_env,
+        check=True,
+        timeout=30,
+    )
+    assert checker.privacy_findings(repo, home=home) == []
+
+    # 1. Unapproved email domain and workstation token in tracked file
+    clean_file.write_text(
+        f'BAD = "{bad_peer_email}"\nPROJECT = "acme-sec-9999"\n',
+        encoding="utf-8",
+    )
+    findings = checker.privacy_findings(repo, home=home)
+    assert any("unapproved email domain 'corp-domain.io'" in item for item in findings)
+    assert any("local workstation identifier 'acme-sec-9999'" in item for item in findings)
+
+    # 2. Unapproved commit author email in git history
+    clean_file.write_text('OK = "alice@example.com"\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "sample.py"], check=True, timeout=30)
+    bad_env = git_env | {"GIT_AUTHOR_EMAIL": bad_work_email}
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "commit.gpgsign=false", "commit", "-q", "-m", "leak author"],
+        env=bad_env,
+        check=True,
+        timeout=30,
+    )
+    commit_findings = checker.privacy_findings(repo, home=home)
+    assert any(f"unapproved author email {bad_work_email!r}" in item for item in commit_findings)
