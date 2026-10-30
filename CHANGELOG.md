@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.2.0] - 2026-10-30
+
+### 🚀 Features
+
+- _(auth)_ Add Workspace Postmaster Tools read-only scope and API
+
+### ⚡ Performance
+
+- _(hooks)_ Run pre-push vulnerability scan and tests in parallel
+
+### 🧹 Miscellaneous
+
+- _(tools)_ Bump pipx:fmind to 2.0.4
+- _(deps)_ Upgrade Python dependencies to latest
+- _(deps)_ Upgrade mise tools to latest
+- _(deps)_ Upgrade Neovim plugins to latest
+
 ## [15.1.0] - 2026-10-29
 
 ### 🚀 Features
