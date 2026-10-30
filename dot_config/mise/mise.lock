@@ -1387,32 +1387,34 @@ url = "https://github.com/astronomer/astro-cli/releases/download/v1.47.0/astro_1
 url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/678986897"
 
 [[tools.atuin]]
-version = "18.24.2"
+version = "18.24.3"
 backend = "aqua:atuinsh/atuin"
 specifiers = ["latest"]
 
 [tools.atuin."platforms.linux-x64"]
-checksum = "sha256:005a4953f2fe96d4506fee7d926de73ec8cf64c89b2a07acd39bfa4fd88c0449"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.2/atuin-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/665441954"
+checksum = "sha256:f26874cae03d6436a6f5997d9bcebef3b37237eedf9aedee12eed7421f90b847"
+checksum_source = "mise-versions"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.3/atuin-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/687132780"
 
 [tools.atuin."platforms.macos-arm64"]
-checksum = "sha256:ba155cb61385e424c972ba5cadab68add2c6ad0d4f842365fc958d7a5f5917d5"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.2/atuin-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/665441742"
+checksum = "sha256:dd266366b1b00c298d689b0613c1acbe82855f04eb47d3f3f96262b148d8ebb9"
+checksum_source = "mise-versions"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.3/atuin-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/687132647"
 
 [[tools.awscli]]
-version = "2.39.0"
+version = "2.39.1"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.awscli."platforms.linux-x64"]
-checksum = "sha256:6c89ce7ed7bc0a2520e2bc3eeedfea4e2eb2e7da2836860c9471871408404036"
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.39.0.zip"
+checksum = "sha256:5b6c10e0a8ccdcf30c84bd643fea511f103d257a4787a7cef878691d63169804"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.39.1.zip"
 
 [tools.awscli."platforms.macos-arm64"]
-checksum = "sha256:79808bae5c61422adc1fbd14182abacca4e6df11263753033fa69441d0745073"
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.39.0.pkg"
+checksum = "sha256:2a0e523fc3f58efe7d35914b3cf6a35adc5820002489b7a4a65e006b2f4073de"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.39.1.pkg"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -2442,14 +2444,14 @@ checksum = "sha256:aa9549349e47dffaa42dcf95d6e06ade8c4bdafc980979883b88767670df3
 url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-darwin-arm64.tar.gz"
 
 [[tools."npm:@opencode/cli"]]
-version = "2.2.0"
-aube = { path = "locks/npm-opencode-cli/2.2.0", digest = "sha256:feaa9c8f2e3bb04339622da82d2c1ee7b1caac8b806c2d039e6c18af7471ddb7" }
+version = "2.2.1"
+aube = { path = "locks/npm-opencode-cli/2.2.1", digest = "sha256:12e680d2985f65e80cbe830d185bfdc3bf6a32e122ad7f00dcd7431e9583085b" }
 backend = "npm:@opencode/cli"
 specifiers = ["latest"]
 
 [[tools."npm:cf"]]
-version = "1.0.0-beta.25"
-aube = { path = "locks/npm-cf/1.0.0-beta.25", digest = "sha256:d741f3f825b0048e9b8ccab08841d992b38843a983835f568770293ee340997c" }
+version = "1.0.0-beta.26"
+aube = { path = "locks/npm-cf/1.0.0-beta.26", digest = "sha256:6ad450b7ab05246aaca72d459d7f811bab88f60494f4835bb31cdf64c03eabc3" }
 backend = "npm:cf"
 specifiers = ["latest"]
 
@@ -2480,19 +2482,19 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:9a09bf1cf37918779eca619cbe8f8fc825315139201ac5441a909c0cc849719f" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:edebaff16827bad5724322dbb730477c90871d200d50559995b1d3223098c580" }
 
 [[tools."pipx:brain-framework"]]
 version = "19.0.1"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:392a118be807069659669ae3ebb7fc9884860bfb1408c147a38a7bcce8335fee" }
+uv = { path = "locks/pipx-brain-framework/19.0.1", digest = "sha256:8e805121d8227ca21682d51a8c58dd855b6fa88df7c4081e2de31b71a3ad2e21" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:8dd1ce500b2aebb0a5f0998ba5a5fa24a89c0ba8380faa8ef77bf31a7623e123" }
+uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:6461c93667b45bb8204277f0d162933160473226a8ea7ec3d8e79b5d335be4e2" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.4"
@@ -2504,25 +2506,25 @@ uv = { path = "locks/pipx-fmind/2.0.4", digest = "sha256:3458c5b39f85db6ba87c16e
 version = "0.7.5"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:0aab19f71d6821083b8c060eb793adbe32646f01169be603abeb732d0635444b" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:5b205b5b5ad7466dd7f18fbf5023944163777680063f1ad347342114f4420978" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.3.0"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:f48c1f4190ace221c2914675332219360b9a3f462169fc84d08d1dfa83921ec5" }
+uv = { path = "locks/pipx-huggingface-hub/2.3.0", digest = "sha256:3d562def058bd1ff468a5c03d8f5dd97a0843bcfa7f085ddd1beda92700bdd9f" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:be5e3bdd92f6e2cc6ccb26d9c6f633bdfba482ea5916b3100cc21e5deaea4bcd" }
+uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:0a17d875948a292cf85978f19455c64b91248da18603ecc91ddd4cef11446d1e" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:0d06375817bfc53254181a56e0ec0e150ba78063775091d6b4be22e7bee2bb92" }
+uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:9620cffbb446a3d316885a4ea002662af1604fdd947a213b0279656301ba46d4" }
 
 [tools."pipx:pgcli".options]
 with = '["psycopg[binary]"]'
@@ -2726,21 +2728,21 @@ url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.7
 url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/662254764"
 
 [[tools.ty]]
-version = "0.0.93"
+version = "0.0.94"
 backend = "aqua:astral-sh/ty"
 specifiers = ["latest"]
 
 [tools.ty."platforms.linux-x64"]
-checksum = "sha256:23fc3cd0528af7699b62b720ffb515857bb0a2379324808977d784f4e4571b04"
+checksum = "sha256:4213096cf7985ed5866428a7afe7dc96f5200bb1913b8b27464b03cf0831ede6"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.93/ty-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/683367397"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.94/ty-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/685881637"
 
 [tools.ty."platforms.macos-arm64"]
-checksum = "sha256:1bfef47e4e2d64e76a111cedde4fe2e6c0e48291dff6d3a9f4bf53af15550116"
+checksum = "sha256:2f74dec02c3a417f68c96bd7300ec2c0727c363daf3561e0eb7516e5c9f8d286"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.93/ty-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/683367191"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.94/ty-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/685880825"
 
 [[tools.typos]]
 version = "1.51.1"
