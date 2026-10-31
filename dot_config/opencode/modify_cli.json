@@ -1,0 +1,8 @@
+# chezmoi:modify-template
+{{- /* Docs: https://opencode.ai/v2/docs/migrate-v1/ (terminal client configuration)
+       OpenCode 2.x reads only the global cli.json, which the client also writes; it migrates
+       tui.json once, only while cli.json is absent. attention raises desktop notifications for
+       questions, permissions, completion, and errors; sounds stay off because native
+       child-session completion also plays them. */ -}}
+{{- $managedConfig := dict "$schema" "https://opencode.ai/v2/cli.json" "theme" (dict "name" "fmind") "attention" (dict "notifications" true "sound" false) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "format" "jsonc") -}}

@@ -283,11 +283,8 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["agent"] == original["agent"]
         assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "prune": True}
         assert data["formatter"] is True
-        assert data["lsp"] == {
-            "pyright": {"disabled": True},
-            "ty": {"command": ["ty", "server"], "extensions": [".py", ".pyi"]},
-        }
-        assert not {"instructions", "skills", "default_agent", "snapshot"} & data.keys()
+        # OpenCode 2.x runs no language servers, so the repository no longer manages lsp.
+        assert not {"instructions", "skills", "default_agent", "snapshot", "lsp"} & data.keys()
         assert data["experimental"] == original["experimental"]
         assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
         assert self.render(template, rendered) == rendered
@@ -303,15 +300,16 @@ class HarnessConfigTests(unittest.TestCase):
         assert "provider" not in data
         assert "synthetic-private-value" not in json.dumps(data)
 
-    def test_opencode_tui_merge_preserves_keyboard_preferences(self):
-        template = "dot_config/opencode/modify_tui.json"
-        original = {"keybinds": {"leader": "ctrl+a"}, "scroll_speed": 2}
+    def test_opencode_cli_merge_preserves_client_preferences(self):
+        template = "dot_config/opencode/modify_cli.json"
+        original = {"keybinds": {"leader": "ctrl+a"}, "theme": {"mode": "dark"}, "scroll": {"speed": 2}}
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
-        assert data["theme"] == "fmind"
-        assert data["attention"] == {"enabled": True, "notifications": True, "sound": False}
+        assert data["$schema"] == "https://opencode.ai/v2/cli.json"
+        assert data["theme"] == {"name": "fmind", "mode": "dark"}
+        assert data["attention"] == {"notifications": True, "sound": False}
         assert data["keybinds"] == original["keybinds"]
-        assert data["scroll_speed"] == 2
+        assert data["scroll"] == original["scroll"]
         assert self.render(template, rendered) == rendered
 
     def test_json_merge_preserves_mcp_and_unmanaged_hook_events(self):
@@ -477,7 +475,7 @@ class HarnessConfigTests(unittest.TestCase):
         templates = [
             "dot_copilot/modify_private_settings.json",
             "dot_config/opencode/modify_private_opencode.json",
-            "dot_config/opencode/modify_tui.json",
+            "dot_config/opencode/modify_cli.json",
         ]
         original = '{/* host preference */ "hostCounter":9007199254740993,"hostUrl":"https://example.com/a//b",}'
         for template in templates:
