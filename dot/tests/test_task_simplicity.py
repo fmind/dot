@@ -25,7 +25,8 @@ TIMEOUT_SECONDS = 120
 
 def materialize(root: Path, starter: str, prefix: str = "") -> dict[str, str]:
     config = tomllib.loads((ROOT / STARTERS.get(starter, starter)).read_text())
-    lines = ["[settings.task]", "run_auto_install = false"]
+    lines = ["[settings.task]", "run_auto_install = false", "[vars]"]
+    lines.extend(f"{key} = {json.dumps(value)}" for key, value in config.get("vars", {}).items())
     for name, task in config["tasks"].items():
         if not name.startswith(prefix):
             continue

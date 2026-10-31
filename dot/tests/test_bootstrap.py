@@ -262,10 +262,12 @@ def run_task_bootstrap(
     for name in ("mise", "chezmoi", "uv"):
         (bin_directory / name).symlink_to(tool)
     config = tomllib.loads((ROOT / "mise.toml").read_text())
-    # Keep task bodies and environment from the repository, but install no real
-    # tools; the deploy fixture stands in for uv tool install.
-    lines = ["[settings.task]", "run_auto_install = false", "[env]"]
-    lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["env"].items())
+    # Keep task bodies, variables, and environment from the repository, but install no
+    # real tools; the deploy fixture stands in for uv tool install.
+    lines = ["[settings.task]", "run_auto_install = false"]
+    for section in ("env", "vars"):
+        lines.append(f"[{section}]")
+        lines.extend(f"{key} = {json.dumps(value)}" for key, value in config[section].items())
     for name in ("full", "install", "apply", "completions"):
         lines.append(f"[tasks.{name}]")
         lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["tasks"][name].items())
@@ -380,11 +382,13 @@ def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Pat
     runtime = tmp_path / "runtime"
     runtime.mkdir()
     (global_config / "config.toml").write_text(f'[tools]\n"pipx:fixture" = "path:{runtime}"\n')
-    task = tomllib.loads((ROOT / "mise.toml").read_text())["tasks"]["full"]["run"][0]
+    config = tomllib.loads((ROOT / "mise.toml").read_text())
+    task = config["tasks"]["full"]["run"][0]
     # The real first bootstrap step must ignore a home tool that cannot satisfy
     # --locked. No repository tools are needed for this isolated selection probe.
     (source / "mise.toml").write_text(
-        "[settings.task]\nrun_auto_install = false\n[tasks.probe]\nrun = " + json.dumps(task) + "\n"
+        f"[vars]\nrepo_mise = {json.dumps(config['vars']['repo_mise'])}\n"
+        f"[settings.task]\nrun_auto_install = false\n[tasks.probe]\nrun = {json.dumps(task)}\n"
     )
     result = subprocess.run(
         [mise, "-C", str(source), "run", "probe"],

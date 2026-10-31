@@ -19,13 +19,20 @@ quiet = true
 [vars]
 # Skill templates scaffold other repositories' workflows; the workflow linters skip them unless named.
 workflow_templates = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml"
+# Plain shell scripts that shfmt formats; chezmoi shell templates are rendered and linted only.
+shell_scripts = "install.sh run_*.sh dot_local/bin/executable_*"
+# uv installs the dot entry point here; the absolute path avoids Graphviz's dot on PATH.
+dot_bin = "{{env.HOME}}/.local/bin/dot"
+# Run mise on repository tools without the workstation's home config, like CI: a stale home
+# config must not block the tools that repair it, and its disabled provenance checks make
+# mise refuse a lockfile that records GitHub attestations.
+repo_mise = 'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise'
 
 [env]
-# Tasks pass `--project dot` and set COVERAGE_FILE themselves instead of exporting
-# UV_PROJECT here: agent shells snapshot this environment and keep it after leaving
-# the checkout, so uv in another repository would silently resolve the dot project.
-# uv installs the dot entry point here; the absolute path avoids Graphviz's dot on PATH.
-DOT_BIN = "{{env.HOME}}/.local/bin/dot"
+# Export only values that are safe in any repository: agent shells snapshot this
+# environment and keep it after leaving the checkout. Tasks therefore pass `--project dot`,
+# set COVERAGE_FILE, and use [vars] for checkout paths; an exported UV_PROJECT would
+# silently resolve the dot project from another repository.
 # Chezmoi traverses the source tree during parallel checks. Python's temporary
 # bytecode files can disappear between its directory listing and lstat calls.
 PYTHONDONTWRITEBYTECODE = "1"
@@ -169,8 +176,8 @@ trap 'rm -rf "$rendered"' EXIT
 for template in run_*.sh.tmpl modify_dot_*; do
   chezmoi execute-template --source "$PWD" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
-shellcheck --rcfile dot_config/shellcheckrc install.sh run_*.sh dot_local/bin/executable_* "$rendered"/*.bash
-shfmt -d -i 2 -s install.sh run_*.sh dot_local/bin/executable_*
+shellcheck --rcfile dot_config/shellcheckrc {{vars.shell_scripts}} "$rendered"/*.bash
+shfmt -d -i 2 -s {{vars.shell_scripts}}
 """
 
 [tasks."check:skills"]
@@ -185,6 +192,10 @@ run = [
 [tasks."check:tools"]
 description = "Validate repository task definitions"
 run = "mise tasks validate"
+
+[tasks."check:completions"]
+description = "Validate active Fish completion generators without changing installed scripts"
+run = "uv run --frozen --project dot dot completion --check"
 
 [tasks."check:vuln"]
 description = "Audit the locked Python dependency graph"
@@ -233,7 +244,7 @@ description = "Format plain shell scripts, or only the given files (templates st
 usage = 'arg "[files]..."'
 run = '''
 eval "set -- $usage_files"
-[ "$#" -gt 0 ] || set -- install.sh run_*.sh dot_local/bin/executable_*
+[ "$#" -gt 0 ] || set -- {{vars.shell_scripts}}
 shfmt -w -i 2 -s "$@"
 '''
 
@@ -270,11 +281,7 @@ run = "chezmoi apply --force"
 [tasks.completions]
 alias = "mg"
 description = "Generate Fish completions for installed CLI tools"
-run = '"$DOT_BIN" completion'
-
-[tasks."check:completions"]
-description = "Validate active Fish completion generators without changing installed scripts"
-run = "uv run --frozen --project dot dot completion --check"
+run = '"{{vars.dot_bin}}" completion'
 
 [tasks.deploy]
 alias = "me"
@@ -295,7 +302,7 @@ run = "chezmoi diff --force --no-pager --exclude encrypted"
 alias = "mo"
 description = "Run the dot, chezmoi, and mise workstation health checks"
 # chezmoi probes hardlinks from its source into TMPDIR; /tmp can be another filesystem.
-run = ['"$DOT_BIN" doctor', 'TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor"]
+run = ['"{{vars.dot_bin}}" doctor', 'TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor"]
 
 [tasks.hooks]
 alias = "mh"
@@ -309,9 +316,7 @@ description = "Refresh Python, repo, and home lockfiles"
 # re-adding here would copy an older deployed lock over a newer pulled source.
 run = [
   "uv lock --project dot",
-  # Like CI, lock repository tools without the workstation's home config: its disabled provenance
-  # checks make mise refuse a lockfile that records GitHub attestations.
-  'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise lock --yes',
+  "{{vars.repo_mise}} lock --yes",
   # Resolve the portable source baseline, without machine-local tool overrides.
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
 ]
@@ -322,10 +327,9 @@ description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
 [tasks.full]
-description = "Install the locked repository tools, retire stale global lock graphs and their hash-suffixed installs, install the locked global tools, then apply dotfiles, deploy dot, and regenerate completions"
+description = "Install locked repository and global tools, apply dotfiles, deploy dot, and regenerate completions"
 run = [
-  # Do not let a stale home config block the repository tools needed to repair it.
-  'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise --locked install -y',
+  "{{vars.repo_mise}} --locked install -y",
   # Seed tool configuration without invoking missing or outdated hook executables.
   "chezmoi apply --force --exclude scripts",
   # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs
@@ -344,8 +348,8 @@ alias = "mu"
 description = "Upgrade Python dependencies, mise tools, the theme pin, dprint plugins, and Neovim plugins"
 run = [
   "uv lock --upgrade --project dot",
-  # Refresh version pins before installing the selected releases; like lock, without the home config.
-  'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise lock --bump --yes',
+  # Refresh version pins before installing the selected releases.
+  "{{vars.repo_mise}} lock --bump --yes",
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
   # Advance the checksummed fmind/theme pin; several theme files execute.
   "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
