@@ -203,6 +203,7 @@ def test_public_apply_sets_every_baseline_setting(tmp_path: Path) -> None:
     assert sent[f"{BASE}/environments/pypi"] == {
         "wait_timer": 5,
         "prevent_self_review": True,
+        "can_admins_bypass": True,
         "reviewers": [{"type": "User", "id": 7}],
         "deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True},
     }

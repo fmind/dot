@@ -24,7 +24,7 @@ RULESET: Record = {
     "enforcement": "active",
     "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
     "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}],
-    "bypass_actors": [],
+    "bypass_actors": [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}],
 }
 MERGE_FLAGS = (
     "--delete-branch-on-merge",
@@ -245,6 +245,7 @@ def environment_body(name: str, environment: Record) -> Record:
     return {
         "wait_timer": (timers[0] if timers else None) or 0,
         "prevent_self_review": (reviewer_rules[0].get("prevent_self_review") if reviewer_rules else None) or False,
+        "can_admins_bypass": True,
         "reviewers": reviewers or None,
         "deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True},
     }

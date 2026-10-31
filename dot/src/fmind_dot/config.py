@@ -344,6 +344,11 @@ class WorkspaceConfig(StrictModel):
             "docs.googleapis.com",
             "drive.googleapis.com",
             "driveactivity.googleapis.com",
+            # The brain's Firebase reader calls these through ADC, which bills this quota project.
+            "firebase.googleapis.com",
+            "firebaseappcheck.googleapis.com",
+            "firebasehosting.googleapis.com",
+            "firebaserules.googleapis.com",
             "forms.googleapis.com",
             "gmail.googleapis.com",
             "gmailpostmastertools.googleapis.com",
