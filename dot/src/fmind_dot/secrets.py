@@ -45,7 +45,7 @@ def personal_token(name: str) -> str:
 @secret_app.command(
     "run",
     help="Supply NAME to COMMAND; an existing environment value wins",
-    epilog="Example: dot secret run VERTEX_API_KEY -- python app.py. "
+    epilog="Example: dot secret run OPENROUTER_MANAGEMENT_KEY -- python app.py. "
     "Exits with COMMAND's status; the value is never printed or exported to the shell.",
 )
 def run(

@@ -7,7 +7,7 @@ description: "Gemini Developer API access with an explicitly requested API key b
 
 Use the Gemini Developer API only when requested. It uses an AI Studio API key and its own endpoint, quotas, and model availability; GCP ADC is not this authentication path.
 
-1. **Use only an explicitly supplied key**: obtain an explicitly supplied Developer API credential for the authorized integration. This workstation no longer stores a personal `GEMINI_API_KEY`; its `VERTEX_API_KEY` belongs to GCP Agent Platform and must not be sent to AI Studio. Keep Developer API credentials in a process-scoped, application-specific variable or secret store, not globally exported as `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
+1. **Use only an explicitly supplied key**: obtain an explicitly supplied Developer API credential for the authorized integration. This workstation stores no personal Gemini or Google API key. Keep Developer API credentials in a process-scoped, application-specific variable or secret store, not globally exported as `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
 1. **Select the backend explicitly**: inspect the installed `google-genai` client signature. Set `enterprise=False` (older SDKs: `vertexai=False`) and pass the intended key explicitly so ambient Google keys or backend flags cannot redirect the client. Keep backend selection scoped to the application instead of changing the whole shell.
 1. **Discover models before choosing an ID**: REST uses `https://generativelanguage.googleapis.com` with the `x-goog-api-key` header; avoid keys in query strings or logged request objects. Listing models is a read-only access check, not inference proof.
 

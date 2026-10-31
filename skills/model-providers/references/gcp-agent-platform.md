@@ -17,7 +17,7 @@ For OpenCode integrations explicitly requesting this provider, its provider iden
 
 ## Explicit key fallback
 
-The personal GCP Agent Platform authorization key is encrypted in chezmoi and deployed owner-only to `~/.config/dot/secrets/VERTEX_API_KEY`. It is restricted to `aiplatform.googleapis.com`; it is not an AI Studio credential. Use `dot secret run VERTEX_API_KEY -- uv run app.py` only when key access is authorized or ADC cannot be used and that limitation has been reported. Read `VERTEX_API_KEY` explicitly and pass it to the selected GCP Agent Platform client, or use the `x-goog-api-key` REST header. Never export it as `GOOGLE_API_KEY` or `GEMINI_API_KEY`, put it in a URL, or combine it with ADC in one request. Ordinary SDK calls must continue to use ADC. google-genai 2.15.0 and later accept a key with project and location in enterprise mode; older versions treat keys as express-mode-only.
+This workstation stores no personal GCP Agent Platform key; use ADC. When an integration explicitly requires a key and ADC cannot be used, report that limitation and use a key supplied for that project, restricted to `aiplatform.googleapis.com`, from its secret manager or `dot secret run`. Read it explicitly and pass it to the selected client, or use the `x-goog-api-key` REST header. Never export it as `GOOGLE_API_KEY` or `GEMINI_API_KEY`, put it in a URL, or combine it with ADC in one request. google-genai 2.15.0 and later accept a key with project and location in enterprise mode; older versions treat keys as express-mode-only.
 
 ## Personal billing
 
