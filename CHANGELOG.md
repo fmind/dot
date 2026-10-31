@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.6.0] - 2026-10-31
+
+### 🚀 Features
+
+- _(mise)_ Install the Docker stack through mise on macOS
+- _(secrets)_ Retire the Vertex, Antigravity SDK, and Stitch keys
+- _(persona)_ Add scientific rigor and customer-data rules, tighten wording
+
+### ♻️ Refactor
+
+- _(fish)_ Drop the Zellij session-persistence wrapper
+- _(mise)_ Share task paths through vars instead of exported env
+- _(git)_ Sort config sections and stop inheriting upstream tracking
+
+### 📚 Documentation
+
+- _(skills)_ Default agents to ADK then LangGraph, and cover Litestar forms and HTMX
+- Rewrite README and AGENTS.md for scanning
+- _(skills)_ Align bf with Brain Framework 20.0.1
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 20.0.1
+
 ## [15.5.0] - 2026-10-31
 
 ### 🚀 Features
