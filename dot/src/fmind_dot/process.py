@@ -42,13 +42,19 @@ _OPAQUE_TOKEN = re.compile(rf"{_PREFIXED_TOKEN.pattern}|(?<![A-Za-z0-9_+/=-])[A-
 # An absolute or home path is the diagnostic's most useful part: keep it whole (dot-directories
 # included), redacting only provider-prefixed tokens inside it. URL paths follow ":", so they stay checked.
 _PATH = re.compile(r"(?<![^\s'\"(=])[~/][^\s'\"]*")
+# A path segment of 20+ token characters mixing upper case, lower case, and digits is a secret, such as a
+# base64 token that starts with "/"; hex hashes, UUIDs, and dotted or short names never match.
+_TOKEN_SEGMENT = re.compile(
+    r"(?<![^/])(?=[A-Za-z0-9_+=-]*[A-Z])(?=[A-Za-z0-9_+=-]*[a-z])(?=[A-Za-z0-9_+=-]*[0-9])"
+    r"[A-Za-z0-9_+=-]{20,}(?=/|[:.,;)]*$)"
+)
 
 
 def _redact(text: str) -> str:
     redacted, position = [], 0
     for path in _PATH.finditer(text):
         redacted += [_OPAQUE_TOKEN.sub("<redacted>", text[position : path.start()])]
-        redacted += [_PREFIXED_TOKEN.sub("<redacted>", path.group())]
+        redacted += [_TOKEN_SEGMENT.sub("<redacted>", _PREFIXED_TOKEN.sub("<redacted>", path.group()))]
         position = path.end()
     return "".join([*redacted, _OPAQUE_TOKEN.sub("<redacted>", text[position:])])
 

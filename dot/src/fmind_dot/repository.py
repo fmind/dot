@@ -226,6 +226,9 @@ def _pull_repository(
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         _fetch(state, path, deadline)
         _, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
+        # An editor or agent may write during a slow fetch; never fast-forward over new local work.
+        if dirty:
+            return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         if not upstream:
             return RepoResult(path=path, branch=branch, no_upstream=True)
         # Local and remote commits both exist: only the owner may merge or rebase them.

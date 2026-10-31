@@ -273,6 +273,46 @@ def test_pull_rechecks_worktree_after_fetch_before_push(tmp_path: Path, monkeypa
     assert json.loads(state.stdout.getvalue())["repositories"][0]["dirty"] is True
 
 
+def test_pull_never_fast_forwards_a_worktree_dirtied_during_fetch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    remote, seed, checkout = (tmp_path / name for name in ("remote.git", "seed", "checkout"))
+
+    class EditingRunner(Runner):
+        def run(
+            self,
+            args: Sequence[str],
+            *,
+            cwd: Path | None = None,
+            input_text: str | None = None,
+            env: Mapping[str, str] | None = None,
+            timeout: float | None = None,
+            check: bool = True,
+        ) -> CommandResult:
+            response = super().run(args, cwd=cwd, input_text=input_text, env=env, timeout=timeout, check=check)
+            if cwd == checkout and list(args) == ["git", "fetch", "--prune"]:
+                (checkout / "agent-work.txt").write_text("written during fetch\n")
+            return response
+
+    runner = EditingRunner()
+    git = partial(_git, runner)
+    git(tmp_path, "init", "--bare", "--initial-branch=main", str(remote))
+    git(tmp_path, "clone", str(remote), str(seed))
+    git(seed, "commit", "--allow-empty", "-m", "initial")
+    git(seed, "push", "origin", "main")
+    git(tmp_path, "clone", str(remote), str(checkout))
+    before = git(checkout, "rev-parse", "HEAD")
+    git(seed, "commit", "--allow-empty", "-m", "remote update")
+    git(seed, "push", "origin", "main")
+
+    [pulled] = run_pull(make_state(runner), paths=[checkout])
+
+    assert pulled.skipped == "dirty worktree"
+    assert git(checkout, "rev-parse", "HEAD") == before
+
+
 @pytest.mark.parametrize("operation", ["status", "pull"])
 def test_repository_disappearing_keeps_partial_json_results(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str

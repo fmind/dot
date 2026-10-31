@@ -247,6 +247,19 @@ def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: 
         ),
         ("read /tmp/ghp_0123456789abcdefghijklmnopqrstuvwxyz/x", "read /tmp/<redacted>"),
         ("https://host/" + "A1b2C3d4" * 5, "https:<redacted>"),
+        # Base64 tokens may start with "/", which makes them look like paths.
+        ("error: token /" + "A1b2C3d4" * 5 + " rejected", "error: token /<redacted> rejected"),
+        ("Authorization=/" + "A1b2C3d4" * 3 + "/" + "E5f6G7h8" * 3, "Authorization=/<redacted>/<redacted>"),
+        # The path pattern keeps trailing punctuation, which must not shield the token.
+        ("open /tmp/" + "A1b2C3d4" * 3 + ": denied", "open /tmp/<redacted>: denied"),
+        ("open (/tmp/" + "A1b2C3d4" * 3 + ").", "open (/tmp/<redacted>)."),
+        ("read /tmp/" + "A1b2C3d4" * 3 + ".json", "read /tmp/" + "A1b2C3d4" * 3 + ".json"),
+        (
+            "open /var/folders/7k/T/0F3C2A1B-4D5E-4F60-8A9B-C0D1E2F3A4B5/x",
+            "open /var/folders/7k/T/0F3C2A1B-4D5E-4F60-8A9B-C0D1E2F3A4B5/x",
+        ),
+        ("read ~/.cache/uv/archive-v0/" + "9f86d081" * 8, "read ~/.cache/uv/archive-v0/" + "9f86d081" * 8),
+        ("load /usr/lib/x86_64-linux-gnu/libpython3.14.so", "load /usr/lib/x86_64-linux-gnu/libpython3.14.so"),
     ],
 )
 def test_diagnostic_line_redacts_tokens_but_keeps_paths(text: str, expected: str) -> None:
