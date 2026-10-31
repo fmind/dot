@@ -48,7 +48,14 @@ def read_release_version(root: Path) -> str:
 def validate_release_status(status_output: str) -> None:
     """Reject validation changes outside the generated release files."""
     allowed = {str(path) for path in _RELEASE_GENERATED_FILES}
-    changed = {record[3:] for record in status_output.split("\0") if record}
+    changed: set[str] = set()
+    records = iter(status_output.split("\0"))
+    for record in records:
+        if record:
+            changed.add(record[3:])
+            # A rename or copy is followed by a separate, unprefixed record holding its source path.
+            if "R" in record[:2] or "C" in record[:2]:
+                changed.add(next(records, ""))
     if unexpected := sorted(changed - allowed):
         raise DotError(f"release validation changed unrelated paths: {', '.join(unexpected)}")
 

@@ -305,6 +305,8 @@ def test_release_status_is_confined_to_generated_files() -> None:
     validate_release_status(" M CHANGELOG.md\0 M dot/pyproject.toml\0")
     with pytest.raises(DotError, match=r"unrelated paths: README\.md"):
         validate_release_status(" M CHANGELOG.md\0?? README.md\0")
+    with pytest.raises(DotError, match=r"unrelated paths: docs/new\.md, docs/old\.md$"):
+        validate_release_status("R  docs/new.md\0docs/old.md\0 M CHANGELOG.md\0")
 
 
 def test_release_version_rejects_missing_and_dynamic_versions(tmp_path: Path) -> None:
