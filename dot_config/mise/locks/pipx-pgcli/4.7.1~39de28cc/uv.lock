@@ -3,7 +3,7 @@ revision = 5
 requires-python = ">=3.10"
 
 [options]
-exclude-newer = "2026-10-29T05:58:40.013775061Z"
+exclude-newer = "2026-10-30T06:40:57.198102707Z"
 
 [[package]]
 name = "cli-helpers"

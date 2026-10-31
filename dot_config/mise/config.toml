@@ -46,12 +46,6 @@ slsa = false
 # Trust is machine-local: use `mise trust` for individual configs or keep
 # trusted_config_paths in unmanaged ~/.config/mise/conf.d/trust.toml.
 
-[plugins]
-# mise <= 2026.10.21 vendors vfox-gcloud@a291554 with hooks/python.lua instead of lib/python.lua
-# (jdx/mise#15034), failing `require("python")` in safe mode; omit `#<sha>` because mise 2026.10.20's
-# gix backend panics on SHA revisions. Remove once mise re-vendors >= 8bc2e33.
-"vfox:gcloud" = "https://github.com/mise-plugins/vfox-gcloud"
-
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
@@ -92,6 +86,8 @@ SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 "npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' } # OpenCode AI agent CLI tool
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
+# npm, not aqua: upstream's standalone macOS binary is x86_64-only, so it would need Rosetta on Apple Silicon.
+"npm:firebase-tools" = "latest" # Official Firebase CLI (firebase) for Hosting, Firestore, Auth, and Rules
 "npm:skills" = "latest" # Agent Skills CLI manager
 "pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
 "pipx:brain-framework" = "latest" # Brain Framework CLI (bf)
@@ -117,8 +113,8 @@ chezmoi = "latest" # Dotfiles manager across diverse machines
 claude = "latest" # Claude Code terminal-based AI coding agent CLI
 delta = "latest" # Syntax-highlighter for git, diff, and grep output
 doggo = "latest" # Command-line DNS client supporting modern protocols
-duckdb = "latest" # Embedded SQL analytical database management system
 dprint = "latest" # Pluggable and ultra-fast code formatter
+duckdb = "latest" # Embedded SQL analytical database management system
 fd = "latest" # Simple, fast replacement for the find command
 ffmpeg = "latest" # Audio and video converter and probe (ffprobe) for media work outside projects
 fish = "latest" # Friendly interactive shell (Fish)
