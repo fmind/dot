@@ -1,0 +1,29 @@
+# Docs: https://github.com/betterleaks/betterleaks/blob/v1.x/docs/config.md
+title = "fmind/dot"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Encrypted secrets stay in-tree."
+paths = ['''\.age$''']
+
+[[allowlists]]
+description = "Peer-dependency version key for @inquirer/password in the locked firebase-tools graph."
+condition = "AND"
+regexTarget = "line"
+paths = ['''^dot_config/mise/locks/npm-firebase-tools/''']
+regexes = ['''@inquirer/password''']
+
+[[allowlists]]
+description = "CLI flag prose in auth-status (`gcloud auth application-default login`, `...`) is not a password assignment."
+condition = "AND"
+regexTarget = "line"
+paths = ['''^skills/auth-status/SKILL\.md$''']
+regexes = ['''gcloud auth application-default login''']
+
+[[allowlists]]
+description = "Synthetic RFC 2606 .example.invalid test fixture in retired Go test."
+condition = "AND"
+paths = ['''^dot/cluster_target_test\.go$''']
+commits = ["1895c77cd49b77ec7735c0a6f3c05246d2fb2b74"]

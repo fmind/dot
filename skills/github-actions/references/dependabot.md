@@ -59,17 +59,18 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
            patterns: ["*"]
    ```
 
-1. **Exempt the cooldown audit**: zizmor's `dependabot-cooldown` audit still flags this config, but `cooldown` never applies to security updates and version updates are off. Disable the audit in `.github/zizmor.yml` instead of adding inert `cooldown` blocks:
+1. **Exempt the cooldown audit**: jactionlint's `dependabot-cooldown` audit still flags this config, but `cooldown` never applies to security updates and version updates are off. Disable the audit in `.github/jactionlint.yaml` instead of adding inert `cooldown` blocks:
 
    ```yaml
-   # Docs: https://docs.zizmor.sh/configuration/
+   # Docs: https://jactionlint.jdx.dev/configuration
+   profile: default
+
    rules:
      # Dependabot runs security updates only, which ignore cooldowns; version updates are off.
-     dependabot-cooldown:
-       disable: true
+     dependabot-cooldown: off
    ```
 
-1. **Validate**: `zizmor --offline --collect=dependabot --strict-collection .github/` checks the schema and audits the file offline (see [zizmor](zizmor.md)); GitHub re-validates on push and shows errors in the Dependabot tab.
+1. **Validate**: `jactionlint` checks `.github/dependabot.yml` against the schema and security audits alongside the repository's workflows and actions (see [jactionlint](jactionlint.md)); GitHub re-validates on push and shows errors in the Dependabot tab.
 1. **Review each security PR locally**: it is ready to merge once the gate passes; never merge blindly and never enable auto-merge (unavailable for private repositories on GitHub Free anyway).
 
    ```bash
@@ -96,4 +97,4 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 
 - [Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Configuring security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates)
 - Releases: [Supply chain security changelog](https://github.blog/changelog/label/supply-chain-security/) (Dependabot entries)
-- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (deliberate upgrades), [zizmor](zizmor.md) (offline validation), [settings baseline](../../github-repository/references/settings-baseline.md) (repository switches).
+- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (deliberate upgrades), [jactionlint](jactionlint.md) (offline validation), [settings baseline](../../github-repository/references/settings-baseline.md) (repository switches).

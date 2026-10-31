@@ -1,5 +1,5 @@
-# Docs: https://docs.zizmor.sh/configuration/
+# Docs: https://jactionlint.jdx.dev/config
+profile: default
 rules:
   # Dependabot runs security updates only, which ignore cooldowns; version updates are off.
-  dependabot-cooldown:
-    disable: true
+  dependabot-cooldown: off

@@ -35,10 +35,10 @@ def materialize(root: Path, starter: str, prefix: str = "") -> dict[str, str]:
     (root / "mise.toml").write_text("\n".join(lines))
     mise = shutil.which("mise")
     assert mise is not None
-    gitleaks = subprocess.check_output([mise, "which", "gitleaks"], cwd=ROOT, text=True, timeout=60).strip()
+    betterleaks = subprocess.check_output([mise, "which", "betterleaks"], cwd=ROOT, text=True, timeout=60).strip()
     return {
         "PATH": os.pathsep.join(
-            [str(Path(mise).parent), str(Path(gitleaks).parent), str(Path(sys.executable).parent), os.defpath]
+            [str(Path(mise).parent), str(Path(betterleaks).parent), str(Path(sys.executable).parent), os.defpath]
         ),
         "HOME": str(root),
         "MISE_CONFIG_DIR": str(root / "config"),
@@ -71,7 +71,7 @@ def test_secret_scan_covers_untracked_files(tmp_path: Path, starter: str) -> Non
     env = materialize(tmp_path, starter)
     env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
     assert run(tmp_path, env, "git", "init", "-q").returncode == 0
-    (tmp_path / ".gitleaks.toml").write_text(
+    (tmp_path / ".betterleaks.toml").write_text(
         '[[rules]]\nid = "fixture"\ndescription = "Synthetic fixture"\nregex = "fixture-credential-[0-9]+"\n'
     )
     assert run(tmp_path, env, "mise", "run", "check:leaks").returncode == 0

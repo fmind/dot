@@ -1,9 +1,0 @@
-# Docs: https://github.com/gitleaks/gitleaks#configuration
-title = "fmind/dot"
-
-[extend]
-useDefault = true
-
-[[allowlists]]
-description = "Encrypted secrets stay in-tree."
-paths = ['''\.age$''']

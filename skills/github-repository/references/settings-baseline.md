@@ -11,7 +11,7 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
 
 1. **Choose the judgment flags**; the script detects everything else from the repository's state:
    - `--disable wiki --disable projects --disable discussions` for a new repository; on an existing one, pass each only when that feature's removal was requested. Add `--disable issues` only when the project tracks issues elsewhere.
-   - `--skip-sha-pinning` while any `uses:` in `.github/workflows` or `.github/actions` is unpinned ([zizmor](../../github-actions/references/zizmor.md) `unpinned-uses`), because requiring full-SHA pins first fails the next run; GitHub-managed workflows (CodeQL, Dependabot, dependency graph, legacy Pages builds) keep working.
+   - `--skip-sha-pinning` while any `uses:` in `.github/workflows` or `.github/actions` is unpinned ([jactionlint](../../github-actions/references/jactionlint.md) `unpinned-uses`), because requiring full-SHA pins first fails the next run; GitHub-managed workflows (CodeQL, Dependabot, dependency graph, legacy Pages builds) keep working.
 1. **Preview** with `--check`, which sends GET requests only and changes nothing:
 
    ```bash

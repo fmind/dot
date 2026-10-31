@@ -9,8 +9,8 @@ run_auto_install = false
 quiet = true
 
 [tools]
+betterleaks = "latest"
 dprint = "latest"
-gitleaks = "latest"
 lefthook = "latest"
 opentofu = "latest"
 terraform-docs = "latest"
@@ -58,11 +58,11 @@ run = ["tofu fmt -check -recursive", "dprint check"]
 [tasks."check:leaks"]
 alias = "cs"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-run = "gitleaks dir . --redact=100 --verbose --no-banner"
+run = "betterleaks dir . --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "gitleaks git --redact=100 --verbose --no-banner"
+run = "betterleaks git --redact=100 --verbose --no-banner"
 
 [tasks."check:lint"]
 alias = "cl"

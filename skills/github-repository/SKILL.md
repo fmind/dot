@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-repository
   created: "2026-06-23"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # GitHub Repository

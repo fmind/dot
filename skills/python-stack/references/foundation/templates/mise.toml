@@ -13,8 +13,8 @@ quiet = true
 
 [tools]
 # Scaffold selectors: replace with exact baseline pins and add Python before installation.
+betterleaks = "latest"
 dprint = "latest"
-gitleaks = "latest"
 lefthook = "latest"
 uv = "latest"
 
@@ -73,11 +73,11 @@ run = [
 [tasks."check:leaks"]
 alias = "cs"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-run = "gitleaks dir . --redact=100 --verbose --no-banner"
+run = "betterleaks dir . --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "gitleaks git --redact=100 --verbose --no-banner"
+run = "betterleaks git --redact=100 --verbose --no-banner"
 
 [tasks."check:lint"]
 alias = "cl"

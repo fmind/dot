@@ -5,7 +5,7 @@ description: "Scan dependencies, IaC, images, and licenses; generate SBOMs."
 
 # Trivy
 
-Scan dependencies, infrastructure as code, licenses, container images, and SBOMs according to the project's `trivy.yaml`; [gitleaks](../gitleaks.md) owns secret scanning, so keep `secret` out of `scan.scanners`. Inspect its enabled scanners, severity, exclusions, and `ignore-unfixed` setting before claiming coverage. Blocking policies need `exit-code: 1`; findings otherwise default to a successful exit.
+Scan dependencies, infrastructure as code, licenses, container images, and SBOMs according to the project's `trivy.yaml`; [betterleaks](../betterleaks.md) owns secret scanning, so keep `secret` out of `scan.scanners`. Inspect its enabled scanners, severity, exclusions, and `ignore-unfixed` setting before claiming coverage. Blocking policies need `exit-code: 1`; findings otherwise default to a successful exit.
 
 ## Commands
 
@@ -35,7 +35,7 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 ## Triage
 
 1. **Ignore findings, not the severity bar**: record an accepted risk in `.trivyignore` (one finding ID per line, with a `#` reason) instead of lowering the global severity bar. Use `.trivyignore.yaml` with explicit `--ignorefile` for path-scoped findings, expiry, or license ignores; see [filtering](https://trivy.dev/docs/latest/configuration/filtering/).
-1. **Route secret findings to gitleaks**: handle secret findings, including from a project that still enables Trivy's `secret` scanner, per [gitleaks](../gitleaks.md): verify exposure, then coordinate authorized rotation; history rewrites require explicit authority.
+1. **Route secret findings to betterleaks**: handle secret findings, including from a project that still enables Trivy's `secret` scanner, per [betterleaks](../betterleaks.md): verify exposure, then coordinate authorized rotation; history rewrites require explicit authority.
 
 ## Gotchas
 

@@ -10,15 +10,15 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
 ## Workflow
 
 1. **Add the CI workflow**: copy [ci.yml](templates/ci.yml) to `.github/workflows/ci.yml`; it runs `mise run all` and asserts an empty porcelain status so drift fails the build.
-1. **Add the security workflow**: copy [security.yml](templates/security.yml) to `.github/workflows/security.yml`: a scheduled full-history [gitleaks](../../../code-security/references/gitleaks.md) and [trivy](../../../code-security/references/trivy/GUIDE.md) rescan where any finding fails the job. It calls `check:scan`, so first pin trivy in `mise.toml` and add the `check:scan` task and `trivy.yaml` from the trivy guide; the Python starter does not define them.
+1. **Add the security workflow**: copy [security.yml](templates/security.yml) to `.github/workflows/security.yml`: a scheduled full-history [betterleaks](../../../code-security/references/betterleaks.md) and [trivy](../../../code-security/references/trivy/GUIDE.md) rescan where any finding fails the job. It calls `check:scan`, so first pin trivy in `mise.toml` and add the `check:scan` task and `trivy.yaml` from the trivy guide; the Python starter does not define them.
 1. **Review AI steps**: use [agent workflow review](references/agent-review.md) when a workflow feeds issues, pull requests, logs, files, or tool output to an AI action; shell quoting does not remove prompt injection.
 1. **Add the CD workflow**: copy [cd.yml](templates/cd.yml) to `.github/workflows/cd.yml` and [image-platforms.py](templates/image-platforms.py) to `.github/scripts/image-platforms.py`; enable `ENABLE_DEPLOY_PYPI`, `ENABLE_DEPLOY_CONTAINER`, or both. Commit the helper with the workflow; it uses only Python's standard library. A read-only job runs `mise run all` on the tagged revision and rejects generated drift before either publisher starts. Configure the `pypi` environment and matching PyPI Trusted Publisher before enabling package publication. Before enabling image publication, include public Sigstore identity/digest disclosure in the signing scope per [Cosign](../../../docker/references/cosign.md), or configure an approved private signing service. The image path expects the [containerize](../../../docker/references/containerize/GUIDE.md) Dockerfile, `trivy.yaml`, and `trivy` plus `cosign` in `mise.toml`.
-1. **Lint the workflows**: pin `actionlint`, `shellcheck`, and `zizmor` in `mise.toml` `[tools]`, and expose `check:actions`:
+1. **Lint the workflows**: pin `jactionlint` and `shellcheck` in `mise.toml` `[tools]`, and expose `check:actions`:
 
    ```toml
    [tasks."check:actions"]
    description = "Validate GitHub Actions workflows and Dependabot config"
-   run = ["actionlint", "zizmor --offline --strict-collection .github/"]
+   run = "jactionlint"
    ```
 
 1. **Verify locally**: run `mise run all`; when the tree carries unrelated changes, apply the [dirty-tree rule](../../../mise/SKILL.md#gotchas).
@@ -35,8 +35,7 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
 
 ## Gotchas
 
-- **Guard against injection and cache poisoning**: `${{ ... }}` expands in `run:` before the shell runs, even inside comments; pass expression values through `env:` or action inputs and follow the `template-injection` and `cache-poisoning` fixes in [zizmor](../zizmor.md).
-- **actionlint lags new Actions syntax**: 1.7.12 rejects the `cache-mode` key ([#745](https://github.com/rhysd/actionlint/issues/745)) and the `ubuntu-26.04` label ([#682](https://github.com/rhysd/actionlint/issues/682)). Until a release supports them, keep `cache: false` on each caching action in release jobs and pin `ubuntu-24.04`; when a repository needs `ubuntu-26.04` sooner, declare it under `self-hosted-runner.labels` in `.github/actionlint.yaml` with a comment.
+- **Guard against injection and cache poisoning**: `${{ ... }}` expands in `run:` before the shell runs, even inside comments; pass expression values through `env:` or action inputs and follow the `template-injection` and `cache-poisoning` fixes in [jactionlint](../jactionlint.md).
 - **Trusted Publisher identity must match exactly**: PyPI must match the GitHub owner, repository, workflow filename, and optional `pypi` environment exactly; no API token is needed.
 - **Schedule full-history scans separately**: full-history scans need `fetch-depth: 0` and minutes of runtime; keep them in the scheduled workflow with a job timeout.
 - **Lowercase only the image repository**: GHCR rejects uppercase repository paths, while the cosign certificate retains the GitHub workflow identity; lowercase only the image repository.
@@ -47,4 +46,4 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
 
 - [GitHub Actions](https://docs.github.com/actions) · [PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/) · [PyPA publish action](https://github.com/pypa/gh-action-pypi-publish) · [Docker build-push action](https://github.com/docker/build-push-action)
 - Releases: [GitHub Actions changelog](https://github.blog/changelog/label/actions/)
-- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [zizmor](../zizmor.md), [trivy](../../../code-security/references/trivy/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [cosign](../../../docker/references/cosign.md), and [code-security](../../../code-security/references/code-review/GUIDE.md).
+- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [jactionlint](../jactionlint.md), [trivy](../../../code-security/references/trivy/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [cosign](../../../docker/references/cosign.md), and [code-security](../../../code-security/references/code-review/GUIDE.md).

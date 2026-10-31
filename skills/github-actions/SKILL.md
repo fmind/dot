@@ -1,6 +1,6 @@
 ---
 name: github-actions
-description: "Build GitHub Actions CI/CD and agentic workflows; Dependabot, Lefthook, zizmor."
+description: "Build GitHub Actions CI/CD and agentic workflows; Dependabot, Lefthook, jactionlint."
 license: MIT
 metadata:
   kind: collection
@@ -25,7 +25,7 @@ Read only the matching guide and its required resources.
 - [ci-cd](references/ci-cd/GUIDE.md): GitHub Actions CI/CD setup, workflow validation, and publication.
 - [dependabot](references/dependabot.md): Security-only dependency updates: alerts plus grouped fix PRs.
 - [github-agentic-workflow](references/github-agentic-workflow/GUIDE.md): Design, compile, test, and audit GitHub Agentic Workflows.
+- [jactionlint](references/jactionlint.md): Lint and audit GitHub Actions workflows, composite actions, and Dependabot.
 - [lefthook](references/lefthook.md): Local Git hooks aligned with repository tasks.
-- [zizmor](references/zizmor.md): Workflow security analysis and finding verification.
 
 <!-- guides:end -->

@@ -13,7 +13,7 @@ scan:
   # Keep scans local: no usage data or version notices to Aqua (top-level keys are ignored).
   disable-telemetry: true
   skip-version-check: true
-  # Gitleaks (check:leaks) owns secret scanning.
+  # Betterleaks (check:leaks) owns secret scanning.
   scanners:
     - misconfig
     - vuln

@@ -35,7 +35,7 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 - **Writes and spend need explicit authority**: `gh aw run`, safe outputs without staged mode, `--push`, and `--auto-merge-prs` can mutate GitHub or consume paid resources; require explicit authority for the exact repository and action.
 - **Imported workflows are supply-chain input**: Treat their triggers, permissions, tools, network, instructions, safe outputs, and lock files as executable supply-chain input; prefer pinned trusted releases.
 - **Guardrails are boundaries, not proof**: Sandboxing, integrity filtering, threat detection, and safe outputs reduce blast radius; they do not make broad permissions or unreviewed output safe.
-- **Scope actionlint ignores to lock files**: actionlint 1.7.12 rejects gh-aw 1.0 lock files (`copilot-requests` permission, `concurrency.queue`, `job.workflow_ref`), so a repository-wide `check:actions` fails. Add a `paths` entry for `.github/workflows/*.lock.yml` in `.github/actionlint.yaml` that ignores only those messages, rather than dropping the linter; zizmor still audits them.
+- **Scope jactionlint ignores to lock files**: when a generated `.github/workflows/*.lock.yml` triggers a lint or audit rule that cannot be fixed in the Markdown source, add a `paths` or rule ignore for `.github/workflows/*.lock.yml` in `.github/jactionlint.yaml` rather than dropping `check:actions`.
 
 ## Official Skills
 

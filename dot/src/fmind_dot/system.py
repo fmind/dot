@@ -48,7 +48,7 @@ _SIGNING_PRIVATE_KEY = "~/.ssh/id_ed25519_signing"
 _SIGNING_PUBLIC_KEY = "~/.ssh/id_ed25519_signing.pub"
 _TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "agy": ("--help",),
-    "gitleaks": ("version",),
+    "betterleaks": ("version",),
     "lefthook": ("version",),
 }
 

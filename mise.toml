@@ -43,13 +43,13 @@ fish = "aqua:fish-shell/fish-shell"
 neovim = "aqua:neovim/neovim"
 
 [tools]
-actionlint = "latest"
+betterleaks = "latest"
 chezmoi = "latest"
 dprint = "latest"
 fish = "latest"
 gh = "latest"
 git-cliff = "latest"
-gitleaks = "latest"
+jactionlint = "latest"
 lefthook = "latest"
 lychee = "latest"
 neovim = "latest"
@@ -60,7 +60,6 @@ shfmt = "latest"
 stylua = "latest"
 trivy = "latest"
 uv = "latest"
-zizmor = "latest"
 
 # Canonical project tasks.
 
@@ -103,13 +102,16 @@ depends = ["check:scan", "check:vuln"]
 [tasks."check:actions"]
 description = "Validate GitHub Actions workflows, shipped workflow templates, and Dependabot config"
 run = [
-  "actionlint .github/workflows/*.yml {{vars.workflow_templates}}",
-  "zizmor --offline --strict-collection .github/ {{vars.workflow_templates}}",
+  "jactionlint",
+  "jactionlint {{vars.workflow_templates}}",
 ]
 
 [tasks."check:actions:online"]
-description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
-run = "zizmor --strict-collection .github/ {{vars.workflow_templates}}"
+description = "Audit workflows with jactionlint's online rules (needs GH_TOKEN; weekly in security.yml)"
+run = [
+  "jactionlint --online",
+  "jactionlint --online {{vars.workflow_templates}}",
+]
 
 [tasks."check:chezmoi"]
 description = "Validate rendered chezmoi source in an isolated destination"
@@ -137,11 +139,11 @@ done
 [tasks."check:leaks"]
 description = "Scan working-tree files, including untracked files, for leaked secrets"
 # The pre-commit hook runs this through check:local; check:leaks:full covers the history weekly.
-run = "gitleaks dir . --redact=100 --verbose --no-banner"
+run = "betterleaks dir . --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "gitleaks git --redact=100 --verbose --no-banner"
+run = "betterleaks git --redact=100 --verbose --no-banner"
 
 [tasks."check:lua"]
 description = "Check Neovim Lua formatting (stylua)"

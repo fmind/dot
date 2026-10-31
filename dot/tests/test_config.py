@@ -53,7 +53,7 @@ def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
 
 def test_retired_tools_are_not_workstation_requirements() -> None:
     config = Config()
-    retired = {"aws-sso-util", "cursor-agent", "jules", "marimo", "pyrit"}
+    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "marimo", "pyrit", "zizmor"}
     assert not retired.intersection(config.doctor.tools)
     assert not retired.intersection(COMPLETION_SOURCES)
 

@@ -34,6 +34,7 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "astro": ToolConfig(),
     "atuin": ToolConfig(args=("gen-completions", "--shell", "fish")),
     "bat": ToolConfig(args=("--completion", "fish")),
+    "betterleaks": ToolConfig(),
     "bf": ToolConfig(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
     "cf": ToolConfig(args=("complete", "fish")),
     "chezmoi": ToolConfig(),
@@ -50,9 +51,9 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "gh": ToolConfig(args=("completion", "-s", "fish")),
     "git-cliff": ToolConfig(package="git-cliff"),
     "git-lfs": ToolConfig(binary="git", args=("lfs", "completion", "fish")),
-    "gitleaks": ToolConfig(),
     "hf": ToolConfig(binary="env", args=("_HF_COMPLETE=fish_source", "hf")),
     "hyperfine": ToolConfig(package="hyperfine"),
+    "jactionlint": ToolConfig(args=("--completion=fish",)),
     "lazygit": ToolConfig(args=("completion", "fish")),
     "lefthook": ToolConfig(),
     "lsd": ToolConfig(package="lsd"),
@@ -73,7 +74,6 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "yazi": ToolConfig(package="yazi"),
     "yq": ToolConfig(args=("shell-completion", "fish")),
     "zellij": ToolConfig(args=("setup", "--generate-completion", "fish")),
-    "zizmor": ToolConfig(args=("--completions", "fish")),
     "zoxide": ToolConfig(package="zoxide"),
 }
 # Static completion scripts deployed by chezmoi in dot_config/fish/completions/.
@@ -164,6 +164,7 @@ class DoctorConfig(StrictModel):
         default_factory=lambda: [
             "age",
             "agy",
+            "betterleaks",
             "bf",
             "chezmoi",
             "claude",
@@ -174,7 +175,6 @@ class DoctorConfig(StrictModel):
             "gh",
             "git",
             "git-cliff",
-            "gitleaks",
             "gws",
             "lefthook",
             "mise",
