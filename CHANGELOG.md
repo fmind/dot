@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.5.0] - 2026-10-31
+
+### 🚀 Features
+
+- _(mise)_ Drop the release-age cooldown and adopt Brain Framework 20
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Retire stale tool installs before the global install rebuilds them
+
 ## [15.4.0] - 2026-10-31
 
 ### 🚀 Features
