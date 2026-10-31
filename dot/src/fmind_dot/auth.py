@@ -643,7 +643,9 @@ def login_machine(state: State, *, force: bool, dry_run: bool, check: bool) -> N
         except ValidationError as error:
             raise DotError("invalid Workspace project ID; fix GWS_PROJECT or auth.workspace.project") from error
     if not dry_run:
-        tools = {"github": ["gh"], "gcp": ["gcloud"], "workspace": ["gws"], "colab": ["gcloud", "colab"]}
+        # Workspace setup enables APIs with gcloud, so a set project needs it too.
+        workspace_tools = ["gws", "gcloud"] if project else ["gws"]
+        tools = {"github": ["gh"], "gcp": ["gcloud"], "workspace": workspace_tools, "colab": ["gcloud", "colab"]}
         require_tools(state, [[tool] for provider in providers for tool in tools[provider]])
         if not force:
             warm_probes(state, providers)

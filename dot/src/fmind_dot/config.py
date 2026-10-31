@@ -316,7 +316,7 @@ class WorkspaceConfig(StrictModel):
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.settings.basic",
             "https://www.googleapis.com/auth/meetings.space.readonly",
-            "https://www.googleapis.com/auth/postmaster.readonly",
+            "https://www.googleapis.com/auth/postmaster.traffic.readonly",
             "https://www.googleapis.com/auth/presentations",
             "https://www.googleapis.com/auth/script.projects",
             "https://www.googleapis.com/auth/spreadsheets",

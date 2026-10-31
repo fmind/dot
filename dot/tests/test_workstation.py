@@ -280,7 +280,7 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "analytics.manage.users.readonly",
         "chrome.management.policy.readonly",
         "chrome.management.reports.readonly",
-        "postmaster.readonly",
+        "postmaster.traffic.readonly",
         # Read-only scopes the brain's gws collectors narrow their tokens to, and the audit-log reader.
         "admin.reports.audit.readonly",
         "calendar.readonly",
@@ -304,6 +304,10 @@ def test_workspace_defaults_own_scopes_borrowed_by_brain_sensors() -> None:
         "businessprofileperformance",
         "chromemanagement",
         "chromepolicy",
+        "firebase",
+        "firebaseappcheck",
+        "firebasehosting",
+        "firebaserules",
         "gmailpostmastertools",
         "mybusinessaccountmanagement",
         "mybusinessbusinessinformation",
@@ -1318,6 +1322,18 @@ def test_machine_login_rejects_invalid_project_before_any_login(
     assert "fix GWS_PROJECT or auth.workspace.project" in str(result.exception)
     assert not provider.calls
     assert result.stdout == ""
+
+
+def test_machine_login_requires_gcloud_for_workspace_setup_before_any_login(
+    provider: RecordingRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("auth:\n  login: [github, workspace]\n", encoding="utf-8")
+    monkeypatch.setenv("GWS_PROJECT", "fixture-project")
+    provider.missing.add("gcloud")
+    result = cli(["--config", str(path), "login"], exit_code=1)
+    assert "required tools are missing: gcloud" in str(result.exception)
+    assert not provider.calls
 
 
 def test_machine_login_without_project_skips_workspace_setup(provider: RecordingRunner) -> None:
