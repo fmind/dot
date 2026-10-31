@@ -322,19 +322,20 @@ description = "Prepare, tag, and push the next release; CD publishes it"
 run = "uv run --frozen --directory dot python -m dot_tasks.release"
 
 [tasks.full]
-description = "Install the locked repository and global tools, then apply dotfiles, deploy dot, retire stale lock graphs and their hash-suffixed installs, and regenerate completions"
+description = "Install the locked repository tools, retire stale global lock graphs and their hash-suffixed installs, install the locked global tools, then apply dotfiles, deploy dot, and regenerate completions"
 run = [
   # Do not let a stale home config block the repository tools needed to repair it.
   'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise --locked install -y',
   # Seed tool configuration without invoking missing or outdated hook executables.
   "chezmoi apply --force --exclude scripts",
+  # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs
+  # on every machine that syncs, not only on the one that upgraded. Retire before installing:
+  # mise reuses an install directory whose graph changed, so the install below rebuilds it.
+  'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "mise -C \"$HOME\" --locked install -y",
   "mise run deploy",
   # Hooks now see the current dot and global tools on the very first bootstrap.
   "mise run apply",
-  # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs
-  # on every machine that syncs, not only on the one that upgraded.
-  'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "mise run completions",
 ]
 

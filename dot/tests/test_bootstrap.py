@@ -333,13 +333,16 @@ def test_bootstrap_finishes_trust_and_theme_in_one_run(tmp_path: Path, task: str
     result, home, events = run_task_bootstrap(tmp_path, task, old_dot=old_dot)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert events[:5] == ["repository-install", "seed", "global-install", "deploy", "apply"]
-    assert events[5:9] == [
-        "theme-cache",
-        f"dot trust all {home / 'source'}",
+    # Retiring runs before the global install, which rebuilds any install it removed.
+    assert events[:6] == [
+        "repository-install",
+        "seed",
         "retire /.config/mise/mise.lock",
-        "dot completion",
+        "global-install",
+        "deploy",
+        "apply",
     ]
+    assert events[6:9] == ["theme-cache", f"dot trust all {home / 'source'}", "dot completion"]
     assert events[9:] == (["hooks", "vim"] if task == "install" else [])
     copilot = json.loads((home / ".copilot/config.json").read_text())
     assert copilot["trustedFolders"] == [str(home / "source")]
