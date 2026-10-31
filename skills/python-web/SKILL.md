@@ -12,7 +12,7 @@ metadata:
 
 # Python Web Applications
 
-Build the requested application in its existing framework. For new ordinary APIs use Litestar; choose Django for integrated ORM/admin/auth, or Gradio/NiceGUI for an appropriate Python interface. Keep browser UIs Google-simple and styled with `~/.agents/DESIGN.md` per [web-frontend](../web-frontend/SKILL.md) unless the project or customer defines its own design: one primary job per view, sensible defaults, progressive disclosure for secondary controls, and no unrequested chrome.
+Build the requested application in its existing framework. For new ordinary APIs use Litestar; choose Django for integrated ORM/admin/auth, or Gradio/NiceGUI for an appropriate Python interface. Keep browser UIs Google-simple and styled with `~/.agents/DESIGN.md` per [web-frontend](../web-frontend/SKILL.md) unless the project or customer defines its own design: one primary job per view, sensible defaults, progressive disclosure for secondary controls, and no unrequested chrome. When the app serves a browser UI, open the running app in Chrome ([chrome-devtools](../chrome-devtools/SKILL.md)) to verify the primary flow, console/network health, and rendered UX/UI—unit or HTTP tests alone do not prove the interface.
 
 ## Workflow
 

@@ -25,7 +25,7 @@ Build calm, spacious, Google-simple browser interfaces with native HTML, CSS, an
    DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.196 retrieve "<guide-id>[,<guide-id>]"
    ```
 1. **Compile Tailwind**: use the [standalone Tailwind workflow](references/tailwind.md) when the project selects Tailwind; preserve an existing asset pipeline. `tailwindcss` owns CSS compilation, while `npx` runs only the guidance and token export CLIs above.
-1. **Audit with DevTools**: validate rendering, visual restraint, keyboard flow, performance, and accessibility against live browser sessions using [chrome-devtools](../chrome-devtools/SKILL.md) and [quality-assurance](../quality-assurance/SKILL.md).
+1. **Open and check in Chrome**: start the app, open it in Chrome with [chrome-devtools](../chrome-devtools/SKILL.md), and exercise the primary flow; verify it works without console or network errors and check layout, visual restraint, responsive viewports, keyboard flow, and accessibility before reporting done ([quality-assurance](../quality-assurance/SKILL.md)).
 
 ## Gotchas
 

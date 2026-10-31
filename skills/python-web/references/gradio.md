@@ -14,7 +14,7 @@ Build Gradio apps around Python functions and explicit component events. Use [ni
 1. **Separate logic, state, and wiring**: keep computation independently testable; wire component inputs and outputs explicitly. Use `gr.State` for session state and keep shared model resources separate from user data. Configure queue concurrency around the actual resource, and use generator outputs for streaming work.
 1. **Style through supported APIs**: start with themes and layout components, applying a calm light theme aligned with `~/.agents/DESIGN.md` (white canvas, gray panels, its primary accent, Google Sans and Google Sans Code; take values from the DESIGN.md export, never copies) unless the project has its own brand. Use `gr.HTML` for bespoke HTML/CSS/JavaScript through `html_template`, `css_template`, and `js_on_load` when the installed version supports them, loading third-party scripts through `head`; `<script>` tags in content never run. Avoid styling through undocumented internal DOM selectors.
 1. **Bind development to loopback**: run locally with `uv run python app.py`, using `demo.launch(server_name="127.0.0.1", share=False)` for local development. Public tunnels, Spaces uploads, and remote predictions have their own exposure, data-transfer, and cost scope.
-1. **Prove the browser workflow**: exercise the main browser interaction and any streaming or cancellation behavior; an import or HTTP 200 alone does not prove the workflow.
+1. **Check in Chrome**: open the running app in Chrome ([chrome-devtools](../../chrome-devtools/SKILL.md)) to exercise the main interaction, streaming or cancellation, and rendered UX/UI; an import or HTTP 200 alone does not prove the workflow.
 
 ## Gotchas
 

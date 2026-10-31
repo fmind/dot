@@ -14,7 +14,7 @@ Use Django when its integrated ORM, migrations, forms, templates, authentication
 1. **Build template styles deliberately**: keep an existing asset pipeline; for standalone Tailwind, follow [web-frontend's standalone Tailwind workflow](../../../web-frontend/references/tailwind.md) and build CSS before `collectstatic`.
 1. **Keep control flow visible**: use thin views and explicit functions for multi-step use cases; avoid signals, custom middleware, managers, or repository/service layers when ordinary Django code is clearer.
 1. **Choose sync deliberately**: default to synchronous request and transaction code; use async only for measured concurrent I/O and verify the ASGI, middleware, ORM, connection-pooling, and transaction boundaries end to end.
-1. **Verify the behavior**: run focused model, form, permission, view, and template tests, then the project gate; include Django system, deployment, and migration-drift checks.
+1. **Verify the behavior**: run focused model, form, permission, view, and template tests, then the project gate; include Django system, deployment, and migration-drift checks, and open rendered pages in Chrome ([chrome-devtools](../../../chrome-devtools/SKILL.md)) to verify live behavior and UX/UI.
 
 ```bash
 uv run python manage.py check --fail-level WARNING
