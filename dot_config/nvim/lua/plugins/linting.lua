@@ -8,8 +8,9 @@ return {
       opts.linters_by_ft.markdown = {}
       -- OpenTofu replaces the terraform extra's terraform_validate; the extra installs tflint
       -- but never runs it, so lint with the global copy too.
-      opts.linters_by_ft.terraform = { "tofu", "tflint" }
-      opts.linters_by_ft.tf = { "tofu", "tflint" }
+      for _, filetype in ipairs({ "opentofu", "terraform", "tf" }) do
+        opts.linters_by_ft[filetype] = { "tofu", "tflint" }
+      end
       return opts
     end,
   },

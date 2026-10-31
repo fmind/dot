@@ -21,6 +21,9 @@ return {
         },
         -- mise owns the Python servers; Mason still supplies other languages.
         ruff = { mason = false },
+        -- The terraform extra enables terraformls; use OpenTofu's language server instead.
+        terraformls = { enabled = false },
+        tofu_ls = {},
         ty = {
           mason = false,
           -- Neovim disables this on Linux by default. ty needs notifications
