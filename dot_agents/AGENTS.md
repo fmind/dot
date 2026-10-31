@@ -62,7 +62,7 @@ Reports, documents, slides, emails, and PR or issue text for busy readers with n
 - **Prefer deletion and existing tools**: keep code, configs, flags, checks, CI, and templates minimal. Consolidate before adding, abstract only existing repetition or real boundaries, and prefer a few high-impact changes over many small tweaks.
 - **Document configuration, enforce invariants in code**: document defaults, precedence, and validation. Prefer native formats, else YAML for people and JSON with a schema for programs. Comment non-obvious decisions and keep operations re-runnable.
 - **Update docs in the same change**: when behavior, commands, configuration, or layout change, update every affected README, AGENTS.md, skill, and doc.
-- **Use my design for my work**: my projects follow `~/.agents/DESIGN.md`; customer, employer, and existing projects keep their own design.
+- **Design Google-simple UIs with my theme**: my apps and visuals follow `~/.agents/DESIGN.md` with Google-inspired UI/UX — calm, spacious, intuitive, and uncluttered, with one primary job per view, progressive disclosure for secondary options, and no unrequested chrome (sidebars, KPI cards, settings drawers, modals); customer, employer, and existing projects keep their own design.
 
 ## Boundaries
 
