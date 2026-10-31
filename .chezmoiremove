@@ -1,0 +1,2 @@
+# Retired targets: delete each entry once every machine has applied the release that retired it.
+.config/fish/functions/zellij.fish

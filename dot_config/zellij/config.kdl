@@ -4,7 +4,7 @@ default_shell "fish"
 theme "fmind"
 // mise upgrades Zellij often; skip the release-notes screen after each upgrade.
 show_release_notes false
-// Skip floating startup tips so background sessions (`attach -bc`) serialize cleanly without an about pane.
+// Skip the floating startup-tips pane in new sessions.
 show_startup_tips false
 // Prevent mouse scrolling from implicitly entering and exiting Scroll mode.
 scroll_mode_sync false
