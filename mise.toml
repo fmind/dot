@@ -16,6 +16,10 @@ run_auto_install = false
 # MISE_TASK_QUIET=false restores mise's execution messages for debugging.
 quiet = true
 
+[vars]
+# Skill templates scaffold other repositories' workflows; the workflow linters skip them unless named.
+workflow_templates = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml"
+
 [env]
 # Tasks pass `--project dot` and set COVERAGE_FILE themselves instead of exporting
 # UV_PROJECT here: agent shells snapshot this environment and keep it after leaving
@@ -91,16 +95,14 @@ depends = ["check:scan", "check:vuln"]
 
 [tasks."check:actions"]
 description = "Validate GitHub Actions workflows, shipped workflow templates, and Dependabot config"
-# Skill templates scaffold other repositories' workflows; both linters skip them unless named.
-env = { WORKFLOW_TEMPLATES = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml" }
 run = [
-  "actionlint .github/workflows/*.yml $WORKFLOW_TEMPLATES",
-  "zizmor --offline --strict-collection .github/ $WORKFLOW_TEMPLATES",
+  "actionlint .github/workflows/*.yml {{vars.workflow_templates}}",
+  "zizmor --offline --strict-collection .github/ {{vars.workflow_templates}}",
 ]
 
 [tasks."check:actions:online"]
 description = "Audit workflows with zizmor's online rules (needs GH_TOKEN; weekly in security.yml)"
-run = "zizmor --strict-collection .github/"
+run = "zizmor --strict-collection .github/ {{vars.workflow_templates}}"
 
 [tasks."check:chezmoi"]
 description = "Validate rendered chezmoi source in an isolated destination"
