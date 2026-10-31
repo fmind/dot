@@ -18,7 +18,7 @@ Author the shared project instruction and skill layer once, then add only requir
 
 1. **Inspect first**: preserve existing AGENTS.md, host files, skills, and user settings; reuse a stack-specific instruction file when one exists.
 1. **Create the shared layer and bridges**: follow [host-setup.md](references/host-setup.md) to start `AGENTS.md` from the [project template](templates/AGENTS.md.template), add `.agents/skills/` and the ignored `.agents/prompts/` inbox for [task-prompts](../task-prompts/SKILL.md), then add the Claude Code skills link, optional configuration, and native custom-agent locations only for hosts the repository is used with.
-1. **Verify discovery**: read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs; distinguish presence from demonstrated instruction following.
+1. **Verify discovery**: run `dot agent context --check`, read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs, and distinguish presence from demonstrated instruction following.
 1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary. Select packages from each tool guide's Official Skills section and recheck the selected source before installation.
 1. **Keep current**: route repository changes through [repository-docs](../repository-docs/SKILL.md), including project-local skill references.
 
