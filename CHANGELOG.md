@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.8.0] - 2026-10-31
+
+### 🚀 Features
+
+- _(security)_ Switch to betterleaks and jactionlint
+
+### 🧹 Miscellaneous
+
+- Remove retired .chezmoiremove targets
+
 ## [15.7.0] - 2026-10-31
 
 ### 🚀 Features
