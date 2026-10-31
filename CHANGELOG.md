@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.6.1] - 2026-10-31
+
+### 🐛 Bug Fixes
+
+- _(secrets)_ Delete retired JULES_API_KEY and UV_PUBLISH_TOKEN seeds on apply
+
+### 🧪 Testing
+
+- _(mise)_ Validate both locks with the refresh gate
+
 ## [15.6.0] - 2026-10-31
 
 ### 🚀 Features
