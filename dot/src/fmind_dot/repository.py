@@ -66,6 +66,11 @@ _PULL_CONCURRENCY = 8
 _GIT_ENVIRONMENT = {"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "", "SSH_ASKPASS_REQUIRE": "never"}
 # Ordered classification of git stderr into stable causes that never echo remote output.
 _GIT_FAILURE_CAUSES = (
+    # Checked before non-fast-forward, which also matches the "[rejected]" line of a clobbered tag.
+    (
+        "local tags differ from the remote; back them up, then run: git fetch --tags --force",
+        ("would clobber existing tag",),
+    ),
     (
         "non-fast-forward",
         ("non-fast-forward", "not possible to fast-forward", "diverging branches", "fetch first", "[rejected]"),

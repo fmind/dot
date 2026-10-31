@@ -9,6 +9,7 @@ from pathlib import Path
 
 from dot_tasks import ROOT
 from fmind_dot.errors import DotError
+from fmind_dot.repository import git_failure
 from fmind_dot.state import State, require_tools
 
 _RELEASE_VERSION_FILE = Path("dot/pyproject.toml")
@@ -61,7 +62,10 @@ def validate_release_status(status_output: str) -> None:
 
 
 def _git(state: State, *args: str) -> str:
-    return state.runner.run(["git", *args], timeout=_GIT_TIMEOUT_SECONDS).stdout.strip()
+    result = state.runner.run(["git", *args], timeout=_GIT_TIMEOUT_SECONDS, check=False)
+    if result.returncode:
+        raise DotError(git_failure(args, result))
+    return result.stdout.strip()
 
 
 def _interactive(state: State, args: list[str], root: Path) -> int:

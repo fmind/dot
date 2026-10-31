@@ -265,6 +265,13 @@ def test_release_preflight_rejects_unsafe_repository_states(project: Path) -> No
         run_release(make_state(runner), yes=True)
 
     runner = ReleaseRunner(project)
+    runner.responses[("git", "fetch", "--prune", "--tags", "origin")] = CommandResult(
+        "", "From github.com:o/r\n ! [rejected]  v1.0.0 -> v1.0.0  (would clobber existing tag)\n", 1
+    )
+    with pytest.raises(DotError, match=r"git fetch failed \(1\): local tags differ.*git fetch --tags --force"):
+        run_release(make_state(runner), yes=True)
+
+    runner = ReleaseRunner(project)
     runner.responses[GIT_CLIFF_BUMPED] = CommandResult("v1.27.0-rc.1", "", 0)
     with pytest.raises(DotError, match="invalid semantic version"):
         run_release(make_state(runner), yes=True)
