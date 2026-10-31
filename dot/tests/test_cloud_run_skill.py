@@ -249,5 +249,6 @@ else:
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     assert (result.returncode == 0) is (problem in {"none", "implicit-default"}), result.stderr

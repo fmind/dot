@@ -20,7 +20,9 @@ def chezmoi(
     """
     command = [shutil.which("chezmoi") or "chezmoi", "--source", str(source), "--config", str(config or os.devnull)]
     command += ["--config-format", "toml", *arguments]
-    result = subprocess.run(command, input=stdin, env=env, capture_output=True, encoding="utf-8", timeout=30)
+    result = subprocess.run(
+        command, input=stdin, env=env, capture_output=True, encoding="utf-8", timeout=30, check=False
+    )
     if result.returncode or result.stderr:
         message = f"chezmoi failed (exit {result.returncode}): {shlex.join(command)}"
         raise RuntimeError(f"{message}\nstdout: {result.stdout}\nstderr: {result.stderr}")

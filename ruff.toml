@@ -25,6 +25,7 @@ select = [
   "ARG", # flake8-unused-arguments (clean function signatures without unused arguments)
   "ASYNC", # flake8-async (async/await anti-patterns and pitfalls)
   "B", # flake8-bugbear (common bugs and design detector)
+  "BLE", # flake8-blind-except (no swallowed broad exceptions)
   "C4", # flake8-comprehensions (idiomatic comprehension syntax)
   "DTZ", # flake8-datetimez (timezone-aware datetime construction)
   "E", # pycodestyle errors (standard Python style errors)
@@ -38,6 +39,8 @@ select = [
   "PERF", # Perflint (performance anti-patterns and bottlenecks)
   "PGH", # pygrep-hooks (enforce rule-specific noqas and eval bans)
   "PIE", # flake8-pie (code quality improvements and redundancy elimination)
+  "PLE", # Pylint errors
+  "PLW", # Pylint warnings (such as subprocess.run without check)
   "PT", # flake8-pytest-style (consistent pytest idiom usage in test suites)
   "PTH", # flake8-use-pathlib (prefer modern Path objects over os.path)
   "Q", # flake8-quotes (consistent quote usage)
@@ -55,4 +58,6 @@ select = [
 ]
 ignore = [
   "E501", # line length allowed for long URLs, strings, and templates
+  "PLW0108", # unnecessary-lambda: style, outside Ruff's default set
+  "PLW2901", # redefined-loop-name: deliberate rebinding, outside Ruff's default set
 ]

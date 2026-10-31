@@ -804,7 +804,8 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(json.dumps(payload, indent=2) + "\n")
         else:
             sys.stdout.write(f"OK {source} -> {payload.get('output') or 'validated'}\n")
-    except Exception as exc:
+    # Expected failures print one line; anything else is a bug and keeps its traceback.
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
         if args.json_output:
             sys.stderr.write(json.dumps({"error": str(exc)}) + "\n")
         else:

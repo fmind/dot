@@ -227,6 +227,7 @@ if name == "cosign" and args[0] == "verify-attestation" and args[-1].endswith(os
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         if result.returncode:
             break
