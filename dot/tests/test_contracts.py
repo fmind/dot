@@ -4,14 +4,12 @@ import fnmatch
 import os
 import shutil
 import subprocess
-import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from dot_tasks import skill_contracts as checker
-from dot_tasks.mise_locks import LOCK_REVISION, bundle
 from dot_tasks.mise_refresh import validate
 from tests.chezmoi_helpers import chezmoi
 
@@ -367,42 +365,12 @@ def test_fzf_theme_file_is_exported_only_once_fetched(tmp_path: Path, fetched: b
     assert result.stdout.strip() == (str(theme) if fetched else "")
 
 
-def test_repository_lock_pins_every_tool_artifact_per_platform() -> None:
-    config = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
-    document = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))
-    platforms = {f"platforms.{platform}" for platform in config["settings"]["lockfile_platforms"]}
-    assert platforms
-
-    findings = [f"{name}: not locked" for name in config["tools"] if name not in document["tools"]]
-    for name, entries in document["tools"].items():
-        for entry in entries:
-            for platform in sorted(platforms):
-                artifact = entry.get(platform, {})
-                if not artifact.get("url"):
-                    findings.append(f"{name} {platform}: no url ({entry.get('backend')})")
-                if not str(artifact.get("checksum", "")).startswith(("sha256:", "sha512:", "blake3:")):
-                    findings.append(f"{name} {platform}: no checksum ({entry.get('backend')})")
-    # Every tool must be verifiable from the lockfile alone: relock an unverifiable
-    # tool on a checksummed backend (aqua, core, github) instead of exempting it.
-    assert findings == [], "\n".join(findings)
-
-
-def test_global_lock_covers_every_configured_native_platform() -> None:
-    # The refresh task's own gate: versions, downloads, checksums, and dependency graphs.
-    validate(ROOT / "dot_config/mise")
-
-
-def test_repository_mise_lock_includes_valid_dependency_files() -> None:
-    lock = ROOT / "mise.lock"
-    document = tomllib.loads(lock.read_text())
-    assert document["lockfile_version"] == LOCK_REVISION
-    files = bundle(lock)
-    for name, entries in document["tools"].items():
-        for entry in entries:
-            assert entry["version"]
-            if name.startswith(("npm:", "pipx:")):
-                assert {"uv", "aube"}.intersection(entry), name
-    assert all((lock.parent / path).is_file() for path in files)
+@pytest.mark.parametrize(
+    ("configuration", "config_name"), [(ROOT, "mise.toml"), (ROOT / "dot_config/mise", "config.toml")]
+)
+def test_mise_locks_cover_every_configured_platform_and_dependency_graph(configuration: Path, config_name: str) -> None:
+    # Versions, per-platform URLs and checksums, lockfile revision, and dependency graphs.
+    validate(configuration, config_name)
 
 
 def test_encrypted_targets_are_ignored_without_the_age_key(tmp_path: Path) -> None:

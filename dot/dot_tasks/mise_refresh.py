@@ -16,9 +16,9 @@ from dot_tasks.mise_locks import bundle, capture
 _CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
 
 
-def validate(configuration: Path) -> None:
+def validate(configuration: Path, config_name: str = "config.toml") -> None:
     """Reject an incomplete or unverifiable lock before it replaces the portable baseline."""
-    config = tomllib.loads((configuration / "config.toml").read_text(encoding="utf-8"))
+    config = tomllib.loads((configuration / config_name).read_text(encoding="utf-8"))
     lock = tomllib.loads((configuration / "mise.lock").read_text(encoding="utf-8"))
     findings: list[str] = []
     for name, settings in config["tools"].items():
