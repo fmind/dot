@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.7.0] - 2026-10-31
+
+### 🚀 Features
+
+- _(mise)_ Retire aws-sso-util and use registry names for Copilot and Databricks
+- _(nvim)_ Use the OpenTofu language server, formatter, and linters for opentofu files
+- _(persona)_ Verify web UIs in Chrome, mark recommended options, and offload procedures to skills
+
+### ♻️ Refactor
+
+- _(mise)_ Keep the full gate free of formatting
+
+### 📚 Documentation
+
+- _(skills)_ Verify browser UIs live in Chrome
+- _(skills)_ Default HTTP client examples to httpx2
+
 ## [15.6.1] - 2026-10-31
 
 ### 🐛 Bug Fixes
