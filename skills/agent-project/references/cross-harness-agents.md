@@ -13,12 +13,12 @@ Delegation pays off in two cases: read-heavy work that would flood the coordinat
 
 ## Native definitions
 
-| Host        | Personal profile                      | Project profile                  | Invoke or inspect                               |
-| ----------- | ------------------------------------- | -------------------------------- | ----------------------------------------------- |
-| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agents`; `agy --agent <role>`; `/agents`   |
-| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name     |
-| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`              |
-| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agent <role>`; invoke `@<role>` |
+| Host        | Personal profile                      | Project profile                  | Invoke or inspect                             |
+| ----------- | ------------------------------------- | -------------------------------- | --------------------------------------------- |
+| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agents`; `agy --agent <role>`; `/agents` |
+| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name   |
+| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`            |
+| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agents`; delegation by name   |
 
 Every listed host takes YAML frontmatter plus a Markdown body. Claude's `skills` field injects skills when a parent delegates to the role, not when `claude --agent <role>` runs it as the main session, so preload only skills the role always needs. Name conditional skills in the body by path for the other hosts. Inherit model selection where the host supports it, and always pass task context explicitly: discovery does not imply transcript inheritance or automatic delegation.
 

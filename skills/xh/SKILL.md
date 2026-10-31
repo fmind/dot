@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-10-24"
+  updated: "2026-10-31"
 ---
 
 # xh HTTP Inspection
@@ -16,10 +16,10 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
 
 ## Workflow
 
-1. **Confirm the target**: use an explicit trusted URL, ignore stdin, and start with headers so redirects and advertised size are visible without fetching a body.
+1. **Confirm the target**: use an explicit trusted URL, ignore stdin, and start with a headers-only HEAD so redirects and advertised size are visible without fetching a body. Pass `--print=h`: piped output shows only the body, so a bare HEAD prints nothing.
 
    ```bash
-   xh --ignore-stdin --check-status --timeout 10 HEAD https://example.com/health
+   xh --ignore-stdin --check-status --timeout 10 --print=h HEAD https://example.com/health
    ```
 
 1. **Limit the displayed body**: request at most 64 KiB and cap displayed output even when a server ignores `Range`; do not add `--follow` until the redirect target is reviewed.
@@ -28,7 +28,7 @@ Use xh for bounded read-only HTTP inspection; debugging a known failure belongs 
    xh --ignore-stdin --check-status --timeout 10 GET https://example.com/api Range:bytes=0-65535 | head -c 65536
    ```
 
-1. **Protect credentials**: pass synthetic or environment-sourced authorization only to the intended origin. Use `--print=h` or `--body`; never `--verbose`, `--debug`, `--curl`, sessions, or request-header printing around secrets.
+1. **Protect credentials**: pass synthetic or environment-sourced authorization only to the intended origin, and add `--ignore-netrc` to requests that need no credentials, since xh otherwise sends matching `~/.netrc` entries. Use `--print=h` or `--body`; never `--verbose`, `--debug`, `--curl`, sessions, or request-header printing around secrets.
 1. **Interpret honestly**: in Bash, retain `PIPESTATUS` immediately after the pipeline and report truncation/SIGPIPE separately from HTTP success.
 1. **Require authority for writes**: POST, PUT, PATCH, DELETE, uploads, and state-changing form or JSON bodies need explicit authorization for the exact target and effect.
 

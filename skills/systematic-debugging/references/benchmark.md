@@ -47,7 +47,8 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 
 - **Localhost numbers exclude the network**: oha against `localhost` measures the server, not the user experience.
 - **Correction needs a rate**: oha ignores `--latency-correction` without `-q`; set an authorized request rate and report that rate, concurrency, and achieved throughput together.
-- **hyperfine 2 runs without a shell**: commands no longer pay shell startup; add `-S` (the platform shell) or `--shell=bash` for pipes, `&&`, globs, or variables. 2.x JSON exports use schema v2, so never compare them with 1.x results.
+- **oha success means any response**: its success rate counts every HTTP response, including 4xx, 5xx, and unfollowed 3xx (`--redirect` defaults to 0 since 1.15), and the run still exits 0; check the status code distribution (`statusCodeDistribution` in JSON) before reporting latency.
+- **hyperfine 2 runs without a shell**: commands no longer pay shell startup; add `-S` (the platform shell) or `--shell=bash` for pipes, `&&`, globs, or variables. Pipes and `&&` fail with an error, but globs and `$VAR` pass through literally without one; set variables with `--env 'NAME=value'` instead of a `NAME=value cmd` prefix. 2.x JSON exports use schema v2, so never compare them with 1.x results.
 - **Caches lie**: a second run of a build or query hits caches; use `--prepare` to clear them when the cold path is what matters.
 - **Separate Cloud Run cold starts**: benchmark with `--min-instances` known, and separate first-request latency from steady state per the [cloud-run skill](../../cloud-run/SKILL.md).
 - **Spawn rate is users per second**: not requests per second; think time and response latency determine Locust's request load.
@@ -56,6 +57,6 @@ oha --no-tui -z 10s -c 10 --output-format json -o oha.json http://localhost:8080
 ## Documentation
 
 - [hyperfine](https://github.com/sharkdp/hyperfine) · [oha](https://github.com/hatoo/oha) · [Writing a locustfile](https://docs.locust.io/en/stable/writing-a-locustfile.html) · [Headless runs and exit codes](https://docs.locust.io/en/stable/running-without-web-ui.html)
-- Releases: [hyperfine](https://github.com/sharkdp/hyperfine/releases) · [oha](https://github.com/hatoo/oha/releases) · [Locust changelog](https://docs.locust.io/en/stable/changelog.html)
+- Releases: [hyperfine](https://github.com/sharkdp/hyperfine/releases) · [oha](https://github.com/hatoo/oha/releases) · [Locust](https://github.com/locustio/locust/releases)
 - Official skills: none found in [locustio/locust](https://github.com/locustio/locust) on 2026-10-04; community packages are not upstream endorsements.
 - Companion skills: [quality-assurance](../../quality-assurance/SKILL.md) (performance as part of a test campaign), [production-readiness](../../production-readiness/SKILL.md) (capacity evidence before promotion).

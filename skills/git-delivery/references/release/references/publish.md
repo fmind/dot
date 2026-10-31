@@ -9,17 +9,17 @@ Use the repository's release task when it owns versioning, tags, or publication.
    - Identify every required hosted CI workflow and matrix job. Publication must qualify the final release commit, including any version and changelog edits; a green earlier commit, local gate, or CD job does not cover it.
    - The proposed tag is absent locally and remotely; stop if either copy exists and never move a published tag.
    - Identify whether publication is triggered by a tag, a branch push, or workflow dispatch. Follow that contract; a workflow-owned release skips the manual `gh release create` step.
-1. **Compute the next version**: from the commit types since the last tag, `feat` → minor, `fix` and others → patch, `!` or `BREAKING CHANGE` → major:
+1. **Compute the next version**: from the commit types since the last tag, `feat` → minor, `fix` and others → patch, `!` or `BREAKING CHANGE` → major. A result equal to the latest tag means nothing is releasable; stop:
 
    ```bash
-   git-cliff --bumped-version
+   tag=$(git-cliff --bumped-version)
    ```
 
-1. **Bump non-VCS-versioned manifests**: Python `version` in `pyproject.toml` (unless `hatch-vcs` or similar); inspect OpenTofu projects for explicit version constants; VCS-versioned projects need no separate manifest bump.
-1. **Generate the changelog for that version**:
+1. **Bump non-VCS-versioned manifests**: for a Python project with a static `version`, `uv version "${tag#v}" --no-sync` rewrites `pyproject.toml` and relocks `uv.lock`; inspect OpenTofu projects for explicit version constants; VCS-versioned projects (`hatch-vcs` or similar) need no separate manifest bump.
+1. **Prepend the changelog for that version**: `--prepend` keeps hand-edited and earlier history that a full `-o` regeneration drops; create a missing `CHANGELOG.md` once with `git-cliff --tag "$tag" -o CHANGELOG.md` instead:
 
    ```bash
-   git-cliff --bump -o CHANGELOG.md
+   git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
    ```
 
 1. **Gate the prepared candidate**: run the full gate (`mise run all`) after all version and changelog edits. When the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas). Include any resulting task-owned formatting fixes in the release commit.
@@ -27,14 +27,13 @@ Use the repository's release task when it owns versioning, tags, or publication.
 1. **Commit the release**: the `chore(release)` subject is excluded from the changelog by design:
 
    ```bash
-   git add CHANGELOG.md   # plus the manifest bumped above, if any
-   git commit -m "chore(release): vX.Y.Z"
+   git add CHANGELOG.md   # plus the manifests bumped above (pyproject.toml, uv.lock), if any
+   git commit -m "chore(release): $tag"
    ```
 
 1. **Tag and push the exact release commit atomically**:
 
    ```bash
-   tag=vX.Y.Z
    release_sha=$(git rev-parse HEAD)
    git tag "$tag" -m "$tag" "$release_sha"   # -m without -a keeps tag.forceSignAnnotated signing
    git push --atomic origin main "refs/tags/$tag"

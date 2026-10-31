@@ -18,7 +18,7 @@ Create and switch to a `<type>/<slug>` branch from the selected base for the wor
    ```
 
 1. **Derive the name as `<type>/<slug>`**:
-   - `<type>`: a commit type from [conventional-commit](../../conventional-commit.md), usually `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, or `ci`.
+   - `<type>`: a commit type from [conventional-commit](../../conventional-commit.md), usually `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, or `ci`; where a repository enforces Conventional Branch, use only `feat`, `fix`, `hotfix`, `release`, or `chore`.
    - `<slug>`: lowercase ASCII kebab-case, under 50 characters, no trailing punctuation.
 1. **Reuse a valid name**: when the user's input already is a valid branch name, use it as is.
 1. **Resolve the base**: set `<base-ref>` to the user-specified base, otherwise `HEAD` and state that the new branch starts at the current commit. Ask only if competing branch histories make the intended base unclear.

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Full Review
@@ -16,7 +16,7 @@ Answer "perform a full review", "final check before release", "make sure everyth
 
 ## Arguments
 
-Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope; `upkeep` skips the coverage inventory and covers the Current, Simple, Consistent, and Documented dimensions plus the adopted security scans), mode (default fix; `report` stays read-only, skips the Fix and Prove steps, and reports findings instead of fixes, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
+Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope; `upkeep` skips the coverage inventory and covers the Current, Simple, Consistent, and Documented dimensions plus the adopted security scans), mode (default fix; `report` stays read-only and runs writing tasks such as formatters or `mise run all` only in an isolated [snapshot](../git-delivery/references/git-worktree/GUIDE.md), skips the Fix and Prove steps, and reports findings instead of fixes, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
 
 ## Workflow
 
@@ -26,7 +26,7 @@ Parse the request into one line and state it before starting: scope (paths, othe
 1. **Review each dimension** in the [review matrix](../repository-review/references/review-matrix.md), plus what reviews here repeatedly request:
    - **Works**: every task and CLI entry point runs clean with no warnings ([smoke](../smoke/SKILL.md)); production or deployed endpoints are probed read-only when they exist.
    - **Current**: tools, dependencies, actions, and runtimes against their latest releases ([upgrade-tools](../upgrade-tools/SKILL.md)); report drift and upgrade when the request says so.
-   - **Simple**: dead code, legacy paths, orphan files, stale config, unearned abstractions, and verbose docs ([trim](../trim/SKILL.md)); prefer deletion and consolidation, never a heavier mechanism.
+   - **Simple**: dead code (Python: vulture per [ruff](../python-stack/references/ruff.md#gotchas)), legacy paths, orphan files, stale config, unearned abstractions, and verbose docs ([trim](../trim/SKILL.md)); prefer deletion and consolidation, never a heavier mechanism.
    - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; the layout follows its stack owner (such as [python-stack](../python-stack/SKILL.md)) and the [bootstrap layer](../project-scaffolding/references/bootstrap.md); hooks and CI call the canonical [mise](../mise/SKILL.md) tasks; ignore files fit the stack ([update-ignores](references/update-ignores/GUIDE.md); for an ignore-only request, run that guide alone).
    - **Secure and private**: secrets, permissions, dependencies, and agent tools ([code-security](../code-security/SKILL.md)); private repositories stay private and public ones disclose nothing sensitive.
    - **Documented**: `README.md`, `AGENTS.md`, skills, and `*.md` match behavior, stay concise, and convince their audience ([repository-docs](../repository-docs/SKILL.md)); repeated instructions become skills ([skillify](../skillify/SKILL.md)).

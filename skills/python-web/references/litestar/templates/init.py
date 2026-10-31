@@ -114,6 +114,8 @@ def create_server(config: Settings) -> MPServer | MTServer:
         port=config.port,
         address=config.host,
         reload=config.environment == "development",
+        # Granian's own logger skips the root handlers StructlogPlugin formats unless it propagates.
+        log_dictconfig={"loggers": {"_granian": {"handlers": [], "propagate": True}}},
     )
 
 

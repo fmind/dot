@@ -6,4 +6,4 @@
 - **Opt into a tolerant 0.x line**: set `features_always_bump_minor = false` and `breaking_always_bump_major = false` under `[bump]` in `cliff.toml`.
 - **First release starts at `initial_tag`**: with no tag yet, git-cliff starts from the configured `initial_tag` (`v0.1.0` in the global config).
 - **Prove releases from remote state**: a local tag, a green local gate, a draft release, or a latest-branch run proves nothing about the published release; reconcile the remote tag, exact-head workflows, state, and assets.
-- **Repository `cliff.toml` precedes global**: git-cliff reads `cliff.toml` from the repository root or falls back to `~/.config/git-cliff/cliff.toml`; `--config` only forces another file.
+- **Global config overrides `pyproject.toml`**: git-cliff finds a project `cliff.toml`, `.cliff.toml`, or `.config/cliff.toml` (also in parent directories) before `~/.config/git-cliff/cliff.toml`, but that global file wins over `[tool.git-cliff]`; pass `--config pyproject.toml` there and confirm the `Using configuration from:` log line.

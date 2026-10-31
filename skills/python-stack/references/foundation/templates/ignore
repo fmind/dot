@@ -1,6 +1,6 @@
-# Docs: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#ignore-files
+# Docs: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering
 
-# Low-value search targets for Neovim search (ripgrep/fd)
+# Low-value search targets for Neovim search (ripgrep/fd). Ruff and ty skip these
+# paths too, so never list Python sources such as test fixture modules.
 tests/**/__snapshots__/
-tests/**/fixtures/
 *.min.*

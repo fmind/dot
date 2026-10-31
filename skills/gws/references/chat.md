@@ -13,7 +13,7 @@ Choose one syntax for the entire text body:
 | Bullets     | `- Item`                       | `- Item`                       |
 | Inline code | Single backticks               | Single backticks               |
 
-Current Chat documentation and the observed discovery schema expose `markupSyntax`; `MARKUP_SYNTAX_MARKDOWN` selects Markdown interpretation. Confirm availability in the current schema/account before relying on it. Native Chat remains the portable default. Do not set `formattedText`: it is output-only. Text messages use this markup; card text uses a separate HTML subset, and card capabilities depend on authentication. Author user-authenticated messages as text unless the current API explicitly supports the requested card operation.
+Set `markupSyntax` on every text request: when omitted, the project's Chat app setting decides, and a project without one defaults to Markdown, which renders native `*bold*` as italics. `MARKUP_SYNTAX_MARKDOWN` selects Markdown (CommonMark with Chat extensions); `MARKUP_SYNTAX_CHAT` selects native Chat, the default here, which `chat_body.py` omits, so add it to a native body. Do not set `formattedText`: it is output-only. Text messages use this markup; card text uses a separate HTML subset, and card capabilities depend on authentication. Author user-authenticated messages as text unless the current API explicitly supports the requested card operation.
 
 ```bash
 # Authored native Chat text (default), or explicitly selected Markdown:

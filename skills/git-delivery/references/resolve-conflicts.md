@@ -28,17 +28,17 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 1. **Continue**: stage the resolved files and resume; repeat per commit during a rebase.
    ```bash
    git add <file>...
-   git rebase --continue   # or: git merge --continue
+   GIT_EDITOR=true git rebase --continue   # or merge --continue; keeps the prepared message without an editor
    ```
 1. **Prove it**: Run the repository's owning gate (e.g. `mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
 1. **Push only when already authorized**: a rewritten private branch may need `git push --force-with-lease`; resolving conflicts alone does not authorize that history update, and never force-push a shared branch (`main`, or one others build on), merge into it instead.
 
 ## Gotchas
 
-- **Show the ancestor**: `git checkout --conflict=zdiff3 -- <file>` re-renders the markers with the base version so both sides' edits are visible; persisting `merge.conflictStyle` changes Git configuration and needs consent.
+- **Show the ancestor**: unless `git config --get merge.conflictStyle` already prints `zdiff3`, `git checkout --conflict=zdiff3 -- <file>` re-renders the markers with the base version so both sides' edits are visible; persisting `merge.conflictStyle` changes Git configuration and needs consent.
 - **Regenerate lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
 - **Investigate one-sided deletions first**: `DU` or `UD` means one side removed the file; find out why before restoring it.
-- **Enable rerere from the rebase start**: the same hunk can conflict on several commits. Start the rebase with `git -c rerere.enabled=true rebase <base>` and repeat the `-c` on every `--continue`; enabling it only at `--continue` does not record the conflict already stopped on. Either form creates `$(git rev-parse --git-path rr-cache)`, which keeps rerere active while `rerere.enabled` is unset, so remove that directory afterwards if it did not exist before. Persisting rerere through `git config` or that directory changes repository configuration and needs consent.
+- **Enable rerere from the rebase start**: the same hunk can conflict on several commits. When `git config --get rerere.enabled` does not print `true`, start the rebase with `git -c rerere.enabled=true rebase <base>` and repeat the `-c` on every `--continue`; enabling it only at `--continue` does not record the conflict already stopped on. Either form creates `$(git rev-parse --git-path rr-cache)`, which keeps rerere active while `rerere.enabled` is unset, so remove that directory afterwards if it did not exist before. Persisting rerere through `git config` or that directory changes repository configuration and needs consent.
 - **Stop when unsure**: if intent cannot be recovered from history, ask the user for the decision; contacting the author requires authorization.
 
 ## Documentation

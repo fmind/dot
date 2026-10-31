@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-history
   created: "2026-08-08"
-  updated: "2026-10-25"
+  updated: "2026-10-31"
 ---
 
 # Repository History
@@ -25,7 +25,7 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
    git rev-parse --is-shallow-repository
    ```
 
-1. **Seed line provenance**: Treat movement and copy detection as clues, not guarantees; review a repository-owned `.git-blame-ignore-revs` before honoring it and disclose ignored revisions.
+1. **Seed line provenance**: Treat movement and copy detection as clues, not guarantees; review a repository-owned `.git-blame-ignore-revs` before honoring it with `--ignore-revs-file .git-blame-ignore-revs`, and disclose ignored revisions.
 
    ```bash
    git blame -w -M -C -C -C -L <start>,<end> -- <path>
@@ -47,6 +47,7 @@ Explain why tracked code exists from Git lineage and recorded rationale. Keep pr
    ```bash
    git show --format=fuller --find-renames --find-copies --stat <sha>
    git show --format=fuller <sha> -- <relevant-path>
+   git show --remerge-diff <merge-sha>   # what a merge changed beyond Git's automatic result
    ```
 
 1. **Resolve ancestry anomalies**: Check renames, splits, copies, bulk formatting, generated files, squashes, rebases, cherry-picks, backports, merge parents, and revert pairs; when line history stops at a rewrite, compare file history, pickaxe searches, and neighboring tests, and report the break rather than forcing one origin.

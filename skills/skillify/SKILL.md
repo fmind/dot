@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Skillify
@@ -16,14 +16,14 @@ Capture what this session learned as a skill the next session can run without th
 
 ## Workflow
 
-1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
+1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the user's corrections, the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
 1. **Apply the admission rule** in [package rules](references/package-rules.md#categories-and-scope) before choosing an owner or scope.
-1. **Check the catalog**: `DISABLE_TELEMETRY=1 skills list` and `DISABLE_TELEMETRY=1 skills list -g` (preview `gh skill list` also scans every host directory), then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
+1. **Check the catalog**: list names with descriptions via `rg -m1 '^description:' ~/.agents/skills/*/SKILL.md .agents/skills/*/SKILL.md` (preview `gh skill list` also scans every host directory, without descriptions), then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
 1. **Choose the scope**:
    - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository, whose `dot-skills` skill owns registration (link declaration) and `mise run check:skills`. Installation or tooling changes also need their affected tests.
    - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project, which agy reads natively; add the `.claude/skills -> ../.agents/skills` link only when the repository is also used with Claude Code, per [agent-project](../agent-project/SKILL.md). In the dot repository, local skills also register through `dot-skills`.
 1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the size and output-efficiency rules in [package rules](references/package-rules.md); long configs and examples go to `references/`.
-1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is reachable from its owner, and `mise run check:skills` passes for a global skill.
+1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is reachable from its owner, and `mise run check:skills` passes for a global skill. In another repository, the preview `gh skill publish --dry-run .agents/skills` checks the Agent Skills specification without publishing and exits 1 on errors.
 1. **Test behavior**: follow the [adoption check](references/adoption-check.md) for substantial additions or routing changes: a natural trigger, a neighboring task, and an observable outcome in an isolated fixture. Keep paid or external effects within scope and report unavailable host validation separately.
 1. **Report**: the path, the description, and the scope.
 
@@ -35,6 +35,7 @@ Keep durable preferences in the global persona and repository invariants in proj
 
 - **Descriptions route, bodies instruct**: the description decides when the skill loads; the body decides what happens. Do not summarize the workflow in the description.
 - **Keep dates current**: set `created` and `updated` to today; bump `updated` on every later edit.
+- **Keep agy `/learn` lessons in the dot source**: its global scope writes `~/.gemini/GEMINI.md` (the chezmoi-deployed persona, which the next `chezmoi apply --force` overwrites), rule files under `~/.gemini/config/rules/`, or new skills under `~/.gemini/config/skills/` (`~/.agents/skills`), all outside the dot source. Approve its `learning_proposal.md` only for project scope; apply global lessons to the dot source with this workflow.
 - **Follow vendor policy for third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
 - **Promote or publish per portability**: promoting a guide to a package or publishing one standalone follows [portability](references/portability.md).
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-10-25"
+  updated: "2026-10-31"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -27,11 +27,11 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
    kubectl --context <context> cluster-info
    ```
 
-1. **Lint and validate manifests**: validate schemas against the target cluster's version (kubeconform defaults to `master` schemas) and verify security practices prior to applying manifests.
+1. **Lint and validate manifests**: validate schemas against the target cluster's version (kubeconform defaults to `master` schemas) and scan for misconfigurations with [trivy](../code-security/references/trivy/GUIDE.md) and the project's `trivy.yaml` before applying manifests.
 
    ```bash
    kubeconform -strict -summary -kubernetes-version <cluster-version> <file-or-directory>
-   trivy config <file-or-directory>
+   trivy --config trivy.yaml config <file-or-directory>
    kustomize build <kustomization-dir> | kubeconform -strict -summary -kubernetes-version <cluster-version> -
    ```
 
@@ -44,7 +44,7 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
    kubectl --context <context> --namespace <namespace> diff -k <kustomization-dir>
    ```
 
-   A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope. `kubectl diff` masks Secret data unless `--show-secrets` is passed, but ConfigMaps and rendered chart values are not masked; exclude sensitive values from captured output.
+   A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope; with Helm 4 add `--rollback-on-failure --timeout <duration>`, which replaces the deprecated `--atomic` (as `--force-replace` replaces `--force`). `kubectl diff` masks Secret data unless `--show-secrets` is passed, but ConfigMaps and rendered chart values are not masked; exclude sensitive values from captured output.
 
 1. **Inspect workloads and bounded logs**: narrow to the relevant workload and time window. Use finite log reads for agents; reserve streaming `stern` for an explicitly interactive investigation. The line limit applies per pod/container, so keep the pod query narrow.
 
@@ -70,5 +70,5 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
 
 - [Kubernetes Documentation](https://kubernetes.io/docs/) · [Helm Documentation](https://helm.sh/docs/)
 - [Stern Log Tailer](https://github.com/stern/stern) · [kubeconform](https://github.com/yannh/kubeconform)
-- Releases: [Kubernetes Releases](https://github.com/kubernetes/kubernetes/releases)
+- Releases: [Kubernetes Releases](https://github.com/kubernetes/kubernetes/releases) · [Helm](https://github.com/helm/helm/releases)
 - Companion skills: [docker](../docker/SKILL.md) (container runtimes), [infra-as-code](../infra-as-code/SKILL.md) (provisioning), [incident-response](../production-readiness/references/incident-response.md) (outages).

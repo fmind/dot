@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from email.message import EmailMessage
 from email.policy import SMTP
@@ -148,19 +149,23 @@ def _run_gws(args: list[str], context: str) -> dict[str, Any]:
         raise RuntimeError("`gws` not found in PATH; install @googleworkspace/cli (e.g. `mise install`).")
     last_msg = ""
     for attempt in range(2):
-        proc = subprocess.run(  # noqa: S603 - fixed gws binary and validated arguments
-            [gws_bin, *args],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=60,
-        )
+        try:
+            proc = subprocess.run(  # noqa: S603 - fixed gws binary and validated arguments
+                [gws_bin, *args],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"{context} timed out after 60 s; check its state before rerunning.") from exc
         if proc.returncode == 0:
             return _parse_json_stdout(proc.stdout, context)
         detail = (proc.stderr or proc.stdout).strip().splitlines()
         last_msg = detail[-1] if detail else f"exit code {proc.returncode}"
-        if attempt == 0 and "HTTP request failed" in last_msg:
+        # Never resend an uncertain create: it can duplicate the draft; list drafts and pass --draft-id.
+        if attempt == 0 and "HTTP request failed" in last_msg and context != "drafts.create":
             time.sleep(1.0)
             continue
         break
@@ -545,19 +550,35 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
             return 0
 
+        # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG.
+        message = dict(built["draft"]["message"])
+        raw = message.pop("raw")
+        operation = "update" if args.draft_id else "create"
+        params: dict[str, Any] = {"userId": "me"}
+        metadata: dict[str, Any] = {"message": message} if message else {}
         if args.draft_id:
-            params = json.dumps({"userId": "me", "id": args.draft_id})
-            body = json.dumps({"id": args.draft_id, **built["draft"]}, ensure_ascii=False)
+            params["id"] = metadata["id"] = args.draft_id
+        with tempfile.TemporaryDirectory(prefix="draft-mail-") as tmp:
+            eml_path = Path(tmp) / "message.eml"
+            eml_path.write_bytes(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
             resp = _run_gws(
-                ["gmail", "users", "drafts", "update", "--params", params, "--json", body, "--format", "json"],
-                "drafts.update",
-            )
-        else:
-            params = json.dumps({"userId": "me"})
-            body = json.dumps(built["draft"], ensure_ascii=False)
-            resp = _run_gws(
-                ["gmail", "users", "drafts", "create", "--params", params, "--json", body, "--format", "json"],
-                "drafts.create",
+                [
+                    "gmail",
+                    "users",
+                    "drafts",
+                    operation,
+                    "--params",
+                    json.dumps(params),
+                    "--json",
+                    json.dumps(metadata),
+                    "--upload",
+                    str(eml_path),
+                    "--upload-content-type",
+                    "message/rfc822",
+                    "--format",
+                    "json",
+                ],
+                f"drafts.{operation}",
             )
 
         draft_id = str(resp.get("id") or args.draft_id or "").strip()

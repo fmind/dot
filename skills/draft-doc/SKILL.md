@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-doc
   created: "2026-10-27"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Draft Doc
@@ -49,7 +49,7 @@ Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) an
      --file-id "<FILE_ID>" --json
    ```
 
-   Add `--doc-name` to an update only to rename the document. To compile without uploading, omit the Drive flags and pass `--assets-dir "$SCRATCH/assets/<doc-slug>"`; `--check-only` validates without rendering.
+   Add `--doc-name` to an update only to rename the document. To compile without uploading, omit the Drive flags and pass `--assets-dir "$SCRATCH/assets/<doc-slug>"`; `--check-only` validates an already compiled `.md` (or one `.svg`) without rendering, so it rejects a `.src.md` that still holds figures.
 
 1. **Verify by reading back**: `gws docs documents get --params '{"documentId":"<FILE_ID>","includeTabsContent":true}'` works on native `.md` files; confirm headings, `inlineObjects`, footnotes, and tables. Report `drive.docs_url` and `drive.assets_folder_url`.
 

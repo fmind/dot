@@ -6,7 +6,7 @@
    ```bash
    mkdir -p .agents/skills .agents/prompts
    ```
-   Start `AGENTS.md` from the [project template](../templates/AGENTS.md.template) (named `.template` because agy loads any `AGENTS.md` beside a file it reads); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored). Antigravity, Copilot, Cursor, and OpenCode read `AGENTS.md` and `.agents/skills` natively, as do other hosts that follow the [AGENTS.md standard](https://agents.md) (for example Codex); check such a host's docs for its own files.
+   Start `AGENTS.md` from the [project template](../templates/AGENTS.md.template) (named `.template` because Claude Code and OpenCode load an `AGENTS.md` beside a file they read); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored). Antigravity, Copilot, Cursor, and OpenCode read `AGENTS.md` and `.agents/skills` natively, as do other hosts that follow the [AGENTS.md standard](https://agents.md) (for example Codex); check such a host's docs for its own files.
 1. **Bridge Claude Code skills only when the repository is also used with Claude Code**: Claude Code 2.1.277+ loads project `AGENTS.md` when no `CLAUDE.md` exists, so add no `CLAUDE.md`; a present one replaces `AGENTS.md` under the default `instructionFiles` mode. Its skills still load only from `.claude/skills`. After checking that the path does not already exist unmanaged:
    ```bash
    mkdir -p .claude && ln -s ../.agents/skills .claude/skills

@@ -13,7 +13,11 @@ uv = "latest"
 run = "uv sync --locked"
 
 [tasks.format]
-run = "dprint fmt"
+depends = ["format:dprint"]
+
+[tasks."format:dprint"]
+# Lefthook appends {staged_files}; the flag keeps an empty list from exiting 14.
+run = "dprint fmt --allow-no-files"
 
 [tasks."check:format"]
 run = "dprint check"
@@ -27,4 +31,12 @@ run = "uv run --locked zensical serve"
 
 [tasks.check]
 # Course repositories also add their lab tests here; a docs build is not a lab test.
-depends = ["check:format", "build:docs"]
+depends = ["check:local", "check:network"]
+
+[tasks."check:local"]
+# Pre-commit stays offline.
+depends = ["check:format"]
+
+[tasks."check:network"]
+# The privacy plugin downloads fonts and Mermaid on every clean build, so pre-push and CI run it.
+depends = ["build:docs"]

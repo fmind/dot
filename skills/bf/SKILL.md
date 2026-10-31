@@ -9,7 +9,7 @@ metadata:
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Use Brain Framework
@@ -33,4 +33,4 @@ A brain keeps OKF project, concept and action notes plus collected source record
 ## Documentation
 
 - [Brain Framework repository](https://github.com/fmind/brain-framework) · [documentation](https://fmind.github.io/brain-framework/) · [releases](https://github.com/fmind/brain-framework/releases) · [team brains](https://fmind.github.io/brain-framework/docs/team/)
-- [Packaged skills at v19.0.1](https://github.com/fmind/brain-framework/tree/v19.0.1/src/bf/skills): prefer the brain's installed copy, which matches its runtime; change the procedures there, not here.
+- [Packaged skills at v19.1.0](https://github.com/fmind/brain-framework/tree/v19.1.0/src/bf/skills): prefer the brain's installed copy, which matches its runtime; change the procedures there, not here.

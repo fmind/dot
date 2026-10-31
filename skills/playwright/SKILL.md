@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Playwright
@@ -17,8 +17,8 @@ Use Playwright for browser automation and end-to-end tests. Test strategy belong
 ## Workflow
 
 1. **Pin the Python integration**: `uv add --dev playwright pytest-playwright`, then `uv run playwright install chromium`; keep both packages in `uv.lock`. If Linux system libraries are missing, report the administrator-owned prerequisite instead of invoking the privileged `install-deps` command.
-1. **Explore and record**: `uv run playwright codegen --target python <url>` records Python actions; `uv run playwright screenshot <url> <file>` and `uv run playwright pdf <url> <file>` produce review evidence.
-1. **Run tests**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`. Inspect a saved trace from the shell with `uv run playwright trace open <trace.zip>` and the subcommands in `uv run playwright trace --help` (errors, actions, requests, console); `trace close` removes the extracted data. `show-trace` opens the GUI viewer for humans.
+1. **Explore and record**: `uv run playwright codegen --target python-pytest <url>` records a pytest test while a human drives the headed browser; `uv run playwright screenshot <url> <file>` (add `--viewport-size=390,844` or `--full-page` as needed) and `uv run playwright pdf <url> <file>` produce review evidence. For a one-off render check outside a project that locks Playwright, run the same commands through `uvx --from playwright==<version> playwright`, installing chromium first; never add Playwright to an unrelated project.
+1. **Run tests**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`. Inspect a saved trace from the shell with `uv run playwright trace open <trace.zip>` and the subcommands in `uv run playwright trace --help` (errors, actions, requests, console); `trace close` removes the extracted data. `show-trace` opens the GUI viewer for humans. To debug a failing test live, run it alone in the background with `--playwright-debug=cli -s`; when it pauses, attach with `uv run playwright cli attach <session>` from the printed instructions, then stop the background run and delete the `.playwright-cli/` snapshot directory the CLI writes in the working directory.
 
 ## Gotchas
 

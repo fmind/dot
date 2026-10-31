@@ -1,6 +1,6 @@
 # Cancellation and Tests
 
-For asyncio on Python 3.11+, put related tasks inside a `TaskGroup` and the operation inside `asyncio.timeout`. A non-cancellation child failure cancels siblings and is normally raised as an exception group after they finish. Catch only errors the boundary can handle; do not turn an exception group into an empty successful result.
+For asyncio on Python 3.11+, put related tasks inside a `TaskGroup` and the operation inside `asyncio.timeout`. A non-cancellation child failure cancels siblings and is normally raised as an exception group after they finish. To stop a group early once its goal is met, call `group.cancel()` (Python 3.15+, AnyIO 4.14+) instead of raising and suppressing a sentinel exception; the group then exits without an error. Catch only errors the boundary can handle; do not turn an exception group into an empty successful result.
 
 Use `try/finally` for resource release. If explicitly catching `asyncio.CancelledError`, re-raise it after cleanup. Cleanup can itself be interrupted by a later cancellation; a required asynchronous finalizer needs an owned task, a bounded wait, and a defined failure outcome. `asyncio.shield` alone does not make the caller wait for completion or impose a timeout.
 

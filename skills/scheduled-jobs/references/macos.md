@@ -22,7 +22,7 @@ launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/dev.example.repor
 launchctl print "gui/$(id -u)/dev.example.report"
 ```
 
-Inspect an existing label before bootstrap; do not repeatedly unload/reload it to hide a configuration failure. An explicitly authorized manual start uses `launchctl kickstart "gui/$(id -u)/dev.example.report"`; omit `-k`, which would kill a running instance. For updates, account for the active run before bootout and bootstrap.
+Inspect an existing label before bootstrap; do not repeatedly unload/reload it to hide a configuration failure. On macOS 13 and later, Background Task Management can block an agent the user switched off under System Settings › General › Login Items & Extensions; check that switch first and ask the user to allow it instead of rewriting the plist. An explicitly authorized manual start uses `launchctl kickstart "gui/$(id -u)/dev.example.report"`; omit `-k`, which would kill a running instance. For updates, account for the active run before bootout and bootstrap.
 
 Apple documents wake-time catch-up for `StartCalendarInterval`, but not replay of jobs missed while powered off. Verify the deployed OS and login/sleep behavior with a harmless fixture. Do not claim that plist validation or kickstart proves a scheduled wake-up.
 

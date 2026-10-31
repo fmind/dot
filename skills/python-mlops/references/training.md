@@ -12,6 +12,7 @@ Tabular prediction defaults: [polars](polars.md) frames, Pandera schemas, and a 
 - **Never reuse the reference split blindly**: the bike example's two-month temporal split, schemas, and thresholds are examples; derive the split from the deployment question.
 - **Keep the final holdout final**: tune on validation folds against a simple baseline on identical folds; touch the holdout once for the agreed assessment and report fold/seed spread, not a single seed.
 - **Prove the reloaded artifact**: reload the saved preprocessing plus model in the target environment and compare predictions on a held-out sample within an explicit tolerance. A high score is not evidence that leakage checks passed.
+- **Keep skops serialization**: outside Databricks, MLflow 3.14+ saves scikit-learn models with skops, which rejects custom functions and other untrusted types at log time; list only reviewed types in `skops_trusted_types` instead of switching to `cloudpickle`. MLflow stores that list in the model's MLmodel file, so load models only from a trusted registry either way.
 
 Tracking belongs to [experiments](experiments.md); registry evaluation and promotion to [model-delivery](model-delivery.md).
 

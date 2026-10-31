@@ -7,10 +7,10 @@ description: "Create, budget, and tear down disposable local k3d clusters for ru
 
 Local k3d clusters need an existing Docker-compatible engine (see [docker](../../docker/SKILL.md)) and `k3d` declared in the project with `mise use --pin k3d`; run `dot doctor --headroom` before creating one. Prefer manifest checks when they can answer the question.
 
-1. **Create only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name. Keep the current kubeconfig context unchanged and pass `--context k3d-<task-cluster>` afterwards.
+1. **Create only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name. Keep the current kubeconfig context unchanged and pass `--context k3d-<task-cluster>` afterwards. Pick a `rancher/k3s` tag of the target cluster's minor version; otherwise k3d uses the k3s release it was built with. `--timeout` bounds creation and rolls back a failed create.
 
    ```bash
-   k3d cluster create <task-cluster> --agents 1 --kubeconfig-switch-context=false
+   k3d cluster create <task-cluster> --agents 1 --kubeconfig-switch-context=false --image rancher/k3s:<k3s-tag> --timeout 5m
    ```
 
 1. **Tear down promptly**: after runtime tests, stop or delete only the disposable cluster whose successful creation was recorded for this task. A failed create does not authorize deleting a pre-existing cluster with that name.

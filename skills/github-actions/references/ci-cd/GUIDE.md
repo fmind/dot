@@ -36,9 +36,11 @@ CI runs the canonical [mise](../../../mise/SKILL.md) `all` task so it stays alig
 ## Gotchas
 
 - **Guard against injection and cache poisoning**: `${{ ... }}` expands in `run:` before the shell runs, even inside comments; pass expression values through `env:` or action inputs and follow the `template-injection` and `cache-poisoning` fixes in [zizmor](../zizmor.md).
+- **actionlint lags new Actions syntax**: 1.7.12 rejects the `cache-mode` key ([#745](https://github.com/rhysd/actionlint/issues/745)) and the `ubuntu-26.04` label ([#682](https://github.com/rhysd/actionlint/issues/682)). Until a release supports them, keep `cache: false` on each caching action in release jobs and pin `ubuntu-24.04`; when a repository needs `ubuntu-26.04` sooner, declare it under `self-hosted-runner.labels` in `.github/actionlint.yaml` with a comment.
 - **Trusted Publisher identity must match exactly**: PyPI must match the GitHub owner, repository, workflow filename, and optional `pypi` environment exactly; no API token is needed.
 - **Schedule full-history scans separately**: full-history scans need `fetch-depth: 0` and minutes of runtime; keep them in the scheduled workflow with a job timeout.
 - **Lowercase only the image repository**: GHCR rejects uppercase repository paths, while the cosign certificate retains the GitHub workflow identity; lowercase only the image repository.
+- **Run tools directly under SHA-pinning policy**: with `sha_pinning_required`, a composite action that calls another action by tag fails the job (`pre-commit/action` calls `actions/cache@v4`); run the tool itself, such as `pre-commit run --all-files --show-diff-on-failure`.
 - **SHA comments drift**: when changing an action SHA manually, verify the release tag resolves to that exact commit and update its trailing comment in the same change.
 
 ## Documentation

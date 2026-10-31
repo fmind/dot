@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dprint
   created: "2026-06-29"
-  updated: "2026-10-05"
+  updated: "2026-10-31"
 ---
 
 # dprint
@@ -16,7 +16,7 @@ The formatter for configuration and markup files (JSON, Markdown, TOML, YAML); d
 
 ## Configuration
 
-dprint searches the current directory upward for `dprint.json(c)` or `.dprint.json(c)` and falls back to the global config (`DPRINT_CONFIG_DIR`) only when nothing is found. Global fallback can prompt before `fmt`; use a local, version-pinned configuration for non-interactive project gates.
+dprint searches the current directory upward for `dprint.json(c)`, `.dprint.json(c)`, or `.config/dprint.json(c)` (0.64+) and falls back to the global config (`DPRINT_CONFIG_DIR`) only when nothing is found. Global fallback can prompt before `fmt`; use a local, version-pinned configuration for non-interactive project gates.
 
 1. **Copy (default)**: copy a known-good `dprint.json` into the project root; it is self-contained and version-pinned. The first run downloads uncached plugins; later runs use dprint's local cache. Bump plugin versions per repository.
 1. **Extends (DRY)**: set `"extends"` to a single source of truth, a local path or a commit-pinned URL such as `"https://raw.githubusercontent.com/fmind/dot/<commit>/dprint.json"`; override rules or add plugins locally.
@@ -37,7 +37,7 @@ run = "dprint check" # non-zero exit on drift
 
 ## Gotchas
 
-- **Prefer `npm:` plugin references**: `npm:@dprint/markdown@<version>` over `https://plugins.dprint.dev/...wasm` URLs; both resolve, and the npm form makes the current version one `npm view <plugin> version` away.
+- **Prefer `npm:` plugin references**: `npm:@dprint/markdown@<version>` over `https://plugins.dprint.dev/...wasm` URLs; both resolve, and `dprint config update --dry-run` previews newer versions, including moving URL plugins to npm specifiers; [upgrade-tools](../upgrade-tools/SKILL.md) applies them.
 - **Plugin order is precedence**: the `plugins` array order decides which plugin claims a file; keep specialized plugins before generic ones.
 - **Load plugins for embedded code**: the Markdown plugin formats fenced JSON, TOML, and YAML only when those plugins are loaded too.
 - **Format staged, check the whole tree**: `format:dprint` takes `{staged_files}` from the hook, which restages fixes; `check:format` always runs on the whole tree. Outside a hook, `dprint fmt --staged` or `--dirty` selects the staged or uncommitted files itself.

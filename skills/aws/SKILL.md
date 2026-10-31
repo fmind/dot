@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-31"
 ---
 
 # Amazon Web Services CLI
 
-Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch operations.
+Use `aws` for AWS account, IAM, S3, ECS, and CloudWatch operations; the installed `aws-sso-util` 4.33.0 ignores the `sso-session` profiles that `aws configure sso` writes.
 
 ## Workflow
 
@@ -27,8 +27,6 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 
    ```bash
    aws sso login --profile <profile>
-   # Or using aws-sso-util:
-   aws-sso-util login --profile <profile>
    # Without Identity Center:
    aws login --profile <profile>
    ```
@@ -45,8 +43,7 @@ Use `aws` and `aws-sso-util` for AWS account, IAM, S3, ECS, and CloudWatch opera
 
 ## Gotchas
 
-- **Refresh expired SSO tokens**: SSO tokens expire after their configured duration; refresh via `aws sso login` rather than falling back to static API keys.
-- **`--query` runs client-side**: select needed fields and pair with supported server-side filters and `--max-items`; `--page-size` only changes request size, not total results. Preserve `NextToken` in projections, report capped results as partial, and resume deliberately when completeness is required. Use `--no-cli-pager` for agent calls; avoid debug output around credentials.
+- **`--query` runs client-side**: select needed fields and pair with supported server-side filters and `--max-items`; `--page-size` only changes request size, not total results. Preserve `NextToken` in projections, report capped results as partial, and resume deliberately when completeness is required. Use `--no-cli-pager --cli-error-format json` for agent calls so service and credential errors return a parseable `Code` and `Message`; avoid debug output around credentials.
 - **Failures are findings**: report authorization (`AccessDeniedException`) or missing role errors directly; do not attempt permission escalation or modify IAM policies without authorization.
 
 ## Official Skills

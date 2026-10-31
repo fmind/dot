@@ -45,6 +45,8 @@ These replace MkDocs plugins without extra packages unless noted. Enable a plugi
 - `gh-admonitions`, `callouts`: 0.0.67, 0.0.62; Use: GitHub `> [!NOTE]` alerts and Obsidian callouts rendered as admonitions
 - `mkdocs-nav-weight`, `markdownextradata`, `include-markdown`: 0.0.69, 0.0.69, 0.0.71; Use: Migration compatibility for front-matter `weight` ordering, `extra` and data-file variables in Markdown, and `{% include-markdown %}` (mapped to snippets); new sites use explicit `nav`, `macros`, and snippets
 - `exclude`: 0.0.67; Use: Remove source files from the site by glob or regex
+- `privacy`: 0.0.72; Use: Self-host external assets such as Google Fonts and Mermaid at build time and annotate external links; scope downloads with `assets_include`, because the default also vendors about 2 MB of scripts the theme bundle references (video players, ad SDKs, Pyodide); cached in `.cache/plugin/privacy`, which `build --clean` empties
+- `mkdocs-audio`, `mkdocs-video`: 0.0.68; Use: Native audio playback and embedded video players or files
 - `offline`: 0.0.3; Use: File-system browsing with working search; disable instant navigation, analytics, repository facts, and comments
 - `mike`: 0.0.30; Use: Versioned deployments through the `squidfunk/mike` fork and `mkdocs.yml`; native versioning is planned
 
@@ -78,7 +80,7 @@ Add `mkdocstrings-python` with `uv add --dev mkdocstrings-python`; `api-autonav`
 ## Analytics and privacy
 
 - `[project.extra.analytics]` supports Google Analytics and the "Was this page helpful?" feedback widget; pair it with `[project.extra.consent]` and a `<a href="#__consent">` link in `copyright`.
-- **List third-party hosts in privacy reviews**: Mermaid loads from unpkg, MathJax/KaTeX need explicit `extra_javascript`, and Google Fonts load by default. List these hosts in a privacy review; the upstream `privacy` plugin is planned but not yet available.
+- **List third-party hosts in privacy reviews**: Mermaid loads from unpkg, MathJax/KaTeX need explicit `extra_javascript`, and Google Fonts load by default. The `privacy` plugin downloads and self-hosts them at build time (list each host in `assets_include`); otherwise list these hosts in the privacy review.
 
 ## Shared and variant content
 

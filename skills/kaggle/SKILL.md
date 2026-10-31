@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-31"
 ---
 
 # Kaggle CLI
@@ -21,20 +21,20 @@ Use `kaggle` for competition, dataset, kernel, and model operations from the she
 1. **Download into an ignored directory**: accept the competition rules on the website first (the CLI returns 403 otherwise).
 
    ```bash
-   kaggle competitions download <slug> -p data/
+   kaggle competitions download <slug> -p data/ --unzip
    kaggle datasets download <owner>/<name> -p data/ --unzip
    ```
 
 1. **Track the timeline**: after accepting rules, list the page names with `kaggle competitions pages list list <slug>`, then read the deadlines with `--page-name timeline` (or `description` when no timeline page exists). Offer, or schedule when requested, Google Calendar reminders with [gws](../gws/SKILL.md): one week before the entry and team merger deadline, and on the final submission day.
-1. **Inspect kernels before pushing**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout: pushing uploads code and starts remote execution. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
-1. **Submit with authority**: a submission counts against the daily limit and shows on the leaderboard, so confirm the competition, file, and message first, then verify.
+1. **Inspect kernels before pushing**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout (`--accelerator` overrides the metadata's GPU/TPU settings, `-t` sets the run timeout): pushing uploads code and starts remote execution unless `--no-run` saves the version without running it. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
+1. **Submit with authority**: a submission counts against the daily limit and shows on the leaderboard, so confirm the competition, file, and message first. `--wait <seconds>` polls until scoring finishes and exits non-zero on a scoring error or timeout, though the submission still counts; otherwise look up the printed ref with `kaggle competitions submission <ref>`.
 
    ```bash
-   kaggle competitions submit <slug> -f submission.csv -m "<message>"
-   kaggle competitions submissions <slug>
+   kaggle competitions submit <slug> -f submission.csv -m "<message>" --wait 900
+   kaggle competitions submissions <slug> --format json --page-size 5
    ```
 
-1. **Publish with authority**: `kaggle datasets create -p <dir>` creates a private dataset unless `--public` is explicitly authorized. `kaggle datasets version -p <dir> -m "<message>"` updates an existing dataset and retains its visibility; it has no `--public` flag. Verify the target dataset's current visibility before uploading a version, and confirm the license and intended audience before either operation.
+1. **Publish with authority**: `kaggle datasets create -p <dir>` creates a private dataset unless `--public` is explicitly authorized. `kaggle datasets version -p <dir> -m "<message>"` updates an existing dataset and retains its visibility; it has no `--public` flag, and its `-d/--delete-old-versions` deletes the dataset's history, so pass it only when that deletion was requested. Verify the target dataset's current visibility before uploading a version, and confirm the license and intended audience before either operation.
 
 ## Gotchas
 

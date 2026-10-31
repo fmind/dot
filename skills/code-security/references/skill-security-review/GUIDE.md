@@ -40,14 +40,6 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 
 - **Pin the reviewed snapshot**: review the same immutable commit that will be installed; a mutable-branch review is a proof gap, not a review.
 
-## Task guides
-
-<!-- guides:start -->
-
-- [scanners](references/scanners.md): Run gitleaks and Trivy on a candidate with trusted configuration it cannot suppress.
-
-<!-- guides:end -->
-
 ## Documentation
 
 - [Agent Skills specification](https://agentskills.io/specification)

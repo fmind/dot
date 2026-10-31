@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fact-check
   created: "2026-10-04"
-  updated: "2026-10-25"
+  updated: "2026-10-31"
 ---
 
 # Fact-Check
@@ -23,7 +23,7 @@ Verify every material claim and link in a draft article, post, talk, or README s
    | - | ------------------- | ---- | ------- | ------- | --- |
 
 1. **Verify, do not recognize**: confirm each row against a primary source opened in this session: the vendor's documentation or changelog, the repository, the lockfile or installed version, the paper, the official announcement. Prefer the canonical page over an aggregator, blog summary, or model memory. Personal facts trace only to the author's notes or explicit input; never supply them.
-1. **Check links**: run lychee on the file, then open each cited page and confirm it says what the sentence claims; a resolving link that does not support its claim is the worse failure. A bare `--include-fragments` checks `#anchor` fragments only; use `--include-fragments=full` when the draft cites text fragments (`#:~:text=`).
+1. **Check links**: run lychee on the file, then open each cited page and confirm it says what the sentence claims; a resolving link that does not support its claim is the worse failure. A bare `--include-fragments` checks `#anchor` fragments only; use `--include-fragments=full` when the draft cites text fragments (`#:~:text=`). Lychee skips URLs in inline code and code blocks; add `--include-verbatim` when they carry claims, and dismiss placeholder hosts it then reports.
 
    ```bash
    lychee --no-progress --include-fragments --max-retries 2 --format detailed <file>

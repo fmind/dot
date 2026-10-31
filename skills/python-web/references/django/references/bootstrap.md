@@ -43,7 +43,7 @@ Adapt the shared [Python manifest](../../../../python-stack/references/foundatio
 
 ## Canonical Tasks
 
-Reuse the shared format, leak, lint, type, vulnerability, and test tasks. Add these Django checks to `mise run check` and pass production-like environment values to the deployment check without storing real secrets:
+Reuse the shared format, leak, lint, type, vulnerability, and test tasks. Add these Django checks as a `check:local` dependency, so the pre-commit hook runs them too, and pass production-like environment values to the deployment check without storing real secrets:
 
 ```bash
 uv run python manage.py check --fail-level WARNING

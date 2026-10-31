@@ -37,7 +37,7 @@ run = "uv run --locked zensical build --clean --strict"
 [tasks."build:package"]
 alias = "bp"
 description = "Build Python distribution artifacts (wheel and sdist)"
-run = "uv build"
+run = "uv build --clear"
 
 [tasks."serve:docs"]
 description = "Preview the documentation site"
@@ -46,14 +46,15 @@ run = "uv run --locked zensical serve"
 [tasks.check]
 alias = "c"
 description = "Run all static checks in parallel"
-depends = [
-  "check:deps",
-  "check:format",
-  "check:leaks",
-  "check:lint",
-  "check:types",
-  "check:vuln",
-]
+depends = ["check:local", "check:network"]
+
+[tasks."check:local"]
+description = "Run the static checks that need no network (pre-commit)"
+depends = ["check:deps", "check:format", "check:leaks", "check:lint", "check:types"]
+
+[tasks."check:network"]
+description = "Run the checks that download vulnerability data (pre-push)"
+depends = ["check:vuln"]
 
 [tasks."check:deps"]
 alias = "cd"
@@ -96,7 +97,7 @@ run = "uv audit --preview-features audit-command --locked"
 [tasks.clean]
 alias = "n"
 description = "Remove build artifacts and coverage files"
-run = "rm -rf .cache .pytest_cache .ruff_cache .coverage htmlcov dist site"
+run = "rm -rf .cache .pytest_cache .ruff_cache .coverage .coverage.* htmlcov dist site"
 
 [tasks.coverage]
 alias = "v"
@@ -130,8 +131,9 @@ uv run --locked ruff format --force-exclude "$@"
 
 [tasks.install]
 alias = "i"
-description = "Install development dependencies"
-run = ["uv sync --locked", "lefthook install"]
+description = "Install development dependencies, refusing packages with known malware advisories"
+# Preview OSV malware lookup (about 1 s, needs network); routine `uv run` calls skip it.
+run = ["UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check", "lefthook install"]
 
 [tasks.test]
 alias = "t"
@@ -142,12 +144,12 @@ run = 'uv run --locked pytest -q -m "not integration" --cov --cov-report='
 [tasks."test:integration"]
 alias = "ti"
 description = "Run opt-in Docker-backed integration tests"
-run = "uv run --locked pytest -q -m integration"
+run = "uv run --locked pytest -q -m integration --force-enable-socket --timeout=600"
 
 [tasks.upgrade]
 alias = "u"
-description = "Upgrade dependencies to latest compatible versions"
-run = "uv sync --upgrade"
+description = "Upgrade dependencies to latest compatible versions, refusing known malware"
+run = "UV_MALWARE_CHECK=1 uv sync --upgrade --preview-features malware-check"
 
 [tasks.watch]
 alias = "w"

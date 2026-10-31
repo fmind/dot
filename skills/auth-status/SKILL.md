@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-10-28"
+  updated: "2026-10-31"
 ---
 
 # Auth Status
@@ -35,12 +35,13 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    | Atlassian    | `acli auth status`; API-token Jira: `acli jira auth status`                                 | `acli auth login`                                        |
 
 1. **Report only provider-exposed expiry**: AWS SSO sessions: `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json` (client registrations in the same cache expire separately; never print the file). Google access tokens refresh hourly; `invalid_grant` or "reauthentication" means the refresh token expired or an organization session policy requires login. Hugging Face tokens do not expire unless revoked. Otherwise write "unknown"; never infer expiry from file dates.
-1. **Check environment overrides**: environment credentials win over stored logins. Report presence only, never values:
+1. **Check environment overrides**: environment credentials win over stored logins, and gws also reads `GOOGLE_WORKSPACE_CLI_*` from a `.env` in the working directory or a parent. Report presence only, never values:
 
    ```bash
    for name in GH_TOKEN GITHUB_TOKEN GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_AUTH_ACCESS_TOKEN_FILE \
-     GOOGLE_WORKSPACE_CLI_TOKEN GEMINI_API_KEY GOOGLE_API_KEY HF_TOKEN KAGGLE_API_TOKEN \
-     AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SESSION_TOKEN DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_CLIENT_SECRET; do
+     GOOGLE_WORKSPACE_CLI_TOKEN GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE GEMINI_API_KEY GOOGLE_API_KEY \
+     HF_TOKEN KAGGLE_API_TOKEN KAGGLE_KEY AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SESSION_TOKEN \
+     DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_CLIENT_SECRET; do
      if [ -n "$(printenv "$name")" ]; then echo "$name is set"; fi
    done
    ```

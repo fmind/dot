@@ -14,14 +14,16 @@ dependencies = []
 [dependency-groups]
 dev = [
   "deptry>=0.25.1",
-  "mkdocstrings-python>=2.0.9",
+  "mkdocstrings-python>=2.0.10",
   "pytest-cov>=7.1.0",
+  "pytest-socket>=0.8.1",
+  "pytest-timeout>=2.4.0",
   "pytest-watcher>=0.6.3",
-  "pytest>=9.1.1",
-  "ruff>=0.16.10",
-  "ty>=0.0.84,<0.1",  # pre-1.0: pin a compatible range until it stabilizes
-  "validate-pyproject>=0.26",
-  "zensical>=0.0.71,<0.1",  # pre-1.0: pin a compatible range until it stabilizes
+  "pytest>=9.2.0",
+  "ruff>=0.17.3",
+  "ty>=0.0.95,<0.1", # pre-1.0: pin a compatible range until it stabilizes
+  "validate-pyproject>=0.27",
+  "zensical>=0.0.74,<0.1", # pre-1.0: pin a compatible range until it stabilizes
 ]
 
 [build-system]
@@ -30,7 +32,7 @@ build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 120
-extend-exclude = ["*.md"]  # dprint owns Markdown, including its Python blocks
+extend-exclude = ["*.md"] # dprint owns Markdown, including its Python blocks
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -39,41 +41,45 @@ quote-style = "double"
 
 [tool.ruff.lint]
 select = [
-  "A",     # flake8-builtins
-  "ARG",   # flake8-unused-arguments (clean signatures)
+  "A", # flake8-builtins
+  "ARG", # flake8-unused-arguments (clean signatures)
   "ASYNC", # flake8-async
-  "B",     # flake8-bugbear (highly reliable common bug & design detector)
-  "C4",    # flake8-comprehensions
-  "E",     # pycodestyle errors
-  "ERA",   # eradicate (clean commented out code)
-  "F",     # pyflakes
-  "FA",    # flake8-future-annotations
-  "FURB",  # refurb (modernizing constructs)
-  "I",     # isort (import sorting)
-  "ISC",   # flake8-implicit-str-concat
-  "LOG",   # flake8-logging
-  "N",     # pep8-naming (consistent formatting)
-  "PIE",   # flake8-pie
-  "PTH",   # flake8-use-pathlib (modern Path object usage)
-  "Q",     # flake8-quotes
-  "RET",   # flake8-return
-  "RSE",   # flake8-raise
-  "PERF",  # Perflint (performance anti-patterns)
-  "PGH",   # pygrep-hooks (enforces specific noqas/hooks)
-  "PT",    # flake8-pytest-style
-  "RUF",   # ruff-specific rules
-  "S",     # flake8-bandit (security checks)
-  "SIM",   # flake8-simplify
-  "SLF",   # flake8-self
-  "T10",   # flake8-debugger
-  "T20",   # flake8-print (prevent print statements in library code)
-  "TID",   # flake8-tidy-imports
-  "UP",    # pyupgrade (modern Python syntax upgrades)
-  "W",     # pycodestyle warnings
+  "B", # flake8-bugbear (highly reliable common bug & design detector)
+  "BLE", # flake8-blind-except (no swallowed broad exceptions)
+  "C4", # flake8-comprehensions
+  "E", # pycodestyle errors
+  "ERA", # eradicate (clean commented out code)
+  "F", # pyflakes
+  "FURB", # refurb (modernizing constructs)
+  "I", # isort (import sorting)
+  "ISC", # flake8-implicit-str-concat
+  "LOG", # flake8-logging
+  "N", # pep8-naming (consistent formatting)
+  "PIE", # flake8-pie
+  "PTH", # flake8-use-pathlib (modern Path object usage)
+  "Q", # flake8-quotes
+  "RET", # flake8-return
+  "RSE", # flake8-raise
+  "PERF", # Perflint (performance anti-patterns)
+  "PGH", # pygrep-hooks (enforces specific noqas/hooks)
+  "PLE", # Pylint errors
+  "PLW", # Pylint warnings (e.g. subprocess.run without check)
+  "PT", # flake8-pytest-style
+  "RUF", # ruff-specific rules
+  "S", # flake8-bandit (security checks)
+  "SIM", # flake8-simplify
+  "SLF", # flake8-self
+  "T10", # flake8-debugger
+  "T20", # flake8-print (prevent print statements in library code)
+  "TID", # flake8-tidy-imports
+  "UP", # pyupgrade (modern Python syntax upgrades)
+  "W", # pycodestyle warnings
 ]
 ignore = [
-  "E501",     # line length allowed for HTML tags/templates
+  "E501", # line length allowed for HTML tags/templates
   "ASYNC240", # pathlib.Path methods in async functions allowed (e.g. local file checks)
+  "PLW0108", # unnecessary-lambda: style, outside Ruff's default set
+  "PLW2901", # redefined-loop-name: deliberate rebinding, outside Ruff's default set
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -84,17 +90,24 @@ ignore = [
 
 # No blanket [tool.ty.rules] ignores. Fix diagnostics at their source and use
 # only an evidenced, narrow line-level suppression for an upstream typing defect.
+[tool.ty.rules]
+blanket-ignore-comment = "error" # require `ty: ignore[<rule>]`; Ruff PGH003 checks only `type: ignore`
 
 [tool.pytest]
 testpaths = ["tests"]
-addopts = ["-ra"]
+# Offline by default: tests reach only loopback and Unix sockets; test:integration passes --force-enable-socket.
+addopts = ["-ra", "--allow-hosts=127.0.0.1,::1", "--allow-unix-socket"]
 filterwarnings = ["error"]
 markers = ["integration: requires local Docker and disposable external services"]
 # Umbrella for strict_config, strict_markers, strict_xfail, and strict_parametrization_ids.
 strict = true
+# Fail a hung test instead of stalling the agent; a plugin string option rejects a bare TOML integer.
+timeout = "60"
 
 [tool.coverage.run]
 branch = true
+# Measure `python -m <package>` subprocess tests; pytest-cov 7 no longer does.
+patch = ["subprocess"]
 source = ["<package>"]
 
 [tool.coverage.report]

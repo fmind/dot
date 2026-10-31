@@ -9,8 +9,8 @@ Copier is the default for new project templates we maintain. Keep existing Cooki
 
 ## Workflow
 
-1. **Review before running**: review the template at an immutable Git revision, including `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions before running it. Keep `--trust` off unless those executable features have been reviewed and their effects are authorized.
-1. **Author questions and defaults in `copier.yml`**: add explicit types and validators where needed. Keep templates deterministic and use `.jinja` for rendered files. Include `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` so generated projects record their answers and template provenance. Keep secrets out of stored answers and generated examples.
+1. **Review before running**: review the template at an immutable Git revision, including `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions before running it. Keep `--trust` off unless those executable features have been reviewed and their effects are authorized. Use Copier 9.19.0 or later: earlier releases have [advisories](https://github.com/copier-org/copier/security/advisories) where untrusted templates run code or bypass trusted prefixes.
+1. **Author questions and defaults in `copier.yml`**: add explicit types and validators where needed. Keep templates deterministic, use `.jinja` for rendered files, and set `_envops: {undefined: jinja2.StrictUndefined}` so a misspelled variable fails rendering instead of rendering empty. Include `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` so generated projects record their answers and template provenance. Keep secrets out of stored answers and generated examples.
 1. **Generate into a fresh disposable directory**: use explicit answers and a reviewed revision:
 
    ```bash
@@ -18,7 +18,7 @@ Copier is the default for new project templates we maintain. Keep existing Cooki
    ```
 
 1. **Check the rendered output**: paths, contents, executable modes, and recorded provenance. Exercise default and non-default answers, invalid input, and the generated project's native gate before delivering the template.
-1. **Update in an isolated candidate**: run `copier check-update` to see whether a newer template release exists, then inspect the clean project's Git state, `.copier-answers.yml`, old and target template revisions, and ownership rules such as `_skip_if_exists`. Work in an isolated candidate; from its root run:
+1. **Update in an isolated candidate**: run `copier check-update --output-format json` to compare the current and latest template versions, then inspect the clean project's Git state, `.copier-answers.yml`, old and target template revisions, and ownership rules such as `_skip_if_exists`. Work in an isolated candidate; from its root run:
 
    ```bash
    copier update --defaults --vcs-ref <reviewed-commit>
@@ -28,7 +28,7 @@ Copier is the default for new project templates we maintain. Keep existing Cooki
 
 ## Gotchas
 
-- **Answers are update state**: commit the generated answers file; never hand-edit it to change configuration or invent a migration baseline. Change answers through `copier update --data name=value`.
+- **Answers are update state**: commit the generated answers file; never hand-edit it to change configuration or invent a migration baseline. Change one answer without upgrading the template through `copier update --defaults --vcs-ref=:current: --data name=value`; without `--defaults` it fails outside a terminal, and without `:current:` it also upgrades to the latest tag.
 - **Unpinned runs select tagged releases**: without `--vcs-ref`, Copier selects releases using Git tags and PEP 440 ordering; `HEAD` explicitly opts into unreleased changes.
 - **Recopy overwrites**: `copier recopy` bypasses the smart update process and can overwrite project edits. It is not a conflict-resolution shortcut.
 - **Replay must work**: updates can render old and new templates and execute their tasks. Keep external dependencies reproducible; review both revisions, not only the target.

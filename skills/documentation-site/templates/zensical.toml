@@ -1,6 +1,6 @@
 # Docs: https://zensical.org/docs/setup/basics/
 # Starter for new Zensical sites; replace every <placeholder> and delete unused sections.
-# Every key below was validated with `zensical build --clean --strict` on Zensical 0.0.71.
+# Every key below was validated with `zensical build --clean --strict` on Zensical 0.0.74.
 
 [project]
 site_name = "<Project>"
@@ -141,6 +141,11 @@ sections = { "Documentation" = ["*.md", "**/*.md"] }
 
 [project.plugins.minify]
 minify_html = true
+
+# Self-host Google Fonts and Mermaid so readers never contact Google or unpkg; each clean build downloads them.
+# Unscoped, the plugin also vendors about 2 MB of unrelated scripts that the theme bundle references.
+[project.plugins.privacy]
+assets_include = ["fonts.googleapis.com/*", "fonts.gstatic.com/*", "unpkg.com/mermaid@*"]
 
 # Keep published URLs working after a page or heading moves.
 # [project.plugins.redirects.redirect_maps]

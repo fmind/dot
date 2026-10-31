@@ -3,18 +3,18 @@
 ## Decks
 
 1. **Start from the local template**: copy [deck.typ](../templates/deck.typ) into the deliverable. It uses native Typst only and compiles without downloading a package.
-1. **Apply the release fonts**: copy Google Sans and Google Sans Code TTF files into `fonts/` and pass `--font-path fonts`. Confirm both families load before exporting; do not silently ship fallback fonts.
+1. **Apply the release fonts**: copy Google Sans and Google Sans Code TTF files into `fonts/` and compile with `--ignore-system-fonts --font-path fonts`, so a missing family prints `warning: unknown font family` instead of resolving to an installed copy; Typst still exits 0, so treat that warning as a failure.
 1. **Embed diagrams as exports**: render Mermaid or D2 to SVG, keep the source beside it, and use `#image("diagram.svg", alt: "...")` in the deck.
 1. **Format, compile, and watch** with `typst` and `typstyle` declared in the deck's project (`mise use --pin typst typstyle`; the workstation does not install them globally):
 
    ```bash
    typstyle -i deck.typ
-   typst compile --font-path fonts deck.typ deck.pdf
-   typst watch --font-path fonts deck.typ deck.pdf
+   typst compile --ignore-system-fonts --font-path fonts --pdf-standard ua-1 deck.typ deck.pdf
+   typst watch --ignore-system-fonts --font-path fonts deck.typ deck.pdf
    ```
 
-1. **Export review images**: use `typst compile --font-path fonts deck.typ 'slide-{p}.png'` when a page-by-page review or social preview is useful.
-1. **Inspect every page**: review the PDF at projector and mobile-preview sizes, because fixed bounds can clip dense content; confirm font loading, contrast, clipping, and alt text before distribution.
+1. **Export review images**: use `typst compile --ignore-system-fonts --font-path fonts deck.typ 'slide-{p}.png'` when a page-by-page review or social preview is useful.
+1. **Inspect every page**: review the PDF at projector and mobile-preview sizes, because fixed bounds can clip dense content; confirm contrast and clipping before distribution. `--pdf-standard ua-1` already fails the build on a missing document title or image alt text.
 
 ## Diagrams
 

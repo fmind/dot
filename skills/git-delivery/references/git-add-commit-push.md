@@ -19,7 +19,7 @@ Stage, commit, and push the authorized change, preserving existing work and repa
 
 ## Gotchas
 
-- **Hooks own delivery checks**: keep hooks enabled and let the authorized commit/push run their checks. Do not duplicate the same checks immediately beforehand unless diagnosing a failure or satisfying an additional repository requirement. Reuse passing results while relevant inputs remain unchanged; fix failures without suppressing them. CI qualification remains separate.
+- **Hooks own delivery checks**: keep hooks enabled (never `--no-verify` or `LEFTHOOK=0`) and let the authorized commit/push run their checks. When the repository has a lefthook config, `lefthook check-install` must exit 0; a fresh clone has no hooks and commits unchecked, so run the repository's install task first. Do not duplicate the same checks immediately beforehand unless diagnosing a failure or satisfying an additional repository requirement. Reuse passing results while relevant inputs remain unchanged; fix failures without suppressing them. CI qualification remains separate.
 - **Keep commit signing on**: where the machine has a signing key, commits and annotated tags are signed (create tags with `git tag NAME -m MSG`; an explicit `-a` skips signing); never pass `--no-gpg-sign` or override `commit.gpgSign`, and report a signing failure with its cause instead.
 - **Existing commits belong to the user**: never amend an earlier or published commit as routine hook healing.
 - **Diagnose a rejected push**: distinguish branch protection from a non-fast-forward race or authentication failure; use a PR for protection and preserve both histories when the remote advanced.

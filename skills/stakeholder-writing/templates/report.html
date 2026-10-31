@@ -5,7 +5,7 @@
   Customer or employer work: replace the tokens in :root and the font with their brand, and keep the rest.
   Keep the file self-contained so it opens offline and survives email gateways: no external scripts, fonts, or trackers.
   Embed images as data URIs, and fonts as Latin WOFF2 subsets in @font-face rules, for example:
-    uvx --from 'fonttools[woff]' pyftsubset GoogleSans-Regular.ttf --unicodes='U+0000-00FF,U+2000-206F,U+20AC' --flavor=woff2 --output-file=regular.woff2
+    uvx --from 'fonttools[woff]==4.68.0' pyftsubset GoogleSans-Regular.ttf --unicodes='U+0000-00FF,U+2000-206F,U+20AC' --flavor=woff2 --output-file=regular.woff2
   Google Sans is under the SIL Open Font License 1.1 (https://github.com/googlefonts/googlesans); keep that notice in the file.
 -->
 <html lang="{en}">

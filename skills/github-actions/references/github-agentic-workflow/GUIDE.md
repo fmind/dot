@@ -10,11 +10,11 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 ## Workflow
 
 1. **Choose the job**: use reasoning only where context changes the work; use ordinary Actions when fixed inputs should produce predictable steps and outputs. Resolve repository, candidate git revision, expected output, and existing authority.
-1. **Install and diagnose**: require GitHub Actions, repository write access, an authenticated `gh` CLI, and Copilot access, then read the repository's generated dispatcher when present. Install the extension once; run `gh extension upgrade github/gh-aw` only when an upgrade is in scope, then review generated changes and revalidate.
+1. **Install and diagnose**: require GitHub Actions, repository write access, an authenticated `gh` CLI, and Copilot access, then read the repository's generated dispatcher when present. Install a reviewed release with `--pin <tag>`; pinned extensions refuse `gh extension upgrade`, so when an upgrade is in scope run `gh extension remove gh-aw` and reinstall at the new tag, then review generated changes and revalidate.
 
    ```bash
    gh auth status
-   gh extension install github/gh-aw
+   gh extension install github/gh-aw --pin <tag>
    gh aw version
    gh aw doctor
    ```
@@ -23,9 +23,9 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 1. **Choose one runtime identity** within authorized GitHub scope, per the [starter's authentication paths](references/copilot-starter.md#authentication): prefer organization-billed inference with `copilot-requests: write`; otherwise store a fine-grained PAT with the Copilot Requests account permission through `gh secret set COPILOT_GITHUB_TOKEN`, and never expose it to the prompt or agent tools.
 1. **Create the Markdown source**: run `gh aw new <workflow-name> --engine copilot` or ask the initialized Copilot agent `agentic-workflows create ...`; define the trigger, read permissions, tools, network, budgets, safe outputs, and precise instructions, adapting the [bounded Copilot starter](references/copilot-starter.md).
 1. **Constrain capabilities**: grant only required reads; restrict GitHub tools to the current repository and relevant toolsets; allowlist individual shell commands and network domains; prefer safe outputs over direct writes; set `staged: true`, `max-turns`, and both agent and threat-detection AI-credit caps for the first runs.
-1. **Validate and compile locally**: `gh aw validate --strict` runs the compiler linters without emitting files; `gh aw compile` writes `.github/workflows/<workflow-name>.lock.yml`. Review both with `git diff -- .github/workflows/` and commit the `.md` source and generated `.lock.yml` together.
+1. **Validate and compile locally**: `gh aw validate --strict` runs the compiler linters without emitting files; `gh aw compile` writes `.github/workflows/<workflow-name>.lock.yml`. Review them with `git status --short -- .github/` and `git diff -- .github/`, then commit the `.md` source, generated `.lock.yml`, and `.github/aw/actions-lock.json` (the compiler's [action pin cache](https://github.github.com/gh-aw/reference/compilation-process/)) together.
 1. **Pilot when authorized**: preview with `gh aw run <workflow-name> --dry-run`; with explicit approval for Actions and Copilot spend, `gh aw run <workflow-name>` the committed workflow while safe outputs stay staged, then inspect `gh aw status --ref main`, `gh aw logs <workflow-name>`, and the Actions summary. Remove staging only after outputs are consistently correct, then recompile, review the lock diff, and authorize another run.
-1. **Audit and maintain**: `gh aw audit <run-id>` shows prompts, tool calls, network activity, tokens, and AI Credits. Run `gh aw upgrade` intentionally, review migrations and generated diffs, then repeat strict validation and compilation.
+1. **Audit and maintain**: `gh aw audit <run-id>` shows prompts, tool calls, network activity, tokens, and AI Credits; before removing staging or adding a schedule, `gh aw forecast <workflow-name>` projects AI-credit spend from run history. Run `gh aw upgrade` intentionally, review migrations and generated diffs, then repeat strict validation and compilation.
 
 ## Gotchas
 
@@ -35,6 +35,7 @@ Run Copilot in GitHub Actions for bounded investigation, triage, review, and doc
 - **Writes and spend need explicit authority**: `gh aw run`, safe outputs without staged mode, `--push`, and `--auto-merge-prs` can mutate GitHub or consume paid resources; require explicit authority for the exact repository and action.
 - **Imported workflows are supply-chain input**: Treat their triggers, permissions, tools, network, instructions, safe outputs, and lock files as executable supply-chain input; prefer pinned trusted releases.
 - **Guardrails are boundaries, not proof**: Sandboxing, integrity filtering, threat detection, and safe outputs reduce blast radius; they do not make broad permissions or unreviewed output safe.
+- **Scope actionlint ignores to lock files**: actionlint 1.7.12 rejects gh-aw 1.0 lock files (`copilot-requests` permission, `concurrency.queue`, `job.workflow_ref`), so a repository-wide `check:actions` fails. Add a `paths` entry for `.github/workflows/*.lock.yml` in `.github/actionlint.yaml` that ignores only those messages, rather than dropping the linter; zizmor still audits them.
 
 ## Official Skills
 

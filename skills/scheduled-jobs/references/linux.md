@@ -36,6 +36,8 @@ For `Type=oneshot`, `TimeoutStartSec` bounds the command; do not substitute `Run
 Change an existing unit with a drop-in, `~/.config/systemd/user/<unit>.d/<name>.conf`, never a copied unit. Reset a list setting with an empty assignment before redefining it (`ExecStart=` then the new `ExecStart=`; likewise `OnCalendar=`). After `systemctl --user daemon-reload`, prove the merge with `systemctl --user show <unit> -p DropInPaths -p <Setting>`. Keep the default `OOMPolicy=stop` for jobs so an OOM-killed child fails the run visibly; `continue` suits long-lived session hosts.
 
 ```bash
+# Prove one run in the user manager's environment, not the login shell's; returns the job's exit status:
+systemd-run --user --wait --pipe --collect -p WorkingDirectory="$HOME/projects/example" -- "$HOME/.local/bin/mise" run report
 systemd-analyze --user verify report.service report.timer
 systemd-analyze calendar '*-*-* 09:00:00 Europe/Paris'
 # After authorization and deployment of these definitions:

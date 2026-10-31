@@ -2,10 +2,10 @@
 
 ## 1. Install and Authenticate
 
-The standalone example pins `google-antigravity==0.1.22`, selects Python 3.13 through PEP 723 metadata, and was checked with warnings treated as errors. Its `google-genai` dependency still fails that import check on Python 3.14 with an `_UnionGenericAlias` deprecation warning; do not suppress the upstream deprecation warning or assume the broader SDK Python constraint proves compatibility.
+The standalone example pins `google-antigravity==0.1.23` on Python 3.14 through PEP 723 metadata; its configuration builds and type-checks with warnings treated as errors. Do not suppress an upstream deprecation warning to make that check pass.
 
 ```bash
-uv add google-antigravity==0.1.22  # version exercised by the example; includes a harness binary
+uv add google-antigravity==0.1.23  # version exercised by the example; includes a harness binary
 # Select the authorized ADC project; optionally override ANTIGRAVITY_MODEL/location.
 export GOOGLE_CLOUD_PROJECT=<project-id>
 uv run orchestrator.py <workspace>
@@ -30,7 +30,7 @@ For an explicitly requested Developer API integration, supply an application-sco
 
 Two independent limits, and confusing them is how an unattended run burns a quota:
 
-- **Policies decide _which_ tools run**: `policy.allow`, `deny`, `ask_user`, `workspace_only`, `allow_all`, `deny_all`; a specific tool rule beats a wildcard. Rules match built-ins, MCP servers, and custom Python tools by name, so `deny_all()` needs an explicit `allow("<function_name>")` for each custom tool (verified in 0.1.20 against a local fake endpoint). In 0.1.20 the `LocalAgentConfig` default `confirm_run_command()` denies shell commands but allows every other tool, including writes. Set explicit capabilities and policies; an allowed custom tool still enforces its own constraints.
+- **Policies decide _which_ tools run**: `policy.allow`, `deny`, `ask_user`, `workspace_only`, `allow_all`, `deny_all`; a specific tool rule beats a wildcard. Rules match built-ins, MCP servers, and custom Python tools by name, so `deny_all()` needs an explicit `allow("<function_name>")` for each custom tool (verified in 0.1.20 against a local fake endpoint). In 0.1.23 the `confirm_run_command()` default of `LocalAgentConfig`, `LiteRTAgentConfig`, and `LocalOpenAIAgentConfig` denies shell commands but allows every other tool, including writes. Set explicit capabilities and policies; an allowed custom tool still enforces its own constraints.
 - **Budgets decide _how much_ runs**: `types.BudgetConfig(max_model_calls, max_tool_calls, max_input_tokens, max_output_tokens, max_total_tokens)`; `BudgetScope.FORWARD_LOOKING` counts only spend after a resume. Set a budget and a caller deadline; a token limit does not bound wall time, and token usage is not a currency spending cap. `response.stop_reason` is `MAX_*_EXCEEDED` (one per BudgetConfig limit) or `QUOTA_EXHAUSTED`; anything other than `UNSPECIFIED` is an early stop.
 - **Bound side effects**: `RunCommandConfig` sets the command timeout (600 seconds by default), `enable_daemons` (off), and `enable_sandbox` (off; startup warns when the OS cannot enforce it). `CompactionConfig(token_threshold=...)` replaces the deprecated compaction dials, and `tool_output_truncation_config` caps command output tokens. Disable `BuiltinTools.SCHEDULE` unless the run should leave timers or cron jobs behind.
 - **Observe the cost**: `response.usage_metadata.total_token_count` per turn, and lifecycle hooks for auditing per [observability](../../../../python-stack/references/observability.md). Never use `on_tool_error` to turn a failed audit tool into apparent success; fail the run or model failures in the typed result.
@@ -45,7 +45,7 @@ Two independent limits, and confusing them is how an unattended run burns a quot
 
 ## 5. Local and OpenAI-Compatible Models
 
-Per [Local models](https://antigravity.google/docs/sdk/local-models/), the SDK is the documented way to run the harness against local or self-hosted models. The `agy` CLI and desktop app use the Google-served model list (Gemini plus plan-gated third-party models); agy 1.2.x also parses an undocumented `customModels` setting, which is not a supported contract.
+Per [Local models](https://antigravity.google/docs/sdk/local-models/), the SDK is the documented way to run the harness against local or self-hosted models. The `agy` CLI and desktop app use the Google-served model list (Gemini plus plan-gated third-party models); the CLI's `customModelsConfig` adds `gemini-api://<base_url>/models/<model>` entries only under Gemini API key auth (`modelProvider: "gemini"`), never with the subscription sign-in.
 
 - **`LiteRTAgentConfig(model_path=...)`** runs a `.litertlm` checkpoint on-device through a managed loopback server, with `backend` (`gpu` default, `npu`, `cpu`), and applies `.lightweight()` automatically. The documented Gemma 4 26B A4B checkpoint downloads about 16.8 GB and needs about 24 GB of VRAM or unified memory; run `dot doctor --headroom` first.
 - **`LocalOpenAIAgentConfig(model=..., base_url=...)`** targets an OpenAI-compatible server such as Ollama, LM Studio, or vLLM; call `.lightweight()` to trim built-in tools and instructions for small models. It does not target `litert-lm serve`.

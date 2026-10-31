@@ -57,6 +57,7 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
         text=True,
         # Resolution and installs use the network; a stalled download must fail this test.
         timeout=600,
+        check=False,
     )
     assert result.returncode == expected_code, f"{' '.join(command)} failed:\n{result.stdout}{result.stderr}"
     return result.stdout
@@ -102,15 +103,14 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             project,
             "uv",
             "add",
-            "litestar>=2.24.0",
-            "granian[reload,uvloop]>=2.8.1",
-            "sqlalchemy[asyncio]>=2.0.52",
-            "asyncpg>=0.31.0",
-            "pydantic>=2.13.4",
-            "pydantic-settings>=2.15.0",
+            "litestar>=2.25.0",
+            "granian[reload,uvloop]>=2.8.7",
+            "sqlalchemy[postgresql-asyncpg]>=2.1.6",
+            "pydantic>=2.14.2",
+            "pydantic-settings>=2.16.2",
             "structlog>=26.1.0",
         )
-        _run(project, "uv", "add", "--dev", "anyio>=4.14.2", "testcontainers>=4.15.0")
+        _run(project, "uv", "add", "--dev", "anyio>=4.15.1", "testcontainers>=4.15.0")
         _write(
             project,
             "src/starter_py/__init__.py",
@@ -120,9 +120,6 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         for name in ("test_web.py", "test_integration.py"):
             _write(project, f"tests/{name}", _render(name, replacements, owner="python-web"))
         _write(project, "tests/conftest.py", _render("conftest.py", replacements, owner="python-web"))
-        # SQLAlchemy loads asyncpg from the URL scheme, so the guide declares it for deptry.
-        with (project / "pyproject.toml").open("a", encoding="utf-8") as stream:
-            stream.write('\n[tool.deptry.per_rule_ignores]\nDEP002 = ["asyncpg"]\n')
         _write(project, ".env", _render("env.example", replacements, owner="python-web"))
 
     _run(project, "uv", "lock")

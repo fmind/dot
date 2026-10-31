@@ -1,6 +1,6 @@
 # HTTPX Test Boundary
 
-Use the installed HTTPX release and the project's pytest conventions. Inject a client or transport into the production client so tests exercise its actual URL construction, traversal, validation, and error handling. Keep the real HTTPX request/response objects; fake the network boundary.
+Use the project's installed `httpx` or `httpx2` release and pytest conventions; the example below runs on httpx2 once every `httpx` name becomes `httpx2`. respx and pytest-httpx support only `httpx`, so do not patch: inject a client or transport into the production client so tests exercise its actual URL construction, traversal, validation, and error handling. Keep the real HTTPX request/response objects; fake the network boundary.
 
 This minimal transport example demonstrates the seam without network access. Adapt the handler and pass the resulting client to the application's API adapter rather than stopping at a test of HTTPX itself.
 

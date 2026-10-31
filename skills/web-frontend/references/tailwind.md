@@ -22,7 +22,7 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
    @source "../templates";
    @source "../src";
    ```
-1. **Keep complete class names**: write them whole in templates and Python strings. Map a condition to `text-red-600` or `text-green-600`; `text-{{ color }}-600` cannot be discovered. Use `@source inline(...)` only for a bounded set that cannot live in source.
+1. **Keep complete class names**: write them whole in templates and Python strings. Map a condition to `text-red-600` or `text-green-600`; `text-{{ color }}-600` cannot be discovered. Use `@source inline(...)` only for a bounded set that cannot live in source. Run `tailwindcss canonicalize --css assets/styles.css <classes>` on generated class lists to replace arbitrary values with theme utilities (`bg-[#fff]` becomes `bg-white`).
 1. **Reuse the existing build and watch**: wire compilation into the existing build and development watch, adapting paths rather than creating another asset subsystem:
    ```toml
    # Docs: https://mise.jdx.dev/tasks/
@@ -39,7 +39,7 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
 
 - **Source paths are relative to the stylesheet**: default discovery otherwise starts at the process working directory. Explicit roots make repository-root and CI builds agree.
 - **Register sources Tailwind cannot infer**: Tailwind scans text, not Python or Jinja semantics. Ignored files and dependencies require deliberate source registration.
-- **Respect the site's established identity**: resolve design tokens before editing colors; [fmind-visuals](../../fmind-visuals/SKILL.md) owns published Fmind artifacts.
+- **Respect the site's established identity**: resolve design tokens before editing colors; for Fmind apps, export `@theme` tokens from `~/.agents/DESIGN.md` (`npx @google/design.md@0.4.0 export --format css-tailwind ~/.agents/DESIGN.md`) rather than defaulting to generic Tailwind palettes, and use [fmind-visuals](../../fmind-visuals/SKILL.md) for published Fmind artifacts.
 
 ## Documentation
 

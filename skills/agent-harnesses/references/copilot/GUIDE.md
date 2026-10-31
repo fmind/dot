@@ -12,6 +12,7 @@ Operate the Copilot CLI harness. Use [github-agentic-workflow](../../../github-a
 Follow the shared [workflow](../../SKILL.md#workflow); host specifics:
 
 - **Identify CLI, IDE, or cloud agent scope**: their behavior and settings differ.
+- **Keep tool approval separate from folder trust**: `--allow-all-tools` (required with `-p`) and the managed `COPILOT_ALLOW_ALL=1` only auto-approve tools; the exact value `true` also trusts the working directory and loads its skills, plugins, MCP servers, and shell hooks. Use `--trust-folder` for one reviewed run, and treat `--share-gist` as publication.
 
 ## Official Skills
 

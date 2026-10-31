@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-10-24"
+  updated: "2026-10-31"
 ---
 
 # Google Colab CLI
@@ -28,7 +28,7 @@ Use `colab --auth adc usage` for compute-unit rate and balance; if it is unavail
 
 Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
 
-1. **Prefer ephemeral runs for self-persisting scripts**: `colab run` rents a VM, runs the script, and attempts to release it. Save needed artifacts to an authorized durable destination before the script exits; local VM files disappear on release. Use an explicitly managed session when artifacts must be downloaded afterwards. A shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4` supports single-file execution per [python-script](../python-stack/references/python-script/GUIDE.md).
+1. **Prefer ephemeral runs for self-persisting scripts**: `colab run` rents a VM, runs the script, and attempts to release it. Save needed artifacts to an authorized durable destination before the script exits; local VM files disappear on release. Use an explicitly managed session when artifacts must be downloaded afterwards. A shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4 --timeout 3600` supports single-file execution per [python-script](../python-stack/references/python-script/GUIDE.md).
 
    ```bash
    colab --auth adc run --gpu T4 --timeout 3600 train.py
@@ -41,7 +41,8 @@ Follow this workflow only when remote execution is in scope; establish the autho
 
 - **Override the 30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
 - **Let Colab pick the kernel client**: google-colab-cli 0.7.5 pins `jupyter-kernel-client==0.9.0`; let Colab select its compatible client instead of adding a conflicting mise `with` override.
-- **Treat `colab pay` as spend**: accelerator availability depends on the subscription; `colab pay` opens the compute-units page, so treat it as spend.
+- **Treat allocation side doors as spend**: `colab ssh` creates a VM when no session exists or the `-s` session is missing, and `colab run --keep` skips the release, so both need the same authority as `colab new`; `colab pay` opens the compute-units purchase page.
+- **Keep the client log private**: google-colab-cli 0.7.5 writes short-lived Google access tokens into `~/.config/colab-cli/colab.log` (mode 0644); never read it into context, attach it, or quote it, and count matches instead of printing lines when diagnosing.
 - **Treat the VM as disposable**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
 
 ## Official Skills

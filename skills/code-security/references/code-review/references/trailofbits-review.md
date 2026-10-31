@@ -34,4 +34,6 @@ The other 33 entries do not justify new global owners for this task. Language-sp
 
 Rechecked on 2026-10-04 at [82fe822](https://github.com/trailofbits/skills/tree/82fe8226252622fa807643bdca1710901198553a): the nine selected plugins changed metadata only. The two added entries are also deferred: `post-patch-validation` overlaps the variant-analysis and regression-test coverage above, and `review-walkthrough` (interactive diff walkthrough) overlaps `repository-review`. Re-screen post-patch validation if it becomes a repeated task.
 
+Rechecked on 2026-10-31 at [2be6433](https://github.com/trailofbits/skills/tree/2be6433b39e009cd2b6fd3be1895f6b1faa5af9a): the nine selected plugins are unchanged. The new `patching-bugs` and `regression-hunt` entries are multi-agent record pipelines that overlap the trace-and-verify and regression procedures; both are deferred.
+
 Revisit this record when a repeated task lacks an owner or an upstream update offers a materially different capability. Review the new immutable selection and license before importing any executable surface.

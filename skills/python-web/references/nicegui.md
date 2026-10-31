@@ -11,6 +11,7 @@ Build browser utilities with Python components and event handlers. Use [gradio](
 
 1. **Start from the locked release**: inspect the project's locked NiceGUI version and dependency model, preserving packaged or PEP 723 setup. Locate and read its installed agent reference below before using online examples.
 1. **Build from the installed reference**: use that reference for components, page state, callbacks, and tests. Keep computation independently testable and local development bound to `127.0.0.1`.
+1. **Keep the layout Google-simple**: build one focused workspace (`max-w-3xl` for tools, `max-w-6xl` for data views) on the light `~/.agents/DESIGN.md` palette (white canvas, gray panels, its primary color, Google Sans and Google Sans Code; take values from the DESIGN.md export, never copies) unless the project specifies another brand. Expose only essential inputs and one primary action upfront, tuck advanced options into `ui.expansion`, and omit unrequested drawers, header bars, tabs, and KPI cards.
 1. **Prove UI behavior in the browser**: verify the main browser interaction, independent client state, callback failures, and the project's native gate. An import or HTTP 200 alone does not prove UI behavior.
 
 ## Installed reference
@@ -19,7 +20,7 @@ Build browser utilities with Python components and event handlers. Use [gradio](
 uv run python -c 'from importlib.metadata import version; from importlib.util import find_spec; from pathlib import Path; print(version("nicegui")); print(Path(find_spec("nicegui").origin).with_name("llms.md"))'
 ```
 
-If that release lacks `llms.md`, use the official documentation and installed source. The online reference follows upstream development and may describe newer APIs.
+Releases before 3.12.0 lack `llms.md`; for them, use the official documentation and installed source. The online reference follows upstream development and may describe newer APIs.
 
 ## Gotchas
 
@@ -29,7 +30,7 @@ If that release lacks `llms.md`, use the official documentation and installed so
 
 ## Official Skills
 
-As checked on 2026-10-04, [zauberzeug/nicegui](https://github.com/zauberzeug/nicegui) provides an official [LLM reference](https://github.com/zauberzeug/nicegui/blob/main/nicegui/llms.md), also served at [llms.txt](https://nicegui.io/llms.txt). No reusable application-authoring `SKILL.md` was found in that repository; its `.claude/skills` entries cover upstream maintenance. Use the installed reference above rather than installing those maintenance skills into an application.
+As checked on 2026-10-31, [zauberzeug/nicegui](https://github.com/zauberzeug/nicegui) provides an official [LLM reference](https://github.com/zauberzeug/nicegui/blob/main/nicegui/llms.md), also served at [llms.txt](https://nicegui.io/llms.txt). No reusable application-authoring `SKILL.md` was found in that repository; its `.claude/skills` entries cover upstream maintenance. Use the installed reference above rather than installing those maintenance skills into an application.
 
 ## Documentation
 

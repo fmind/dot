@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/smoke
   created: "2026-10-04"
-  updated: "2026-10-25"
+  updated: "2026-10-31"
 ---
 
 # Smoke
@@ -20,7 +20,7 @@ Prove that everything a repository exposes still runs: each task, each CLI comma
 1. **Discover**: list every entry point and read each command before running it; never classify by name alone.
 
    ```bash
-   mise tasks ls --local --json --hidden | jq -r '.[] | [.name, ((.run // []) | join(" && "))] | @tsv'
+   mise tasks ls --no-global --json --hidden | jq -r '.[] | [.name, ((.run // []) | join(" && "))] | @tsv'
    MISE_TASK_QUIET=false mise run -n <task>  # print the resolved command; quiet settings hide it
    jq -r '.scripts // {} | keys[]' package.json
    just --summary; make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z0-9_.-]+:' | cut -d: -f1 | sort -u
@@ -34,7 +34,7 @@ Prove that everything a repository exposes still runs: each task, each CLI comma
    mise run --force --timeout 10m <task> </dev/null >"$log" 2>&1; echo "exit=$?"
    ```
 
-1. **Walk CLIs**: run `--help` on every command and subcommand recursively (Typer and Click list them under `Commands:`), then each read-only command (`status`, `list`, `show`, `doctor`, `validate`, any `--dry-run`) with representative arguments. Parse `--json` output with `jq`; a malformed document is a failure. Error paths count too: a bad argument must exit nonzero with a clear message, not a traceback.
+1. **Walk CLIs**: run `--help` on every command and subcommand recursively (Click, and Typer with `rich_markup_mode=None`, list them under `Commands:`; default Typer help draws a `Commands` panel instead, even when piped), then each read-only command (`status`, `list`, `show`, `doctor`, `validate`, any `--dry-run`) with representative arguments. Parse `--json` output with `jq`; a malformed document is a failure. Error paths count too: a bad argument must exit nonzero with a clear message, not a traceback.
 1. **Treat warnings as failures**: scan each log for `warning`, `deprecat`, `WARN`, pytest's warnings summary, `Traceback`, and skipped tests; a warning passes only with a tracked, explained exception. Look at intentionally quiet tasks as well; quiet output must not hide a nonzero exit.
 1. **Report failures, keep the matrix**: give the verdict, every failure or warning with its first useful error line, and counts by status. Keep the full matrix (entry point, class, exit code, duration, warnings, and a note: fixed, skipped with reason, or failed) in a file or the report's details. Confirm that the tested snapshot equals the working tree after the last fix, and rerun only what a fix invalidated.
 

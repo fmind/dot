@@ -17,6 +17,7 @@ Use Ruff for Python linting and formatting; [dprint](../../dprint/SKILL.md) owns
 - **Unsafe fixes can alter behavior**: inspect the proposed change and test it instead of adding `--unsafe-fixes` to a routine gate.
 - **Keep `ruff format` off Markdown**: `ruff format` also rewrites Python code blocks inside `*.md` (Ruff's default `include`); pass Python paths or exclude `*.md` where dprint owns Markdown.
 - **Suppress with the narrowest `# noqa: CODE`**: bare `# noqa` fails `PGH004` and stale ones fail `RUF100`. Never clear a gate with `--add-noqa` or `--add-ignore`.
+- **Hunt dead code on demand, not in the gate**: Ruff reports unused imports, variables, and arguments but never unused functions, classes, or code only tests reach. After a refactor or in a full review, run `uvx --from 'vulture==<version>' vulture src --min-confidence 60 --ignore-decorators '@*.command,@*.callback,@*_validator'` on `src` alone, and confirm each hit with `rg` before deleting; framework hooks, `getattr` access, and Pydantic fields are common false positives.
 - **Keep fixes scoped and rules intact**: do not broaden formatting across a dirty repository or weaken lint rules to hide a defect.
 
 ## Official Skills

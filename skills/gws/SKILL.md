@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Google Workspace CLI
@@ -16,7 +16,7 @@ Use `gws` for Google Workspace automation from the shell: authentication, API di
 
 ## Workflow
 
-1. **Resolve the profile**: check `gws auth status` for the account and scopes without printing credentials. Set `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` before auth commands to isolate profiles; an existing `GOOGLE_WORKSPACE_CLI_TOKEN` or `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` can override stored credentials, so verify the effective identity without echoing those values.
+1. **Resolve the profile**: check `gws auth status` for the account and scopes without printing credentials. Set `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` before auth commands to isolate profiles; an existing `GOOGLE_WORKSPACE_CLI_TOKEN` or `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` can override stored credentials, so verify the effective identity without echoing those values. gws also loads unset variables from a `.env` in the working directory or any parent, so a project file can switch accounts: run gws, including the draft-doc and draft-mail scripts, from a directory with no `.env` in its path (such as the scratchpad) and check `user` there before writing.
 1. **Inspect the installed command and live schema**: use `<command> --help` for flags and `schema` for the API contract. Start without recursive reference expansion; inspect a referenced type separately when needed.
 
    ```bash

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Google Developer Catalog
@@ -16,7 +16,13 @@ Route Google product work to the relevant selection in [google/skills](https://g
 
 ## Workflow
 
-1. **Identify the product and operation**: inspect the catalog with `DISABLE_TELEMETRY=1 skills add google/skills --list`. Choose the product group below; the developer index can locate guidance in sibling repositories.
+1. **Identify the product and operation**: filter the generated catalog index by product keyword instead of listing every description, then choose the product group below:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/google/skills/main/index.json \
+     | jq -r '.skills[] | select((.name + " " + .description) | test("bigquery"; "i")) | .name'
+   ```
+
 1. **Review before installing**: follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) to review the selected immutable snapshot and install only the required project-scoped guidance. A catalog lookup does not authorize executing its results.
 1. **Verify guidance before acting**: compare the selected guidance with installed tools and current official docs. Use [research-brief](../implementation-plan/references/research-brief.md) when the API contract is uncertain.
 
@@ -26,7 +32,7 @@ Route Google product work to the relevant selection in [google/skills](https://g
 | Advertising APIs and SDKs                      | `ads`; distinguish Ads API, Data Manager, Mobile Ads, and IMA.                  |
 | Analytics reporting or configuration           | `analytics`; Data API for reports, Admin API for properties and settings.       |
 | Sign in with Google or token binding           | `identity`; Sign in with Google for web, DPoP adoption.                         |
-| Another Google product or documentation lookup | `developers` index/docs selection, then the relevant product guidance.          |
+| Another Google product or documentation lookup | `developers`; `retrieving-developer-knowledge` for documentation search.        |
 
 ## Gotchas
 

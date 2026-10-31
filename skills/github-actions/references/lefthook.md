@@ -10,7 +10,7 @@ Thin git hooks that delegate every command to a `mise run` task so hooks and CI 
 ## Workflow
 
 1. **Install**: pin `lefthook` in the repository's mise `[tools]`, Python projects included ([Python stack](../../python-stack/references/foundation/GUIDE.md)); never duplicate it in a package manager's dev dependencies.
-1. **Configure**: create `lefthook.yml` at the repository root from the stack-neutral template below; Python adds the `format Python` job from the [python-stack template](../../python-stack/references/foundation/templates/lefthook.yml).
+1. **Configure**: create `lefthook.yml` at the repository root from the stack-neutral template below; Python adds the `format Python` job from the [python-stack template](../../python-stack/references/foundation/templates/lefthook.yml). The template calls the `check:local` and `check:network` tasks from the [task conventions](../../mise/references/task-conventions.md#conventions); a repository whose checks all run offline (no `check:network`) runs `mise run check` in pre-commit and drops the `scan vulnerabilities` job.
 1. **Activate**: `lefthook install`, wired into `mise run install`.
 
 ## Template
@@ -26,17 +26,21 @@ pre-commit:
       run: mise run format:dprint {staged_files}
       stage_fixed: true
     - name: check
-      run: mise run check
+      run: mise run check:local
 pre-push:
+  parallel: true
   jobs:
+    # Vulnerability and misconfiguration databases need the network; CI runs both through `check`.
+    - name: scan vulnerabilities
+      run: mise run check:network
     - name: test
       run: mise run test
 ```
 
 ## Principles
 
-- **pre-commit** (fast): format staged files, then the static checks, including the working-tree secret scan.
-- **pre-push** (slower): the test suite.
+- **pre-commit** (fast, offline): format staged files, then `check:local`, including the working-tree secret scan.
+- **pre-push** (slower): the test suite and `check:network` in parallel; vulnerability and misconfiguration databases need the network, so an offline commit still works.
 - **post-commit** (optional): rebuild and reinstall a Python application from the repository's own package, guarded to commits that touch a build input; git ignores its exit status, so it never blocks a commit.
 - **Delegate, don't duplicate**: every job runs `mise run <task>`; never inline tool commands. Name each job for what it does (`format Python`, `check`, `test`); the `run` line already names the task.
 - **Staged formatters, whole-tree checks**: formatters take `{staged_files}` and restage fixes with `stage_fixed: true`; `check` and `test` take no files. The same formatter task serves hooks and `mise run format` ([argument forwarding](../../mise/references/task-conventions.md#conventions)).

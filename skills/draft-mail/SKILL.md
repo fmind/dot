@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-mail
   created: "2026-10-04"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Draft Mail
 
-Write an email or reply as a rich HTML Gmail draft the user reviews and sends from Gmail. This skill never sends: a request to "send" still produces a draft plus a handoff, unless the user explicitly approves sending this exact reviewed draft in the session. [gws](../gws/SKILL.md) owns authentication and Workspace API access; [`scripts/draft_email.py`](scripts/draft_email.py) owns MIME construction, signature injection, and reply quoting.
+Write an email or reply as a rich HTML Gmail draft the user reviews and sends from Gmail. This skill never sends: a request to "send", even an approved one, still produces a draft plus a handoff. [gws](../gws/SKILL.md) owns authentication and Workspace API access; [`scripts/draft_email.py`](scripts/draft_email.py) owns MIME construction, signature injection, and reply quoting.
 
 ## Gmail Draft Creation Standards (Mandatory)
 
@@ -37,7 +37,7 @@ Write an email or reply as a rich HTML Gmail draft the user reviews and sends fr
 1. **Create and verify the draft** from `$SCRATCH/body.html` with [`scripts/draft_email.py`](scripts/draft_email.py), which builds `multipart/alternative` (`text/plain` + `text/html`), injects the `sendAs` HTML signature, preserves reply headers and `.gmail_quote_container` quoted history, creates or updates the draft via `users.drafts`, and reads it back. Preview with `--dry-run` first, then run without `--dry-run`:
 
    ```bash
-   # Reply (or add --reply-all / --remove bob@example.com / --cc carol@example.com)
+   # Reply (or add --reply-all / --remove bob@example.com / --cc carol@example.com / -a report.pdf)
    uv run --no-project python ~/.agents/skills/draft-mail/scripts/draft_email.py \
      "$SCRATCH/body.html" --reply-to MESSAGE_ID --dry-run
    uv run --no-project python ~/.agents/skills/draft-mail/scripts/draft_email.py \
@@ -48,7 +48,7 @@ Write an email or reply as a rich HTML Gmail draft the user reviews and sends fr
      "$SCRATCH/body.html" --to alice@example.com --subject 'Subject'
    ```
 
-1. **Hand off**: report the returned `draftId`, `threadId`, subject (accents included), recipients, `mimeType` (`multipart/alternative`), `hasSignature`, `hasQuote`, language, and open questions; do not paste the full body again unless asked. Delete the scratch body file.
+1. **Hand off**: report the returned `draftId`, `threadId`, subject (accents included), recipients, `mimeType` (`multipart/alternative`, or `multipart/mixed` with attachments), `hasSignature`, `hasQuote`, language, and open questions; do not paste the full body again unless asked. Delete the scratch body file.
 
 ## Gotchas
 

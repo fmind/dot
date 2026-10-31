@@ -10,16 +10,17 @@ Own concurrent task lifetime and failure behavior. Async pays off only when many
 ## Workflow
 
 1. **Prefer the existing runtime, else asyncio**: inspect the supported Python versions, event-loop owner, async libraries, and pytest plugins. Preserve an existing AnyIO convention; otherwise use standard-library asyncio without adding a runtime dependency. Use `uv` for project execution and required test dependencies.
-1. **Bound admission as well as active work**: for large or streaming inputs, use a fixed worker count and bounded queue so producers wait for capacity; a semaphore around millions of created tasks still leaves millions of task objects.
+1. **Bound admission as well as active work**: for large or streaming inputs, use a fixed worker count and bounded queue so producers wait for capacity; a semaphore around millions of created tasks still leaves millions of task objects. For thread or process pools, `Executor.map(fn, items, buffersize=n)` (3.14+) bounds pending submissions without a hand-written queue.
 1. **Clean up, then propagate cancellation**: release resources with context managers or `try/finally`, and propagate cancellation after cleanup. Use [cancellation and tests](references/cancellation.md) for asyncio/AnyIO differences, bounded cleanup, and deterministic failure probes.
 1. **Move blocking IO to threads**: use the project's thread facility. A cancelled await does not forcibly stop its worker thread; use cooperative termination or an explicitly managed process when termination is required. Choose a process executor for CPU work only after checking workload and serialization costs.
-1. **Dump a hung process's task tree**: `python -m asyncio pstree <pid>` on Python 3.14+; attaching needs elevated debugger privileges on the target.
+1. **Dump a hung loop's tasks in-process**: pre-arm `loop.add_signal_handler(signal.SIGUSR1, dump)`, where `dump` calls `asyncio.print_call_graph(task, file=sys.stderr)` for each `asyncio.all_tasks()` (3.14+); `python -m asyncio pstree <pid>` needs ptrace rights that Yama `ptrace_scope` 1 denies for non-descendants.
 
 ## Gotchas
 
 - **Do not swap `gather` and TaskGroup blindly**: `gather` does not provide TaskGroup's sibling-cancellation behavior on ordinary child failure. Preserve deliberate partial-result semantics instead of mechanically replacing either API.
 - **Hold references to detached tasks**: detached tasks need a lifecycle owner, exception observation, and shutdown handling. The loop keeps only weak references, so hold each task in a set until it completes; an unreferenced task can be collected mid-flight. Request-local background work is not a durable job queue.
 - **Keep scopes and sessions task-local**: keep AnyIO cancel scopes nested in the same task. A task's database session belongs to that task; async does not make shared mutable state safe.
+- **Select event loops with `loop_factory`**: pass it to `asyncio.run` or `asyncio.Runner` (uvloop: `uvloop.run(main())`), and use pytest-asyncio's `pytest_asyncio_loop_factories` hook in tests. The policy API, including `set_event_loop_policy` and `uvloop.install()`, warns since Python 3.14 and is removed in 3.16.
 
 ## Documentation
 

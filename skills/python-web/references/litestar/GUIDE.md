@@ -22,6 +22,7 @@ Use Litestar for Python web applications, with [python-stack](../../../python-st
 ## Gotchas
 
 - **Keep Pydantic; declare only used packages**: the upstream bundle also documents Advanced Alchemy, SQLSpec, msgspec, and Polyfactory. Litestar already depends on msgspec and Polyfactory; declare either as a direct dependency only when application code imports it. Keep Pydantic for request, response, and settings models, which Litestar supports directly, and reach for msgspec `Struct` only in a measured hot path.
+- **Declare handler inputs explicitly**: Litestar 2.22–2.25 deprecate inferred path and query parameters, implicit dependencies, and reserved arguments without their marker type; each emits `LitestarDeprecationWarning` when the app is built, which `filterwarnings = ["error"]` turns into a test failure, and 3.0 removes them. Use `FromPath[T]`, `FromQuery[T]`, `FromHeader[T]`, and `FromCookie[T]` from `litestar.params`, `NamedDependency[T]` from `litestar.di`, a body marker such as `JSONBody[T]` for `data` (a bare `data: Model` still warns), and `request: Request` or `headers: Headers` for the other reserved arguments.
 
 ## Official Skills
 

@@ -12,11 +12,12 @@ Context and rules for AI agents working in this repository. Humans should start 
 
 All work goes through `mise` (see `mise.toml`); git hooks and CI call the same tasks.
 
-- Install: `mise run install` — sync the virtualenv (`uv sync --locked`) and install git hooks.
+- Install: `mise run install` — sync the virtualenv (`uv sync --locked`, refusing known malware) and install git hooks.
 - Format: `mise run format` — `ruff` (import sort + format) and `dprint`.
-- Check: `mise run check` — `ruff` lint, `ty` types, `deptry` dependencies, `uv audit`, `dprint check`, `gitleaks`, `pyproject` validation.
-- Test: `mise run test` — offline `pytest` suite with an 85% branch-coverage gate.
-- Build: `mise run build` — `build:package` (`uv build`: wheel + sdist) and `build:docs` (strict Zensical build with the generated API reference); `mise run serve:docs` previews the docs.
+- Check: `mise run check` — `check:local` (`ruff` lint, `ty` types, `deptry` dependencies, `dprint check`, `gitleaks`, `pyproject` validation; pre-commit) and `check:network` (`uv audit`; pre-push).
+- Test: `mise run test` — offline `pytest` suite (pytest-socket blocks non-loopback connections; pytest-timeout fails a test hung past 60 s) with an 85% branch-coverage gate.
+- Focus: `uv run --locked pytest -q <path>::<test>` for one test, `uv run --locked pytest -q -x -l --lf` to rerun the last failures with locals, and `uv run --locked ruff check <path>` or `uv run --locked ty check <path>` for one file; finish with the full tasks.
+- Build: `mise run build` — `build:package` (`uv build --clear`: wheel + sdist) and `build:docs` (strict Zensical build with the generated API reference); `mise run serve:docs` previews the docs.
 - Watch: `mise run watch` — re-run offline tests on source changes; application profiles may supply their development command.
 
 ## Definition of done

@@ -17,7 +17,7 @@ Use Cookiecutter for existing or explicitly requested Cookiecutter templates; [C
    ```
 1. **Permit only reviewed hooks**: review their commands and effects first; a template that needs hooks must be tested with those reviewed hooks too. For remote sources, pass the reviewed commit with `--checkout`.
 1. **Verify the generated output**: filenames, rendered content, executable modes, and absence of unresolved template markers. Exercise default and non-default context, invalid input, and generation failure without overwriting existing work.
-1. **Gate it; adopt Cruft for updates**: run the generated project's native gate. If ongoing template updates are required, generate through Cruft from the start rather than inventing a second tracking file.
+1. **Gate it; adopt Cruft for updates**: run the generated project's native gate. If ongoing template updates are required, generate through Cruft from the start rather than inventing a second tracking file. Cruft has not released since 2.16.0 (2024-12-25); for a template we own, propose a Copier migration instead.
 
 ## Gotchas
 

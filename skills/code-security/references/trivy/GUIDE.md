@@ -20,7 +20,7 @@ trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars . # OpenTofu mod
 
 ## Mise Task
 
-Expose the repository scan as `check:scan` in `mise.toml` per [mise](../../../mise/SKILL.md); `mise run check` then runs it locally and in CI:
+Expose the repository scan as `check:scan` in `mise.toml` per [mise](../../../mise/SKILL.md) and add it to `check:network`'s `depends` (or `check`'s when the project has no split) per the [task conventions](../../../mise/references/task-conventions.md#conventions), so `mise run check`, the pre-push hook, and CI run it:
 
 ```toml
 [tasks."check:scan"]
@@ -42,6 +42,7 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 - **Scan untrusted candidates independently**: a project-owned policy is not an independent audit policy. Run outside the candidate with reviewed configuration, `--ignorefile`, and exclusions; inspect environment overrides too. Preserve the repository policy for its normal gate and distinguish those results from the independent scan.
 - **Always pass `--config trivy.yaml`**: precedence is `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, and the owner's shell exports a global `TRIVY_CONFIG`, so a bare `trivy fs .` silently uses the global policy.
 - **Commit a project `trivy.yaml`**: copy the global one so CI, hooks, and agents share one policy.
+- **Disable telemetry in the policy**: Trivy sends anonymous usage data and an update check to Aqua on every run by default; set `scan.disable-telemetry: true` and `scan.skip-version-check: true` (`--debug` logs whether the request runs).
 - **Clear exclusions for image scans**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.
 - **License findings remain findings**: the shared license policy can reject Debian base packages. Review the owning project's distribution requirements and explicit license policy before publication; do not disable the scanner or add blanket ignores to make an image pass.
 - **Map aube locks for Trivy**: Trivy reads pipx `uv.lock` files natively but skips npm `aube-lock.yaml` unless `scan.file-patterns` maps it with `pnpm:aube-lock\.yaml`.

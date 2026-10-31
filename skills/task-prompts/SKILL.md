@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Task and Continuation Prompts
@@ -33,7 +33,7 @@ Prepare instructions the receiving agent can use without this conversation. [sys
 
 - **Authority travels with the task**: distinguish authorized actions from proposed work; writing the prompt does not grant additional permission.
 - **Keep history useful, not copied**: preserve failures and proof gaps; cite code paths and lines instead of copying source or the shared persona.
-- **Keep the prompt inbox untracked**: keep `.agents/prompts/` gitignored unless the user wants it tracked; keep a small continuation short.
+- **Keep the prompt inbox untracked**: the global Git ignore already excludes `.agents/prompts/` (confirm with `git check-ignore -v .agents/prompts/x.md`), so add no repository entry, and track prompts only when the user asks; keep a small continuation short.
 
 ## Documentation
 

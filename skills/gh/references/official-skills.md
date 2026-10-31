@@ -5,7 +5,7 @@ Upstream `cli/cli` publishes agent skills under `skills/`, including `gh` (GitHu
 Every `gh skill` subcommand is in preview and subject to change without notice; check `gh skill <command> --help` before relying on a flag.
 
 ```bash
-gh skill search github --owner cli --json repo,skillName,description
+gh skill search gh --owner cli --json repo,skillName,description
 gh skill preview cli/cli <name>@<commit>
 gh skill install cli/cli <name> --pin <commit>   # only on the policy's pinned path
 ```

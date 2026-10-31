@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Fmind Visual Communication
@@ -38,6 +38,6 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind des
 ## Documentation
 
 - [Fmind website](https://www.fmind.dev/) · [Typst](https://typst.app/docs/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
-- Releases: [Typst](https://github.com/typst/typst/releases)
+- Releases: [Typst](https://github.com/typst/typst/releases) · [typstyle](https://github.com/typstyle-rs/typstyle/releases)
 - [VHS documentation](https://github.com/charmbracelet/vhs) · Releases: [VHS](https://github.com/charmbracelet/vhs/releases)
 - Companion skills: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2).

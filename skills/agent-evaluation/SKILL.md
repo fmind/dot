@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Agent Evaluation
@@ -32,7 +32,7 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 
 ## Documentation
 
-- Upstream: `mlflow/skills` ships a same-name, MLflow-specific `agent-evaluation`; preview it, never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
+- Upstream: `mlflow/skills` ships the MLflow-specific `mlflow-evaluation` (scorers, judges, evaluation runs) for MLflow projects; review it per the [vendor-skill policy](../agent-project/references/vendor-skills.md).
 - [Anthropic agent evaluation](https://www.anthropic.com/research/demystifying-evals-for-ai-agents)
 - Companion skills: [agents-cli](../agent-frameworks/references/agents-cli/GUIDE.md) (Google evaluation execution), [observability](../python-stack/references/observability.md) (runtime signals), [skillify](../skillify/SKILL.md) (skill adoption checks).
 - [AI red team](../ai-red-team/SKILL.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.

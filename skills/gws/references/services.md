@@ -38,9 +38,9 @@ For `values.update`, put `spreadsheetId`, `range` and `valueInputOption` in para
 
 ## Gmail
 
-Use `gws gmail +read --id MESSAGE_ID --headers --format json` for decoded bodies; `--html` selects HTML. It handles multipart/base64 and HTML-only messages. For creating or updating drafts and replies, use [draft-mail](../../draft-mail/SKILL.md) (`scripts/draft_email.py`), which constructs RFC 5322 `multipart/alternative` (`text/plain` + `text/html` `<div dir="ltr">`), dynamically injects the user's `sendAs` HTML signature (`<div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">`), and preserves `threadId`, `Subject`, `In-Reply-To`, `References`, and collapsible `<div class="gmail_quote gmail_quote_container">` history via `users.drafts.create` / `users.drafts.update`.
+Use `gws gmail +read --id MESSAGE_ID --headers --format json` for decoded bodies; `--html` selects HTML. It handles multipart/base64 and HTML-only messages. Create or update drafts and replies only with [draft-mail](../../draft-mail/SKILL.md), which owns MIME construction, the `sendAs` signature, and reply quoting.
 
-The CLI's `+send`, `+reply`, `+reply-all`, and `+forward` helpers emit single-part `text/plain` or `text/html` bodies without `sendAs` signatures. Check attachment/body identifiers separately when reading raw multipart messages; JSON text is not MIME and Gmail is not a Markdown renderer.
+The CLI's `+send`, `+reply`, `+reply-all`, and `+forward` helpers send immediately unless given `--draft`, and either way emit a plain or HTML body without a `multipart/alternative` fallback or `sendAs` signature. Check attachment/body identifiers separately when reading raw multipart messages; JSON text is not MIME and Gmail is not a Markdown renderer.
 
 ## Calendar and Slides
 

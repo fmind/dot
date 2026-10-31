@@ -24,7 +24,7 @@ Reuse these names for their stated concerns instead of inventing synonyms such a
 ## Conventions
 
 - **Run hooks through mise tasks**: see [lefthook](../../github-actions/references/lefthook.md); each hook job runs `mise run <task>` and its name says what it does (`format Python`, `check`).
-- **Fan checks out in parallel**: `check` fans out with `depends = ["check:deps", "check:format", "check:leaks", "check:lint", "check:types", "check:vuln"]`; mise runs the subtasks concurrently.
+- **Fan checks out in parallel**: `check` depends on `check:local` (offline checks such as `check:deps`, `check:format`, `check:leaks`, `check:lint`, `check:types`) and `check:network` (database downloads: `check:vuln`, `check:scan`); mise runs the subtasks concurrently, pre-commit runs `check:local`, and pre-push runs `check:network`.
 - **Skip unchanged tasks incrementally**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Limit staged files to formatters**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
 - **Forward arguments without dispatch wrappers**: without `usage`, mise appends CLI args to the last command; keep shell quoting and tool arguments intact, and verify raw argument behavior with a small local example when adding a wrapper task. A formatter that runs several commands on the same files, or needs a whole-tree default, declares `usage = 'arg "[files]..."'` (plus `default=` for one path) and starts its script with `eval "set -- $usage_files"`: mise passes variadic arguments as one shell-quoted string. One task then serves both the hook and ordinary formatting; never add per-hook `:files` variants.
@@ -47,7 +47,7 @@ mise install             # install everything pinned
 mise lock                # refresh metadata for the locked versions
 mise lock --bump         # advance lock selectors without installing
 mise lock --upgrade      # migrate legacy locks; retain and validate generated dependency files
-mise upgrade --bump --local  # rewrite this project's pins only; without --local it also upgrades global tools
+mise upgrade --bump --pin --no-global --no-prune  # rewrite only this project's pins, exactly; keep replaced installs
 ```
 
 ## Additional task gotchas

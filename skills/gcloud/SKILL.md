@@ -1,13 +1,13 @@
 ---
 name: gcloud
-description: "Use gcloud for Google Cloud projects, IAM, billing, APIs, and logs."
+description: "Use gcloud and firebase for Google Cloud projects, IAM, billing, APIs, and logs."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-10-21"
+  updated: "2026-10-31"
 ---
 
 # Google Cloud CLI
@@ -38,6 +38,7 @@ Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless
 
 - **`--quiet` is not authority**: it suppresses prompts; it neither makes an operation safe nor approves it.
 - **Overrides replace the account**: `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT`, `CLOUDSDK_AUTH_ACCESS_TOKEN_FILE`, and `--impersonate-service-account` change the effective principal; prove which is active first.
+- **Firebase reuses ADC**: the global `firebase` CLI (firebase-tools) authenticates with gcloud Application Default Credentials, so skip `firebase login`; pass `--project <id>` and `--json`, and treat `deploy` like any mutation.
 - **Failures are findings**: on an auth, permission, or quota error report the missing principal, denied permission, or exhausted quota; do not switch configurations, broaden IAM, create keys, or move spend to another project.
 
 ## Official Skills

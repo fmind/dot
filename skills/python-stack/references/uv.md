@@ -9,9 +9,9 @@ Use uv for Python dependency and environment operations; [foundation](foundation
 
 ## Workflow
 
-1. **Manage dependencies through uv**: use `uv add` for project dependencies and `uv sync --locked` to reproduce the existing graph; keep tool installations separate from application dependencies.
+1. **Manage dependencies through uv**: use `uv add` for project dependencies and `uv sync --locked` to reproduce the existing graph; keep tool installations separate from application dependencies. Add new packages with `UV_MALWARE_CHECK=1 uv add --preview-features malware-check <pkg>`: it refuses a package with a published OSV malware advisory before installation, but resolution (including any sdist build) runs first; never export the variable globally.
 1. **Validate lock consistency**: run `uv lock --check`, then run the project's normal checks after any dependency change.
-1. **Qualify builds outside the source tree**: use `uv export --locked --no-dev --no-emit-project -o requirements.txt`, which emits hashes, then `uv venv`, `uv pip sync --require-hashes requirements.txt`, and `uv pip install <wheel>`.
+1. **Qualify builds outside the source tree**: use `uv export --locked --no-dev --no-emit-project -o requirements.txt`, which emits hashes, then `uv venv`, `uv pip sync --require-hashes requirements.txt`, and `uv pip install <wheel>`. Skip the export and sync for a package without runtime dependencies: uv warns on an empty requirements file.
 
 ## Gotchas
 
@@ -20,7 +20,8 @@ Use uv for Python dependency and environment operations; [foundation](foundation
 - **Inspect packages without importing them**: inspect distribution versions and source with `uv pip show <dist>`, then read the reported files; importing a module merely to inspect it can execute code.
 - **Keep `uv_build` bounded**: use a range supported by the selected uv release. uv uses its bundled backend when compatible and otherwise installs the requested backend; verify wheel and sdist instead of widening constraints to hide diagnostics. See the [backend contract](https://docs.astral.sh/uv/concepts/build-backend/).
 - **Commit `uv.lock`, libraries included**: it pins your development environment, not your consumers' installs. Build environments with `uv sync --locked`, run tasks with `uv run --frozen`, and use `uv run --locked` when a task may be the first uv call; a bare `uv run` or `uv sync` re-locks and rewrites `uv.lock`, so it never belongs in a gate. `UV_LOCKED` and `UV_FROZEN` apply the same policy once from `[env]`.
-- **Clear `UV_*` variables for separate projects**: `UV_PROJECT` and other `UV_*` variables redirect project discovery, so a command run elsewhere silently operates on the exported project; `VIRTUAL_ENV` is ignored by project commands but selects the target of `uv pip`. Clear them, and pass `--no-config` to ignore a user-level `uv.toml`, when scaffolding or verifying a separate project.
+- **Clear `UV_*` variables for separate projects**: `UV_PROJECT` and other `UV_*` variables redirect project discovery, so a command run elsewhere silently operates on the exported project; `VIRTUAL_ENV` is ignored by project commands but selects the target of `uv pip`. Clear them when scaffolding or verifying a separate project, without `--no-config`: it also drops that project's `[tool.uv]` settings, such as `required-version`, and the user-level `python-preference` that selects the mise interpreter.
+- **Triage `uv audit` findings; never mute them**: first upgrade the affected package (`uv lock --upgrade-package <pkg>`, then the project checks). With no fix available, add the advisory ID to `[tool.uv.audit] ignore-until-fixed` with a dated reason comment, so it returns once a fix ships; use `ignore` only for an advisory shown not to apply, or for a fixed one you cannot take yet (name the blocker), with the reason inline. Never add `--ignore` to the task or drop `check:vuln`. See [audit settings](https://docs.astral.sh/uv/reference/settings/#audit).
 - **Unknown `[tool.uv]` keys only warn** during settings discovery, so a misspelled setting silently does nothing; `required-version` is enforced and fails the run.
 
 ## Official Skills

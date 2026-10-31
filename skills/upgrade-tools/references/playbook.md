@@ -4,7 +4,7 @@ Per-manifest commands for the [upgrade-tools](../SKILL.md) workflow: bump, re-lo
 
 ## mise (`mise.toml`, `mise.lock`)
 
-1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`, elsewhere preview with `mise outdated --bump --local`, then `mise upgrade --bump --local` (never without `--local`, which also upgrades global tools). Replace floating selectors with exact versions using the [exact-pin commands](../../mise/references/tool-versions.md#select-exact-versions), preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
+1. **Resolve latest stable releases** for the project's own tools; in `fmind/dot` use `mise run upgrade`, elsewhere preview with `mise outdated --bump --no-global`, then run `mise upgrade --bump --pin --no-global --no-prune`. `--no-global` keeps global tools unchanged, `--pin` writes exact versions for `latest` and prefix selectors, and `--no-prune` keeps the replaced versions, which mise otherwise deletes after `upgrade.prune_after` (24h by default). Exclude a justified hold with `--exclude <tool>`, preserve tool options, and regenerate the project's lock. Investigate a pin held below latest before moving it, and keep referenced interpreters available while virtual environments migrate.
 1. **Keep runtime files coherent**: align `.python-version` and relevant CI/runtime pins with the selected mise versions, preserving intentional compatibility matrices. Recreate affected environments through the project's native package workflow; do not point an existing environment's interpreter symlink at a different Python minor version. Preserve declared support unless a change is justified.
 
 After upgrading, preview cleanup of versions no configuration references:
@@ -19,12 +19,15 @@ Pruning retains tools referenced by tracked configs; external virtualenv links a
 ## Python (`pyproject.toml`, `uv.lock`)
 
 ```sh
+uv lock --upgrade --dry-run       # preview every version change, majors included, without writing
 uv lock --upgrade                 # bump every locked dependency within its constraint
 uv lock --upgrade-package <pkg>   # bump one package
-uv sync                           # install the upgraded set
+UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check   # install the upgraded set, refusing known malware
 ```
 
-Raise `requires-python` and dependency floors in `pyproject.toml` by hand, only when a newer feature is needed; keep pre-1.0 tools range-pinned. See [python-stack](../../python-stack/references/foundation/GUIDE.md).
+Raise `requires-python` and dependency floors in `pyproject.toml` by hand, only when a newer feature is needed; keep pre-1.0 tools range-pinned.
+
+- **Probe a new CPython minor before moving any pin**: remove any `requires-python` upper cap and run `uv lock` (otherwise `--locked` rejects the stale lock), then run `uv run --isolated --locked --no-build --python <next-minor> pytest -q -m "not integration"`. It fails on the first locked dependency without a wheel, so rerun after each fix; `filterwarnings = error` surfaces the minor's new deprecations. Use a final interpreter (uv warns when `--python` resolves to a pre-release). Move `.python-version`, the mise pin, and CI together only after the probe passes. See [python-stack](../../python-stack/references/foundation/GUIDE.md).
 
 ## OpenTofu (`.terraform.lock.hcl`)
 
@@ -37,7 +40,7 @@ Validate with `tofu validate`, `tflint`, and `trivy config`. See [infra-as-code]
 
 ## Container images (`Dockerfile`)
 
-Update the tag or digest of every `FROM` line to the latest stable from the image's registry (Chainguard, Docker Hub), rebuild with the project's image task, and scan the resulting local archive with `trivy --config trivy.yaml image --skip-dirs '' --input <image.tar>` or the published immutable `<registry>/<slug>@<digest>`. An image scan requires one of those targets. See [containerize](../../docker/references/containerize/GUIDE.md).
+Update the tag and digest of every `FROM` line, every `COPY --from=<image>`, and every other digest-pinned image reference (such as a testcontainers fixture like `POSTGRES_IMAGE` in the Litestar `conftest.py`) to the latest stable from the image's registry (Chainguard, Docker Hub), using the multi-platform index digest; rebuild with the project's image task, and scan the resulting local archive with `trivy --config trivy.yaml image --skip-dirs '' --input <image.tar>` or the published immutable `<registry>/<slug>@<digest>`. An image scan requires one of those targets. See [containerize](../../docker/references/containerize/GUIDE.md).
 
 ## GitHub Actions (`.github/workflows/*.yml`)
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/stakeholder-writing
   created: "2026-10-25"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Stakeholder Writing
@@ -41,5 +41,5 @@ Write documents that busy professionals with no context on our work can understa
 
 ## Documentation
 
-- [Plain language guidelines](https://www.plainlanguage.gov/guidelines/) · [Google developer documentation style guide](https://developers.google.com/style) · [Bottom line up front](https://en.wikipedia.org/wiki/BLUF_(communication))
+- [Plain language guidelines](https://digital.gov/guides/plain-language) · [Google developer documentation style guide](https://developers.google.com/style) · [Bottom line up front](https://en.wikipedia.org/wiki/BLUF_(communication))
 - Companion skills: [playwright](../playwright/SKILL.md) (render checks), [diagrams-as-code](../diagrams-as-code/SKILL.md) (diagrams), [code-security](../code-security/SKILL.md) (secret scans before sharing).

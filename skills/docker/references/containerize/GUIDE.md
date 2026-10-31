@@ -39,6 +39,7 @@ Build a reproducible, minimal non-root uv-managed Python image locally, verify i
 ## Gotchas
 
 - **Fail on lock drift with `--locked`**: `uv sync --locked` rejects a missing or stale `uv.lock`; `--frozen` skips freshness checks. The template uses `--locked` so manifest drift fails without rewriting the graph.
+- **Install exported pins without re-resolving**: an image that installs `uv export` output with pip needs `--no-deps` when the project overrides an upstream cap (`override-dependencies`); otherwise pip re-resolves and rejects the forced version.
 - **Run non-root with explicit writable paths**: the template runs as numeric UID/GID 10001 and copies only the locked virtual environment from the build stage, owned by root so the application cannot rewrite its own code. Write temporary data outside the application directory or mount an explicit writable path.
 - **Refresh pinned bases together**: both Python and uv use multi-architecture manifest digests. Refresh versions and digests together with [upgrade-tools](../../../upgrade-tools/SKILL.md).
 - **Exclude local state from the context**: keep virtual environments, caches, logs, local databases, Git state, plaintext environment files, and generated `gha-creds-*.json` Workload Identity Federation credentials out through [.dockerignore](templates/.dockerignore). The Cloud Run authentication action creates its credential file before the Docker build; it must not enter a build layer.

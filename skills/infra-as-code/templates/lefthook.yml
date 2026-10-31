@@ -12,8 +12,12 @@ pre-commit:
       run: mise run format:tofu {staged_files}
       stage_fixed: true
     - name: check
-      run: mise run check
+      run: mise run check:local
 pre-push:
+  parallel: true
   jobs:
+    # Trivy downloads its checks bundle; CI runs both through `check`.
+    - name: scan misconfigurations
+      run: mise run check:network
     - name: test
       run: mise run test

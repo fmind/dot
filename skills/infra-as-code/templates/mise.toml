@@ -34,18 +34,21 @@ run = ["mkdir -p tmp", "tofu plan -out=tmp/plan.tfplan"]
 [tasks."build:docs"]
 alias = "bd"
 description = "Inject module documentation into README.md (terraform-docs)"
-run = "terraform-docs ."
+# terraform-docs writes unaligned tables; dprint realigns them so check:format and the CI clean-tree check pass.
+run = ["terraform-docs .", "dprint fmt README.md"]
 
 [tasks.check]
 alias = "c"
 description = "Run all static checks in parallel"
-depends = [
-  "check:format",
-  "check:leaks",
-  "check:lint",
-  "check:scan",
-  "check:validate",
-]
+depends = ["check:local", "check:network"]
+
+[tasks."check:local"]
+description = "Run the static checks that need no network (pre-commit)"
+depends = ["check:format", "check:leaks", "check:lint", "check:validate"]
+
+[tasks."check:network"]
+description = "Run the checks that download policy data (pre-push)"
+depends = ["check:scan"]
 
 [tasks."check:format"]
 alias = "cf"

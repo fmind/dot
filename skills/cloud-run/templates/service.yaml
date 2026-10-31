@@ -28,6 +28,12 @@ spec:
         - image: <region>-docker.pkg.dev/<project>/<slug>/<slug>@sha256:<digest>
           ports:
             - containerPort: 8080
+          # Stop routing to an instance while /ready (database) fails; the default TCP
+          # startup probe stays. Keep timeoutSeconds above /ready's five-second deadline.
+          readinessProbe:
+            httpGet:
+              path: /ready
+            timeoutSeconds: 6
           env:
             - name: HOST
               value: "0.0.0.0"

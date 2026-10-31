@@ -12,8 +12,12 @@ pre-commit:
       run: mise run format:python {staged_files}
       stage_fixed: true
     - name: check
-      run: mise run check
+      run: mise run check:local
 pre-push:
+  parallel: true
   jobs:
+    # Vulnerability databases need the network; CI runs both through `check`.
+    - name: scan vulnerabilities
+      run: mise run check:network
     - name: test
       run: mise run test

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-10-25"
+  updated: "2026-10-31"
 ---
 
 # Docker and Container Runtime Management
@@ -30,10 +30,10 @@ Docker, Compose, and Colima are host prerequisites; workstation tools do not ins
    docker system df
    ```
 
-1. **Manage Compose stacks**: resolve the Compose file and project name first. Use a unique name for a new disposable stack; reuse an existing project's name only when operating that stack is in scope.
+1. **Manage Compose stacks**: resolve the Compose file and project name first. Use a unique name for a new disposable stack; reuse an existing project's name only when operating that stack is in scope. `up --wait` exits non-zero when a service fails to start or stays unhealthy, while `up -d` succeeds once containers start; a one-shot service that exits 0 also fails `--wait` unless another service depends on it with `condition: service_completed_successfully`.
 
    ```bash
-   docker --context <context> compose -p <project> -f <compose-file> up -d
+   docker --context <context> compose -p <project> -f <compose-file> up --wait --wait-timeout 120
    docker --context <context> compose -p <project> -f <compose-file> ps
    docker --context <context> compose -p <project> -f <compose-file> logs --since 15m --tail 100 <service>
    docker --context <context> compose -p <project> -f <compose-file> down

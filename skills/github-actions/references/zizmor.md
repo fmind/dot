@@ -32,6 +32,7 @@ zizmor --fix .github/workflows/                           # experimental; the de
 ## Gotchas
 
 - **Add narrow, reasoned ignores**: only when the workflow cannot satisfy a rule; do not relax `unpinned-uses` globally.
+- **Expect `pull_request_target` to be blocked on public repositories**: from 2026-12-02 GitHub's default Actions event policy disables it there; allow it only through an event policy scoped to the workflow file that needs it ([control workflow execution](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution)).
 - **Offline is the gate**: online audits need `GH_TOKEN` and hit rate limits; keep them for manual reviews or a scheduled, non-blocking workflow.
 - **Fix mode edits files**: run it on a clean tree and review every change before committing.
 

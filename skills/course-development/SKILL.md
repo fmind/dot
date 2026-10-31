@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/course-development
   created: "2026-08-30"
-  updated: "2026-10-25"
+  updated: "2026-10-31"
 ---
 
 # Develop a Technical Course
@@ -17,7 +17,7 @@ Build a course learners can understand, execute, and finish. Use [documentation-
 ## Workflow
 
 1. **Define the learner**: prerequisites, target capability, time, delivery format, and accessibility needs; keep only content that advances the outcome.
-1. **Make outcomes observable**: give each lesson a primary capability and a completion signal; introduce terms before using them.
+1. **Make outcomes observable**: give each lesson a primary capability and a completion signal; introduce terms before using them. Start Zensical lessons from the [lesson template](../documentation-site/templates/lesson.md).
 1. **Ground examples**: derive code and counts from shipped source or generated evidence; explain the reason beside a command and distinguish captured output from illustration.
 1. **Record terminal examples when useful**: follow the [VHS workflow](../fmind-visuals/references/recording.md) for reproducible demos with synthetic inputs; retain the command transcript and a static equivalent for accessibility.
 1. **Make practice executable**: state the goal, starting state, a prediction, ordered work, verification, and what remains afterward; label temporary changes and external access/cost.

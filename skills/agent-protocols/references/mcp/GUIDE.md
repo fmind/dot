@@ -19,8 +19,8 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
 1. **Define the surface** with `MCPServer` from `mcp.server`. Give each decorated function complete type hints and a useful docstring so its JSON Schema and purpose come from the implementation.
 1. **Choose the transport**: stdio for a local host-launched process; Streamable HTTP at `/mcp` for a service. Keep stdout protocol-only under stdio and send logs to stderr.
    ```bash
-   uv run mcp run server.py
-   uv run mcp run server.py --transport streamable-http
+   uv run mcp run src/<package>/server.py:server
+   uv run mcp run src/<package>/server.py:server --transport streamable-http
    ```
 1. **Test both boundaries**: use `Client(server)` for deterministic handler tests, then `Client(StdioServerParameters(...))` for one real subprocess protocol smoke. Adapt the [protocol test](templates/test_protocol.py) to assert every tool schema, representative outputs, and invalid input.
    ```bash
@@ -32,7 +32,7 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
 
 ## Gotchas
 
-- **Use SDK v2 APIs**: `MCPServer` and `Client` are the current stable surface; pin `<2` only while maintaining an intentional v1 application.
+- **Use SDK v2 APIs**: `MCPServer` and `Client` are the current stable surface; port v1 `mcp.server.fastmcp.FastMCP` code with the [v2 migration guide](https://py.sdk.modelcontextprotocol.io/v2/migration/), or pin `<2` only while maintaining an intentional v1 application. The standalone `fastmcp` package is a separate framework.
 - **Streamable HTTP replaced HTTP+SSE**: do not build a new SSE server, and do not depend on in-memory protocol sessions when instances can scale or restart. Revision 2026-07-28, the latest through SDK 2.3.0, removes sessions and the `initialize` handshake (`Client` falls back to it for older servers) and deprecates Roots, Sampling, Logging, and Dynamic Client Registration: pass server-minted handles as tool arguments for cross-call state, log to stderr or OpenTelemetry, and prefer Client ID Metadata Documents for OAuth clients.
 - **Cancellation is work cancellation**: stop downstream I/O when the client disconnects or cancels rather than letting detached work continue.
 - **Tool output is untrusted too**: bound it, avoid secret-bearing errors, and return citations or provenance when a tool supplies facts to a model.

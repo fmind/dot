@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Systematic Debugging
@@ -41,7 +41,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 ## References
 
 - [Network troubleshooting](references/network.md): isolate DNS, connection, TLS, HTTP, proxy, and authentication failures with `doggo`, Python, and `xh` before changing configuration.
-- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument, Memray, and py-spy captures; use `uv` to run the project Python.
+- [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument, Memray, py-spy, and Python 3.15 `profiling.sampling` captures; use `uv` to run the project Python.
 
 ## Documentation
 

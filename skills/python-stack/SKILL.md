@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-10-29"
+  updated: "2026-10-31"
 ---
 
 # Python Stack
@@ -29,7 +29,7 @@ Read only the matching guide and its required resources. Dataframe code in any p
 - [pydantic](references/pydantic.md): Typed validation, serialization, and settings boundaries.
 - [python-async](references/python-async/GUIDE.md): Async design, cancellation, timeouts, and shutdown.
 - [python-script](references/python-script/GUIDE.md): Standalone single-file utilities with PEP 723 inline metadata run by uv run --script.
-- [python-testing](references/python-testing/GUIDE.md): Write Python tests with pytest, fixtures, property tests, and TDD.
+- [python-testing](references/python-testing/GUIDE.md): Write Python tests with pytest, fixtures, property and mutation tests, and TDD.
 - [ruff](references/ruff.md): Python linting, formatting, imports, and safe fixes.
 - [ty](references/ty.md): Type diagnostics and environment resolution.
 - [uv](references/uv.md): Dependency resolution, environments, packaging, and lockfiles.
