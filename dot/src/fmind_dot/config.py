@@ -33,7 +33,6 @@ COMPLETION_SOURCES: dict[str, ToolConfig] = {
     "ast-grep": ToolConfig(args=("completions", "fish")),
     "astro": ToolConfig(),
     "atuin": ToolConfig(args=("gen-completions", "--shell", "fish")),
-    "aws-sso-util": ToolConfig(binary="env", args=("_AWS_SSO_UTIL_COMPLETE=fish_source", "aws-sso-util")),
     "bat": ToolConfig(args=("--completion", "fish")),
     "bf": ToolConfig(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
     "cf": ToolConfig(args=("complete", "fish")),

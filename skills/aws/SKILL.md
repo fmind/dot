@@ -1,6 +1,6 @@
 ---
 name: aws
-description: "Operate AWS accounts and SSO profiles with aws and aws-sso-util."
+description: "Operate AWS accounts and SSO profiles with the aws CLI."
 license: MIT
 metadata:
   kind: connector
@@ -12,7 +12,7 @@ metadata:
 
 # Amazon Web Services CLI
 
-Use `aws` for AWS account, IAM, S3, ECS, and CloudWatch operations; the installed `aws-sso-util` 4.33.0 ignores the `sso-session` profiles that `aws configure sso` writes.
+Use `aws` for AWS account, IAM, S3, ECS, and CloudWatch operations.
 
 ## Workflow
 

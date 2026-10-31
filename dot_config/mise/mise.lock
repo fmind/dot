@@ -1337,23 +1337,6 @@ checksum = "sha256:e2020b073c44f692685a24d6abc378817eb81ffaaf49fd0531ef8565f767f
 url = "https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-darwin-arm64.tar.gz"
 url_api = "https://api.github.com/repos/FiloSottile/age/releases/assets/535541897"
 
-[[tools."aqua:github/copilot-cli"]]
-version = "1.0.105"
-backend = "aqua:github/copilot-cli"
-specifiers = ["latest"]
-
-[tools."aqua:github/copilot-cli"."platforms.linux-x64"]
-checksum = "sha256:aba1f06f27bc0447656647f76e0a4cf58b4b2a341c75ff04a750982b6aeb6bd2"
-checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.105/copilot-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/683349254"
-
-[tools."aqua:github/copilot-cli"."platforms.macos-arm64"]
-checksum = "sha256:34aacd03fb478d47e4b3cfc5ca045c37278c5d8d86239466521a16ea54ac84aa"
-checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.105/copilot-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/683348970"
-
 [[tools.ast-grep]]
 version = "0.51.0"
 backend = "aqua:ast-grep/ast-grep"
@@ -1554,6 +1537,40 @@ conda_deps = [
     "_openmp_mutex-4.5-20_gnu",
     "libgomp-16.2.0-he0feb66_7",
 ]
+
+[[tools.copilot]]
+version = "1.0.105"
+backend = "aqua:github/copilot-cli"
+specifiers = ["latest"]
+
+[tools.copilot."platforms.linux-x64"]
+checksum = "sha256:aba1f06f27bc0447656647f76e0a4cf58b4b2a341c75ff04a750982b6aeb6bd2"
+checksum_source = "mise-versions"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.105/copilot-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/683349254"
+
+[tools.copilot."platforms.macos-arm64"]
+checksum = "sha256:34aacd03fb478d47e4b3cfc5ca045c37278c5d8d86239466521a16ea54ac84aa"
+checksum_source = "mise-versions"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.105/copilot-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/683348970"
+
+[[tools.databricks-cli]]
+version = "1.23.0"
+backend = "aqua:databricks/cli"
+specifiers = ["latest"]
+
+[tools.databricks-cli."platforms.linux-x64"]
+checksum = "sha256:a5ec088f7f6cc5974327a42df99261e22fbc6f7ca9cddb945333c238dd9e2289"
+checksum_source = "mise-versions"
+url = "https://github.com/databricks/cli/releases/download/v1.23.0/databricks_cli_1.23.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/databricks/cli/releases/assets/688457941"
+
+[tools.databricks-cli."platforms.macos-arm64"]
+checksum = "sha256:750e4cc69df1e5f72d2233f338b9bee184fa7505890dda2b7739b7bd134a092a"
+checksum_source = "mise-versions"
+url = "https://github.com/databricks/cli/releases/download/v1.23.0/databricks_cli_1.23.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/databricks/cli/releases/assets/688457919"
 
 [[tools.delta]]
 version = "0.20.1"
@@ -2032,23 +2049,6 @@ asset_pattern = "*darwin_arm64*"
 checksum = "sha256:3c9eb14c3607af86a95a46b3a0d344baf9a164f2262d0902fff6b30812f7a064"
 url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.3.1/a2a_0.3.1_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/646800164"
-
-[[tools."github:databricks/cli"]]
-version = "1.23.0"
-backend = "github:databricks/cli"
-specifiers = ["latest"]
-
-[tools."github:databricks/cli"."platforms.linux-x64"]
-checksum = "sha256:a5ec088f7f6cc5974327a42df99261e22fbc6f7ca9cddb945333c238dd9e2289"
-checksum_source = "mise-versions"
-url = "https://github.com/databricks/cli/releases/download/v1.23.0/databricks_cli_1.23.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/databricks/cli/releases/assets/688457941"
-
-[tools."github:databricks/cli"."platforms.macos-arm64"]
-checksum = "sha256:750e4cc69df1e5f72d2233f338b9bee184fa7505890dda2b7739b7bd134a092a"
-checksum_source = "mise-versions"
-url = "https://github.com/databricks/cli/releases/download/v1.23.0/databricks_cli_1.23.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/databricks/cli/releases/assets/688457919"
 
 [[tools."github:docker/buildx"]]
 version = "0.38.1"
@@ -2540,12 +2540,6 @@ checksum = "sha256:0d1cdc85f38992055b48e7fb161304a2ddfe2e5ee0ff68ffec9d0349c8bd1
 checksum_source = "mise-versions"
 url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742637"
-
-[[tools."pipx:aws-sso-util"]]
-version = "4.33.0"
-backend = "pipx:aws-sso-util"
-specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:0a67aca3d5cdbdef4b449996161defee6b6c54d73cb972840ce54209471e79bf" }
 
 [[tools."pipx:brain-framework"]]
 version = "20.0.1"

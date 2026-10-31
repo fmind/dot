@@ -53,13 +53,13 @@ def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
 
 def test_retired_tools_are_not_workstation_requirements() -> None:
     config = Config()
-    retired = {"cursor-agent", "jules", "marimo", "pyrit"}
+    retired = {"aws-sso-util", "cursor-agent", "jules", "marimo", "pyrit"}
     assert not retired.intersection(config.doctor.tools)
     assert not retired.intersection(COMPLETION_SOURCES)
 
 
 def test_cloud_connectors_are_included_in_default_completions() -> None:
-    assert {"astro", "aws-sso-util", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
+    assert {"astro", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
     managed = Path(__file__).resolve().parents[2] / "dot_config/fish/completions"
     assert {path.name for path in managed.glob("*.fish")} == MANAGED_COMPLETIONS
 

@@ -71,13 +71,11 @@ SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 
 # Selection rule: "Choose global tools for agent coding" in fmind/dot's AGENTS.md; a project tool kept global says why in its comment.
 [tools]
-"aqua:github/copilot-cli" = "latest" # GitHub Copilot terminal-based AI coding agent CLI
 "conda:file" = "latest" # File type detection for agents and Yazi; includes its magic database
 # macOS ships both natively (mandoc renders man pages there).
 "conda:groff" = { version = "latest", os = ["linux"] } # Man-page renderer that `aws <command> help` requires
 "conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
 "github:DataDog/pup" = "latest" # Official Datadog command-line interface (pup) for logs, monitors, and OAuth PKCE
-"github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
 # github, not aqua: aqua names the binary docker-cli-plugin-docker-buildx, which Docker does not
 # discover; Docker plugins must be named docker-<name>. See colima below.
 "github:docker/buildx" = { version = "latest", os = ["macos"], bin = "docker-buildx" } # BuildKit plugin (docker buildx)
@@ -91,7 +89,6 @@ SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 # npm, not aqua: upstream's standalone macOS binary is x86_64-only, so it would need Rosetta on Apple Silicon.
 "npm:firebase-tools" = "latest" # Official Firebase CLI (firebase) for Hosting, Firestore, Auth, and Rules
 "npm:skills" = "latest" # Agent Skills CLI manager
-"pipx:aws-sso-util" = "latest" # Utilities for AWS SSO/IAM Identity Center authentication
 "pipx:brain-framework" = "latest" # Brain Framework CLI (bf)
 "pipx:copier" = "latest" # Default project template generator and updater
 "pipx:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
@@ -116,6 +113,8 @@ claude = "latest" # Claude Code terminal-based AI coding agent CLI
 # macOS container runtime: Colima runs Docker Engine in a Lima VM; Linux uses the distribution's
 # Docker Engine. ~/.docker/config.json finds the Compose and Buildx plugins through mise's shims.
 colima = { version = "latest", os = ["macos"] } # Docker runtime VM manager for macOS
+copilot = "latest" # GitHub Copilot terminal-based AI coding agent CLI
+databricks-cli = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
 delta = "latest" # Syntax-highlighter for git, diff, and grep output
 docker-cli = { version = "latest", os = ["macos"] } # Docker CLI client for Colima's engine
 docker-compose = { version = "latest", os = ["macos"] } # Docker Compose CLI plugin for multi-container apps
