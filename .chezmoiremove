@@ -1,5 +1,7 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
 .config/fish/functions/zellij.fish
 .config/dot/secrets/ANTIGRAVITY_SDK_API_KEY
+.config/dot/secrets/JULES_API_KEY
 .config/dot/secrets/STITCH_ACCESS_TOKEN
+.config/dot/secrets/UV_PUBLISH_TOKEN
 .config/dot/secrets/VERTEX_API_KEY
