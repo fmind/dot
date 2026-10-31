@@ -174,6 +174,8 @@ def notification_command(runner: Runner, notification: Notification, *, system: 
         "--app-name=dot",
         f"--expire-time={_NOTIFY_EXPIRE_MS}",
         "--hint=boolean:suppress-sound:true",
+        # Ends option parsing, so a summary or body starting with "-" stays text.
+        "--",
         notification.summary,
         html.escape(body, quote=False),
     ]

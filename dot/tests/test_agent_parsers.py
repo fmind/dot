@@ -615,6 +615,7 @@ def test_agy_sessions_take_their_workspace_from_the_summaries_database(tmp_path:
         if session_id != "missing-transcript":
             _jsonl(_agy_transcript(root, str(session_id)), [])
     _jsonl(_agy_transcript(root, "unlisted"), [])
+    _jsonl(_agy_transcript(root, "unlisted.bak"), [])
 
     candidates = {session_id: cwd for session_id, cwd, _ in AGENT_ADAPTERS["agy"].enumerate(root)}
 

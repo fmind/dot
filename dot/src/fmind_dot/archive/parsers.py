@@ -741,7 +741,8 @@ def _enumerate_agy(root: Path) -> list[SessionCandidate]:
     candidates: list[SessionCandidate] = []
     workspaces = agy_workspaces(root)
     for directory in sorted(root.iterdir()):
-        if not stat.S_ISDIR(directory.lstat().st_mode):
+        # A name that is no safe session ID (such as a "copy.bak" backup) would fail the whole sync later.
+        if not stat.S_ISDIR(directory.lstat().st_mode) or not is_valid_session_id(directory.name):
             continue
         for name in AGY_TRANSCRIPT_NAMES:
             path = directory / ".system_generated" / "logs" / name

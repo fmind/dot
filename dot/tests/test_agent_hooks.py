@@ -264,6 +264,7 @@ def test_notification_commands_cover_linux_and_darwin_escaping() -> None:
         "--app-name=dot",
         "--expire-time=10000",
         "--hint=boolean:suppress-sound:true",
+        "--",
         "Done",
         "Turn finished",
     ]
