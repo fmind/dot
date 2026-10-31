@@ -16,7 +16,10 @@ Implement the existing or explicitly selected agent framework. Choosing a framew
 
 ## Workflow
 
-Read only the matching guide and its required resources.
+1. **Keep the project's framework**: an existing agent stays on its framework unless the user asks to migrate it.
+1. **Default new agents to Google ADK**: scaffold with agents-cli, then write SDK code per google-adk.
+1. **Use LangGraph second**: choose it when ADK does not fit, for example a required non-Google stack, durable graph state, or interrupts ADK cannot express. Start from LangChain's `create_agent`, which returns a compiled LangGraph, and hand-write graph topology only where the standard loop falls short. LangChain alone is not a separate default.
+1. **Read only the matching guide** and its required resources.
 
 ## Task guides
 
