@@ -78,6 +78,9 @@ SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 "conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
 "github:DataDog/pup" = "latest" # Official Datadog command-line interface (pup) for logs, monitors, and OAuth PKCE
 "github:databricks/cli" = "latest" # Databricks command-line interface for Asset Bundles, Lakeflow, and Unity Catalog
+# github, not aqua: aqua names the binary docker-cli-plugin-docker-buildx, which Docker does not
+# discover; Docker plugins must be named docker-<name>. See colima below.
+"github:docker/buildx" = { version = "latest", os = ["macos"], bin = "docker-buildx" } # BuildKit plugin (docker buildx)
 # fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
 "github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
 # OpenCode 2.x ships through npm (the mise registry moved here from aqua). mise skips its postinstall, which links
@@ -110,7 +113,12 @@ bat = "latest" # Cat clone with syntax highlighting and git integration
 bitwarden = "latest" # Official Bitwarden CLI (bw) for password management
 chezmoi = "latest" # Dotfiles manager across diverse machines
 claude = "latest" # Claude Code terminal-based AI coding agent CLI
+# macOS container runtime: Colima runs Docker Engine in a Lima VM; Linux uses the distribution's
+# Docker Engine. ~/.docker/config.json finds the Compose and Buildx plugins through mise's shims.
+colima = { version = "latest", os = ["macos"] } # Docker runtime VM manager for macOS
 delta = "latest" # Syntax-highlighter for git, diff, and grep output
+docker-cli = { version = "latest", os = ["macos"] } # Docker CLI client for Colima's engine
+docker-compose = { version = "latest", os = ["macos"] } # Docker Compose CLI plugin for multi-container apps
 doggo = "latest" # Command-line DNS client supporting modern protocols
 dprint = "latest" # Pluggable and ultra-fast code formatter
 duckdb = "latest" # Embedded SQL analytical database management system
@@ -129,6 +137,7 @@ jq = "latest" # Command-line JSON processor
 lazydocker = "latest" # Terminal UI for managing Docker containers
 lazygit = "latest" # Terminal UI for Git commands
 lefthook = "latest" # Fast and powerful Git hooks runner
+lima = { version = "latest", os = ["macos"] } # Linux VM manager (limactl) that Colima drives
 lsd = "latest" # Modern, feature-rich replacement for ls
 lychee = "latest" # Fast link checker for Markdown, HTML, and websites
 neovim = "latest" # Extensible Vim-based text editor

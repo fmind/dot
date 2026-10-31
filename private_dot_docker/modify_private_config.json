@@ -1,0 +1,8 @@
+# chezmoi:modify-template
+{{- /* Docs: https://docs.docker.com/reference/cli/docker/#docker-cli-configuration-file-configjson-properties
+       macOS only (.chezmoiignore): mise installs docker-compose and docker-buildx as standalone
+       binaries, so the Docker CLI discovers them as `docker compose` and `docker buildx` through
+       mise's shims directory. This repository owns the whole plugin-directory list; Docker and
+       Colima also write this file (auths, contexts), and the merge keeps their keys. */ -}}
+{{- $managedConfig := dict "cliPluginsExtraDirs" (list (joinPath .chezmoi.homeDir ".local/share/mise/shims")) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}

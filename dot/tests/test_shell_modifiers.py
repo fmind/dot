@@ -54,9 +54,11 @@ def test_modifier_rewrites_stale_block_in_place(tmp_path: Path, modifier: str) -
     assert rewritten.count(end) == 1
 
 
-def test_zprofile_is_deployed_only_on_macos() -> None:
+def test_macos_only_targets_are_ignored_elsewhere() -> None:
     ignore = (ROOT / ".chezmoiignore").read_text(encoding="utf-8")
-    assert '{{- if ne .chezmoi.os "darwin" }}\n.zprofile\n{{- end }}' in ignore
+    _, block = ignore.split('{{- if ne .chezmoi.os "darwin" }}\n', 1)
+    # zsh login profile and the Docker plugin config for the mise-installed macOS Docker stack.
+    assert block.split("{{- end }}", 1)[0].split() == [".docker", ".zprofile"]
 
 
 @pytest.mark.parametrize("shell", ["sh", "bash"])

@@ -5,7 +5,7 @@ description: "Run Docker on macOS through Colima: VM start, socket, memory limit
 
 # Colima on macOS
 
-Use [Colima](https://github.com/abiosoft/colima) as the default macOS container runtime instead of Docker Desktop. Colima runs a lightweight Linux VM using Lima and provides a compatible Docker socket. `--activate=false` keeps the current Docker context; address the VM explicitly.
+Use [Colima](https://github.com/abiosoft/colima) as the default macOS container runtime instead of Docker Desktop. Colima runs a lightweight Linux VM using Lima and provides a compatible Docker socket. The fmind/dot global mise config installs `colima`, `lima`, `docker-cli`, `docker-compose`, and `docker-buildx` on macOS only, and `~/.docker/config.json` lists mise's shims directory in `cliPluginsExtraDirs` so `docker compose` and `docker buildx` work. `--activate=false` keeps the current Docker context; address the VM explicitly.
 
 ```bash
 colima start --cpus 4 --memory 8 --activate=false
