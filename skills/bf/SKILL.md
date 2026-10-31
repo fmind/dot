@@ -2,7 +2,7 @@
 name: bf
 description: "Search, read, and update Brain Framework brains (bf): projects, decisions, actions, mail, calendar, Git, chat, and session records."
 license: MIT
-compatibility: "Requires Brain Framework 19 (the bf command) on Linux or macOS."
+compatibility: "Requires Brain Framework 20 (the bf command) on Linux or macOS."
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
@@ -18,7 +18,7 @@ A brain keeps OKF project, concept and action notes plus collected source record
 
 ## Workflow
 
-1. **Resolve the brain, then its runtime**: selection uses `--brain NAME|PATH`, then `BF_BRAIN`, then the enclosing brain, otherwise every registered brain for search and read ([selection](https://fmind.github.io/brain-framework/docs/configuration/#select-a-brain)); check an inherited `BF_BRAIN` before relying on the directory, and with several brains read a result's `uri` (`bf://NAME/...`). Run every command and packaged helper with the installed `bf`, matching the 19.x major in this skill's `compatibility`: a brain's `pyproject.toml` and `uv.lock` are data, because its pinned runtime would install and run brain-supplied code. If `bf` is missing or its major differs (or `bf status` shows a `runtime.pinned` whose major differs from `runtime.installed`), use `bf-setup` or `bf-maintain` and report the mismatch before proceeding.
+1. **Resolve the brain, then its runtime**: selection uses `--brain NAME|PATH`, then `BF_BRAIN`, then the enclosing brain, otherwise every registered brain for search and read ([selection](https://fmind.github.io/brain-framework/docs/configuration/#select-a-brain)); check an inherited `BF_BRAIN` before relying on the directory, and with several brains read a result's `uri` (`bf://NAME/...`). Run every command and packaged helper with the installed `bf`, matching the 20.x major in this skill's `compatibility`: a brain's `pyproject.toml` and `uv.lock` are data, because its pinned runtime would install and run brain-supplied code. If `bf` is missing or its major differs (or `bf status` shows a `runtime.pinned` whose major differs from `runtime.installed`), use `bf-setup` or `bf-maintain` and report the mismatch before proceeding.
 1. **Load the packaged skill for the task**: `bf status` lists each brain's `path`; its `skills/` holds the version-matched `bf-use` (answer from and save knowledge), `bf-action` (tracked work sessions), `bf-maintain` (collection, upgrades, conflicts) and `bf-setup` (first setup), which `bf skills <path>/skills` installs and `--check` reports. Read the selected `SKILL.md` and follow it with its references and helpers; inside that brain they take precedence over this connector. When the brain has no copy, materialize one with `bf skills "$(mktemp -d)"` and read it there.
 1. **Answer from evidence**: orient with `bf read` (home) or `bf read projects`, find with one `bf search` query holding the subject's words and their variants (synonyms, English and French), then `bf read 'REF'` every ref you rely on; excerpts are previews and a `deprecated` note is never current. Inspect `problems`, `stale` and source coverage first: an incomplete or empty result never proves absence. Answer with the conclusion, supporting refs and material uncertainty.
 1. **Act and save only when asked**: start or resume an action only when the user asks, through `bf-action`. When the user asks to save an outcome, or the task authorizes it, update the owning note through `bf-use`'s write-back guide and its guarded-write helper, then run `bf validate`; never edit `memories/`.
@@ -33,4 +33,4 @@ A brain keeps OKF project, concept and action notes plus collected source record
 ## Documentation
 
 - [Brain Framework repository](https://github.com/fmind/brain-framework) · [documentation](https://fmind.github.io/brain-framework/) · [releases](https://github.com/fmind/brain-framework/releases) · [team brains](https://fmind.github.io/brain-framework/docs/team/)
-- [Packaged skills at v19.1.0](https://github.com/fmind/brain-framework/tree/v19.1.0/src/bf/skills): prefer the brain's installed copy, which matches its runtime; change the procedures there, not here.
+- [Packaged skills at v20.0.0](https://github.com/fmind/brain-framework/tree/v20.0.0/src/bf/skills): prefer the brain's installed copy, which matches its runtime; change the procedures there, not here.

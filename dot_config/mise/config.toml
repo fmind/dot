@@ -7,9 +7,8 @@
 # patchy to gate routine upgrades on, and this is a single-user workstation. The
 # lockfile records a digest for every download and conda dependency, and
 # dot/dot_tasks/mise_refresh.py refuses a lock that misses one.
-# `latest` resolves only releases at least one day old. Lock revision 3 records supported
-# npm and pipx dependency graphs in locks/; keep these native files with mise.lock
-# and install with --locked. First fetches are unverified.
+# Lock revision 3 records supported npm and pipx dependency graphs in locks/; keep these
+# native files with mise.lock and install with --locked. First fetches are unverified.
 aqua.cosign = false
 aqua.minisign = false
 # Interactive prompts draw from the terminal's sixteen slots rather than from
@@ -33,9 +32,9 @@ locked = true
 locked_scopes = ["global"]
 lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64"]
-minimum_release_age = "1d"
-# The age filter drops npm prereleases and ignores dist-tags, so beta-only cf would fall back to 0.x.
-minimum_release_age_excludes = ["npm:cf"]
+# No release-age cooldown: `latest` resolves the newest release. Keep the explicit 0: unset, mise
+# 2026.10.24 still hid a same-day pipx release and fell back to 0.x for beta-only npm:cf.
+minimum_release_age = "0"
 # Never set python.uv_venv_auto globally: it puts any cloned repository's .venv/bin first
 # on PATH without `mise trust`. Opt in per project with `[settings]` in a trusted mise.toml.
 # Update the workstation mise binary before interactive commands on the same 24h cadence

@@ -1404,17 +1404,17 @@ url = "https://github.com/atuinsh/atuin/releases/download/v18.24.4/atuin-aarch64
 url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/690584610"
 
 [[tools.awscli]]
-version = "2.39.2"
+version = "2.39.3"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.awscli."platforms.linux-x64"]
-checksum = "sha256:bb3e675d5c9a915121f3f90b380ec041ba52517067d017e4a4ceba40e0213247"
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.39.2.zip"
+checksum = "sha256:14cb35809ad7547dd3c69fa9899a3975fbd850b6a6791f3fe264856490cd9a63"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.39.3.zip"
 
 [tools.awscli."platforms.macos-arm64"]
-checksum = "sha256:74153a9818dd70efe0503253f6e9c994ca93205d87fda06bde491aee9b91df5b"
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.39.2.pkg"
+checksum = "sha256:f9014f2edc9d4f40cb1f6662f1ec6d0f2d89d60d9d452f830008d9d92ca49f22"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.39.3.pkg"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -1464,21 +1464,21 @@ url = "https://github.com/twpayne/chezmoi/releases/download/v2.73.3/chezmoi_2.73
 url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/659665869"
 
 [[tools.claude]]
-version = "2.1.314"
+version = "2.1.316"
 backend = "aqua:anthropics/claude-code"
 specifiers = ["latest"]
 
 [tools.claude."platforms.linux-x64"]
-checksum = "sha256:348a302629f3734a2a7318a97eb6a05d4c30e772f9c8366cb78a55977eca46da"
+checksum = "sha256:9ca14cd81a7b0d9654d392fc1253773e70f31f470aa98334732744956cd1006b"
 checksum_source = "mise-versions"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.314/claude-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/690337852"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.316/claude-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/693882314"
 
 [tools.claude."platforms.macos-arm64"]
-checksum = "sha256:c819253fa84c46ee77e14afb1aab0c38d7fdb240d914d168e9ad2e21ce3ba1b4"
+checksum = "sha256:e8956064b1c5055c1c79945aa7714faef98b29060a065c6930e8956953d0bace"
 checksum_source = "mise-versions"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.314/claude-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/690337508"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.316/claude-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/693882159"
 
 [[tools."conda:file"]]
 version = "5.48"
@@ -1960,21 +1960,21 @@ url = "https://github.com/git-lfs/git-lfs/releases/download/v3.8.1/git-lfs-darwi
 url_api = "https://api.github.com/repos/git-lfs/git-lfs/releases/assets/666388058"
 
 [[tools."github:DataDog/pup"]]
-version = "2.3.8"
+version = "2.3.10"
 backend = "github:DataDog/pup"
 specifiers = ["latest"]
 
 [tools."github:DataDog/pup"."platforms.linux-x64"]
-checksum = "sha256:cd24caa1729deaaa33fdb53b0bc3ecd1bcaf68e7297eb4473d2e2b7d90ab08cc"
+checksum = "sha256:75e75477c5195e94b93be6685bd69ff4869785f4643d578a5fe538c13a6a5be9"
 checksum_source = "mise-versions"
-url = "https://github.com/DataDog/pup/releases/download/v2.3.8/pup_2.3.8_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/690885003"
+url = "https://github.com/DataDog/pup/releases/download/v2.3.10/pup_2.3.10_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/692933589"
 
 [tools."github:DataDog/pup"."platforms.macos-arm64"]
-checksum = "sha256:38be53140f4380e9f21f4248feb8ebfe0e592e5161ed55f22889fe907ae753ab"
+checksum = "sha256:fa0714eb7f5323b939587787a3eedb56838be6e1501fa659254e1ab7d3135a2d"
 checksum_source = "mise-versions"
-url = "https://github.com/DataDog/pup/releases/download/v2.3.8/pup_2.3.8_Darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/690884978"
+url = "https://github.com/DataDog/pup/releases/download/v2.3.10/pup_2.3.10_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/692933534"
 
 [[tools."github:a2aproject/a2a-cli"]]
 version = "0.3.1"
@@ -2435,21 +2435,21 @@ url = "https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-macos-arm
 url_api = "https://api.github.com/repos/neovim/neovim/releases/assets/625399162"
 
 [[tools.node]]
-version = "24.22.2"
+version = "26.13.0"
 backend = "core:node"
 specifiers = ["lts"]
 
 [tools.node."platforms.linux-x64"]
-checksum = "sha256:361718c444e49af2ca5a110c83ba6a8901143f23ab285ebbef0341f391f482a9"
-url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-linux-x64.tar.gz"
+checksum = "sha256:5848553868b402d3fabb5b09270649977780a390f832155721025a08b5104455"
+url = "https://nodejs.org/dist/v26.13.0/node-v26.13.0-linux-x64.tar.gz"
 
 [tools.node."platforms.macos-arm64"]
-checksum = "sha256:aa9549349e47dffaa42dcf95d6e06ade8c4bdafc980979883b88767670df385a"
-url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-darwin-arm64.tar.gz"
+checksum = "sha256:d38bd5e5a2ddce6bbb5ce45e46e208337da4d51fffe611e567fd32073d6439f6"
+url = "https://nodejs.org/dist/v26.13.0/node-v26.13.0-darwin-arm64.tar.gz"
 
 [[tools."npm:@opencode/cli"]]
-version = "2.2.2"
-aube = { path = "locks/npm-opencode-cli/2.2.2", digest = "sha256:e3d9cd446ea72db55e2d3152396713f7ca73637c2efd85db91275db86666a4fa" }
+version = "2.2.5"
+aube = { path = "locks/npm-opencode-cli/2.2.5", digest = "sha256:5423c53b1334bf1a0e09a122f05c23b204c2359adc0cce62d1b6270c268bd496" }
 backend = "npm:@opencode/cli"
 specifiers = ["latest"]
 
@@ -2492,49 +2492,49 @@ url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742
 version = "4.33.0"
 backend = "pipx:aws-sso-util"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:800b31ad0db652717cc6adb736b5d8152b3c2719416745aea1e2ef2fb8da3950" }
+uv = { path = "locks/pipx-aws-sso-util/4.33.0", digest = "sha256:0a67aca3d5cdbdef4b449996161defee6b6c54d73cb972840ce54209471e79bf" }
 
 [[tools."pipx:brain-framework"]]
-version = "19.1.0"
+version = "20.0.0"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/19.1.0", digest = "sha256:dac689ae44243f07e55533f4a621aa5c711254347bbe05d8317cce4f2357bc48" }
+uv = { path = "locks/pipx-brain-framework/20.0.0", digest = "sha256:5677cedfc1c6a75eb902766857916b160dc14f4c9d09ed22822355a6af6a0791" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:f1d0da5ca40925f95a95084469256354a44f949ffa51fcf1841638f4a04e0fa0" }
+uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:622550096897f6612031af62012ca7f2d6cae1cea386905405e5bb822d804715" }
 
 [[tools."pipx:fmind"]]
 version = "2.0.4"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.4", digest = "sha256:43bcdb3a9753d829b6f4cfdc2119b2c8a5429dfea94812b011cd9c1b5e0b8669" }
+uv = { path = "locks/pipx-fmind/2.0.4", digest = "sha256:d63a8db3aef807765f60cd777aeaec15b7fe90a2623ee818d62f53e773b1a405" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.5"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:eb90a6d0833a35f1ea099519433a531c131c698a88281d2f1c4d730f12a1a359" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:d8741d6a14d84e8c69edd23116c6cd65bed56fbbe6c473ee3768cb8fa6b8bd1b" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.4.0"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.4.0", digest = "sha256:606afde34d6d4209bf8220d8f2243261462d8138957c82e036bc653ec06b7824" }
+uv = { path = "locks/pipx-huggingface-hub/2.4.0", digest = "sha256:f7d4136dafd254027fe5ea0f70cd4853ecc95ff8f1f35807cc43cb6ef336daf3" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:9c80492f5ea02295fa7de6e067ed6b5b8f9b146742608ff51dc2a676d6216864" }
+uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:721ec6950f616d9e0bd31df6731944903ab713362f5038ae736b91dba574d5c0" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
 backend = "pipx:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:8969eaab820408a190176ac133ca7f24ae17eed727eaa0949b80fe1fe48ee3ee" }
+uv = { path = "locks/pipx-pgcli/4.7.1~39de28cc", digest = "sha256:2952717d32be13afe4a9ce16eef7c6f1a693a20bd15fe480cc1fc2a13927ab6d" }
 
 [tools."pipx:pgcli".options]
 with = '["psycopg[binary]"]'
@@ -2770,19 +2770,19 @@ url = "https://github.com/crate-ci/typos/releases/download/v1.51.1/typos-v1.51.1
 url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/616656668"
 
 [[tools.usage]]
-version = "7.1.3"
+version = "7.1.4"
 backend = "packslip:github.com/jdx/usage"
 specifiers = ["latest"]
 
 [tools.usage."platforms.linux-x64"]
-checksum = "sha256:8862647112681941439df958ea8240a96e14319adc7f28497f09bd2ba10c0344"
-url = "https://github.com/jdx/usage/releases/download/v7.1.3/usage-x86_64-unknown-linux-gnu.tar.gz"
+checksum = "sha256:eb213eb6c1cbc6896d7f8b627af984a9c1734d67bdf703788038bc50c326c676"
+url = "https://github.com/jdx/usage/releases/download/v7.1.4/usage-x86_64-unknown-linux-gnu.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/usage/.github/workflows/publish-cli.yml"
 repository_ids = { repository = "677629099" }
 
 [tools.usage."platforms.macos-arm64"]
-checksum = "sha256:4878938599894c051baaf601cb5c7ee351f4276c9da0acbf959e868884f2b99b"
-url = "https://github.com/jdx/usage/releases/download/v7.1.3/usage-universal-apple-darwin.tar.gz"
+checksum = "sha256:cae1865b2bb4eb8c22087381d4fbc29344837960c71dbf865dc55296c19d535d"
+url = "https://github.com/jdx/usage/releases/download/v7.1.4/usage-universal-apple-darwin.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/usage/.github/workflows/publish-cli.yml"
 repository_ids = { repository = "677629099" }
 
