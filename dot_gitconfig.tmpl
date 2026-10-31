@@ -1,4 +1,10 @@
 # Docs: https://git-scm.com/docs/git-config
+# Sections and keys sort alphabetically. Git keeps the last value it reads, so the
+# order-dependent blocks (signing, theme, personal profile, local overrides) close the file.
+[advice]
+    detachedHead = false
+    statusHints = false
+
 [alias]
     a = add
     b = branch
@@ -17,12 +23,7 @@
     u = restore --staged
     w = switch
 
-[advice]
-    detachedHead = false
-    statusHints = false
-
 [branch]
-    autoSetupMerge = inherit
     sort = -committerdate
 
 [column]
@@ -42,12 +43,6 @@
     features = side-by-side
     line-numbers = true
     wrap-max-lines = unlimited
-
-# Colours only. Fetched from github.com/fmind/theme by .chezmoiexternal.toml.tmpl,
-# and included after [delta] so the theme owns syntax-theme and the diff styles
-# while the block above keeps the behaviour settings.
-[include]
-    path = {{ joinPath .chezmoi.homeDir ".config/git/theme.gitconfig" | quote }}
 
 [diff]
     algorithm = histogram
@@ -73,6 +68,10 @@
 
 [github]
     user = {{ .github_user | quote }}
+
+# allowed_signers lists every machine's public key, so any machine verifies signatures locally.
+[gpg "ssh"]
+    allowedSignersFile = {{ joinPath .chezmoi.homeDir ".config/git/allowed_signers" | quote }}
 
 [help]
     # Suggest only: `prompt` waits for y/N on a pseudo-terminal that agent harnesses never answer.
@@ -120,12 +119,8 @@
     pushInsteadOf = "https://github.com/"
 
 [user]
-    name = {{ .git_name | quote }}
     email = {{ .git_email | quote }}
-
-# allowed_signers lists every machine's public key, so any machine verifies signatures locally.
-[gpg "ssh"]
-    allowedSignersFile = {{ joinPath .chezmoi.homeDir ".config/git/allowed_signers" | quote }}
+    name = {{ .git_name | quote }}
 {{- $signingKey := joinPath .chezmoi.homeDir ".ssh/id_ed25519_signing" }}
 {{- if stat $signingKey }}
 
@@ -133,21 +128,24 @@
 # a machine without the key commits unsigned. The key has no passphrase so agent shells sign
 # unattended. forceSignAnnotated signs `git tag NAME -m MSG` but leaves plain tags plain;
 # an explicit -a opts out of signing.
-[user]
-    signingKey = {{ $signingKey | quote }}
+[commit]
+    gpgSign = true
 
 [gpg]
     format = ssh
 
-[commit]
-    gpgSign = true
-
 [tag]
     forceSignAnnotated = true
+
+[user]
+    signingKey = {{ $signingKey | quote }}
 {{- end }}
 
-# Git colours, fetched with the delta theme from the same pinned fmind/theme commit.
+# Colours only, fetched from one pinned github.com/fmind/theme commit by .chezmoiexternal.toml.tmpl.
+# Included after [delta] so the theme owns syntax-theme and the diff styles while [delta] above
+# keeps the behaviour settings.
 [include]
+    path = {{ joinPath .chezmoi.homeDir ".config/git/theme.gitconfig" | quote }}
     path = {{ joinPath .chezmoi.homeDir ".config/git/colors.gitconfig" | quote }}
 
 # Personal checkouts and this public source always commit with the personal address, even
