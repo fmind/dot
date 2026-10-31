@@ -2,6 +2,44 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.4.0] - 2026-10-31
+
+### 🚀 Features
+
+- _(auth,skills)_ Add Firebase Workspace APIs and keep admin bypass on GitHub baseline
+- _(auth)_ Require gcloud for Workspace setup and use the Postmaster v2 traffic scope
+- _(opencode)_ Manage the 2.x cli.json and drop ignored lsp settings
+- _(mise)_ Add firebase-tools, drop the gcloud plugin override, and refresh locks
+- _(fish)_ Complete agy --settings
+- _(persona)_ Design Google-simple UIs with the Fmind theme
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Skip worktrees dirtied during pull and redact path tokens before punctuation
+- _(agent)_ Skip agy backup directories and end notify-send options before text
+- _(release)_ Reject rename sources outside the generated release files
+- _(contracts)_ Check email addresses that follow delimiters
+- _(release)_ Name the failing git command and classify clobbered tags
+
+### ♻️ Refactor
+
+- _(theme)_ Include git colours from the pinned theme and advance the pin
+- _(nvim)_ Keep every language server in lsp.lua
+
+### 📚 Documentation
+
+- _(skills)_ Refresh skills for current tools, the Python stack, and OpenCode 2.x
+
+### ⚙️ Build & CI
+
+- Audit workflow templates online, align mise-action, and bound release notes from HEAD^
+
+### 🧹 Miscellaneous
+
+- _(nvim)_ Update the plugin lockfile
+- _(security)_ Keep Trivy scans local without telemetry or version checks
+- _(lint)_ Adopt Ruff BLE, PLE, and PLW
+
 ## [15.3.0] - 2026-10-30
 
 ### 🚀 Features
