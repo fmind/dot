@@ -10,6 +10,9 @@ pkg:
   # The repository executes its development toolchain during validation.
   include-dev-deps: true
 scan:
+  # Keep scans local: no usage data or version notices to Aqua (top-level keys are ignored).
+  disable-telemetry: true
+  skip-version-check: true
   # Gitleaks (check:leaks) owns secret scanning.
   scanners:
     - misconfig

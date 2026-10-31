@@ -8,6 +8,9 @@ pkg:
   # Development tools execute locally and in CI, so include their dependencies.
   include-dev-deps: true
 scan:
+  # Keep scans local: no usage data or version notices to Aqua (top-level keys are ignored).
+  disable-telemetry: true
+  skip-version-check: true
   # Gitleaks owns secret scanning; keep one secret scanner per repository.
   scanners:
     - license
