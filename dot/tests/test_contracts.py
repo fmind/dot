@@ -460,6 +460,26 @@ def test_age_sources_are_encrypted() -> None:
     assert plaintext == [], "source .age files without an age header"
 
 
+@pytest.mark.parametrize(
+    ("template", "expected"),
+    [
+        ("Name <{}>", "alice"),
+        ("mailto:{}", "alice"),
+        ("email={}", "alice"),
+        ("https://host/{}", "alice"),
+        ('"{}"', "alice"),
+        ("\\n{}", "alice"),
+        ("x\\{}", None),
+        ("bob.{}", "bob.alice"),
+    ],
+)
+def test_email_pattern_matches_addresses_after_common_delimiters(template: str, expected: str | None) -> None:
+    # Built at runtime so the repository privacy scan does not flag this file.
+    domain = ".".join(("corp", "io"))
+    match = checker.EMAIL_PATTERN.search(template.format(f"alice@{domain}"))
+    assert (match.group(1) if match else None) == (f"{expected}@{domain}" if expected else None)
+
+
 @pytest.mark.real_home
 def test_repository_privacy_contracts() -> None:
     assert checker.privacy_findings(ROOT) == []

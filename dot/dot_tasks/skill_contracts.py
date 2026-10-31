@@ -70,7 +70,7 @@ ALLOWED_EMAIL_SUFFIXES = (
     ".localhost",
 )
 EMAIL_PATTERN = re.compile(
-    r"(?:(?<=\\n)|(?<=\\r)|(?<=\\t)|(?<![A-Za-z0-9._%+-\\]))"
+    r"(?:(?<=\\n)|(?<=\\r)|(?<=\\t)|(?<![A-Za-z0-9._%+\\-]))"
     r"([A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}))\b"
 )
 PRIVACY_SKIP_PATHS = {
