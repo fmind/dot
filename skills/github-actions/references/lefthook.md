@@ -10,7 +10,7 @@ Thin git hooks that delegate every command to a `mise run` task so hooks and CI 
 ## Workflow
 
 1. **Install**: pin `lefthook` in the repository's mise `[tools]`, Python projects included ([Python stack](../../python-stack/references/foundation/GUIDE.md)); never duplicate it in a package manager's dev dependencies.
-1. **Configure**: create `lefthook.yml` at the repository root from the stack-neutral template below; Python adds the `format Python` job from the [python-stack template](../../python-stack/references/foundation/templates/lefthook.yml). The template calls the `check:local` and `check:network` tasks from the [task conventions](../../mise/references/task-conventions.md#conventions); a repository whose checks all run offline (no `check:network`) runs `mise run check` in pre-commit and drops the `scan vulnerabilities` job.
+1. **Configure**: create `lefthook.yml` at the repository root from the stack-neutral template below; Python adds the `sort Python imports` and `format Python` jobs from the [python-stack template](../../python-stack/references/foundation/templates/lefthook.yml). The template calls the `check:local` and `check:network` tasks from the [task conventions](../../mise/references/task-conventions.md#conventions); a repository whose checks all run offline (no `check:network`) runs `mise run check` in pre-commit and drops the `scan vulnerabilities` job.
 1. **Activate**: `lefthook install`, wired into `mise run install`.
 
 ## Template

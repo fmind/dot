@@ -22,7 +22,7 @@ Use the repository's release task when it owns versioning, tags, or publication.
    git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
    ```
 
-1. **Gate the prepared candidate**: run the full gate (`mise run all`) after all version and changelog edits. When the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas). Include any resulting task-owned formatting fixes in the release commit.
+1. **Gate the prepared candidate**: run `mise run format` and the full gate (`mise run all`) after all version and changelog edits. When the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas). Include any resulting task-owned formatting fixes in the release commit.
 
 1. **Commit the release**: the `chore(release)` subject is excluded from the changelog by design:
 

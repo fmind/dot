@@ -7,6 +7,10 @@ pre-commit:
       glob: "*.{json,md,toml,yaml,yml}"
       run: mise run format:dprint {staged_files}
       stage_fixed: true
+    - name: sort Python imports
+      glob: "*.py"
+      run: mise run format:imports {staged_files}
+      stage_fixed: true
     - name: format Python
       glob: "*.py"
       run: mise run format:python {staged_files}

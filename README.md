@@ -112,7 +112,7 @@ Run these from the checkout; `mise tasks` lists every task and alias.
 | `mise run doctor`  | Check workstation health (`dot`, chezmoi, and mise)                             |
 | `mise run full`    | Install locked repo and global tools, apply dotfiles, deploy `dot`, completions |
 | `mise run upgrade` | Upgrade dependencies, tools, the theme pin, and plugins (includes `full`)       |
-| `mise run all`     | Format, check, test, and build the repository (without deploying)               |
+| `mise run all`     | Check, test, and build the repository (without rewriting files or deploying)    |
 
 Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md). Python follows the latest 3.14 patch release until required tools ship 3.15 wheels.
 

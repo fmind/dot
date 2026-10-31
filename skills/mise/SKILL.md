@@ -27,15 +27,15 @@ One project `mise.toml` owns tool pins and commands; hooks and CI decide when to
 
 Every project exposes the same core tasks with short aliases so agents, hooks, and CI stay portable:
 
-| Task      | Alias | Purpose                                                        |
-| --------- | ----- | -------------------------------------------------------------- |
-| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).  |
-| `format`  | `f`   | Format all sources (fans out to `format:*`).                   |
-| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).         |
-| `test`    | `t`   | Run the test suite.                                            |
-| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).          |
-| `watch`   | `w`   | Live reload, or re-run tests; omitted by stacks with neither.  |
-| `all`     | `a`   | `format`, `check`, `test`, `build` in sequence: the full gate. |
+| Task      | Alias | Purpose                                                                             |
+| --------- | ----- | ----------------------------------------------------------------------------------- |
+| `install` | `i`   | Sync dependencies and install git hooks (`lefthook install`).                       |
+| `format`  | `f`   | Format all sources (fans out to `format:*`).                                        |
+| `check`   | `c`   | All static checks in parallel (fans out to `check:*`).                              |
+| `test`    | `t`   | Run the test suite.                                                                 |
+| `build`   | `b`   | Compile or package artifacts (fans out to `build:*`).                               |
+| `watch`   | `w`   | Live reload, or re-run tests; omitted by stacks with neither.                       |
+| `all`     | `a`   | `check`, `test`, `build` in sequence without rewriting source files: the full gate. |
 
 Python projects start from [python-stack](../python-stack/references/foundation/templates/mise.toml); specialized content and infrastructure projects use the task files owned by their stack skills, such as [infra-as-code](../infra-as-code/templates/mise.toml).
 
@@ -43,7 +43,7 @@ Python projects start from [python-stack](../python-stack/references/foundation/
 
 - **Load `.env` only when needed**: `[env]` with `_.file = ".env"` loads dotenv values for tasks; use it only when the project needs that file. `_.source` expects a shell script.
 - **Keep local builds free of side effects**: builds and checks must not publish, deploy, or spend by default; expose consequential operations only as explicit on-demand paths.
-- **Isolate the full gate on dirty trees**: `mise run all` includes formatters that write the whole tree. When unrelated changes are present, use [git-worktree](../git-delivery/references/git-worktree/GUIDE.md) to materialize the current candidate in isolation and check that the tested files match before transferring proof, or fall back to `mise run check` and `mise run test`.
+- **Isolate the full gate on dirty trees**: `mise run all` runs whole-tree checks, tests, and builds without rewriting source files, while `mise run format` writes the tree. When unrelated changes are present, use [git-worktree](../git-delivery/references/git-worktree/GUIDE.md) to materialize the current candidate in isolation and check that the tested files match before transferring proof.
 - **Declare project tools in the project**: the workstation's global config serves agent coding (connectors, cross-project CLIs such as ruff, ty, lefthook, and dprint, and a few review and editor tools), and a global copy never replaces a project's pin. Declare every tool a project needs, such as kubectl, OpenTofu, or Typst, in the project's `mise.toml` with `mise use --pin <tool>` per the [tool version rules](references/tool-versions.md). In a client repository without mise, prefer the client's own toolchain and ask before adding a `mise.toml`.
 - **Never bypass the locked global config**: the global config runs in locked mode, so `mise x <tool>` for a tool it does not list fails outside a project with `No lockfile URL found ... (--locked mode)`. Do not retry with `MISE_LOCKED=0`, which rewrites the deployed global lock; declare the tool in the project instead.
 

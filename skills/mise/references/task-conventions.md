@@ -4,7 +4,7 @@
 
 Split a task into `<task>:<x>` when one piece must run alone; each family keys `<x>` off a different noun:
 
-- **`format:<input>`**: the source family formatted — `format:python` for Python; `format:dprint` for JSON, Markdown, TOML, and YAML.
+- **`format:<input>`**: the source family or pass formatted — `format:imports` and `format:python` for Python; `format:dprint` for JSON, Markdown, TOML, and YAML.
 - **`build:<output>`**: the artifact produced — `build:package`, `build:docs`, or `build:image` (OCI image).
 - **`check:<concern>`**: the property verified, identical across languages so `mise run check:lint` means the same everywhere; the names are fixed:
 
@@ -27,7 +27,7 @@ Reuse these names for their stated concerns instead of inventing synonyms such a
 - **Fan checks out in parallel**: `check` depends on `check:local` (offline checks such as `check:deps`, `check:format`, `check:leaks`, `check:lint`, `check:types`) and `check:network` (database downloads: `check:vuln`, `check:scan`); mise runs the subtasks concurrently, pre-commit runs `check:local`, and pre-push runs `check:network`.
 - **Skip unchanged tasks incrementally**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
 - **Limit staged files to formatters**: only formatters take `{staged_files}`; `check` and `test` always run on the whole tree.
-- **Forward arguments without dispatch wrappers**: without `usage`, mise appends CLI args to the last command; keep shell quoting and tool arguments intact, and verify raw argument behavior with a small local example when adding a wrapper task. A formatter that runs several commands on the same files, or needs a whole-tree default, declares `usage = 'arg "[files]..."'` (plus `default=` for one path) and starts its script with `eval "set -- $usage_files"`: mise passes variadic arguments as one shell-quoted string. One task then serves both the hook and ordinary formatting; never add per-hook `:files` variants.
+- **Forward arguments without dispatch wrappers**: without `usage`, mise appends CLI args to the last command; keep one command per formatter task (`format:imports`, `format:python`, `format:dprint`) so hooks pass `{staged_files}` directly without shell evaluation, and verify raw argument behavior with a small local example when adding a wrapper task. When a formatter must run several commands on the same files or supply a non-root default path, declare `usage = 'arg "[files]..."'` (plus `default=` for one path) and start its script with `eval "set -- $usage_files"`: mise passes variadic arguments as one shell-quoted string. One task then serves both the hook and ordinary formatting; never add per-hook `:files` variants.
 
 ## Concise Output
 

@@ -16,7 +16,7 @@ Answer "perform a full review", "final check before release", "make sure everyth
 
 ## Arguments
 
-Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope; `upkeep` skips the coverage inventory and covers the Current, Simple, Consistent, and Documented dimensions plus the adopted security scans), mode (default fix; `report` stays read-only and runs writing tasks such as formatters or `mise run all` only in an isolated [snapshot](../git-delivery/references/git-worktree/GUIDE.md), skips the Fix and Prove steps, and reports findings instead of fixes, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
+Parse the request into one line and state it before starting: scope (paths, other repositories), exclusions ("skip `data/`"), depth (default deep: every tracked file in scope; `upkeep` skips the coverage inventory and covers the Current, Simple, Consistent, and Documented dimensions plus the adopted security scans), mode (default fix; `report` stays read-only and runs writing tasks such as `mise run format` only in an isolated [snapshot](../git-delivery/references/git-worktree/GUIDE.md), skips the Fix and Prove steps, and reports findings instead of fixes, ranked by [repository-review severity](../repository-review/SKILL.md#severity)), and follow-ups (release, commit, propagation; none unless requested). Ask only when an ambiguity changes scope, cost, or reversibility.
 
 ## Workflow
 

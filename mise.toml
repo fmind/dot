@@ -66,8 +66,8 @@ zizmor = "latest"
 
 [tasks.all]
 alias = "a"
-description = "Run the full CI gate locally (format, check, test, build)"
-run = ["mise run format", "mise run check", "mise run test", "mise run build"]
+description = "Run the full CI gate locally (check, test, build)"
+run = ["mise run check", "mise run test", "mise run build"]
 
 [tasks.build]
 alias = "b"

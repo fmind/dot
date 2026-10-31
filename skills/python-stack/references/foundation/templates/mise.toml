@@ -20,8 +20,8 @@ uv = "latest"
 
 [tasks.all]
 alias = "a"
-description = "Format, check, test, and build the project and its docs"
-run = ["mise run format", "mise run check", "mise run test", "mise run build"]
+description = "Check, test, and build the project and its docs without rewriting source files"
+run = ["mise run check", "mise run test", "mise run build"]
 
 [tasks.build]
 alias = "b"
@@ -112,22 +112,19 @@ run = "uv run --locked coverage report"
 [tasks.format]
 alias = "f"
 description = "Format all sources and documents"
-depends = ["format:dprint", "format:python"]
+run = ["mise run format:imports", "mise run format:python", "mise run format:dprint"]
 
 [tasks."format:dprint"]
 description = "Format JSON, Markdown, TOML, YAML with dprint"
 run = "dprint fmt --allow-no-files"
 
-# Lefthook passes staged files; mise hands variadic arguments over as one shell-quoted
-# string, which `eval "set -- ..."` splits back safely. Without files, Ruff formats the project.
+[tasks."format:imports"]
+description = "Sort Python imports"
+run = "uv run --locked ruff check --select=I --fix --force-exclude"
+
 [tasks."format:python"]
-description = "Sort imports and format Python sources, or only the given files"
-usage = 'arg "[files]..."'
-run = '''
-eval "set -- $usage_files"
-uv run --locked ruff check --select=I --fix --force-exclude "$@"
-uv run --locked ruff format --force-exclude "$@"
-'''
+description = "Format Python sources"
+run = "uv run --locked ruff format --force-exclude"
 
 [tasks.install]
 alias = "i"
