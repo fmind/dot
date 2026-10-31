@@ -38,10 +38,6 @@ COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
     "dot_config/lazydocker/config.yml": ("themes/lazydocker/fmind.yml", (("gui", "theme"),)),
     "dot_config/ripgrep/config.tmpl": ("themes/ripgrep/fmind.ripgreprc", (("colors",),)),
     "dot_config/starship.toml": ("themes/starship/fmind.toml", (("palette",), ("palettes",))),
-    "dot_gitconfig.tmpl": (
-        "themes/git/fmind.gitconfig",
-        tuple((f'color "{section}"',) for section in ("diff", "status", "branch", "decorate")),
-    ),
 }
 
 Fetch = Callable[[str], bytes]
@@ -109,17 +105,6 @@ def parse(text: str, upstream: str) -> dict[str, Any]:
     if suffix == ".json":
         # Native configs may be JSONC; only whole-line comments occur in these files.
         return json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE))
-    if suffix == ".gitconfig":
-        # Compare values without quotes: upstream leaves hex colors bare, Git needs them quoted.
-        sections: dict[str, dict[str, str]] = {}
-        section: dict[str, str] | None = None
-        for line in map(str.strip, text.splitlines()):
-            if line.startswith("["):
-                section = sections.setdefault(line.strip("[]"), {})
-            elif section is not None and "=" in line and not line.startswith(("#", ";")):
-                key, value = (part.strip() for part in line.split("=", 1))
-                section[key] = value.strip('"')
-        return sections
     if suffix == ".ripgreprc":
         return {"colors": [line for line in text.splitlines() if line.startswith("--colors=")]}
     raise ValueError(f"unsupported theme format: {upstream}")

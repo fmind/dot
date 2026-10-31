@@ -3,12 +3,12 @@
 # (Fish, Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 # DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/647e5e36318f89192da171ee2eafc236baced55b" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/1cd66bbddb0fee683eee4922f5c13605c615d480" }}
 
 [".agents/DESIGN.md"]
     type = "file"
     url = "{{ $base }}/DESIGN.md"
-    checksum.sha256 = "d4de803bbbbc5a04f7771c107806e9df35ff19d430bd0fcabc2cfa222f423994"
+    checksum.sha256 = "120ff8931ff237caa9469d1fb7337e0eb364a0d17a9a9f075be6b513408d730a"
 
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
@@ -60,6 +60,11 @@
     url = "{{ $base }}/themes/delta/fmind.gitconfig"
     checksum.sha256 = "99c77092ab2b7e515c35a9dcda56bd025f4507e37871204747aec3b8d9d57cb9"
 
+[".config/git/colors.gitconfig"]
+    type = "file"
+    url = "{{ $base }}/themes/git/fmind.gitconfig"
+    checksum.sha256 = "a8b0e921ce4c209a43cd130491f9a02b910e214cb53a37dbf78f539f32eeea32"
+
 [".config/fzf/theme.conf"]
     type = "file"
     url = "{{ $base }}/themes/fzf/fmind.conf"
@@ -89,7 +94,7 @@
 [".config/lsd/colors.yaml"]
     type = "file"
     url = "{{ $base }}/themes/lsd/fmind.yaml"
-    checksum.sha256 = "67851dd92ea9baec543f9d8a17b1e9981f33cfab61a247912d757249b05bd79d"
+    checksum.sha256 = "886e3a31a6cb390f02e53cb9cfc80de379892783a6e4c15ee3f7a48c832ee20b"
 
 [".config/yazi/theme.toml"]
     type = "file"

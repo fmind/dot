@@ -41,6 +41,7 @@ def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path)
         ".config/fish/conf.d/theme.fish",
         ".config/nvim/colors/fmind.lua",
         ".config/git/theme.gitconfig",
+        ".config/git/colors.gitconfig",
     } <= set(themes)
     revisions = {re.findall(r"fmind/theme/([0-9a-f]{40})/", entry["url"])[0] for entry in themes.values()}
     assert len(revisions) == 1
@@ -127,12 +128,9 @@ def test_stale_copies_detects_changed_and_missing_theme_keys(monkeypatch: pytest
     ]
 
 
-def test_copied_theme_parsers_ignore_comments_and_git_quoting() -> None:
+def test_copied_theme_parsers_ignore_comments() -> None:
     jsonc = '{\n  // Source: theme\n  "$schema": "https://example.com/schema.json",\n  "a": 1\n}'
     assert theme_pin.parse(jsonc, "fastfetch/fmind.json") == {"$schema": "https://example.com/schema.json", "a": 1}
     assert theme_pin.parse("--hidden\n--colors=path:style:bold\n", "ripgrep/fmind.ripgreprc") == {
         "colors": ["--colors=path:style:bold"]
     }
-    upstream = theme_pin.parse('[color "diff"]\n\tmeta = #595d62\n', "git/fmind.gitconfig")
-    local = theme_pin.parse('# Source\n[color "diff"]\n    meta = "#595d62"\n', "git/fmind.gitconfig")
-    assert upstream == local == {'color "diff"': {"meta": "#595d62"}}
