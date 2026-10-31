@@ -20,7 +20,7 @@ def test_ty_refreshes_imports_changed_outside_the_editor(tmp_path: Path) -> None
     script.write_text(
         """
 local ok, err = pcall(function()
-  local specs = dofile(vim.env.PYTHON_LSP_CONFIG)
+  local specs = dofile(vim.env.LSP_CONFIG)
   local config = specs[1].opts.servers.ty
   config.cmd = { vim.env.TY_EXECUTABLE, "server" }
   config.filetypes = { "python" }
@@ -51,7 +51,7 @@ vim.cmd.qa()
     )
     environment = {
         **os.environ,
-        "PYTHON_LSP_CONFIG": str(ROOT / "dot_config/nvim/lua/plugins/python.lua"),
+        "LSP_CONFIG": str(ROOT / "dot_config/nvim/lua/plugins/lsp.lua"),
         "TY_EXECUTABLE": ty,
         "LSP_PROJECT": str(tmp_path),
         "XDG_CONFIG_HOME": str(tmp_path / "config"),

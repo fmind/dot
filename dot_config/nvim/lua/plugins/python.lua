@@ -1,22 +1,6 @@
 -- Docs: https://www.lazyvim.org/extras/lang/python
+-- The ruff and ty language servers live in lsp.lua with the other servers.
 return {
-  {
-    "neovim/nvim-lspconfig",
-    opts = {
-      servers = {
-        -- mise owns the Python servers; Mason still supplies other languages.
-        ruff = { mason = false },
-        ty = {
-          mason = false,
-          -- Neovim disables this on Linux by default. ty needs notifications
-          -- for imports and configuration changed by tools outside the editor.
-          capabilities = {
-            workspace = { didChangeWatchedFiles = { dynamicRegistration = true } },
-          },
-        },
-      },
-    },
-  },
   {
     "mfussenegger/nvim-dap-python",
     optional = true,
