@@ -62,7 +62,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 1. **Exempt the cooldown audit**: jactionlint's `dependabot-cooldown` audit still flags this config, but `cooldown` never applies to security updates and version updates are off. Disable the audit in `.github/jactionlint.yaml` instead of adding inert `cooldown` blocks:
 
    ```yaml
-   # Docs: https://jactionlint.jdx.dev/configuration
+   # Docs: https://jactionlint.jdx.dev/config
    profile: default
 
    rules:
