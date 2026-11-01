@@ -33,4 +33,4 @@ A brain keeps OKF project, concept and action notes plus collected source record
 ## Documentation
 
 - [Brain Framework repository](https://github.com/fmind/brain-framework) · [documentation](https://fmind.github.io/brain-framework/) · [releases](https://github.com/fmind/brain-framework/releases) · [team brains](https://fmind.github.io/brain-framework/docs/team/) · [Markdown for agents](https://fmind.github.io/brain-framework/llms.txt)
-- [Packaged skills at v20.0.1](https://github.com/fmind/brain-framework/tree/v20.0.1/src/bf/skills): prefer the brain's installed copy, which matches its runtime; change the procedures there, not here.
+- [Packaged skills at v20.1.0](https://github.com/fmind/brain-framework/tree/v20.1.0/src/bf/skills): prefer the brain's installed copy, which matches its runtime; change the procedures there, not here.
