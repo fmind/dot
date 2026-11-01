@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # Upgrade Tools
@@ -34,6 +34,7 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 - **Lockfiles are the record**: retain `mise.lock`, `uv.lock`, and `.terraform.lock.hcl` when present, and execute non-mise dependencies through their lockfile, full action SHA, or image digest; the [tool version rules](../mise/references/tool-versions.md) own mise tool identity, backend, options, and platform.
 - **Majors are separate changes**: Python upgrades follow declared constraints and `uv lock --upgrade` can cross majors. Inspect the actual version diff and handle breaking upgrades as separate changes.
 - **Justify every held-back pin**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
+- **Check registry deprecations and upstream READMEs**: GitHub's `isArchived` flag alone misses tools superseded in place (`actionlint` → `jactionlint`, `gitleaks` → `betterleaks`). Check `mise registry` warnings and the upstream README top banner for maintenance-only or successor notices.
 
 ## Documentation
 
