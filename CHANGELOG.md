@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.8.2] - 2026-11-01
+
+### 🐛 Bug Fixes
+
+- _(skills)_ Remove default cloud identifiers and tighten privacy checks
+
 ## [15.8.1] - 2026-11-01
 
 ### 📚 Documentation
