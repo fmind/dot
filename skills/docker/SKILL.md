@@ -7,14 +7,14 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # Docker and Container Runtime Management
 
 Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. The [containerize](references/containerize/GUIDE.md) guide builds, publishes, and signs Python images; [trivy](../code-security/references/trivy/GUIDE.md) scans them for vulnerabilities.
 
-Docker, Compose, and Colima are host prerequisites; workstation tools do not install or start them. Inspect `docker context ls` before choosing a runtime and pass `docker --context <context>` on consequential commands; do not change the persistent default just to run a task. Container runs execute project code; reuse authority for the requested workload and resolve missing scope before running untrusted images or consequential workloads. Preserve existing volumes and containers.
+On Linux, Docker and Compose are host prerequisites. On macOS, the global mise config installs Colima, Lima, and the Docker CLI with Compose and Buildx ([Colima](references/colima.md)). Nothing here starts a daemon or VM. Inspect `docker context ls` before choosing a runtime and pass `docker --context <context>` on consequential commands; do not change the persistent default just to run a task. Container runs execute project code; reuse authority for the requested workload and resolve missing scope before running untrusted images or consequential workloads. Preserve existing volumes and containers.
 
 ## Runtime Selection
 
