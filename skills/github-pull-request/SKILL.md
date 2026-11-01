@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-pull-request
   created: "2026-06-23"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # GitHub Pull Request
@@ -32,9 +32,10 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
    ```
 
 1. **Verify from GitHub**: re-read the PR's title, body, base, head SHA, state, and URL. Compare the head SHA with the intended local commit before reporting the PR URL and validation; local tests do not establish hosted CI; check it with `gh pr checks <number> -R <owner>/<repo> --watch --fail-fast`.
-1. **Merge only on request, with the repository's author**: a squash merge credits the PR opener's primary GitHub email, so a PR opened from a work account would publish a client address in a personal repository. Pass the checkout's commit identity and the verified head SHA explicitly, so a later push blocks the merge, then confirm the merge commit's author:
+1. **Merge only on request, with the repository's author**: a squash merge credits the PR opener's primary GitHub email, so a PR opened from a work account would publish a client address in a personal repository. Before merging, check that `git config user.email` is the address the repository expects (an `@fmind.dev` address for `fmind/*`); outside a checkout whose `includeIf` matches, it returns the work address, so stop on a mismatch. Pass that address and the verified head SHA explicitly, so a later push blocks the merge, then confirm the merge commit's author:
 
    ```bash
+   git config user.email  # must match the repository's expected author domain
    gh pr merge <number> -R <owner>/<repo> --squash --match-head-commit <head-sha> --author-email "$(git config user.email)"
    git fetch && git log -1 --format='%an <%ae>' origin/<base>
    ```
