@@ -290,7 +290,9 @@ def apply(state: State, args: argparse.Namespace) -> None:
             if RELEASE_TAGS not in tag_policies(base, name):
                 write("POST", f"{path}/deployment-branch-policies", {"name": RELEASE_TAGS, "type": "tag"})
     if state.public:
-        write("PUT", f"{base}/private-vulnerability-reporting")  # the owner's .github SECURITY.md points here
+        write(
+            "PUT", f"{base}/private-vulnerability-reporting"
+        )  # SECURITY.md (repository or owner's .github) points here
         if state.owned_rulesets:
             write("PUT", f"{base}/rulesets/{state.owned_rulesets[0]}", RULESET)
         elif state.report.get("default_branch_protected") is not True:  # read succeeded, or inspect() stopped
