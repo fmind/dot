@@ -7,18 +7,18 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diagrams-as-code
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # Diagrams as Code
 
 Choose the simplest picture that explains the system, or none when prose, a list, or a table is more direct. This skill owns the format choice; [fmind-visuals](../fmind-visuals/SKILL.md) owns brand, decks, and terminal demos.
 
-| Need                                                                       | Format                           | Why                                                        |
-| -------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
-| Technical docs: AGENTS.md, skills, architecture, contributor, reference    | [Mermaid](references/mermaid.md) | Renders in Markdown and GitHub; maintainers edit structure |
-| User docs: README, documentation-site landing and concept pages, courses   | [SVG](references/svg/GUIDE.md)   | Composed, branded illustration that carries one concept    |
-| Existing `.d2` sources, Fmind article diagrams, bespoke standalone layouts | [D2](references/d2.md)           | Containers, layers, and exports Mermaid cannot express     |
+| Need                                                                          | Format                           | Why                                                        |
+| ----------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
+| Technical docs: AGENTS.md, skills, architecture, contributor, reference       | [Mermaid](references/mermaid.md) | Renders in Markdown and GitHub; maintainers edit structure |
+| User docs: README, documentation-site landing and concept pages, courses      | [SVG](references/svg/GUIDE.md)   | Composed, branded illustration that carries one concept    |
+| Existing `.d2` sources, Fmind-branded D2 diagrams, bespoke standalone layouts | [D2](references/d2.md)           | Containers, layers, and exports Mermaid cannot express     |
 
 ## Workflow
 

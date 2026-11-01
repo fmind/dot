@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # Google Cloud CLI
@@ -16,7 +16,7 @@ Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit
 
 ## Defaults
 
-Google Cloud is the default cloud for Fmind projects, with `europe-west1` unless the project says otherwise. Prefer Cloud Run for services; use GKE only when the project explicitly adopts Kubernetes. Existing project choices take precedence.
+Google Cloud is the default cloud for Fmind projects. Resolve the project and region from explicit project configuration, or ask when unset. Prefer Cloud Run for services; use GKE only when the project explicitly adopts Kubernetes. Existing project choices take precedence.
 
 ## Workflow
 

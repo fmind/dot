@@ -459,7 +459,7 @@ def test_privacy_findings_rejects_unapproved_emails_and_local_tokens(tmp_path: P
     home = tmp_path / "home"
     (home / ".config/git").mkdir(parents=True)
     (home / ".config/dot.yaml").write_text(
-        "auth:\n  workspace:\n    project: acme-sec-9999\npull:\n  directories:\n    - ~/code/acme-internal/\ntrust:\n  github_owners:\n    - acme-corp\n",
+        "auth:\n  workspace:\n    project: fmind-internal-9999\npull:\n  directories:\n    - ~/code/acme-internal/\ntrust:\n  github_owners:\n    - acme-corp\n",
         encoding="utf-8",
     )
     bad_work_email = "@".join(("alice.partner", "acmecorp.net"))
@@ -495,14 +495,14 @@ def test_privacy_findings_rejects_unapproved_emails_and_local_tokens(tmp_path: P
     )
     assert checker.privacy_findings(repo, home=home) == []
 
-    # 1. Unapproved email domain and workstation token in tracked file
+    # 1. Unapproved email domain and workstation token (including fmind-* project IDs) in tracked file
     clean_file.write_text(
-        f'BAD = "{bad_peer_email}"\nPROJECT = "acme-sec-9999"\n',
+        f'BAD = "{bad_peer_email}"\nPROJECT = "fmind-internal-9999"\n',
         encoding="utf-8",
     )
     findings = checker.privacy_findings(repo, home=home)
     assert any("unapproved email domain 'corp-domain.io'" in item for item in findings)
-    assert any("local workstation identifier 'acme-sec-9999'" in item for item in findings)
+    assert any("local workstation identifier 'fmind-internal-9999'" in item for item in findings)
 
     # 2. Unapproved commit author email in git history
     clean_file.write_text('OK = "alice@example.com"\n', encoding="utf-8")

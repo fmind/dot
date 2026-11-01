@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/model-providers
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # Model Providers
 
-Configure provider authentication, endpoints, and model selection. Default new integrations to **GCP Agent Platform with ADC**, `global`, the latest GA model of the chosen tier, and high thinking. The personal project is `ai-studio-fmind`; explicit project/customer settings take precedence. Preserve OpenCode's OpenRouter default. Use API keys only when explicitly requested or as a last resort after reporting why ADC cannot work; never retry automatically with a key or switch to AI Studio after an error.
+Configure provider authentication, endpoints, and model selection. Default new integrations to **GCP Agent Platform with ADC**, an explicit GCP project, `global`, the latest GA model of the chosen tier, and high thinking. Preserve OpenCode's OpenRouter default. Use API keys only when explicitly requested or as a last resort after reporting why ADC cannot work; never retry automatically with a key or switch to AI Studio after an error.
 
 ## Workflow
 

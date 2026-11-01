@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fact-check
   created: "2026-10-04"
-  updated: "2026-10-31"
+  updated: "2026-11-01"
 ---
 
 # Fact-Check
 
-Verify every material claim and link in a draft article, post, talk, or README section, and add primary sources where a claim needs one. Report findings with narrowed wording that would be true today; rewrite only when asked. A publishing project's local skills own its publication pipeline, and its review skill (for example `review-content`) takes precedence for its own packages.
+Verify every material claim and link in a draft article, post, talk, or README section, and add primary sources where a claim needs one. Report findings with narrowed wording that would be true today; rewrite only when asked. Project-local review skills take precedence in their own repositories.
 
 ## Workflow
 

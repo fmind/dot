@@ -168,7 +168,7 @@ Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with its own passphraseless Ed25519 SSH key (`~/.ssh/id_ed25519_signing`) so agent shells can sign unattended and any machine can be revoked independently; the private key never enters this repository, and machines without it commit unsigned. A signature proves the machine, not a human. Provision a new machine once (`dot setup github` drops the temporary `write:ssh_signing_key` scope afterwards):
 
 ```bash
-ssh-keygen -t ed25519 -N '' -C "git-signing@$(hostname)" -f ~/.ssh/id_ed25519_signing
+ssh-keygen -t ed25519 -N '' -C "git-signing@fmind.dev" -f ~/.ssh/id_ed25519_signing
 dot login github --grant write:ssh_signing_key
 gh ssh-key add ~/.ssh/id_ed25519_signing.pub --type signing --title "$(hostname) signing"
 dot setup github

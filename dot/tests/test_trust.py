@@ -165,8 +165,8 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
     ("origin", "owner"),
     [
         ("https://github.com/fmind/dot.git", "fmind"),
-        ("https://token@GitHub.com/fmind-ai/repo", "fmind-ai"),
-        ("git@github.com:MLOps-Courses/course.git", "MLOps-Courses"),
+        ("https://token@GitHub.com/example-ai/repo", "example-ai"),
+        ("git@github.com:Example-Org/course.git", "Example-Org"),
         ("ssh://git@github.com:22/fmind/dot.git\n", "fmind"),
         ("https://gitlab.com/fmind/dot.git", None),
         ("https://github.com/fmind", None),

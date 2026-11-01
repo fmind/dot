@@ -91,10 +91,7 @@ SAFE_HOST_TOKENS = {
     "hurier",
     "local",
     "localhost",
-    "macbook",
     "mederic",
-    "mlops-courses",
-    "penguin",
     "ubuntu",
 }
 
@@ -409,11 +406,7 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
 
     def _add(candidate: str) -> None:
         cleaned = candidate.strip().lower()
-        if (
-            len(cleaned) >= 4
-            and cleaned not in SAFE_HOST_TOKENS
-            and not cleaned.startswith(("fmind-", "fmind.", "fmind_"))
-        ):
+        if len(cleaned) >= 4 and cleaned not in SAFE_HOST_TOKENS:
             tokens.add(cleaned)
 
     dot_yaml = home / ".config/dot.yaml"
