@@ -13,7 +13,7 @@ jobs:
   validate:
     name: Validate tagged revision
     if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' || vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -48,7 +48,7 @@ jobs:
     name: Publish Python distributions
     if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     environment: pypi
     permissions:
@@ -68,7 +68,7 @@ jobs:
     name: Publish verified container image
     if: ${{ vars.ENABLE_DEPLOY_CONTAINER == 'true' }}
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/cd.yml@${{ github.ref }}

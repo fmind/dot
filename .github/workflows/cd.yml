@@ -14,7 +14,7 @@ jobs:
   # with a read-only token so a regression blocks the release instead of shipping.
   gate:
     name: Gate release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     outputs:
       notes: ${{ steps.notes.outputs.notes }}
@@ -51,7 +51,7 @@ jobs:
   publish:
     name: Publish GitHub release
     needs: gate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write # Create the release for the gated tag.
     timeout-minutes: 10
