@@ -2512,13 +2512,13 @@ specifiers = ["latest"]
 
 [[tools."npm:cf"]]
 version = "1.0.0-beta.26"
-aube = { path = "locks/npm-cf/1.0.0-beta.26", digest = "sha256:6ad450b7ab05246aaca72d459d7f811bab88f60494f4835bb31cdf64c03eabc3" }
+aube = { path = "locks/npm-cf/1.0.0-beta.26", digest = "sha256:e0430a883729cffccdc78373769cf0da2a30a51c445ffb765a0c9afc4898d154" }
 backend = "npm:cf"
 specifiers = ["latest"]
 
 [[tools."npm:firebase-tools"]]
 version = "15.34.2"
-aube = { path = "locks/npm-firebase-tools/15.34.2", digest = "sha256:a1cb1e1c84eaf5a1a4333f44cc57cb95ce9ab85ca33d7046db321ee05cbd165b" }
+aube = { path = "locks/npm-firebase-tools/15.34.2", digest = "sha256:b61580157a031eaf3e0c433b7686eb7f01d1d2e66800651c07d0e9bcb9b5a942" }
 backend = "npm:firebase-tools"
 specifiers = ["latest"]
 
@@ -2546,40 +2546,40 @@ url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742637"
 
 [[tools."pipx:brain-framework"]]
-version = "20.0.1"
+version = "20.0.2"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/20.0.1", digest = "sha256:cd9b82a04beea4f9d41d16d59e30734063292550292fb6219d53340572198820" }
+uv = { path = "locks/pipx-brain-framework/20.0.2", digest = "sha256:c43db9d359f188b0466fdfb572374d4d4a0efb6cc66a2d6f4762e3fd262fcec6" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
 backend = "pipx:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:622550096897f6612031af62012ca7f2d6cae1cea386905405e5bb822d804715" }
+uv = { path = "locks/pipx-copier/9.19.1", digest = "sha256:24be1ffb84926684f1ea7dc40be2edf8b9bbe03faa221bbe652f83b8b6ca3cf2" }
 
 [[tools."pipx:fmind"]]
-version = "2.0.4"
+version = "2.0.5"
 backend = "pipx:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-fmind/2.0.4", digest = "sha256:d63a8db3aef807765f60cd777aeaec15b7fe90a2623ee818d62f53e773b1a405" }
+uv = { path = "locks/pipx-fmind/2.0.5", digest = "sha256:ad686a349b2ef3a6cb1c673a7393d5351ed26170fb5f077c04caf3c742a70e49" }
 
 [[tools."pipx:google-colab-cli"]]
 version = "0.7.5"
 backend = "pipx:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:d8741d6a14d84e8c69edd23116c6cd65bed56fbbe6c473ee3768cb8fa6b8bd1b" }
+uv = { path = "locks/pipx-google-colab-cli/0.7.5", digest = "sha256:677dc1a1e22c53bd4decf704730e70e136070c7ba5fed120056bfe1793cd680c" }
 
 [[tools."pipx:huggingface_hub"]]
 version = "2.4.0"
 backend = "pipx:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-huggingface-hub/2.4.0", digest = "sha256:f7d4136dafd254027fe5ea0f70cd4853ecc95ff8f1f35807cc43cb6ef336daf3" }
+uv = { path = "locks/pipx-huggingface-hub/2.4.0", digest = "sha256:a98f54d752b414c1d9b1afd9571e8638982aed5758cf35683eca4765fab15907" }
 
 [[tools."pipx:kaggle"]]
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:721ec6950f616d9e0bd31df6731944903ab713362f5038ae736b91dba574d5c0" }
+uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:a03987907892e54f8ee85af082624257dee9a2d61cd200b3ea267416f77a30c5" }
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
@@ -2821,19 +2821,19 @@ url = "https://github.com/crate-ci/typos/releases/download/v1.51.1/typos-v1.51.1
 url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/616656668"
 
 [[tools.usage]]
-version = "7.1.4"
+version = "7.1.5"
 backend = "packslip:github.com/jdx/usage"
 specifiers = ["latest"]
 
 [tools.usage."platforms.linux-x64"]
-checksum = "sha256:eb213eb6c1cbc6896d7f8b627af984a9c1734d67bdf703788038bc50c326c676"
-url = "https://github.com/jdx/usage/releases/download/v7.1.4/usage-x86_64-unknown-linux-gnu.tar.gz"
+checksum = "sha256:38e6dcb6369285e76343bf99882dab3f0db0b2f24aac95ae0e654efcb801b3d6"
+url = "https://github.com/jdx/usage/releases/download/v7.1.5/usage-x86_64-unknown-linux-gnu.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/usage/.github/workflows/publish-cli.yml"
 repository_ids = { repository = "677629099" }
 
 [tools.usage."platforms.macos-arm64"]
-checksum = "sha256:cae1865b2bb4eb8c22087381d4fbc29344837960c71dbf865dc55296c19d535d"
-url = "https://github.com/jdx/usage/releases/download/v7.1.4/usage-universal-apple-darwin.tar.gz"
+checksum = "sha256:90ac6ec790cebe79c2e234171b9e16b6071e02dc0506f2953315fc5c0222b2d9"
+url = "https://github.com/jdx/usage/releases/download/v7.1.5/usage-universal-apple-darwin.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/usage/.github/workflows/publish-cli.yml"
 repository_ids = { repository = "677629099" }
 

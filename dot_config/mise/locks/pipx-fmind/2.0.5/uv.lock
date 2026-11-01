@@ -22,15 +22,15 @@ wheels = [
 
 [[package]]
 name = "fmind"
-version = "2.0.4"
+version = "2.0.5"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/db/1d/a0f26d31d4c0ba4ebba833f93dd46661a355921861d2d33775ff58fb4ec7/fmind-2.0.4.tar.gz", hash = "sha256:2ac46094e4397646a4f41c84324673307434330489d2c423d20bc826546af53a", size = 18061, upload-time = "2026-10-29T14:03:39.868Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/8a/277784ab2ba2e6df75537af9ef60d48ca8a655bc4909ec6c475da458f299/fmind-2.0.5.tar.gz", hash = "sha256:ea222cc62de1609c7c643c957ffbdf2b761f2cfea470d25280ff7a2328fdfbc7", size = 19679, upload-time = "2026-10-31T16:34:27.824Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/c4/1c2d331a9f70f8d4b04eaef363c071c072557304386dd08819c6456957cf/fmind-2.0.4-py3-none-any.whl", hash = "sha256:5cbaf988ee4f1778d7f439c79d89f2ae0e9e4112ecd5f00538c0eb48a76e5cfd", size = 20338, upload-time = "2026-10-29T14:03:38.438Z" },
+    { url = "https://files.pythonhosted.org/packages/56/1e/8161ceba8d90430f12e0f13ab2e7523838f96dc1d09664b31d732c20fac5/fmind-2.0.5-py3-none-any.whl", hash = "sha256:46a16cff47039eedcc8c7edf6f9079e9482f8b9a5b2141f513029138b029b973", size = 21848, upload-time = "2026-10-31T16:34:26.401Z" },
 ]
 
 [[package]]
@@ -63,7 +63,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "fmind", specifier = "==2.0.4" }]
+requires-dist = [{ name = "fmind", specifier = "==2.0.5" }]
 
 [[package]]
 name = "pygments"

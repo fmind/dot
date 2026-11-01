@@ -10,7 +10,7 @@ palette = "fmind"
 [palettes.fmind]
 text = "#202124"
 green = "#0d652d"
-bright_green = "#0d652d"
+bright-green = "#0d652d"
 red = "#a50e0e"
 orange = "#934900"
 blue = "#174ea6"
@@ -38,6 +38,6 @@ min_time = 1500
 style = "bold gray"
 
 [character]
-vimcmd_replace_one_symbol = "[❮](bold bright_green)"
-vimcmd_replace_symbol = "[❮](bold bright_green)"
+vimcmd_replace_one_symbol = "[❮](bold bright-green)"
+vimcmd_replace_symbol = "[❮](bold bright-green)"
 vimcmd_visual_symbol = "[❮](bold orange)"

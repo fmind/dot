@@ -15,7 +15,7 @@ aqua.minisign = false
 # mise's own palette, so they follow fmind/theme like everything else.
 color_theme = "base16"
 # asdf plugins lock without checksums and may compile from source; registry tools
-# must resolve to aqua, conda, github, or vfox instead.
+# must resolve to aqua, conda, github, packslip, or vfox instead.
 disable_backends = ["asdf"]
 env_cache = true
 # `gh` stores its token in the system keyring, so mise's default gh_cli_tokens
