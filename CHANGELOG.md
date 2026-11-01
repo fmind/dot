@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.8.4] - 2026-11-01
+
+### 🐛 Bug Fixes
+
+- _(mise)_ Bundle six with kaggle for python-dateutil 4
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock Brain Framework 20.1.0
+
 ## [15.8.3] - 2026-11-01
 
 ### 🐛 Bug Fixes
