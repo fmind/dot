@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.8.3] - 2026-11-01
+
+### 🐛 Bug Fixes
+
+- _(skills)_ Flag SSH key comments that name machines in the privacy check
+- _(mise)_ Keep sonarqube-cli tokens private and its telemetry off
+- _(opencode)_ Retire compaction.prune, which OpenCode 2.x dropped
+- _(cli)_ Skip a stopped Docker engine when dot cache inspects all providers
+- _(skills)_ Fail when a Mermaid figure cannot meet the draft-doc width cap
+- _(skills)_ Require the region and create the mise lock in the infra-as-code template
+- _(skills)_ Check the author email before a squash merge
+
+### 📚 Documentation
+
+- _(skills)_ Stop claiming apply deletes retired secret files
+- _(skills)_ Keep the default Betterleaks archive depth and name check:local
+- _(skills)_ Note that macOS installs Colima and the Docker CLI through mise
+- _(skills)_ Define SCRATCH for the draft-mail commands
+- _(skills)_ Add SECURITY.md when the owner has no default policy
+- _(skills)_ Fix the jactionlint configuration link
+
+### ⚙️ Build & CI
+
+- Bump jdx/mise-action to v5.2.5
+- Run workflows and templates on ubuntu-26.04
+
+### 🧹 Miscellaneous
+
+- _(mise)_ Upgrade tools, the theme pin, and Neovim plugins
+
 ## [15.8.2] - 2026-11-01
 
 ### 🐛 Bug Fixes
