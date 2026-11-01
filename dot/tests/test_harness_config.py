@@ -281,7 +281,8 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["provider"]["openrouter"]["options"] == {"timeout": 60000}
         assert data["permission"] == "allow"
         assert data["agent"] == original["agent"]
-        assert data["compaction"] == {"reserved": 300000, "protect": ["skill"], "prune": True}
+        # 2.x dropped compaction.prune; replacing compaction retires it from deployed files.
+        assert data["compaction"] == {"auto": True}
         assert data["formatter"] is True
         # OpenCode 2.x runs no language servers, so the repository no longer manages lsp.
         assert not {"instructions", "skills", "default_agent", "snapshot", "lsp"} & data.keys()

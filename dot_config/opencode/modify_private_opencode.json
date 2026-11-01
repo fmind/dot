@@ -1,7 +1,8 @@
 # chezmoi:modify-template
 {{- /* Docs: https://opencode.ai/docs/config/
        Persona (symlinked AGENTS.md) and skills (~/.agents/skills) load natively; the theme
-       lives in cli.json. 2.x runs no language servers (it ignores lsp); pruning and the formatter are enabled. */ -}}
+       lives in cli.json. 2.x runs no language servers (it ignores lsp) and dropped compaction.prune, so
+       compaction is replaced whole to retire it on every machine; the formatter is enabled. */ -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://opencode.ai/config.json",
@@ -9,9 +10,9 @@
   "small_model": "openrouter/google/gemini-3.8-flash",
   "share": "disabled",
   "autoupdate": false,
-  "compaction": {"prune": true},
+  "compaction": {"auto": true},
   "formatter": true,
   "permission": "allow"
 }
 ` -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "format" "jsonc") -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "replace" (list "compaction") "format" "jsonc") -}}
