@@ -5,10 +5,10 @@ Run secret and license scanners against a candidate snapshot without executing i
 ## Workflow
 
 1. **Stay outside the candidate**: run from a trusted audit directory, not the snapshot root, so the candidate cannot supply configuration through ambient discovery.
-1. **Pass trusted configuration explicitly**: reviewed configuration and ignore files for both tools. Trivy scans licenses only; Betterleaks owns secrets. Do not let candidate config, ignore files, or `betterleaks:allow` / `gitleaks:allow` comments suppress findings. Betterleaks reads inside bundled archives only with `--max-archive-depth`. For Trivy, `--config` overrides ambient `TRIVY_CONFIG`, `--ignorefile ''` loads no ignore file, `--license-full` scans source license text, and all severities retain permissive and unknown license detections:
+1. **Pass trusted configuration explicitly**: reviewed configuration and ignore files for both tools. Trivy scans licenses only; Betterleaks owns secrets. Do not let candidate config, ignore files, or `betterleaks:allow` / `gitleaks:allow` comments suppress findings. Betterleaks scans nested archives up to `--max-archive-depth` (default 8); keep at least the default. For Trivy, `--config` overrides ambient `TRIVY_CONFIG`, `--ignorefile ''` loads no ignore file, `--license-full` scans source license text, and all severities retain permissive and unknown license detections:
 
    ```bash
-   betterleaks dir <root> --config <trusted-betterleaks.toml> --gitleaks-ignore-path <trusted-ignorefile> --ignore-gitleaks-allow --max-archive-depth 2 --redact=100
+   betterleaks dir <root> --config <trusted-betterleaks.toml> --gitleaks-ignore-path <trusted-ignorefile> --ignore-gitleaks-allow --redact=100
    trivy --config <trusted-audit-policy.yaml> fs --ignorefile <trusted-ignorefile> --scanners license --license-full --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL <root>
    ```
 

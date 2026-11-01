@@ -20,7 +20,7 @@ betterleaks git --redact=100 --report-format sarif --report-path betterleaks.sar
 
 ## Mise Task
 
-Expose two scopes per [mise](../../mise/SKILL.md). The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.betterleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check` run scans every commit before it exists; the scheduled job audits the full history.
+Expose two scopes per [mise](../../mise/SKILL.md). The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.betterleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check:local` run scans every commit before it exists; the scheduled job audits the full history.
 
 ```toml
 [tasks."check:leaks"]
