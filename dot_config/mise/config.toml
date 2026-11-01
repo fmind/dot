@@ -65,6 +65,7 @@ CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
 COPILOT_AUTO_UPDATE = "false"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Keep sonarqube-cli off the macOS Keychain (whose partition ACL blocks background probes and prompts repeatedly).
+# Its file store writes with default permissions, so chezmoi seeds a private tokens.json it then keeps.
 SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
