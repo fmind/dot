@@ -225,7 +225,7 @@ def render_mermaid_png(mermaid_code: str, out_png: Path, scale: float = 2, max_w
         mmd_file = Path(tmp) / "diagram.mmd"
         mmd_file.write_text(mermaid_code.strip() + "\n", encoding="utf-8")
         env = {**os.environ, "PUPPETEER_EXECUTABLE_PATH": chrome_bin}
-        for _ in range(2):  # the diagram width is known only after a first render
+        for _ in range(3):  # the width is known only after a render; padding can need one more pass
             out_png.unlink(missing_ok=True)
             proc = subprocess.run(  # noqa: S603 - fixed CLI command and local temp paths
                 [
@@ -255,6 +255,8 @@ def render_mermaid_png(mermaid_code: str, out_png: Path, scale: float = 2, max_w
             if not max_width_px or width <= max_width_px:
                 return
             scale *= max_width_px / width
+    msg = f"Mermaid PNG stayed {width}px wide after rescaling; the cap is {max_width_px}px, so split or simplify the diagram"
+    raise RuntimeError(msg)
 
 
 def compile_markdown(

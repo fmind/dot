@@ -420,3 +420,19 @@ def test_render_mermaid_runs_pinned_cli_through_mise_and_caps_width(
     assert "@mermaid-js/mermaid-cli" in mod.MERMAID_CLI
     assert [c[c.index("-s") + 1] for c in commands] == ["2", "1.66667"]
     assert mod.png_size(out_png) == (600, 10)
+
+
+def test_render_mermaid_fails_when_rescaling_cannot_meet_the_width_cap(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(command: list[str], **_kwargs: object) -> object:
+        Path(command[command.index("-o") + 1]).write_bytes(_png(800))  # ignores the scale
+        return mod.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+    monkeypatch.setenv("PUPPETEER_EXECUTABLE_PATH", "/bin/chrome")
+    with pytest.raises(RuntimeError, match="stayed 800px wide"):
+        mod.render_mermaid_png("flowchart LR\n  A --> B\n", tmp_path / "fig.png", scale=2, max_width_px=600)
