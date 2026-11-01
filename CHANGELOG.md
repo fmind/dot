@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.8.1] - 2026-11-01
+
+### 📚 Documentation
+
+- _(skills)_ Check registry deprecations and README notices in upgrade-tools
+
 ## [15.8.0] - 2026-10-31
 
 ### 🚀 Features
