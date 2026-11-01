@@ -97,7 +97,8 @@ SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 # an additional `with` pin can conflict with its exact upstream requirement.
 "pipx:google-colab-cli" = "latest" # CLI client for Google Colab
 "pipx:huggingface_hub" = "latest" # Hugging Face Hub CLI client
-"pipx:kaggle" = "latest" # Kaggle dataset and competition CLI
+# Keep `with`: kaggle 2.2.5 imports six without declaring it, and python-dateutil 4 no longer brings it.
+"pipx:kaggle" = { version = "latest", with = ["six"] } # Kaggle dataset and competition CLI
 # Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
 "pipx:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal

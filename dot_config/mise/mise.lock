@@ -2579,7 +2579,10 @@ uv = { path = "locks/pipx-huggingface-hub/2.4.0", digest = "sha256:a98f54d752b41
 version = "2.2.5"
 backend = "pipx:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-kaggle/2.2.5", digest = "sha256:a03987907892e54f8ee85af082624257dee9a2d61cd200b3ea267416f77a30c5" }
+uv = { path = "locks/pipx-kaggle/2.2.5~83e0ceb9", digest = "sha256:732aa65d8baff645ac3f89b908e99fb7ff1da199edd20b7c2830edef8ad53510" }
+
+[tools."pipx:kaggle".options]
+with = '["six"]'
 
 [[tools."pipx:pgcli"]]
 version = "4.7.1"
