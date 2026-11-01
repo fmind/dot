@@ -76,6 +76,8 @@ _UV_LOCK_TIMEOUT_SECONDS = "10"
 CacheTarget = Literal["all", CacheProvider]
 PruneTarget = Literal["all", PruneProvider]
 _CACHE_TIMEOUT_SECONDS = 120
+# A stopped engine answers at once; a hung one must not stall every other provider.
+_ENGINE_PROBE_TIMEOUT_SECONDS = 15
 CACHE_WORKERS = len(CACHE_TOOLS)
 DryRun = Annotated[
     bool, typer.Option("--dry-run", help="Show possible commands without running probes or making changes")
@@ -201,22 +203,46 @@ def _cache_report(state: State, name: str, args: list[str]) -> dict[str, Any]:
     return entry | {"report": report}
 
 
+def _docker_engine_running(state: State) -> bool:
+    """Probe the engine like `dot doctor`; a probe that cannot run leaves the diagnostic to the inspection."""
+    try:
+        probe = state.runner.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"], timeout=_ENGINE_PROBE_TIMEOUT_SECONDS, check=False
+        )
+    except CommandTimeoutError, OSError:
+        return True
+    return probe.returncode == 0
+
+
+def _skip_reasons(state: State, commands: dict[str, list[str]], *, optional: bool) -> dict[str, str]:
+    """Name the providers to skip: missing tools, and under `optional` a stopped Docker engine (as doctor warns)."""
+    reasons: dict[str, str] = {}
+    for name, args in commands.items():
+        if state.runner.which(args[0]) is None:
+            reasons[name] = f"{args[0]} not installed"
+        elif optional and name == "docker" and not _docker_engine_running(state):
+            reasons[name] = "docker engine not running"
+    return reasons
+
+
 def run_cache(
     state: State, names: Sequence[str], *, as_json: bool = False, dry_run: bool = False, optional: bool = False
 ) -> None:
-    """Inspect each provider, continuing past failures; `optional` skips providers that are not installed."""
+    """Inspect each provider, continuing past failures; `optional` skips missing tools and a stopped engine."""
     commands = {name: _inspect_command(name, as_json=as_json) for name in names}
     if dry_run:
         providers = [{"name": name, "command": shlex.join(args)} for name, args in commands.items()]
     else:
         if not optional:
             require_tools(state, list(commands.values()))
+        # Probe sequentially before the parallel inspections so each provider runs at most once.
+        skipped = _skip_reasons(state, commands, optional=optional)
         if as_json:
 
             def inspect(item: tuple[str, list[str]]) -> dict[str, Any]:
                 name, args = item
-                if state.runner.which(args[0]) is None:
-                    return {"name": name, "command": shlex.join(args), "skipped": f"{args[0]} not installed"}
+                if name in skipped:
+                    return {"name": name, "command": shlex.join(args), "skipped": skipped[name]}
                 return _cache_report(state, name, args)
 
             providers = run_parallel(state.runner, inspect, list(commands.items()), CACHE_WORKERS)
@@ -224,9 +250,9 @@ def run_cache(
             providers = []
             for name, args in commands.items():
                 entry: dict[str, Any] = {"name": name, "command": shlex.join(args)}
-                if state.runner.which(args[0]) is None:
-                    providers.append(entry | {"skipped": f"{args[0]} not installed"})
-                    print(f"[{name}] skipped: {args[0]} not installed", file=state.stdout, flush=True)
+                if name in skipped:
+                    providers.append(entry | {"skipped": skipped[name]})
+                    print(f"[{name}] skipped: {skipped[name]}", file=state.stdout, flush=True)
                 else:
                     # Native human reports keep their tables and units; they rarely name their provider.
                     if len(commands) > 1:
@@ -317,7 +343,8 @@ def register(app: typer.Typer) -> None:
     @app.command(
         "cache",
         help="Show how much disk tool caches use (read-only); defaults to the configured providers",
-        epilog="With all, providers that are not installed are skipped. Exit 1 when any inspection fails; "
+        epilog="With all, providers that are not installed and a stopped Docker engine are skipped. "
+        "Exit 1 when any inspection fails; "
         "the other providers still report.",
     )
     def cache(

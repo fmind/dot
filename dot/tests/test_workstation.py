@@ -107,6 +107,8 @@ def workspace_status(*, scopes: list[str] | None = None, **kwargs: Any) -> Comma
 
 
 PROTOCOL = CommandResult("ssh\n", "", 0)
+# `docker info` answer for the engine probe `dot cache` runs before inspecting all providers.
+ENGINE_RUNNING = CommandResult("29.0.0\n", "", 0)
 TOKEN = CommandResult("private", "", 0)
 SCOPE_GAP = CommandResult("", "ERROR: Invalid value for [--scopes]: Invalid scopes value. private", 1)
 ADC_SCOPES = ",".join(Config().auth.gcp.adc_scopes)
@@ -875,6 +877,7 @@ def test_project_and_scope_override_precedence(
 
 
 def test_cache_default_inspects_all_and_preserves_native_output(provider: RecordingRunner) -> None:
+    provider.responses = [ENGINE_RUNNING]
     result = cli(["cache"])
     assert provider.actions == [
         ["docker", "system", "df"],
@@ -886,6 +889,7 @@ def test_cache_default_inspects_all_and_preserves_native_output(provider: Record
 
 def test_cache_json_parses_native_reports_without_stderr(provider: RecordingRunner) -> None:
     provider.responses = [
+        ENGINE_RUNNING,
         CommandResult('{"Type":"Images","Size":"1GB"}\n{"Type":"Containers","Size":"0B"}\n', "", 0),
         CommandResult('[{"repo_id":"org/model"}]', "", 0),
         CommandResult("1024\n", "SECRET-DIAGNOSTIC", 0),
@@ -914,6 +918,8 @@ def test_cache_json_probes_providers_concurrently(monkeypatch: pytest.MonkeyPatc
     }
 
     def run(args: Sequence[str], **_: Any) -> CommandResult:
+        if list(args[:2]) == ["docker", "info"]:
+            return ENGINE_RUNNING  # the sequential engine probe precedes the concurrent inspections
         barrier.wait()
         return answers[args[0]]
 
@@ -932,6 +938,7 @@ def test_cache_json_reports_a_failed_provider_and_exits_nonzero(provider: Record
 
 def test_cache_json_keeps_other_providers_when_one_times_out(provider: RecordingRunner) -> None:
     provider.responses = [
+        ENGINE_RUNNING,
         CommandTimeoutError("command timed out: docker"),
         CommandResult("[]", "", 0),
         CommandResult("1024\n", "", 0),
@@ -944,13 +951,19 @@ def test_cache_json_keeps_other_providers_when_one_times_out(provider: Recording
 
 def test_cache_text_continues_past_a_failed_provider_and_exits_nonzero(provider: RecordingRunner) -> None:
     provider.action_code = 1
+    provider.responses = [ENGINE_RUNNING]
     result = cli(["cache"], exit_code=1)
     assert [args[0] for args in provider.actions] == ["docker", "hf", "uv"]
     assert "cache inspection failed for docker, hf, uv" in str(result.exception)
 
 
 def test_cache_json_keeps_other_reports_when_a_provider_cannot_start(provider: RecordingRunner) -> None:
-    provider.responses = [OSError("SECRET-DIAGNOSTIC"), CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
+    provider.responses = [
+        ENGINE_RUNNING,
+        OSError("SECRET-DIAGNOSTIC"),
+        CommandResult("[]", "", 0),
+        CommandResult("1024\n", "", 0),
+    ]
     result = cli(["cache", "--json"], exit_code=1)
     entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
     assert entries["docker"]["error"].startswith("could not start cache inspection")
@@ -965,7 +978,7 @@ def test_cache_continues_when_hf_directory_is_unusable(
     cache = tmp_path / "private-hf-cache"
     cache.write_text("occupied")
     monkeypatch.setenv("HF_HUB_CACHE", str(cache))
-    provider.responses = [CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
+    provider.responses = [ENGINE_RUNNING, CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
     result = cli(["cache", *(["--json"] if as_json else [])], exit_code=1)
     if as_json:
         entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
@@ -987,6 +1000,27 @@ def test_cache_all_skips_missing_tools_but_an_explicit_provider_requires_it(prov
     assert "[docker] skipped: docker not installed" in text.output
     explicit = CliRunner().invoke(app, ["cache", "docker"])
     assert explicit.exit_code != 0
+
+
+@pytest.mark.parametrize("as_json", [False, True])
+def test_cache_all_skips_a_stopped_docker_engine_but_an_explicit_provider_fails(
+    provider: RecordingRunner, as_json: bool
+) -> None:
+    stopped = CommandResult("", "Cannot connect to the Docker daemon", 1)
+    provider.responses = [stopped, CommandResult("[]", "", 0), CommandResult("1024\n", "", 0)]
+    result = cli(["cache", *(["--json"] if as_json else [])])
+    assert provider.calls[0] == ["docker", "info", "--format", "{{.ServerVersion}}"]
+    if as_json:
+        entries = {entry["name"]: entry for entry in json.loads(result.stdout)["providers"]}
+        assert entries["docker"]["skipped"] == "docker engine not running"
+        assert entries["uv"]["report"] == {"bytes": 1024}
+    else:
+        assert "[docker] skipped: docker engine not running" in result.output
+        assert [args[0] for args in provider.actions] == ["hf", "uv"]
+    provider.calls.clear()
+    provider.action_code = 1
+    cli(["cache", "docker"], exit_code=1)
+    assert provider.calls == [["docker", "system", "df"]]
 
 
 def test_cache_rejects_unknown_providers(provider: RecordingRunner) -> None:
