@@ -73,6 +73,11 @@ EMAIL_PATTERN = re.compile(
     r"(?:(?<=\\n)|(?<=\\r)|(?<=\\t)|(?<![A-Za-z0-9._%+\\-]))"
     r"([A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}))\b"
 )
+# SSH key comments default to user@hostname, which EMAIL_PATTERN misses without a dotted domain.
+SSH_KEY_COMMENT_PATTERN = re.compile(
+    r"(?:ssh-(?:ed25519|rsa|dss)|ecdsa-sha2-nistp\d+|sk-(?:ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com)"
+    r"[ \t]+AAAA[A-Za-z0-9+/]*=*[ \t]+([^\s\"'\\]+)"
+)
 PRIVACY_SKIP_PATHS = {
     "dot/uv.lock",
     "dot_config/mise/mise.lock",
@@ -397,7 +402,8 @@ def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
 
 def _is_allowed_email_domain(domain: str) -> bool:
     lowered = domain.lower().strip(".")
-    return lowered in ALLOWED_EMAIL_DOMAINS or lowered.endswith(ALLOWED_EMAIL_SUFFIXES)
+    # The leading dot also accepts bare reserved names such as `test` or `localhost`.
+    return lowered in ALLOWED_EMAIL_DOMAINS or f".{lowered}".endswith(ALLOWED_EMAIL_SUFFIXES)
 
 
 def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[str]:
@@ -508,6 +514,14 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
                 findings.append(
                     f"{relative}: unapproved email domain {domain!r} in {email!r}; "
                     "use fmind.dev, fmind.ai, or RFC 2606 domains (@example.com, @example.test)"
+                )
+        for match in SSH_KEY_COMMENT_PATTERN.finditer(text):
+            comment = match.group(1)
+            local, _, domain = comment.rpartition("@")
+            if not (local and _is_allowed_email_domain(domain)):
+                findings.append(
+                    f"{relative}: SSH key comment {comment!r} may name a machine or account; "
+                    "use an approved email such as git-signing@fmind.dev"
                 )
         if token_pattern is not None and (hit := token_pattern.search(text)) is not None:
             findings.append(

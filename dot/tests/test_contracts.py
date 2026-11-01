@@ -516,3 +516,25 @@ def test_privacy_findings_rejects_unapproved_emails_and_local_tokens(tmp_path: P
     )
     commit_findings = checker.privacy_findings(repo, home=home)
     assert any(f"unapproved author email {bad_work_email!r}" in item for item in commit_findings)
+
+
+def test_privacy_findings_rejects_ssh_key_comments_naming_machines(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    ed25519, rsa = "ssh-ed25519", "ssh-rsa"  # split so the repository's own scan skips these fixtures
+    (repo / "allowed_signers").write_text(
+        f'*@fmind.dev namespaces="git" {ed25519} AAAAC3Nz git-signing@fmind.dev\n'
+        f'*@fmind.dev namespaces="git" {ed25519} AAAAC3Nz fmind@studio-mac\n'
+        f"{rsa} AAAAB3Nz= laptop\n",
+        encoding="utf-8",
+    )
+    (repo / "fixture.py").write_text(f'KEY = "{ed25519} AAAA git-signing@test\\n"\n', encoding="utf-8")
+
+    findings = checker.privacy_findings(repo, home=home)
+
+    assert [item.split(" may ")[0] for item in findings] == [
+        "allowed_signers: SSH key comment 'fmind@studio-mac'",
+        "allowed_signers: SSH key comment 'laptop'",
+    ]
