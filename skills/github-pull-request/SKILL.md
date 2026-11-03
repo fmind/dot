@@ -39,11 +39,11 @@ Use [gh](../gh/SKILL.md) for account selection, bounded API calls, and request s
    gh api -X POST repos/<owner>/<repo>/pulls/<number>/comments/<id>/replies -F body=@<reply-file>
    ```
 
-1. **Merge only on request, with the repository's author**: a squash merge credits the PR opener's primary GitHub email, so a PR opened from a work account would publish a client address in a personal repository. Before merging, check that `git config user.email` is the address the repository expects (an `@fmind.dev` address for `fmind/*`); outside a checkout whose `includeIf` matches, it returns the work address, so stop on a mismatch. Pass that address and the verified head SHA explicitly, so a later push blocks the merge, then confirm the merge commit's author:
+1. **Merge only on request, with the repository's author**: a squash merge credits the PR opener's primary GitHub email, so a PR opened from a work account would publish a client address in a personal repository. Read the author from the target repository's own checkout, since outside a checkout whose `includeIf` matches `git config user.email` returns the work address, and stop unless it has the expected domain (`fmind.dev` for `fmind/*`). Pass that address and the verified head SHA explicitly, so a later push blocks the merge, then confirm the merge commit's author:
 
    ```bash
-   git config user.email  # must match the repository's expected author domain
-   gh pr merge <number> -R <owner>/<repo> --squash --match-head-commit <head-sha> --author-email "$(git config user.email)"
+   email=$(git -C <checkout> config user.email) && case "$email" in *@<expected-domain>) ;; *) echo "author $email is not @<expected-domain>" >&2; false ;; esac &&
+     gh pr merge <number> -R <owner>/<repo> --squash --match-head-commit <head-sha> --author-email "$email"
    git fetch && git log -1 --format='%an <%ae>' origin/<base>
    ```
 
