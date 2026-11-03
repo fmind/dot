@@ -20,6 +20,7 @@ Review the draft as its reader would. Fix what fails, or keep the exception when
 
 - **No invented facts (firm)**: does every fact about the client and the author come from the user or a cited source, with the rest labeled as an assumption, a proposal, or a placeholder?
 - **Sourced, consistent figures (firm)**: does every number in the summary, tables, and headings trace to a source or a labeled assumption, match everywhere it appears, and add up? Recompute with a script when there are more than a few, and show each estimate's method and range in an annex.
+- **Cold reader (for decisions and long documents)**: list the 5–10 questions the reader will ask, give only the document to a fresh subagent without our context, and fix every question it answers wrongly or finds ambiguous.
 - **Neutral and limited**: are options compared on the same criteria and conditions, opinions shared only as context absent, and assumptions, residual risks, and what would change the recommendation visible?
 - **Reused figures**: does each third-party image or redrawn figure carry a source line with a link and date, with captures only in private documents?
 - **Links**: do key claims link to sources, do the links resolve, can this reader open them, and do their URLs reveal nothing the reader should not see? Are missing internal links visible placeholders?

@@ -28,6 +28,7 @@ Test-only maintenance follows [pytest mechanics](references/pytest.md) directly 
 - **Preserve code written before tests**: Never delete or overwrite user work because it preceded the test; preserve it, add a red-capable test, and disclose the sequence.
 - **Disclose when test-first does not fit**: For a spike, generated code, or configuration-only change, say why and define another failing validation signal; do not call tests written afterward TDD.
 - **Prefer real collaborators over mocks**: Prefer real parsers, databases, filesystems, and HTTP handlers at lightweight boundaries over mocks of the unit under test; fake only paid, destructive, slow, or unreliable systems behind a narrow owned interface.
+- **Derive expectations without the code under test**: write expected values as hand-checked literals, never computed by the function or its helpers (a mirror assertion always passes). Skip change detectors that fail only on deliberate edits (a constant's value, message wording); test the behavior that depends on them. Run scripts and assert their effects instead of matching their source text. Build mocks with `create_autospec(..., spec_set=True)` and the full real payload shape.
 - **Keep routine suites sub-minute**: unit and subsystem tests avoid real sleeps, live network calls, and repeated heavy subprocess startup so `pre-push` and `mise run all` stay fast.
 
 ## References
@@ -38,6 +39,6 @@ Test-only maintenance follows [pytest mechanics](references/pytest.md) directly 
 
 ## Documentation
 
-- Adapted from [Superpowers test-driven-development](https://github.com/obra/superpowers/blob/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/test-driven-development/SKILL.md), [agent-skills test-driven-development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/test-driven-development/SKILL.md).
+- Adapted from [Superpowers test-driven-development](https://github.com/obra/superpowers/blob/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/test-driven-development/SKILL.md), [agent-skills test-driven-development](https://github.com/addyosmani/agent-skills/blob/d2478bf0c73a6357df39a3ed6aff16acaa218843/skills/test-driven-development/SKILL.md), [Superpowers writing-good-tests](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/test-driven-development/writing-good-tests.md).
 - Releases: [pytest changelog](https://docs.pytest.org/en/stable/changelog.html)
 - Companion skills: [implementation-plan](../../../implementation-plan/SKILL.md) (planned slices), [mise](../../../mise/SKILL.md) (task vocabulary).

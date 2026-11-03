@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-10-31"
+  updated: "2026-11-03"
 ---
 
 # Web Frontend
@@ -29,6 +29,8 @@ Build calm, spacious, Google-simple browser interfaces with native HTML, CSS, an
 
 ## Gotchas
 
+- **Write copy in the user's terms**: buttons name their action ("Save changes", not "Submit"), one verb carries through the flow (Publish → "Published"), labels use the user's vocabulary, not the system's, and errors state the fix without apologizing.
+- **Show numbers so they compare**: right-align figures with tabular numerals and fixed decimals per metric; color a change by good or bad, not up or down (rising latency is red), with zero change in gray; show a missing value as a dash and a real zero as `0`. Sample data is computed from its rows, and totals add up.
 - **Verify preview guidance against MDN**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
 - **Set the browser target first**: use the project's browserslist or support matrix, else Baseline Widely available; guard newer features from the guidance with `@supports` or progressive enhancement. Tailwind v4 needs Chrome 111, Safari 16.4, and Firefox 128; confirm the target allows them before adopting it.
 - **Keep the pin for cross-references**: retrieved guides cite `npx -y modern-web-guidance@latest retrieve ...`; run those with the pinned version instead. Bump both commands together to the latest stable release after qualifying it.
@@ -41,4 +43,5 @@ Upstream: `GoogleChrome/modern-web-guidance`; follow the shared [vendor-skill po
 
 - [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) · [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)
 - Releases: [guidance package metadata](https://registry.npmjs.org/modern-web-guidance) · [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss/releases)
+- Copy and number rules adapted from [anthropics/skills frontend-design](https://github.com/anthropics/skills/blob/ca45fc496a3436251f191354091d557da31c15b5/skills/frontend-design/SKILL.md) (Apache-2.0) and [taste-skill app-screens](https://github.com/Leonxlnx/taste-skill/blob/12af471f627f866411b4bd785b19646d3672784c/skills/taste-skill/references/app-screens.md) (MIT).
 - Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [chrome-devtools](../chrome-devtools/SKILL.md), [playwright](../playwright/SKILL.md), [research-brief](../implementation-plan/references/research-brief.md).

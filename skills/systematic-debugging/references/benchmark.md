@@ -17,6 +17,7 @@ Produce comparable measurements for a stated performance question: hyperfine ans
 1. **Confirm authority**: never load-test a remote service you do not own or a production system without explicit approval; agree a load bound and stop condition appropriate to the target's capacity.
 1. **Measure with the matching section below**: use at least 3 warmup runs and 10 measured runs for commands and at least 30 seconds for endpoints, and compare against a baseline measured the same way in the same session.
 1. **Quantify uncertainty**: compare repeated, equivalently controlled runs and report uncertainty in the difference; a run's standard deviation alone does not decide significance. Alternate baseline and candidate measurements when machine drift matters.
+1. **Keep or revert an optimization**: keep it only when the gain beats run-to-run variance with tests still green; revert a neutral or worse result, or a gain that turned a test red, and log reverted attempts in the report or PR so they are not retried.
 1. **Report**: the command lines, the exported table, the relative change, and the conditions. Keep the raw export (`bench.json`, `oha.json`, or Locust CSV) when the number will be tracked over time.
 
 ## Commands and HTTP endpoints

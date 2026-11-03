@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/systematic-debugging
   created: "2026-08-08"
-  updated: "2026-10-31"
+  updated: "2026-11-03"
 ---
 
 # Systematic Debugging
@@ -18,7 +18,7 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 1. **Preserve evidence**: capture the exact error, relevant stack trace, command, inputs, versions, environment differences, timing, and recent changes before touching anything. Keep large sanitized logs in local artifacts; read by incident time, request ID, or error context, retaining the first causal failure and any truncation limits.
 1. **Reproduce, reduce, localize**: find the shortest reliable reproduction, minimize it while keeping the same failure, and compare each boundary against the nearest known-good comparator.
-1. **Test one falsifiable hypothesis at a time**: state `X causes the failure because Y evidence predicts Z observation`, change one variable in a reversible fixture or add narrow instrumentation, and discard failed hypotheses instead of layering fixes.
+1. **Test one falsifiable hypothesis at a time**: list 3–5 ranked hypotheses before testing any, so the first plausible idea does not anchor the search; for each, state `X causes the failure because Y evidence predicts Z observation`, change one variable in a reversible fixture or add narrow instrumentation, and discard failed hypotheses instead of layering fixes.
 1. **Name the root cause**: Explain the triggering condition, the faulty assumption or invariant, the propagation path, and why existing controls missed it; never blame timing, the environment, or a third party until that path and the missing resilience are understood.
 1. **Fix within the requested scope**: when the task includes a fix, reuse that authorization, write a regression test for the broken behavior, implement the smallest root-cause correction, and verify the symptom plus affected checks. Broaden to the full gate when repository policy or the change's risk requires it.
 1. **Report**: Return symptom and impact, minimal reproduction, evidence and ruled-out hypotheses, root cause and propagation path, the authorized fix or recommended correction, regression proof, and residual uncertainty with the next probe.
@@ -27,7 +27,8 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 
 - **Diagnosis does not authorize fixes**: a request to diagnose authorizes investigation, not implementation; observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
 - **Stop stacking failed fixes**: after two failed fix attempts or hypotheses that expose different shared-state failures, stop stacking fixes and reassess the architecture, reproduction, or problem statement. Summarize what the evidence rules out, continue independent safe probes, and ask only when missing information affects scope, correctness, cost, or reversibility.
-- **Instrument every pipeline boundary once**: record presence, shape, identity, status, timestamps, and correlation ids, never secret values; remove the instrumentation unless it has durable value.
+- **Instrument every pipeline boundary once**: record presence, shape, identity, status, timestamps, and correlation ids, never secret values; prefix temporary output with one unique tag (such as `[DEBUG-a4f2]`) so a single search finds it, and remove the instrumentation unless it has durable value.
+- **Make flaky failures deterministic first**: loop the failing test until it fails often enough to study; replace sleeps with polling on the real condition, with a timeout and an error naming it. For order-dependent failures, pin the random order or seed and bisect the preceding tests; suspect machine load only after both.
 - **Reproduce dependency failures with the same resolver**: for package resolver, lockfile, wheel, or build-backend failures, distinguish direct constraints, transitive conflicts, platform markers, yanked releases, build-backend or wheel failures, authentication, network reachability, and stale locks before changing any constraint. Inspect the lock and installed source without executing it and apply the smallest constraint fix only when authorized; route upgrades to [upgrade-tools](../upgrade-tools/SKILL.md), registry facts to [research-brief](../implementation-plan/references/research-brief.md), and CVE or license triage to [code-security](../code-security/references/code-review/GUIDE.md).
 
 ## Task guides
@@ -41,10 +42,11 @@ Replace guess-and-check with an evidence loop that localizes where and why behav
 ## References
 
 - [Network troubleshooting](references/network.md): isolate DNS, connection, TLS, HTTP, proxy, and authentication failures with `doggo`, Python, and `xh` before changing configuration.
+- [Backend performance patterns](references/performance-patterns.md): read when a located slowdown is an N+1, a query plan, an exhausted connection pool, per-instance state, or a cache key.
 - [Python profiling](references/python-profiling.md): read for CPU, allocation growth, or blocked-I/O investigations, including Pyinstrument, Memray, py-spy, and Python 3.15 `profiling.sampling` captures; use `uv` to run the project Python.
 
 ## Documentation
 
 - Upstream: the `superpowers` plugin in `openai/plugins` ships a same-name `systematic-debugging`; preview it, never install it beside this skill ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
-- Adapted from [Superpowers systematic-debugging](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/skills/systematic-debugging/SKILL.md), [gstack investigate](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/investigate/SKILL.md), [diagnosing-bugs](https://github.com/mattpocock/skills/blob/84fdeffd12f2ee307994d1eb6feb48173b6e0502/skills/engineering/diagnosing-bugs/SKILL.md).
+- Adapted from [Superpowers systematic-debugging](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/skills/systematic-debugging/SKILL.md), [gstack investigate](https://github.com/garrytan/gstack/blob/960c3a8d6c4d14cb4c5e551a8847f8ec7c4267df/investigate/SKILL.md), [diagnosing-bugs](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/diagnosing-bugs/SKILL.md), [Superpowers condition-based-waiting](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/systematic-debugging/condition-based-waiting.md).
 - Companion skills: [repository-history](../repository-history/SKILL.md) (why the code exists).

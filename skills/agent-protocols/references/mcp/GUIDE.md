@@ -16,13 +16,13 @@ Use the official `mcp` Python SDK for typed tools, resources, prompts, and consu
    uv add "mcp[cli]"
    uv add --dev pytest
    ```
-1. **Define the surface** with `MCPServer` from `mcp.server`. Give each decorated function complete type hints and a useful docstring so its JSON Schema and purpose come from the implementation.
+1. **Define the surface** with `MCPServer` from `mcp.server`. Give each decorated function complete type hints and a useful docstring so its JSON Schema and purpose come from the implementation. Design for a model caller: prefix tool names with the service, set `ToolAnnotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) as hints that never replace authorization, paginate lists with a cursor and total, and make errors name the next step.
 1. **Choose the transport**: stdio for a local host-launched process; Streamable HTTP at `/mcp` for a service. Keep stdout protocol-only under stdio and send logs to stderr.
    ```bash
    uv run mcp run src/<package>/server.py:server
    uv run mcp run src/<package>/server.py:server --transport streamable-http
    ```
-1. **Test both boundaries**: use `Client(server)` for deterministic handler tests, then `Client(StdioServerParameters(...))` for one real subprocess protocol smoke. Adapt the [protocol test](templates/test_protocol.py) to assert every tool schema, representative outputs, and invalid input.
+1. **Test both boundaries**: use `Client(server)` for deterministic handler tests, then `Client(StdioServerParameters(...))` for one real subprocess protocol smoke. Adapt the [protocol test](templates/test_protocol.py) to assert every tool schema, representative outputs, and invalid input. Before release, check usability with about 10 read-only questions with stable, verifiable answers that an agent must chain several tools to answer ([agent-evaluation](../../../agent-evaluation/SKILL.md)).
    ```bash
    uv run pytest -q
    ```
@@ -45,4 +45,5 @@ Upstream: `anthropics/skills`, an official Anthropic bundle with MCP builder gui
 
 - [MCP specification](https://modelcontextprotocol.io/specification/latest) · [Python SDK](https://github.com/modelcontextprotocol/python-sdk) · [Python SDK docs](https://py.sdk.modelcontextprotocol.io/)
 - Releases: [Python SDK](https://github.com/modelcontextprotocol/python-sdk/releases) · [specification changelog](https://modelcontextprotocol.io/specification/latest/changelog)
+- Tool-design and evaluation rules adapted from [anthropics/skills mcp-builder](https://github.com/anthropics/skills/blob/ca45fc496a3436251f191354091d557da31c15b5/skills/mcp-builder/SKILL.md) (Apache-2.0); its Python reference still uses the v1 `FastMCP` API.
 - Companion skills: [mcp-setup](../../../mcp-setup/SKILL.md) (host registration), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [cloud-run](../../../cloud-run/SKILL.md).
