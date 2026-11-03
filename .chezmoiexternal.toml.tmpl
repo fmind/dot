@@ -3,12 +3,12 @@
 # (Fish, Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 # DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/b391103858b4d4c01299143b7061c022a6c277e2" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/fe39035fcafbd8da4773f41e1d12ba20d3010814" }}
 
 [".agents/DESIGN.md"]
     type = "file"
     url = "{{ $base }}/DESIGN.md"
-    checksum.sha256 = "120ff8931ff237caa9469d1fb7337e0eb364a0d17a9a9f075be6b513408d730a"
+    checksum.sha256 = "c499184424ee0623b13159a41ddf6bef99d2c13846cda1c62823abcc64ced410"
 
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
