@@ -49,7 +49,7 @@ Keep a small discovery catalog and load procedures only for the task at hand. Th
 - **Check links in reachable Markdown**: validate all reachable instructional Markdown for missing or unsafe links. Templates may refer to generated destinations, but must still reject unsafe local URI schemes. Resolve links relative to the containing document.
 - **Follow portability for packaging changes**: follow [portability](portability.md) when promoting a guide to a package or publishing one package standalone.
 - **Consolidate without losing procedures**: preserve useful procedures during consolidation, including defaults, non-obvious failures, and authorization boundaries.
-- **Preserve corrections with their reason and scope**: place each in its [instruction layer](../../repository-docs/references/agents.md), with detailed evidence in references or existing memory. Keep a prerequisite or non-obvious failure warning before the action it constrains; a reference is sufficient only when the agent can recognize its loading condition. Update memory only when the user explicitly requests it.
+- **Preserve corrections with their reason and scope**: route each to one owner per [lesson-learned](../../lesson-learned/SKILL.md), with detailed evidence in references or the decision log. Keep a prerequisite or non-obvious failure warning before the action it constrains; a reference is sufficient only when the agent can recognize its loading condition. Update memory only when the user explicitly requests it.
 
 ## Authoring and verification
 

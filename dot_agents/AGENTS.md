@@ -77,4 +77,4 @@ Customer, employer, and existing projects keep their own stack and design.
 - **Make projects easy for agents**: keep a short AGENTS.md, quiet `mise` tasks, fast focused tests, and errors naming the fix (`agent-project` skill).
 - **Prefer CLIs and isolate upgrades**: prefer CLIs over MCP servers, manage them with `mise`, and upgrade each repository on its own, never because another changed (`upgrade-tools` skill).
 - **Edit configuration in its source repository**: my Linux and macOS configuration lives in `~/.local/share/chezmoi` (`fmind/dot`).
-- **Learn from each session**: when I correct you, repeat an instruction, or work reveals a reusable workflow or stale skill or rule, propose the fitting check, script, skill update, or AGENTS.md rule under Suggestions (`skillify` skill).
+- **Learn from each session**: after an implementation, approved decisions, a correction, or a repeated instruction, propose a suggestion prefixed `(Lesson Learned)` when something should change durably (`lesson-learned` skill); omit it otherwise.

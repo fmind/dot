@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-10-31"
+  updated: "2026-11-03"
 ---
 
 # Skillify
 
-Capture what this session learned as a skill the next session can run without the conversation. Use the host's native authoring tools for package mechanics; this skill owns workflow extraction, personal conventions, and the [catalog package rules](references/package-rules.md).
+Capture what this session learned as a skill the next session can run without the conversation. Use the host's native authoring tools for package mechanics; this skill owns workflow extraction, personal conventions, and the [catalog package rules](references/package-rules.md). [lesson-learned](../lesson-learned/SKILL.md) decides whether a lesson belongs in a skill at all.
 
 ## Workflow
 
@@ -35,7 +35,6 @@ Keep durable preferences in the global persona and repository invariants in proj
 
 - **Descriptions route, bodies instruct**: the description decides when the skill loads; the body decides what happens. Do not summarize the workflow in the description.
 - **Keep dates current**: set `created` and `updated` to today; bump `updated` on every later edit.
-- **Keep agy `/learn` lessons in the dot source**: its global scope writes `~/.gemini/GEMINI.md` (the chezmoi-deployed persona, which the next `chezmoi apply --force` overwrites), rule files under `~/.gemini/config/rules/`, or new skills under `~/.gemini/config/skills/` (`~/.agents/skills`), all outside the dot source. Approve its `learning_proposal.md` only for project scope; apply global lessons to the dot source with this workflow.
 - **Follow vendor policy for third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
 - **Promote or publish per portability**: promoting a guide to a package or publishing one standalone follows [portability](references/portability.md).
 
