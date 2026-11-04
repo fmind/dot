@@ -8,7 +8,7 @@ min_version = "2026.10.18"
 # Signature and provenance verification keep mise defaults here, so CI (which has no
 # home config) verifies every repository tool; the workstation config opts out globally.
 lockfile = true
-lockfile_platforms = ["linux-x64", "macos-arm64"]
+lockfile_platforms = ["linux-arm64", "linux-x64", "macos-arm64"]
 
 [settings.task]
 run_auto_install = false

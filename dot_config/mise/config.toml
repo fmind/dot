@@ -31,7 +31,7 @@ github_attestations = false
 locked = true
 locked_scopes = ["global"]
 lockfile = true
-lockfile_platforms = ["linux-x64", "macos-arm64"]
+lockfile_platforms = ["linux-arm64", "linux-x64", "macos-arm64"]
 # No release-age cooldown: `latest` resolves the newest release. Keep the explicit 0: unset, mise
 # 2026.10.24 still hid a same-day pipx release and fell back to 0.x for beta-only npm:cf.
 minimum_release_age = "0"
@@ -171,6 +171,7 @@ zoxide = "latest" # Smarter cd command that learns directories
 version = "latest" # Official CLI client for Agent2Agent (A2A) agents
 
 [tools."github:a2aproject/a2a-cli".platforms]
+linux-arm64 = { asset_pattern = "*linux_arm64*" }
 linux-x64 = { asset_pattern = "*linux_amd64*" }
 macos-arm64 = { asset_pattern = "*darwin_arm64*" }
 
@@ -179,5 +180,6 @@ macos-arm64 = { asset_pattern = "*darwin_arm64*" }
 version = "latest" # Google Workspace CLI (gws)
 
 [tools."github:googleworkspace/cli".platforms]
+linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl*" }
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
