@@ -2546,10 +2546,10 @@ url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742637"
 
 [[tools."pipx:brain-framework"]]
-version = "21.0.0"
+version = "21.0.1"
 backend = "pipx:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pipx-brain-framework/21.0.0", digest = "sha256:80f6b9ab9106937b556f35a3c2a059ffc7bfce8d1979cd2d8a9a476646545d0e" }
+uv = { path = "locks/pipx-brain-framework/21.0.1", digest = "sha256:6df5719df7e663f000456aae5ef7a43098f5e6f7c355e3ff41d295c587cfcf2f" }
 
 [[tools."pipx:copier"]]
 version = "9.19.1"
