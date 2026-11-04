@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -37,10 +38,25 @@ def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
     )
 
 
-@pytest.mark.parametrize("bump", [False, True])
+@pytest.mark.parametrize(
+    ("bump", "tools", "expected"),
+    [
+        (False, (), []),
+        (True, (), ["--bump"]),
+        # An unbumped lock would resolve "latest" to the installed version.
+        (False, ("pipx:example",), ["--bump", "pipx:example"]),
+        (False, ("pipx:example", "native"), ["--bump", "pipx:example", "native"]),
+    ],
+)
 @pytest.mark.parametrize("old_damage", ["none", "missing", "digest"])
 def test_refresh_uses_portable_source_and_isolated_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, bump: bool, old_damage: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    bump: bool,
+    tools: tuple[str, ...],
+    expected: list[str],
+    old_damage: str,
 ) -> None:
     root = tmp_path / "repository"
     source = root / "dot_config/mise"
@@ -104,9 +120,9 @@ def test_refresh_uses_portable_source_and_isolated_config(
         return subprocess.CompletedProcess(args, 0)
 
     monkeypatch.setattr(subprocess, "run", run)
-    mise_refresh.refresh(root, bump=bump)
+    mise_refresh.refresh(root, bump=bump, tools=tools)
 
-    assert commands[-1] == ["mise", "lock", "--global", "--yes", *(["--bump"] if bump else [])]
+    assert commands[-1] == ["mise", "lock", "--global", "--yes", *expected]
     assert graph.read_bytes() == b"refreshed graph\n"
     assert live_config.read_text() == '"pipx:example"="path:/private/runtime"\n'
     assert all(not path.exists() for path in staging)
@@ -162,3 +178,85 @@ def test_validate_reports_every_unverifiable_platform_artifact(tmp_path: Path) -
     lock.write_text(lock.read_text().replace('checksum = "sha256:macos"\n', ""))
     with pytest.raises(ValueError, match="native macos-arm64: checksum missing"):
         mise_refresh.validate(tmp_path)
+
+
+def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "dot_config/mise"
+    write_bundle(source)
+    untouched = (source / "mise.lock").read_text().split("[[tools.native]]")[1]
+
+    def run(
+        args: list[str],
+        *,
+        env: dict[str, str],
+        check: bool,
+        timeout: int,
+        cwd: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check
+        assert timeout > 0
+        assert cwd is not None
+        assert args[-2:] == ["--bump", "pipx:example"]
+        # Simulate mise bumping one tool: its entry and graph folder move to 2.0, the rest stays.
+        configuration = Path(env["MISE_CONFIG_DIR"])
+        old = configuration / "locks/example/1.0"
+        new = old.parent / "2.0"
+        old.rename(new)
+        content = (new / "uv.lock").read_bytes()
+        lock = configuration / "mise.lock"
+        lock.write_text(lock.read_text().replace('"1.0"\nuv', '"2.0"\nuv', 1).replace("example/1.0", "example/2.0"))
+        assert hashlib.sha256(content).hexdigest() in lock.read_text()
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    mise_refresh.refresh(tmp_path, tools=["pipx:example"])
+
+    lock = (source / "mise.lock").read_text()
+    assert 'version = "2.0"\nuv = {path = "locks/example/2.0"' in lock
+    assert lock.split("[[tools.native]]")[1] == untouched
+    assert not (source / "locks/example/1.0").exists()
+    bundle(source / "mise.lock")
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (["--bump", "--tool", "native"], "not allowed with argument"),
+        (["--tool", "pipx:missing"], "undeclared tools pipx:missing"),
+        (["--tool", "pipx:example@2.0"], "undeclared tools pipx:example@2.0"),
+    ],
+)
+def test_main_rejects_invalid_selections_before_resolving(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    arguments: list[str],
+    message: str,
+) -> None:
+    source = tmp_path / "dot_config/mise"
+    write_bundle(source)
+    before = bundle(source / "mise.lock")
+
+    def run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("invalid input must not reach mise")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(mise_refresh, "ROOT", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["mise_refresh", *arguments])
+    with pytest.raises(SystemExit) as exit_info:
+        mise_refresh.main()
+    assert exit_info.value.code == 2
+    assert message in capsys.readouterr().err
+    assert bundle(source / "mise.lock") == before
+
+
+@pytest.mark.parametrize(
+    ("bump", "tools", "message"),
+    [(True, ["native"], "either bump"), (False, ["pipx:missing"], "declare the tool")],
+)
+def test_refresh_rejects_invalid_selections(tmp_path: Path, *, bump: bool, tools: list[str], message: str) -> None:
+    write_bundle(tmp_path / "dot_config/mise")
+    with pytest.raises(ValueError, match=message):
+        mise_refresh.refresh(tmp_path, bump=bump, tools=tools)

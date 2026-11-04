@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+from collections.abc import Sequence
 from pathlib import Path
 
 from dot_tasks import ROOT
@@ -49,8 +50,29 @@ def validate(configuration: Path, config_name: str = "config.toml") -> None:
     bundle(configuration / "mise.lock")
 
 
-def refresh(root: Path, *, bump: bool = False) -> None:
-    """Resolve the managed configuration in isolation and publish its complete bundle."""
+def undeclared(root: Path, tools: Sequence[str]) -> str:
+    """Describe the requested tools that the managed configuration does not declare, if any."""
+    declared = tomllib.loads((root / "dot_config/mise/config.toml").read_text(encoding="utf-8"))["tools"]
+    if unknown := [tool for tool in tools if tool not in declared]:
+        # An undeclared name would be locked without validation; mise lock NAME@VERSION would
+        # also rewrite the request, which this refresh never captures.
+        return (
+            f"undeclared tools {', '.join(unknown)}: pass [tools] keys from dot_config/mise/config.toml "
+            "without @VERSION, or declare the tool there first"
+        )
+    return ""
+
+
+def refresh(root: Path, *, bump: bool = False, tools: Sequence[str] = ()) -> None:
+    """Resolve the managed configuration in isolation and publish its complete bundle.
+
+    ``bump`` re-resolves every tool; ``tools`` re-resolves only those declared tools, so every
+    other entry and dependency graph stays byte-identical.
+    """
+    if bump and tools:
+        raise ValueError("Choose either bump (every tool) or tools (only the named ones)")
+    if problem := undeclared(root, tools):
+        raise ValueError(problem)
     source = root / "dot_config/mise"
     environment = dict(os.environ)
     # Keep native graph resolution off RAM-backed /tmp on constrained Linux hosts.
@@ -76,7 +98,8 @@ def refresh(root: Path, *, bump: bool = False) -> None:
             # must still add newly declared tools, which locked mode refuses.
             MISE_LOCKED="0",
         )
-        command = ["mise", "lock", "--global", "--yes", *(["--bump"] if bump else [])]
+        # An unbumped lock resolves "latest" to the installed version, so named tools always bump.
+        command = ["mise", "lock", "--global", "--yes", *(["--bump"] if bump or tools else []), *tools]
         subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
             command, cwd=workspace, env=environment, check=True, timeout=1800
         )
@@ -86,13 +109,31 @@ def refresh(root: Path, *, bump: bool = False) -> None:
 
 def main() -> int:
     """Refresh or upgrade the source-owned workstation tool baseline."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=(
+            "Right after an upstream release, mise can still serve the previous latest version from "
+            "its cache: run `mise cache clear` (or `mise cache clear TOOL`), check `mise latest TOOL`, "
+            "then retry; set UV_NO_CACHE=1 when a fresh PyPI release fails to resolve."
+        ),
+    )
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument(
         "--bump", action="store_true", help="resolve latest versions instead of retaining locked versions"
+    )
+    selection.add_argument(
+        "--tool",
+        action="extend",
+        nargs="+",
+        default=[],
+        metavar="TOOL",
+        help="resolve the latest version of only these [tools] keys (repeatable); keep every other entry",
     )
     arguments = parser.parse_args()
     try:
-        refresh(ROOT, bump=arguments.bump)
+        if problem := undeclared(ROOT, arguments.tool):
+            parser.error(problem)  # Invalid input exits 2 before anything is resolved.
+        refresh(ROOT, bump=arguments.bump, tools=arguments.tool)
     except (OSError, ValueError, KeyError, TypeError, IndexError, subprocess.SubprocessError) as error:
         sys.stderr.write(f"Cannot refresh mise lockfiles: {error}\n")
         return 1

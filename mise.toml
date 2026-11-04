@@ -323,6 +323,15 @@ run = [
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
 ]
 
+[tasks."lock:tool"]
+description = "Lock the latest release of only the named global tools; keep every other entry"
+usage = 'arg "<tools>..." help="[tools] keys from dot_config/mise/config.toml, such as pipx:brain-framework"'
+# Right after an upstream release, `mise cache clear` first if `mise latest TOOL` is stale.
+run = '''
+eval "set -- $usage_tools"
+uv run --frozen --directory dot python -m dot_tasks.mise_refresh --tool "$@"
+'''
+
 [tasks.release]
 alias = "mr"
 description = "Prepare, tag, and push the next release; CD publishes it"
