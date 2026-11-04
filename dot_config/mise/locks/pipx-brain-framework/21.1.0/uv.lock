@@ -22,7 +22,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "21.0.1"
+version = "21.1.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -31,9 +31,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/31/48/9a3db2c0dfef81687d553c5cda9b16f6d3eff5ae34cb5d1660f7c263165f/brain_framework-21.0.1.tar.gz", hash = "sha256:88298dca386c641966fb0028c82ef3587d46cc1505f8534195da382d968be454", size = 323618, upload-time = "2026-11-04T09:22:17.989Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/34/b29d1c092d2deb7824872ba3e02da1e831cb256c77ae8ad603318a4b1f38/brain_framework-21.1.0.tar.gz", hash = "sha256:fdf7df2bba43dc0287a99e9d4037e53282f424b903a5b789eed3a001cfa77545", size = 323849, upload-time = "2026-11-04T18:01:04.308Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/a0/d4a6b518f1281eca92c4590baf2658132b15e6c11bed6f4ad7ed61728528/brain_framework-21.0.1-py3-none-any.whl", hash = "sha256:debdb804abe5d0ae7ff5d1b303e1a083a2d504d693cf0a129214a7fd2574e5c1", size = 350095, upload-time = "2026-11-04T09:22:16.119Z" },
+    { url = "https://files.pythonhosted.org/packages/57/9b/65528495684f48856ff59bb628501374d3fe56c0a1f9db3ce8b63e319b10/brain_framework-21.1.0-py3-none-any.whl", hash = "sha256:4449dd0898b70190a1aa6aa13c9d274fddc6b4adc2d6c9acab335869708f88c7", size = 350349, upload-time = "2026-11-04T18:01:02.408Z" },
 ]
 
 [[package]]
@@ -75,7 +75,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==21.0.1" }]
+requires-dist = [{ name = "brain-framework", specifier = "==21.1.0" }]
 
 [[package]]
 name = "pydantic"
@@ -247,12 +247,12 @@ wheels = [
 
 [[package]]
 name = "typing-inspection"
-version = "0.4.4"
+version = "0.4.5"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a3/26/b09b8010994eccc3c09092e6b34058f36a460eea2d4c3e8b910c695975a0/typing_inspection-0.4.4.tar.gz", hash = "sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47", size = 76928, upload-time = "2026-08-12T12:37:25.997Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/50/0195198eb1d75bab716bb0a813abea4cc394bfa17a92a189f021a34859af/typing_inspection-0.4.5.tar.gz", hash = "sha256:7f16c411e7930dc79596d42ab44672a3fe5f60eb34b781a1647e7872363120c7", size = 81194, upload-time = "2026-11-04T14:13:23.774Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/81/4add07e5172b7ac40d8ed5ff580409a7801a4fe26d529bdd915401dabfbe/typing_inspection-0.4.4-py3-none-any.whl", hash = "sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147", size = 14750, upload-time = "2026-08-12T12:37:24.648Z" },
+    { url = "https://files.pythonhosted.org/packages/de/0c/ea2544850a7c135e15033a5c7a8e7211136184b7ae63e2239d557c2b3019/typing_inspection-0.4.5-py3-none-any.whl", hash = "sha256:bc210535442b39e1bf2805e0c7a17dfd6a4ace760c84c7f7d16245d23a6b1c39", size = 14874, upload-time = "2026-11-04T14:13:22.616Z" },
 ]
