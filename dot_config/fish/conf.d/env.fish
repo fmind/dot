@@ -34,6 +34,8 @@ end
 # a diagram export never downloads a second browser into ~/.cache/puppeteer.
 if command -q google-chrome
     set -gx PUPPETEER_EXECUTABLE_PATH (command -v google-chrome)
+else if command -q chromium # Debian arm64 has no Google Chrome build
+    set -gx PUPPETEER_EXECUTABLE_PATH (command -v chromium)
 else if test -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     set -gx PUPPETEER_EXECUTABLE_PATH "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 end
