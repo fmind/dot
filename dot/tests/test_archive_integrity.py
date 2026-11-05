@@ -272,6 +272,10 @@ def test_disappearing_database_measurement_never_becomes_zero(tmp_path: Path, mo
     with closing(sqlite3.connect(source)) as connection:
         connection.execute("DELETE FROM assistant_usage_events")
         connection.commit()
+    # The delete keeps the page count, and kernels with coarse file timestamps (4 ms on HZ=250) can leave the
+    # mtime untouched this soon after the sync; bump it as _write does so the size:mtime signature must differ.
+    stamp = source.stat().st_mtime_ns + 1_000_000_000
+    os.utime(source, ns=(stamp, stamp))
 
     assert sync_sessions(state, agent="copilot").retained == 1
     assert bundle.read_bytes() == before
