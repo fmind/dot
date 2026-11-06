@@ -239,7 +239,7 @@ def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
         raise DotError("failed to parse agent hook input: JSON is nested too deeply") from None
     if not isinstance(decoded, dict):
         raise DotError("failed to parse agent hook input: expected a JSON object")
-    for field in ("stop_hook_active", "stopHookActive", "fullyIdle"):
+    for field in ("stop_hook_active", "fullyIdle"):
         if field in decoded and not isinstance(decoded[field], bool):
             raise DotError(f"failed to parse agent hook input: {field} must be a boolean")
     return decoded
@@ -268,20 +268,20 @@ def send_notification(state: State, notification: Notification, *, sound: bool =
 def notification_workspace(stream: IO[str] | None, agent: str, event: str = "stop") -> str | None:
     """Return the payload workspace, or None when the event must stay quiet.
 
-    Native idle notifications mean attention is due; Stop alone is only a proposal
-    to finish. Keep legacy Stop invocations quiet when work can still continue.
+    Native idle notifications mean attention is due. agy's Stop fires per loop, so
+    stay quiet until it is fully idle.
     """
     payload = read_hook_payload(stream)
     if payload is None:
         return None
     if event in {"stop", "ready"}:
-        if payload.get("stop_hook_active") is True or payload.get("stopHookActive") is True:
+        if payload.get("stop_hook_active") is True:
             return None
-        if any(payload.get(key) for key in ("agent_id", "agentId", "subagentId", "subagentType")):
+        if payload.get("agent_id"):
             return None
         # Claude and agy report only in-flight work. Malformed/unknown values must
         # not be interpreted as an empty list and announce a false handoff.
-        for field in ("background_tasks", "backgroundTasks", "session_crons", "sessionCrons"):
+        for field in ("background_tasks", "session_crons"):
             if field in payload and payload[field] != []:
                 return None
         if agent == "agy" and payload.get("fullyIdle") is not True:
@@ -290,7 +290,7 @@ def notification_workspace(stream: IO[str] | None, agent: str, event: str = "sto
     if agent == "agy" and agy_print_mode():
         return None
     if agent == "claude":
-        kind = payload.get("notification_type", payload.get("notificationType"))
+        kind = payload.get("notification_type")
         if event == "ready" and kind != "idle_prompt":
             return None
         if event == "needs-input" and kind not in {
@@ -300,8 +300,7 @@ def notification_workspace(stream: IO[str] | None, agent: str, event: str = "sto
             "agent_needs_input",
         }:
             return None
-    native_event = payload.get("hook_event_name", payload.get("hookEventName", ""))
-    if native_event in {"SubagentStop", "subagentStop", "subagent_stop", "SubagentEnd"}:
+    if payload.get("hook_event_name") == "SubagentStop":
         return None
     cwd = payload.get("cwd")
     if not isinstance(cwd, str) or not cwd:

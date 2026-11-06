@@ -14,7 +14,7 @@ mise ls --all-sources
 mise prune --dry-run
 ```
 
-Pruning retains tools referenced by tracked configs; external virtualenv links and running processes need a separate check. `dot prune mise` clears mise caches and is not installed-version pruning. On copy-on-write filesystems, summed directory footprints can count shared blocks more than once.
+Pruning retains tools referenced by tracked configs; external virtualenv links and running processes need a separate check. `dot prune mise` prunes stale mise cache files (`--aggressive` clears them) and is not installed-version pruning. On copy-on-write filesystems, summed directory footprints can count shared blocks more than once.
 
 ## Python (`pyproject.toml`, `uv.lock`)
 

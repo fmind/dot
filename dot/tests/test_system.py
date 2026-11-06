@@ -19,12 +19,12 @@ from typer.testing import CliRunner
 
 from fmind_dot import reporting, system
 from fmind_dot.cli import app
-from fmind_dot.config import Config, DoctorConfig, SecretConfig, ToolConfig
+from fmind_dot.config import Config, DoctorConfig, SecretConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult
 from fmind_dot.state import State
-from fmind_dot.system import run_doctor
-from tests.fakes import ScriptedRunner, doctor_sections, make_state
+from fmind_dot.system import COMPLETION_SOURCES, MANAGED_COMPLETIONS, CompletionSource, run_doctor
+from tests.fakes import ScriptedRunner, TerminalIO, doctor_sections, make_state
 
 
 @pytest.fixture(autouse=True)
@@ -210,13 +210,29 @@ def test_macos_headroom_counts_speculative_pages(monkeypatch: pytest.MonkeyPatch
 def select_completions(monkeypatch: pytest.MonkeyPatch, *tools: str) -> None:
     """Narrow generation to these tools, keeping each one's default source."""
     monkeypatch.setattr(
-        system, "COMPLETION_SOURCES", {tool: system.COMPLETION_SOURCES.get(tool, ToolConfig()) for tool in tools}
+        system, "COMPLETION_SOURCES", {tool: system.COMPLETION_SOURCES.get(tool, CompletionSource()) for tool in tools}
     )
+
+
+def test_retired_tools_have_no_completion_sources() -> None:
+    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "marimo", "pyrit", "zizmor"}
+    assert not retired.intersection(COMPLETION_SOURCES)
+
+
+def test_cloud_connectors_are_included_in_default_completions() -> None:
+    assert {"astro", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
+    managed = Path(__file__).resolve().parents[2] / "dot_config/fish/completions"
+    assert {path.name for path in managed.glob("*.fish")} == MANAGED_COMPLETIONS
+
+
+@pytest.mark.parametrize("source", COMPLETION_SOURCES.values())
+def test_completion_sources_choose_one_kind(source: CompletionSource) -> None:
+    assert not (source.package and (source.binary or source.args))
 
 
 def test_completion_uses_only_the_configured_generator(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config()
-    monkeypatch.setitem(system.COMPLETION_SOURCES, "custom", ToolConfig(args=("completions", "fish")))
+    monkeypatch.setitem(system.COMPLETION_SOURCES, "custom", CompletionSource(args=("completions", "fish")))
 
     def empty_then_fallback(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:
         del cwd, input_text, check
@@ -343,7 +359,7 @@ def test_completion_reports_shell_integration_failure(monkeypatch: pytest.Monkey
 
 def test_completion_generation_reports_missing_generators_and_empty_output(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Config()
-    monkeypatch.setitem(system.COMPLETION_SOURCES, "custom", ToolConfig(binary="helper", args=("generate",)))
+    monkeypatch.setitem(system.COMPLETION_SOURCES, "custom", CompletionSource(binary="helper", args=("generate",)))
     with pytest.raises(FileNotFoundError, match="missing"):
         system._generate_completion(make_state(ScriptedRunner(), config), "missing")  # noqa: SLF001
     with pytest.raises(DotError, match="generator for custom is not installed"):
@@ -861,7 +877,7 @@ def test_bundled_completion_resolves_the_selected_mise_package(tmp_path: Path, m
     scripts.mkdir(parents=True)
     (scripts / "tool.fish").write_text("complete -c tool -l example\n")
     config = Config()
-    monkeypatch.setitem(system.COMPLETION_SOURCES, "tool", ToolConfig(package="github:owner/tool"))
+    monkeypatch.setitem(system.COMPLETION_SOURCES, "tool", CompletionSource(package="github:owner/tool"))
     runner = ScriptedRunner(
         {"tool", "mise"},
         run=lambda _args, _cwd, _input, _check: CommandResult(str(package), "", 0),
@@ -1082,11 +1098,7 @@ def test_report_lines_wrap_without_splitting_paths(monkeypatch: pytest.MonkeyPat
 
 
 def test_json_is_compact_for_pipes_and_indented_for_terminals() -> None:
-    class Terminal(StringIO):
-        def isatty(self) -> bool:
-            return True
-
-    piped, terminal = StringIO(), Terminal()
+    piped, terminal = StringIO(), TerminalIO()
     reporting.write_json(piped, {"schema": "x/v1", "items": [1]})
     reporting.write_json(terminal, {"schema": "x/v1", "items": [1]})
 

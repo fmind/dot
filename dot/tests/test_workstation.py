@@ -18,6 +18,7 @@ from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 from fmind_dot.workstation import CACHE_TOOLS, run_prune
+from tests.fakes import TerminalIO
 
 
 def test_setup_without_arguments_shows_help() -> None:
@@ -1046,7 +1047,7 @@ def test_prune_default_runs_unattended_and_only_drops_stale_entries(provider: Re
 
     assert provider.actions == [
         ["hf", "cache", "prune", "--yes"],
-        ["mise", "cache", "clear"],
+        ["mise", "cache", "prune"],
         ["npm", "cache", "verify"],
         ["trivy", "clean", "--scan-cache"],
         ["uv", "cache", "prune"],
@@ -1076,22 +1077,18 @@ def test_prune_aggressive_asks_first_then_empties_whole_caches(provider: Recordi
     ]
 
 
-class _TerminalInput(io.StringIO):
-    def isatty(self) -> bool:
-        return True
-
-
 def test_prune_aggressive_asks_only_about_caches_it_empties(provider: RecordingRunner) -> None:
     prompts = io.StringIO()
-    state = State(stdin=_TerminalInput("y\n"), stdout=io.StringIO(), stderr=prompts)
+    state = State(stdin=TerminalIO("y\n"), stdout=io.StringIO(), stderr=prompts)
     state.__dict__["_config"] = Config()
-    run_prune(state, ["hf", "uv"], aggressive=True)
-    assert "Empty the whole caches for uv (" in prompts.getvalue()
+    run_prune(state, ["hf", "mise", "uv"], aggressive=True)
+    assert "Empty the whole caches for mise, uv (" in prompts.getvalue()
 
     # hf has no aggressive step, so its default cleanup runs without a prompt or terminal.
     cli(["prune", "hf", "--aggressive"])
     assert provider.actions == [
         ["hf", "cache", "prune", "--yes"],
+        ["mise", "cache", "clear"],
         ["uv", "cache", "clean"],
         ["hf", "cache", "prune", "--yes"],
     ]
@@ -1271,7 +1268,7 @@ def test_mise_prune_drops_broken_and_temporary_tracked_configs(
     assert (tracked / "broken").is_symlink()
 
     cli(["prune", "mise"])
-    assert provider.actions == [["mise", "cache", "clear"]]
+    assert provider.actions == [["mise", "cache", "prune"]]
     assert (tracked / "kept").is_symlink()
     assert (tracked / "note.txt").is_file()
     assert not (tracked / "scratch").is_symlink()

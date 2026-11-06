@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -16,68 +15,6 @@ class StrictModel(BaseModel):
     """Reject misspelled keys and implicit scalar coercion at the YAML boundary."""
 
     model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
-
-
-@dataclass(frozen=True)
-class ToolConfig:
-    """One Fish completion source: a native generator command or a mise package's bundled script."""
-
-    binary: str = ""
-    args: tuple[str, ...] = ()
-    package: str = ""
-
-
-# Every entry is generated; unlisted fields fall back to `<tool> completion fish`.
-COMPLETION_SOURCES: dict[str, ToolConfig] = {
-    "a2a": ToolConfig(),
-    "ast-grep": ToolConfig(args=("completions", "fish")),
-    "astro": ToolConfig(),
-    "atuin": ToolConfig(args=("gen-completions", "--shell", "fish")),
-    "bat": ToolConfig(args=("--completion", "fish")),
-    "betterleaks": ToolConfig(),
-    "bf": ToolConfig(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
-    "cf": ToolConfig(args=("complete", "fish")),
-    "chezmoi": ToolConfig(),
-    "colab": ToolConfig(binary="env", args=("_COLAB_COMPLETE=source_fish", "colab")),
-    "copilot": ToolConfig(),
-    "databricks": ToolConfig(),
-    "delta": ToolConfig(args=("--generate-completion", "fish")),
-    "doggo": ToolConfig(args=("completions", "fish")),
-    # Rendered in-process from Click; the installed dot may be older than this checkout.
-    "dot": ToolConfig(),
-    "dprint": ToolConfig(args=("completions", "fish")),
-    "fastfetch": ToolConfig(package="github:fastfetch-cli/fastfetch"),
-    "fd": ToolConfig(args=("--gen-completions", "fish")),
-    "gh": ToolConfig(args=("completion", "-s", "fish")),
-    "git-cliff": ToolConfig(package="git-cliff"),
-    "git-lfs": ToolConfig(binary="git", args=("lfs", "completion", "fish")),
-    "hf": ToolConfig(binary="env", args=("_HF_COMPLETE=fish_source", "hf")),
-    "hyperfine": ToolConfig(package="hyperfine"),
-    "jactionlint": ToolConfig(args=("--completion=fish",)),
-    "lazygit": ToolConfig(args=("completion", "fish")),
-    "lefthook": ToolConfig(),
-    "lsd": ToolConfig(package="lsd"),
-    "lychee": ToolConfig(args=("--generate", "complete-fish")),
-    "mise": ToolConfig(),
-    "pup": ToolConfig(args=("completions", "fish")),
-    "rg": ToolConfig(args=("--generate", "complete-fish")),
-    "ruff": ToolConfig(args=("generate-shell-completion", "fish")),
-    "starship": ToolConfig(args=("completions", "fish")),
-    "tree-sitter": ToolConfig(args=("complete", "--shell", "fish")),
-    "trivy": ToolConfig(),
-    "ty": ToolConfig(args=("generate-shell-completion", "fish")),
-    "usage": ToolConfig(args=("--completions", "fish")),
-    "uv": ToolConfig(args=("generate-shell-completion", "fish")),
-    "uvx": ToolConfig(args=("--generate-shell-completion", "fish")),
-    "xh": ToolConfig(args=("--generate", "complete-fish")),
-    "ya": ToolConfig(package="yazi"),
-    "yazi": ToolConfig(package="yazi"),
-    "yq": ToolConfig(args=("shell-completion", "fish")),
-    "zellij": ToolConfig(args=("setup", "--generate-completion", "fish")),
-    "zoxide": ToolConfig(package="zoxide"),
-}
-# Static completion scripts deployed by chezmoi in dot_config/fish/completions/.
-MANAGED_COMPLETIONS: frozenset[str] = frozenset({"agy.fish"})
 
 
 class CompletionConfig(StrictModel):

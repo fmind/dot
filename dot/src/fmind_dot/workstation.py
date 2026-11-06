@@ -55,8 +55,9 @@ CACHE_TOOLS = {
     "hf": CacheTool(
         ["hf", "cache", "prune", "--yes"], None, ["hf", "cache", "ls"], ["hf", "cache", "ls", "--format", "json"]
     ),
-    # Metadata and download caches; `mise prune` would uninstall versions that virtualenvs still use.
-    "mise": CacheTool(["mise", "cache", "clear"]),
+    # Cache files not accessed within cache_prune_age; --aggressive clears the whole cache.
+    # `mise prune` would uninstall versions that virtualenvs still use.
+    "mise": CacheTool(["mise", "cache", "prune"], ["mise", "cache", "clear"]),
     # Garbage-collect unreachable entries; --aggressive empties the cache.
     "npm": CacheTool(["npm", "cache", "verify"], ["npm", "cache", "clean", "--force"]),
     # Scan results; --aggressive also drops the vulnerability databases, which the next scan downloads.
@@ -317,7 +318,7 @@ def run_prune(
     if not dry_run:
         require_tools(state, list(commands.values()))
         # The default tier only drops stale entries, so it runs unattended; emptying caches asks first.
-        # Providers without an aggressive step (hf, mise) run their default cleanup unasked.
+        # Providers without an aggressive step (hf) run their default cleanup unasked.
         emptied = [name for name in commands if CACHE_TOOLS[name].aggressive] if aggressive else []
         if emptied and not yes:
             if not state.stdin.isatty():

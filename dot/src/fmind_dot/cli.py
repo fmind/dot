@@ -46,7 +46,6 @@ app = typer.Typer(
     help="Manage workstation tools, repositories, and agent archives",
     epilog=_EPILOG,
     invoke_without_command=True,
-    no_args_is_help=False,
     add_completion=False,
     pretty_exceptions_enable=False,
     rich_markup_mode=HELP_MARKUP,

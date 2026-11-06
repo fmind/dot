@@ -19,7 +19,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.hooks import Notification, agy_print_mode
 from fmind_dot.process import CommandResult
 from fmind_dot.state import State
-from tests.fakes import ScriptedRunner, make_state
+from tests.fakes import ScriptedRunner, TerminalIO, make_state
 
 
 def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -54,15 +54,14 @@ def test_turn_notifications_obey_idle_and_reentry_guards(
     command = ["agent", "hook", "notify", agent, "stop"]
     assert CliRunner().invoke(app, command, input=json.dumps(payload)).exit_code == 0
     assert len(captured) == 1
-    for guard in ("stop_hook_active", "stopHookActive"):
-        assert CliRunner().invoke(app, command, input=json.dumps({**payload, guard: True})).exit_code == 0
+    assert CliRunner().invoke(app, command, input=json.dumps({**payload, "stop_hook_active": True})).exit_code == 0
     if agent == "agy":
         assert CliRunner().invoke(app, command, input=json.dumps({**payload, "fullyIdle": False})).exit_code == 0
     assert len(captured) == 1
 
 
 @pytest.mark.parametrize("agent", ["claude", "copilot", "agy"])
-@pytest.mark.parametrize("field", ["background_tasks", "backgroundTasks", "session_crons", "sessionCrons"])
+@pytest.mark.parametrize("field", ["background_tasks", "session_crons"])
 def test_background_work_never_announces_a_handoff(monkeypatch: pytest.MonkeyPatch, agent: str, field: str) -> None:
     captured: list[Notification] = []
     monkeypatch.setattr(
@@ -78,8 +77,8 @@ def test_background_work_never_announces_a_handoff(monkeypatch: pytest.MonkeyPat
     assert captured == []
 
 
-@pytest.mark.parametrize("key", ["notification_type", "notificationType"])
-def test_only_idle_and_actionable_notifications_reach_the_user(monkeypatch: pytest.MonkeyPatch, key: str) -> None:
+def test_only_idle_and_actionable_notifications_reach_the_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    key = "notification_type"
     agent = "claude"
     captured: list[Notification] = []
     monkeypatch.setattr(
@@ -186,9 +185,7 @@ def test_headless_agy_turns_stay_quiet(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert [notification.summary for notification in captured] == [f"✅ Claude Code · {tmp_path.name}"]
 
 
-@pytest.mark.parametrize(
-    "payload", [{"agent_id": "child"}, {"subagentType": "worker"}, {"hook_event_name": "SubagentStop"}]
-)
+@pytest.mark.parametrize("payload", [{"agent_id": "child"}, {"hook_event_name": "SubagentStop"}])
 def test_child_completion_never_announces_a_handoff(monkeypatch: pytest.MonkeyPatch, payload: dict[str, str]) -> None:
     captured: list[Notification] = []
     monkeypatch.setattr(
@@ -302,18 +299,14 @@ def test_notification_validation_and_minimal_platform_commands(tmp_path: Path) -
 
 
 def test_hook_payload_is_strict() -> None:
-    class TTYInput(StringIO):
-        def isatty(self) -> bool:
-            return True
-
-    assert hooks.read_hook_payload(TTYInput("ignored")) is None
+    assert hooks.read_hook_payload(TerminalIO("ignored")) is None
     assert hooks.read_hook_payload(StringIO("  \n")) is None
     with pytest.raises(DotError, match="failed to parse agent hook input"):
         hooks.read_hook_payload(StringIO("{"))
     with pytest.raises(DotError, match="expected a JSON object"):
         hooks.read_hook_payload(StringIO("[]"))
-    with pytest.raises(DotError, match="stopHookActive must be a boolean"):
-        hooks.read_hook_payload(StringIO('{"stopHookActive":"false"}'))
+    with pytest.raises(DotError, match="stop_hook_active must be a boolean"):
+        hooks.read_hook_payload(StringIO('{"stop_hook_active":"false"}'))
     with pytest.raises(DotError, match="fullyIdle must be a boolean"):
         hooks.read_hook_payload(StringIO('{"fullyIdle":1}'))
     assert hooks.read_hook_payload(StringIO('{"fullyIdle":true,"cwd":"/workspace"}')) == {

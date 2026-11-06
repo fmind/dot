@@ -27,7 +27,7 @@ from fmind_dot.auth import (
     workspace_ready,
 )
 from fmind_dot.command_group import JsonOption
-from fmind_dot.config import COMPLETION_SOURCES, MANAGED_COMPLETIONS, expand_path
+from fmind_dot.config import expand_path
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.orphan import find_orphans
 from fmind_dot.private_files import write_atomic_file
@@ -46,11 +46,6 @@ _SECRET_PERMISSIONS = 0o600
 _OPTIONAL_SECRETS = ("~/.private.fish",)
 _SIGNING_PRIVATE_KEY = "~/.ssh/id_ed25519_signing"
 _SIGNING_PUBLIC_KEY = "~/.ssh/id_ed25519_signing.pub"
-_TOOL_PROBE_ARGS: dict[str, tuple[str, ...]] = {
-    "agy": ("--help",),
-    "betterleaks": ("version",),
-    "lefthook": ("version",),
-}
 
 
 @dataclass(frozen=True)
@@ -97,6 +92,68 @@ def _completion_available(state: State, tool: str) -> bool:
                 return False
             raise DotError(f"failed to resolve mise completion executable for {tool}")
     return True
+
+
+@dataclass(frozen=True)
+class CompletionSource:
+    """One Fish completion source: a native generator command or a mise package's bundled script."""
+
+    binary: str = ""
+    args: tuple[str, ...] = ()
+    package: str = ""
+
+
+# Every entry is generated; unlisted fields fall back to `<tool> completion fish`.
+COMPLETION_SOURCES: dict[str, CompletionSource] = {
+    "a2a": CompletionSource(),
+    "ast-grep": CompletionSource(args=("completions", "fish")),
+    "astro": CompletionSource(),
+    "atuin": CompletionSource(args=("gen-completions", "--shell", "fish")),
+    "bat": CompletionSource(args=("--completion", "fish")),
+    "betterleaks": CompletionSource(),
+    "bf": CompletionSource(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
+    "cf": CompletionSource(args=("complete", "fish")),
+    "chezmoi": CompletionSource(),
+    "colab": CompletionSource(binary="env", args=("_COLAB_COMPLETE=source_fish", "colab")),
+    "copilot": CompletionSource(),
+    "databricks": CompletionSource(),
+    "delta": CompletionSource(args=("--generate-completion", "fish")),
+    "doggo": CompletionSource(args=("completions", "fish")),
+    # Rendered in-process from Click; the installed dot may be older than this checkout.
+    "dot": CompletionSource(),
+    "dprint": CompletionSource(args=("completions", "fish")),
+    "fastfetch": CompletionSource(package="github:fastfetch-cli/fastfetch"),
+    "fd": CompletionSource(args=("--gen-completions", "fish")),
+    "gh": CompletionSource(args=("completion", "-s", "fish")),
+    "git-cliff": CompletionSource(package="git-cliff"),
+    "git-lfs": CompletionSource(binary="git", args=("lfs", "completion", "fish")),
+    "hf": CompletionSource(binary="env", args=("_HF_COMPLETE=fish_source", "hf")),
+    "hyperfine": CompletionSource(package="hyperfine"),
+    "jactionlint": CompletionSource(args=("--completion=fish",)),
+    "lazygit": CompletionSource(args=("completion", "fish")),
+    "lefthook": CompletionSource(),
+    "lsd": CompletionSource(package="lsd"),
+    "lychee": CompletionSource(args=("--generate", "complete-fish")),
+    "mise": CompletionSource(),
+    "pup": CompletionSource(args=("completions", "fish")),
+    "rg": CompletionSource(args=("--generate", "complete-fish")),
+    "ruff": CompletionSource(args=("generate-shell-completion", "fish")),
+    "starship": CompletionSource(args=("completions", "fish")),
+    "tree-sitter": CompletionSource(args=("complete", "--shell", "fish")),
+    "trivy": CompletionSource(),
+    "ty": CompletionSource(args=("generate-shell-completion", "fish")),
+    "usage": CompletionSource(args=("--completions", "fish")),
+    "uv": CompletionSource(args=("generate-shell-completion", "fish")),
+    "uvx": CompletionSource(args=("--generate-shell-completion", "fish")),
+    "xh": CompletionSource(args=("--generate", "complete-fish")),
+    "ya": CompletionSource(package="yazi"),
+    "yazi": CompletionSource(package="yazi"),
+    "yq": CompletionSource(args=("shell-completion", "fish")),
+    "zellij": CompletionSource(args=("setup", "--generate-completion", "fish")),
+    "zoxide": CompletionSource(package="zoxide"),
+}
+# Static completion scripts deployed by chezmoi in dot_config/fish/completions/.
+MANAGED_COMPLETIONS: frozenset[str] = frozenset({"agy.fish"})
 
 
 def _generate_completion(state: State, tool: str) -> str:
@@ -286,7 +343,7 @@ def _tool_results(state: State) -> list[CheckResult]:
         path = state.runner.which(tool)
         if path is None:
             return CheckResult(tool, "fail", "command not found", condition="missing")
-        result = _probe(state, [str(path), *_TOOL_PROBE_ARGS.get(tool, ("--version",))])
+        result = _probe(state, [str(path), "--version"])
         if isinstance(result, str):
             return CheckResult(tool, "fail", f"capability probe {result}", str(path), "broken")
         if result.returncode != 0:

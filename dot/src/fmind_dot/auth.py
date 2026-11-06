@@ -26,7 +26,6 @@ login_app = typer.Typer(
     epilog=_LOGIN_EPILOG,
     invoke_without_command=True,
     rich_markup_mode=HELP_MARKUP,
-    context_settings={"help_option_names": ["-h", "--help"]},
 )
 setup_app = help_group("Reconcile provider setup and configured policy")
 _COLAB_ADC_SCOPES = (

@@ -56,7 +56,6 @@ def help_group(description: str) -> typer.Typer:
         help=description,
         invoke_without_command=True,
         rich_markup_mode=HELP_MARKUP,
-        context_settings={"help_option_names": ["-h", "--help"]},
     )
 
     @group.callback()

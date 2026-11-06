@@ -31,7 +31,7 @@ from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import notification_workspace
 from fmind_dot.state import State
-from tests.fakes import make_state
+from tests.fakes import COPILOT_SCHEMA, make_state
 
 
 def _stderr(state: State) -> str:
@@ -42,42 +42,15 @@ def _stderr(state: State) -> str:
 def _create_copilot_database(path: Path) -> None:
     path.parent.mkdir(mode=0o700, parents=True)
     with closing(sqlite3.connect(path)) as connection:
+        connection.executescript(COPILOT_SCHEMA)
         connection.executescript(
             """
-            CREATE TABLE sessions (
-                id TEXT PRIMARY KEY,
-                cwd TEXT,
-                created_at TEXT,
-                updated_at TEXT
-            );
-            CREATE TABLE turns (
-                id INTEGER PRIMARY KEY,
-                session_id TEXT,
-                turn_index INTEGER,
-                user_message TEXT,
-                assistant_response TEXT,
-                timestamp TEXT
-            );
             INSERT INTO sessions VALUES (
-                'copilot-live', '/work/project',
-                '2026-09-06T08:00:00Z', '2026-09-06T08:01:00Z'
+                'copilot-live', '/work/project', '2026-09-06T08:00:00Z'
             );
             INSERT INTO turns VALUES (
                 1, 'copilot-live', 1, 'private prompt', 'useful answer',
                 '2026-09-06T08:00:00Z'
-            );
-            """
-        )
-        connection.executescript(
-            """
-            CREATE TABLE assistant_usage_events (
-                session_id TEXT,
-                model TEXT,
-                input_tokens INTEGER,
-                output_tokens INTEGER,
-                cache_read_tokens INTEGER,
-                cache_write_tokens INTEGER,
-                reasoning_tokens INTEGER
             );
             INSERT INTO assistant_usage_events VALUES (
                 'copilot-live', 'gpt-test', 10, 4, 2, 1, 3
@@ -191,9 +164,9 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(tmp_path: Pa
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript(
             """DELETE FROM sessions; DELETE FROM turns; DELETE FROM assistant_usage_events;
-            INSERT INTO sessions VALUES ('copilot-ok', '/work', '2026-09-06T08:00:00Z', NULL);
+            INSERT INTO sessions VALUES ('copilot-ok', '/work', '2026-09-06T08:00:00Z');
             INSERT INTO turns VALUES (1, 'copilot-ok', 1, 'later adapter', '', '2026-09-06T08:00:00Z');
-            INSERT INTO sessions VALUES ('copilot-negative', '/work', '2026-09-06T08:00:00Z', NULL);
+            INSERT INTO sessions VALUES ('copilot-negative', '/work', '2026-09-06T08:00:00Z');
             INSERT INTO turns VALUES (2, 'copilot-negative', 1, '', 'copilot answer', '2026-09-06T08:00:00Z');
             INSERT INTO assistant_usage_events VALUES ('copilot-negative', 'gpt-test', -1, 0, 0, 0, 0);"""
         )
@@ -352,7 +325,7 @@ def test_copilot_checkpoint_skips_reads_and_keeps_unchanged_bundles(tmp_path: Pa
     database = tmp_path / ".copilot/session-store.db"
     _create_copilot_database(database)
     with closing(sqlite3.connect(database)) as connection:
-        connection.execute("INSERT INTO sessions SELECT 'other', cwd, created_at, updated_at FROM sessions")
+        connection.execute("INSERT INTO sessions SELECT 'other', cwd, created_at FROM sessions")
         connection.execute(
             "INSERT INTO turns SELECT 2, 'other', turn_index, user_message, assistant_response, timestamp FROM turns"
         )
@@ -556,8 +529,8 @@ def test_notification_workspace_accepts_host_aliases_and_honors_guards() -> None
 
     with pytest.raises(DotError, match="expected a JSON object"):
         notification_workspace(io.StringIO("[]"), "copilot")
-    with pytest.raises(DotError, match="stopHookActive must be a boolean"):
-        notification_workspace(io.StringIO('{"stopHookActive":"false"}'), "agy")
+    with pytest.raises(DotError, match="fullyIdle must be a boolean"):
+        notification_workspace(io.StringIO('{"fullyIdle":"yes"}'), "agy")
 
 
 def test_sync_failures_name_the_agent_operation_and_redact_session_ids(

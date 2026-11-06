@@ -7,10 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from fmind_dot.config import (
-    COMPLETION_SOURCES,
-    MANAGED_COMPLETIONS,
     Config,
-    ToolConfig,
     config_file_path,
     expand_path,
     load_config,
@@ -45,7 +42,7 @@ def test_agy_projects_must_name_absolute_or_home_paths(tmp_path: Path, pattern: 
         load_config(path)
 
 
-def test_verify_inventory_covers_managed_harnesses_and_core_workflows() -> None:
+def test_doctor_inventory_covers_managed_harnesses_and_core_workflows() -> None:
     config = Config()
     expected = {*config.agent.sources, "opencode", "bf"}
     assert expected <= set(config.doctor.tools)
@@ -55,18 +52,6 @@ def test_retired_tools_are_not_workstation_requirements() -> None:
     config = Config()
     retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "marimo", "pyrit", "zizmor"}
     assert not retired.intersection(config.doctor.tools)
-    assert not retired.intersection(COMPLETION_SOURCES)
-
-
-def test_cloud_connectors_are_included_in_default_completions() -> None:
-    assert {"astro", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
-    managed = Path(__file__).resolve().parents[2] / "dot_config/fish/completions"
-    assert {path.name for path in managed.glob("*.fish")} == MANAGED_COMPLETIONS
-
-
-@pytest.mark.parametrize("source", COMPLETION_SOURCES.values())
-def test_completion_sources_choose_one_kind(source: ToolConfig) -> None:
-    assert not (source.package and (source.binary or source.args))
 
 
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:
