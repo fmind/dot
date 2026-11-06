@@ -11,13 +11,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
-WORKFLOWS = [
-    *sorted((ROOT / ".github/workflows").glob("*.yml")),
-    *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
-    ROOT / "skills/cloud-run/templates/deploy.yml",
-    ROOT / "skills/documentation-site/templates/docs.yml",
-]
+from tests.fakes import ROOT, WORKFLOWS
+
 ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
 COMMENTED_ACTION = re.compile(r"^\s*(?:-\s*)?uses:\s+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}\s+#\s+v\d[^\s]*\s*$")
 

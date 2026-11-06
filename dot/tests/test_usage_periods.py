@@ -8,11 +8,14 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from fmind_dot.archive import store
 from fmind_dot.archive.parsers import parse_claude_session
-from fmind_dot.archive.store import ingest_session
+from fmind_dot.archive.store import SessionSource, ingest_session
+from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records, write_usage_stats
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
+from fmind_dot.state import State
 
 
 def request(timestamp: str, *, model: str = "gpt-5.4", tokens: int = 1_000_000) -> UsageRecord:
@@ -206,8 +209,6 @@ def test_public_monthly_report_and_retired_billing(tmp_path: Path, monkeypatch: 
 
 
 def test_usage_query_rejects_invalid_usage_and_mismatched_identity() -> None:
-    from fmind_dot.archive import store
-
     ingest_session("codex", "one", [], usage=request("2026-09-01T00:00:00Z").to_dict())
     assert len(list(iter_usage_records())) == 1
     path = store.session_bundle_path("codex", "one")
@@ -224,8 +225,6 @@ def test_usage_query_rejects_invalid_usage_and_mismatched_identity() -> None:
 
 @pytest.mark.parametrize(("parser", "legacy"), [("9", False), ("3", True)], ids=["older", "legacy"])
 def test_recapture_replaces_older_parser_accounting(monkeypatch: pytest.MonkeyPatch, parser: str, legacy: bool) -> None:
-    from fmind_dot.archive import store
-
     original = request("2026-09-01T00:00:00Z", tokens=200)
     source = store.SessionSource(type="fixture", fingerprint=store.fingerprint_bytes(b"same source"))
     with monkeypatch.context() as previous:
@@ -264,10 +263,6 @@ def _usage(session_id: str, timestamp: str, *, cost: float = 0.0) -> dict[str, o
 
 
 def test_window_skips_only_families_measured_outside_it() -> None:
-    from fmind_dot.archive import store
-    from fmind_dot.archive.store import SessionSource
-    from fmind_dot.archive.usage import iter_usage_records
-
     ingest_session("codex", "recent", [], usage=_usage("recent", "2026-09-02T12:00:00Z", cost=1.0))
     # The parent is outside the window, its sidechain inside: the parent's cost includes the
     # sidechain, so it must still be read and keep the session cost unattributed.
@@ -290,10 +285,6 @@ def test_window_skips_only_families_measured_outside_it() -> None:
 
 
 def test_sync_upgrades_schema_3_bundles_in_place() -> None:
-    from fmind_dot.archive import store
-    from fmind_dot.archive.sync import sync_sessions
-    from fmind_dot.state import State
-
     usage = _usage("one", "2026-09-01T00:00:00Z")
     ingest_session(
         "claude", "one", [store.SessionLog("2026-09-01T00:00:00Z", "claude", "one", "user", "hi")], usage=usage
@@ -319,10 +310,6 @@ def test_sync_upgrades_schema_3_bundles_in_place() -> None:
 
 
 def test_unreadable_legacy_bundle_fails_sync_without_failing_the_capture(tmp_path: Path) -> None:
-    from fmind_dot.archive import store
-    from fmind_dot.archive.sync import sync_sessions
-    from fmind_dot.state import State
-
     (tmp_path / ".claude/projects").mkdir(parents=True)
     ingest_session("claude", "one", [store.SessionLog("2026-09-01T00:00:00Z", "claude", "one", "user", "hi")])
     path = store.session_bundle_path("claude", "one")

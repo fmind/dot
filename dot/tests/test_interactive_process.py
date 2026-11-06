@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from fmind_dot.config import PruneConfig
+
 # Each case cold-starts an interpreter that imports the whole CLI, so the bound must
 # absorb a loaded `-n auto` run; a satisfied wait exits immediately and never pays it.
 ARRIVAL_DEADLINE_SECONDS = 30
@@ -61,7 +63,7 @@ def test_terminal_input_and_interrupt(tmp_path: Path, interrupt: str) -> None:
         read_until(b"READY")
         os.write(terminal, b"hello\n")
         read_until(b"VALUE:hello")
-        # Ctrl+Z reaches dot and the child natively; a PTY without a job-control shell discards it.
+        # Suspend (Ctrl+Z) is not covered: a PTY without a job-control shell discards it.
         if interrupt == "keyboard":
             os.write(terminal, b"\x03")
         else:
@@ -143,7 +145,7 @@ def test_prune_prompt_cancellation_is_clean(tmp_path: Path, input_bytes: bytes, 
         assert b"Abort" not in output
         assert b"UNEXPECTED CLEANUP" not in output
         if expected_exit == 0:
-            assert output.count(b"CLEANUP") == 6
+            assert output.count(b"CLEANUP") == len(PruneConfig().providers)
         if input_bytes.startswith(b"invalid"):
             assert b"Error: invalid input" in output
             assert output.count(prompt_end) == 2

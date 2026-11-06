@@ -15,6 +15,28 @@ from fmind_dot.system import CheckResult
 
 RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
 
+ROOT = Path(__file__).resolve().parents[2]
+# Repository workflows and shipped workflow templates.
+WORKFLOWS = [
+    *sorted((ROOT / ".github/workflows").glob("*.yml")),
+    *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
+    ROOT / "skills/cloud-run/templates/deploy.yml",
+    ROOT / "skills/documentation-site/templates/docs.yml",
+]
+# The Copilot session database tables the parser reads.
+COPILOT_SCHEMA = """
+CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
+CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
+CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
+"""
+
+
+class TerminalIO(io.StringIO):
+    """StringIO that reports itself as a terminal."""
+
+    def isatty(self) -> bool:
+        return True
+
 
 class ScriptedRunner(Runner):
     def __init__(

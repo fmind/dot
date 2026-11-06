@@ -12,7 +12,7 @@ from dot_tasks.release import read_release_version, run_release, validate_releas
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
-from tests.fakes import make_state
+from tests.fakes import TerminalIO, make_state
 
 TAG = "v1.27.0"
 GIT_CLIFF_BUMPED = ("git-cliff", "--config", "dot_config/git-cliff/cliff.toml", "--bumped-version")
@@ -284,11 +284,6 @@ def test_release_preflight_rejects_unsafe_repository_states(project: Path) -> No
     assert read_release_version(project) == "1.26.2"
 
 
-class _TerminalInput(io.StringIO):
-    def isatty(self) -> bool:
-        return True
-
-
 def test_no_change_and_cancellation_have_no_side_effects(project: Path) -> None:
     runner = ReleaseRunner(project)
     runner.responses[GIT_CLIFF_BUMPED] = CommandResult("v1.26.2", "", 0)
@@ -296,7 +291,7 @@ def test_no_change_and_cancellation_have_no_side_effects(project: Path) -> None:
 
     runner = ReleaseRunner(project)
     stdout = io.StringIO()
-    state = State(runner=runner, stdin=_TerminalInput("n\n"), stdout=stdout, stderr=io.StringIO())
+    state = State(runner=runner, stdin=TerminalIO("n\n"), stdout=stdout, stderr=io.StringIO())
     assert run_release(state) is None
     assert "Release canceled." in stdout.getvalue()
 

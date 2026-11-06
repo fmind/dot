@@ -22,6 +22,7 @@ from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_rec
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
+from tests.fakes import COPILOT_SCHEMA
 
 
 def _state(home: Path, agent: str, monkeypatch: pytest.MonkeyPatch) -> State:
@@ -257,12 +258,8 @@ def test_disappearing_database_measurement_never_becomes_zero(tmp_path: Path, mo
     source = tmp_path / "source"
     with closing(sqlite3.connect(source)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT,
-                assistant_response TEXT, timestamp TEXT);
-            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER,
-                output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-            INSERT INTO sessions VALUES('session', '', '2026-09-01T10:00:00Z');
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('session', '', '2026-09-01T10:00:00Z');
             INSERT INTO turns VALUES(1, 'session', 1, 'Question', 'Answer', '2026-09-01T10:00:00Z');
             INSERT INTO assistant_usage_events VALUES('session', 'gpt-test', 10, 0, 0, 0, 0);"""
         )

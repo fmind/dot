@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import stat
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
@@ -324,8 +325,6 @@ def test_discovery_ignores_temporary_files_sync_state_and_unsafe_names() -> None
 
 
 def test_archive_validation_does_not_echo_transcripts_or_manifest_values() -> None:
-    import traceback
-
     transcript = {"ts": "", "agent": "codex", "sid": "one", "role": "user", "content": {"private-marker": 1}}
     manifest = _manifest_value(source_type={"private-marker": 1})
     with pytest.raises(ValueError, match="invalid normalized transcript record") as transcript_error:

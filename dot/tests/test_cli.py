@@ -124,6 +124,7 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
                 "config",
                 "doctor",
                 "login",
+                "orphan",
                 "prune",
                 "pull",
                 "secret",

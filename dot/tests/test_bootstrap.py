@@ -6,14 +6,14 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import tomllib
-import unittest
 from pathlib import Path
 from typing import TypedDict, cast
 
 import pytest
 import yaml
+
+from tests.fakes import WORKFLOWS
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALLER = ROOT / "install.sh"
@@ -106,80 +106,73 @@ class BootstrapFixture:
         return [cast(ToolCall, json.loads(line)) for line in self.log.read_text(encoding="utf-8").splitlines()]
 
 
-class BootstrapTest(unittest.TestCase):
-    def test_first_install_and_rerun_use_the_bounded_task_sequence(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory))
-            first = fixture.run()
-            second = fixture.run()
+def test_first_install_and_rerun_use_the_bounded_task_sequence(tmp_path: Path) -> None:
+    fixture = BootstrapFixture(tmp_path)
+    first = fixture.run()
+    second = fixture.run()
 
-            assert first.returncode == 0, first.stdout + first.stderr
-            assert second.returncode == 0, second.stdout + second.stderr
-            source = str(fixture.source)
-            expected = [
-                {
-                    "tool": "chezmoi",
-                    "args": ["init", "--force", "https://github.com/fmind/dot.git", "--source", source],
-                },
-                {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
-                {"tool": "mise", "args": ["-C", source, "run", "install"]},
-                {"tool": "chezmoi", "args": ["init", "--force", "--source", source]},
-                {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
-                {"tool": "mise", "args": ["-C", source, "run", "install"]},
-            ]
-            assert fixture.calls() == expected
-            assert not (fixture.home / ".config" / "chezmoi" / "key.txt").exists()
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert second.returncode == 0, second.stdout + second.stderr
+    source = str(fixture.source)
+    expected = [
+        {
+            "tool": "chezmoi",
+            "args": ["init", "--force", "https://github.com/fmind/dot.git", "--source", source],
+        },
+        {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
+        {"tool": "mise", "args": ["-C", source, "run", "install"]},
+        {"tool": "chezmoi", "args": ["init", "--force", "--source", source]},
+        {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
+        {"tool": "mise", "args": ["-C", source, "run", "install"]},
+    ]
+    assert fixture.calls() == expected
+    assert not (fixture.home / ".config" / "chezmoi" / "key.txt").exists()
 
-    def test_missing_mise_is_installed_at_the_tested_version(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), mise_installed=False)
-            result = fixture.run()
 
-            assert result.returncode == 0, result.stdout + result.stderr
-            requested = Path(f"{fixture.log}.requested").read_text(encoding="utf-8")
-            assert requested == f"v{pinned_mise_version()}"
-            assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "chezmoi"]
+def test_missing_mise_is_installed_at_the_tested_version(tmp_path: Path) -> None:
+    fixture = BootstrapFixture(tmp_path, mise_installed=False)
+    result = fixture.run()
 
-    def test_interrupted_mise_download_is_never_executed(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            fixture = BootstrapFixture(Path(directory), mise_installed=False)
-            fixture.environment["FAKE_MISE_TRUNCATED"] = "1"
-            result = fixture.run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    requested = Path(f"{fixture.log}.requested").read_text(encoding="utf-8")
+    assert requested == f"v{pinned_mise_version()}"
+    assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "chezmoi"]
 
-            assert result.returncode == 18, result.stdout + result.stderr
-            assert not Path(f"{fixture.log}.executed").exists()
-            assert not fixture.source.exists()
-            (download,) = fixture.calls()
-            assert download["tool"] == "curl"
-            assert not Path(download["args"][download["args"].index("-o") + 1]).exists()
 
-    def test_every_copy_of_the_mise_version_agrees(self) -> None:
-        copies = {"install.sh": pinned_mise_version()}
-        # Shipped workflow templates scaffold other repositories with the same tested mise.
-        workflows = [
-            *sorted((ROOT / ".github/workflows").glob("*.yml")),
-            *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
-            ROOT / "skills/cloud-run/templates/deploy.yml",
-            ROOT / "skills/documentation-site/templates/docs.yml",
-        ]
-        for path in workflows:
-            workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-            for name, job in workflow["jobs"].items():
-                for index, step in enumerate(job["steps"]):
-                    if step.get("uses", "").startswith("jdx/mise-action@"):
-                        # An unpinned action would install the latest mise, not the tested one.
-                        relative = path.relative_to(ROOT)
-                        copies[f"{relative}:{name}:{index}"] = str(step.get("with", {}).get("version"))
-        for template in ("skills/python-stack/references/foundation/templates", "skills/infra-as-code/templates"):
-            config = tomllib.loads((ROOT / template / "mise.toml").read_text(encoding="utf-8"))
-            copies[f"{template}/mise.toml"] = str(config.get("min_version"))
-        readme = re.search(r"requires mise ([0-9.]+[0-9])", (ROOT / "README.md").read_text(encoding="utf-8"))
-        assert readme is not None
-        copies["README.md"] = readme.group(1)
-        copies["mise.toml"] = str(tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8")).get("min_version"))
+def test_interrupted_mise_download_is_never_executed(tmp_path: Path) -> None:
+    fixture = BootstrapFixture(tmp_path, mise_installed=False)
+    fixture.environment["FAKE_MISE_TRUNCATED"] = "1"
+    result = fixture.run()
 
-        assert len(copies) >= 14
-        assert set(copies.values()) == {pinned_mise_version()}, copies
+    assert result.returncode == 18, result.stdout + result.stderr
+    assert not Path(f"{fixture.log}.executed").exists()
+    assert not fixture.source.exists()
+    (download,) = fixture.calls()
+    assert download["tool"] == "curl"
+    assert not Path(download["args"][download["args"].index("-o") + 1]).exists()
+
+
+def test_every_copy_of_the_mise_version_agrees() -> None:
+    copies = {"install.sh": pinned_mise_version()}
+    # Shipped workflow templates scaffold other repositories with the same tested mise.
+    for path in WORKFLOWS:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for name, job in workflow["jobs"].items():
+            for index, step in enumerate(job["steps"]):
+                if step.get("uses", "").startswith("jdx/mise-action@"):
+                    # An unpinned action would install the latest mise, not the tested one.
+                    relative = path.relative_to(ROOT)
+                    copies[f"{relative}:{name}:{index}"] = str(step.get("with", {}).get("version"))
+    for template in ("skills/python-stack/references/foundation/templates", "skills/infra-as-code/templates"):
+        config = tomllib.loads((ROOT / template / "mise.toml").read_text(encoding="utf-8"))
+        copies[f"{template}/mise.toml"] = str(config.get("min_version"))
+    readme = re.search(r"requires mise ([0-9.]+[0-9])", (ROOT / "README.md").read_text(encoding="utf-8"))
+    assert readme is not None
+    copies["README.md"] = readme.group(1)
+    copies["mise.toml"] = str(tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8")).get("min_version"))
+
+    assert len(copies) >= 14
+    assert set(copies.values()) == {pinned_mise_version()}, copies
 
 
 # Run the real mise task graph and chezmoi hooks in an empty home. Only installation
@@ -381,7 +374,7 @@ def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Pat
     global_config.mkdir()
     runtime = tmp_path / "runtime"
     runtime.mkdir()
-    (global_config / "config.toml").write_text(f'[tools]\n"pipx:fixture" = "path:{runtime}"\n')
+    (global_config / "config.toml").write_text(f'[tools]\n"pypi:fixture" = "path:{runtime}"\n')
     config = tomllib.loads((ROOT / "mise.toml").read_text())
     task = config["tasks"]["full"]["run"][0]
     # The real first bootstrap step must ignore a home tool that cannot satisfy

@@ -24,6 +24,7 @@ from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import iter_usage_records
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
+from tests.fakes import COPILOT_SCHEMA
 
 # Once the second writer waits on the lock, a correct lock always exhausts this window.
 _RACE_WINDOW_SECONDS = 0.2
@@ -145,12 +146,8 @@ def test_unreadable_archive_preserves_capture_and_syncs_later_agents(tmp_path: P
     later = tmp_path / "copilot.db"
     with closing(sqlite3.connect(later)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT,
-                assistant_response TEXT, timestamp TEXT);
-            CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER,
-                output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-            INSERT INTO sessions VALUES('later', '', '2026-09-01T10:00:00Z');
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('later', '', '2026-09-01T10:00:00Z');
             INSERT INTO turns VALUES(1, 'later', 1, 'later', '', '2026-09-01T10:00:00Z');"""
         )
     state.config.agent.sources["copilot"] = str(later)

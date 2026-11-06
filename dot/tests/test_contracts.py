@@ -344,7 +344,6 @@ def test_python_only_owned_sources() -> None:
     assert active == []
 
 
-@pytest.mark.skipif(shutil.which("fish") is None, reason="fish is not installed")
 @pytest.mark.parametrize("fetched", [False, True])
 def test_fzf_theme_file_is_exported_only_once_fetched(tmp_path: Path, fetched: bool) -> None:
     # fzf exits 2 on a missing FZF_DEFAULT_OPTS_FILE, and a targeted or offline apply skips externals.

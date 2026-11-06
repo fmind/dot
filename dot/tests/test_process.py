@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from io import StringIO
 from pathlib import Path
 from threading import Thread
@@ -517,6 +518,8 @@ def test_sigterm_stops_descendants_of_a_child_without_a_terminal(tmp_path: Path)
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    descendant: int | None = None
+    stopped = False
     try:
         deadline = time.monotonic() + 30
         while not (pid_file.exists() and pid_file.read_text().strip()):
@@ -530,12 +533,18 @@ def test_sigterm_stops_descendants_of_a_child_without_a_terminal(tmp_path: Path)
             try:
                 os.kill(descendant, 0)
             except ProcessLookupError:
+                stopped = True
                 break
             time.sleep(0.05)
         else:
+            stopped = True
             os.kill(descendant, process_module.signal.SIGKILL)
             pytest.fail("the descendant survived SIGTERM to dot")
     finally:
         if dot.poll() is None:
             dot.kill()
             dot.wait()
+        # Kill a descendant left behind by an early failure, never one already confirmed gone.
+        if descendant is not None and not stopped:
+            with suppress(ProcessLookupError):
+                os.kill(descendant, process_module.signal.SIGKILL)

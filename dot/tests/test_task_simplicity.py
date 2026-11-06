@@ -35,15 +35,27 @@ def materialize(root: Path, starter: str, prefix: str = "") -> dict[str, str]:
     (root / "mise.toml").write_text("\n".join(lines))
     mise = shutil.which("mise")
     assert mise is not None
-    betterleaks = subprocess.check_output([mise, "which", "betterleaks"], cwd=ROOT, text=True, timeout=60).strip()
     return {
-        "PATH": os.pathsep.join(
-            [str(Path(mise).parent), str(Path(betterleaks).parent), str(Path(sys.executable).parent), os.defpath]
-        ),
+        "PATH": os.pathsep.join([str(Path(mise).parent), str(Path(sys.executable).parent), os.defpath]),
         "HOME": str(root),
         "MISE_CONFIG_DIR": str(root / "config"),
         "MISE_TRUSTED_CONFIG_PATHS": str(root),
     }
+
+
+def _route_uv_to_ruff(root: Path, env: dict[str, str]) -> None:
+    """Shim `uv run ... ruff ARGS` to the locked dot venv Ruff so hooks run without network."""
+    bin_dir = root / "bin"
+    bin_dir.mkdir()
+    ruff = ROOT / "dot/.venv/bin/ruff"
+    assert ruff.is_file()
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env python3\nimport os, sys\n"
+        'os.execv(os.environ["RUFF_BIN"], [os.environ["RUFF_BIN"], *sys.argv[sys.argv.index("ruff") + 1 :]])\n'
+    )
+    uv.chmod(0o755)
+    env.update({"PATH": f"{bin_dir}:{env['PATH']}", "RUFF_BIN": str(ruff)})
 
 
 def run(root: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
@@ -69,6 +81,8 @@ def test_starter_task_graph_validates(tmp_path: Path, starter: str) -> None:
 @pytest.mark.parametrize("starter", STARTERS)
 def test_secret_scan_covers_untracked_files(tmp_path: Path, starter: str) -> None:
     env = materialize(tmp_path, starter)
+    betterleaks = subprocess.check_output(["mise", "which", "betterleaks"], cwd=ROOT, text=True, timeout=60).strip()
+    env["PATH"] = f"{Path(betterleaks).parent}{os.pathsep}{env['PATH']}"
     env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
     assert run(tmp_path, env, "git", "init", "-q").returncode == 0
     (tmp_path / ".betterleaks.toml").write_text(
@@ -84,17 +98,7 @@ def test_secret_scan_covers_untracked_files(tmp_path: Path, starter: str) -> Non
 
 def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> None:
     env = materialize(tmp_path, "python-stack")
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    ruff = ROOT / "dot/.venv/bin/ruff"
-    assert ruff.is_file()
-    uv = bin_dir / "uv"
-    uv.write_text(
-        "#!/usr/bin/env python3\nimport os, sys\n"
-        'os.execv(os.environ["RUFF_BIN"], [os.environ["RUFF_BIN"], *sys.argv[sys.argv.index("ruff") + 1 :]])\n'
-    )
-    uv.chmod(0o755)
-    env.update({"PATH": f"{bin_dir}:{env['PATH']}", "RUFF_BIN": str(ruff)})
+    _route_uv_to_ruff(tmp_path, env)
     selected = tmp_path / "chosen space ' ; $(touch injected).py"
     unrelated = tmp_path / "unrelated.py"
     text = "import sys\nimport os\nx=1\n"
@@ -118,17 +122,7 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
 
 def test_repository_python_hooks_format_only_staged_files(tmp_path: Path) -> None:
     env = materialize(tmp_path, "mise.toml", prefix="format:python")
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    ruff = ROOT / "dot/.venv/bin/ruff"
-    assert ruff.is_file()
-    uv = bin_dir / "uv"
-    uv.write_text(
-        "#!/usr/bin/env python3\nimport os, sys\n"
-        'os.execv(os.environ["RUFF_BIN"], [os.environ["RUFF_BIN"], *sys.argv[sys.argv.index("ruff") + 1 :]])\n'
-    )
-    uv.chmod(0o755)
-    env.update({"PATH": f"{bin_dir}:{env['PATH']}", "RUFF_BIN": str(ruff)})
+    _route_uv_to_ruff(tmp_path, env)
     selected = tmp_path / "chosen space ' ; $(touch injected).py"
     unrelated = tmp_path / "unrelated.py"
     text = "import os\nx=1\n"

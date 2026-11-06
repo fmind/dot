@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import traceback
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from io import StringIO
@@ -532,8 +533,6 @@ def test_usage_record_rejects_unsupported_formats(field: str, value: str | None)
     ],
 )
 def test_usage_validation_is_strict_and_does_not_expose_input(field: str, value: object) -> None:
-    import traceback
-
     document = (
         UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
     )
