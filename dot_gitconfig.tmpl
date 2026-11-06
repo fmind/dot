@@ -66,16 +66,9 @@
     parallel = 0
     prune = true
 
-[github]
-    user = {{ .github_user | quote }}
-
 # allowed_signers lists every machine's public key, so any machine verifies signatures locally.
 [gpg "ssh"]
     allowedSignersFile = {{ joinPath .chezmoi.homeDir ".config/git/allowed_signers" | quote }}
-
-[help]
-    # Suggest only: `prompt` waits for y/N on a pseudo-terminal that agent harnesses never answer.
-    autocorrect = 0
 
 [init]
     defaultBranch = main

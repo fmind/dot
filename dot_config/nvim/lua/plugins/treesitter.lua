@@ -6,6 +6,11 @@ if not vim.env.CC and vim.fn.executable("clang") == 1 then
   vim.env.CC = "clang"
 end
 
+-- Neovim has no OpenTofu detection: map .tofu files to the filetype that tofu_ls, tofu_fmt,
+-- and the tofu linter use, and highlight them with the terraform parser.
+vim.filetype.add({ extension = { tofu = "opentofu" } })
+vim.treesitter.language.register("terraform", "opentofu")
+
 return {
   {
     "nvim-treesitter/nvim-treesitter",

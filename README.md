@@ -57,7 +57,7 @@ git clone https://github.com/fmind/dot.git ~/.local/share/chezmoi
 bash ~/.local/share/chezmoi/install.sh
 ```
 
-Enter **your own** Git name, email, personal-repository email, and GitHub username when prompted (the defaults are mine). Open a new shell and run `dot doctor` to verify the workstation.
+Enter **your own** Git name, email, and personal-repository email when prompted (the defaults are mine). Open a new shell and run `dot doctor` to verify the workstation.
 
 Rerun `install.sh` to resume an interrupted setup (`SKIP_GIT_PULL=true` skips fetching upstream). From an initialized checkout, `mise run full` reapplies files and synchronizes locked tools, `dot`, and completions.
 

@@ -4,7 +4,6 @@ import json
 import os
 import shlex
 import shutil
-import socket
 import subprocess
 import tempfile
 import tomllib
@@ -64,14 +63,7 @@ class HarnessConfigTests(unittest.TestCase):
 
     def render(self, template: str, content: str, overrides: dict[str, str] | None = None) -> str:
         environment = dict(os.environ, HOME=str(self.home))
-        for name in (
-            "OPENCODE_GCP_PROJECT",
-            "OPENROUTER_API_KEY",
-            "GOOGLE_CLOUD_PROJECT",
-            "VERTEX_LOCATION",
-            "ANTIGRAVITY_CLOUD_PROJECT",
-            "ANTIGRAVITY_CLOUD_LOCATION",
-        ):
+        for name in ("ANTIGRAVITY_CLOUD_PROJECT", "ANTIGRAVITY_CLOUD_LOCATION"):
             environment.pop(name, None)
         environment.update(overrides or {})
         # apply consumes the modify-template directive before rendering; execute-template
@@ -93,12 +85,10 @@ class HarnessConfigTests(unittest.TestCase):
     def test_git_identity_preserves_quotes_backslashes_and_comment_characters(self):
         name = 'Ada "Lovelace" # tools \\ engineering'
         email = "ada@example.com"
-        self.config.write_text(
-            f'[data]\ngit_name = {json.dumps(name)}\ngit_email = {json.dumps(email)}\ngithub_user = "ada"\n'
-        )
+        self.config.write_text(f"[data]\ngit_name = {json.dumps(name)}\ngit_email = {json.dumps(email)}\n")
         rendered = self.home / "gitconfig"
         rendered.write_text(self.render("dot_gitconfig.tmpl", ""))
-        for key, expected in (("user.name", name), ("user.email", email), ("github.user", "ada")):
+        for key, expected in (("user.name", name), ("user.email", email)):
             result = subprocess.run(
                 ["git", "config", "--file", str(rendered), "--get", key],
                 capture_output=True,
@@ -110,8 +100,7 @@ class HarnessConfigTests(unittest.TestCase):
 
     def test_personal_checkouts_override_a_work_email(self):
         self.config.write_text(
-            '[data]\ngit_name = "Ada"\ngit_email = "ada@work.example"\ngithub_user = "ada"\n'
-            'git_personal_email = "ada@personal.example"\n'
+            '[data]\ngit_name = "Ada"\ngit_email = "ada@work.example"\ngit_personal_email = "ada@personal.example"\n'
         )
         (self.home / ".config/git").mkdir(parents=True)
         (self.home / ".config/git/personal.gitconfig").write_text(
@@ -222,7 +211,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["disableClaudeAiConnectors"] is True
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
-        managed_roots = [str(self.home / name) for name in (".agents", ".local/share/chezmoi", "fmind")]
+        managed_roots = [str(self.home / ".agents"), str(self.source), str(self.home / "fmind")]
         assert data["permissions"]["additionalDirectories"][:4] == ["/synthetic/host-root", *managed_roots]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
@@ -249,7 +238,7 @@ class HarnessConfigTests(unittest.TestCase):
         custom = json.loads(self.render(template, ""))
         assert custom["permissions"]["additionalDirectories"] == [
             str(self.home / ".agents"),
-            str(self.home / ".local/share/chezmoi"),
+            str(self.source),
             str(self.home / "custom-work"),
             "/synthetic/abs-work",
         ]
@@ -513,37 +502,23 @@ class HarnessConfigTests(unittest.TestCase):
             "PATH": os.defpath,
             "LANG": "C.UTF-8",
         }
-        # OpenCode 2.x answers through a background server; give it a free port so it never
-        # collides with the workstation's service, and stop it so no process outlives the test.
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0))
-            port = probe.getsockname()[1]
-        (target.parent / "service.json").write_text(json.dumps({"port": port}))
-        try:
-            for content in (original, self.render("dot_config/opencode/modify_private_opencode.json", original)):
-                target.write_text(content)
-                result = subprocess.run(
-                    [opencode, "debug", "config"],
-                    env=environment,
-                    cwd=self.home,
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=True,
-                )
-                # 2.x lists config sources and normalizes 1.x keys (provider.options -> providers.settings).
-                [config] = [source["info"] for source in json.loads(result.stdout) if source.get("path") == str(target)]
-                assert config["providers"]["openrouter"]["settings"]["timeout"] == 65432
-                assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-3.8-flash"}
-        finally:
-            subprocess.run(
-                [opencode, "service", "stop"],
+        # OpenCode 2.x answers through a server; --standalone runs a private one that exits with
+        # the command, so the test never touches the workstation's background service.
+        for content in (original, self.render("dot_config/opencode/modify_private_opencode.json", original)):
+            target.write_text(content)
+            result = subprocess.run(
+                [opencode, "debug", "config", "--standalone"],
                 env=environment,
                 cwd=self.home,
                 capture_output=True,
-                timeout=30,
-                check=False,
+                text=True,
+                timeout=60,
+                check=True,
             )
+            # 2.x lists config sources and normalizes 1.x keys (provider.options -> providers.settings).
+            [config] = [source["info"] for source in json.loads(result.stdout) if source.get("path") == str(target)]
+            assert config["providers"]["openrouter"]["settings"]["timeout"] == 65432
+            assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-3.8-flash"}
 
     def test_trust_hook_passes_source_path_literally_during_apply(self):
         executable = self.home / ".local/bin/dot"

@@ -1,5 +1,5 @@
 # chezmoi:modify-template
-{{- /* Docs: https://opencode.ai/docs/config/
+{{- /* Docs: https://opencode.ai/v2/docs/config/
        Persona (symlinked AGENTS.md) and skills (~/.agents/skills) load natively; the theme
        lives in cli.json. 2.x runs no language servers (it ignores lsp) and dropped compaction.prune, so
        compaction is replaced whole to retire it on every machine; the formatter is enabled. */ -}}

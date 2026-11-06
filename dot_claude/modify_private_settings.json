@@ -95,7 +95,7 @@
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- $directories := dig "permissions" "additionalDirectories" (list) $current -}}
 {{- if not (kindIs "slice" $directories) }}{{ fail "permissions.additionalDirectories must be an array" }}{{ end -}}
-{{- /* Add the managed roots (.agents, chezmoi, and pull.directories from ~/.config/dot.yaml)
+{{- /* Add the managed roots (.agents, the chezmoi source directory, and pull.directories from ~/.config/dot.yaml)
        without replacing directories the host added. */ -}}
 {{- /* Same default as PullConfig in dot/src/fmind_dot/config.py; test_harness_config keeps them equal. */ -}}
 {{- $pullDirectories := list "~/fmind" -}}
@@ -107,7 +107,7 @@
 {{-   end -}}
 {{- end -}}
 {{- if not (kindIs "slice" $pullDirectories) }}{{ fail "pull.directories in ~/.config/dot.yaml must be an array" }}{{ end -}}
-{{- $managedDirectories := list (joinPath .chezmoi.homeDir ".agents") (joinPath .chezmoi.homeDir ".local/share/chezmoi") -}}
+{{- $managedDirectories := list (joinPath .chezmoi.homeDir ".agents") .chezmoi.sourceDir -}}
 {{- range $directory := $pullDirectories -}}
 {{-   if not (kindIs "string" $directory) }}{{ fail "pull.directories entries in ~/.config/dot.yaml must be strings" }}{{ end -}}
 {{-   if eq $directory "~" -}}

@@ -5,7 +5,7 @@ if status is-interactive
         mise activate fish | source
     end
     set -l fish_cache_dir "$HOME/.cache/fish"
-    if set -q XDG_CACHE_HOME
+    if test -n "$XDG_CACHE_HOME"
         set fish_cache_dir "$XDG_CACHE_HOME/fish"
     end
     if command -q fzf
