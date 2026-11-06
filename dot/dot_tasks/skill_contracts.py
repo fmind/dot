@@ -43,7 +43,7 @@ FRONTMATTER_FIELDS = {
     "metadata",
     "name",
 }
-RESOURCE_DIRECTORIES = {"agents", "assets", "references", "resources", "scripts", "templates", "tests"}
+RESOURCE_DIRECTORIES = {"assets", "references", "scripts", "templates"}
 MARKDOWN = MarkdownIt("commonmark")
 
 ALLOWED_EMAIL_DOMAINS = {

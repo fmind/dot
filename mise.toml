@@ -92,7 +92,7 @@ depends = [
   "check:python",
   "check:shell",
   "check:skills",
-  "check:tools",
+  "check:tasks",
 ]
 
 [tasks."check:network"]
@@ -107,10 +107,10 @@ run = [
 ]
 
 [tasks."check:actions:online"]
-description = "Audit workflows with jactionlint's online rules (needs GH_TOKEN; weekly in security.yml)"
+description = "Audit workflows with jactionlint's online rules; fails closed on skipped lookups (needs GH_TOKEN; weekly in security.yml)"
 run = [
-  "jactionlint --online",
-  "jactionlint --online {{vars.workflow_templates}}",
+  "jactionlint --online=strict",
+  "jactionlint --online=strict {{vars.workflow_templates}}",
 ]
 
 [tasks."check:chezmoi"]
@@ -192,7 +192,7 @@ run = [
   "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md'",
 ]
 
-[tasks."check:tools"]
+[tasks."check:tasks"]
 description = "Validate repository task definitions"
 run = "mise tasks validate"
 

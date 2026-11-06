@@ -1,8 +1,6 @@
 # Docs: https://git-scm.com/docs/gitignore
 
 # Local agent state; shared skills remain versioned.
-.agents/prompts/
-.agents/tmp/
 .claude/*
 !.claude/skills
 .gemini/
@@ -16,7 +14,6 @@
 .ty_cache/
 .venv/
 __pycache__/
-build/
 dist/
 htmlcov/
 
