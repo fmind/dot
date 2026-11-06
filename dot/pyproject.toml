@@ -49,6 +49,8 @@ extend = "../ruff.toml"
 
 # No blanket [tool.ty.rules] ignores. Fix diagnostics at their source and use
 # only an evidenced, narrow line-level suppression for an upstream typing defect.
+[tool.ty.rules]
+blanket-ignore-comment = "error" # require `ty: ignore[<rule>]`; Ruff PGH003 checks only `type: ignore`
 
 [tool.pytest]
 addopts = ["-ra"]
@@ -61,6 +63,8 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
+# Measure `python -m fmind_dot` subprocess tests; pytest-cov 7 no longer does.
+patch = ["subprocess"]
 source = ["fmind_dot", "dot_tasks"]
 
 [tool.coverage.report]
