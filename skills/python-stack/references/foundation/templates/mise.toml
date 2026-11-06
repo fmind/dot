@@ -73,11 +73,12 @@ run = [
 [tasks."check:leaks"]
 alias = "cs"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-run = "betterleaks dir . --redact=100 --verbose --no-banner"
+# Load this project's own .betterleaks.toml when present; betterleaks 1.10+ skips it otherwise.
+run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --redact=100 --verbose --no-banner"
+run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
 
 [tasks."check:lint"]
 alias = "cl"

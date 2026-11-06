@@ -139,11 +139,12 @@ done
 [tasks."check:leaks"]
 description = "Scan working-tree files, including untracked files, for leaked secrets"
 # The pre-commit hook runs this through check:local; check:leaks:full covers the history weekly.
-run = "betterleaks dir . --redact=100 --verbose --no-banner"
+# betterleaks 1.10+ loads .betterleaks.toml only when named, so pass it explicitly.
+run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --redact=100 --verbose --no-banner"
+run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:lua"]
 description = "Check Neovim Lua formatting (stylua)"

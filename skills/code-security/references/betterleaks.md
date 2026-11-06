@@ -10,13 +10,13 @@ Find credentials before they reach a remote and the ones that already did; each 
 ## Commands
 
 ```bash
-betterleaks dir . --redact=100 --verbose --no-banner                # check:leaks: working tree, including untracked files
-betterleaks git --redact=100 --verbose --no-banner                  # check:leaks:full: complete history, the scheduled audit
-betterleaks git --redact=100 --staged --verbose --no-banner         # ad hoc: only the change about to be committed
-betterleaks git --redact=100 --report-format sarif --report-path betterleaks.sarif
+betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner   # check:leaks: working tree, including untracked files
+betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner     # check:leaks:full: complete history, the scheduled audit
+betterleaks git --unsafe-auto-load-config --redact=100 --staged --verbose --no-banner # ad hoc: only the change about to be committed
+betterleaks git --unsafe-auto-load-config --redact=100 --report-format sarif --report-path betterleaks.sarif
 ```
 
-`--no-banner` removes decoration; keep `--verbose --redact=100` so finding locations remain actionable without revealing secret values. Full scans retain their scope; never pass `--validation` in hooks or CI so candidate secrets never leave the machine.
+Since 1.10, betterleaks reads a target's `.betterleaks.toml` only with `--config <file>` or `--unsafe-auto-load-config`; without either, allowlists and custom rules are silently ignored. Use `--unsafe-auto-load-config` only on the project's own checkout (pass `--config` when the file must exist), never on untrusted targets. `--no-banner` removes decoration; keep `--verbose --redact=100` so finding locations remain actionable without revealing secret values. Full scans retain their scope; never pass `--validation` in hooks or CI so candidate secrets never leave the machine.
 
 ## Mise Task
 
@@ -25,11 +25,11 @@ Expose two scopes per [mise](../../mise/SKILL.md). The gate scans the working tr
 ```toml
 [tasks."check:leaks"]
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-run = "betterleaks dir . --redact=100 --verbose --no-banner"
+run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --redact=100 --verbose --no-banner"
+run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
 ```
 
 ## When a Secret Is Found
