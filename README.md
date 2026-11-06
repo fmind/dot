@@ -43,7 +43,7 @@ sudo usermod -aG render "$USER"
 xcode-select --install
 ```
 
-The installer requires mise 2026.10.18 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional: on macOS, mise installs Colima with the Docker CLI, Compose, and Buildx (`colima start` runs the engine); on Linux, install Docker Engine from your distribution.
+The installer requires mise 2026.11.2 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. A container engine is optional: on macOS, mise installs Colima with the Docker CLI, Compose, and Buildx (`colima start` runs the engine); on Linux, install Docker Engine from your distribution.
 
 ## Installation
 

@@ -1,5 +1,5 @@
 # Docs: https://docs.astral.sh/uv/reference/settings/
 
-# mise owns the workstation interpreter; prefer it over uv-managed copies so pipx tool
+# mise owns the workstation interpreter; prefer it over uv-managed copies so pypi tool
 # environments match every project venv.
 python-preference = "system"

@@ -27,7 +27,7 @@ def validate(configuration: Path, config_name: str = "config.toml") -> None:
         if not entries or any(not entry.get("version") for entry in entries):
             findings.append(f"{name}: missing locked version")
             continue
-        if name.startswith(("npm:", "pipx:")):
+        if name.startswith(("npm:", "pypi:")):
             # Native dependency graphs are verified by bundle() below.
             if any(not {"aube", "uv"}.intersection(entry) for entry in entries):
                 findings.append(f"{name}: missing dependency graph")

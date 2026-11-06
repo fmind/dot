@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-06"
 ---
 
 # Hugging Face CLI
@@ -31,7 +31,7 @@ Use `hf` for Hub operations from the shell. The CLI generates its own command sk
 
 ## Gotchas
 
-- **Use `hf`, not `huggingface-cli`**: `hf` replaced `huggingface-cli`; the mise tool is `pipx:huggingface_hub`.
+- **Use `hf`, not `huggingface-cli`**: `hf` replaced `huggingface-cli`; the mise tool is `pypi:huggingface_hub`.
 - **Size large transfers before downloading**: inspect file selection and disk headroom before a download; use `--include`/`--exclude` when only part of a repository is needed, and `hf download <repo-id> --dry-run` to list the files, sizes, and total without downloading. Verify a downloaded revision with `hf cache verify <repo-id> --revision <sha>` (and `--local-dir` when used); add `--fail-on-missing-files` only when the complete revision was intended. This verifies downloaded bytes, not remote upload completion.
 - **Pin a revision**: pass `--revision <sha>` for reproducible downloads; anything loaded with `trust_remote_code` is third-party code to review first.
 - **Pass `--dest` to `hf skills add`**: without it, the command also symlinks each skill into `.claude/skills` (`~/.claude/skills` with `--global`), creating that directory in projects that lack it; since 2.3.0 it skips the link when that directory already resolves to `.agents/skills`.

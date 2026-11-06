@@ -45,7 +45,7 @@ For scheduled visibility into advisories that the blocking policy intentionally 
 - **Disable telemetry in the policy**: Trivy sends anonymous usage data and an update check to Aqua on every run by default; set `scan.disable-telemetry: true` and `scan.skip-version-check: true` (`--debug` logs whether the request runs).
 - **Clear exclusions for image scans**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.
 - **License findings remain findings**: the shared license policy can reject Debian base packages. Review the owning project's distribution requirements and explicit license policy before publication; do not disable the scanner or add blanket ignores to make an image pass.
-- **Map aube locks for Trivy**: Trivy reads pipx `uv.lock` files natively but skips npm `aube-lock.yaml` unless `scan.file-patterns` maps it with `pnpm:aube-lock\.yaml`.
+- **Map aube locks for Trivy**: Trivy reads pypi `uv.lock` files natively but skips npm `aube-lock.yaml` unless `scan.file-patterns` maps it with `pnpm:aube-lock\.yaml`.
 - **Scan digests, not tags**: a tag can move after the scan; the digest is what ships.
 - **Pre-cache data for offline scans**: cache the required vulnerability database, Java database, and checks bundle first. `--skip-db-update` alone does not prevent other downloads; use the applicable `--skip-java-db-update`, `--skip-check-update`, and `--offline-scan` options per the [network guide](https://trivy.dev/docs/latest/advanced/air-gap/). Report missing data and database age instead of claiming a fresh or complete offline scan.
 

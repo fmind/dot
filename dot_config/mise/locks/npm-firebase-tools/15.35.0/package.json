@@ -2,6 +2,6 @@
   "name": "mise-npm-install",
   "private": true,
   "dependencies": {
-    "firebase-tools": "15.34.2"
+    "firebase-tools": "15.35.0"
   }
 }

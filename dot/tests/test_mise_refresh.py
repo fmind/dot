@@ -14,7 +14,7 @@ from dot_tasks.mise_locks import bundle
 CONFIG = """[settings]
 lockfile_platforms = ["linux-x64", "macos-arm64"]
 [tools]
-"pipx:example" = "latest"
+"pypi:example" = "latest"
 native = "latest"
 linux_only = {version = "latest", os = ["linux"]}
 """
@@ -28,7 +28,7 @@ def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
     (graph / "uv.lock").write_bytes(content)
     (graph / "pyproject.toml").write_text("[project]\nname='example'\n")
     (directory / "mise.lock").write_text(
-        'lockfile_version = 3\n[[tools."pipx:example"]]\nversion = "1.0"\n'
+        'lockfile_version = 4\n[[tools."pypi:example"]]\nversion = "1.0"\n'
         f'uv = {{path = "locks/example/1.0", digest = "sha256:{hashlib.sha256(content).hexdigest()}"}}\n'
         '[[tools.native]]\nversion = "2.0"\n'
         '[tools.native."platforms.linux-x64"]\nurl = "https://example.org/linux"\nchecksum = "sha256:linux"\n'
@@ -44,8 +44,8 @@ def write_bundle(directory: Path, content: bytes = b"old graph\n") -> None:
         (False, (), []),
         (True, (), ["--bump"]),
         # An unbumped lock would resolve "latest" to the installed version.
-        (False, ("pipx:example",), ["--bump", "pipx:example"]),
-        (False, ("pipx:example", "native"), ["--bump", "pipx:example", "native"]),
+        (False, ("pypi:example",), ["--bump", "pypi:example"]),
+        (False, ("pypi:example", "native"), ["--bump", "pypi:example", "native"]),
     ],
 )
 @pytest.mark.parametrize("old_damage", ["none", "missing", "digest"])
@@ -68,10 +68,10 @@ def test_refresh_uses_portable_source_and_isolated_config(
         graph.write_bytes(b"damaged graph\n")
     live_config = tmp_path / "live/config.toml"
     live_config.parent.mkdir()
-    live_config.write_text('"pipx:example"="path:/private/runtime"\n')
+    live_config.write_text('"pypi:example"="path:/private/runtime"\n')
     system_config = tmp_path / "system/config.toml"
     system_config.parent.mkdir()
-    system_config.write_text('[tools]\n"pipx:machine-only"="1.0"\n')
+    system_config.write_text('[tools]\n"pypi:machine-only"="1.0"\n')
     monkeypatch.setenv("MISE_GLOBAL_CONFIG_FILE", str(live_config))
     monkeypatch.setenv("MISE_CONFIG_DIR", str(live_config.parent))
     monkeypatch.setenv("MISE_SYSTEM_CONFIG_FILE", str(system_config))
@@ -124,7 +124,7 @@ def test_refresh_uses_portable_source_and_isolated_config(
 
     assert commands[-1] == ["mise", "lock", "--global", "--yes", *expected]
     assert graph.read_bytes() == b"refreshed graph\n"
-    assert live_config.read_text() == '"pipx:example"="path:/private/runtime"\n'
+    assert live_config.read_text() == '"pypi:example"="path:/private/runtime"\n'
     assert all(not path.exists() for path in staging)
     bundle(source / "mise.lock")
 
@@ -156,7 +156,7 @@ def test_refresh_failure_preserves_the_managed_bundle(
         if failure == "command":
             raise subprocess.CalledProcessError(1, args)
         if failure == "missing_tool":
-            lock.write_text(lock.read_text().replace('tools."pipx:example"', 'tools."pipx:other"'))
+            lock.write_text(lock.read_text().replace('tools."pypi:example"', 'tools."pypi:other"'))
         elif failure == "missing_platform":
             lock.write_text(lock.read_text().replace("platforms.macos-arm64", "platforms.macos-x64"))
         elif failure == "missing_graph":
@@ -198,7 +198,7 @@ def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
         assert check
         assert timeout > 0
         assert cwd is not None
-        assert args[-2:] == ["--bump", "pipx:example"]
+        assert args[-2:] == ["--bump", "pypi:example"]
         # Simulate mise bumping one tool: its entry and graph folder move to 2.0, the rest stays.
         configuration = Path(env["MISE_CONFIG_DIR"])
         old = configuration / "locks/example/1.0"
@@ -211,7 +211,7 @@ def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
         return subprocess.CompletedProcess(args, 0)
 
     monkeypatch.setattr(subprocess, "run", run)
-    mise_refresh.refresh(tmp_path, tools=["pipx:example"])
+    mise_refresh.refresh(tmp_path, tools=["pypi:example"])
 
     lock = (source / "mise.lock").read_text()
     assert 'version = "2.0"\nuv = {path = "locks/example/2.0"' in lock
@@ -224,8 +224,8 @@ def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
     ("arguments", "message"),
     [
         (["--bump", "--tool", "native"], "not allowed with argument"),
-        (["--tool", "pipx:missing"], "undeclared tools pipx:missing"),
-        (["--tool", "pipx:example@2.0"], "undeclared tools pipx:example@2.0"),
+        (["--tool", "pypi:missing"], "undeclared tools pypi:missing"),
+        (["--tool", "pypi:example@2.0"], "undeclared tools pypi:example@2.0"),
     ],
 )
 def test_main_rejects_invalid_selections_before_resolving(
@@ -254,7 +254,7 @@ def test_main_rejects_invalid_selections_before_resolving(
 
 @pytest.mark.parametrize(
     ("bump", "tools", "message"),
-    [(True, ["native"], "either bump"), (False, ["pipx:missing"], "declare the tool")],
+    [(True, ["native"], "either bump"), (False, ["pypi:missing"], "declare the tool")],
 )
 def test_refresh_rejects_invalid_selections(tmp_path: Path, *, bump: bool, tools: list[str], message: str) -> None:
     write_bundle(tmp_path / "dot_config/mise")

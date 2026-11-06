@@ -19,7 +19,7 @@ def _lock(root: Path, version: str = "1.0", backend: str = "uv") -> Path:
     digest = hashlib.sha256(content).hexdigest()
     lock = root / "mise.lock"
     lock.write_text(
-        f'lockfile_version = 3\n[[tools.example]]\nversion = "{version}"\n'
+        f'lockfile_version = 4\n[[tools.example]]\nversion = "{version}"\n'
         f'{backend} = {{ path = "locks/example/{version}", digest = "sha256:{digest}" }}\n'
     )
     return lock
@@ -85,7 +85,7 @@ def test_capture_rejects_destination_symlinks_before_any_writes(tmp_path: Path, 
     assert list(bundle(source))[1] == Path("locks/aaa/1.0/pyproject.toml")  # mise.lock is written last.
     destination = tmp_path / "managed/mise.lock"
     destination.parent.mkdir()
-    previous = b"lockfile_version = 3\n[tools]\n"
+    previous = b"lockfile_version = 4\n[tools]\n"
     destination.write_bytes(previous)
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -112,7 +112,7 @@ def test_capture_rejects_destination_symlinks_before_any_writes(tmp_path: Path, 
 )
 def test_bundle_rejects_malformed_structure(tmp_path: Path, body: str) -> None:
     lock = tmp_path / "mise.lock"
-    lock.write_text("lockfile_version = 3\n" + body)
+    lock.write_text("lockfile_version = 4\n" + body)
     with pytest.raises(ValueError, match=r"table|references"):
         bundle(lock)
 
@@ -121,8 +121,8 @@ def test_capture_rejects_another_lock_revision(tmp_path: Path) -> None:
     source = _lock(tmp_path / "live")
     destination = _lock(tmp_path / "managed")
     before = bundle(destination)
-    source.write_bytes(b"lockfile_version = 2\n[tools]\n")
-    with pytest.raises(ValueError, match="expected revision 3"):
+    source.write_bytes(b"lockfile_version = 3\n[tools]\n")
+    with pytest.raises(ValueError, match="expected revision 4"):
         capture(source, destination)
     assert bundle(destination) == before
 
@@ -148,7 +148,7 @@ def test_retire_removes_only_unreferenced_generated_graphs(tmp_path: Path) -> No
     retired_tool = tmp_path / "locks/removed/0.1"
     retired_tool.mkdir(parents=True)
     (retired_tool / "package.json").write_text("{}")
-    nested = tmp_path / "locks/mise.local/pipx-example/1.0"
+    nested = tmp_path / "locks/mise.local/pypi-example/1.0"
     nested.mkdir(parents=True)
     (nested / "pyproject.toml").write_text("# Generated manifest\n")
     (nested / "uv.lock").write_text("old")
@@ -159,7 +159,7 @@ def test_retire_removes_only_unreferenced_generated_graphs(tmp_path: Path) -> No
 
     assert retire(lock) == [
         Path("locks/example/1.0"),
-        Path("locks/mise.local/pipx-example/1.0"),
+        Path("locks/mise.local/pypi-example/1.0"),
         Path("locks/removed/0.1"),
     ]
     assert not stale.exists()
@@ -176,7 +176,7 @@ def test_retire_preserves_graphs_under_symlinked_directories(tmp_path: Path, lin
     deployed = tmp_path / "deployed"
     deployed.mkdir()
     lock = deployed / "mise.lock"
-    lock.write_text("lockfile_version = 3\n[tools]\n")
+    lock.write_text("lockfile_version = 4\n[tools]\n")
     target = deployed / linked
     target.parent.mkdir(parents=True, exist_ok=True)
     outside = tmp_path / "outside"

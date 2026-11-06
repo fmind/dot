@@ -2,9 +2,9 @@
 # expired_at forces a periodic re-review: an expired entry fails check:scan again until renewed or removed.
 
 vulnerabilities:
-  # mise pipx locks resolve universally (requires-python >=3.10); tools install on the latest
+  # mise pypi locks resolve universally (requires-python >=3.10); tools install on the latest
   # workstation Python and resolve the current dependency marker branch.
   - id: CVE-2026-112940
-    paths: ["dot_config/mise/locks/pipx-huggingface-hub/*/uv.lock"]
+    paths: ["dot_config/mise/locks/pypi-huggingface-hub/*/uv.lock"]
     statement: filelock 4.1.0 is resolved only for Python <3.11; the installed tool resolves the patched 4.2 branch.
     expired_at: 2027-01-02

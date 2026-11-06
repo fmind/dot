@@ -12,8 +12,8 @@ import tomllib
 from pathlib import Path
 
 _GRAPH_FILES = {"uv": ("pyproject.toml", "uv.lock"), "aube": ("package.json", "aube-lock.yaml")}
-# Revision 3 (mise 2026.9.16) also pins forge repository IDs.
-LOCK_REVISION = 3
+# Revision 4 (mise 2026.11.1) adds npm provenance repositories; mise refuses newer revisions.
+LOCK_REVISION = 4
 
 
 def _bundle_path(root: Path, relative: Path) -> Path:
@@ -159,7 +159,7 @@ def _valid_install(candidate: Path, version: str, backend: str, allowed: set[tup
 def retire_installs(lock: Path, installs: Path) -> list[Path]:
     """Remove hash-suffixed uv/aube tool installs whose graph or interpreter was retired.
 
-    mise names revision-3 pipx and npm installs `<version>~<backend>~<hash>` and strips the
+    mise names pypi and npm installs `<version>~<backend>~<hash>` and strips the
     suffix during `mise prune`, so superseded dependency graphs accumulate under installs/.
     """
     bundle(lock, verify=False)
