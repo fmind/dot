@@ -7,7 +7,7 @@
 text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helvetica, Arial, sans-serif; fill: #202124; }
 .code { font-family: "Google Sans Code", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
 .card { fill: #FFFFFF; stroke: #DADCE0; }
-.label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #595D62; }
+.label { font-size: 12px; font-weight: 600; fill: #595D62; }
 .chip { fill: #F1F3F4; }
 .chip-text { font-size: 14px; }
 .muted { font-size: 12.5px; fill: #595D62; }
@@ -25,7 +25,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <rect class="card" x="1" y="1" width="958" height="478" rx="16"/>
 
 <!-- Repository -->
-<text class="label" x="144" y="44" text-anchor="middle">THIS REPOSITORY</text>
+<text class="label" x="144" y="44" text-anchor="middle">This repository</text>
 <g text-anchor="middle">
 <rect class="chip" x="32" y="64" width="224" height="34" rx="17"/><text class="chip-text" x="144" y="86">Dotfiles · templates</text>
 <rect class="chip" x="32" y="106" width="224" height="34" rx="17"/><text class="chip-text" x="144" y="128">Persona · skills</text>
@@ -42,7 +42,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <text class="muted" x="288" y="233" text-anchor="middle">clone</text>
 
 <!-- Engines -->
-<text class="label" x="480" y="44" text-anchor="middle">CHEZMOI · MISE · DOT</text>
+<text class="label" x="480" y="44" text-anchor="middle">chezmoi · mise · dot</text>
 <rect class="box" x="320" y="60" width="320" height="316" rx="14"/>
 <g text-anchor="middle">
 <rect class="config" x="340" y="78" width="280" height="56" rx="10"/>
@@ -60,7 +60,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <text class="muted" x="672" y="233" text-anchor="middle">apply</text>
 
 <!-- Workstation -->
-<text class="label" x="816" y="44" text-anchor="middle">YOUR WORKSTATION</text>
+<text class="label" x="816" y="44" text-anchor="middle">Your workstation</text>
 <g text-anchor="middle">
 <rect class="chip" x="704" y="64" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="86">Ghostty · Zellij · Fish</text>
 <rect class="chip" x="704" y="106" width="224" height="34" rx="17"/><text class="chip-text" x="816" y="128">Starship · Atuin · zoxide</text>

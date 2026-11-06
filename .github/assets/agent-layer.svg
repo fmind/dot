@@ -7,7 +7,7 @@
 text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helvetica, Arial, sans-serif; fill: #202124; }
 .code { font-family: "Google Sans Code", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
 .card { fill: #FFFFFF; stroke: #DADCE0; }
-.label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #595D62; }
+.label { font-size: 12px; font-weight: 600; fill: #595D62; }
 .chip { fill: #F1F3F4; }
 .chip-text { font-size: 14px; }
 .muted { font-size: 12.5px; fill: #595D62; }
@@ -21,7 +21,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <rect class="card" x="1" y="1" width="958" height="402" rx="16"/>
 
 <!-- Written once -->
-<text class="label" x="212" y="44" text-anchor="middle">THIS REPOSITORY · WRITTEN ONCE</text>
+<text class="label" x="212" y="44" text-anchor="middle">This repository · written once</text>
 <g text-anchor="middle">
 <rect class="tile" x="32" y="64" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="89">dot_agents/AGENTS.md</text><text class="muted" x="212" y="109">one persona every harness loads</text>
 <rect class="tile" x="32" y="138" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="163">skills/</text><text class="muted" x="212" y="183">one shared skill catalog</text>
@@ -29,7 +29,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 </g>
 
 <!-- Deployment -->
-<text class="label" x="496" y="44" text-anchor="middle">DEPLOYED BY CHEZMOI</text>
+<text class="label" x="496" y="44" text-anchor="middle">Deployed by chezmoi</text>
 <g text-anchor="middle">
 <line class="flow" x1="396" y1="94" x2="596" y2="94" marker-end="url(#arrow)"/><text class="code muted" x="496" y="84">~/.agents/AGENTS.md</text>
 <line class="flow" x1="396" y1="168" x2="596" y2="168" marker-end="url(#arrow)"/><text class="code muted" x="496" y="158">~/.agents/skills/</text>
@@ -37,7 +37,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 </g>
 
 <!-- Harnesses -->
-<text class="label" x="764" y="44" text-anchor="middle">FOUR HARNESSES</text>
+<text class="label" x="764" y="44" text-anchor="middle">Four harnesses</text>
 <rect class="box" x="600" y="60" width="328" height="216" rx="14"/>
 <g text-anchor="middle">
 <rect class="chip" x="620" y="88" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="110">Antigravity</text>

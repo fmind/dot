@@ -27,9 +27,10 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 | Platform            | Requirements                            | CI coverage                            |
 | ------------------- | --------------------------------------- | -------------------------------------- |
 | Linux x86-64        | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Full repository gate and starter tests |
+| Linux arm64         | glibc 2.39+ (Debian 13)                 | Tools locked; not covered by CI        |
 | macOS Apple Silicon | macOS 15+, Xcode Command Line Tools     | Templates, Python, and starter tests   |
 
-The macOS baseline follows [Homebrew's supported versions](https://docs.brew.sh/Installation#macos-requirements); other platforms are untested. CI validates templates, code, and builds without running the host installer end to end.
+The macOS baseline follows [Homebrew's supported versions](https://docs.brew.sh/Installation#macos-requirements). Linux arm64 has tool locks but no CI job; other platforms are untested. CI validates templates, code, and builds without running the host installer end to end.
 
 Install the host prerequisites first; everything else installs in user space:
 
@@ -154,23 +155,23 @@ GitHub pushes use SSH even for HTTPS clones (register a key in [GitHub settings]
 
 Agent harnesses manage their own logins (mise locks every harness except self-updating Antigravity):
 
-| Harness     | Command                     | Guide                                              |
-| ----------- | --------------------------- | -------------------------------------------------- |
-| Antigravity | `agy`                       | [agy](skills/agy/SKILL.md)                         |
-| Claude Code | `claude auth login`         | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
-| Copilot     | `copilot login`             | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
-| OpenCode    | `opencode`, then `/connect` | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
+| Harness     | Command               | Guide                                              |
+| ----------- | --------------------- | -------------------------------------------------- |
+| Antigravity | `agy`                 | [agy](skills/agy/SKILL.md)                         |
+| Claude Code | `claude auth login`   | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
+| Copilot     | `copilot login`       | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
+| OpenCode    | `opencode auth login` | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
 
 Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 
 ### Commit signing
 
-Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with its own passphraseless Ed25519 SSH key (`~/.ssh/id_ed25519_signing`) so agent shells can sign unattended and any machine can be revoked independently; the private key never enters this repository, and machines without it commit unsigned. A signature proves the machine, not a human. Provision a new machine once (`dot setup github` drops the temporary `write:ssh_signing_key` scope afterwards):
+Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with its own passphraseless Ed25519 SSH key (`~/.ssh/id_ed25519_signing`) so agent shells can sign unattended and any machine can be revoked independently; the private key never enters this repository, and machines without it commit unsigned. A signature proves the machine, not a human. Provision a new machine once (`dot setup github` drops the temporary `write:ssh_signing_key` scope afterwards; key titles are public):
 
 ```bash
 ssh-keygen -t ed25519 -N '' -C "git-signing@fmind.dev" -f ~/.ssh/id_ed25519_signing
 dot login github --grant write:ssh_signing_key
-gh ssh-key add ~/.ssh/id_ed25519_signing.pub --type signing --title "$(hostname) signing"
+gh ssh-key add ~/.ssh/id_ed25519_signing.pub --type signing --title "git signing $(date +%F)"
 dot setup github
 printf '*@fmind.dev namespaces="git" %s\n' "$(cat ~/.ssh/id_ed25519_signing.pub)" >>"$(chezmoi source-path)/dot_config/git/allowed_signers"
 chezmoi apply ~/.gitconfig ~/.config/git/allowed_signers
@@ -182,14 +183,15 @@ Commit the new [`allowed_signers`](dot_config/git/allowed_signers) line so every
 
 Secrets are never exported at shell startup:
 
-- **Native credential seeds:** Hugging Face, Kaggle, and OpenCode credentials deploy only when absent so later logins (`hf auth login`, `kaggle auth login`, OpenCode `/connect`) survive apply. For customer work, isolate accounts with the [override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
+- **Native credential seeds:** Hugging Face, Kaggle, and OpenCode credentials deploy only when absent so later logins (`hf auth login`, `kaggle auth login`) survive apply. OpenCode 2.x keeps credentials in its own database and did not import the seeded `auth.json` here, so log in once per machine with `opencode auth login`. For customer work, isolate accounts with the [override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
 - **Scoped secrets:** pass a personal key to a single command with `dot secret run` (an existing environment value wins, and an empty one fails instead of loading the personal key; see [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI publishes via Trusted Publishing:
 
   ```bash
   dot secret run OPENROUTER_MANAGEMENT_KEY -- <command>
   ```
 
-- **Encrypted sources:** only the owner's `~/.config/chezmoi/key.txt` decrypts committed `*.age` files; without it, apply skips them. Back up your key and never copy it to a customer-managed machine. Import new secrets with mode `0600` and `chezmoi add --encrypt` (`--create` for native login seeds), never pass secret values in command arguments, and refresh encrypted seeds after rotating native credentials.
+- **Collector configs:** Brain Framework collector credentials under `~/.config/bf/credentials/` deploy on every apply; edit their encrypted sources, never the deployed copy.
+- **Encrypted sources:** only the owner's `~/.config/chezmoi/key.txt` decrypts committed `*.age` files; without it, apply skips them. Back up your key and never copy it to a customer-managed machine. Import new secrets with mode `0600` and `chezmoi add --encrypt` (`--create` for native login seeds), never pass secret values in command arguments, and refresh the Hugging Face and Kaggle seeds after rotating their credentials.
 
 ## Adapting this
 
