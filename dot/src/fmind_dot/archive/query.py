@@ -108,10 +108,7 @@ def _ingestion_timestamp(value: str) -> datetime | None:
 
 
 def _manifest_matches(summary: SessionSummary, query: SessionQuery) -> bool:
-    if query.agent and summary.agent != query.agent:
-        return False
-    if query.identity and query.identity != summary.session_id:
-        return False
+    # discover_sessions already selects agent and identity by path, which manifests must match.
     if query.since is None and query.until is None:
         return True
     ingested = _ingestion_timestamp(summary.ingested_at)

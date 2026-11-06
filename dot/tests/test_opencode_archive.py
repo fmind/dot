@@ -161,3 +161,15 @@ def test_opencode_usage_without_counters_stays_unknown_and_bad_counters_fail(tmp
     parsed = parse_opencode_session(path, "ses_test")
     assert parsed.usage is None
     assert isinstance(parsed.usage_error, ValueError)
+
+
+def test_opencode_2x_store_is_empty_until_it_holds_sessions(tmp_path: Path) -> None:
+    store = tmp_path / "opencode.db"
+    with closing(sqlite3.connect(store)) as db, db:
+        db.execute("CREATE TABLE session_v2 (id TEXT, directory TEXT)")
+    enumerate_sessions = AGENT_ADAPTERS["opencode"].enumerate
+    assert enumerate_sessions(store) == []
+    with closing(sqlite3.connect(store)) as db, db:
+        db.execute("INSERT INTO session_v2 VALUES ('ses_new', '/work/project')")
+    with pytest.raises(ValueError, match=r"OpenCode 2\.x sessions"):
+        enumerate_sessions(store)

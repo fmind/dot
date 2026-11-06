@@ -40,6 +40,7 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
                 "sessions": 0,
                 "prompts": 0,
                 "responses": 0,
+                "injected": 0,
                 "words": 0,
                 "characters": 0,
                 "active_days": set(),
@@ -63,6 +64,10 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
             if record.role == "assistant":
                 row["responses"] += 1
                 continue
+            if record.meta:
+                # Claude flags harness-injected user messages as meta turns.
+                row["injected"] += 1
+                continue
             row["prompts"] += 1
             row["characters"] += len(record.content)
             row["words"] += len(record.content.split())
@@ -82,9 +87,9 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         if row["sessions"]:
             rows.append(row)
     return {
-        "schema": "dot.agent.prompts.stats/v2",
+        "schema": "dot.agent.prompts.stats/v3",
         "time_basis": "conversation timestamp (UTC)",
-        "unit": "archived user message; may include injected context",
+        "unit": "archived user message; excludes Claude meta turns (older captures may lack the flag)",
         "complete": excluded == 0
         and not (invalid_timestamps and (query.since or query.until))
         and not any(row["partial_sessions"] for row in rows),
@@ -92,5 +97,6 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         "sidechain_sessions": sidechains,
         "invalid_timestamps": invalid_timestamps,
         "prompts": sum(row["prompts"] for row in rows),
+        "injected": sum(row["injected"] for row in rows),
         "rows": rows,
     }

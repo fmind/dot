@@ -226,7 +226,7 @@ def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
 
     write()
     write(f"Prompt activity · {document['prompts']:,} archived user messages")
-    write("Conversation timestamps (UTC); user messages may include injected context.")
+    write("Conversation timestamps (UTC); Claude meta turns are counted as injected, not prompts.")
     if not document["rows"]:
         write("No prompt records found for this selection.")
     for row in document["rows"]:
@@ -235,6 +235,8 @@ def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
         if row["project"]:
             write(f"  Project: {row['project']}")
         write(f"  Sessions: {row['sessions']:,} · Prompts: {row['prompts']:,} · Responses: {row['responses']:,}")
+        if row["injected"]:
+            write(f"  Injected (Claude meta): {row['injected']:,}")
         write(f"  Active days: {row['active_days']:,} · Words: {row['words']:,} · Characters: {row['characters']:,}")
         write(f"  Prompt length (characters): median {row['median_characters']:,} · p95 {row['p95_characters']:,}")
         if row["partial_sessions"]:

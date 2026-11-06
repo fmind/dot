@@ -15,15 +15,11 @@ from fmind_dot.archive.parsers import (
     parse_agy_session,
     parse_claude_session,
     parse_copilot_session,
+    parse_opencode_session,
 )
 from fmind_dot.archive.store import SessionLog, fingerprint_bytes, marshal_session_logs
 from fmind_dot.archive.usage import RETIRED_AGENTS, UsageRecord
-
-COPILOT_SCHEMA = """
-CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-"""
+from tests.fakes import COPILOT_SCHEMA
 
 
 def _usage(parsed: ParsedSession) -> UsageRecord:
@@ -331,6 +327,76 @@ def test_copilot_discovery_is_read_only_and_filters_invalid_session_ids(tmp_path
     assert AGENT_ADAPTERS["copilot"].enumerate(database) == [("valid-id", "", database)]
     with pytest.raises(ValueError, match="invalid copilot session id"):
         parse_copilot_session(database, "invalid/id")
+
+
+def test_agy_usage_uses_provider_reported_counters(tmp_path: Path) -> None:
+    agy = tmp_path / "agy.jsonl"
+    response = {"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "done"}
+    prompt = {"source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "ask"}
+    _jsonl(
+        agy,
+        [
+            {**prompt, "created_at": "2026-01-01T00:00:00Z"},
+            {**response, "created_at": "2026-01-01T00:00:01Z", "input_tokens": 100, "output_tokens": 10},
+            {
+                **response,
+                "created_at": "2026-01-01T00:00:02Z",
+                "input_tokens": 5,
+                "cache_read_tokens": 110,
+                "output_tokens": 3,
+            },
+            {
+                "source": "SYSTEM",
+                "type": "CHECKPOINT",
+                "created_at": "2026-01-01T00:00:03Z",
+                "input_tokens": 118,
+                "cache_read_tokens": 0,
+                "output_tokens": 20,
+            },
+            {**prompt, "created_at": "2026-01-01T00:00:04Z"},
+        ],
+    )
+
+    usage = _usage(parse_agy_session(agy, "agy-id"))
+
+    assert usage.measurement_kind == "provider-reported"
+    assert usage.model == "unknown"
+    assert (usage.input_tokens, usage.cached_tokens, usage.output_tokens, usage.total_tokens) == (223, 110, 33, 366)
+    # turn_count still counts prompts, carried by the requests that follow them.
+    assert usage.turn_count == 2
+    assert [sample["timestamp"] for sample in usage.samples] == [
+        "2026-01-01T00:00:01Z",
+        "2026-01-01T00:00:02Z",
+        "2026-01-01T00:00:03Z",
+    ]
+    assert {sample["model"] for sample in usage.samples} == {"unknown"}
+    assert UsageRecord.from_dict(usage.to_dict()) == usage
+
+    _jsonl(agy, [{**response, "created_at": "2026-01-01T00:00:01Z", "input_tokens": -1, "output_tokens": 1}])
+    invalid = parse_agy_session(agy, "agy-id")
+    assert invalid.usage is None
+    assert str(invalid.usage_error) == "usage record field 'input_tokens' must be a non-negative integer"
+    assert [line.role for line in invalid.logs] == ["assistant"]
+
+
+def test_opencode_source_bytes_count_encoded_message_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "opencode.db"
+    message = json.dumps(
+        {"role": "assistant", "title": "café", "tokens": {"input": 1, "output": 1}, "time": {"created": 1}},
+        ensure_ascii=False,
+    )
+    with closing(sqlite3.connect(path)) as db, db:
+        db.executescript(
+            "CREATE TABLE session (id TEXT, directory TEXT);"
+            "CREATE TABLE message (id TEXT, session_id TEXT, time_created INTEGER, data TEXT);"
+            "CREATE TABLE part (id TEXT, message_id TEXT, session_id TEXT, time_created INTEGER, data TEXT);"
+            "INSERT INTO session VALUES ('ses_test', '/work/project');"
+        )
+        db.execute("INSERT INTO message VALUES ('msg_0', 'ses_test', 1, ?)", (message,))
+
+    usage = _usage(parse_opencode_session(path, "ses_test"))
+
+    assert usage.source_bytes == len(message.encode()) > len(message)
 
 
 def test_parsers_account_for_malformed_and_unsupported_records(tmp_path) -> None:

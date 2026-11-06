@@ -187,6 +187,12 @@ def _finalize_parsed_usage(
 
 
 _AGY_ROLES = {("USER_EXPLICIT", "USER_INPUT"): "user", ("MODEL", "PLANNER_RESPONSE"): "assistant"}
+# agy input excludes cache reads, like Claude's.
+_AGY_TOKEN_FIELDS = (
+    ("input_tokens", "input_tokens"),
+    ("output_tokens", "output_tokens"),
+    ("cache_read_tokens", "cached_tokens"),
+)
 
 
 def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
@@ -201,8 +207,13 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         cwd=resolve_cwd(cwd),
         measurement_kind="estimated",
     )
-    input_bytes = output_bytes = 0
+    input_bytes = output_bytes = prompts = 0
+    samples: list[UsageRecord] = []
+    usage_error: Exception | None = None
+    timed = True
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
+    # Only validates an undated sample: untimed sessions drop their samples below.
+    sample_fallback = _undated_usage_timestamp([], path)
     for raw in records:
         if raw is None:
             malformed += 1
@@ -211,11 +222,31 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         timestamp = raw.get("created_at")
         if isinstance(timestamp, str) and timestamp:
             usage.timestamp = timestamp
+        if usage_error is None and ("input_tokens" in raw or "output_tokens" in raw):
+            # Model responses and compaction checkpoints report each request's counters.
+            sample = UsageRecord(
+                harness="agy",
+                agent="agy",
+                session_id=session_id,
+                model="unknown",
+                cwd=usage.cwd,
+                timestamp=timestamp if isinstance(timestamp, str) else "",
+            )
+            try:
+                _apply_counters(sample, raw, _AGY_TOKEN_FIELDS)
+                timed = timed and bool(sample.timestamp)
+                sample.finalize(fallback_timestamp=sample_fallback)
+                # Each request carries the prompts sent since the previous one, so turn_count stays a prompt count.
+                sample.turn_count, prompts = prompts, 0
+                samples.append(sample)
+            except ValueError as error:
+                usage_error = error
         source, kind, content = raw.get("source"), raw.get("type"), raw.get("content")
         text = content if isinstance(content, str) else ""
         role = _AGY_ROLES.get((source, kind), "")
         if role == "user":
             usage.turn_count += 1
+            prompts += 1
             input_bytes += len(text.encode())
         elif role == "assistant":
             output_bytes += len(text.encode())
@@ -229,10 +260,16 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             continue
         if role and isinstance(content, str) and content.strip():
             logs.append(SessionLog(str(raw.get("created_at", "")), "agy", session_id, role, content, usage.cwd))
-    usage.input_tokens = (input_bytes + 3) // 4
-    usage.output_tokens = (output_bytes + 3) // 4
+    if samples:
+        samples[-1].turn_count += prompts
+        usage.set_samples(samples, timed=timed)
+        usage.measurement_kind = "provider-reported"
+    else:
+        # Older transcripts carry no counters: estimate about four bytes per token.
+        usage.input_tokens = (input_bytes + 3) // 4
+        usage.output_tokens = (output_bytes + 3) // 4
     usage.source_bytes = source_bytes
-    parsed_usage, usage_error = _finalize_parsed_usage(usage, None, _undated_usage_timestamp(logs, path))
+    parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
     if usage.cwd:
         # The workspace comes from the summaries database, not the transcript bytes.
         fingerprint = fingerprint_json({"transcript": fingerprint, "cwd": usage.cwd})
@@ -662,7 +699,8 @@ def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> Parsed
             session_id=session_id,
             cwd=cwd,
             measurement_kind="provider-reported",
-            source_bytes=sum(len(row[2]) for row in messages),
+            # Message bytes measured above; usage comes from messages only.
+            source_bytes=sizes[0][1],
         )
         usage.set_samples(requests)
         usage.timestamp = max(request.timestamp for request in requests)
@@ -775,6 +813,13 @@ def _enumerate_copilot(root: Path) -> list[SessionCandidate]:
 
 def _enumerate_opencode(root: Path) -> list[SessionCandidate]:
     with closing(_connect_read_only(root)) as connection:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if "session" not in tables and "session_v2" in tables:
+            # OpenCode 2.x replaced the 1.x session/message/part tables. An empty 2.x store has
+            # nothing to archive; refuse real 2.x sessions rather than silently skip them.
+            if connection.execute("SELECT 1 FROM session_v2 LIMIT 1").fetchone() is not None:
+                raise ValueError("OpenCode 2.x sessions (session_v2) are not supported yet")
+            return []
         rows = connection.execute("SELECT id, directory FROM session ORDER BY id LIMIT 20001").fetchall()
     if len(rows) > 20000:
         raise ValueError("OpenCode exceeds 20000 sessions")

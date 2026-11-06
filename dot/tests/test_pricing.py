@@ -9,6 +9,8 @@ from typer.testing import CliRunner
 
 from fmind_dot.archive import store
 from fmind_dot.archive.pricing import api_equivalent
+from fmind_dot.archive.query import SessionQuery
+from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.store import SessionLog, ingest_session, session_bundle_path
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records
 from fmind_dot.cli import app
@@ -176,7 +178,7 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert report["pricing"]["sources"]
     assert report["time_basis"].startswith("request timestamps")
     assert not {"pricing_as_of", "pricing_basis", "pricing_sources", "time_basis"} & report["usage"][0].keys()
-    assert report["prompts"]["schema"] == "dot.agent.prompts.stats/v2"
+    assert report["prompts"]["schema"] == "dot.agent.prompts.stats/v3"
     assert report["prompts"]["prompts"] == 1
     assert report["usage"][0]["api_equivalent_usd"] == 7
     assert report["usage"][0]["requests"] == 4
@@ -189,6 +191,28 @@ def test_stats_cli_honors_prices_and_preserves_prompt_privacy(monkeypatch: pytes
     assert "API equivalent:" in human.output
     assert "Rate card:" in human.output
     assert "SECRET PROMPT" not in human.output
+
+
+def test_prompt_statistics_count_claude_meta_turns_as_injected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    logs = [
+        SessionLog("2026-09-09T10:00:00Z", "claude", "meta", "user", "owner prompt", "/work"),
+        SessionLog("2026-09-09T10:00:01Z", "claude", "meta", "user", "injected skill body", "/work", meta=True),
+        SessionLog("2026-09-09T10:00:02Z", "claude", "meta", "assistant", "answer", "/work"),
+    ]
+    ingest_session("claude", "meta", logs)
+
+    report = prompt_statistics(SessionQuery())
+
+    assert (report["schema"], report["prompts"], report["injected"]) == ("dot.agent.prompts.stats/v3", 1, 1)
+    row = report["rows"][0]
+    assert (row["prompts"], row["injected"], row["responses"]) == (1, 1, 1)
+    assert (row["characters"], row["words"], row["median_characters"]) == (12, 2, 12)
+    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only"])
+    assert human.exit_code == 0, human.output
+    assert "Prompts: 1 · Responses: 1" in human.stdout
+    assert "Injected (Claude meta): 1" in human.stdout
+    assert "injected skill body" not in human.output
 
 
 @pytest.mark.parametrize("price", ["-1", ".inf", ".nan", "true", "'wrong'"])
