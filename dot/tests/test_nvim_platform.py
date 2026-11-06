@@ -76,6 +76,41 @@ end
     )
 
 
+@pytest.mark.parametrize(
+    ("ssh", "tmux", "expected"),
+    [("", "", "osc52-write"), ("10.0.0.1 1 10.0.0.2 22", "", "none"), ("", "tmux-socket,1,0", "none")],
+)
+def test_linux_without_display_writes_osc52_outside_ssh_and_tmux(
+    tmp_path: Path, ssh: str, tmux: str, expected: str
+) -> None:
+    run_lua(
+        tmp_path,
+        """
+vim.fn.has = function(feature) return feature == "linux" and 1 or 0 end
+local sent
+package.preload["vim.ui.clipboard.osc52"] = function()
+  return { copy = function(reg) return function(lines) sent = { reg, lines } end end }
+end
+dofile(vim.env.OPTIONS_CONFIG)
+if vim.env.EXPECTED == "none" then
+  assert(vim.g.clipboard == nil, "SSH and tmux must keep Neovim's own clipboard providers")
+  return
+end
+assert(vim.g.clipboard.name == vim.env.EXPECTED, "OSC 52 provider not installed")
+vim.g.clipboard.copy["+"]({ "x" })
+assert(sent[1] == "+" and sent[2][1] == "x", "OSC 52 sequence not emitted")
+assert(vim.deep_equal(vim.g.clipboard.paste["+"](), { "x" }), "paste cache lost the yank")
+assert(vim.deep_equal(vim.g.clipboard.paste["*"](), {}), "primary selection must stay separate")
+""",
+        DISPLAY="",
+        WAYLAND_DISPLAY="",
+        SSH_CONNECTION=ssh,
+        TMUX=tmux,
+        EXPECTED=expected,
+        OPTIONS_CONFIG=str(ROOT / "dot_config/nvim/lua/config/options.lua"),
+    )
+
+
 def test_branch_review_toggles_buffers_from_independent_repositories(tmp_path: Path) -> None:
     run_lua(
         tmp_path,

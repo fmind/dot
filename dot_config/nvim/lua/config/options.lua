@@ -46,4 +46,39 @@ if vim.fn.has("linux") == 1 and vim.env.DISPLAY and vim.env.DISPLAY ~= "" and vi
     },
     cache_enabled = 1,
   }
+elseif
+  vim.fn.has("linux") == 1
+  and (vim.env.WAYLAND_DISPLAY or "") == ""
+  and (vim.env.SSH_CONNECTION or "") == ""
+  and (vim.env.TMUX or "") == ""
+then
+  -- LazyVim sets clipboard=unnamedplus, which disables Neovim's built-in OSC 52
+  -- fallback. Emit OSC 52 on yank and serve paste from an in-process register
+  -- cache so terminals that ignore OSC 52 '?' read queries (such as ttyd) never
+  -- block for 10s on paste. SSH and tmux keep Neovim's own OSC 52 and tmux providers.
+  local osc52 = require("vim.ui.clipboard.osc52")
+  local cache = { ["+"] = {}, ["*"] = {} }
+  local function copy(reg)
+    local send = osc52.copy(reg)
+    return function(lines)
+      cache[reg] = lines
+      send(lines)
+    end
+  end
+
+  vim.g.clipboard = {
+    name = "osc52-write",
+    copy = {
+      ["+"] = copy("+"),
+      ["*"] = copy("*"),
+    },
+    paste = {
+      ["+"] = function()
+        return cache["+"]
+      end,
+      ["*"] = function()
+        return cache["*"]
+      end,
+    },
+  }
 end
