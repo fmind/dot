@@ -303,15 +303,20 @@ def _forward_lines(source: IO[str], target: IO[str], on_line: Callable[[str], No
 
 
 def run_parallel[T, R](runner: Runner, function: Callable[[T], R], items: Sequence[T], workers: int) -> list[R]:
-    """Map items over a bounded pool; an interruption cancels every running command."""
+    """Map items over a bounded pool; an interruption cancels every running command.
+
+    A worker error propagates after the other workers finish, and the runner stays usable.
+    """
     if not items:
         return []
     executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
     try:
         return list(executor.map(function, items))
-    except BaseException:
-        # Cancelled runners refuse new commands, so queued workers stop at their next call.
-        runner.cancel()
+    except BaseException as error:
+        # Cancellation is permanent: cancelled runners refuse new commands, so queued workers
+        # stop at their next call. Only interruptions cancel; ordinary errors leave the runner usable.
+        if not isinstance(error, Exception):
+            runner.cancel()
         raise
     finally:
         executor.shutdown(wait=True, cancel_futures=True)

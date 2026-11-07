@@ -17,12 +17,13 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
 
 
-class CompletionConfig(StrictModel):
-    path: str = "~/.config/fish/completions"
-
-
 # `~`, `~/...`, or absolute: a relative workspace would resolve against the caller's directory.
 WorkspacePath = Annotated[str, Field(pattern=r"^(?:~|~/.+|/.*)$")]
+
+
+class CompletionConfig(StrictModel):
+    # Completion installs prune unmanaged *.fish files here, so a relative path must never resolve to the cwd.
+    path: WorkspacePath = "~/.config/fish/completions"
 
 
 class PullConfig(StrictModel):

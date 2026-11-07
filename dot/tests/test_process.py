@@ -130,6 +130,32 @@ def test_cancel_prohibits_subsequent_worker_commands(tmp_path: Path) -> None:
     assert not (tmp_path / "should-not-exist").exists()
 
 
+def test_run_parallel_worker_error_keeps_runner_usable() -> None:
+    runner = Runner()
+
+    def work(item: int) -> int:
+        if item == 1:
+            raise DotError("worker failed")
+        return item
+
+    with pytest.raises(DotError, match="worker failed"):
+        process_module.run_parallel(runner, work, [0, 1, 2], 2)
+    # A later section of the same invocation must still run commands.
+    assert runner.run([sys.executable, "-c", "print('ok')"]).stdout == "ok\n"
+
+
+def test_run_parallel_interruption_cancels_runner() -> None:
+    runner = Runner()
+
+    def work(_item: int) -> int:
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        process_module.run_parallel(runner, work, [0], 1)
+    with pytest.raises(DotError, match="cancelled"):
+        runner.run([sys.executable, "-c", "pass"])
+
+
 def test_cancellation_during_launch_reports_cancellation_and_reaps_child(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = Runner()
     popen = subprocess.Popen

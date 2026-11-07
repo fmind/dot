@@ -160,6 +160,8 @@ def test_config_document_requires_a_mapping(tmp_path: Path) -> None:
         "pull:\n  directories: [relative-work]\n",
         "pull:\n  directories: ['~work']\n",
         "pull:\n  directories: ['']\n",
+        "completions:\n  path: ''\n",
+        "completions:\n  path: fish\n",
     ],
 )
 def test_workstation_policy_rejects_invalid_settings(tmp_path: Path, document: str) -> None:
