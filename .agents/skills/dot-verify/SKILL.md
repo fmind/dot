@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-verify
   created: "2026-09-24"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Verify Dot
 
-Prove that the current checkout (committed and uncommitted work) is correct, documented, and releasable. This skill sequences the owners; [repository-review](../../../skills/repository-review/SKILL.md), [repository-docs](../../../skills/repository-docs/SKILL.md), [dot-development](../dot-development/SKILL.md), and [dot-skills](../dot-skills/SKILL.md) own the details. Verification fixes findings in place but never commits, pushes, or releases; [dot-release](../dot-release/SKILL.md) owns that.
+Prove that the current checkout (committed and uncommitted work) is correct, documented, and releasable. This skill sequences the owners; [full-review](../../../skills/full-review/SKILL.md), [repository-docs](../../../skills/repository-docs/SKILL.md), [dot-development](../dot-development/SKILL.md), and [dot-skills](../dot-skills/SKILL.md) own the details. Verification fixes findings in place but never commits, pushes, or releases; [dot-release](../dot-release/SKILL.md) owns that.
 
 ## Workflow
 

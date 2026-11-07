@@ -5,7 +5,7 @@ Use this reference to move an existing MkDocs, Material for MkDocs, or Hugo site
 ## Inventory first
 
 1. **Record the published surface**: paths, anchors, navigation, assets, canonical URLs, redirects, feeds, and the hosting prefix; save a sitemap or `find site -name '*.html'` listing from the current build.
-1. **Inventory build customizations**: list every plugin, Markdown extension, template override, hook, and CI step; check plugins against the [supported list](https://zensical.org/docs/compatibility/mkdocs/plugins/). Unsupported plugins are silently ignored, so a missing feature is not an error.
+1. **Inventory build customizations**: list every plugin, Markdown extension, template override, hook, and CI step; check plugins against the [supported list](https://zensical.org/docs/compatibility/mkdocs/plugins/). Unsupported plugins are silently ignored, so a missing feature is not an error. Compatibility plugins (`nav-weight`, `markdownextradata`, `include-markdown`) keep a migration building; new pages use explicit `nav`, `macros`, and snippets.
 
 ## MkDocs and Material for MkDocs
 

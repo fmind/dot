@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-issues
   created: "2026-08-30"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # GitHub Issues
@@ -49,4 +49,4 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 - Upstream: `github/awesome-copilot` ships a same-name `github-issues` (GitHub MCP tools); preview it, never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 - [gh issue manual](https://cli.github.com/manual/gh_issue)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [repository-review](../repository-review/SKILL.md) (verified findings), [implementation-plan](../implementation-plan/SKILL.md) (ordered implementation), [github-pull-request](../github-pull-request/SKILL.md) (the PR).
+- Companion skills: [full-review](../full-review/SKILL.md) (verified findings), [github-pull-request](../github-pull-request/SKILL.md) (the PR).

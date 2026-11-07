@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-11-06"
+  updated: "2026-11-07"
 ---
 
 # Infrastructure as Code
@@ -24,12 +24,15 @@ Canonical infrastructure as code with OpenTofu (the open-source Terraform fork; 
 ## Workflow
 
 1. **Resolve the target**: identify the root module, backend, workspace (`tofu workspace show`), cloud project, credentials, and the authorized change scope. A fresh clone runs `mise run install` first: validation, linting, and tests need `tofu init` providers and `tflint --init` rulesets.
-1. **Edit minimally**: change the smallest root module that owns the resource; keep one state per concern (one GCS `prefix` per small root module: smaller blast radius, faster plans).
+1. **Keep one state per concern**: change the smallest root module that owns the resource, with one GCS `prefix` per small root module.
 1. **Check before planning**: run `mise run check` and `mise run test`; tests stay offline only while every provider is mocked (the starter's `mock_provider`), otherwise plan-mode tests can authenticate, refresh state, and read data sources. Native tests over `tests/*.tftest.hcl` use `command = plan` ([main.tftest.hcl](templates/main.tftest.hcl)); encode "must never happen" rules (public buckets, missing labels) as `check:scan` trivy findings or plan-test assertions.
 1. **Plan explicitly**: `mise run plan` writes `tmp/plan.tfplan` for the selected backend, workspace, and cloud target; feed secrets per State and secrets below. A plan can access APIs, state, and data sources, so keep plan and apply out of automatic gates.
-1. **Review the plan**: read `tofu show tmp/plan.tfplan` and flag every replacement, destroy, IAM change, and cost-relevant resource before asking for apply authority.
-1. **Apply the reviewed plan when authorized**: `tofu apply tmp/plan.tfplan` against the same target, then delete the saved plan.
-1. **Verify**: re-read the changed resources and run the same target's plan with the same secret inputs, `tofu plan -input=false -detailed-exitcode`; exit 0 means no remaining drift, 2 means pending changes, 1 is an error.
+1. **Apply only the reviewed plan when authorized**: flag replacements, destroys, IAM, and cost in `tofu show tmp/plan.tfplan`, run `tofu apply tmp/plan.tfplan` against the same target, delete the saved plan, and confirm `tofu plan -input=false -detailed-exitcode` exits 0.
+
+## OpenTofu inside an application repository
+
+- **Keep modules under `infra/`**: run `tofu -chdir=infra ...` and `tflint --chdir=infra` from one `check:tofu` task instead of copying the standalone template's task set.
+- **Validate without the live backend**: run `tofu -chdir=infra init -backend=false -input=false -lockfile=readonly` with `env.TF_DATA_DIR = "../tmp/tofu-check"` (a relative path resolves from `infra/`), so a cached live backend can never make validation read remote state.
 
 ## State and secrets
 

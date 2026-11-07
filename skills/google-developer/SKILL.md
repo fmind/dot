@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Google Developer Catalog
@@ -24,7 +24,7 @@ Route Google product work to the relevant selection in [google/skills](https://g
    ```
 
 1. **Review before installing**: follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) to review the selected immutable snapshot and install only the required project-scoped guidance. A catalog lookup does not authorize executing its results.
-1. **Verify guidance before acting**: compare the selected guidance with installed tools and current official docs. Use [research-brief](../implementation-plan/references/research-brief.md) when the API contract is uncertain.
+1. **Verify guidance before acting**: compare the selected guidance and the installed code with current official docs.
 
 | Task                                           | Catalog group and selection                                                     |
 | ---------------------------------------------- | ------------------------------------------------------------------------------- |

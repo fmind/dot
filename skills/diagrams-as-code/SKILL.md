@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diagrams-as-code
   created: "2026-09-16"
-  updated: "2026-11-01"
+  updated: "2026-11-07"
 ---
 
 # Diagrams as Code
 
-Choose the simplest picture that explains the system, or none when prose, a list, or a table is more direct. This skill owns the format choice; [fmind-visuals](../fmind-visuals/SKILL.md) owns brand, decks, and terminal demos.
+Choose the simplest picture that explains the system, or none when prose, a list, or a table is more direct. This skill owns the format choice; [fmind-visuals](../fmind-visuals/SKILL.md) owns brand, terminal demos, and logo or cover variants.
 
 | Need                                                                          | Format                           | Why                                                        |
 | ----------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |

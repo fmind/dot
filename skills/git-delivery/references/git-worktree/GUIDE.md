@@ -5,33 +5,22 @@ description: "Create Git branches, worktrees, or isolated snapshots of uncommitt
 
 # Git Worktree
 
-Choose a branch in the current checkout or an isolated workspace according to the task. A branch-only request needs no extra checkout and follows the [branches](references/branches.md) guide; isolation, candidate identity, and cleanup follow the workflow below.
+Choose a branch in the current checkout or an isolated workspace according to the task, and report exactly which candidate was tested.
 
 ## Workflow
 
-1. **Record the source**: inspect `git status --short`, `git diff`, `git diff --cached`, `git rev-parse HEAD`, and `git worktree list --porcelain`. Identify whether the candidate is a commit, the index, or selected working-tree changes.
-1. **Choose isolation**: use a linked worktree for a committed revision or new branch. Use the [dirty candidate procedure](references/dirty-candidate.md) when validation must include uncommitted files, or when checks must not share Git refs or hooks with the source.
-1. **Create a fresh destination**: choose a new sibling or temporary path outside the source. For a read-only review of committed code, use `git worktree add --detach <destination> <revision>`; for implementation, use `git worktree add -b <new-branch> <destination> <base>`.
-1. **Inspect execution inputs**: read the destination's tasks and hooks before running them; isolate virtual environments, build output, coverage, ports, databases, and caches that tests mutate. Do not copy credentials or reuse a live database to make a fixture pass.
-1. **Run the owning gate**: invoke the project's commands from the destination. Formatter output changes the tested candidate; compare it with the intended source before transferring proof or applying any resulting edits.
-1. **Return only intended changes**: review the destination diff, transfer task-owned changes when authorized, and preserve the source index. Commits, pushes, and merges follow the user's requested delivery flow.
-1. **Clean up deliberately**: inspect destination status and recover useful artifacts first. Use `git worktree remove <destination>` for an owned clean linked worktree; retain a dirty one until its changes are accounted for. Remove only the recorded disposable clone for a copied candidate.
-1. **Report identity**: revision, included dirty changes, executed gate, source-versus-tested differences, and any retained workspace.
-
-## Task guides
-
-<!-- guides:start -->
-
-- [branches](references/branches.md): Create and switch to a conventional `<type>/<slug>` branch in the current checkout.
-
-<!-- guides:end -->
+1. **Branch in place when that is all**: name it `<type>/<slug>` (commit type, lowercase kebab-case slug), start from `HEAD` unless a base is named, and run `git switch -c <branch> <base>`. Stop if the branch exists; never stash or reset to switch.
+1. **Pick the isolation**: use `git worktree add --detach <dest> <rev>` to review a commit, or `git worktree add -b <branch> <dest> <base>` to implement. Use a disposable clone when the candidate includes uncommitted files or must not share refs and hooks with the source.
+1. **Materialize a dirty candidate**: `git clone --no-hardlinks --no-checkout <source> <dest>`, check out the recorded `HEAD` detached, then overlay the selected bytes, modes, symlinks (not followed), and deletions from `git ls-files --cached --others --exclude-standard -z`. Leave ignored caches, environments, and secrets out, and compare the snapshot with the source before running anything.
+1. **Run the gate in the destination**: read its tasks and hooks first, and isolate environments, ports, databases, and caches the tests mutate. For mise, prefix commands with `MISE_TRUSTED_CONFIG_PATHS=<dest>` instead of `mise trust`, which outlives the clone.
+1. **Return and clean up**: review formatter edits before transferring them, preserve the source index, then remove only the worktree or clone this task created once no unique work remains. Report the revision, included dirty changes, gate, and any retained workspace.
 
 ## Gotchas
 
 - **A clean HEAD is a different candidate**: a passing worktree does not validate uncommitted edits in the source.
-- **Worktrees share Git state**: linked worktrees have separate indexes but share objects, refs, and usually repository configuration and hooks. They are not a security sandbox; do not run untrusted code merely because it is in a worktree.
-- **No forced reuse**: do not use force, stash, reset, or broad clean commands to make a busy branch or dirty destination available.
-- **Neutralize external symlinks**: inspect and replace writable links into the source with safe fixture data or stop that test; a copied symlink can defeat isolation.
+- **Worktrees share Git state**: linked worktrees share objects, refs, configuration, and hooks; they are not a sandbox for untrusted code.
+- **No forced reuse**: never use force, stash, reset, or broad clean commands to free a busy branch or dirty destination.
+- **Neutralize external symlinks**: a copied link into the source defeats isolation; replace it with fixture data or stop that test.
 
 ## Documentation
 

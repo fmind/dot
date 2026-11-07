@@ -1,13 +1,13 @@
 ---
 name: project-scaffolding
-description: "Create repos and licenses; author and update Copier, Cookiecutter, or Cruft templates."
+description: "Create repos and licenses; author or update Copier and Cookiecutter/Cruft templates."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-scaffolding
   created: "2026-09-02"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Project Scaffolding
@@ -23,7 +23,7 @@ Read only the matching guide and its required resources.
 <!-- guides:start -->
 
 - [bootstrap](references/bootstrap.md): Create a new repository: location, visibility, stack composition, shared layer, validation, and first push.
-- [cookiecutter](references/cookiecutter/GUIDE.md): Generate from existing Cookiecutter templates and update Cruft-tracked projects without losing local edits.
+- [cookiecutter](references/cookiecutter.md): Generate from existing Cookiecutter templates and update Cruft-tracked projects without losing local edits.
 - [copier](references/copier.md): Author new reusable Copier templates, generate projects, and apply tracked template updates.
 - [project-license](references/project-license/GUIDE.md): Choose, write, and declare a repository LICENSE (MIT, CC-BY-4.0, or proprietary) by namespace and content.
 

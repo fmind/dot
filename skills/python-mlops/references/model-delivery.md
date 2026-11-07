@@ -7,11 +7,9 @@ description: "Evaluate exact model versions, manage MLflow registry aliases, and
 
 Preparing a model does not authorize changing a production alias or deploying a service; preserve existing authorization for the named destination.
 
-- **Evaluate an explicit version**: resolve `models:/<name>@<alias>` once and record the version; never silently select the newest version, including through the reserved `@latest` alias. The reference project's promote-before-evaluate and latest-version selection are rejected ([sources](sources.md)).
-- **Fail closed on evaluation**: missing or non-finite metrics, unavailable evidence, or a failed threshold stops promotion. Check the installed MLflow API: computing metrics and enforcing thresholds can be separate calls.
-- **Promote with a rollback target**: read the current alias and record it, set the alias to the evaluated version, then read it back. A read-then-write is not compare-and-set: reconcile an uncertain or raced write by reading state before retrying. Never delete older versions or artifacts during promotion.
-- **Prove delivery at its boundary**: an alias change does not prove serving reloaded the model. For batch, verify written predictions, row identity, and the recorded version; for a service, the running revision's model identity and a representative request.
-- **Test the no-alias-on-failure path**: in a disposable registry or injected client, a failing candidate must leave the previous alias intact and call no alias setter.
+- **Evaluate an explicit version**: resolve `models:/<name>@<alias>` once and record the version; never select the newest version, including through the reserved `@latest` alias. The reference project's promote-before-evaluate and latest-version selection are rejected ([sources](sources.md)); missing metrics or a failed threshold stops promotion.
+- **Promote with a rollback target**: record the current alias, set it to the evaluated version, then read it back; never delete older versions or artifacts during promotion.
+- **Never let drift promote a model**: drift alerts and automated retraining stay within the agreed scope, and every replacement goes through this evaluation and promotion path.
 
 Service targets: [python-web](../../python-web/SKILL.md), [containerize](../../docker/references/containerize/GUIDE.md), [cloud-run](../../cloud-run/SKILL.md).
 

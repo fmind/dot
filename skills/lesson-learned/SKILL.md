@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/lesson-learned
   created: "2026-11-03"
-  updated: "2026-11-03"
+  updated: "2026-11-07"
 ---
 
 # Lesson Learned
@@ -34,8 +34,7 @@ Turn what a session taught into the smallest durable change in the right owner, 
 - **Prefer enforcement over prose**: a check fails on every host and costs no context; a sentence is loaded every session and can still be ignored.
 - **Report "no lesson" plainly**: most sessions change nothing durable; say so in one line instead of inventing a rule.
 - **Keep host memory out of the loop**: harness memory (such as Claude Code's `memory/` directory) is read by one host only, so route durable lessons to shared owners and migrate memory entries that hold them; touch memory only on the user's request, and never delete a memory file that a decision log cites as evidence.
-- **Keep lessons generic**: customer or employer specifics stay in their repositories; global owners get generic wording with synthetic fixtures.
-- **Keep agy `/learn` lessons in the dot source**: its global scope writes `~/.gemini/GEMINI.md` (the chezmoi-deployed persona, which the next `chezmoi apply --force` overwrites), rule files under `~/.gemini/config/rules/`, or new skills under `~/.gemini/config/skills/` (`~/.agents/skills`), all outside the dot source. Approve its `learning_proposal.md` only for project scope; apply global lessons to the dot source with this workflow.
+- **Keep agy `/learn` lessons in the dot source**: its global scope writes `~/.gemini/GEMINI.md`, which links to `~/.agents/AGENTS.md`, so a global `/learn` write changes the shared persona for every harness until the next `chezmoi apply --force` overwrites it; it also writes rule files under `~/.gemini/config/rules/`, or new skills under `~/.gemini/config/skills/` (`~/.agents/skills`), all outside the dot source. Approve its `learning_proposal.md` only for project scope; apply global lessons to the dot source with this workflow.
 
 ## Documentation
 

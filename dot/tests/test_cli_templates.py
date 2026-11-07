@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATES = ROOT / "skills/cli-development/references/typer/templates"
+TEMPLATES = ROOT / "skills/python-stack/references/typer/templates"
 SCRIPT = ROOT / "skills/python-stack/references/python-script/templates/script.py"
 # The packaged template reads its version from installed metadata; unpackaged runs borrow pytest's.
 INSTALLED_DISTRIBUTION = "pytest"

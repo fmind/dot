@@ -1,18 +1,18 @@
 ---
 name: code-security
-description: "Review code security, threat-model designs, vet third-party skills, and scan with Betterleaks and Trivy."
+description: "Review code security, threat-model designs, vet third-party skills, red-team AI apps with PyRIT, and scan with Betterleaks and Trivy."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-11-06"
+  updated: "2026-11-07"
 ---
 
 # Code Security
 
-Investigate and fix security defects with evidence. Choose code review, threat modeling, third-party skill review, secret scanning, or vulnerability scanning from the task; findings need verification and scanners do not replace reasoning. The name deliberately avoids `security-review`, which Claude Code and Copilot CLI ship as a built-in command.
+Investigate and fix security defects with evidence. Choose code review, threat modeling, AI red teaming, third-party skill review, secret scanning, or vulnerability scanning from the task; findings need verification and scanners do not replace reasoning. The name deliberately avoids `security-review`, which Claude Code and Copilot CLI ship as a built-in command.
 
 ## Workflow
 
@@ -22,6 +22,7 @@ Read only the matching guide and its required resources.
 
 <!-- guides:start -->
 
+- [ai-red-team](references/ai-red-team/GUIDE.md): Red-team AI apps and agents with PyRIT: prompt injection, tool misuse, and agent authority.
 - [betterleaks](references/betterleaks.md): Scan the working tree and history for secrets; handle confirmed exposure.
 - [code-review](references/code-review/GUIDE.md): Assess code and repository security; verify findings and repairs.
 - [skill-security-review](references/skill-security-review/GUIDE.md): Review third-party skills and agent extensions for supply-chain risk.

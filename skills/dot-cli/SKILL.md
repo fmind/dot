@@ -1,13 +1,13 @@
 ---
 name: dot-cli
-description: "Run dot: doctor, login, setup, status, pull, trust, secret, cache, prune, disk space, orphans, context, archives."
+description: "Run dot: doctor, login, setup, status, pull, trust, secret, cache, prune, disk space, orphans, context, archives, agent token and cost stats."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-11-06"
+  updated: "2026-11-07"
 ---
 
 # Dot CLI
@@ -24,6 +24,7 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 
 <!-- guides:start -->
 
+- [agent-usage](references/agent-usage.md): Report agent token usage, costs, and API equivalents from the session archive, with DuckDB exports.
 - [authentication](references/authentication.md): Inspect and apply configured provider login, OAuth scopes, and account policy.
 - [context](references/context.md): Measure discovery and instruction budgets in source or installed skill catalogs.
 - [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and session archive compatibility.
@@ -35,10 +36,10 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 
 ## Workflow ownership
 
-Use [conventional-commit](../git-delivery/references/conventional-commit.md) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy ([authentication](references/authentication.md)); inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics, and use [auth-status](../auth-status/SKILL.md) for a read-only login and expiry sweep. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
+Use [git-delivery](../git-delivery/SKILL.md#commit-messages) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy ([authentication](references/authentication.md)); inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics, and use [auth-status](../auth-status/SKILL.md) for a read-only login and expiry sweep. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
 
 ## Documentation
 
 - [fmind/dot](https://github.com/fmind/dot) — setup, implementation, and repository tasks.
 - Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
-- Companion skills: [agent-usage](../agent-usage/SKILL.md) (usage and cost reports), [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).
+- Companion skills: [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

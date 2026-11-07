@@ -19,14 +19,14 @@ jactionlint --fix                                         # apply safe mechanica
 
 ## Common Findings and Fixes
 
-| Finding                 | Fix                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------- |
-| `template-injection`    | Never expand `${{ ... }}` inside `run:`; pass values through `env:` and read `$VAR`.      |
-| `artipacked`            | `actions/checkout` with `persist-credentials: false` unless a later step must push.       |
-| `excessive-permissions` | Top-level `permissions: contents: read`; widen per job only (`id-token: write` for OIDC). |
-| `unpinned-uses`         | Pin actions to a full commit SHA and retain the release as a trailing review comment.     |
-| `cache-poisoning`       | Disable caches (`cache: false`) in release and deploy jobs that produce signed artifacts. |
-| `dangerous-triggers`    | Avoid `pull_request_target` and `workflow_run` unless the job never checks out PR code.   |
+| Finding                 | Fix                                                    |
+| ----------------------- | ------------------------------------------------------ |
+| `template-injection`    | Pass `${{ ... }}` values through `env:`.               |
+| `artipacked`            | `persist-credentials: false` unless a step pushes.     |
+| `excessive-permissions` | Top-level `contents: read`; widen per job.             |
+| `unpinned-uses`         | Full commit SHA plus a release comment.                |
+| `cache-poisoning`       | `cache: false` in release and deploy jobs.             |
+| `dangerous-triggers`    | No PR code under `pull_request_target`/`workflow_run`. |
 
 ## Gotchas
 

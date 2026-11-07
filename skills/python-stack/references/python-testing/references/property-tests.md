@@ -1,22 +1,10 @@
 # Property Tests
 
-Use generated cases when a broad input space or operation sequence makes example-only coverage weak. Keep ordinary examples for the public contract and discovered regressions; do not add Hypothesis to every project by default.
+Use Hypothesis when a broad input space or operation sequence makes example-only coverage weak; do not add it to every project by default.
 
-1. **Keep Hypothesis a test dependency**: reuse existing Hypothesis configuration; if absent and justified, add it to the project's test dependency group with `uv add --group <test-group> hypothesis`, then run through the existing pytest task. Do not add a global runtime dependency.
-1. **Prove the property catches a fault**: exercise the actual parser, codec, migration, or state machine against an independent observable invariant. Introduce a small relevant fault in isolation to verify the property detects it before trusting the test.
-1. **Keep real counterexamples as regressions**: retain the minimized counterexample as an explicit `@example(...)` regression when it explains a real defect. Replay a CI failure locally with its printed `@reproduce_failure(...)` decorator, then remove it: blobs and seeds hold only for the same Hypothesis version. When `CI` is set, Hypothesis loads its built-in `ci` profile (derandomized, no example database or deadline, failure blobs printed), so CI never replays the local database.
-
-| Boundary      | Useful property                                                                             | Additional evidence needed                                                  |
-| ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Codec         | Decoding an encoded supported value preserves its declared meaning                          | Fixed wire-format examples: encoder and decoder can share the same defect   |
-| Parser        | Valid generated documents parse; malformed variants fail with the declared error            | Unicode separators, empty fields, size bounds, and explicit expected values |
-| Migration     | A second invocation changes nothing; interrupted/resumed output equals uninterrupted output | Independent counts/relationships and old-version fixture read-back          |
-| State machine | Every permitted action sequence preserves the invariant; forbidden transitions are rejected | A simple independent model, isolated state, and realistic stop/retry paths  |
-
-For a JSON-shaped domain, build a bounded strategy from `none()`, `booleans()`, domain-sized `integers()`, finite `floats(allow_nan=False, allow_infinity=False)`, and `text()`; combine with `recursive`, `lists`, and `dictionaries` only to the depth the application supports. Generate Unicode rather than restricting to ASCII unless the contract requires it. If NaN or non-string keys are supported, define their comparison and serialization semantics explicitly.
-
-For stateful behavior, use `RuleBasedStateMachine` with rules, preconditions, and invariants when it is simpler than hand-built sequences. Create mutable resources per example or reset them between examples; a function-scoped pytest fixture is not automatically recreated for every generated example.
-
-Security properties should constrain authority as well as return values: actions by tenant A never change tenant B's state; rejected credentials never authorize an operation; a cancelled operation cannot acquire new authority. Generate sequences with distinct principals and reset state per example. Keep successful authorized actions in the suite so a deny-everything implementation cannot pass.
+- **Keep Hypothesis a test dependency**: reuse existing configuration; otherwise add it with `uv add --group <test-group> hypothesis` and run it through the existing pytest task.
+- **Know the CI profile**: when `CI` is set, Hypothesis loads its built-in `ci` profile (derandomized, no example database or deadline, failure blobs printed), so CI never replays the local database. Replay a CI failure locally with its printed `@reproduce_failure(...)`, then remove it: blobs hold only for the same Hypothesis version.
+- **Keep real counterexamples as `@example(...)` regressions** when they explain a real defect, and reset mutable state per example: a function-scoped fixture is not recreated for each generated example.
+- **Constrain authority in security properties**: generate sequences with distinct principals and assert that tenant A never changes tenant B's state and rejected credentials never authorize an operation; keep authorized successes in the suite so a deny-everything implementation cannot pass.
 
 Sources: [Hypothesis quickstart](https://hypothesis.readthedocs.io/en/latest/quickstart.html), [stateful testing](https://hypothesis.readthedocs.io/en/latest/stateful.html), and [settings](https://hypothesis.readthedocs.io/en/latest/reference/api.html#settings).

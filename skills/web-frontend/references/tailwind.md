@@ -11,6 +11,7 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
    version = "<exact>"
 
    [tools."github:tailwindlabs/tailwindcss".platforms]
+   linux-arm64 = { asset_pattern = "tailwindcss-linux-arm64" }
    linux-x64 = { asset_pattern = "tailwindcss-linux-x64" }
    macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }
    ```

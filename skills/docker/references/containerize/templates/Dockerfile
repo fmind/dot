@@ -2,7 +2,7 @@
 # check=error=true
 # Docs: https://docs.docker.com/reference/dockerfile/
 # The directive above fails every build on a build-check violation (https://docs.docker.com/build/checks/);
-# `docker buildx build --check .` lints without building.
+# `docker buildx build --check .` lints without building but needs Buildx 0.15+; distro Buildx 0.13 lacks it.
 FROM python:3.14.10-slim@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999 AS build
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy

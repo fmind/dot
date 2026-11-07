@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-10-21"
+  updated: "2026-11-07"
 ---
 
 # Dot Release
@@ -18,7 +18,7 @@ Use the checkout's release task as the single owner of preparation and publicati
 
 1. **Confirm authority**: the release command commits, pushes, and refreshes the installed CLI. An explicit `/dot-release` invocation or release request authorizes the whole flow below, including verification fixes, commits, the push to `main`, and the delivery fixes and follow-up release below; loading this skill for reference, review, or reconciling a past release does not.
 1. **Qualify first**: run [dot-verify](../dot-verify/SKILL.md) on the checkout and resolve its findings. Stop and report instead of releasing when a finding needs the user's decision or a gate stays red.
-1. **Commit the candidate**: group verified work into logical [Conventional Commits](../../../skills/git-delivery/references/conventional-commit.md) (the changelog is generated from them), then `git fetch` and push `main` so HEAD equals upstream; pre-push hooks rerun the network checks and tests. If upstream moved, integrate it without rewriting history only when its commits do not overlap the candidate; otherwise stop.
+1. **Commit the candidate**: group verified work into logical [Conventional Commits](../../../skills/git-delivery/SKILL.md#commit-messages) (the changelog is generated from them), then `git fetch` and push `main` so HEAD equals upstream; pre-push hooks rerun the network checks and tests. If upstream moved, integrate it without rewriting history only when its commits do not overlap the candidate; otherwise stop.
 1. **Know the preconditions**: the task stops before writing unless `dprint`, `git`, `git-cliff`, `mise`, and `uv` exist, the tree is clean on `main`, HEAD equals the fetched `origin/main`, and the next tag is absent locally; without new Conventional Commits it releases nothing. Preserve unrelated work when a precondition fails.
 1. **Run the owner**: use the commands below from the repository; the task runs from source (`uv run --frozen --directory dot python -m dot_tasks.release`), not the possibly stale installed CLI.
 1. **Read the result**: the task bumps `dot/pyproject.toml`, `CHANGELOG.md`, and `dot/uv.lock` (only those files may change), formats the changelog with dprint (CD rejects a tree its formatter changes, so this never depends on Git hooks), gates the bumped commit (`check:network`, which refreshes the vulnerability data CD rechecks, `test:starters`, which re-resolves unlocked upstream packages since CI ran, `build`, and the host-only `check:completions`), then commits with the Lefthook output visible, tags, pushes both with `git push --atomic`, and runs `mise run deploy`.
@@ -46,4 +46,4 @@ Inspect `git status --short`, the release commit, local tag, and remote state be
 ## Documentation
 
 - Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
-- Companion skills: [dot-verify](../dot-verify/SKILL.md) (pre-release qualification), [dot-development](../dot-development/SKILL.md) (implementation and installation proof), [conventional-commit](../../../skills/git-delivery/references/conventional-commit.md) (commit grammar).
+- Companion skills: [dot-verify](../dot-verify/SKILL.md) (pre-release qualification), [dot-development](../dot-development/SKILL.md) (implementation and installation proof), [commit messages](../../../skills/git-delivery/SKILL.md#commit-messages) (commit grammar).

@@ -4,51 +4,33 @@ Use this reference to enable features beyond the [starter](../templates/zensical
 
 ## Theme features
 
-Add flags to `[project.theme].features`. The starter enables the recommended set; adjust only for a concrete reader need.
+The starter's `[project.theme].features` hold the recommended set; adjust only for a concrete reader need. The [navigation](https://zensical.org/docs/setup/navigation/) page lists every flag; these are the decisions:
 
-- `navigation.instant` (+ `.prefetch`, `.progress`): Single-page navigation that keeps the search index and prefetches on hover; Decision: Default; needs `site_url`; remove for offline builds
-- `navigation.tabs` (+ `.sticky`): Top-level sections become header tabs above 1220 px; Decision: Use with three or more top-level sections
-- `navigation.sections`, `navigation.indexes`, `navigation.path`: Grouped sidebar, section overview pages, breadcrumbs; Decision: Default; `indexes` conflicts with `toc.integrate`
-- `navigation.prune`: Renders only visible navigation, shrinking HTML by a third or more; Decision: Sites with hundreds of pages; conflicts with `navigation.expand`
-- `navigation.footer`, `navigation.top`, `navigation.tracking`, `toc.follow`: Previous/next links, back-to-top, URL anchor tracking, TOC follows scroll; Decision: Default
-- `content.code.copy`, `content.code.select`, `content.code.annotate`: Copy and line-selection buttons, numbered code annotations; Decision: Default
-- `content.action.edit`, `content.action.view`: Edit and view-source buttons derived from `repo_url` and `edit_uri`; Decision: Default for public repositories
-- `content.action.copy`: Copy as Markdown button; Decision: Requires the `llmstxt` plugin; the page must be in a `sections` entry
-- `content.tabs.link`, `content.tooltips`, `content.footnote.tooltips`: Linked tab selection across pages, rich tooltips, inline footnotes; Decision: Default
-- `navigation.instant.preview`: Hover previews for header links; Decision: Prefer per-page targets with `zensical.extensions.preview` (below)
-- `header.autohide`, `announce.dismiss`, `navigation.expand`, `toc.integrate`, `search.highlight`: Hide header on scroll, dismissible announcement, expanded or integrated navigation, highlight search terms; Decision: Optional; the announcement itself needs an `announce` block override
+- **Instant navigation needs `site_url`**: `navigation.instant` keeps the search index across pages; remove it for offline builds.
+- **Tabs need three sections**: add `navigation.tabs` only with three or more top-level sections; tabs appear above 1220 px.
+- **Avoid conflicting pairs**: `navigation.indexes` conflicts with `toc.integrate`, and `navigation.prune` (for sites with hundreds of pages) with `navigation.expand`.
+- **Copy as Markdown needs `llmstxt`**: `content.action.copy` shows only on pages listed in a `llmstxt` `sections` entry.
+- **Preview selected targets**: prefer per-page targets over the site-wide `navigation.instant.preview`:
 
-Enable instant previews for selected targets instead of every link:
-
-```toml
-[[project.markdown_extensions.zensical.extensions.preview.configurations]]
-targets.include = ["reference/*", "glossary.md"]
-```
+  ```toml
+  [[project.markdown_extensions.zensical.extensions.preview.configurations]]
+  targets.include = ["reference/*", "glossary.md"]
+  ```
 
 ## Native plugins
 
-These replace MkDocs plugins without extra packages unless noted. Enable a plugin with an empty table, such as `[project.plugins.tags]`; supported plugins reject unknown settings.
+These replace MkDocs plugins without extra packages unless noted, and all run on 0.1.0; the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) gives each one's settings and first version. Enable a plugin with an empty table, such as `[project.plugins.tags]`; supported plugins reject unknown settings.
 
-- `search`: 0.0.3; Use: Built-in client-side search; language follows `theme.language`; exclude pages with `search.exclude: true` front matter
-- `llmstxt`: 0.0.67; Use: `llms.txt`, Markdown page copies, optional `full_output`; `sections` is required; glob patterns allowed
-- `social`: 0.0.67; Use: Open Graph and Twitter cards rendered at build time; front matter can override `social.cards`; cached in `.cache/`
-- `minify`: 0.0.58; Use: `minify_html`, plus listed JS and CSS files and inline `<script>`/`<style>`
-- `redirects`: 0.0.58; Use: `redirect_maps` for moved pages and anchors (`"old.md#a" = "new.md#b"`); splitting a page keeps a page-level fallback
-- `tags`: 0.0.58; Use: Front matter `tags`, search filtering, listings where `<!-- material/tags -->` appears; icons via `[project.extra.tags]`
-- `blog`, `rss`: 0.0.64, 0.0.65; Use: Posts in `docs/blog/posts/` with dates, drafts, categories, `.authors.yml`; RSS and JSON feeds (`match_path`)
-- `mkdocstrings`, `autorefs`: 0.0.11, 0.0.22; Use: Python API docs from `::: package.module`; install `mkdocstrings-python`; set `handlers.python.paths = ["src"]`
-- `api-autonav`, `autoapi`: 0.0.66; Use: Generate one reference page per module plus navigation; needs `mkdocstrings-python`
-- `meta`, `awesome-nav`, `literate-nav`: 0.0.58; Use: Shared `.meta.yml` front matter; per-directory `.nav.yml`; Markdown `SUMMARY.md` navigation
-- `macros`, `table-reader`: 0.0.40, 0.0.41; Use: Jinja variables and macros in Markdown; CSV/Excel tables via `{{ read_csv('data.csv') }}`
-- `markdown-exec`: 0.0.47; Use: Executes fenced code during the build; install `markdown-exec[ansi]`; never enable for untrusted content
-- `glightbox`: 0.0.35; Use: Image lightbox with optional captions
-- `gh-admonitions`, `callouts`: 0.0.67, 0.0.62; Use: GitHub `> [!NOTE]` alerts and Obsidian callouts rendered as admonitions
-- `mkdocs-nav-weight`, `markdownextradata`, `include-markdown`: 0.0.69, 0.0.69, 0.0.71; Use: Migration compatibility for front-matter `weight` ordering, `extra` and data-file variables in Markdown, and `{% include-markdown %}` (mapped to snippets); new sites use explicit `nav`, `macros`, and snippets
-- `exclude`: 0.0.67; Use: Remove source files from the site by glob or regex
-- `privacy`: 0.0.72; Use: Self-host external assets such as Google Fonts and Mermaid at build time and annotate external links; scope downloads with `assets_include`, because the default also vendors about 2 MB of scripts the theme bundle references (video players, ad SDKs, Pyodide); cached in `.cache/plugin/privacy`, which `build --clean` empties
-- `mkdocs-audio`, `mkdocs-video`: 0.0.68; Use: Native audio playback and embedded video players or files
-- `offline`: 0.0.3; Use: File-system browsing with working search; disable instant navigation, analytics, repository facts, and comments
-- `mike`: 0.0.30; Use: Versioned deployments through the `squidfunk/mike` fork and `mkdocs.yml`; native versioning is planned
+- `llmstxt`: `llms.txt`, Markdown page copies, optional `full_output`; `sections` is required; glob patterns allowed.
+- `social`: Open Graph cards rendered at build time; front matter can override `social.cards`; cached in `.cache/`.
+- `privacy`: self-hosts Google Fonts and Mermaid at build time and annotates external links. Scope downloads with `assets_include`, because the default also vendors about 2 MB of scripts the theme bundle references (video players, ad SDKs, Pyodide); cached in `.cache/plugin/privacy`, which `build --clean` empties.
+- `optimize` (0.0.74+): compresses PNG and JPEG images, including privacy downloads; PNG needs `pngquant` on `PATH`.
+- `redirects`: `redirect_maps` for moved pages and anchors (`"old.md#a" = "new.md#b"`); splitting a page keeps a page-level fallback.
+- `blog`, `rss`, `tags`: posts in `docs/blog/posts/` with dates, drafts, categories, and `.authors.yml`; feeds via `match_path`; tag listings where `<!-- material/tags -->` appears.
+- `mkdocstrings`, `api-autonav`: Python API docs from `::: package.module` and one generated page per module; both need `mkdocstrings-python`.
+- `markdown-exec`: executes fenced code during the build; never enable it for untrusted content.
+- `offline`: file-system browsing with working search; disable instant navigation, analytics, repository facts, and comments.
+- `mike`: versioned deployments through the `squidfunk/mike` fork and `mkdocs.yml`; native versioning is planned.
 
 Python API reference that builds from source without importing it:
 
@@ -65,11 +47,9 @@ Add `mkdocstrings-python` with `uv add --dev mkdocstrings-python`; `api-autonav`
 ## Look and feel
 
 - **Variant**: `variant = "modern"` for new sites; `classic` reproduces Material for MkDocs and its custom CSS.
-- **Palette**: the starter's three entries follow the system scheme first. Named colors use `primary`/`accent` (`indigo`, `blue`, `teal`, …); brand colors use `custom` plus CSS variables in `extra.css`. Tune dark mode with `[data-md-color-scheme="slate"] { --md-hue: 210; }`.
-- **Fonts**: `[project.theme.font]` takes Google Fonts names; `font = false` uses system fonts without external requests. Override with `--md-text-font` and `--md-code-font`, never `font-family`.
-- **Icons**: Lucide, Material Design, FontAwesome, Octicons, and Simple Icons are bundled; search the [icon reference](https://zensical.org/docs/authoring/icons-emojis/). Custom SVG sets go in `overrides/.icons/<set>/` with `pymdownx.emoji.options.custom_icons`.
-- **Footer and header**: `[[project.extra.social]]` links, `copyright`, `extra.generator = false` to remove "Made with Zensical" (upstream asks to keep it), and `extra.homepage` for the logo target.
-- **Language**: `theme.language` (60+ locales) and `[project.extra].alternate` for a language selector; search UI is English-only for now.
+- **Brand colors**: use the `custom` palette with CSS variables in `extra.css`, as the starter does.
+- **Fonts**: `font = false` uses system fonts without external requests. Override with `--md-text-font` and `--md-code-font`, never `font-family`.
+- **Language**: search UI is English-only for now, whatever `theme.language` says.
 
 ## Customization
 

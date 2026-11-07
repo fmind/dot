@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Amazon Web Services CLI
@@ -54,4 +54,4 @@ AWS publishes agent skills through the [Agent Toolkit](https://docs.aws.amazon.c
 
 - [AWS CLI User Guide](https://docs.aws.amazon.com/cli/latest/userguide/) · [AWS CLI Command Reference](https://docs.aws.amazon.com/cli/latest/)
 - Releases: [AWS CLI GitHub Releases](https://github.com/aws/aws-cli/releases)
-- Companion skills: [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure), [code-security](../code-security/SKILL.md) (IAM audits), [incident-response](../production-readiness/references/incident-response.md) (live outages).
+- Companion skills: [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure), [code-security](../code-security/SKILL.md) (IAM audits).

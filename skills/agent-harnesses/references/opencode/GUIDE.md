@@ -36,28 +36,15 @@ OpenCode merges user `~/.config/opencode/opencode.json` or `.jsonc` with project
 - **Probe with `--standalone`**: every `opencode` command, even `auth list` or `debug paths`, otherwise starts the background service (`opencode serve --service`) and creates its database under the real HOME; stop a stray one with `opencode service stop`.
 - **Sharing is publication**: `/share` or changing the managed `"share": "disabled"` publishes session contents; require explicit sharing authority.
 - **Pairing and credential export expose data**: `opencode pair --remote` exposes the server to the internet through OpenTunnel, and `opencode auth export` prints stored secrets; require explicit authority for either, and check logins with `opencode auth list --standalone`, which prints no secrets.
+- **V1 plugins do not run in 2.x**: use the [plugin guide](https://opencode.ai/v2/docs/build/plugins/) for event hooks; do not translate another harness's hook schema into OpenCode settings.
 
 ## Official Skills
 
 - [Skill discovery and permissions](https://opencode.ai/v2/docs/skills/): the official consumer-facing contract.
 - [Upstream repository](https://github.com/anomalyco/opencode): distinguish contributor skills and fixtures from consumer packages; do not install internal examples as a general OpenCode skill.
 
-## Top Links
+## Documentation
 
-- [Documentation](https://opencode.ai/v2/docs/) · [CLI commands](https://opencode.ai/v2/docs/cli/commands/) · [Agents](https://opencode.ai/v2/docs/agents/) · [Skills](https://opencode.ai/v2/docs/skills/) · [Providers](https://opencode.ai/v2/docs/providers/) · [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/)
-- [Changelog](https://opencode.ai/changelog) · [Releases](https://github.com/anomalyco/opencode/releases)
-- [Configuration](https://opencode.ai/v2/docs/config/) · [Permissions](https://opencode.ai/v2/docs/permissions/) · [MCP servers](https://opencode.ai/v2/docs/mcp-servers/)
+- [Documentation](https://opencode.ai/v2/docs/) · [CLI commands](https://opencode.ai/v2/docs/cli/commands/) · [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/)
+- Releases: [Changelog](https://opencode.ai/changelog) · [GitHub releases](https://github.com/anomalyco/opencode/releases)
 - Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [model-providers](../../../model-providers/SKILL.md), [mcp-setup](../../../mcp-setup/SKILL.md), [agent-project](../../../agent-project/SKILL.md).
-
-## Operation Links
-
-| Need                        | What to resolve                                                    | Official sources                                                                                                                      |
-| --------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Sessions and recovery       | Find resume, fork, undo/redo, export/import, and session commands. | [TUI](https://opencode.ai/v2/docs/cli/tui/) · [CLI commands](https://opencode.ai/v2/docs/cli/commands/)                               |
-| Agent roles and automation  | Choose agent roles, custom commands, and headless execution.       | [Agents](https://opencode.ai/v2/docs/agents/) · [Commands](https://opencode.ai/v2/docs/commands/)                                     |
-| Server and editor protocols | Read server, client attachment, SDK, and ACP contracts.            | [API](https://opencode.ai/v2/docs/api/) · [SDK](https://opencode.ai/v2/docs/build/sdk/) · [ACP](https://opencode.ai/v2/docs/cli/acp/) |
-| Instructions and skills     | Check instruction precedence and skill discovery.                  | [Instructions](https://opencode.ai/v2/docs/instructions/) · [Skills](https://opencode.ai/v2/docs/skills/)                             |
-| Plugins and external tools  | Find plugin events, MCP connections, and tool authoring.           | [Plugins](https://opencode.ai/v2/docs/plugins/) · [MCP](https://opencode.ai/v2/docs/mcp-servers/)                                     |
-| Permissions and policy      | Check tool approvals and policy enforcement.                       | [Permissions](https://opencode.ai/v2/docs/permissions/) · [Policies](https://opencode.ai/v2/docs/policies/)                           |
-
-Use the [CLI commands](https://opencode.ai/v2/docs/cli/commands/) for session, export/import, stats, debug, and server-attachment commands. The [plugin guide](https://opencode.ai/v2/docs/build/plugins/) owns event-hook integrations, and V1 plugins do not run in 2.x; do not translate another harness's hook schema into OpenCode settings.

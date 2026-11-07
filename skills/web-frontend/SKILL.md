@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-11-03"
+  updated: "2026-11-07"
 ---
 
 # Web Frontend
@@ -16,16 +16,15 @@ Build calm, spacious, Google-simple browser interfaces with native HTML, CSS, an
 
 ## Workflow
 
-1. **Scope to one primary job per view**: center the main input and result in a single clean flow (`768px` reading/tool width, `1152px` page max) with one primary action pill in the theme's primary color and sensible defaults that work on first click or `Enter`. Put advanced or secondary controls behind progressive disclosure (`<details>` or a menu), and omit unrequested chrome (navbars, sidebars, tabs, KPI ribbons, filter bars, settings drawers, fake auth).
-1. **Apply the design tokens**: for Fmind work, read `~/.agents/DESIGN.md` and export CSS variables or Tailwind `@theme` tokens via [fmind-visuals renderers](../fmind-visuals/references/renderers.md#exports) (`npx @google/design.md@0.4.0 export`). Use a flat light hierarchy from those tokens (white canvas, gray panels, 1px borders, charcoal text, muted labels, Google Sans and Google Sans Code, 4px/8px spacing with 24–32px margins) without drop shadows, gradients, or nested bordered cards.
-1. **Prefer web platform primitives**: prioritize native elements (`<details>`, `<dialog>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers, and render loading, empty, error, and result states inline rather than in modals or toast spam.
+1. **Apply the design system**: for Fmind work, follow `~/.agents/DESIGN.md` for layouts, the single primary action, flat hierarchy, inline states, and omitted chrome; export its CSS variables or Tailwind `@theme` tokens via [fmind-visuals renderers](../fmind-visuals/references/renderers.md#exports) (`npx @google/design.md@0.4.0 export`).
+1. **Prefer web platform primitives**: use native elements (`<details>`, `<dialog>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
 1. **Retrieve platform guidance**: search curated web platform recipes, then fetch a guide's implementation details and browser baselines by identifier:
    ```bash
    DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.196 search "<topic or platform feature>"
    DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.196 retrieve "<guide-id>[,<guide-id>]"
    ```
 1. **Compile Tailwind**: use the [standalone Tailwind workflow](references/tailwind.md) when the project selects Tailwind; preserve an existing asset pipeline. `tailwindcss` owns CSS compilation, while `npx` runs only the guidance and token export CLIs above.
-1. **Open and check in Chrome**: start the app, open it in Chrome with [chrome-devtools](../chrome-devtools/SKILL.md), and exercise the primary flow; verify it works without console or network errors and check layout, visual restraint, responsive viewports, keyboard flow, and accessibility before reporting done ([quality-assurance](../quality-assurance/SKILL.md)).
+1. **Open and check in Chrome**: start the app, open it in Chrome with [chrome-devtools](../chrome-devtools/SKILL.md), and exercise the primary flow; verify it works without console or network errors and check layout, visual restraint, responsive viewports, keyboard flow, and accessibility before reporting done. Fix the issues found, recheck the affected flow, and stop: no open-ended visual polishing loops.
 
 ## Gotchas
 
@@ -44,4 +43,4 @@ Upstream: `GoogleChrome/modern-web-guidance`; follow the shared [vendor-skill po
 - [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) · [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)
 - Releases: [guidance package metadata](https://registry.npmjs.org/modern-web-guidance) · [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss/releases)
 - Copy and number rules adapted from [anthropics/skills frontend-design](https://github.com/anthropics/skills/blob/ca45fc496a3436251f191354091d557da31c15b5/skills/frontend-design/SKILL.md) (Apache-2.0) and [taste-skill app-screens](https://github.com/Leonxlnx/taste-skill/blob/12af471f627f866411b4bd785b19646d3672784c/skills/taste-skill/references/app-screens.md) (MIT).
-- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [chrome-devtools](../chrome-devtools/SKILL.md), [playwright](../playwright/SKILL.md), [research-brief](../implementation-plan/references/research-brief.md).
+- Companion skills: [python-stack](../python-stack/references/foundation/GUIDE.md), [chrome-devtools](../chrome-devtools/SKILL.md), [playwright](../playwright/SKILL.md).

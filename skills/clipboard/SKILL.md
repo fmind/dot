@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/clipboard
   created: "2026-10-03"
-  updated: "2026-10-12"
+  updated: "2026-11-07"
 ---
 
 # Clipboard
@@ -29,7 +29,7 @@ Treat `/clipboard` without arguments as “copy the interesting output I request
 
 ## Boundaries
 
-- **Install the matching Linux backend**: for a missing backend, install the one matching the display server (`xclip` or `wl-clipboard`; macOS has `pbcopy` built in); do not use sudo or install tools silently.
+- **Install a missing backend only with consent**: the one matching the display server (`xclip` or `wl-clipboard`); never sudo.
 - **Avoid OSC 52 in tool output**: do not emit OSC 52 escape sequences through tool output; captured output may never reach the user's terminal.
 - **Copying does not authorize pasting**: invocation authorizes replacing the current clipboard; it does not authorize pasting into an application or sending the content elsewhere.
 

@@ -31,7 +31,7 @@ Reuse these names for their stated concerns instead of inventing synonyms such a
 
 ## Concise Output
 
-Prefer native output controls for frequently run tasks. Under `[settings.task]`, `quiet = true` suppresses mise's command echoes while preserving child stdout/stderr and task prefixes; `MISE_TASK_QUIET=false mise run <task>` restores execution messages. Leave the output style unchanged so parallel diagnostics retain task attribution. Avoid `silent`, discarded stderr, and truncation pipelines that hide failures or change exit status.
+Prefer native output controls for frequently run tasks. Under `[settings.task]`, `quiet = true` suppresses mise's command echoes while preserving child stdout/stderr and task prefixes; `MISE_TASK_QUIET=false mise run <task>` restores execution messages. Quiet also hides the dry run of `mise run -n <task>`, so prefix it with `MISE_TASK_QUIET=false` to print the resolved command. Leave the output style unchanged so parallel diagnostics retain task attribution. Avoid `silent`, discarded stderr, and truncation pipelines that hide failures or change exit status.
 
 Keep test counts, coverage totals and thresholds, warnings, and actionable findings visible. For pytest-cov with a positive `fail_under`, `--cov-report=` hides the per-file table while retaining the total and enforcing the threshold. Expose `report:coverage` to read the saved coverage data without rerunning tests; run tests again if those data are stale. For Betterleaks, `--no-banner` removes decoration; retain `--verbose --redact=100` for finding locations and redacted evidence.
 
@@ -41,19 +41,8 @@ Validate success and intentional failure cases before adopting quieter defaults,
 
 The [tool version rules](tool-versions.md#select-exact-versions) own selecting and recording exact pins; [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades.
 
-```bash
-mise registry <name>     # discover the tool's backend id
-mise install             # install everything pinned
-mise lock                # refresh metadata for the locked versions
-mise lock --bump         # advance lock selectors without installing
-mise lock --upgrade      # migrate legacy locks; retain and validate generated dependency files
-mise upgrade --bump --pin --no-global --no-prune  # rewrite only this project's pins, exactly; keep replaced installs
-```
-
 ## Additional task gotchas
 
-- **Run `mise trust` only when needed**: in normal mode `mise run`, `mise install`, `mise exec`, and `mise watch` trust the active config automatically; `mise trust` is only needed for other commands or in paranoid mode.
 - **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
-- **Non-interactive scripts**: pass `-y` (`mise install -y`) in scripts and CI steps that would otherwise prompt.
 - **Keep project config project-local**: never symlink a repository's `mise.toml` into `~/.config/mise/conf.d/`; mise then treats it as global, `mise lock` reports `No tools configured to lock`, and its tasks leak everywhere.
 - **Task `dir`**: pin `[task_config] dir = "{{config_root}}"` when inherited configs could select another project root; verify tasks from both the repository root and a subdirectory.

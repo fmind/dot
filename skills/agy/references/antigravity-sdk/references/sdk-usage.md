@@ -19,11 +19,9 @@ For an explicitly requested Developer API integration, supply an application-sco
 
 [`orchestrator.py`](../templates/orchestrator.py) is a runnable parent-plus-two-subagent fan-out; the pieces that matter:
 
-- **Static subagents**: `types.SubagentConfig(name, description, system_instructions, tools)` in `LocalAgentConfig(subagents=[...])` gives each worker its own context window and instructions. Prefer these — a named role is reviewable, whereas dynamic self-cloning is not.
-- **Dynamic subagents**: `types.CapabilitiesConfig(enable_subagents=True)` alone lets the parent clone itself on demand, inheriting its toolset. Use it only for open-ended decomposition.
+- **Prefer static subagents**: a named `types.SubagentConfig` role is reviewable; dynamic self-cloning (`CapabilitiesConfig(enable_subagents=True)`) inherits the parent's toolset, so use it only for open-ended decomposition.
 - **Subagent-scoped tools**: since 0.1.15 a callable listed only in `SubagentConfig(tools=[...])` is collected for execution and exposed only to that subagent, keeping it out of the root context. The docs page still says to register it on the parent too; that works but widens the root toolset, and two different callables with the same name raise `ValueError`. `SubagentConfig.capabilities` defaults to read-only built-ins, and `model=` pins a per-subagent model name.
-- **Bound the fan-out**: `max_subagent_depth` caps nesting and `allowed_subagents` pins the roster; both belong in `CapabilitiesConfig`.
-- **Typed results**: `response_schema=<pydantic model>` plus `await response.structured_output()` extracts a parsed payload or `None`; validate it with `Model.model_validate(...)` and inspect `response.stop_reason` before routing it. A schema proves shape, not factual correctness or authority.
+- **Typed results**: `await response.structured_output()` returns a parsed payload or `None`; validate it with `Model.model_validate(...)` and inspect `response.stop_reason` before routing it. A schema proves shape, not factual correctness or authority.
 - **Resume**: `conversation_id` with `session_continuation_mode` (`CREATE_ONLY`, `CREATE_OR_RESUME`, `RESUME`) and `save_dir` persists a long orchestration across processes. The ID needs at least 32 characters of letters, digits, and hyphens (no underscores).
 
 ## 3. Bound the Run
@@ -37,10 +35,8 @@ Two independent limits, and confusing them is how an unattended run burns a quot
 
 ## 4. Extend
 
-- **Tools**: plain functions with type hints and a docstring, passed to `tools=[...]`; filter built-ins with `CapabilitiesConfig(enabled_tools=...)` or `disabled_tools=...`.
 - **Skills**: pass explicitly expanded paths, for example `skills_paths=[str(pathlib.Path("~/.agents/skills").expanduser())]`, and load only the required skills. A directory may contain one skill or a catalog.
-- **MCP**: `mcp_servers=[types.McpStdioServer(name=..., command=..., args=[...], env={...})]` or `McpStreamableHttpServer`; server selection and host wiring live in [mcp-setup](../../../../mcp-setup/SKILL.md).
-- **Triggers**: `triggers.every(seconds, callback)` and `triggers.on_file_change(...)` drive background work without an external scheduler.
+- **MCP**: server selection and host wiring live in [mcp-setup](../../../../mcp-setup/SKILL.md).
 - **Presets**: `.lightweight()` trims tools, prompts, and subagents for small models; `.eval()` is a benchmark preset that enables daemons and sets `allow_all()`, so never use it outside a disposable workspace.
 
 ## 5. Local and OpenAI-Compatible Models

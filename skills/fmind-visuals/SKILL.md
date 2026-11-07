@@ -1,13 +1,13 @@
 ---
 name: fmind-visuals
-description: "Create Typst decks, VHS demos, and logo or cover variants in Fmind/client branding."
+description: "Create VHS terminal demos and logo or cover variants in Fmind/client branding."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-11-01"
+  updated: "2026-11-07"
 ---
 
 # Fmind Visual Communication
@@ -16,11 +16,11 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind des
 
 ## Workflow
 
-1. **Select the format** while respecting an explicitly requested format or an existing project: Typst for talks and slide decks, VHS for reproducible terminal demonstrations. [Diagrams as code](../diagrams-as-code/SKILL.md) owns diagrams and illustrations (Mermaid, SVG, and D2, including Fmind-branded diagrams).
+1. **Select the format**: VHS for reproducible terminal demonstrations, unless the user or an existing project names another. [Diagrams as code](../diagrams-as-code/SKILL.md) owns diagrams and illustrations (Mermaid, SVG, and D2, including Fmind-branded diagrams).
 1. **Apply the brand**: customer or employer work uses that organization's design system, palette, fonts, and logo; ask for its brand guide rather than guessing, and never mix brands. An existing project keeps its identity. Otherwise read `~/.agents/DESIGN.md` for tokens, components, and do's and don'ts, map it with [renderers.md](references/renderers.md), bundle the fonts with their OFL notices, and use the existing reviewed logo. Preserve published assets when the design changes.
-1. **Explore variants** when the look is open (logo, cover, hero illustration, deck theme) or the user rejects a draft: follow [variants](references/variants.md) instead of iterating on one guess.
-1. **Create**: follow [production.md](references/production.md) for decks and Fmind diagram branding, or [recording.md](references/recording.md) for VHS demos; keep the tape and synthetic inputs.
-1. **Verify**: compile success is not visual success. Inspect every rendered page, frame, or diagram for legibility, clipping, font loading, and accessibility, and keep editable sources beside their exports.
+1. **Explore variants** when the look is open (logo, cover, hero illustration) or the user rejects a draft: follow [variants](references/variants.md) instead of iterating on one guess.
+1. **Create**: follow [recording.md](references/recording.md) for VHS demos and keep the tape and synthetic inputs. Fmind diagrams follow diagrams-as-code with the [renderers.md](references/renderers.md) mappings and [diagram.d2](templates/diagram.d2).
+1. **Verify**: compile success is not visual success. Inspect every rendered frame, image, or diagram for legibility, clipping, font loading, and accessibility, and keep editable sources beside their exports.
 
 ## Gotchas
 
@@ -31,13 +31,12 @@ Apply the customer's brand when the work belongs to one; otherwise the Fmind des
 
 <!-- guides:start -->
 
-- [variants](references/variants.md): Numbered logo, cover, illustration, or deck-theme variant rounds with a light and dark contact sheet.
+- [variants](references/variants.md): Numbered logo, cover, or illustration variant rounds with a light and dark contact sheet.
 
 <!-- guides:end -->
 
 ## Documentation
 
-- [Fmind website](https://www.fmind.dev/) · [Typst](https://typst.app/docs/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
-- Releases: [Typst](https://github.com/typst/typst/releases) · [typstyle](https://github.com/typstyle-rs/typstyle/releases)
+- [Fmind website](https://www.fmind.dev/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
 - [VHS documentation](https://github.com/charmbracelet/vhs) · Releases: [VHS](https://github.com/charmbracelet/vhs/releases)
 - Companion skills: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2).

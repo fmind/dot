@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-skills
   created: "2026-09-09"
-  updated: "2026-10-25"
+  updated: "2026-11-07"
 ---
 
 # Maintain Dot Skills
@@ -17,20 +17,20 @@ Maintain first-party skills and their chezmoi links. [skillify](../../../skills/
 ## Workflow
 
 1. **Choose the owner**: inspect `git diff` and `git diff --cached`, read neighboring descriptions, and apply skillify's [admission rule](../../../skills/skillify/references/package-rules.md#categories-and-scope). Reusable skills belong in `skills/`; repository procedures belong in `.agents/skills/`.
-1. **Register additions**: each scope (AGENTS.md plus skill names, descriptions, and paths) must stay below 5,000 estimated tokens per [context budgets](../../../skills/dot-cli/references/context.md); `mise run check:skills` enforces both scopes from source. Check headroom first with `dot agent context --source . --project .` and reduce overhead without losing distinctive triggers when full. Each global skill needs `dot_agents/skills/symlink_<name>.tmpl` containing `{{ .chezmoi.sourceDir }}/skills/<name>`.
+1. **Register additions**: each scope (AGENTS.md plus skill names, descriptions, and paths) must stay below 5,000 estimated tokens per [context budgets](../../../skills/dot-cli/references/context.md); `mise run check:skills` enforces both scopes from source. Check headroom first with `dot agent context --source . --project .` and reduce overhead without losing distinctive triggers when full; an addition with under about 60 tokens of global headroom must free an index entry (merge or remove a skill) in the same change. Each global skill needs `dot_agents/skills/symlink_<name>.tmpl` containing `{{ .chezmoi.sourceDir }}/skills/<name>`.
 1. **Connect resources**: use `metadata.kind` as the single connector, task, or collection tag. Keep a single procedure in the root; preserve substantial optional modes as guides at `references/<name>.md` or `references/<name>/GUIDE.md`, with their owned resources. Run `mise run format:skills` to generate parent routing indexes. Never nest `SKILL.md`. Update project `AGENTS.md` when workflow ownership changes; setup, usage, and the short task reference belong in `README.md`.
 1. **Validate**: run `mise run check:skills` and formatting checks for edited files. For installation changes, also target `uv run --frozen --project dot pytest -q dot/tests/test_skill_install_links.py`. Follow project `AGENTS.md` for broader qualification; prose-only changes do not require the full Python suite or build. Use [git-worktree](../../../skills/git-delivery/references/git-worktree/GUIDE.md) when formatters could alter unrelated work. `dot agent context --check` without `--source` also measures independently installed packages in the shared roots. Review `dot agent context --source . --project . --details` when descriptions or guides change; its estimates are diagnostic.
-1. **Exercise changed guidance**: walk a realistic request through the skill using safe commands and disposable fixtures for writes. For output changes, compare success and failure cases, exit codes, diagnostics, and completeness markers. When host integration changes, check the affected host separately; catalog checks do not prove discovery or selection.
+1. **Exercise changed guidance** per skillify; when host integration changes, check the affected host separately, since catalog checks do not prove discovery or selection.
 
 ## Rename or remove
 
 1. **Locate references; rename atomically**: use `rg` to find the old name and path across both catalogs, docs, host configuration, and `dot/`. For a rename, change the directory, frontmatter name, provenance path, and update date together; preserve needed guidance when consolidating packages.
 1. **Repoint all links at once**: update inbound links and the global link declaration together. Preserve historical records, then search again and validate as above.
-1. **Retire installed links with `.chezmoiremove`**: list the retired `.agents/skills/<name>` targets there so apply deletes them on every machine, per the [chezmoi skill](../chezmoi/SKILL.md). Use the [installed-link recovery guide](references/installed-links.md) for manual cleanup, collisions, source relocation, or catalog ownership.
+1. **Retire installed links with `.chezmoiremove`**: list the retired `.agents/skills/<name>` targets there so apply deletes them on every machine, per the [chezmoi skill](../chezmoi/SKILL.md). Use the [installed-link recovery guide](references/installed-links.md) for manual cleanup or source relocation.
 
 ## Boundaries
 
-- **Keep `~/.agents/skills/` a real shared directory**: never `exact_`. Independently installed packages remain outside this repository; names must be unique.
+- **Keep `~/.agents/skills/` a real shared directory**: never `exact_` or a whole-catalog symlink. Independently installed packages remain outside this repository; names must be unique, and apply rejects a name owned elsewhere: choose another name instead of overwriting that package.
 - **Know each check's coverage**: `mise run check:skills` validates both first-party roots; `gh skill publish --dry-run skills` alone covers only the global directory. Sibling references are allowed here; standalone publication needs the package rules' portability check.
 
 ## Documentation

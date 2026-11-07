@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-11-01"
+  updated: "2026-11-07"
 ---
 
 # Docker and Container Runtime Management
@@ -39,19 +39,12 @@ On Linux, Docker and Compose are host prerequisites. On macOS, the global mise c
    docker --context <context> compose -p <project> -f <compose-file> down
    ```
 
-1. **Leave interactive debugging to the user**: `lazydocker` and `docker exec -it <container-id> sh` need a TTY; suggest them for user-driven sessions and use bounded non-interactive `docker exec <container-id> <command>` otherwise.
-
-1. **Read container logs boundedly**: keep streaming opt-in. Use `inspect --format` for specific state fields instead of dumping environment and mount details.
-
-   ```bash
-   docker logs --since 15m --tail 100 <container-id>
-   ```
-
 1. **Clean up task resources**: use `docker run --rm <existing-image-or-approved-digest> <command>` for ephemeral runs, and follow [resource cleanup](references/resource-cleanup.md) for task-created volumes, networks, images, and builders.
 
 ## Gotchas
 
-- **Exit 137 is not proof of OOM**: it means SIGKILL; check `docker inspect --format '{{.State.OOMKilled}}' <container-id>`, the configured memory limit, and kernel/runtime evidence before changing limits. On macOS, Colima's VM budget also applies; see [colima](references/colima.md).
+- **The Linux engine comes from the distro**: Docker and Buildx can lag upstream (Debian ships Buildx 0.13), so check `docker buildx version` before using a newer build flag such as `--check`.
+- **Exit 137 is SIGKILL, not proof of OOM**: check `.State.OOMKilled` and the memory limit first; on macOS, Colima's VM budget also applies.
 
 ## Task guides
 

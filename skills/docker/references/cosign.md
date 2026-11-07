@@ -7,6 +7,15 @@ description: "Sign, verify, and attest image digests with keyless Sigstore."
 
 Keyless signing with Sigstore: an OIDC identity (a GitHub Actions workflow or a developer's browser login) signs the image digest and anyone verifies it without managing keys; [containerize](containerize/GUIDE.md) builds the image and [github-actions](../../github-actions/references/ci-cd/GUIDE.md) wires the CD job.
 
+## Release sequence
+
+Every image publication runs this order on one immutable digest and stops on the first failure; containerize, cloud-run, and the CD templates follow it.
+
+1. **Scan the pushed digest** and write a CycloneDX SBOM with [trivy](../../code-security/references/trivy/GUIDE.md); a multi-platform index needs one scan and SBOM per platform child.
+1. **Sign the digest**, then verify it with the expected certificate identity and issuer.
+1. **Attest the SBOM** to the digest it describes, then verify the attestation the same way.
+1. **Promote or deploy only that digest**: tags, deployment, and rollback all reference the verified `@sha256:` image.
+
 ## Commands
 
 Public Sigstore records signing identity, certificate, signature, and artifact digest in permanent public transparency logs, including when the registry is private. Include that disclosure in the authorized publication scope; reuse existing authority when it already covers it. Otherwise prepare an approved signing setup that keeps certificate and transparency records private before signing. `--yes` suppresses consent prompts; it does not grant publication authority.

@@ -9,40 +9,21 @@ Finish a stopped `git merge` or `git rebase` by understanding what each side mea
 
 ## Workflow
 
-1. **Map the state**: identify which operation stopped, the current and incoming commits, and every conflicted file before editing.
-   ```bash
-   git status --short                    # UU both modified; AU, UA, DU, UD: added or deleted on one side
-   git diff --name-only --diff-filter=U
-   git rev-parse -q --verify MERGE_HEAD  # merge only
-   git rev-parse -q --verify REBASE_HEAD # rebase only
-   ```
-1. **Read both intents**: inspect the available index stages and operation-specific history before touching a hunk. Add/delete conflicts legitimately lack one or more stages; a missing stage is evidence, not a reason to restore a deleted file. During a rebase, `ours` is the branch being rebased onto and `theirs` is the commit being replayed.
-   ```bash
-   git show :1:<file>                    # common ancestor
-   git show :2:<file>                    # ours; rebase target during a rebase
-   git show :3:<file>                    # theirs; replayed commit during a rebase
-   git log --merge --oneline -- <file>   # both sides' commits touching the file; Git 2.45+ also covers rebase, cherry-pick, revert
-   git show REBASE_HEAD -- <file>        # rebase: the commit currently being replayed
-   ```
-1. **Resolve semantically**: write the code that satisfies both intents (renamed function plus new caller, both new tests, merged config keys). When intents are incompatible, keep the one matching the merge's goal and record the trade-off in the commit body. Do not invent new behavior, and remove every `<<<<<<<`, `=======`, `>>>>>>>` marker.
-1. **Continue**: stage the resolved files and resume; repeat per commit during a rebase.
-   ```bash
-   git add <file>...
-   GIT_EDITOR=true git rebase --continue   # or merge --continue; keeps the prepared message without an editor
-   ```
-1. **Prove it**: Run the repository's owning gate (e.g. `mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
-1. **Push only when already authorized**: a rewritten private branch may need `git push --force-with-lease`; resolving conflicts alone does not authorize that history update, and never force-push a shared branch (`main`, or one others build on), merge into it instead.
+1. **Map the state**: list every conflicted file (`git diff --name-only --diff-filter=U`) and the commits on both sides (`git log --merge --oneline -- <file>`, which also covers a rebase since Git 2.45) before editing.
+1. **Resolve semantically**: write the code that satisfies both intents (renamed function plus new caller, both new tests, merged config keys). When intents are incompatible, keep the one matching the merge's goal and record the trade-off in the commit body. Do not invent new behavior, and remove every conflict marker.
+1. **Continue**: stage the resolved files, then `GIT_EDITOR=true git rebase --continue` (or `merge --continue`) to keep the prepared message; repeat per commit during a rebase.
+1. **Prove it**: run the repository's owning gate (e.g. `mise run all`); when the tree carries unrelated changes, apply the [dirty-tree rule](../../mise/SKILL.md#gotchas). Fix what the merge broke before pushing.
+1. **Push only when already authorized**: a rewritten private branch may need `git push --force-with-lease`; resolving conflicts alone does not authorize that history update. Never force-push a shared branch (`main`, or one others build on); merge into it instead.
 
 ## Gotchas
 
-- **Show the ancestor**: unless `git config --get merge.conflictStyle` already prints `zdiff3`, `git checkout --conflict=zdiff3 -- <file>` re-renders the markers with the base version so both sides' edits are visible; persisting `merge.conflictStyle` changes Git configuration and needs consent.
+- **Rely on the managed Git config**: dot's gitconfig enables `merge.conflictStyle=zdiff3` (markers show the base) and `rerere` globally; on another machine, never persist those settings without consent.
 - **Regenerate lockfiles and generated code**: resolve source manifests first, use either generated side only as a starting point, then run `uv lock` or the owning generator and review the regenerated diff.
 - **Investigate one-sided deletions first**: `DU` or `UD` means one side removed the file; find out why before restoring it.
-- **Enable rerere from the rebase start**: the same hunk can conflict on several commits. When `git config --get rerere.enabled` does not print `true`, start the rebase with `git -c rerere.enabled=true rebase <base>` and repeat the `-c` on every `--continue`; enabling it only at `--continue` does not record the conflict already stopped on. Either form creates `$(git rev-parse --git-path rr-cache)`, which keeps rerere active while `rerere.enabled` is unset, so remove that directory afterwards if it did not exist before. Persisting rerere through `git config` or that directory changes repository configuration and needs consent.
 - **Stop when unsure**: if intent cannot be recovered from history, ask the user for the decision; contacting the author requires authorization.
 
 ## Documentation
 
-- [git merge](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) · [git rebase](https://git-scm.com/docs/git-rebase) · [git rerere](https://git-scm.com/docs/git-rerere)
+- [git merge](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) · [git rebase](https://git-scm.com/docs/git-rebase)
 - Adapted from [mattpocock/skills resolving-merge-conflicts](https://github.com/mattpocock/skills/blob/321658273cb1d20b76026717d027d505790106d4/skills/engineering/resolving-merge-conflicts/SKILL.md) (removed upstream in `daa01d8`).
-- Companion skills: [git-add-commit-push](git-add-commit-push.md) (commit and push), [repository-history](../../repository-history/SKILL.md) (why a change exists), [mise](../../mise/SKILL.md) (the gate).
+- Companion skills: [git-add-commit-push](git-add-commit-push.md) (commit and push), [mise](../../mise/SKILL.md) (the gate).

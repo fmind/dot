@@ -10,6 +10,9 @@ permissions:
 concurrency:
   group: cloud-run-${{ vars.GCP_REGION }}-${{ vars.CLOUDRUN_SERVICE }}
   cancel-in-progress: false
+env:
+  # Each deploy moves this traffic tag to the new no-traffic candidate revision.
+  CANDIDATE_TAG: candidate
 jobs:
   validate:
     name: Validate tagged revision
@@ -20,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
           version: 2026.11.2
@@ -49,7 +52,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install the project toolchain and image tools
-        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
           version: 2026.11.2
@@ -60,6 +63,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - name: Install the pinned Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          # The action installs latest otherwise; keep it equal to gcloud_version below.
+          version: 591.0.0
       - name: Configure Artifact Registry
         env:
           GCP_REGION: ${{ vars.GCP_REGION }}
@@ -108,8 +116,11 @@ jobs:
         run: cosign attest --yes --type cyclonedx --predicate "$SBOM" "$IMAGE"
       - name: Verify image attestation
         run: cosign verify-attestation --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" "$IMAGE"
-      - uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3.0.1
+      - name: Deploy the candidate revision without traffic
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3.0.1
         with:
+          gcloud_version: 591.0.0
           project_id: ${{ steps.auth.outputs.project_id }}
           service: ${{ vars.CLOUDRUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
@@ -121,6 +132,10 @@ jobs:
           # Pin the Secret Manager version; rotation adds a version and redeploys.
           secrets: |
             DATABASE_URL=database-url:<version>
+          # Serving traffic stays on the current revision; the candidate is reachable only on its tag URL.
+          # --no-traffic fails on a service that does not exist yet: create it once by hand first.
+          no_traffic: true
+          tag: ${{ env.CANDIDATE_TAG }}
           flags: --service-account=${{ vars.GCP_RUNTIME_SA }} --invoker-iam-check --no-allow-unauthenticated
       - name: Verify private invocation
         env:
@@ -133,3 +148,50 @@ jobs:
           gcloud run services get-iam-policy "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION" --format=json > "$RUNNER_TEMP/service-iam.json"
           gcloud projects get-iam-policy "$GCP_PROJECT" --format=json > "$RUNNER_TEMP/project-iam.json"
           python .github/scripts/verify-private.py "$RUNNER_TEMP" "$CLOUDRUN_SERVICE"
+      - name: Resolve the candidate revision
+        id: candidate
+        env:
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          CLOUDRUN_SERVICE: ${{ vars.CLOUDRUN_SERVICE }}
+        run: |
+          python3 - "$RUNNER_TEMP/service.json" "$CANDIDATE_TAG" > "$RUNNER_TEMP/candidate.env" <<'EOF'
+          import json, re, sys
+          service, tag = json.load(open(sys.argv[1])), sys.argv[2]
+          routes = [entry for entry in service["status"]["traffic"] if entry.get("tag") == tag]
+          if len(routes) != 1:
+              sys.exit(f"Expected one {tag!r} traffic tag, found {len(routes)}")
+          revision, url = routes[0]["revisionName"], routes[0]["url"]
+          if not re.fullmatch(r"[a-z0-9-]+", revision) or not re.fullmatch(r"https://[a-z0-9.-]+", url):
+              sys.exit("Unexpected candidate revision or URL")
+          print(f"revision={revision}\nurl={url}")
+          EOF
+          revision="$(sed -n 's/^revision=//p' "$RUNNER_TEMP/candidate.env")"
+          image="$(gcloud run revisions describe "$revision" --project "$GCP_PROJECT" --region "$GCP_REGION" --format='value(spec.containers[0].image)')"
+          [[ "$image" == "$IMAGE" ]] || { echo "Candidate revision does not run the verified digest" >&2; exit 1; }
+          cat "$RUNNER_TEMP/candidate.env" >> "$GITHUB_OUTPUT"
+      - name: Verify the candidate on its tag URL
+        env:
+          CANDIDATE_URL: ${{ steps.candidate.outputs.url }}
+        # Project task: request the health and readiness routes with an invoker identity token.
+        run: mise run test:candidate
+      - name: Promote the verified revision
+        id: promote
+        env:
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          CLOUDRUN_SERVICE: ${{ vars.CLOUDRUN_SERVICE }}
+          REVISION: ${{ steps.candidate.outputs.revision }}
+        # Route traffic to the exact verified revision, never LATEST, and drop the candidate tag.
+        run: >-
+          gcloud run services update-traffic "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION"
+          --to-revisions "$REVISION=100" --remove-tags "$CANDIDATE_TAG" --quiet
+      - name: Remove the candidate tag after a failed or cancelled rollout
+        if: (failure() || cancelled()) && steps.deploy.outcome != 'skipped' && steps.promote.outcome != 'success'
+        env:
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          CLOUDRUN_SERVICE: ${{ vars.CLOUDRUN_SERVICE }}
+        run: >-
+          gcloud run services update-traffic "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION"
+          --remove-tags "$CANDIDATE_TAG" --quiet

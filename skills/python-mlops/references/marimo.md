@@ -9,22 +9,9 @@ Use marimo for reactive Python notebooks and apps; configure agent pairing and h
 
 ## Workflow
 
-1. **Inspect the environment**: use `marimo --version` and the installed command help; prefer `uv run marimo` when the project declares marimo. Preserve the notebook's dependency model, including existing PEP 723 metadata.
-1. **Edit with disk reload**: `marimo edit --watch notebook.py` lets the running notebook reload agent edits. Keep the default loopback host and token authentication; cell execution can access local files, network services, and credentials.
-1. **Respect reactivity**: each global name belongs to one cell; use `_name` for cell-local intermediates. Preserve `@app.cell` structure and make side effects deliberate because dependent cells can rerun after upstream edits.
-1. **Check before fixing**: `marimo check --strict notebook.py` reports notebook diagnostics and fails on warnings. Apply `marimo check --fix notebook.py` only to the intended file, review the diff, then rerun the strict check. Fixes do not automatically repair every dependency or syntax problem; `--unsafe-fixes` can change behavior.
-1. **Convert or export**: use the commands below, review conversion diagnostics, and validate the result. HTML export executes the notebook unless an installed option says otherwise; outputs and source may contain private data. `marimo run` hides editing controls but still executes Python on the server.
-
-## Commands
-
-```bash
-marimo edit --watch notebook.py
-marimo check --strict notebook.py
-marimo run notebook.py
-marimo convert notebook.ipynb -o notebook.py
-marimo export html notebook.py -o notebook.html
-marimo pair notebook list --url http://127.0.0.1:2718 --token-file <token-file>
-```
+1. **Edit with disk reload**: `marimo edit --watch notebook.py` lets the running notebook reload agent edits; prefer `uv run marimo` when the project declares marimo and preserve existing PEP 723 metadata. Keep the default loopback host and token authentication: cell execution can access local files, network services, and credentials.
+1. **Check before fixing**: `marimo check --strict notebook.py` fails on warnings. Apply `marimo check --fix notebook.py` only to the intended file, review the diff, then rerun the strict check; `--unsafe-fixes` can change behavior.
+1. **Export deliberately**: `marimo export html` executes the notebook, and outputs and source may contain private data; `marimo run` hides editing controls but still executes Python on the server.
 
 ## Agent pairing
 

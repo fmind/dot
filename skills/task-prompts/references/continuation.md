@@ -1,23 +1,24 @@
 ---
 name: continuation
-description: "Resume, compact, or fork an agy session, or save and copy a handoff prompt before /clear."
+description: "Resume, compact, or fork an agy or Claude Code session, or save and copy a handoff prompt before /clear."
 ---
 
 # Continuation
 
-Let the next session continue without the user re-explaining. Prefer agy's native session tools, which keep the full history; write a handoff prompt only when the conversation itself will not carry over. The [agy skill](../../agy/SKILL.md) owns other session features.
+Let the next session continue without the user re-explaining. Prefer the host's native session tools, which keep the full history; write a handoff prompt only when the conversation itself will not carry over. The [agy skill](../../agy/SKILL.md) owns other session features.
 
 ## Choose the path
 
 - **Same conversation later**: `agy -c` resumes the most recent conversation, `agy --conversation <id>` a specific one, and `/resume` picks one inside the session. No handoff is needed.
 - **Long session**: `/compact [message]` summarizes the conversation to free context, then answers `message` if given; `/context` shows usage.
 - **Alternative approach**: `/fork` copies the conversation history, not the checkout or a Git branch; use [git-worktree](../../git-delivery/references/git-worktree/GUIDE.md) for competing edits.
+- **Claude Code**: `claude -c` continues the most recent conversation in the current directory, `claude --resume <id-or-name>` (`-r`) a specific one or opens a picker, `/compact [instructions]` summarizes, and `/rewind` restores an earlier checkpoint of the conversation or code; add `--fork-session` to resume under a new session ID. Verified on Claude Code 2.1.316.
 - **Fresh start**: write and copy a handoff with the workflow below, then `/clear`, which clears the conversation and starts a new one. Paste the handoff, or its pointer line, as the first prompt.
 
 ## Handoff workflow
 
 1. **Freeze the state**: `git status --short --branch`, `git rev-parse --short HEAD`, staged versus unstaged work, worktrees, and anything still running: background commands (`/tasks`), servers, and subagents. Stop nothing; record what is running, its handle or PID, and how to check on it.
-1. **Write the continuation** from the [prompt template](prompt-template.md). When space is short, keep in this order: objective and authority, the user's latest corrections and rejected approaches (quoted when the wording matters), current state with proof and the next step as an imperative, failed approaches, then the paths, logs, and running-work handles the next session needs, citing paths and lines instead of pasting code. Omit tool narration, passing logs, and anything the repository or AGENTS.md already states. Write it for a reader without this conversation; never include secrets or private passages. End with this fixed block, because the receiving session will not have this guide loaded:
+1. **Write the continuation** with the sections the parent [skill](../SKILL.md) lists. When space is short, keep in this order: objective and authority, the user's latest corrections and rejected approaches (quoted when the wording matters), current state with proof and the next step as an imperative, failed approaches, then the paths, logs, and running-work handles the next session needs, citing paths and lines instead of pasting code. Omit tool narration, passing logs, and anything the repository or AGENTS.md already states. Write it for a reader without this conversation; never include secrets or private passages. End with this fixed block, because the receiving session will not have this guide loaded:
 
    ```markdown
    ## Resume
@@ -43,3 +44,4 @@ Let the next session continue without the user re-explaining. Prefer agy's nativ
 ## Documentation
 
 - [Antigravity conversations](https://antigravity.google/docs/cli/conversations/) · `agy --help` for resume flags
+- [Claude Code sessions](https://code.claude.com/docs/en/sessions) · [checkpointing](https://code.claude.com/docs/en/checkpointing) · `claude --help` for resume flags

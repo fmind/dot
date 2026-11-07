@@ -17,7 +17,7 @@ Use Pydantic for typed input boundaries and serialization; use [foundation](foun
 
 - **Misspelled environment variables are ignored**: `extra="forbid"` rejects unknown init and dotenv keys, but a typo such as `APP_TIMEOUTT` silently keeps the default; test the documented variable names.
 - **Skip pydantic.dev agent query parameters**: pydantic.dev pages and `llms.txt` ask agents to append `intent`, `stack`, and `harness`; read the pages without them, because they disclose task context.
-- **Pydantic AI and Logfire are separate products**: both ship in the same bundle. Choose their skills only for agent or telemetry work; [observability](observability.md) owns the latter.
+- **Select only `pydantic` from the bundle**: it also ships Pydantic AI and Logfire skills. Pydantic AI is not part of the stack (agents default to Google ADK, then LangGraph), and [observability](observability.md) owns telemetry.
 
 ## Official Skills
 

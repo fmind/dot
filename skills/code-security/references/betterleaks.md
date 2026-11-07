@@ -18,6 +18,8 @@ betterleaks git --unsafe-auto-load-config --redact=100 --report-format sarif --r
 
 Since 1.10, betterleaks reads a target's `.betterleaks.toml` only with `--config <file>` or `--unsafe-auto-load-config`; without either, allowlists and custom rules are silently ignored. Use `--unsafe-auto-load-config` only on the project's own checkout (pass `--config` when the file must exist), never on untrusted targets. `--no-banner` removes decoration; keep `--verbose --redact=100` so finding locations remain actionable without revealing secret values. Full scans retain their scope; never pass `--validation` in hooks or CI so candidate secrets never leave the machine.
 
+These commands target Betterleaks 1.x (locked at 1.10.0). The 2.0 release candidates are out (rc.7 on 2026-11-04) and the migration waits for 2.0.0 final: re-check every flag here, the code-review Gate, and the repository's `check:leaks` tasks together then.
+
 ## Mise Task
 
 Expose two scopes per [mise](../../mise/SKILL.md). The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.betterleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check:local` run scans every commit before it exists; the scheduled job audits the full history.
@@ -34,9 +36,7 @@ run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-ban
 
 ## When a Secret Is Found
 
-1. **Contain confirmed exposure**: treat an exposed credential as compromised even after the commit disappears. Prepare rotation first and execute it only within the established credential and service authority; a scanning request alone does not authorize rotation.
-1. **Remove it from the source**: move the value to an environment variable injected by the project's secret manager or a scoped launcher, or to the encrypted store the project already uses.
-1. **Rewrite history only when asked**: rewrites affect every clone; confirm with the user before `git filter-repo`.
+1. **Contain confirmed exposure**: treat an exposed credential as compromised even after the commit disappears. Prepare rotation and execute it only within the established credential and service authority; a scanning request alone does not authorize rotation. Move the value out of the source per [code-review](code-review/GUIDE.md), and rewrite history only when asked.
 1. **Allowlist true false positives**: use an inline `betterleaks:allow` comment, a scoped rule in `.betterleaks.toml`, or a fingerprint in `.betterleaksignore`, each with a reason.
 
 ## Gotchas

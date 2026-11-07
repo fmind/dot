@@ -34,7 +34,7 @@ Review a candidate skill package as executable supply-chain code, from an immuta
 
 ## Report
 
-- **Findings**: each gives severity (`P0`–`P3`), exact path and line, evidence, reachable impact, confidence, and the smallest safe correction; keep confirmed behavior, suspicious text, and unavailable proof distinct.
+- **Findings**: each gives severity ([`P0`–`P3`](../../../full-review/SKILL.md#severity)), exact path and line, evidence, reachable impact, confidence, and the smallest safe correction; keep confirmed behavior, suspicious text, and unavailable proof distinct.
 - **Report coverage**: package identity and reviewed surface count, executable and integration inventory, blocking findings, credential and network flows, license and provenance gaps, scanner coverage, and the decision with its re-review trigger.
 
 ## Gotchas

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Auth Status
@@ -34,7 +34,7 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    | Databricks   | `databricks auth profiles` (validates each profile)                                         | `databricks auth login --host <url> --profile <profile>` |
    | Atlassian    | `acli auth status`; API-token Jira: `acli jira auth status`                                 | `acli auth login`                                        |
 
-1. **Report only provider-exposed expiry**: AWS SSO sessions: `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json` (client registrations in the same cache expire separately; never print the file). Google access tokens refresh hourly; `invalid_grant` or "reauthentication" means the refresh token expired or an organization session policy requires login. Hugging Face tokens do not expire unless revoked. Otherwise write "unknown"; never infer expiry from file dates.
+1. **Report only provider-exposed expiry**: AWS SSO sessions: `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json` (client registrations in the same cache expire separately; never print the file). Otherwise write "unknown"; never infer expiry from file dates.
 1. **Check environment overrides**: environment credentials win over stored logins, and gws also reads `GOOGLE_WORKSPACE_CLI_*` from a `.env` in the working directory or a parent. Report presence only, never values:
 
    ```bash
@@ -46,13 +46,12 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    done
    ```
 
-1. **Report and hand off**: for each provider, give the account (no token), status, scope gaps, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login` or `dot login github|workspace|gcp|colab` over native commands. When the user says they logged in, re-run only the failed probes.
+1. **Report and hand off**: for each provider, give the account (no token), status, scope gaps, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login` or `dot login github|workspace|gcp|colab` over native commands, since a native ADC login drops the configured Colab and BigQuery scopes ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)). When the user says they logged in, re-run only the failed probes.
 
 ## Gotchas
 
 - **Never print secrets**: no `print-access-token`, `gh auth token`, `gws auth export`, `databricks auth token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, or `--show-token` in a transcript; dot's probes capture token output internally.
 - **Exit 0 is not proof**: `gh auth status --json` and Colab can succeed while reporting a failure; read the state and stderr.
-- **Native ADC logins drop configured scopes**: a native ADC login (`gcloud auth application-default login`, `gcloud auth login --update-adc`) replaces the grant and drops the Colab and BigQuery read-only scopes; `dot login gcp|colab` request `auth.gcp.adc_scopes`, which keeps them. Run `dot login colab` to restore them ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)).
 - **Probing is read-only**: logging in, switching accounts, adding scopes, or editing `dot` configuration needs the user.
 
 ## Documentation

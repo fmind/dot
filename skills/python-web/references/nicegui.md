@@ -12,7 +12,6 @@ Build browser utilities with Python components and event handlers. Use [gradio](
 1. **Start from the locked release**: inspect the project's locked NiceGUI version and dependency model, preserving packaged or PEP 723 setup. Locate and read its installed agent reference below before using online examples.
 1. **Build from the installed reference**: use that reference for components, page state, callbacks, and tests. Keep computation independently testable and local development bound to `127.0.0.1`.
 1. **Keep the layout Google-simple**: build one focused workspace (`max-w-3xl` for tools, `max-w-6xl` for data views) on the light `~/.agents/DESIGN.md` palette (white canvas, gray panels, its primary color, Google Sans and Google Sans Code; take values from the DESIGN.md export, never copies) unless the project specifies another brand. Expose only essential inputs and one primary action upfront, tuck advanced options into `ui.expansion`, and omit unrequested drawers, header bars, tabs, and KPI cards.
-1. **Check UI behavior in Chrome**: open the running app in Chrome ([chrome-devtools](../../chrome-devtools/SKILL.md)) to verify the main interaction, rendered UX/UI, independent client state, callback failures, and the project's native gate. An import or HTTP 200 alone does not prove UI behavior.
 
 ## Installed reference
 
@@ -24,9 +23,7 @@ Releases before 3.12.0 lack `llms.md`; for them, use the official documentation 
 
 ## Gotchas
 
-- **Scope state deliberately**: module-level mutable state is shared across users; choose the page or storage scope deliberately. Storage identity does not replace authentication.
-- **Offload blocking callbacks**: blocking callbacks stall the shared event loop; use the installed reference's supported I/O and CPU offloading facilities.
-- **Callbacks need a live server**: Python callbacks need the running server and persistent connection. Static export or generic extra ASGI workers do not automatically preserve that model.
+- **Module-level state is shared across users**: choose the page or storage scope deliberately; storage identity does not replace authentication.
 
 ## Official Skills
 

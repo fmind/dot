@@ -1,18 +1,18 @@
 ---
 name: documentation-site
-description: "Build Zensical docs sites: navigation, API docs, Pages, MkDocs/Hugo migration."
+description: "Build Zensical docs and course sites: navigation, API docs, lessons, Pages, MkDocs/Hugo migration."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-11-06"
+  updated: "2026-11-07"
 ---
 
 # Documentation Sites
 
-Use Zensical as the default static site generator for project documentation, courses, and blogs; keep an existing generator only when the project depends on it or the user asks. [course-development](../course-development/SKILL.md) owns learning design and executable labs; [repository-docs](../repository-docs/SKILL.md) owns README and AGENTS consistency.
+Use Zensical as the default static site generator for project documentation, courses, and blogs; keep an existing generator only when the project depends on it or the user asks. [repository-docs](../repository-docs/SKILL.md) owns README and AGENTS consistency.
 
 ## Workflow
 
@@ -24,7 +24,7 @@ Use Zensical as the default static site generator for project documentation, cou
    uv run zensical new .
    ```
 1. **Apply the starter**: replace the generated files with the [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) as `docs/index.md`, [extra.css](templates/extra.css) as `docs/stylesheets/extra.css`, and [abbreviations.md](templates/abbreviations.md) as `includes/abbreviations.md`; delete `docs/markdown.md`. Fill every `<placeholder>`, set the real `site_url` with its hosting prefix, and drop unused sections. The starter enables instant navigation, Copy as Markdown, `llms.txt`, social cards, a glossary, checked snippets, minified HTML, and self-hosted fonts and Mermaid; [configuration](references/configuration.md) explains each feature and the optional ones (blog, tags, redirects, API reference, versions, offline).
-1. **Write under `docs/`**: one H1 per page, explicit `nav`, a section `index.md` for overviews, relative `.md` links, and a `description` in front matter for search and social cards. Use [authoring](references/authoring.md) for page types and syntax, and the [lesson template](templates/lesson.md) for courses.
+1. **Write under `docs/`**: one H1 per page, explicit `nav`, a section `index.md` for overviews, relative `.md` links, and a `description` in front matter for search and social cards. Use [authoring](references/authoring.md) for page types and syntax. For courses, start each lesson from the [lesson template](templates/lesson.md), prefer local exercises because live models and cloud resources need declared authority and cost, and record terminal demos with [VHS](../fmind-visuals/references/recording.md) beside a static equivalent.
 1. **Wire tasks and ignores**: merge [mise.toml](templates/mise.toml) into the task graph and add `site/` and `.cache/` to `.gitignore`. Use [dprint](../dprint/SKILL.md) for Markdown and [python-stack](../python-stack/references/foundation/GUIDE.md) for executable examples.
 1. **Validate**: `uv run --locked zensical build --clean --strict` must print `No issues found` and exit 0. Preview with `uv run --locked zensical serve` (default `localhost:8000`) and check navigation, search, both palettes, a 390 px viewport, keyboard use, and code copy; use [playwright](../playwright/SKILL.md) for screenshots. Run lesson code and external links separately.
 1. **Publish**: replace the generated `.github/workflows/docs.yml` with the pinned [docs.yml](templates/docs.yml), which builds every pull request strictly and deploys `main` to GitHub Pages; [github-actions](../github-actions/references/ci-cd/GUIDE.md) owns pins and audits. Enabling Pages or deploying needs publication authority.
@@ -37,7 +37,7 @@ Use Zensical as the default static site generator for project documentation, cou
 - **Unsupported plugins are silently ignored**: Zensical never runs MkDocs plugin code. Check the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) for the locked version before relying on one. `gen-files` and `hooks` are unsupported; `exclude_docs`, `draft_docs`, and `not_in_nav` need Zensical 0.0.70 or later.
 - **Check features before enabling them**: some theme features exclude each other, offline builds drop several, and fonts, Mermaid, and analytics contact third parties; check [configuration](references/configuration.md) before enabling one.
 - **Some layouts and modes are unsupported**: `docs_dir` cannot be `.`; uv's symlink link mode is unsupported; `serve` has no strict mode, and a busy port fails with `Address already in use` (pass `-a 127.0.0.1:<port>`).
-- **Keep Zensical locked**: Zensical is pre-1.0 (0.0.x) and releases often; keep `uv.lock` committed, upgrade with `uv lock --upgrade-package zensical`, and rebuild `--clean`. The CI template stays cache-free as upstream advises. Tested on 0.0.74.
+- **Keep Zensical locked**: Zensical is pre-1.0 (0.1.x beta since 2026-11-05) and releases often; keep `uv.lock` committed, upgrade with `uv lock --upgrade-package zensical`, and rebuild `--clean`. A `<0.1` cap in `pyproject.toml` blocks that upgrade; raise the cap first. The CI template stays cache-free as upstream advises. Tested on 0.1.0.
 - **Preserve existing site branding**: the starter applies Fmind's `~/.agents/DESIGN.md` tokens to the light scheme and Google Sans fonts; customer sites use their own design system. Preserve an existing site's identity; follow [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos and assets.
 
 ## Documentation

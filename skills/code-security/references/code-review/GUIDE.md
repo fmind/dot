@@ -22,7 +22,7 @@ For a broad or repeated audit, use [coverage and finding records](references/aud
 1. **Scan, sign, and attest images**: when the project ships a container, build the pinned non-root image per [containerize](../../../docker/references/containerize/GUIDE.md). Scan the exact digest, generate an SBOM, then sign, verify, and attest it per [cosign](../../../docker/references/cosign.md) within the authorized delivery scope.
 1. **Harden runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../../../cloud-run/SKILL.md). Review declarative infrastructure with [infra-as-code](../../../infra-as-code/SKILL.md).
 1. **Threat-model sensitive boundaries**: run [threat-model](../threat-model.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
-1. **Test AI systems adversarially**: use [ai-red-team](../../../ai-red-team/SKILL.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
+1. **Test AI systems adversarially**: use [ai-red-team](../ai-red-team/GUIDE.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
 
 ## Gate
 
@@ -30,13 +30,11 @@ For a broad or repeated audit, use [coverage and finding records](references/aud
 
 ## Report
 
-- **List findings with their evidence**: by severity, affected revision or digest, and the applied fix or narrow justified ignore.
-- **State each command's proof boundary**: working tree, history range, lockfile, image digest, IaC tree, workflow set, signature identity, and issuer.
-- **Treat missing inputs as coverage gaps**: report missing tools, databases, lockfiles, inaccessible registries, malformed output, and skipped targets as coverage gaps.
-- **Never overstate scan results**: a successful scan does not mean zero residual risk. Never describe a suppression as a fix or one scanner as proof for another control.
+- **State each command's proof boundary**: working tree, history range, lockfile, image digest, IaC tree, workflow set, signature identity, and issuer; a missing tool, database, lockfile, or registry is a coverage gap.
+- **Never overstate scan results**: a suppression is not a fix, and one scanner is not proof for another control.
 
 ## Documentation
 
-- [Trail of Bits review and incorporation decisions](references/trailofbits-review.md)
+- Method ideas (context building, fp-check, insecure defaults, variant analysis, supply-chain risk) adapted from [Trail of Bits skills at 2be6433](https://github.com/trailofbits/skills/tree/2be6433b39e009cd2b6fd3be1895f6b1faa5af9a) (CC-BY-SA-4.0; no text copied).
 - [OpenSSF Scorecard](https://securityscorecards.dev)
-- Companion skills: [skill-security-review](../skill-security-review/GUIDE.md) for third-party skills and [incident-response](../../../production-readiness/references/incident-response.md) when an incident is active.
+- Companion skill: [skill-security-review](../skill-security-review/GUIDE.md) for third-party skills.

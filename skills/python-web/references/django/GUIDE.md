@@ -5,16 +5,15 @@ description: "Django applications, ORM, admin, authentication, and native testin
 
 # Django
 
-Use Django when its integrated ORM, migrations, forms, templates, authentication, and admin reduce the total system; [python-stack](../../../python-stack/references/foundation/GUIDE.md) owns non-Django Python packages, [cli-development](../../../cli-development/SKILL.md) owns CLIs, and the [Litestar guide](../litestar/GUIDE.md) owns async services.
+Use Django when its integrated ORM, migrations, forms, templates, authentication, and admin reduce the total system; [python-stack](../../../python-stack/references/foundation/GUIDE.md) owns non-Django Python packages, [typer](../../../python-stack/references/typer/GUIDE.md) owns CLIs, and the [Litestar guide](../litestar/GUIDE.md) owns async services.
 
 ## Workflow
 
 1. **Establish the framework contract**: inspect the installed Django version, settings, URL configuration, apps, migrations, database, and deployment target before editing; for a new application, read [bootstrap](references/bootstrap.md).
-1. **Prefer Django's integrated path**: start with server-rendered templates, forms, authentication, and admin; add an API framework, task backend, cache, or JavaScript layer only for a demonstrated requirement.
 1. **Build template styles deliberately**: keep an existing asset pipeline; for standalone Tailwind, follow [web-frontend's standalone Tailwind workflow](../../../web-frontend/references/tailwind.md) and build CSS before `collectstatic`.
-1. **Keep control flow visible**: use thin views and explicit functions for multi-step use cases; avoid signals, custom middleware, managers, or repository/service layers when ordinary Django code is clearer.
-1. **Choose sync deliberately**: default to synchronous request and transaction code; use async only for measured concurrent I/O and verify the ASGI, middleware, ORM, connection-pooling, and transaction boundaries end to end.
-1. **Verify the behavior**: run focused model, form, permission, view, and template tests, then the project gate; include Django system, deployment, and migration-drift checks, and open rendered pages in Chrome ([chrome-devtools](../../../chrome-devtools/SKILL.md)) to verify live behavior and UX/UI.
+1. **Keep Django plain and synchronous**: thin views and explicit functions; no signals, custom middleware, managers, service layers, or async views without a measured need.
+1. **Serve production with granian**: run `granian --interface wsgi --host 0.0.0.0 --port "${PORT:-8080}" config.wsgi:application`, never gunicorn. Granian binds `127.0.0.1:8000` by default and ignores Cloud Run's `PORT`, so pass both (or set `GRANIAN_HOST` and `GRANIAN_PORT`). Cloud Run already fronts requests, and granian drains in-flight requests on `SIGTERM` before exiting (verified with granian 2.8.7 and Django 6).
+1. **Verify the behavior**: run focused tests, then the project gate, including Django system, deployment, and migration-drift checks.
 
 ```bash
 uv run python manage.py check --fail-level WARNING

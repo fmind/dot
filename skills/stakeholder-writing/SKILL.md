@@ -1,18 +1,18 @@
 ---
 name: stakeholder-writing
-description: "Write reports, proposals, status updates, and executive summaries in HTML/Markdown."
+description: "Write reports, proposals, status updates, and executive summaries in HTML/Markdown; fact-check drafts, articles, and posts."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/stakeholder-writing
   created: "2026-10-25"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Stakeholder Writing
 
-Write documents that busy professionals with no context on our work can understand, trust, and act on, and that the user can share without rewriting: reports, proposals, decision memos, cost estimates, status updates, emails, and PR or issue text. This skill owns the reader, the content, the structure, the look, and the final check. Delivery stays with its owners: [draft-doc](../draft-doc/SKILL.md) for Google Docs (native `.md` for living docs, `.gdoc` for styled deliverables), [draft-mail](../draft-mail/SKILL.md) for Gmail, [github-pull-request](../github-pull-request/SKILL.md) and [github-issues](../github-issues/SKILL.md) for GitHub, [documentation-site](../documentation-site/SKILL.md) for Zensical sites, [gws](../gws/SKILL.md) for Workspace APIs, [fmind-visuals](../fmind-visuals/SKILL.md) for decks, [diagrams-as-code](../diagrams-as-code/SKILL.md) for diagrams, and [repository-docs](../repository-docs/SKILL.md) for README and AGENTS.md files.
+Write documents that busy professionals with no context on our work can understand, trust, and act on, and that the user can share without rewriting: reports, proposals, decision memos, cost estimates, status updates, emails, and PR or issue text. This skill owns the reader, the content, the structure, the look, and the final check. Delivery stays with its owners: [draft-doc](../draft-doc/SKILL.md) for Google Docs (native `.md` for living docs, `.gdoc` for styled deliverables), [draft-mail](../draft-mail/SKILL.md) for Gmail, [github-pull-request](../github-pull-request/SKILL.md) and [github-issues](../github-issues/SKILL.md) for GitHub, [documentation-site](../documentation-site/SKILL.md) for Zensical sites, [gws](../gws/SKILL.md) for Workspace APIs, [fmind-visuals](../fmind-visuals/SKILL.md) for terminal demos and logo or cover variants, [diagrams-as-code](../diagrams-as-code/SKILL.md) for diagrams, and [repository-docs](../repository-docs/SKILL.md) for README and AGENTS.md files.
 
 **These are guidelines, not a form.** Each one exists to help a busy reader; when one does not help this reader or this document, adapt or drop it, and tell the user what you changed and why. Three never bend: invent no facts, disclose no secrets or private data, and never let a figure mislead.
 
@@ -25,7 +25,7 @@ Write documents that busy professionals with no context on our work can understa
 1. **Write plainly and show it**: follow the [style guide](references/style.md): plain words, short active sentences, a concrete example per abstract point, and bold that tells the argument to a skimmer. Use a chart or diagram wherever it explains faster than text, with a caption that states its conclusion ([visuals](references/style.md#examples-tables-and-visuals)).
 1. **Make the decision easy and honest**: number the options and compare them on the same criteria and conditions (benefit, cost, risk, effort, time to value), include doing nothing, recommend one, and say why. State assumptions, limits, residual risks, and what would change the recommendation, and end with next steps that each have an owner and a date.
 1. **Make it beautiful, natively**: a document that looks designed earns attention and trust, so give the look as much care as the words. Use the destination's own features rather than imitating them ([platform features](references/style.md#destination-and-platform-features)), start from the [HTML](templates/report.html) or [Markdown](templates/report.md) report template, and style with `~/.agents/DESIGN.md` (Fmind Theme) or customer branding if available, asking for its guide when you lack it.
-1. **Run the reader check**: review the draft against the [checklist](references/checklist.md), fix what fails, and render it where it will be read, such as HTML at desktop and phone widths with [playwright](../playwright/SKILL.md). Tell the user what you could not verify and which guidelines you set aside.
+1. **Run the reader check**: review the draft against the [checklist](references/checklist.md), fix what fails, and render it where it will be read, such as HTML at desktop and phone widths with [playwright](../playwright/SKILL.md). Tell the user what you could not verify and which guidelines you set aside. To fact-check an existing draft, article, post, or talk, run the checklist's Trust section and report findings with the date checked; rewrite only when asked.
 
 ## Gotchas
 

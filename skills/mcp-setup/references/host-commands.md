@@ -11,6 +11,8 @@ copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <com
 opencode mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>            # OpenCode 2.x: project configuration unless --global
 ```
 
+For a server shipped by a local Python project, register the locked environment's absolute executable instead of `uvx`, as the brain server does: `agy mcp add brain -- <brain-checkout>/.venv/bin/bf mcp --brain <brain>`.
+
 `KEY=value` represents non-sensitive configuration. Do not place credentials in CLI arguments or committed MCP files; use the host's supported environment references, OAuth, or a scoped secret launcher.
 
 Resolve `<version>` to a reviewed exact release and update it deliberately. This pins the top-level package only; transitive dependencies can still change when an environment is rebuilt. Use a reviewed locked environment and its executable when reproducible server startup is required.
@@ -21,7 +23,7 @@ OpenCode 2.x configuration nests servers under `mcp.servers.<name>`: `type: "loc
 
 | Host        | User scope                                           | Project scope                                   |
 | ----------- | ---------------------------------------------------- | ----------------------------------------------- |
-| Antigravity | `~/.gemini/config/mcp_config.json` (per its docs)    | `.agents/mcp_config.json` (per its docs)        |
+| Antigravity | `~/.gemini/config/mcp_config.json` (`agy mcp add`)   | Unverified: `agy mcp add` has no scope flag     |
 | Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                 |
 | Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited) |
 | OpenCode    | `~/.config/opencode/opencode.json` or `.jsonc`       | `opencode.json` or `.jsonc`                     |

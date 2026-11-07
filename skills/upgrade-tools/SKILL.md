@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-11-06"
+  updated: "2026-11-07"
 ---
 
 # Upgrade Tools
@@ -25,7 +25,7 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
 1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if the upgrade cannot be qualified.
 1. **Verify the final candidate**: run the repository gate and relevant runtime smoke checks on a candidate that matches the source; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
-1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile (`mise run upgrade` spans several ecosystems at once, so split its commits by lockfile), per [conventional-commit](../git-delivery/references/conventional-commit.md).
+1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile (`mise run upgrade` spans several ecosystems at once, so split its commits by lockfile), per [commit messages](../git-delivery/SKILL.md#commit-messages).
 1. **Report and preview cleanup**: list old and new versions, retained exceptions, and gate results, then preview cleanup as in the [playbook](references/playbook.md); deleting installations needs separate authorization.
 
 ## Gotchas
@@ -35,7 +35,7 @@ Upgrade one repository's tools and dependencies to their latest stable releases,
 - **Majors are separate changes**: Python upgrades follow declared constraints and `uv lock --upgrade` can cross majors. Inspect the actual version diff and handle breaking upgrades as separate changes.
 - **Justify every held-back pin**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
 - **Read release notes for changed defaults**: a routine bump can change what a gate checks, such as betterleaks 1.10 ignoring `.betterleaks.toml` without `--config` (see [betterleaks](../code-security/references/betterleaks.md)); scan each upgraded tool's notes for config loading, default rules, and exit codes before trusting the gate.
-- **Check registry deprecations and upstream READMEs**: GitHub's `isArchived` flag alone misses tools superseded in place (`actionlint` → `jactionlint`, `gitleaks` → `betterleaks`). Check `mise registry` warnings and the upstream README top banner for maintenance-only or successor notices.
+- **Check upstream READMEs for successors**: GitHub's `isArchived` flag and `mise registry` both miss tools superseded in place (`actionlint` → `jactionlint`, `gitleaks` → `betterleaks`). Read the upstream README top banner for maintenance-only or successor notices, and keep the successor the owner already chose.
 
 ## Documentation
 

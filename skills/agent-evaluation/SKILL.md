@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-evaluation
   created: "2026-09-09"
-  updated: "2026-10-31"
+  updated: "2026-11-07"
 ---
 
 # Agent Evaluation
 
-Decide whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../system-prompts/SKILL.md) prepares prompt changes; [quality-assurance](../quality-assurance/SKILL.md) owns deterministic software proof. Keep datasets and execution commands in the project or provider's existing evaluation workflow.
+Decide whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../agent-frameworks/references/system-prompts.md) prepares prompt changes; [python-testing](../python-stack/references/python-testing/GUIDE.md) owns deterministic software proof. Keep datasets and execution commands in the project or provider's existing evaluation workflow.
 
 ## Workflow
 
@@ -35,4 +35,4 @@ Decide whether a stochastic candidate improves observable outcomes under compara
 - Upstream: `mlflow/skills` ships the MLflow-specific `mlflow-evaluation` (scorers, judges, evaluation runs) for MLflow projects; review it per the [vendor-skill policy](../agent-project/references/vendor-skills.md).
 - [Anthropic agent evaluation](https://www.anthropic.com/research/demystifying-evals-for-ai-agents)
 - Companion skills: [agents-cli](../agent-frameworks/references/agents-cli/GUIDE.md) (Google evaluation execution), [observability](../python-stack/references/observability.md) (runtime signals), [skillify](../skillify/SKILL.md) (skill adoption checks).
-- [AI red team](../ai-red-team/SKILL.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.
+- [AI red team](../code-security/references/ai-red-team/GUIDE.md) owns adversarial scenarios and PyRIT execution; reuse this skill's trial design and uncertainty reporting.

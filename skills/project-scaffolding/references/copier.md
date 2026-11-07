@@ -5,7 +5,7 @@ description: "Author new reusable Copier templates, generate projects, and apply
 
 # Copier
 
-Copier is the default for new project templates we maintain. Keep existing Cookiecutter templates and `.cruft.json` projects on [Cookiecutter/Cruft](cookiecutter/GUIDE.md) unless migration is explicitly requested; the formats and update baselines are not interchangeable. [bootstrap](bootstrap.md) owns the generated project's stack and repository setup.
+Copier is the default for new project templates we maintain. Keep existing Cookiecutter templates and `.cruft.json` projects on [Cookiecutter/Cruft](cookiecutter.md) unless migration is explicitly requested; the formats and update baselines are not interchangeable. [bootstrap](bootstrap.md) owns the generated project's stack and repository setup.
 
 ## Workflow
 

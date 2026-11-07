@@ -5,34 +5,30 @@ description: "LangGraph state, persistence, streaming, interrupts, and durable e
 
 # LangGraph
 
-Own the topology when the workflow is more than "loop until done": classification before routing, parallel fan-out, or deterministic steps between model calls. [langchain](langchain.md)'s `create_agent` already returns a compiled graph that drops into a `StateGraph` as a node with its middleware intact, so reach here for the surrounding structure, the persistence contract, and resumable execution.
+Own the topology only when the workflow is more than "loop until done": classification before routing, parallel fan-out, or deterministic steps between model calls. [langchain](langchain.md)'s `create_agent` already returns a compiled graph that drops into a `StateGraph` as a node with its middleware intact; confirm it does not already cover the need before `uv add langgraph`.
 
 ## Workflow
 
-1. **Scope the graph first**: confirm `create_agent` plus middleware does not already cover it before `uv add langgraph`.
-1. **Build explicitly**: a `StateGraph` with typed state, small nodes, and edges from `START` to `END`. Define reducers only for fields that combine concurrent updates; unreduced concurrent writes raise `INVALID_CONCURRENT_GRAPH_UPDATE`.
-1. **Run it deterministically**: compile and execute with no provider, asserting final state, routing, and error paths. Bound the run with `graph.invoke({...}, {"recursion_limit": N})` before adding model nodes.
-1. **Choose persistence deliberately**: `InMemorySaver` (`langgraph.checkpoint.memory`) is for tests only; `langgraph-checkpoint-sqlite`, `-postgres`, and `-mongodb` install separately (`uv add langgraph-checkpoint-postgres`). Follow the selected backend's setup contract: Postgres requires `.setup()` to create or migrate its schema; this is not a method on every checkpointer. Keep `thread_id` stable, respect the backend's length limit (under 255 characters for Postgres), isolate threads per user, and prove resume across a real process restart.
-1. **Set durability per run, not at compile**: pass `durability="sync"` for high-value writes, `"async"` for the default trade-off, and `"exit"` only when losing a mid-run crash is acceptable — `"exit"` persists on successful exit, an error, or an interrupt, but cannot recover intermediate state after a process crash.
-1. **Interrupt for review**: `from langgraph.types import interrupt, Command`, resume with `Command(resume=...)` on the same thread, and rehearse approve, reject, timeout, and repeated resume. Resuming re-runs the node from its start, so make preceding writes idempotent.
-1. **Configure failure behavior**: pass `retry_policy=RetryPolicy(...)`, `timeout=TimeoutPolicy(run_timeout=..., idle_timeout=...)`, and `error_handler=` to `add_node` rather than wrapping every node in try/except. Timeouts need async nodes (a sync node raises `ValueError`) and raise `NodeTimeoutError`, which the default retry policy retries; a handler receives the failure only through a parameter typed `NodeError` and returns a recovery `Command`. Before deploying a worker, pass `control=RunControl()` (`langgraph.runtime`) and call `request_drain()` on SIGTERM: the run stops after the current superstep, raises `GraphDrained`, and resumes from its checkpoint with `invoke(None, config)`.
-1. **Choose the streaming contract**: `stream`/`astream` with `stream_mode` values (`updates`, `values`, `messages`, `custom`, `checkpoints`, `tasks`, `debug`) serves stable consumers. The typed `stream_events(..., version="v3")` API is experimental and emits `LangChainBetaWarning`; adopt it deliberately against the locked release and test its event shape. Emit progress from inside nodes with `get_stream_writer()`.
-1. **Version the state**: checkpoints outlive a deployment, so treat a state or channel schema change as a migration and rehearse recovery on a copy of real checkpoints.
+1. **Choose persistence deliberately**: `InMemorySaver` is for tests only; `langgraph-checkpoint-sqlite`, `-postgres`, and `-mongodb` install separately. Postgres requires `.setup()` to create or migrate its schema (not a method on every checkpointer) and a `thread_id` under 255 characters; isolate threads per user and prove resume across a real process restart.
+1. **Set durability per run, not at compile**: `durability="sync"` for high-value writes, `"async"` for the default trade-off, and `"exit"` only when losing intermediate state to a process crash is acceptable.
+1. **Interrupt for review**: `interrupt()` and `Command(resume=...)` from `langgraph.types` on the same thread; resuming re-runs the node from its start, so make preceding writes idempotent.
+1. **Configure failure behavior on `add_node`**: `retry_policy=RetryPolicy(...)`, `timeout=TimeoutPolicy(run_timeout=..., idle_timeout=...)`, and `error_handler=` instead of try/except in every node. Timeouts need async nodes (a sync node raises `ValueError`) and raise `NodeTimeoutError`, which the default retry policy retries; a handler receives the failure only through a parameter typed `NodeError` and returns a recovery `Command`.
+1. **Drain workers on shutdown**: pass `control=RunControl()` (`langgraph.runtime`) and call `request_drain()` on SIGTERM; the run stops after the current superstep, raises `GraphDrained`, and resumes from its checkpoint with `invoke(None, config)`.
+1. **Stream with `stream_mode`**: the typed `stream_events(..., version="v3")` API is experimental and emits `LangChainBetaWarning`; adopt it only with a test of its event shape against the locked release.
 
 ## Gotchas
 
-- **Never wrap `interrupt()` in a broad `except`**: it pauses by raising, and a bare handler swallows the pause. Keep error-prone work in a separate node.
-- **Interrupt matching is strictly index-based**: resume values are matched by position within the node, so a conditionally skipped or reordered `interrupt()` silently receives another call's answer. Keep the calls unconditional and in a fixed order, and return simple values from them.
-- **Checkpoints retain what you put in state**: prompts, tool outputs, and any credential accidentally placed in a field persist to the store; keep state minimal and apply access and retention controls.
-- **Persistence is not a scheduler**: a durable checkpoint does not prove a stopped worker will ever wake up to resume it. See [scheduled-jobs](../../scheduled-jobs/SKILL.md).
+- **Never wrap `interrupt()` in a broad `except`**: it pauses by raising, and a bare handler swallows the pause.
+- **Interrupt matching is strictly index-based**: resume values match by position within the node, so a conditionally skipped or reordered `interrupt()` silently receives another call's answer; keep the calls unconditional and in a fixed order.
+- **Checkpoints persist state and outlive deployments**: prompts, tool outputs, and any credential placed in state reach the store, so keep state minimal with access and retention controls; treat a state schema change as a migration rehearsed on a copy of real checkpoints.
 
 ## Official Skills
 
-Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills). Use `ecosystem-primer` for the package boundaries, then `langgraph-fundamentals`, `langgraph-persistence`, and `langgraph-human-in-the-loop`; take `langgraph-cli` only for that deployment workflow. Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to the selected immutable snapshot before a project-scoped installation.
+Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`langgraph-fundamentals`, `langgraph-persistence`, `langgraph-human-in-the-loop`; `langgraph-cli` only for that deployment workflow). Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) before a project-scoped installation.
 
 ## Documentation
 
-- [Overview](https://docs.langchain.com/oss/python/langgraph/overview) · [Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api) · [Checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers) · [Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) · [Fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) · [Event streaming](https://docs.langchain.com/oss/python/langgraph/event-streaming)
-- Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langgraph/releases) · [v1 release notes](https://docs.langchain.com/oss/python/releases/langgraph-v1)
-- Live reference: the docs expose an MCP endpoint at `https://docs.langchain.com/mcp` for version-current answers.
-- Companion skills: [langchain](langchain.md) (agent loop and models), [python-async](../../python-stack/references/python-async/GUIDE.md) (cancellation and shutdown), [observability](../../python-stack/references/observability.md) (traces), [agent-evaluation](../../agent-evaluation/SKILL.md) (quality comparisons).
+- [Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api) · [Checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers) · [Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) · [Fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) · [Event streaming](https://docs.langchain.com/oss/python/langgraph/event-streaming)
+- Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langgraph/releases)
+- Live reference: the docs MCP endpoint `https://docs.langchain.com/mcp` answers for the current version.
+- Companion skills: [python-async](../../python-stack/references/python-async/GUIDE.md) (cancellation and shutdown), [observability](../../python-stack/references/observability.md) (traces).

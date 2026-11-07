@@ -36,7 +36,7 @@ Install the host prerequisites first; everything else installs in user space:
 
 ```bash
 # Debian / Ubuntu
-sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin pulseaudio-utils
+sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin pulseaudio-utils fonts-noto-color-emoji
 # ChromeOS Linux with GPU acceleration: allow Ghostty to open the GPU, then restart Linux
 sudo usermod -aG render "$USER"
 
@@ -100,7 +100,7 @@ Machine-local settings live in unmanaged `~/.config/dot.yaml` and merge with [bu
 
 ### Usage reports
 
-`dot agent stats` separates token counts and estimated API value from billed costs (`--monthly` groups by UTC calendar month). `dot agent session sync` captures longer local transcripts before harnesses prune them; see the [usage guide](skills/agent-usage/SKILL.md).
+`dot agent stats` separates token counts and estimated API value from billed costs (`--monthly` groups by UTC calendar month). `dot agent session sync` captures longer local transcripts before harnesses prune them; see the [usage guide](skills/dot-cli/references/agent-usage.md).
 
 ## Repository tasks
 
@@ -135,8 +135,8 @@ Setup links [`skills/`](skills/) into `~/.agents/skills/` alongside independentl
 
 Everyday slash commands:
 
-- **Deliverables & writing:** `/clipboard` copies the last deliverable (or `/clipboard <selection>`) via native OS tools ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` turns technical work into decision-ready reports and proposals; `/draft-doc` creates Google Docs (`.md` or `.gdoc`); `/draft-mail` drafts Gmail replies without sending; `/fact-check` verifies claims and links.
-- **Engineering & maintenance:** `/full-review` audits a repository and applies verified fixes; `/smoke` exercises every task and CLI command; `/trim <path>` cuts tokens without losing meaning; `/lesson-learned` turns session corrections and approved decisions into minimal edits to checks, skills, or AGENTS.md; `/auth-status` checks CLI logins and prints exact re-login commands; `/task-prompts` writes handoff prompts (resume agy with `agy -c`, compact with `/compact`).
+- **Deliverables & writing:** `/clipboard` copies the last deliverable (or `/clipboard <selection>`) via native OS tools ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` turns technical work into decision-ready reports and proposals and fact-checks drafts; `/draft-doc` creates Google Docs (`.md` or `.gdoc`); `/draft-mail` drafts Gmail replies without sending.
+- **Engineering & maintenance:** `/full-review` audits a repository and applies verified fixes, reviews a diff or PR read-only, or smoke-tests every task and CLI command; `/trim <path>` cuts tokens without losing meaning; `/lesson-learned` turns session corrections and approved decisions into minimal edits to checks, skills, or AGENTS.md; `/auth-status` checks CLI logins and prints exact re-login commands; `/task-prompts` writes handoff prompts (resume agy with `agy -c`, compact with `/compact`).
 
 ## Credentials
 

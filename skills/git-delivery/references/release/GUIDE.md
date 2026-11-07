@@ -27,4 +27,4 @@ Prepare or verify a versioned release with Conventional Commits, git-cliff, anno
 - [git-cliff](https://git-cliff.org) · [gh release manual](https://cli.github.com/manual/gh_release)
 - [GitHub release integrity](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity)
 - Releases: [git-cliff](https://github.com/orhun/git-cliff/releases) · [changelog](https://github.com/orhun/git-cliff/blob/main/CHANGELOG.md)
-- Companion skills: [conventional-commit](../conventional-commit.md) (commit grammar), [github-pull-request](../../../github-pull-request/SKILL.md) (merge first), [mise](../../../mise/SKILL.md) (the gate).
+- Companion skills: [commit messages](../../SKILL.md#commit-messages), [github-pull-request](../../../github-pull-request/SKILL.md) (merge first), [mise](../../../mise/SKILL.md) (the gate).

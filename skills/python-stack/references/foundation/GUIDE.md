@@ -29,10 +29,10 @@ For application templates, set output-appropriate escaping explicitly and prefer
 Choose the smallest profile that fits the project; its owner supplies application procedures and examples.
 
 - **Library**: the shared package foundation, no runtime dependencies by default, and no console entry point.
-- **CLI**: extend the foundation through [typer](../../../cli-development/references/typer/GUIDE.md); [cli-contracts](../../../cli-development/references/cli-contracts.md) owns flags, streams, and exit codes.
+- **CLI**: extend the foundation through [typer](../typer/GUIDE.md); [cli-contracts](../cli-contracts.md) owns flags, streams, and exit codes.
 - **Web**: [litestar](../../../python-web/references/litestar/GUIDE.md) extends the foundation for typed ASGI APIs and services; [django](../../../python-web/references/django/GUIDE.md) owns ORM, admin, auth, and server-rendered pages through its own bootstrap; [fastapi](../../../python-web/references/fastapi.md) covers an existing or generated scaffold. Use [nicegui](../../../python-web/references/nicegui.md) or [gradio](../../../python-web/references/gradio.md) for a single-user tool or model demo instead of a service.
 - **Agent, LLM, MCP**: default new agents to Google ADK: start with [agents-cli](../../../agent-frameworks/references/agents-cli/GUIDE.md) and use [google-adk](../../../agent-frameworks/references/google-adk.md) for SDK code, retaining the generator's layout and supported Python range; when ADK does not fit, use [langgraph](../../../agent-frameworks/references/langgraph.md) through [langchain](../../../agent-frameworks/references/langchain.md)'s `create_agent` ([agent-frameworks](../../../agent-frameworks/SKILL.md) owns the order); [MCP implementation](../../../agent-protocols/references/mcp/GUIDE.md) for tool servers.
-- **Data, ML, notebooks**: [polars](../../../python-mlops/references/polars.md) for dataframes; [python-mlops](../../../python-mlops/SKILL.md) for training, experiments, registry, model delivery, and monitoring; [duckdb](../../../duckdb/SKILL.md) for local queries and exports; [marimo](../../../python-mlops/references/marimo.md) for reactive notebooks. Retain project-selected workload dependencies, keep runtime dependencies separate from development tools, and consult installed source and official docs for dataframe, schema, and chart APIs.
+- **Data, ML, notebooks**: [polars](../../../python-mlops/references/polars.md) for dataframes; [python-mlops](../../../python-mlops/SKILL.md) for training, experiments, registry, and model delivery; [duckdb](../../../duckdb/SKILL.md) for local queries and exports; [marimo](../../../python-mlops/references/marimo.md) for reactive notebooks. Retain project-selected workload dependencies, keep runtime dependencies separate from development tools, and consult installed source and official docs for dataframe, schema, and chart APIs.
 - **Single-file utility**: [python-script](../python-script/GUIDE.md) for PEP 723 metadata and execution.
 
 Default to async I/O (`asyncio`) for I/O-bound agent, LLM, MCP, and web profiles — concurrent network or tool calls, streaming responses, and long-lived connections — and keep CPU-bound work, blocking drivers, and local CLIs or scripts synchronous (with bounded worker pools for subprocess or file fan-out); [python-async](../python-async/GUIDE.md) owns task lifetime, cancellation, deadlines, and shutdown.
@@ -43,8 +43,8 @@ Cross-cutting owners:
 - **Tasks, hooks, markup/config formatting**: [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [dprint](../../../dprint/SKILL.md).
 - **Persisted schema or data changes**: use the project's migration tool (Alembic, Django migrations), rehearse on a copy, and keep a restorable backup; use installed database/framework documentation for query APIs.
 - **Logging and external HTTP**: [observability](../observability.md), [api-client](../api-client/GUIDE.md).
-- **Tests**: [python-testing](../python-testing/GUIDE.md) for pytest mechanics and Hypothesis property tests; [quality-assurance](../../../quality-assurance/SKILL.md) for broader campaigns.
-- **CPU and allocation profiling**: [systematic-debugging](../../../systematic-debugging/SKILL.md), including its Python profiler recipes.
+- **Tests**: [python-testing](../python-testing/GUIDE.md) for pytest mechanics and Hypothesis property tests.
+- **Profiling and benchmarks**: [performance](../performance.md).
 - **Security scans and dependency upgrades**: [code-security](../../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../../upgrade-tools/SKILL.md).
 
 ## Foundation resources
