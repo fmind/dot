@@ -14,7 +14,13 @@ def run_lua(tmp_path: Path, script: str, **variables: str) -> None:
     nvim = shutil.which("nvim")
     assert nvim, "Neovim is required by the repository gate"
     probe = tmp_path / "probe.lua"
+    # TEST_KERNEL fakes the kernel release, which tells Android's Linux terminal VM apart.
     probe.write_text(
+        "local release = vim.env.TEST_KERNEL\n"
+        "if release then\n"
+        "  local uname = vim.uv.os_uname\n"
+        "  vim.uv.os_uname = function() local info = uname(); info.release = release; return info end\n"
+        "end\n"
         "local ok, err = pcall(function()\n"
         + script
         + '\nend)\nif not ok then io.stderr:write(tostring(err) .. "\\n"); vim.cmd.cquit() end\nvim.cmd.qa()\n'
@@ -39,9 +45,23 @@ def run_lua(tmp_path: Path, script: str, **variables: str) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize(("platform", "display"), [("linux", ""), ("linux", ":0"), ("mac", ":0")])
-def test_clipboard_preserves_native_selection_without_linux_x_display(
-    tmp_path: Path, platform: str, display: str
+CROSTINI_KERNEL = "6.6.99-crostini-fixture"
+ANDROID_KERNEL = "6.12.93-android16-6-fixture"
+
+
+@pytest.mark.parametrize(
+    ("platform", "display", "sommelier", "kernel", "expected"),
+    [
+        ("linux", "", "", CROSTINI_KERNEL, "native"),
+        ("linux", ":0", "", CROSTINI_KERNEL, "native"),
+        ("linux", ":0", "1", CROSTINI_KERNEL, "xclip"),
+        ("linux", ":0", "1", ANDROID_KERNEL, "native"),
+        ("mac", ":0", "1", CROSTINI_KERNEL, "native"),
+    ],
+    ids=["linux-wayland", "wayland-desktop", "crostini", "android-vm-wayland", "mac"],
+)
+def test_clipboard_keeps_native_wayland_selection_outside_crostini(
+    tmp_path: Path, platform: str, display: str, sommelier: str, kernel: str, expected: str
 ) -> None:
     binary = tmp_path / "bin"
     binary.mkdir()
@@ -58,8 +78,8 @@ vim.fn.has = function(feature)
   return has(feature)
 end
 dofile(vim.env.OPTIONS_CONFIG)
-if vim.env.TEST_PLATFORM == "linux" and (vim.env.DISPLAY or "") ~= "" then
-  assert(vim.g.clipboard.name == "xclip", "X display should use xclip")
+if vim.env.EXPECTED == "xclip" then
+  assert(vim.g.clipboard.name == "xclip", "Crostini X display should use xclip")
 else
   assert(vim.g.clipboard == nil, "configuration overrode the native clipboard provider")
   -- Neovim's Vimscript provider calls the real has('mac'), so only a Linux host reaches Wayland.
@@ -70,19 +90,33 @@ end
 """,
         PATH=f"{binary}:{os.environ['PATH']}",
         DISPLAY=display,
+        SOMMELIER_VERSION=sommelier,
         WAYLAND_DISPLAY="wayland-fixture",
+        TEST_KERNEL=kernel,
+        EXPECTED=expected,
         TEST_PLATFORM=platform,
         OPTIONS_CONFIG=str(ROOT / "dot_config/nvim/lua/config/options.lua"),
     )
 
 
 @pytest.mark.parametrize(
-    ("ssh", "tmux", "expected"),
-    [("", "", "osc52-write"), ("10.0.0.1 1 10.0.0.2 22", "", "none"), ("", "tmux-socket,1,0", "none")],
+    ("display", "kernel", "ssh", "tmux", "expected"),
+    [
+        ("", CROSTINI_KERNEL, "", "", "osc52-write"),
+        (":0", ANDROID_KERNEL, "", "", "osc52-write"),
+        (":0", CROSTINI_KERNEL, "", "", "xclip"),
+        ("", CROSTINI_KERNEL, "10.0.0.1 1 10.0.0.2 22", "", "none"),
+        ("", CROSTINI_KERNEL, "", "tmux-socket,1,0", "none"),
+    ],
+    ids=["no-display", "android-vm", "x11-desktop", "ssh", "tmux"],
 )
-def test_linux_without_display_writes_osc52_outside_ssh_and_tmux(
-    tmp_path: Path, ssh: str, tmux: str, expected: str
+def test_linux_without_wayland_uses_xclip_on_x11_else_osc52_outside_ssh_and_tmux(
+    tmp_path: Path, display: str, kernel: str, ssh: str, tmux: str, expected: str
 ) -> None:
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    (binary / "xclip").write_text("#!/bin/sh\nexit 0\n")
+    (binary / "xclip").chmod(0o755)
     run_lua(
         tmp_path,
         """
@@ -96,13 +130,20 @@ if vim.env.EXPECTED == "none" then
   assert(vim.g.clipboard == nil, "SSH and tmux must keep Neovim's own clipboard providers")
   return
 end
+if vim.env.EXPECTED == "xclip" then
+  assert(vim.g.clipboard.name == "xclip", "an X11 desktop should keep xclip for paste from other apps")
+  return
+end
 assert(vim.g.clipboard.name == vim.env.EXPECTED, "OSC 52 provider not installed")
 vim.g.clipboard.copy["+"]({ "x" })
 assert(sent[1] == "+" and sent[2][1] == "x", "OSC 52 sequence not emitted")
 assert(vim.deep_equal(vim.g.clipboard.paste["+"](), { "x" }), "paste cache lost the yank")
 assert(vim.deep_equal(vim.g.clipboard.paste["*"](), {}), "primary selection must stay separate")
 """,
-        DISPLAY="",
+        PATH=f"{binary}:{os.environ['PATH']}",
+        DISPLAY=display,
+        TEST_KERNEL=kernel,
+        SOMMELIER_VERSION="",
         WAYLAND_DISPLAY="",
         SSH_CONNECTION=ssh,
         TMUX=tmux,

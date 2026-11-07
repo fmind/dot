@@ -18,9 +18,22 @@ opt.scrolloff = 15
 -- Keymap timeouts
 opt.timeoutlen = 400
 
--- Prefer xclip with an X display on Linux/ChromeOS to avoid wl-clipboard hanging
--- in Wayland containers. Keep native macOS and Wayland-only clipboard selection.
-if vim.fn.has("linux") == 1 and vim.env.DISPLAY and vim.env.DISPLAY ~= "" and vim.fn.executable("xclip") == 1 then
+-- Prefer xclip with an X display on X11 desktops and on ChromeOS Crostini
+-- (SOMMELIER_VERSION), where Sommelier bridges the X11 clipboard to ChromeOS and
+-- wl-clipboard can hang. Android's Linux terminal VM (AVF) runs an Android kernel and
+-- exports DISPLAY=:0 for a local Xwayland that never syncs with the Android clipboard,
+-- so it and other Linux terminals without Wayland emit OSC 52 on yank and serve paste
+-- from an in-process register cache: terminals that ignore OSC 52 '?' read queries
+-- (such as ttyd) never block for 10s. Native macOS, Wayland desktops, SSH, and tmux
+-- keep Neovim's own providers.
+local android_vm = vim.uv.os_uname().release:find("android", 1, true) ~= nil
+if
+  vim.fn.has("linux") == 1
+  and not android_vm
+  and (vim.env.DISPLAY or "") ~= ""
+  and ((vim.env.SOMMELIER_VERSION or "") ~= "" or (vim.env.WAYLAND_DISPLAY or "") == "")
+  and vim.fn.executable("xclip") == 1
+then
   -- xclip exits non-zero with "Error: target STRING not available" whenever a selection
   -- has no owner or holds non-text data, which Neovim surfaces as a clipboard error on
   -- every paste. Read through a Lua function so an unavailable selection is simply an
@@ -52,10 +65,6 @@ elseif
   and (vim.env.SSH_CONNECTION or "") == ""
   and (vim.env.TMUX or "") == ""
 then
-  -- LazyVim sets clipboard=unnamedplus, which disables Neovim's built-in OSC 52
-  -- fallback. Emit OSC 52 on yank and serve paste from an in-process register
-  -- cache so terminals that ignore OSC 52 '?' read queries (such as ttyd) never
-  -- block for 10s on paste. SSH and tmux keep Neovim's own OSC 52 and tmux providers.
   local osc52 = require("vim.ui.clipboard.osc52")
   local cache = { ["+"] = {}, ["*"] = {} }
   local function copy(reg)
