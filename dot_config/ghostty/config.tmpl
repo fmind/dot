@@ -1,8 +1,7 @@
 # Docs: https://ghostty.org/docs/config/reference
 
+# The fmind theme also sets minimum-contrast and faint-opacity for readable text.
 theme = fmind
-# Keep arbitrary ANSI background combinations readable.
-minimum-contrast = 4.5
 # Match Linux window chrome to the terminal background; use light chrome on macOS.
 window-theme = {{ if eq .chezmoi.os "linux" }}ghostty{{ else }}light{{ end }}
 

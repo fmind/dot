@@ -3,7 +3,7 @@
 # (Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 # DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/31c7cb146d4348ac2a214dfe3ed2d18ae5cf9641" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/73d47cd78074589da86576671ecfad9164cac020" }}
 
 [".agents/DESIGN.md"]
     type = "file"
@@ -64,7 +64,7 @@
 [".config/git/colors.gitconfig"]
     type = "file"
     url = "{{ $base }}/themes/git/fmind.gitconfig"
-    checksum.sha256 = "40b782c8264c481aaa989b60f682b2edf4ea1be1cffb6b2b7e2818584d381a35"
+    checksum.sha256 = "915863d4aaa02477d678ace0884c996b758a6995de165c8efb3fe34c5a89ee02"
 
 [".config/fzf/theme.conf"]
     type = "file"
@@ -74,7 +74,7 @@
 [".config/opencode/themes/fmind.json"]
     type = "file"
     url = "{{ $base }}/themes/opencode/fmind.json"
-    checksum.sha256 = "ed0a2c7453a401d10e94f78f7cf3c182cf0a2f25ff12af2fe56dffc27faf7906"
+    checksum.sha256 = "cda1e7fc4be63c36bcc1e4306c534e14534b9926b6317e863dea5328502a01ae"
 
 [".config/atuin/themes/fmind.toml"]
     type = "file"
@@ -84,7 +84,7 @@
 [".config/bat/themes/fmind.tmTheme"]
     type = "file"
     url = "{{ $base }}/themes/bat/fmind.tmTheme"
-    checksum.sha256 = "55d5b5806641f0feead7bc1255eaf48d2a4844397deb5863c90d3f684399f0e8"
+    checksum.sha256 = "5d1c854f4ebe8c494415a3a217fb03f89f56809e2083d57b077294588bd4a004"
 
 # LG_CONFIG_FILE (env.fish) layers this file over the managed lazygit config.
 [".config/lazygit/theme.yml"]
