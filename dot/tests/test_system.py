@@ -17,7 +17,7 @@ from typer.core import TyperGroup, TyperOption
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from fmind_dot import reporting, system
+from fmind_dot import auth, reporting, system
 from fmind_dot.cli import app
 from fmind_dot.config import Config, DoctorConfig, SecretConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -509,6 +509,55 @@ def test_doctor_github_auth_inspects_token_source(output: dict[str, str] | str, 
     encoded = json.dumps(report)
     for sensitive in ("private-user", "private network failure", "private-invalid-json"):
         assert sensitive not in encoded
+
+
+_LOGIN_COLLECTION = CommandResult('{"type":"ao","data":["/org/freedesktop/secrets/collection/login"]}', "", 0)
+_SESSION_ONLY = CommandResult('{"type":"ao","data":["/org/freedesktop/secrets/collection/session"]}', "", 0)
+_NO_DEFAULT = CommandResult('{"type":"o","data":["/"]}', "", 0)
+_SESSION_DEFAULT = CommandResult('{"type":"o","data":["/org/freedesktop/secrets/collection/session"]}', "", 0)
+_NO_SERVICE = CommandResult("", "private bus failure", 1)
+
+
+@pytest.mark.parametrize(
+    ("collections", "alias", "remedy"),
+    [
+        (_SESSION_ONLY, _NO_DEFAULT, auth.GITHUB_NO_KEYRING_REMEDY),
+        (_LOGIN_COLLECTION, None, auth.GITHUB_KEYRING_REMEDY),
+        (_SESSION_ONLY, _SESSION_DEFAULT, auth.GITHUB_KEYRING_REMEDY),
+        (_NO_SERVICE, None, auth.GITHUB_KEYRING_REMEDY),
+        (CommandResult("private-invalid-json", "", 0), None, auth.GITHUB_KEYRING_REMEDY),
+    ],
+    ids=["no-keyring", "login-collection", "default-alias", "bus-failure", "bad-json"],
+)
+def test_doctor_plaintext_github_token_names_the_keyring_fix(
+    collections: CommandResult, alias: CommandResult | None, remedy: str
+) -> None:
+    status = {
+        "hosts": {
+            "github.com": [
+                {"state": "success", "active": True, "tokenSource": "/home/private-user/.config/gh/hosts.yml"}
+            ]
+        }
+    }
+    answers = {
+        tuple(_GH_STATUS): CommandResult(json.dumps(status), "", 0),
+        tuple(auth.KEYRING_COLLECTIONS): collections,
+    }
+    if alias is not None:
+        answers[tuple(auth.KEYRING_DEFAULT_ALIAS)] = alias
+    runner = ScriptedRunner({"gh", "busctl"}, run=lambda args, _cwd, _input, _check: answers[tuple(args)])
+
+    report = doctor_sections(system.run_doctor(make_state(runner, _minimal_verify_config()), fix=False, deep=True))
+
+    result = report["auth"][0]
+    assert (result["status"], result["condition"]) == ("warn", "insecure")
+    assert result["details"] == f"authenticated; token in plaintext hosts.yml: {remedy}"
+    # The alias is read only when no login collection answers the question.
+    assert (tuple(auth.KEYRING_DEFAULT_ALIAS) in map(tuple, runner.calls)) == (alias is not None)
+    assert runner.timeouts[tuple(auth.KEYRING_COLLECTIONS)] == auth.KEYRING_TIMEOUT_SECONDS
+    encoded = json.dumps(report)
+    assert "private-user" not in encoded
+    assert "private bus failure" not in encoded
 
 
 @pytest.mark.parametrize(

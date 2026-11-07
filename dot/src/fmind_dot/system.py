@@ -18,10 +18,10 @@ from typer.completion import get_completion_script
 
 from fmind_dot.auth import (
     GCLOUD_CLI_TOKEN,
-    GITHUB_KEYRING_REMEDY,
     PROBE_TIMEOUT_SECONDS,
     adc_ready,
     gcloud_ready,
+    github_keyring_remedy,
     github_status,
     github_token_plaintext,
     workspace_ready,
@@ -360,7 +360,7 @@ def _auth_results(state: State) -> list[CheckResult]:
     def github() -> CheckResult | bool:
         entry = github_status(state)
         if github_token_plaintext(entry):
-            details = f"authenticated; token in plaintext hosts.yml: {GITHUB_KEYRING_REMEDY}"
+            details = f"authenticated; token in plaintext hosts.yml: {github_keyring_remedy(state)}"
             return CheckResult("gh", "warn", details, condition="insecure")
         return entry is not None
 
@@ -388,7 +388,7 @@ def _auth_results(state: State) -> list[CheckResult]:
             return CheckResult(label, "pass", "authenticated", str(path), "healthy")
         return CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated")
 
-    # The probes are independent network calls: concurrency bounds the worst case to one timeout, not four.
+    # The probes are independent network calls: concurrency bounds the worst case to one provider's timeouts, not their sum.
     return run_parallel(state.runner, run, list(checks.items()), _PROBE_CONCURRENCY)
 
 

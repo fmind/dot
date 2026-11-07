@@ -504,10 +504,12 @@ def test_github_defaults_read_keys_and_packages_but_exclude_their_writes() -> No
 
 @pytest.mark.parametrize("arguments", [["login", "github"], ["setup", "github"]])
 def test_github_plaintext_token_warns_after_satisfied_probe(provider: RecordingRunner, arguments: list[str]) -> None:
+    provider.missing.add("busctl")
     provider.responses = [github_status(tokenSource="/home/user/.config/gh/hosts.yml")]
     result = cli(arguments)
     assert not provider.actions
     assert "plaintext hosts.yml" in result.stderr
+    assert auth.GITHUB_KEYRING_REMEDY in result.stderr
 
 
 def test_github_plaintext_token_warns_after_login(provider: RecordingRunner) -> None:
@@ -515,10 +517,14 @@ def test_github_plaintext_token_warns_after_login(provider: RecordingRunner) -> 
         response({"hosts": {}}),
         PROTOCOL,
         github_status(tokenSource="/home/user/.config/gh/hosts.yml"),
+        response({"type": "ao", "data": ["/org/freedesktop/secrets/collection/session"]}),
+        response({"type": "o", "data": ["/"]}),
     ]
     result = cli(["login", "github"])
     assert provider.actions[0][:3] == ["gh", "auth", "login"]
+    assert provider.calls[-2:] == [auth.KEYRING_COLLECTIONS, auth.KEYRING_DEFAULT_ALIAS]
     assert "plaintext hosts.yml" in result.stderr
+    assert auth.GITHUB_NO_KEYRING_REMEDY in result.stderr
     assert "/home/user" not in result.stderr
 
 

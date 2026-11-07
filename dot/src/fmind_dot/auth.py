@@ -81,11 +81,24 @@ GCLOUD_LOGIN_MARKERS = (
     "credentials not found",
 )
 GITHUB_KEYRING_REMEDY = "unlock the system keyring, then run gh auth logout and dot setup github"
+GITHUB_NO_KEYRING_REMEDY = (
+    "the Secret Service has no login or default keyring for gh; "
+    "create a persistent login keyring, then run gh auth logout and dot setup github"
+)
+# gh stores tokens through go-keyring, which writes to the Secret Service "login" collection, else the
+# "default" alias; with neither, there is no keyring to unlock and gh falls back to hosts.yml.
+KEYRING_BUS = ["busctl", "--user", "--json=short"]
+KEYRING_OBJECT = ["org.freedesktop.secrets", "/org/freedesktop/secrets", "org.freedesktop.Secret.Service"]
+KEYRING_COLLECTIONS = [*KEYRING_BUS, "get-property", *KEYRING_OBJECT, "Collections"]
+KEYRING_DEFAULT_ALIAS = [*KEYRING_BUS, "call", *KEYRING_OBJECT, "ReadAlias", "s", "default"]
+KEYRING_LOGIN_COLLECTION = "/org/freedesktop/secrets/collection/login"
 GCLOUD_CLI_TOKEN = ["gcloud", "auth", "print-access-token"]
 GITHUB_STATUS = ["gh", "auth", "status", "--active", "--hostname", GITHUB_HOST, "--json", "hosts"]
 WORKSPACE_STATUS = ["gws", "auth", "status"]
 COLAB_SESSIONS = ["colab", "--auth=adc", "sessions"]
 PROBE_TIMEOUT_SECONDS = 45.0
+# Local D-Bus reads answer in milliseconds; a wedged keyring daemon must not stall doctor or login.
+KEYRING_TIMEOUT_SECONDS = 5.0
 # Workspace setup lists and enables APIs through gcloud and Colab shares ADC, so GCP precedes both.
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace", "colab")
 # One worker per distinct readiness probe: the five probes are I/O-bound native CLIs.
@@ -97,7 +110,7 @@ _GOOGLE_SCOPE_ALIASES = {
 _GOOGLE_SCOPE_PREFIX = "https://www.googleapis.com/auth/"
 
 
-def probe(state: State, args: list[str]) -> CommandResult:
+def probe(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS) -> CommandResult:
     """Run a readiness probe once per invocation; logins clear the reused results."""
     key = tuple(args)
     if isinstance(cached := state.probes.get(key), DotError):
@@ -106,7 +119,7 @@ def probe(state: State, args: list[str]) -> CommandResult:
         return cached
     require_tools(state, [args])
     try:
-        result = state.runner.run(args, timeout=PROBE_TIMEOUT_SECONDS, check=False)
+        result = state.runner.run(args, timeout=timeout, check=False)
     except DotError as error:
         # Reuse a timeout too: the sequential step after warm_probes must not wait for it again.
         state.probes[key] = error
@@ -166,8 +179,8 @@ def google_signin_opener() -> Callable[[str], None] | None:
     return open_once
 
 
-def probe_json(state: State, args: list[str]) -> object:
-    result = probe(state, args)
+def probe_json(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS) -> object:
+    result = probe(state, args, timeout)
     if result.returncode and args[0] == "gcloud" and any(m in result.stderr.lower() for m in GCLOUD_LOGIN_MARKERS):
         raise DotError("gcloud credentials need a fresh login; run dot login gcp and retry")
     if result.returncode:
@@ -406,10 +419,27 @@ def github_token_plaintext(entry: dict[str, Any] | None) -> bool:
     return isinstance(source, str) and PurePath(source).name == "hosts.yml"
 
 
+def github_keyring_remedy(state: State) -> str:
+    """Name the fix for a plaintext gh token; any unknown Secret Service state keeps the unlock advice."""
+    try:
+        # probe() fails closed when busctl is missing, which keeps the unlock advice too.
+        collections = probe_json(state, KEYRING_COLLECTIONS, KEYRING_TIMEOUT_SECONDS)
+        if not isinstance(collections, dict) or not isinstance(paths := collections.get("data"), list):
+            return GITHUB_KEYRING_REMEDY
+        if KEYRING_LOGIN_COLLECTION in paths:
+            return GITHUB_KEYRING_REMEDY
+        alias = probe_json(state, KEYRING_DEFAULT_ALIAS, KEYRING_TIMEOUT_SECONDS)
+    except DotError:
+        return GITHUB_KEYRING_REMEDY
+    # ReadAlias returns the root path "/" when no collection is the default.
+    missing = isinstance(alias, dict) and alias.get("data") == ["/"]
+    return GITHUB_NO_KEYRING_REMEDY if missing else GITHUB_KEYRING_REMEDY
+
+
 def warn_plaintext_github_token(state: State, entry: dict[str, Any] | None) -> None:
     if github_token_plaintext(entry):
         print(
-            f"Warning: the GitHub token is stored in plaintext hosts.yml; {GITHUB_KEYRING_REMEDY} "
+            f"Warning: the GitHub token is stored in plaintext hosts.yml; {github_keyring_remedy(state)} "
             "to move it to the keyring.",
             file=state.stderr,
         )

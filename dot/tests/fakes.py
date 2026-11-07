@@ -49,6 +49,7 @@ class ScriptedRunner(Runner):
         self.installed = installed or set()
         self.run_handler = run
         self.calls: list[list[str]] = []
+        self.timeouts: dict[tuple[str, ...], float | None] = {}
 
     def which(self, command: str) -> Path | None:
         return Path("/bin") / command if command in self.installed else None
@@ -63,9 +64,10 @@ class ScriptedRunner(Runner):
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        del env, timeout
+        del env
         command = list(args)
         self.calls.append(command)
+        self.timeouts[tuple(command)] = timeout
         result = self.run_handler(command, cwd, input_text, check) if self.run_handler else CommandResult("ok\n", "", 0)
         if check and result.returncode != 0:
             raise DotError(f"command failed ({result.returncode}): {command[0]}")
