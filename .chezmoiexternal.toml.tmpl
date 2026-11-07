@@ -1,14 +1,14 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
 # Theme files are pinned to one fmind/theme commit with checksums because several execute
-# (Fish, Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
+# (Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 # DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/337676d5505ee59e5133eba549609edfd480f7a5" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/31c7cb146d4348ac2a214dfe3ed2d18ae5cf9641" }}
 
 [".agents/DESIGN.md"]
     type = "file"
     url = "{{ $base }}/DESIGN.md"
-    checksum.sha256 = "c499184424ee0623b13159a41ddf6bef99d2c13846cda1c62823abcc64ced410"
+    checksum.sha256 = "192c4582b53d5e96fcd91493acc11a67ac0986d341dd226a070cf9932f0c0bd7"
 
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
@@ -33,22 +33,23 @@
 [".config/ghostty/themes/fmind"]
     type = "file"
     url = "{{ $base }}/themes/ghostty/fmind"
-    checksum.sha256 = "23dcf16ddcde1b6023a026518d6963b09861fe2de3e6aed6c35ba4ba2ed93aab"
+    checksum.sha256 = "3eb0db63de1f0f2abd3b89e925b4dbf6670665850bd4ab27aad2e33b65cd8242"
 
 [".config/zellij/themes/fmind.kdl"]
     type = "file"
     url = "{{ $base }}/themes/zellij/fmind.kdl"
-    checksum.sha256 = "e10fbf1f527ceec42536a912c8aeefc6d2b95e0a5e5b20e6561319a16256ea61"
+    checksum.sha256 = "150e82098226b6ca791fdf35995ab921a240f8470e14b2c420896db988f193fd"
 
-[".config/fish/conf.d/theme.fish"]
+# Data-only fish theme; conf.d/theme.fish selects it, so fish executes no downloaded code.
+[".config/fish/themes/fmind.theme"]
     type = "file"
-    url = "{{ $base }}/themes/fish/fmind.fish"
-    checksum.sha256 = "2c9138a0de6e48937e5ba11366617cfbfacd2dde10b4221d78f58f37007c8190"
+    url = "{{ $base }}/themes/fish/fmind.theme"
+    checksum.sha256 = "112f42dc86788e7ab95c3312bb695bc7dcf041fbf2f731070d7376da4f291862"
 
 [".config/nvim/colors/fmind.lua"]
     type = "file"
     url = "{{ $base }}/themes/nvim/colors/fmind.lua"
-    checksum.sha256 = "5be183ec0aac7f934325a255d69e6d9fc86383164e708e201386d2c1a2a1e291"
+    checksum.sha256 = "173e8998ce785031c84fb6c94a4684ab23166b70dc1e9ce8cd74527a601565d7"
 
 [".config/nvim/lua/lualine/themes/fmind.lua"]
     type = "file"
@@ -63,12 +64,12 @@
 [".config/git/colors.gitconfig"]
     type = "file"
     url = "{{ $base }}/themes/git/fmind.gitconfig"
-    checksum.sha256 = "a8b0e921ce4c209a43cd130491f9a02b910e214cb53a37dbf78f539f32eeea32"
+    checksum.sha256 = "40b782c8264c481aaa989b60f682b2edf4ea1be1cffb6b2b7e2818584d381a35"
 
 [".config/fzf/theme.conf"]
     type = "file"
     url = "{{ $base }}/themes/fzf/fmind.conf"
-    checksum.sha256 = "d4557f0c27d97262f67c4467313764afe3d68d5cd260ca0702aa40a33eca2b11"
+    checksum.sha256 = "05d3d7e8f68cc90d954a2623b19725cf99dcc4f5b2df70aab7ba3f6af476e29e"
 
 [".config/opencode/themes/fmind.json"]
     type = "file"
@@ -89,7 +90,7 @@
 [".config/lazygit/theme.yml"]
     type = "file"
     url = "{{ $base }}/themes/lazygit/fmind.yml"
-    checksum.sha256 = "a70c6b6e01180478f23832b831d6c664900a948900c9b956c159c4dd3c6f38c6"
+    checksum.sha256 = "3d2977fa91e53ea774e729250dd72261c1ed97dcb6767ac6c71594ed690d0433"
 
 [".config/lsd/colors.yaml"]
     type = "file"
@@ -99,7 +100,7 @@
 [".config/yazi/theme.toml"]
     type = "file"
     url = "{{ $base }}/themes/yazi/fmind.toml"
-    checksum.sha256 = "072f322c5e4d42107ccd0ed2dc58d1e9a6792968afe7f17b1f1f48d9c5fb8d03"
+    checksum.sha256 = "b1576be2b3ade9d442d787518178e90b3ef33b2a85ab06f840ca8a510f48700f"
 
 # Install only the Mono family, keeping terminal icons within character cells.
 ["{{ $fonts }}/GoogleSansCode"]

@@ -35,10 +35,10 @@ def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path)
     template = (ROOT / ".chezmoiexternal.toml.tmpl").read_text()
     rendered = tomllib.loads(chezmoi(tmp_path, "execute-template", stdin=template))
     themes = {target: entry for target, entry in rendered.items() if "fmind/theme" in entry.get("url", "")}
-    # Fish, Neovim, and Git execute their theme files; agents read DESIGN.md.
+    # Neovim and Git execute their theme files; fish and agents read data files.
     assert {
         ".agents/DESIGN.md",
-        ".config/fish/conf.d/theme.fish",
+        ".config/fish/themes/fmind.theme",
         ".config/nvim/colors/fmind.lua",
         ".config/git/theme.gitconfig",
         ".config/git/colors.gitconfig",
