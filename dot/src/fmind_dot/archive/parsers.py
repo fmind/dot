@@ -578,7 +578,6 @@ def _extract_copilot_usage(
         record.turn_count += 1
     if not rows or any(row["input_tokens"] is None and row["output_tokens"] is None for row in rows):
         return None
-    record.total_tokens = record.input_tokens + record.output_tokens + record.cached_tokens + record.cache_write_tokens
     return record.finalize(fallback_timestamp=fallback_timestamp)
 
 
@@ -604,7 +603,6 @@ def _opencode_request(message: dict[str, Any], created: int, session_id: str, cw
     _apply_counters(sample, cache, (("read", "cached_tokens"), ("write", "cache_write_tokens")))
     # OpenCode reports reasoning beside output; the archive treats it as a subset of output.
     sample.output_tokens += sample.reasoning_tokens
-    sample.total_tokens = sample.input_tokens + sample.output_tokens + sample.cached_tokens + sample.cache_write_tokens
     model = message.get("modelID")
     sample.model = model if isinstance(model, str) else ""
     completed = _mapping(message.get("time")).get("completed")
