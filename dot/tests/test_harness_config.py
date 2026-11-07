@@ -322,6 +322,7 @@ class HarnessConfigTests(unittest.TestCase):
             "effortLevel": "medium",
             "banner": "always",
             "notifications": False,
+            "askUser": False,
             "autoUpdate": True,
             "includeCoAuthoredBy": True,
             "trusted_folders": [],
@@ -335,6 +336,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["trusted_folders"] == []
         assert data["customOption"] is False
         assert data["notifications"] is True
+        assert data["askUser"] is True
         assert data["autoUpdate"] is False
         assert data["includeCoAuthoredBy"] is False
         assert data["editorMode"] == "vim"

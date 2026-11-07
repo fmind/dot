@@ -1,6 +1,7 @@
 # chezmoi:modify-template
 {{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
-       Native model and UI choices survive apply; mise owns CLI updates. */ -}}
+       Native model and UI choices survive apply; mise owns CLI updates. askUser stays on so
+       autopilot can still pause on the question form when a task is unclear. */ -}}
 {{- $defaults := fromJson `
 {
   "banner": "never",
@@ -12,7 +13,7 @@
 ` -}}
 {{- $managedConfig := fromJson `
 {
-  "askUser": false,
+  "askUser": true,
   "autoUpdate": false,
   "continueOnAutoMode": true,
   "defaultMode": "autopilot",
