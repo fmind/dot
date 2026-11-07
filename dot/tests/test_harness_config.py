@@ -362,7 +362,7 @@ class HarnessConfigTests(unittest.TestCase):
         for key, value in original.items():
             assert data[key] == value
         assert data["editorMode"] == "vim"
-        assert data["notifications"] is True
+        assert data["notifications"] is False
         assert data["queuedMessages"] == "send-immediately"
         assert data["verbosity"] == "high"
         display = str(self.home / ".agents/skills/agy/scripts/display.py")
