@@ -2,6 +2,56 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.9.0] - 2026-11-07
+
+### 🚀 Features
+
+- _(mise)_ Lock one fresh tool release with lock:tool
+- _(persona)_ Investigate, then confirm uncertain facts before building
+- _(workstation)_ Add the Googlebook signing key and linux-arm64 tool locks
+- _(mise)_ Adopt lockfile revision 4, mise 2026.11.2, and pypi tool keys
+- _(agent)_ Measure agy usage from provider token counters
+- _(nvim)_ Copy to the clipboard with OSC 52 on Linux terminals without a display
+- _(dot)_ Exempt already-public names from the privacy check in local config
+
+### 🐛 Bug Fixes
+
+- _(skills)_ Read the merge author from the target checkout and fail closed
+- _(fish)_ Point puppeteer at Chromium when Google Chrome is absent
+- _(tests)_ Bump the database mtime before the retained-measurement sync
+- _(security)_ Pass the betterleaks config explicitly
+- _(dot)_ Prune only stale mise cache entries by default
+- _(config)_ Refresh editor, shell, git, and harness settings
+- _(agy)_ Alert once per turn through dot's notify hook
+- _(copilot)_ Let autopilot ask clarifying questions
+
+### 📚 Documentation
+
+- _(skills)_ Adopt vetted rules from third-party skill repos
+- _(git-delivery)_ Build split commits in a worktree with hooks on
+- _(skills)_ Align the bf connector with Brain Framework 21
+- _(skills)_ Add lesson-learned and route session lessons through it
+- _(dot-cli)_ Say that status and pull never hydrate Git LFS objects
+- Correct OpenCode login, signing-key titles, and platform support
+
+### 🧪 Testing
+
+- Share fixtures and fix stale tests
+
+### ⚙️ Build & CI
+
+- Fail the weekly workflow audit closed and tidy repository checks
+- _(dot)_ Reject blanket ty ignores and measure subprocess coverage
+
+### 🧹 Miscellaneous
+
+- _(skills)_ Set template labels in sentence case
+- _(theme)_ Pin fmind/theme fe39035 for sentence-case labels
+- _(deps)_ Lock Brain Framework 21.0.0
+- _(deps)_ Lock Brain Framework 21.0.1
+- _(deps)_ Lock Brain Framework 21.1.0
+- _(deps)_ Upgrade Python dependencies, dprint and Neovim plugins, and the theme pin
+
 ## [15.8.4] - 2026-11-01
 
 ### 🐛 Bug Fixes
