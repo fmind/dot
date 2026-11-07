@@ -550,7 +550,8 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
             return 0
 
-        # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG.
+        # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG,
+        # and gws rejects --upload paths outside the current working directory.
         message = dict(built["draft"]["message"])
         raw = message.pop("raw")
         operation = "update" if args.draft_id else "create"
@@ -558,7 +559,7 @@ def main(argv: list[str] | None = None) -> int:
         metadata: dict[str, Any] = {"message": message} if message else {}
         if args.draft_id:
             params["id"] = metadata["id"] = args.draft_id
-        with tempfile.TemporaryDirectory(prefix="draft-mail-") as tmp:
+        with tempfile.TemporaryDirectory(prefix=".draft-mail-", dir=Path.cwd()) as tmp:
             eml_path = Path(tmp) / "message.eml"
             eml_path.write_bytes(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
             resp = _run_gws(
@@ -598,12 +599,12 @@ def main(argv: list[str] | None = None) -> int:
         msg_obj = readback.get("message") or {}
         payload_obj = msg_obj.get("payload") or {}
         out = {
+            **built["summary"],
             "draftId": draft_id,
             "messageId": msg_obj.get("id"),
-            "threadId": msg_obj.get("threadId"),
+            "threadId": msg_obj.get("threadId") or built["summary"]["threadId"],
             "mimeType": payload_obj.get("mimeType"),
             "partMimeTypes": [p.get("mimeType") for p in (payload_obj.get("parts") or []) if isinstance(p, dict)],
-            **built["summary"],
         }
         sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
         return 0

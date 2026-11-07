@@ -224,9 +224,10 @@ def test_cli_live_gws_workflow_fetches_sendas_and_creates_or_updates_draft(
             params = json.loads(args[args.index("--params") + 1])
             assert params == {"userId": "me", "sendAsEmail": "github@fmind.dev"}
             return SAMPLE_SEND_AS
-        if args[:4] == ["gmail", "users", "drafts", "create"]:
-            return {"id": "r-draft-101"}
-        if args[:4] == ["gmail", "users", "drafts", "update"]:
+        if args[:4] in (["gmail", "users", "drafts", "create"], ["gmail", "users", "drafts", "update"]):
+            upload_path = Path(args[args.index("--upload") + 1]).resolve()
+            assert upload_path.is_relative_to(Path.cwd().resolve())
+            assert upload_path.is_file()
             return {"id": "r-draft-101"}
         if args[:4] == ["gmail", "users", "drafts", "get"]:
             return {
