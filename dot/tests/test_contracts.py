@@ -517,6 +517,23 @@ def test_privacy_findings_rejects_unapproved_emails_and_local_tokens(tmp_path: P
     assert any(f"unapproved author email {bad_work_email!r}" in item for item in commit_findings)
 
 
+def test_privacy_allowed_tokens_exempt_public_names_from_local_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    (home / ".config").mkdir(parents=True)
+    monkeypatch.setattr(checker.socket, "gethostname", lambda: "workbench.example.test")
+    dot_yaml = home / ".config/dot.yaml"
+    dot_yaml.write_text("trust:\n  github_owners:\n    - acme-corp\n", encoding="utf-8")
+    assert checker._workstation_tokens(home, include_hostname=True) == {"acme-corp", "workbench"}
+
+    dot_yaml.write_text(
+        "trust:\n  github_owners:\n    - acme-corp\nprivacy:\n  allowed_tokens:\n    - WorkBench\n",
+        encoding="utf-8",
+    )
+    assert checker._workstation_tokens(home, include_hostname=True) == {"acme-corp"}
+
+
 def test_privacy_findings_rejects_ssh_key_comments_naming_machines(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

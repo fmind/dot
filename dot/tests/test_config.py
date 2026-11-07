@@ -28,7 +28,9 @@ def test_python_first_defaults_replace_retired_stacks() -> None:
         "auth",
         "cache",
         "prune",
+        "privacy",
     }
+    assert config.privacy.allowed_tokens == []
     assert config.trust.github_owners == ["fmind"]
     assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
 

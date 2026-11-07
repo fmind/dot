@@ -335,6 +335,12 @@ class AuthConfig(StrictModel):
     login: Annotated[list[LoginProvider], Field(min_length=1)] = ["github", "gcp", "workspace"]
 
 
+class PrivacyConfig(StrictModel):
+    # Already-public names the repository privacy check accepts on this machine; the list stays
+    # in this untracked file so the repository never names the host or employer it exempts.
+    allowed_tokens: list[str] = Field(default_factory=list)
+
+
 class CacheConfig(StrictModel):
     providers: Annotated[list[CacheProvider], Field(min_length=1)] = ["docker", "hf", "uv"]
 
@@ -353,6 +359,7 @@ class Config(StrictModel):
     trust: TrustConfig = Field(default_factory=TrustConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
     doctor: DoctorConfig = Field(default_factory=DoctorConfig)
+    privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
 
 
 def expand_path(value: str | Path) -> Path:

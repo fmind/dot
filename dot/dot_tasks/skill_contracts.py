@@ -409,34 +409,40 @@ def _is_allowed_email_domain(domain: str) -> bool:
 def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[str]:
     """Extract non-public employer/workstation identifiers from untracked local config."""
     tokens: set[str] = set()
-
-    def _add(candidate: str) -> None:
-        cleaned = candidate.strip().lower()
-        if len(cleaned) >= 4 and cleaned not in SAFE_HOST_TOKENS:
-            tokens.add(cleaned)
-
+    config = None
     dot_yaml = home / ".config/dot.yaml"
     if dot_yaml.is_file():
         try:
             config = yaml.safe_load(dot_yaml.read_text(encoding="utf-8"))
         except OSError, yaml.YAMLError:
             config = None
-        if isinstance(config, dict):
-            auth = config.get("auth")
-            if isinstance(auth, dict):
-                for section in auth.values():
-                    if isinstance(section, dict) and isinstance(project := section.get("project"), str):
-                        _add(project)
-            pull = config.get("pull")
-            if isinstance(pull, dict) and isinstance(dirs := pull.get("directories"), list):
-                for entry in dirs:
-                    if isinstance(entry, str):
-                        _add(Path(entry.rstrip("/")).name)
-            trust = config.get("trust")
-            if isinstance(trust, dict) and isinstance(owners := trust.get("github_owners"), list):
-                for owner in owners:
-                    if isinstance(owner, str):
-                        _add(owner)
+    # privacy.allowed_tokens exempts already-public names without writing them into this repository.
+    safe = set(SAFE_HOST_TOKENS)
+    privacy = config.get("privacy") if isinstance(config, dict) else None
+    if isinstance(privacy, dict) and isinstance(allowed := privacy.get("allowed_tokens"), list):
+        safe |= {entry.strip().lower() for entry in allowed if isinstance(entry, str)}
+
+    def _add(candidate: str) -> None:
+        cleaned = candidate.strip().lower()
+        if len(cleaned) >= 4 and cleaned not in safe:
+            tokens.add(cleaned)
+
+    if isinstance(config, dict):
+        auth = config.get("auth")
+        if isinstance(auth, dict):
+            for section in auth.values():
+                if isinstance(section, dict) and isinstance(project := section.get("project"), str):
+                    _add(project)
+        pull = config.get("pull")
+        if isinstance(pull, dict) and isinstance(dirs := pull.get("directories"), list):
+            for entry in dirs:
+                if isinstance(entry, str):
+                    _add(Path(entry.rstrip("/")).name)
+        trust = config.get("trust")
+        if isinstance(trust, dict) and isinstance(owners := trust.get("github_owners"), list):
+            for owner in owners:
+                if isinstance(owner, str):
+                    _add(owner)
 
     git_dir = home / ".config/git"
     if git_dir.is_dir():
@@ -525,7 +531,8 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
                 )
         if token_pattern is not None and (hit := token_pattern.search(text)) is not None:
             findings.append(
-                f"{relative}: contains local workstation identifier {hit.group(0)!r} from untracked host config"
+                f"{relative}: contains local workstation identifier {hit.group(0)!r} from untracked host config; "
+                "remove it, or list an already-public name under privacy.allowed_tokens in ~/.config/dot.yaml"
             )
 
     if has_git:
