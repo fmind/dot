@@ -162,6 +162,10 @@ def test_config_document_requires_a_mapping(tmp_path: Path) -> None:
         "pull:\n  directories: ['']\n",
         "completions:\n  path: ''\n",
         "completions:\n  path: fish\n",
+        "agent:\n  sources:\n    claude: relative/projects\n",
+        "agent:\n  sources:\n    codex: ~/.codex/sessions\n",
+        "agent:\n  sources:\n    claud: ~/.claude/projects\n",
+        "doctor:\n  secrets:\n    - path: relative/key.txt\n",
     ],
 )
 def test_workstation_policy_rejects_invalid_settings(tmp_path: Path, document: str) -> None:
@@ -181,3 +185,10 @@ def test_scope_lists_replace_defaults_and_default_instances_are_independent(tmp_
     first = Config()
     first.auth.github.scopes.append("custom")
     assert "custom" not in Config().auth.github.scopes
+
+
+def test_live_agent_sources_match_the_session_adapters() -> None:
+    from fmind_dot.archive.parsers import AGENT_ADAPTERS
+    from fmind_dot.config import LIVE_AGENTS
+
+    assert set(LIVE_AGENTS) == set(AGENT_ADAPTERS) == set(Config().agent.sources)

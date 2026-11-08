@@ -272,7 +272,7 @@ def register(agent_app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--check",
-                help="Exit 1 at 5000 instruction + discovery tokens in either global or local scope, "
+                help=f"Exit 1 at {CONTEXT_TOKEN_LIMIT} instruction + discovery tokens in either global or local scope, "
                 "or on duplicate skill names",
             ),
         ] = False,

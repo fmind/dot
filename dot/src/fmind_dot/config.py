@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StrictModel(BaseModel):
@@ -19,6 +19,8 @@ class StrictModel(BaseModel):
 
 # `~`, `~/...`, or absolute: a relative workspace would resolve against the caller's directory.
 WorkspacePath = Annotated[str, Field(pattern=r"^(?:~|~/.+|/.*)$")]
+# The keys of archive.parsers.AGENT_ADAPTERS (a test keeps them equal); importing the parsers here would cycle.
+LIVE_AGENTS = ("agy", "claude", "copilot", "opencode")
 
 
 class CompletionConfig(StrictModel):
@@ -81,7 +83,7 @@ class NotifyConfig(StrictModel):
 
 
 class AgentConfig(StrictModel):
-    sources: dict[str, str] = Field(
+    sources: dict[str, WorkspacePath] = Field(
         default_factory=lambda: {
             "agy": "~/.gemini/antigravity-cli/brain",
             "claude": "~/.claude/projects",
@@ -92,9 +94,18 @@ class AgentConfig(StrictModel):
     pricing: PricingConfig = Field(default_factory=default_pricing)
     notify: NotifyConfig = Field(default_factory=NotifyConfig)
 
+    @field_validator("sources")
+    @classmethod
+    def _live_agents_only(cls, sources: dict[str, str]) -> dict[str, str]:
+        # A retired harness (codex, grok) or a typo would otherwise be ignored silently.
+        if unknown := sorted(set(sources) - set(LIVE_AGENTS)):
+            msg = f"unknown agent {', '.join(unknown)}; expected one of {', '.join(LIVE_AGENTS)}"
+            raise ValueError(msg)
+        return sources
+
 
 class SecretConfig(StrictModel):
-    path: str
+    path: WorkspacePath
 
 
 class DoctorConfig(StrictModel):
