@@ -5,7 +5,7 @@ Review the draft as its reader would. Fix what fails, or keep the exception when
 ## Skim
 
 - **Message first**: does a reader who stops after the first sentence, or the summary of a formal document, know the conclusion, why it matters to them, and what to decide or do, by when?
-- **Navigation (formal documents)**: does the title name the subject, are headings short names, and does each section open with a bold conclusion sentence?
+- **Navigation (documents)**: are the title and section names simple and short, with each section of a formal document opening with a bold conclusion sentence?
 - **Bold skim**: does the bold text alone tell the argument, without bolding everything?
 - **Length**: is the main text, counted with `wc -w`, near the [default length](../SKILL.md#default-length) for its type, with methods, calculations, and raw data in annexes the text points to? Is any extra length earned by the task's complexity and explained to the user? Do long sections close with a take-home box?
 - **Nothing to cut**: would the reader miss each sentence, caveat, and section, and is nothing said twice?
@@ -15,7 +15,7 @@ Review the draft as its reader would. Fix what fails, or keep the exception when
 - **Key terms**: is every unfamiliar term, acronym, unit, and metric explained, each metric with its unit, direction, and baseline, and the reader's daily vocabulary left alone?
 - **Literal sentences**: are arrows, slash chains, stacked parentheses, coined labels, metaphors, and unexplained internal names gone?
 - **Plain prose**: is code formatting limited to commands, paths, or values the reader must copy, with none for non-technical readers?
-- **Concrete support**: does each abstract claim have an example, each comparison a table with labeled options and worded statuses, and each figure a caption that states its conclusion and a text alternative?
+- **Concrete support**: does each abstract claim have an example, each comparison a table with labeled options and worded statuses, and do figures (SVG, Mermaid, matplotlib) appear where a chart or diagram communicates faster than text, each with a caption that states its conclusion and a text alternative?
 - **Reader's language**: do the language, number format, and date format match the reader?
 
 ## Trust
@@ -30,7 +30,7 @@ Review the draft as its reader would. Fix what fails, or keep the exception when
 
 ## Ready to share
 
-- **No secrets or private data (firm)**: does the final file pass `betterleaks stdin --redact < <file>`, and does it hold only what this reader may see, with no "as discussed", agent or tool names, local paths, or internal labels?
+- **No secrets or private data (firm)**: does the final file pass `betterleaks stdin --redact < <file>`, and does it hold only what this reader may see, with no "as discussed", agent or tool names, local paths, internal labels, or session reply sections (verification notes, Decisions, Suggestions)?
 - **Beautiful and native (formal documents)**: does it look designed, in `~/.agents/DESIGN.md` (Fmind Theme) or customer branding if available, with color in headings, summary, figures, and statuses, comfortable type and spacing, and the destination's native features rather than imitations?
 - **Renders at the destination**: do HTML screenshots look right at desktop and phone widths, in print, and with fonts loaded? Does a Google Docs native `.md` deliverable pass `compile_markdown_doc.py --check-only` with all Mermaid and SVG figures compiled to Base64 PNG references and editable sources exported to `--assets-dir` for the Drive `assets/` folder ([draft-doc](../../draft-doc/SKILL.md))? Does the target renderer show Markdown tables, callouts, and diagrams correctly?
 - **Identified (formal documents)**: do the type, status, audience, author, and date appear at the top, one field per line?

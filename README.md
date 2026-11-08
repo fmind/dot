@@ -18,19 +18,19 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 - **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit — tuned for fast keyboard navigation and ultrawide displays.
 - **Editor:** Neovim with LazyVim, styled across every tool with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity (primary), Claude Code, Copilot, and OpenCode share one persona and [skill catalog](skills/); `dot agent session sync` archives local sessions and `dot agent stats` reports usage and costs (including retired Codex and Grok archives).
+- **Agents:** Antigravity (primary), Claude Code, Copilot, and OpenCode share one persona and [skill catalog](skills/), with local session archiving and usage reporting.
 - **Development:** Python 3.14 with uv, Ruff, ty, and pytest, plus cloud and service CLIs; projects pin their own stack tools.
 - **Automation:** the `dot` CLI checks workstation health, manages multi-repo workspaces, handles provider logins and scoped secrets, and tracks agent context budgets.
 
 ## Prerequisites
 
-| Platform            | Requirements                            | CI coverage                            |
-| ------------------- | --------------------------------------- | -------------------------------------- |
-| Linux x86-64        | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Full repository gate and starter tests |
-| Linux arm64         | glibc 2.39+ (Debian 13)                 | Tools locked; not covered by CI        |
-| macOS Apple Silicon | macOS 15+, Xcode Command Line Tools     | Templates, Python, and starter tests   |
+| Platform            | Requirements                            | CI coverage                                  |
+| ------------------- | --------------------------------------- | -------------------------------------------- |
+| Linux x86-64        | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Full repository gate and starter tests       |
+| Linux arm64         | glibc 2.39+ (Debian 13 / Ubuntu 24.04+) | Tool locks verified in CI; exercised locally |
+| macOS Apple Silicon | macOS 15+, Xcode Command Line Tools     | Templates, Python, and starter tests         |
 
-The macOS baseline follows [Homebrew's supported versions](https://docs.brew.sh/Installation#macos-requirements). Linux arm64 has tool locks but no CI job; other platforms are untested. CI validates templates, code, and builds without running the host installer end to end.
+The macOS baseline follows [Homebrew's supported versions](https://docs.brew.sh/Installation#macos-requirements); other platforms are untested. CI validates locks, templates, code, and builds without running the host installer end to end.
 
 Install the host prerequisites first; everything else installs in user space:
 
@@ -90,9 +90,9 @@ The [Dot CLI guide](skills/dot-cli/SKILL.md) covers every command, diagnostic, a
 
 Daily keyboard and shell ergonomics:
 
-- **Fish abbreviations:** `a` runs `agy` (`ac` continue, `ai` interactive prompt, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, and `h` `dot` (`hd` doctor, `hh` headroom, `hs` repos needing attention with fetch, `hp` pull, `ho` orphans, `hc` caches, `ha` agent stats).
-- **Zellij:** `Alt a` opens Antigravity, `Alt g` lazygit, `Alt y` yazi, and `Alt /` the session manager. New panes (`Alt n`) tile as up to four equal columns for 21:9 or 32:9 ultrawide displays; a fifth pane (or `Ctrl b`, `Space`) switches to a half-stacked layout. Multi-pane and active-program sessions stay resurrectable from `Alt /` after a reboot or kill; detach (`Ctrl o`, `d`) to park a single-pane shell until the next reboot.
-- **Neovim:** `<leader>gm` toggles a buffer's Git diff between the index and the default branch's merge-base. `Tab` accepts completions, `Enter` inserts a newline (and continues or outdents lists in Markdown, text, and commit buffers), and `mise lsp` powers diagnostics and completions in `mise.toml`.
+- **Fish abbreviations:** `a` runs `agy` (`ac` continue, `ai` interactive, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, and `h` `dot` (`hd` doctor, `hh` headroom, `hs` status with fetch, `hp` pull, `ho` orphans, `hc` caches, `ha` agent stats).
+- **Zellij:** `Alt a` opens Antigravity, `Alt g` lazygit, `Alt y` yazi, and `Alt /` the session manager. `Alt n` tiles up to four columns for ultrawide displays before switching to a half-stacked layout (`Ctrl b`, `Space`); detach with `Ctrl o`, `d`.
+- **Neovim:** `<leader>gm` toggles a buffer's Git diff against the default branch's merge-base, `Tab` accepts completions, `Enter` inserts a newline, and `mise lsp` powers diagnostics in `mise.toml`.
 
 ### Dot configuration
 
@@ -100,7 +100,7 @@ Machine-local settings live in unmanaged `~/.config/dot.yaml` and merge with [bu
 
 ### Usage reports
 
-`dot agent stats` separates token counts and estimated API value from billed costs (`--monthly` groups by UTC calendar month). `dot agent session sync` captures longer local transcripts before harnesses prune them; see the [usage guide](skills/dot-cli/references/agent-usage.md).
+`dot agent stats` reports token usage, estimated API value, and recorded provider costs (`--monthly` groups by UTC calendar month), syncing local transcripts first via `dot agent session sync` (including retired Codex and Grok archives); see the [usage guide](skills/dot-cli/references/agent-usage.md).
 
 ## Repository tasks
 
@@ -135,8 +135,8 @@ Setup links [`skills/`](skills/) into `~/.agents/skills/` alongside independentl
 
 Everyday slash commands:
 
-- **Deliverables & writing:** `/clipboard` copies the last deliverable (or `/clipboard <selection>`) via native OS tools ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` writes short emails, documents, reports, and proposals for other people, message first with details in annexes, and fact-checks drafts; `/draft-doc` creates Google Docs (`.md` or `.gdoc`); `/draft-mail` drafts Gmail replies without sending.
-- **Engineering & maintenance:** `/full-review` audits a repository and applies verified fixes, reviews a diff or PR read-only, or smoke-tests every task and CLI command; `/trim <path>` cuts tokens without losing meaning; `/lesson-learned` turns session corrections and approved decisions into minimal edits to checks, skills, or AGENTS.md; `/auth-status` checks CLI logins and prints exact re-login commands; `/task-prompts` writes handoff prompts (resume agy with `agy -c`, compact with `/compact`).
+- **Deliverables & writing:** `/clipboard` copies the last deliverable ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` writes message-first emails, docs, reports, and proposals and fact-checks drafts; `/draft-doc` creates Google Docs; `/draft-mail` drafts Gmail replies without sending.
+- **Engineering & maintenance:** `/full-review` audits a repository or PR and smoke-tests tasks; `/trim <path>` cuts tokens without losing meaning; `/lesson-learned` turns session corrections into durable checks or rules; `/auth-status` checks CLI logins; `/task-prompts` writes handoff prompts (`agy -c` resumes, `/compact` compacts).
 
 ## Credentials
 
@@ -151,7 +151,7 @@ dot login gcp             # Google Cloud and ADC
 dot login colab           # ADC with Colab scopes, then verify session access
 ```
 
-GitHub pushes use SSH even for HTTPS clones (register a key in [GitHub settings](https://github.com/settings/keys)). `dot login` also reconciles GitHub scopes and, when `GWS_PROJECT` or `auth.workspace.project` is set, Workspace APIs and OAuth setup (`dot setup github` or `dot setup workspace <project-id>` runs either alone). Configure per-machine providers in `~/.config/dot.yaml` under `auth.login` (default `[github, gcp, workspace]`; `colab` is opt-in); see the [authentication guide](skills/dot-cli/references/authentication.md).
+GitHub pushes use SSH even for HTTPS clones (register a key in [GitHub settings](https://github.com/settings/keys)). `dot login` reconciles configured providers (`auth.login` in `~/.config/dot.yaml`, default `[github, gcp, workspace]`; `colab` is opt-in), OAuth scopes, and Workspace APIs; see the [authentication guide](skills/dot-cli/references/authentication.md).
 
 Agent harnesses manage their own logins (mise locks every harness except self-updating Antigravity):
 
@@ -166,7 +166,7 @@ Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 
 ### Commit signing
 
-Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with its own passphraseless Ed25519 SSH key (`~/.ssh/id_ed25519_signing`) so agent shells can sign unattended and any machine can be revoked independently; the private key never enters this repository, and machines without it commit unsigned. A signature proves the machine, not a human. Provision a new machine once (`dot setup github` drops the temporary `write:ssh_signing_key` scope afterwards; key titles are public):
+Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with its own passphraseless Ed25519 SSH key (`~/.ssh/id_ed25519_signing`) so agent shells can sign unattended and any machine can be revoked independently; machines without the key commit unsigned. Provision a new machine once (`dot setup github` drops the temporary `write:ssh_signing_key` scope afterwards; key titles are public):
 
 ```bash
 ssh-keygen -t ed25519 -N '' -C "git-signing@fmind.dev" -f ~/.ssh/id_ed25519_signing
@@ -183,15 +183,15 @@ Commit the new [`allowed_signers`](dot_config/git/allowed_signers) line so every
 
 Secrets are never exported at shell startup:
 
-- **Native credential seeds:** Hugging Face, Kaggle, and OpenCode credentials deploy only when absent so later logins (`hf auth login`, `kaggle auth login`) survive apply. OpenCode 2.x keeps credentials in its own database and did not import the seeded `auth.json` here, so log in once per machine with `opencode auth login`. For customer work, isolate accounts with the [override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
-- **Scoped secrets:** pass a personal key to a single command with `dot secret run` (an existing environment value wins, and an empty one fails instead of loading the personal key; see [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI publishes via Trusted Publishing:
+- **Native credential seeds:** Hugging Face and Kaggle credentials deploy only when absent so later logins (`hf auth login`, `kaggle auth login`) survive apply; isolate customer accounts with the [override guide](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
+- **Scoped secrets:** pass a personal key to one command with `dot secret run` (see [scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI publishes via Trusted Publishing:
 
   ```bash
   dot secret run OPENROUTER_MANAGEMENT_KEY -- <command>
   ```
 
 - **Collector configs:** Brain Framework collector credentials under `~/.config/bf/credentials/` deploy on every apply; edit their encrypted sources, never the deployed copy.
-- **Encrypted sources:** only the owner's `~/.config/chezmoi/key.txt` decrypts committed `*.age` files; without it, apply skips them. Back up your key and never copy it to a customer-managed machine. Import new secrets with mode `0600` and `chezmoi add --encrypt` (`--create` for native login seeds), never pass secret values in command arguments, and refresh the Hugging Face and Kaggle seeds after rotating their credentials.
+- **Encrypted sources:** only `~/.config/chezmoi/key.txt` decrypts committed `*.age` files; without it, apply skips them. Back up your key, never copy it to a customer-managed machine, and manage `*.age` sources per the [chezmoi skill](.agents/skills/chezmoi/SKILL.md).
 
 ## Adapting this
 
@@ -205,9 +205,7 @@ Fork and replace these personal defaults:
 
 ## Uninstall / rollback
 
-There is no single uninstaller: record `chezmoi managed`, run `chezmoi purge` (removes source, config, and state while leaving deployed files) and `mise implode --config` (removes mise and its tools), then restore backups and remove remaining deployed files, shell blocks, fonts, and agent state.
-
-To roll back, preserve local edits, check out the previous release tag, and run `mise run full` followed by `mise run vim` to restore locked tools, the CLI, and Neovim plugins. Newer files, application data, and migrations are not rolled back.
+There is no single uninstaller: record `chezmoi managed`, run `chezmoi purge` and `mise implode --config`, then restore backups and remove remaining deployed files, shell blocks, fonts, and agent state. To roll back, preserve local edits, check out the previous release tag, and run `mise run full` and `mise run vim` (newer files, application data, and migrations stay in place).
 
 ## Security
 
