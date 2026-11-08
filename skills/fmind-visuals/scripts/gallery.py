@@ -3,6 +3,7 @@
 import argparse
 import base64
 import html
+import json
 import math
 import mimetypes
 import os
@@ -50,8 +51,8 @@ def variants(folder: Path) -> list[tuple[str, Path]]:
     return labels
 
 
-def sheet(folder: Path, title: str) -> str:
-    items = variants(folder)
+def sheet(folder: Path, title: str, items: list[tuple[str, Path]] | None = None) -> str:
+    items = items or variants(folder)
     # Each image is embedded twice as base64 (4/3 each), so the page is at least 8/3 of the inputs:
     # fail before reading them when even that floor is over the limit.
     total = sum(path.stat().st_size for _, path in items)
@@ -95,12 +96,20 @@ def screenshot(page: Path, count: int) -> Path:
     with tempfile.TemporaryDirectory(prefix=".gallery-preview-", dir=page.parent) as temporary:
         staged = Path(temporary) / shot.name
         profile = Path(temporary) / "profile"
+        preferences = profile / "Default" / "Preferences"
+        preferences.parent.mkdir(parents=True)
+        preferences.write_text(
+            json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}), encoding="utf-8"
+        )
         completed = subprocess.run(  # noqa: S603 - fixed browser binary and a local file URL
             [
                 binary,
                 "--headless=new",
+                "--password-store=basic",
                 "--hide-scrollbars",
                 "--disable-gpu",
+                "--host-resolver-rules=MAP * ^NOTFOUND",
+                "--no-proxy-server",
                 f"--user-data-dir={profile}",
                 f"--window-size=1440,{height}",
                 f"--screenshot={staged.resolve()}",
@@ -126,11 +135,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--png", action="store_true", help="also screenshot the sheet with Chrome or Chromium")
     args = parser.parse_args(argv)
     try:
+        items = variants(args.folder)
         page = args.folder / "gallery.html"
-        page.write_text(sheet(args.folder, args.title), encoding="utf-8")
-        sys.stdout.write(f"Wrote {page} with {len(variants(args.folder))} variants.\n")
+        page.write_text(sheet(args.folder, args.title, items), encoding="utf-8")
+        sys.stdout.write(f"Wrote {page} with {len(items)} variants.\n")
         if args.png:
-            sys.stdout.write(f"Wrote {screenshot(page, len(variants(args.folder)))}.\n")
+            sys.stdout.write(f"Wrote {screenshot(page, len(items))}.\n")
     except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired) as error:
         sys.stderr.write(f"Gallery error: {error}\n")
         return 1

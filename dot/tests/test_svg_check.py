@@ -140,6 +140,7 @@ def test_render_writes_brand_and_fallback_screenshots(
         f"#!{sys.executable}\n"
         "import json, sys\nfrom pathlib import Path\n"
         "args=sys.argv[1:]\n"
+        "assert '--password-store=basic' in args\n"
         "assert '--host-resolver-rules=MAP * ^NOTFOUND' in args\n"
         "assert '--no-proxy-server' in args\n"
         "profile=Path(next(a.split('=',1)[1] for a in args if a.startswith('--user-data-dir=')))\n"
@@ -222,6 +223,7 @@ def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: M
                 [
                     binary,
                     "--headless=new",
+                    "--password-store=basic",
                     "--hide-scrollbars",
                     "--disable-gpu",
                     "--no-proxy-server",

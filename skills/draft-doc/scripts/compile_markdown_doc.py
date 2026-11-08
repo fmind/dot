@@ -59,7 +59,7 @@ ASSET_MIME_TYPES = {
 
 
 @cache
-def _svg_checker() -> ModuleType:
+def svg_checker() -> ModuleType:
     """Load the shared diagrams-as-code SVG checker module."""
     spec = importlib.util.spec_from_file_location("check_svg", SVG_CHECKER)
     if spec is None or spec.loader is None or not SVG_CHECKER.is_file():
@@ -74,7 +74,7 @@ def check_svg(path: Path, expected_width: float = SVG_CANVAS_WIDTH) -> list[str]
     """Validate an SVG figure with the diagrams-as-code contract (security, accessibility, fonts, viewBox)."""
     if not path.is_file():
         return [f"{path}: SVG file not found"]
-    return [f"{path}: {problem}" for problem in _svg_checker().check(path, expected_width)]
+    return [f"{path}: {problem}" for problem in svg_checker().check(path, expected_width)]
 
 
 def _has_setext_heading(markdown: str) -> bool:
@@ -138,60 +138,14 @@ def check_markdown_dialect(markdown: str) -> list[str]:
 
 def render_svg_png(svg_path: Path, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> tuple[int, int]:
     """Rasterize an SVG file to a PNG with headless Chrome at its viewBox size, optionally capped in width."""
-    checker = _svg_checker()
+    checker = svg_checker()
     root = ET.parse(svg_path).getroot()  # noqa: S314 - already checked local SVG file
     width, height = checker.view_box(root) or (SVG_CANVAS_WIDTH, SVG_CANVAS_WIDTH * 9 / 16)
     w_px, h_px = math.ceil(width), math.ceil(height)
     if max_width_px:
         scale = min(scale, max_width_px / w_px)
-    binary = checker.chrome()
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    for attempt in range(3):
-        with tempfile.TemporaryDirectory(prefix=".svg-render-") as tmp:
-            profile = Path(tmp) / "profile"
-            prefs = profile / "Default" / "Preferences"
-            prefs.parent.mkdir(parents=True)
-            prefs.write_text(
-                json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}),
-                encoding="utf-8",
-            )
-            try:
-                proc = subprocess.run(  # noqa: S603 - fixed browser binary and local file URI
-                    [
-                        binary,
-                        "--headless=new",
-                        "--no-first-run",
-                        "--no-default-browser-check",
-                        "--disable-extensions",
-                        "--disable-background-networking",
-                        "--disable-sync",
-                        "--hide-scrollbars",
-                        "--disable-gpu",
-                        "--host-resolver-rules=MAP * ^NOTFOUND",
-                        "--no-proxy-server",
-                        f"--user-data-dir={profile}",
-                        f"--force-device-scale-factor={scale:g}",
-                        "--default-background-color=00000000",
-                        f"--window-size={w_px},{h_px}",
-                        f"--screenshot={out_png.resolve()}",
-                        svg_path.resolve().as_uri(),
-                    ],
-                    stdin=subprocess.DEVNULL,
-                    capture_output=True,
-                    text=True,
-                    timeout=20,
-                    check=False,
-                )
-            except subprocess.TimeoutExpired as exc:
-                if attempt < 2:
-                    continue
-                msg = f"Chrome timed out rendering {svg_path.name} after 3 attempts"
-                raise RuntimeError(msg) from exc
-            if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
-                detail = " ".join(proc.stderr.split())[-300:]
-                msg = f"Chrome failed to render {svg_path.name} (exit {proc.returncode}): {detail}"
-                raise RuntimeError(msg)
-            break
+    checker.screenshot(svg_path, out_png, w_px, h_px, scale=scale)
     return png_size(out_png)
 
 
@@ -219,7 +173,7 @@ def _mmdc_command() -> tuple[list[str], int]:
 def render_mermaid_png(mermaid_code: str, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> None:
     """Render a Mermaid diagram string to PNG with the Mermaid CLI and system Chrome, optionally capped in width."""
     command, timeout = _mmdc_command()
-    chrome_bin = os.environ.get("PUPPETEER_EXECUTABLE_PATH") or _svg_checker().chrome()
+    chrome_bin = os.environ.get("PUPPETEER_EXECUTABLE_PATH") or svg_checker().chrome()
     out_png.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".mmd-render-") as tmp:
         mmd_file = Path(tmp) / "diagram.mmd"
@@ -434,7 +388,17 @@ def run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
         msg = f"gws {' '.join(args[:3])} failed (exit {proc.returncode}): {detail}"
         raise RuntimeError(msg)
     out = proc.stdout.strip()
-    return json.loads(out) if out else {}
+    if not out:
+        return {}
+    idx = out.find("{")
+    if idx == -1:
+        msg = f"gws {' '.join(args[:3])}: expected JSON object on stdout"
+        raise RuntimeError(msg)
+    data = json.loads(out[idx:])
+    if not isinstance(data, dict):
+        msg = f"gws {' '.join(args[:3])}: expected a JSON object"
+        raise RuntimeError(msg)
+    return data
 
 
 def _ensure_drive_folder(parent_id: str, folder_name: str) -> str:

@@ -67,7 +67,14 @@ def test_png_uses_the_configured_browser(gallery: ModuleType, tmp_path: Path, mo
     browser = tmp_path / "chrome"
     browser.write_text(
         f"#!{sys.executable}\n"
-        "import sys\nfrom pathlib import Path\n"
+        "import json, sys\nfrom pathlib import Path\n"
+        "args=sys.argv[1:]\n"
+        "assert '--password-store=basic' in args\n"
+        "assert '--host-resolver-rules=MAP * ^NOTFOUND' in args\n"
+        "assert '--no-proxy-server' in args\n"
+        "profile=Path(next(a.split('=',1)[1] for a in args if a.startswith('--user-data-dir=')))\n"
+        "prefs=json.loads((profile/'Default'/'Preferences').read_text())\n"
+        "assert prefs['profile']['default_content_setting_values']['javascript'] == 2\n"
         "shot=next(a.split('=',1)[1] for a in sys.argv if a.startswith('--screenshot='))\n"
         "Path(shot).write_bytes(b'png')\n"
     )

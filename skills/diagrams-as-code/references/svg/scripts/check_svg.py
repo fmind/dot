@@ -110,6 +110,65 @@ def chrome() -> str:
     raise RuntimeError("no Chrome or Chromium found; set CHROME or use the playwright skill to screenshot")
 
 
+def screenshot(
+    source: Path,
+    out: Path,
+    width: float,
+    height: float,
+    *,
+    scale: float = 1,
+    binary: str | None = None,
+    profile: Path | None = None,
+) -> Path:
+    """Render one local file to PNG with headless Chrome and scripts/network blocked."""
+    browser = binary or chrome()
+    if profile is None:
+        with tempfile.TemporaryDirectory(prefix=".svg-preview-", dir=out.parent) as temporary:
+            staged = Path(temporary) / out.name
+            screenshot(source, staged, width, height, scale=scale, binary=browser, profile=Path(temporary) / "profile")
+            return staged.replace(out)
+    preferences = profile / "Default" / "Preferences"
+    if not preferences.is_file():
+        # A global Blink scriptEnabled=false also disables Chrome's headless
+        # screenshot harness. Content settings block scripts in file: documents
+        # while leaving the internal chrome: harness working. Sources:
+        # chromium.googlesource.com/chromium/src/+/HEAD/components/content_settings/core/browser/content_settings_registry.cc
+        # chromium.googlesource.com/chromium/src/+/HEAD/components/headless/command_handler/headless_command.html
+        preferences.parent.mkdir(parents=True, exist_ok=True)
+        preferences.write_text(
+            json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}), encoding="utf-8"
+        )
+    scale_flags = (
+        [f"--force-device-scale-factor={scale:g}", "--default-background-color=00000000"] if scale != 1 else []
+    )
+    completed = subprocess.run(  # noqa: S603 - fixed browser binary and file URLs
+        [
+            browser,
+            "--headless=new",
+            "--password-store=basic",
+            "--hide-scrollbars",
+            "--disable-gpu",
+            # Fail all host lookups, including loopback and IP literals.
+            # Ignore system proxies, which could resolve hosts remotely.
+            "--host-resolver-rules=MAP * ^NOTFOUND",
+            "--no-proxy-server",
+            *scale_flags,
+            f"--user-data-dir={profile}",
+            f"--window-size={math.ceil(width)},{math.ceil(height)}",
+            f"--screenshot={out.resolve()}",
+            source.resolve().as_uri(),
+        ],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=60,
+        check=False,
+    )
+    if completed.returncode or not out.is_file() or not out.stat().st_size:
+        tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
+        raise RuntimeError(f"{Path(browser).name} failed to render {source.name} (exit {completed.returncode}): {tail}")
+    return out
+
+
 def render(path: Path, out: Path) -> list[Path]:
     """Screenshot the SVG directly with scripts/network blocked, in brand and fallback fonts."""
     root = ET.parse(path).getroot()  # noqa: S314 - already checked local file
@@ -122,45 +181,10 @@ def render(path: Path, out: Path) -> list[Path]:
         fallback = staging / f"{path.stem}.fallback.svg"
         fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
         profile = staging / "profile"
-        # A global Blink scriptEnabled=false also disables Chrome's headless
-        # screenshot harness. Content settings block scripts in file: documents
-        # while leaving the internal chrome: harness working. Sources:
-        # chromium.googlesource.com/chromium/src/+/HEAD/components/content_settings/core/browser/content_settings_registry.cc
-        # chromium.googlesource.com/chromium/src/+/HEAD/components/headless/command_handler/headless_command.html
-        preferences = profile / "Default" / "Preferences"
-        preferences.parent.mkdir(parents=True)
-        preferences.write_text(
-            json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}), encoding="utf-8"
-        )
-        shots = []
-        for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback")):
-            shot = staging / f"{name}.png"
-            completed = subprocess.run(  # noqa: S603 - fixed browser binary and file URLs
-                [
-                    binary,
-                    "--headless=new",
-                    "--hide-scrollbars",
-                    "--disable-gpu",
-                    # Fail all host lookups, including loopback and IP literals.
-                    # Ignore system proxies, which could resolve hosts remotely.
-                    "--host-resolver-rules=MAP * ^NOTFOUND",
-                    "--no-proxy-server",
-                    f"--user-data-dir={profile}",
-                    f"--window-size={math.ceil(width)},{math.ceil(height)}",
-                    f"--screenshot={shot.resolve()}",
-                    source.resolve().as_uri(),
-                ],
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                timeout=60,
-                check=False,
-            )
-            if completed.returncode or not shot.is_file() or not shot.stat().st_size:
-                tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
-                raise RuntimeError(
-                    f"{Path(binary).name} failed to render {source.name} (exit {completed.returncode}): {tail}"
-                )
-            shots.append(shot)
+        shots = [
+            screenshot(source, staging / f"{name}.png", width, height, binary=binary, profile=profile)
+            for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback"))
+        ]
         return [shot.replace(out / shot.name) for shot in shots]
 
 

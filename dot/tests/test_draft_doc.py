@@ -448,3 +448,32 @@ def test_render_mermaid_fails_when_rescaling_cannot_meet_the_width_cap(
     monkeypatch.setenv("PUPPETEER_EXECUTABLE_PATH", "/bin/chrome")
     with pytest.raises(RuntimeError, match="stayed 800px wide"):
         mod.render_mermaid_png("flowchart LR\n  A --> B\n", tmp_path / "fig.png", scale=2, max_width_px=600)
+
+
+def test_render_svg_png_delegates_to_shared_checker_and_run_gws_skips_keyring_banner(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    svg_file = tmp_path / "wide.svg"
+    svg_file.write_text(VALID_SVG.replace("0 0 600 220", "0 0 1200 440"), encoding="utf-8")
+    out_png = tmp_path / "wide.png"
+    calls: list[tuple[int, int, float]] = []
+
+    def fake_screenshot(source: Path, out: Path, width: int, height: int, *, scale: float = 1) -> Path:
+        assert source == svg_file
+        calls.append((width, height, scale))
+        out.write_bytes(_png(round(width * scale), round(height * scale)))
+        return out
+
+    monkeypatch.setattr(mod.svg_checker(), "screenshot", fake_screenshot)
+    assert mod.render_svg_png(svg_file, out_png, scale=2, max_width_px=600) == (600, 220)
+    assert calls == [(1200, 440, 0.5)]
+
+    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kw: mod.subprocess.CompletedProcess(cmd, 0, 'Using keyring backend: keyring\n{"id": "1"}\n', ""),
+    )
+    assert mod.run_gws(["drive", "files", "get"]) == {"id": "1"}
