@@ -3816,10 +3816,10 @@ url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714325678"
 
 [[tools."pypi:brain-framework"]]
-version = "21.1.0"
+version = "21.2.0"
 backend = "pypi:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-brain-framework/21.1.0", digest = "sha256:7ae9f1052ea52f350cbcbcf0f648217850f04a67319558b80d5ee082bdef8192" }
+uv = { path = "locks/pypi-brain-framework/21.2.0", digest = "sha256:33aa15374671a971bcbc626bd1665bcf15bb795676e2fc5c856cce1b78e5121b" }
 
 [[tools."pypi:copier"]]
 version = "9.19.1"

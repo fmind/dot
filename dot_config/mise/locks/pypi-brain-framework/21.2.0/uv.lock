@@ -22,7 +22,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "21.1.0"
+version = "21.2.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -31,9 +31,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/34/b29d1c092d2deb7824872ba3e02da1e831cb256c77ae8ad603318a4b1f38/brain_framework-21.1.0.tar.gz", hash = "sha256:fdf7df2bba43dc0287a99e9d4037e53282f424b903a5b789eed3a001cfa77545", size = 323849, upload-time = "2026-11-04T18:01:04.308Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/ef/7977dcf22a2590d725be204786ee6a87e37104b06566ba022b690fec8a81/brain_framework-21.2.0.tar.gz", hash = "sha256:8190688e3c21ac2cbc1993c49d0cfa6f7b13d4557407aa8664290510fa048745", size = 325182, upload-time = "2026-11-08T10:53:45.88Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/9b/65528495684f48856ff59bb628501374d3fe56c0a1f9db3ce8b63e319b10/brain_framework-21.1.0-py3-none-any.whl", hash = "sha256:4449dd0898b70190a1aa6aa13c9d274fddc6b4adc2d6c9acab335869708f88c7", size = 350349, upload-time = "2026-11-04T18:01:02.408Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/9f/e9fa8c61119121f279a2c09fb7e832d3ebf440ff3f607e0167f5d6f6e8bb/brain_framework-21.2.0-py3-none-any.whl", hash = "sha256:fcb2213c65eaeaa38b38d2a76f6cd252ae9a63f952a121cf6113719d1329c4b7", size = 351860, upload-time = "2026-11-08T10:53:44.203Z" },
 ]
 
 [[package]]
@@ -75,7 +75,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==21.1.0" }]
+requires-dist = [{ name = "brain-framework", specifier = "==21.2.0" }]
 
 [[package]]
 name = "pydantic"
