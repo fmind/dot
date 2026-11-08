@@ -2,6 +2,63 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.10.0] - 2026-11-08
+
+### 🚀 Features
+
+- _(theme)_ Pin fmind/theme 6.0.0 and load the data-only fish theme
+- _(doctor)_ Name the missing-keyring fix for plaintext gh tokens
+- _(persona)_ Ask for concrete replies and short writing for other people
+- _(skills)_ Make stakeholder-writing short and message-first by default
+
+### 🐛 Bug Fixes
+
+- _(theme)_ Pin fmind/theme 6.0.1 and let the Ghostty theme own minimum-contrast
+- _(dot)_ Keep the runner usable after worker errors and validate completions.path
+- _(nvim)_ Keep xclip on X11 desktops and detect Android's terminal VM by kernel
+- _(draft-mail)_ Stage the upload inside the working directory gws accepts
+- _(hooks)_ Find the user bus socket and chime without a banner
+- _(privacy)_ Fail closed when dot.yaml cannot load
+- _(config)_ Reject relative paths and unknown agent sources
+- _(orphan)_ Name chezmoi's error when it fails
+- _(archive)_ Keep sessions with a lone surrogate as partial
+- _(skills)_ Run gws uploads from the file's folder
+- _(gws)_ Always name the Chat markup syntax
+- _(agy)_ Leave native notifications at agy's default
+- _(skills)_ Share headless Chrome screenshot helper and strip gws banners
+
+### ♻️ Refactor
+
+- _(archive)_ Let finalize compute Copilot and OpenCode token totals
+- _(skills)_ Fold 13 skills into their owners and retire their links
+- _(dot)_ Deduplicate sync state, native binary lookup, and archive checks
+- _(skills)_ Fold format:imports into format:python and tighten templates
+
+### 📚 Documentation
+
+- State which signature checks stay on and what trivy scans
+- Note that Google Chrome ships for Debian arm64
+- _(skills)_ Fix stale guidance and trim generic text
+- Refine global persona, README, and stakeholder-writing checklist
+- _(skills)_ Use simple headings and inline figures in stakeholder-writing
+
+### 🧪 Testing
+
+- _(status)_ Cover interrupted git operations
+
+### ⚙️ Build & CI
+
+- _(dependabot)_ Drop template directories security updates ignore
+
+### 🧹 Miscellaneous
+
+- _(theme)_ Pin fmind/theme 8.0.0
+- _(deps)_ Upgrade tools, typer 0.28, Neovim plugins, and workflow actions
+- _(theme)_ Pin fmind/theme 8.0.1
+- _(deps)_ Lock lazygit 0.66.3 and groff 1.25.0
+- _(deps)_ Lock Brain Framework 21.2.0
+- _(nvim)_ Update nvim-treesitter lock
+
 ## [15.9.0] - 2026-11-07
 
 ### 🚀 Features
