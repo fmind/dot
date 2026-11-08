@@ -12,7 +12,14 @@ return {
           -- Include dotfiles while respecting ignore rules; Snacks already skips .git.
           grep = { hidden = true },
           grep_word = { hidden = true },
-          files = { hidden = true },
+          -- fd streams paths in parallel thread order, and Snacks skips sorting on an
+          -- empty prompt (default tie-breaker is path length #text). Sort lexicographically
+          -- when the prompt is empty while keeping fuzzy score first when filtering.
+          files = {
+            hidden = true,
+            matcher = { sort_empty = true },
+            sort = { fields = { "score:desc", "file", "idx" } },
+          },
         },
       },
     },
