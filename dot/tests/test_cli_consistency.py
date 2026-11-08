@@ -26,6 +26,7 @@ def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> N
         ["agent", "session", "show"],
         ["agent", "stats", "--since", "invalid"],
         ["agent", "stats", "--since", "2026-09-16", "--until", "2026-09-15"],
+        ["agent", "session", "list", "--since", "2026-09-16", "--until", "2026-09-15"],
         ["agent", "stats", "--sessions", "--limit", "-1"],
         ["agent", "session", "list", "--limit", "-1"],
         ["agent", "stats", "--tokens-only", "--prompts-only"],

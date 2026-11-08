@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import io
+import os
+import shutil
+import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import IO, Any
@@ -16,6 +19,28 @@ from fmind_dot.system import CheckResult
 RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
 
 ROOT = Path(__file__).resolve().parents[2]
+_REAL_HOME = os.environ.get("HOME")
+
+
+def native_binary(name: str) -> Path | None:
+    """Resolve a command, unwrapping a mise shim against the real HOME before isolated_home replaces it."""
+    executable = shutil.which(name)
+    if not executable:
+        return None
+    resolved = Path(executable).resolve()
+    if resolved.name != "mise":
+        return Path(executable)
+    env = os.environ | ({"HOME": _REAL_HOME} if _REAL_HOME else {})
+    try:
+        result = subprocess.run(
+            [str(resolved), "which", name], env=env, capture_output=True, text=True, timeout=30, check=True
+        )
+    except subprocess.CalledProcessError, subprocess.TimeoutExpired:
+        return None
+    candidate = Path(result.stdout.strip())
+    return candidate if candidate.is_absolute() and candidate.is_file() else None
+
+
 # Repository workflows and shipped workflow templates.
 WORKFLOWS = [
     *sorted((ROOT / ".github/workflows").glob("*.yml")),

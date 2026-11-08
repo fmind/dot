@@ -206,21 +206,54 @@ def _stable_parse(
     raise DotError("session source changed during capture; retry sync")
 
 
-def _database_checkpoint(root: Path, agent: str) -> str:
-    """Only a successful, complete scan by the current parser can skip database reads."""
+def _count(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+@dataclass(frozen=True)
+class SyncState:
+    synced_at: str
+    failed: int
+    retained: int
+    current: bool
+    database_signature: str = ""
+
+
+def read_sync_state(root: Path, agent: str) -> SyncState | str:
+    """Parse one sync state file, or return never/unreadable."""
     try:
         document = json.loads((root / agent / SYNC_STATE_NAME).read_bytes())
+    except FileNotFoundError:
+        return "never"
     except OSError, ValueError, RecursionError:
-        return ""
-    if (
-        not isinstance(document, dict)
-        or document.get("schema") != SYNC_STATE_SCHEMA
-        or document.get("parser_version") != SESSION_PARSER_VERSION
-        or document.get("failed") != 0
-    ):
-        return ""
+        return "unreadable"
+    if not isinstance(document, dict) or document.get("schema") != SYNC_STATE_SCHEMA:
+        return "unreadable"
+    synced_at, failed = document.get("synced_at"), _count(document.get("failed"))
+    # States written before the retained count existed report none.
+    retained = _count(document.get("retained", 0))
+    if not isinstance(synced_at, str) or failed is None or retained is None:
+        return "unreadable"
+    try:
+        timestamp = datetime.fromisoformat(synced_at)
+    except ValueError:
+        return "unreadable"
+    if timestamp.tzinfo is None:
+        return "unreadable"
     signature = document.get("database_signature", "")
-    return signature if isinstance(signature, str) else ""
+    return SyncState(
+        synced_at,
+        failed,
+        retained,
+        document.get("parser_version") == SESSION_PARSER_VERSION,
+        signature if isinstance(signature, str) else "",
+    )
+
+
+def _database_checkpoint(root: Path, agent: str) -> str:
+    """Only a successful, complete scan by the current parser can skip database reads."""
+    state = read_sync_state(root, agent)
+    return state.database_signature if isinstance(state, SyncState) and state.current and not state.failed else ""
 
 
 def _write_sync_state(

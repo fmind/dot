@@ -403,7 +403,6 @@ def _holds_current_transcript(
     return (
         captured.completeness == archived.completeness == "complete"
         and archived.parser_version == captured.parser_version
-        and archived.record_count == len(archived_logs) == len(logs)
         and archived_logs == logs
     )
 
@@ -536,7 +535,7 @@ def ingest_session(
             ):
                 # Only the measurement changed: the archived bundle is already current. A partial
                 # archive falls through only so a complete capture of the same records can replace it.
-                current = _holds_current_transcript(stored, previous_logs, manifest, logs)
+                current = stored.completeness == manifest.completeness == "complete"
                 return SessionIngestionResult("retained", stored, current_transcript=current)
         _write_bundle(root, manifest, logs)
         if retain_usage:

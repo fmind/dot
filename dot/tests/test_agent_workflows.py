@@ -516,17 +516,6 @@ def test_session_sync_main_normalizes_empty_copilot_database_error(
     )
 
 
-def test_session_cli_rejects_inverted_date_window() -> None:
-
-    result = CliRunner().invoke(
-        app,
-        ["agent", "session", "list", "--since", "2026-09-07", "--until", "2026-09-06"],
-    )
-
-    assert result.exit_code == 2
-    assert "must not be after --until" in _click.utils.strip_ansi(result.stderr)
-
-
 def test_notification_workspace_accepts_host_aliases_and_honors_guards() -> None:
     aliased = io.StringIO(json.dumps({"workspacePaths": [None, "/work/project"], "fullyIdle": True}))
     assert notification_workspace(aliased, "agy") == "/work/project"

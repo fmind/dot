@@ -22,9 +22,6 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
             # A subagent's user messages are its parent's delegation and tool results, not owner prompts.
             sidechains += 1
             continue
-        if "invalid" in summary.status:
-            excluded += 1
-            continue
         try:
             # Keep only one conversation in memory, not the entire private corpus.
             _, records = read_session_bundle(summary.path)

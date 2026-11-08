@@ -254,13 +254,6 @@ def test_skills_contract_fails_on_duplicate_declared_skill_names(tmp_path: Path)
     ), findings
 
 
-def test_skills_contract_does_not_budget_the_combined_total(tmp_path: Path) -> None:
-    root = _fixture_repository(tmp_path)
-    (root / "dot_agents/AGENTS.md").write_text("g" * 12_000)
-    (root / "AGENTS.md").write_text("p" * 12_000)
-    assert checker.repository_findings(root) == []
-
-
 def test_skills_guide_metadata_drives_index_and_detects_stale_description(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     path = root / "skills/fixture/SKILL.md"

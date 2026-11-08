@@ -1,15 +1,13 @@
 """Keep native tool selection stable when tests replace HOME."""
 
 import os
-import shutil
-import subprocess
 import sys
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 
 import fmind_dot.hooks
+from tests.fakes import native_binary
 
 # Tests import skill scripts from skills/, which harnesses read through ~/.agents/skills:
 # direct pytest runs outside mise (no PYTHONDONTWRITEBYTECODE) must not leave bytecode there.
@@ -59,18 +57,7 @@ def isolated_dot_config(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(scope="session", autouse=True)
 def native_chezmoi() -> Iterator[None]:
     """Resolve a mise shim before synthetic homes change its tool/trust lookup."""
-    chezmoi = shutil.which("chezmoi")
-    mise = shutil.which("mise")
-    executable = None
-    if chezmoi and mise and Path(chezmoi).resolve() == Path(mise).resolve():
-        # A slow or failing mise must not error every test; only the chezmoi tests need the binary.
-        try:
-            result = subprocess.run([mise, "which", "chezmoi"], capture_output=True, text=True, check=True, timeout=30)
-        except subprocess.CalledProcessError, subprocess.TimeoutExpired:
-            result = None
-        candidate = Path(result.stdout.strip()) if result else None
-        if candidate and candidate.is_absolute() and candidate.is_file():
-            executable = candidate
+    executable = native_binary("chezmoi")
     if executable is None:
         yield
         return

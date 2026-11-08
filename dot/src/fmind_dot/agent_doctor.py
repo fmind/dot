@@ -5,18 +5,16 @@ import os
 import shlex
 from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 
 from fmind_dot.archive.parsers import AGENT_ADAPTERS
 from fmind_dot.archive.store import (
     BUNDLE_SUFFIX,
-    SESSION_PARSER_VERSION,
     SESSION_STORE_VERSION,
     read_session_manifest,
     session_store_root,
 )
-from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA, source_root
+from fmind_dot.archive.sync import read_sync_state, source_root
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.reporting import diagnostic_report, write_json
@@ -188,42 +186,6 @@ def _discovery_note(agent: str) -> str:
     return ""
 
 
-def _count(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
-
-
-@dataclass(frozen=True)
-class _SyncState:
-    synced_at: str
-    failed: int
-    retained: int
-    current: bool
-
-
-def _read_sync_state(path: Path) -> _SyncState | str:
-    """Parse one sync state file, or return never/unreadable."""
-    try:
-        document = json.loads(path.read_bytes())
-    except FileNotFoundError:
-        return "never"
-    except OSError, ValueError, RecursionError:
-        return "unreadable"
-    if not isinstance(document, dict) or document.get("schema") != SYNC_STATE_SCHEMA:
-        return "unreadable"
-    synced_at, failed = document.get("synced_at"), _count(document.get("failed"))
-    # States written before the retained count existed report none.
-    retained = _count(document.get("retained", 0))
-    if not isinstance(synced_at, str) or failed is None or retained is None:
-        return "unreadable"
-    try:
-        timestamp = datetime.fromisoformat(synced_at)
-    except ValueError:
-        return "unreadable"
-    if timestamp.tzinfo is None:
-        return "unreadable"
-    return _SyncState(synced_at, failed, retained, document.get("parser_version") == SESSION_PARSER_VERSION)
-
-
 def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, int]:
     """Return source presence, last complete sync time (or never/stale/unreadable), failures, and retained.
 
@@ -238,7 +200,7 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
         source = "unreadable"
     else:
         source = "present"
-    complete = _read_sync_state(root / agent / SYNC_STATE_NAME)
+    complete = read_sync_state(root, agent)
     if isinstance(complete, str):
         return source, complete, 0, 0
     if not complete.current:

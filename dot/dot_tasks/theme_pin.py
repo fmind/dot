@@ -1,7 +1,7 @@
 """Pin fmind/theme externals to one upstream commit with per-file checksums.
 
 The pinned files are native themes under `themes/` and the root DESIGN.md.
-Several theme files execute (Fish, Neovim Lua, Git includes), so apply
+Several theme files execute (Neovim Lua, Git includes), so apply
 must never fetch a moving branch; `mise run upgrade` advances the pin instead.
 Configs that cannot include a second file carry a copy of the upstream theme block;
 the pin only advances while every copy matches the target revision.
