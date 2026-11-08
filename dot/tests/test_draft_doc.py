@@ -188,6 +188,15 @@ def test_cli_json_check_and_compile(
     assert "YAML frontmatter" in err_payload["error"]
 
 
+def _assert_upload_runs_beside_file(args: list[str], cwd: Path | None) -> None:
+    """gws rejects --upload paths outside its working directory: pass a bare name and run from its folder."""
+    if "--upload" in args:
+        name = args[args.index("--upload") + 1]
+        assert cwd is not None
+        assert "/" not in name
+        assert (cwd / name).is_file()
+
+
 def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
     mod: ModuleType,
     tmp_path: Path,
@@ -205,7 +214,8 @@ def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
 
     gws_calls: list[list[str]] = []
 
-    def fake_run_gws(args: list[str]) -> dict[str, object]:
+    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        _assert_upload_runs_beside_file(args, cwd)
         gws_calls.append(args)
         if args[:3] == ["drive", "files", "list"]:
             params = json.loads(args[args.index("--params") + 1])
@@ -277,7 +287,8 @@ def _png(width: int, height: int = 10) -> bytes:
 def _fake_drive(calls: list[list[str]], *, doc_name: str = "Quarterly Review.md") -> object:
     """Fake gws for an existing document in folder_parent_1 whose assets folders are created on demand."""
 
-    def fake_run_gws(args: list[str]) -> dict[str, object]:
+    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        _assert_upload_runs_beside_file(args, cwd)
         calls.append(args)
         params = json.loads(args[args.index("--params") + 1])
         if args[:3] == ["drive", "files", "get"]:
@@ -355,7 +366,8 @@ def test_upload_finds_existing_document_on_a_later_page(
     }
     calls: list[list[str]] = []
 
-    def fake_run_gws(args: list[str]) -> dict[str, object]:
+    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        _assert_upload_runs_beside_file(args, cwd)
         calls.append(args)
         params = json.loads(args[args.index("--params") + 1])
         if args[:3] == ["drive", "files", "list"]:

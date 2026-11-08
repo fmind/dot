@@ -216,7 +216,7 @@ def test_cli_live_gws_workflow_fetches_sendas_and_creates_or_updates_draft(
 
     gws_calls: list[list[str]] = []
 
-    def fake_run_gws(args: list[str], context: str) -> dict[str, Any]:
+    def fake_run_gws(args: list[str], context: str, *, cwd: Path | None = None) -> dict[str, Any]:
         gws_calls.append(args)
         if args[:5] == ["gmail", "users", "settings", "sendAs", "list"]:
             return {"sendAs": [{"sendAsEmail": "github@fmind.dev", "isDefault": True}]}
@@ -225,9 +225,12 @@ def test_cli_live_gws_workflow_fetches_sendas_and_creates_or_updates_draft(
             assert params == {"userId": "me", "sendAsEmail": "github@fmind.dev"}
             return SAMPLE_SEND_AS
         if args[:4] in (["gmail", "users", "drafts", "create"], ["gmail", "users", "drafts", "update"]):
-            upload_path = Path(args[args.index("--upload") + 1]).resolve()
-            assert upload_path.is_relative_to(Path.cwd().resolve())
-            assert upload_path.is_file()
+            # gws rejects --upload paths outside its working directory; staging stays out of the checkout.
+            name = args[args.index("--upload") + 1]
+            assert cwd is not None
+            assert "/" not in name
+            assert (cwd / name).is_file()
+            assert not cwd.resolve().is_relative_to(Path.cwd().resolve())
             return {"id": "r-draft-101"}
         if args[:4] == ["gmail", "users", "drafts", "get"]:
             return {

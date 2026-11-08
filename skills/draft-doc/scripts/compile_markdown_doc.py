@@ -23,7 +23,7 @@ from typing import Any
 SVG_CHECKER = Path(__file__).resolve().parents[2] / "diagrams-as-code/references/svg/scripts/check_svg.py"
 # Pinned Mermaid CLI, run through `mise exec` so no global install is needed. chromium-bidi is published
 # without trusted-publisher evidence; this exact version was reviewed on 2026-10-23 (diagrams-as-code mermaid.md).
-MERMAID_CLI = "npm:@mermaid-js/mermaid-cli[trust_policy_excludes=chromium-bidi@157.0.8090-0]@12.0.0"
+MERMAID_CLI = "npm:@mermaid-js/mermaid-cli[trust_policy_excludes=chromium-bidi@157.0.8090-0]@12.2.0"
 MAX_SCALE = 4
 # Google Docs displays an embedded PNG at 0.75 pt per pixel and ignores its pHYs density (verified 2026-10-28),
 # so cap figures at 600 px (450 pt), which fits the Letter and A4 text columns.
@@ -414,7 +414,7 @@ def _slugify_doc(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9._-]+", "-", stem).strip("-") or "document"
 
 
-def run_gws(args: list[str]) -> dict[str, Any]:
+def run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
     """Execute a gws CLI command with --format json and return the parsed JSON object."""
     gws_bin = shutil.which("gws")
     if not gws_bin:
@@ -422,6 +422,7 @@ def run_gws(args: list[str]) -> dict[str, Any]:
         raise RuntimeError(msg)
     proc = subprocess.run(  # noqa: S603 - fixed gws binary and validated arguments
         [gws_bin, *args, "--format", "json"],
+        cwd=cwd,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
@@ -524,6 +525,8 @@ def _upsert_drive_file(
     """Create or update a file in Google Drive; updates keep the File ID and rename only when asked."""
     target_id = file_id or (existing_by_name or {}).get(name)
     fields = "id,name,mimeType,version,modifiedTime,webViewLink"
+    # gws rejects --upload paths outside its working directory, so run it from the file's folder.
+    upload = ["--upload", local_path.name, "--upload-content-type", content_type]
     if target_id:
         valid_id = _validate_drive_id(target_id, "file ID")
         params = json.dumps({"fileId": valid_id, "supportsAllDrives": True, "fields": fields})
@@ -536,11 +539,9 @@ def _upsert_drive_file(
                 "--params",
                 params,
                 *body,
-                "--upload",
-                str(local_path),
-                "--upload-content-type",
-                content_type,
-            ]
+                *upload,
+            ],
+            cwd=local_path.parent,
         )
     if not parent_id:
         msg = f"Cannot create {name!r} without a target Drive folder ID."
@@ -555,11 +556,9 @@ def _upsert_drive_file(
             json.dumps({"supportsAllDrives": True, "fields": fields}),
             "--json",
             json.dumps({"name": name, "mimeType": content_type, "parents": [valid_parent]}),
-            "--upload",
-            str(local_path),
-            "--upload-content-type",
-            content_type,
-        ]
+            *upload,
+        ],
+        cwd=local_path.parent,
     )
 
 

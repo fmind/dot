@@ -142,7 +142,7 @@ def _parse_json_stdout(stdout: str, context: str) -> dict[str, Any]:
     return data
 
 
-def _run_gws(args: list[str], context: str) -> dict[str, Any]:
+def _run_gws(args: list[str], context: str, *, cwd: Path | None = None) -> dict[str, Any]:
     """Execute a gws command and return its parsed JSON object, retrying once on transient HTTP errors."""
     gws_bin = shutil.which("gws")
     if not gws_bin:
@@ -152,6 +152,7 @@ def _run_gws(args: list[str], context: str) -> dict[str, Any]:
         try:
             proc = subprocess.run(  # noqa: S603 - fixed gws binary and validated arguments
                 [gws_bin, *args],
+                cwd=cwd,
                 stdin=subprocess.DEVNULL,
                 capture_output=True,
                 text=True,
@@ -550,8 +551,9 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
             return 0
 
-        # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG,
-        # and gws rejects --upload paths outside the current working directory.
+        # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG.
+        # gws rejects --upload paths outside its working directory, so it runs inside the private
+        # temporary directory, which keeps the message out of the caller's checkout.
         message = dict(built["draft"]["message"])
         raw = message.pop("raw")
         operation = "update" if args.draft_id else "create"
@@ -559,7 +561,7 @@ def main(argv: list[str] | None = None) -> int:
         metadata: dict[str, Any] = {"message": message} if message else {}
         if args.draft_id:
             params["id"] = metadata["id"] = args.draft_id
-        with tempfile.TemporaryDirectory(prefix=".draft-mail-", dir=Path.cwd()) as tmp:
+        with tempfile.TemporaryDirectory(prefix="draft-mail-") as tmp:
             eml_path = Path(tmp) / "message.eml"
             eml_path.write_bytes(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
             resp = _run_gws(
@@ -573,13 +575,14 @@ def main(argv: list[str] | None = None) -> int:
                     "--json",
                     json.dumps(metadata),
                     "--upload",
-                    str(eml_path),
+                    eml_path.name,
                     "--upload-content-type",
                     "message/rfc822",
                     "--format",
                     "json",
                 ],
                 f"drafts.{operation}",
+                cwd=Path(tmp),
             )
 
         draft_id = str(resp.get("id") or args.draft_id or "").strip()
