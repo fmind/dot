@@ -33,7 +33,7 @@ OpenCode merges user `~/.config/opencode/opencode.json` or `.jsonc` with project
 ## Gotchas
 
 - **Classify provider errors before rotating keys**: distinguish a missing or invalid native login or project credential override, an unavailable `openrouter/` model ID, insufficient credit, and rate limits before rotating the key, following [openrouter](../../../model-providers/references/openrouter.md); never print the key to diagnose them.
-- **Probe with `--standalone`**: every `opencode` command, even `auth list` or `debug paths`, otherwise starts the background service (`opencode serve --service`) and creates its database under the real HOME; stop a stray one with `opencode service stop`.
+- **Probe with `--standalone`**: every `opencode` command that accepts it, even `auth list` or `debug agents`, otherwise starts the background service (`opencode serve --service`) and creates its database under the real HOME; stop a stray one with `opencode service stop`. `debug paths` and `service` reject `--standalone` (2.2.6).
 - **Sharing is publication**: `/share` or changing the managed `"share": "disabled"` publishes session contents; require explicit sharing authority.
 - **Pairing and credential export expose data**: `opencode pair --remote` exposes the server to the internet through OpenTunnel, and `opencode auth export` prints stored secrets; require explicit authority for either, and check logins with `opencode auth list --standalone`, which prints no secrets.
 - **V1 plugins do not run in 2.x**: use the [plugin guide](https://opencode.ai/v2/docs/build/plugins/) for event hooks; do not translate another harness's hook schema into OpenCode settings.

@@ -364,7 +364,8 @@ class HarnessConfigTests(unittest.TestCase):
         for key, value in original.items():
             assert data[key] == value
         assert data["editorMode"] == "vim"
-        assert data["notifications"] is False
+        # Off is agy's default and agy drops a false value on save, so managing it only drifts.
+        assert "notifications" not in data
         assert data["queuedMessages"] == "send-immediately"
         assert data["verbosity"] == "high"
         display = str(self.home / ".agents/skills/agy/scripts/display.py")

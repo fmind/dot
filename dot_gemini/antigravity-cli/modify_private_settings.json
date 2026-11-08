@@ -1,14 +1,14 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/settings?tab=cli
        Account and model choices belong to the host after initial setup; `dot trust`
-       owns trustedWorkspaces. Native notifications stay off: dot's notify hook alerts once
-       per turn, while agy's own OSC 9 alert doubled it in Ghostty and never shows in ttyd. */ -}}
+       owns trustedWorkspaces. Native notifications stay off, agy's default: dot's notify hook
+       alerts once per turn, while agy's own OSC 9 alert doubled it in Ghostty and never shows
+       in ttyd. The key is not managed because agy omits a false value on save. */ -}}
 {{- $managedConfig := fromJson `
 {
   "allowNonWorkspaceAccess": true,
   "artifactReviewPolicy": "always-proceed",
   "editorMode": "vim",
-  "notifications": false,
   "queuedMessages": "send-immediately",
   "toolPermission": "always-proceed",
   "verbosity": "high",
