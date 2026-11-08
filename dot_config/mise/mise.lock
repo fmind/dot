@@ -2297,7 +2297,7 @@ conda_deps = [
 ]
 
 [[tools."conda:groff"]]
-version = "1.24.2"
+version = "1.25.0"
 backend = "conda:groff"
 specifiers = ["latest"]
 
@@ -2305,8 +2305,8 @@ specifiers = ["latest"]
 channel = "conda-forge"
 
 [tools."conda:groff"."platforms.linux-arm64"]
-checksum = "sha256:0c1f3b05836637513657b69006dbdf08a256f9e1f143c610a6d1dd4aed22d330"
-url = "https://conda.anaconda.org/conda-forge/linux-aarch64/groff-1.24.2-pl5321h4154aff_0.conda"
+checksum = "sha256:fba5909c17296082c0d9ed0414fdc3c54ff44b8c2dd0169d872970e78b015ce9"
+url = "https://conda.anaconda.org/conda-forge/linux-aarch64/groff-1.25.0-pl5321h4154aff_0.conda"
 conda_deps = [
     "libgcc-16.2.0-h205dda4_7",
     "libstdcxx-16.2.0-hef695bb_7",
@@ -2317,8 +2317,8 @@ conda_deps = [
 ]
 
 [tools."conda:groff"."platforms.linux-x64"]
-checksum = "sha256:98c488215167d766d2c0715b837c384ed315c032ef88d1bedb692d9e72e5ee5e"
-url = "https://conda.anaconda.org/conda-forge/linux-64/groff-1.24.2-pl5321hd2095e1_0.conda"
+checksum = "sha256:7c7cab2e3103aafa92459c7adabafdfe30d7743e8d0ebc1fc873ea2c707e29df"
+url = "https://conda.anaconda.org/conda-forge/linux-64/groff-1.25.0-pl5321hd2095e1_0.conda"
 conda_deps = [
     "libgcc-16.2.0-ha9f2e26_7",
     "libstdcxx-16.2.0-h934c35e_7",
@@ -3634,25 +3634,27 @@ url = "https://github.com/jesseduffield/lazydocker/releases/download/v0.25.2/laz
 url_api = "https://api.github.com/repos/jesseduffield/lazydocker/releases/assets/399711580"
 
 [[tools.lazygit]]
-version = "0.66.2"
+version = "0.66.3"
 backend = "aqua:jesseduffield/lazygit"
 specifiers = ["latest"]
 
 [tools.lazygit."platforms.linux-arm64"]
-checksum = "sha256:79a3161eeb642f0473e23db6341f7baabd4a5933e921a9c1167c5d5c765c41a4"
+checksum = "sha256:ac0b48237f3d0283813e7154ec063237e519532feb0470c0881a1793ee78fd42"
 checksum_source = "mise-versions"
-url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.2/lazygit_0.66.2_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/646837842"
+url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.3/lazygit_0.66.3_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/722269035"
 
 [tools.lazygit."platforms.linux-x64"]
-checksum = "sha256:158efc9ddfa1241fab5fb3526bb442c8dc6c4b1904d73213b9e4e93e03c52034"
-url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.2/lazygit_0.66.2_linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/646837723"
+checksum = "sha256:0a23f429a95f0d09db298b3c291536d818de066aa5a85c255806f0490ff6656b"
+checksum_source = "mise-versions"
+url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.3/lazygit_0.66.3_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/722268995"
 
 [tools.lazygit."platforms.macos-arm64"]
-checksum = "sha256:fadda59ae7665ba556fcbaa704c7eade6e40d016d3f3b25d6327dd1f3f906a0c"
-url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.2/lazygit_0.66.2_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/646837816"
+checksum = "sha256:6873e6b7a538b521c4d7ff3f76ec49e6dcafa41e6053a6aae33c12f62663e163"
+checksum_source = "mise-versions"
+url = "https://github.com/jesseduffield/lazygit/releases/download/v0.66.3/lazygit_0.66.3_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/jesseduffield/lazygit/releases/assets/722268996"
 
 [[tools.lefthook]]
 version = "2.2.2"
