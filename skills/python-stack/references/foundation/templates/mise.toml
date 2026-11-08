@@ -113,19 +113,20 @@ run = "uv run --locked coverage report"
 [tasks.format]
 alias = "f"
 description = "Format all sources and documents"
-run = ["mise run format:imports", "mise run format:python", "mise run format:dprint"]
+depends = ["format:dprint", "format:python"]
 
 [tasks."format:dprint"]
 description = "Format JSON, Markdown, TOML, YAML with dprint"
 run = "dprint fmt --allow-no-files"
 
-[tasks."format:imports"]
-description = "Sort Python imports"
-run = "uv run --locked ruff check --select=I --fix --force-exclude"
-
 [tasks."format:python"]
-description = "Format Python sources"
-run = "uv run --locked ruff format --force-exclude"
+description = "Sort imports and format Python sources, or only the given files"
+usage = 'arg "[files]..." default="."'
+run = '''
+eval "set -- $usage_files"
+uv run --locked ruff check --select=I --fix --force-exclude "$@"
+uv run --locked ruff format --force-exclude "$@"
+'''
 
 [tasks.install]
 alias = "i"

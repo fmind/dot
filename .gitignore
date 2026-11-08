@@ -15,11 +15,3 @@
 .venv/
 __pycache__/
 dist/
-htmlcov/
-
-# Machine-specific CLI configuration stays local.
-dot_config/dot.yaml
-dot_config/dot.*.yaml
-
-# Machine-specific Git configuration stays local.
-dot_config/git/config.*

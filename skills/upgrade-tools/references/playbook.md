@@ -54,7 +54,7 @@ Dependabot cannot raise a `jdx/mise-action` `version:` input, and `mise run upgr
 dprint config update --yes --recursive   # update root and nested configs without prompts
 ```
 
-Validate with `dprint check`. See [dprint](../../dprint/SKILL.md).
+When the project holds plugins back with a cooldown, such as `--minimum-dependency-age P7D` in its `check:outdated` task, pass the same flag: without it, the update takes releases the project's policy still excludes. Validate with `dprint check`. See [dprint](../../dprint/SKILL.md).
 
 ## Agent skills
 

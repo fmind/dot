@@ -26,6 +26,7 @@ jobs:
       - name: Install mise system
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
+          cache: true
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
           version: 2026.11.2
       - name: Scan complete Git history

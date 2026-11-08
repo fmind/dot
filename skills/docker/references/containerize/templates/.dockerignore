@@ -3,7 +3,6 @@
 **/.agents
 **/.cache
 **/.git
-**/.mypy_cache
 **/.pytest_cache
 **/.ruff_cache
 **/.ty_cache
