@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.10.1] - 2026-11-08
+
+### 🧪 Testing
+
+- _(hooks)_ Bind the test bus socket by relative path for macOS
+
 ## [15.10.0] - 2026-11-08
 
 ### 🚀 Features
