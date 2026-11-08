@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sqlite3
 import stat
 from collections.abc import Callable, Iterator, Mapping
@@ -86,6 +87,10 @@ def _json_document(content: str | bytes, label: str) -> object:
         raise ValueError(f"{label} is nested too deeply") from None
 
 
+# A JSON escape in the surrogate range can decode to a lone UTF-16 surrogate, which UTF-8 cannot store.
+_SURROGATE_ESCAPE = re.compile(rb"\\u[dD][89a-fA-F]")
+
+
 def _decode_jsonl(content: bytes) -> Iterator[dict[str, Any] | None]:
     """Yield each JSON object record, or None for a malformed one."""
     # JSONL records end at LF, not at Unicode separators embedded in JSON strings.
@@ -97,7 +102,10 @@ def _decode_jsonl(content: bytes) -> Iterator[dict[str, Any] | None]:
             if not line.strip():
                 continue
             value = json.loads(line)
-        except UnicodeDecodeError, json.JSONDecodeError, RecursionError:
+            if _SURROGATE_ESCAPE.search(raw_line):
+                # Paired escapes (emoji) re-encode; a lone surrogate would fail the archive write instead.
+                json.dumps(value, ensure_ascii=False).encode()
+        except UnicodeDecodeError, UnicodeEncodeError, json.JSONDecodeError, RecursionError:
             # An undecodable record is malformed; it must not cost the rest of the session.
             value = None
         yield value if isinstance(value, dict) else None

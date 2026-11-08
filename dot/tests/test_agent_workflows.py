@@ -151,8 +151,12 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(tmp_path: Pa
         }
 
     projects = tmp_path / ".claude/projects/project"
-    # A lone surrogate cannot be stored as UTF-8: this session fails first and alone.
-    _write_jsonl(projects / "a-surrogate.jsonl", claude("broken \ud83d emoji", input_tokens=1))
+    # A lone surrogate cannot be stored as UTF-8: that record is malformed, the rest of the session is kept.
+    _write_jsonl(
+        projects / "a-surrogate.jsonl",
+        claude("kept \ud83d\ude00 pair", input_tokens=1),
+        claude("broken \ud83d emoji", input_tokens=1),
+    )
     _write_jsonl(projects / "b-rawbyte.jsonl", claude("kept", input_tokens=1))
     with (projects / "b-rawbyte.jsonl").open("ab") as stream:
         stream.write(b'{"type":"user","message":{"content":"\xff"}}\n')
@@ -176,11 +180,14 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(tmp_path: Pa
     assert synced.exit_code == 1
     outcomes = json.loads(synced.stdout)
     assert outcomes["schema"] == "dot.agent.session.sync/v2"
-    assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (4, 5, 6)
-    assert "agent-session: failed to capture session for Claude: " in synced.stderr
+    assert (outcomes["failed"], outcomes["ingested"], outcomes["selected"]) == (4, 6, 6)
+    capture_errors = [line for line in synced.stderr.splitlines() if "failed to capture session" in line]
+    # Every Claude failure still archived its transcript; none lost the session.
+    assert capture_errors
+    assert all(line.endswith("archived the transcript without usage") for line in capture_errors)
     assert "a-surrogate" not in synced.stderr
     assert synced.stderr.count("usage extraction failed; archived the transcript without usage") == 2
-    assert synced.stderr.count("malformed source records; archived the transcript without usage") == 1
+    assert synced.stderr.count("malformed source records; archived the transcript without usage") == 2
     assert isinstance(synced.exception, DotError)
     assert "session sync recorded 4 failure(s)" in str(synced.exception)
     manifests = {
@@ -189,6 +196,7 @@ def test_session_sync_isolates_malformed_sessions_and_exits_nonzero(tmp_path: Pa
         for manifest in [read_session_manifest(path)]
     }
     assert manifests == {
+        ("a-surrogate", "partial", 1, True),
         ("b-rawbyte", "partial", 1, True),
         ("c-negative", "complete", 0, True),
         ("d-valid", "complete", 0, False),
