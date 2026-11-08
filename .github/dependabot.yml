@@ -2,18 +2,13 @@
 # Security updates only: `open-pull-requests-limit: 0` disables version updates, while
 # Dependabot still opens one grouped fix PR per ecosystem when an alert has a patched
 # release. `schedule` is required by the schema; it only paces the disabled version updates.
-# upgrade-tools refreshes everything else, including the pins in the shipped templates and
-# the digest-pinned Docker base image, which the GitHub Advisory Database does not cover.
+# Security updates need an alert, and alerts follow the dependency graph, which lists only
+# .github/workflows for Actions: upgrade-tools refreshes the pins in the shipped skill
+# templates and the digest-pinned Docker base image, which the Advisory Database does not cover.
 version: 2
 updates:
   - package-ecosystem: github-actions
-    # "/" covers .github/workflows; any other directory is scanned for *.yml files,
-    # which covers the SHA-pinned workflow templates shipped in skills.
-    directories:
-      - /
-      - /skills/cloud-run/templates
-      - /skills/documentation-site/templates
-      - /skills/github-actions/references/ci-cd/templates
+    directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 0

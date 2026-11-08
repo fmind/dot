@@ -239,23 +239,3 @@ if name == "cosign" and args[0] == "verify-attestation" and args[-1].endswith(os
                 f"ghcr.io/example/project@{amd64}",
                 f"ghcr.io/example/project@{arm64}",
             }
-
-
-def test_dependabot_covers_every_directory_with_pinned_actions() -> None:
-    config = yaml.safe_load((ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"))
-    (actions,) = (update for update in config["updates"] if update["package-ecosystem"] == "github-actions")
-    covered = {ROOT / ".github/workflows" if path == "/" else ROOT / path.strip("/") for path in actions["directories"]}
-    tracked = subprocess.check_output(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.yml", "*.yaml"],
-        cwd=ROOT,
-        text=True,
-        timeout=60,
-    ).splitlines()
-    pinned = {
-        (ROOT / name).parent
-        for name in tracked
-        if (ROOT / name).is_file() and re.search(r"uses: \S+@[0-9a-f]{40}", (ROOT / name).read_text(encoding="utf-8"))
-    }
-
-    assert pinned
-    assert pinned == covered
