@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.10.2] - 2026-11-08
+
+### 🐛 Bug Fixes
+
+- _(nvim)_ Sort the file picker lexicographically on an empty prompt
+
 ## [15.10.1] - 2026-11-08
 
 ### 🧪 Testing
