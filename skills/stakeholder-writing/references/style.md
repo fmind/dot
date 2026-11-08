@@ -53,7 +53,7 @@ And this sentence in the body:
 
 ## Titles, headings, and section summaries
 
-Titles and headings are short names for navigation; the conclusion goes in the bold first sentence of the section, where it has room to be precise.
+Use simple titles and section names for navigation: the title names the subject in plain words, and headings are short, simple names such as "Context", "Options", "Security", or "Next steps". Put the conclusion in the bold first sentence of the section, where it has room to be precise, never in the title or heading.
 
 | Element        | Before                                                                  | After                                                                                 |
 | -------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -78,7 +78,7 @@ Close a section that runs past a few paragraphs or mixes several findings with a
 - **Make abstract claims concrete**: "for example, the invoice job that runs at 2:00 and takes 40 minutes".
 - **Use a table for comparisons**: options or periods in rows, the same criteria in columns, options keeping the user's labels or numbered, and the recommended row marked.
 - **Flag ratings with a color and a word**: Low, Medium, High for risk, or Met, Partial, Not met for requirements, in green, amber, and red. Use the template's badges in HTML, because emoji depend on the reader's fonts, and 🟢 🟡 🔴 in Markdown and chat; never rely on color alone, and keep status marks out of running prose.
-- **Prefer a figure to a paragraph of numbers**: a chart for numbers and trends (inline SVG or matplotlib, following the host's data-visualization skill when it has one) and a diagram for a flow, an architecture, or a timeline. Give each a caption that states its conclusion and a table or text alternative.
+- **Create figures when they communicate faster than text**: use SVG, Mermaid, matplotlib, or another suitable format — a chart for numbers and trends, and a diagram for a flow, an architecture, or a timeline ([diagrams-as-code](../../diagrams-as-code/SKILL.md), or the host's data-visualization skill when it has one). Place a figure in the main text when it carries a key point, or in an annex when it supports detail, and give each a caption that states its conclusion plus a table or text alternative.
 - **Quote third-party figures as a person would**: in a private document for a client team or a small circle, embed a cropped capture of the source's chart with a source line, link, and date; in a public one, redraw it from the published figures or get permission.
 - **Bold for skimming**: bold the take-home message, each section's opening sentence, and about one key phrase in other paragraphs, so the bold text alone tells the argument; more bold defeats it.
 

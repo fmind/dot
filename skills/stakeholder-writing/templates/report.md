@@ -12,7 +12,7 @@
   Delete this comment before sharing.
 -->
 
-# {Title that names the subject, such as: Comparing the cost of A and B}
+# {Simple title that names the subject, such as: Comparing the cost of A and B}
 
 Type: {Decision memo}\
 Status: {Draft}\
@@ -61,7 +61,7 @@ Data as of: {Price or data date}
 <summary>Annex B. Diagram</summary>
 
 ```mermaid
-%% {Optional diagram for a flow, an architecture, or a timeline; its caption below states the conclusion.}
+%% {Optional diagram for a flow, an architecture, or a timeline; place in the main text when it carries a key point, or here as supporting detail. Its caption below states the conclusion.}
 flowchart LR
   A["{Step}"] --> B["{Step}"]
 ```

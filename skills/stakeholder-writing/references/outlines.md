@@ -1,6 +1,6 @@
 # Outlines and Reader Lenses
 
-Pick the outline that matches what you need from the reader. Formal outlines (decision memo, cost estimate, analysis) use short section names as headings, open each section with a bold sentence that states its conclusion, open the document with an executive summary, and end with annexes for key terms, diagrams, and evidence. Shorter outlines open with the message itself and skip all of this. These outlines are starting points: merge, reorder, drop, or add sections, such as a timeline, a sensitivity table, or a FAQ, when the request or the reader calls for it.
+Pick the outline that matches what you need from the reader. Documents use a simple title that names the subject and simple, short section names as headings. Formal outlines (decision memo, cost estimate, analysis) open each section with a bold sentence that states its conclusion, open the document with an executive summary, include figures where a chart or diagram communicates faster than text, and end with annexes for key terms, supporting figures, and evidence. Shorter outlines open with the message itself and skip the formal chrome. These outlines are starting points: merge, reorder, drop, or add sections, such as a timeline, a sensitivity table, or a FAQ, when the request or the reader calls for it.
 
 ## Document outlines
 
@@ -12,7 +12,7 @@ Fit the main text on about one page; everything a reader may want to check goes 
 1. **Options**: every option, including doing nothing, compared on the same few criteria, in a table when there are more than two.
 1. **Recommendation and risks**: in a few sentences, why it wins, its main risks with their mitigations, and what would change it.
 1. **Next steps**: action, owner, and date, as proposals when the user gave none.
-1. **Annexes**: key terms, diagrams, method, calculations, and sources.
+1. **Annexes**: key terms, supporting figures, method, calculations, and sources.
 
 ### Cost estimate
 
@@ -27,7 +27,7 @@ Fit the main text on about one page; everything a reader may want to check goes 
 
 1. **Executive summary**: the finding, the confidence in it, the implication, and the action.
 1. **Question and method**: two sentences.
-1. **Findings**: one section per finding, each with a conclusion heading and its evidence as a table or chart.
+1. **Findings**: one section per finding, each with a simple heading, a bold conclusion sentence, and its evidence as a table or figure.
 1. **Limits**: data gaps, possible bias, and what was not tested.
 1. **Recommendations and next steps**.
 
