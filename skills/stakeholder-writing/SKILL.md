@@ -1,6 +1,6 @@
 ---
 name: stakeholder-writing
-description: "Write reports, proposals, status updates, and executive summaries in HTML/Markdown; fact-check drafts, articles, and posts."
+description: "Write short emails, messages, docs, reports, and proposals for other people: message first, plain words, details in annexes; fact-check drafts and posts."
 license: MIT
 metadata:
   kind: task
@@ -12,32 +12,39 @@ metadata:
 
 # Stakeholder Writing
 
-Write documents that busy professionals with no context on our work can understand, trust, and act on, and that the user can share without rewriting: reports, proposals, decision memos, cost estimates, status updates, emails, and PR or issue text. This skill owns the reader, the content, the structure, the look, and the final check. Delivery stays with its owners: [draft-doc](../draft-doc/SKILL.md) for Google Docs (native `.md` for living docs, `.gdoc` for styled deliverables), [draft-mail](../draft-mail/SKILL.md) for Gmail, [github-pull-request](../github-pull-request/SKILL.md) and [github-issues](../github-issues/SKILL.md) for GitHub, [documentation-site](../documentation-site/SKILL.md) for Zensical sites, [gws](../gws/SKILL.md) for Workspace APIs, [fmind-visuals](../fmind-visuals/SKILL.md) for terminal demos and logo or cover variants, [diagrams-as-code](../diagrams-as-code/SKILL.md) for diagrams, and [repository-docs](../repository-docs/SKILL.md) for README and AGENTS.md files.
+Write text that busy people read in seconds and act on, from a chat message to a decision memo. The user should be able to send it without rewriting. This skill owns the content, the length, and the final check. Delivery stays with [draft-mail](../draft-mail/SKILL.md) (Gmail), [draft-doc](../draft-doc/SKILL.md) (Google Docs), [github-pull-request](../github-pull-request/SKILL.md) and [github-issues](../github-issues/SKILL.md) (GitHub), [documentation-site](../documentation-site/SKILL.md) (Zensical), and [repository-docs](../repository-docs/SKILL.md) (README and AGENTS.md).
 
-**These are guidelines, not a form.** Each one exists to help a busy reader; when one does not help this reader or this document, adapt or drop it, and tell the user what you changed and why. Three never bend: invent no facts, disclose no secrets or private data, and never let a figure mislead.
+**Short beats complete.** Readers want the message first and open annexes or links when they want depth. Every sentence, caveat, and section costs them time, so keep only what changes what they understand, decide, or do. Adapt any guideline that does not help this reader and tell the user why. Three rules never bend: invent no facts, disclose no secrets or private data, and never let a figure mislead.
+
+## Default length
+
+Start from the default for the type and count the main text with `wc -w`; annexes do not count. These are defaults, not limits: go longer when the task is complex, such as several options, real risk, or a reader who must act on detail.
+
+- **Chat message**: about 50 words.
+- **Email**: about 150 words; a reply about 100.
+- **Status update, PR, or issue text**: about 200 words.
+- **Document for teammates**: a summary of two or three sentences, then about one page (400 words).
+- **Decision memo or proposal**: a summary of about 100 words, then about one page (500 words).
+- **Report or analysis**: a summary of about 100 words, then about two pages (800 words).
 
 ## Workflow
 
-1. **Frame the reader and the ask**: note who reads, what they already know, the questions they ask first ([reader lenses](references/outlines.md#reader-lenses)), and the one decision or action you want from them, by when. Choose the document type, the destination, and the reader's language, then start from the matching [outline](references/outlines.md) and reshape it to the request. Ask the user when an unknown reader or goal would change the content; otherwise state your assumptions.
-1. **Gather verified facts and their links**: use primary sources and current data, and record each figure's source, date, and scope. Link claims inline to the pages that support them, internal or external, and choose each link for this reader's access and need to know ([links](references/style.md#links-and-sensitivity)). Turn each unknown into a labeled assumption with a plausible range, and show how the conclusion moves across it.
-1. **Lead with the message**: write the one sentence the reader should remember, then an executive summary of about 120 words with the conclusion, why it matters to them, the decision and its deadline, and one or two supporting figures. Follow it with a short Key terms block when the reader meets unfamiliar terms, units, or metrics.
-1. **Structure by importance**: name the subject in the title and give sections short names; open each section with a bold sentence that states its conclusion and close a long one with a short take-home box ([headings](references/style.md#titles-headings-and-section-summaries)). Keep the body as short as the decision allows, about one page for a simple one, and move methods, calculations, evidence, and raw data to annexes that the text points to.
-1. **Write plainly and show it**: follow the [style guide](references/style.md): plain words, short active sentences, a concrete example per abstract point, and bold that tells the argument to a skimmer. Use a chart or diagram wherever it explains faster than text, with a caption that states its conclusion ([visuals](references/style.md#examples-tables-and-visuals)).
-1. **Make the decision easy and honest**: number the options and compare them on the same criteria and conditions (benefit, cost, risk, effort, time to value), include doing nothing, recommend one, and say why. State assumptions, limits, residual risks, and what would change the recommendation, and end with next steps that each have an owner and a date.
-1. **Make it beautiful, natively**: a document that looks designed earns attention and trust, so give the look as much care as the words. Use the destination's own features rather than imitating them ([platform features](references/style.md#destination-and-platform-features)), start from the [HTML](templates/report.html) or [Markdown](templates/report.md) report template, and style with `~/.agents/DESIGN.md` (Fmind Theme) or customer branding if available, asking for its guide when you lack it.
-1. **Run the reader check**: review the draft against the [checklist](references/checklist.md), fix what fails, and render it where it will be read, such as HTML at desktop and phone widths with [playwright](../playwright/SKILL.md). Tell the user what you could not verify and which guidelines you set aside. To fact-check an existing draft, article, post, or talk, run the checklist's Trust section and report findings with the date checked; rewrite only when asked.
+1. **Frame the reader and the ask**: note who reads, what they already know, the questions they ask first ([reader lenses](references/outlines.md#reader-lenses)), and the one thing you want from them, by when. Pick the type, the destination, and the reader's language, then start from the matching [outline](references/outlines.md). Ask the user when an unknown reader or goal would change the content.
+1. **Put the message first**: write the one sentence the reader should remember and open with it. In an email or chat message, that sentence is the answer or the ask.
+1. **Use only the facts the message needs**: take them from the user and from primary sources, and record each figure's source, date, and scope. Link claims inline where this reader can open them ([links](references/style.md#links-and-sensitivity)). Turn each unknown into a labeled assumption or a placeholder.
+1. **Write plainly**: follow the [style guide](references/style.md): everyday words, short active sentences, one idea per paragraph, and a concrete example for an abstract point. Use prose for reasoning, a short list for parallel items, and a table for comparisons. Bold at most one phrase per paragraph, the one that carries the message. Use code formatting only for a command, path, or value the reader must copy, and none for non-technical readers.
+1. **Add structure only to formal documents, and only what this reader needs**: reports, proposals, and decision memos open with a summary of the conclusion, the decision, and its deadline, compare the options on the same criteria (including doing nothing, and keeping the user's labels), argue the recommendation once with its risks, and end with next steps. Key terms, diagrams, methods, and evidence go to annexes; add ratings or a metadata block only when this reader needs them. Give them a designed look with the destination's [native features](references/style.md#destination-and-platform-features), the [HTML](templates/report.html) or [Markdown](templates/report.md) template, and `~/.agents/DESIGN.md` or the customer's brand guide, asking for it if missing. Emails, chat messages, status updates, and teammate documents skip all of this unless the reader needs it.
+1. **Cut**: reread as the reader. Delete every sentence they would not miss, known background, caveats that do not change their decision, and repeats. Move detail to an annex or a link, then compare the length with the default.
+1. **Run the reader check**: review the draft against the [checklist](references/checklist.md), fix what fails, and render it where it will be read, such as HTML at desktop and phone widths with [playwright](../playwright/SKILL.md). Tell the user what you could not verify and where you went past the default length. To fact-check an existing draft, article, post, or talk, run the checklist's Trust section and report findings with the date checked; rewrite only when asked.
 
 ## Gotchas
 
+- **Completeness is not quality**: a teammate email with a summary, Key terms, and a risk section is a report nobody asked for.
 - **Dense prose costs the reader**: arrows, slash chains, stacked parentheses, coined labels, and metaphors save the writer words and cost the reader minutes.
-- **Estimates look like facts**: a cost, effort, or risk figure is a model; give a range, round to what the inputs support, and show the formula, inputs, price date, and region in an annex.
-- **Numbers need a baseline**: "30% cheaper" means nothing until it says than what, at which volume, over which period.
-- **Plausible client details are still invented**: the author's title, the client's policies, baselines, or requirements, and owners or deadlines the user did not give become proposals ("proposed owner") or placeholders.
+- **Session habits leak**: "as discussed", agent or tool names, local paths, internal labels, verification notes, and numbered decision lists mean nothing to the reader, and private data must not leave the session.
+- **Figures need context**: a cost, effort, or risk estimate is a model; give a range rounded to what the inputs support, a baseline ("30% cheaper" than what, at which volume), and the formula, inputs, and price date in an annex.
+- **Plausible details are still invented**: the author's title, the client's policies, baselines, or requirements, owners or deadlines the user did not give, risk ratings or confidence levels with no stated basis, and claims added to strengthen the case, such as what users will notice, become proposals ("proposed owner"), placeholders, or questions for the user.
 - **Context is not content**: opinions and hunches the user shares to brief you stay out; state a position only when the user asks to sign it.
-- **Session details leak**: "as discussed", agent or tool names, local paths, internal labels, and private data mean nothing to the reader or must not leave the session.
-- **Links disclose**: a URL can reveal hostnames, project or client names, folder structure, or grant access through a share or signed link.
-- **One document serves one reader**: write for the decision maker and move other audiences' details to annexes or a separate document.
-- **Formatting can fragment reasoning**: use prose for arguments, bullets for parallel items, and tables for comparisons; a wall of short bullets hides how the points connect.
 
 ## Documentation
 

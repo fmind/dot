@@ -1,18 +1,18 @@
 # Outlines and Reader Lenses
 
-Pick the outline that matches the decision you need from the reader. Keep each section name as a short heading, and open the section with a bold sentence that states its conclusion. Every outline opens with the executive summary, followed by a short Key terms block when the reader needs one, and ends with annexes when there is evidence to show. These outlines are starting points: merge, reorder, drop, or add sections, such as a timeline, a sensitivity table, or a FAQ, when the request or the reader calls for it.
+Pick the outline that matches what you need from the reader. Formal outlines (decision memo, cost estimate, analysis) use short section names as headings, open each section with a bold sentence that states its conclusion, open the document with an executive summary, and end with annexes for key terms, diagrams, and evidence. Shorter outlines open with the message itself and skip all of this. These outlines are starting points: merge, reorder, drop, or add sections, such as a timeline, a sensitivity table, or a FAQ, when the request or the reader calls for it.
 
 ## Document outlines
 
 ### Decision memo or proposal
 
-1. **Executive summary**: the recommendation, the decision needed, its deadline, and the key figure.
-1. **Context**: the problem and why it matters now, in the reader's terms.
-1. **Options**: one table that compares every numbered option on the same criteria, including doing nothing.
-1. **Recommendation**: why it wins and under which assumptions.
-1. **Risks**: each risk with its mitigation, and what would change the recommendation.
-1. **Next steps**: owner, action, and date.
-1. **Annexes**: method, calculations, and sources.
+Fit the main text on about one page; everything a reader may want to check goes to the annexes.
+
+1. **Executive summary**: the recommendation, the decision needed and its deadline, the key figure, and the context in one or two sentences.
+1. **Options**: every option, including doing nothing, compared on the same few criteria, in a table when there are more than two.
+1. **Recommendation and risks**: in a few sentences, why it wins, its main risks with their mitigations, and what would change it.
+1. **Next steps**: action, owner, and date, as proposals when the user gave none.
+1. **Annexes**: key terms, diagrams, method, calculations, and sources.
 
 ### Cost estimate
 
@@ -31,9 +31,16 @@ Pick the outline that matches the decision you need from the reader. Keep each s
 1. **Limits**: data gaps, possible bias, and what was not tested.
 1. **Recommendations and next steps**.
 
+### Document for teammates
+
+1. **Message**: two or three sentences: what this is, the conclusion, and what you need from them.
+1. **Details**: only the points they need, each a short paragraph or a short list, with links.
+1. **Next steps or open questions**: who does what, by when.
+1. **Annexes**: background and evidence they may want to check.
+
 ### Status update
 
-1. **Status in one line**: on track, at risk, or blocked, and why.
+1. **Status in one line**: the main change, or on track, at risk, or blocked when the user says so or the facts show it.
 1. **Progress**: what is done since the last update and what comes next.
 1. **Needs**: decisions or help needed, with dates.
 1. **Changes**: risks and changes to scope, cost, or dates.
@@ -49,6 +56,8 @@ Pick the outline that matches the decision you need from the reader. Keep each s
 1. **First sentence**: the answer or the ask.
 1. **Context**: two or three sentences.
 1. **Next step**: one, with a date.
+
+Use no headings, and at most one short list.
 
 ### PR description
 

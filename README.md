@@ -135,7 +135,7 @@ Setup links [`skills/`](skills/) into `~/.agents/skills/` alongside independentl
 
 Everyday slash commands:
 
-- **Deliverables & writing:** `/clipboard` copies the last deliverable (or `/clipboard <selection>`) via native OS tools ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` turns technical work into decision-ready reports and proposals and fact-checks drafts; `/draft-doc` creates Google Docs (`.md` or `.gdoc`); `/draft-mail` drafts Gmail replies without sending.
+- **Deliverables & writing:** `/clipboard` copies the last deliverable (or `/clipboard <selection>`) via native OS tools ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` writes short emails, documents, reports, and proposals for other people, message first with details in annexes, and fact-checks drafts; `/draft-doc` creates Google Docs (`.md` or `.gdoc`); `/draft-mail` drafts Gmail replies without sending.
 - **Engineering & maintenance:** `/full-review` audits a repository and applies verified fixes, reviews a diff or PR read-only, or smoke-tests every task and CLI command; `/trim <path>` cuts tokens without losing meaning; `/lesson-learned` turns session corrections and approved decisions into minimal edits to checks, skills, or AGENTS.md; `/auth-status` checks CLI logins and prints exact re-login commands; `/task-prompts` writes handoff prompts (resume agy with `agy -c`, compact with `/compact`).
 
 ## Credentials

@@ -108,7 +108,7 @@
       <section class="summary" aria-labelledby="summary-title">
         <h2 id="summary-title">Executive summary</h2>
         <p class="takeaway">{Take-home message in one sentence.}</p>
-        <p>{Why it matters to this reader, with the one or two key figures in bold, each with unit, period, and baseline.}</p>
+        <p>{Context in one or two sentences and why it matters to this reader, with the key figure in bold, its unit, period, and baseline, and inline links to sources.}</p>
         <p class="ask"><strong>Decision needed:</strong> {What the reader should decide or do, and by when.}</p>
       </section>
 
@@ -118,44 +118,28 @@
         <div class="tile" style="--c: var(--series-2)"><span class="value">{N weeks}</span><span class="label">{Time to a first result}</span></div>
       </section>
 
-      <!-- Key terms: one line each for the terms, units, and metrics this reader may not know; delete when there are none. -->
-      <h2 id="terms-title">Key terms</h2>
-      <dl class="terms" aria-labelledby="terms-title">
-        <dt>{Term or unit}</dt><dd>{What it means in plain words; for a metric, its unit and which direction is better.}</dd>
-      </dl>
-
-      <!-- Main body: as short as the decision allows. Short section names; each section opens with a bold conclusion sentence. -->
-      <h2><span class="num">1</span>{Context}</h2>
-      <p><strong>{Conclusion of the section in one sentence.}</strong> {Explanation in plain words, with a concrete example and inline links to sources.}</p>
-      <!-- Long sections only: close with one to three sentences that restate the point. -->
-      <p class="takeaways"><strong>Take-home messages:</strong> {What this section means for the reader's decision.}</p>
-
-      <!-- Figure: a chart for numbers or trends, a diagram for a flow or timeline, or a cited source's image. -->
-      <figure class="chart" aria-labelledby="figure-1">
-        <figcaption id="figure-1">{Caption that states the conclusion of the figure}</figcaption>
-        <svg viewBox="0 0 560 220" role="img" aria-label="{Text alternative with the key values}"><!-- {chart or diagram} --></svg>
-        <p class="source">Source: <a href="{https://source/page}">{Source and chart name}</a>, {captured or retrieved date}.</p>
-      </figure>
-
-      <h2><span class="num">2</span>Options</h2>
+      <!-- Main text: about one page for a decision memo or proposal. Each section opens with a bold conclusion sentence.
+           Analyses replace Options and Recommendation with one section per finding; long report sections may close
+           with <p class="takeaways"><strong>Take-home messages:</strong> …</p>. -->
+      <h2><span class="num">1</span>Options</h2>
       <p><strong>{Conclusion of the comparison in one sentence.}</strong></p>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th scope="col">Option</th><th scope="col">{Cost}</th><th scope="col">{Risk}</th><th scope="col">{Time to value}</th></tr>
+            <tr><th scope="col">Option</th><th scope="col">{Criterion, such as cost}</th><th scope="col">{Criterion, such as main risk}</th><th scope="col">{Criterion, such as time to value}</th></tr>
           </thead>
           <tbody>
-            <tr><td><span class="opt">Option 1</span>{Do nothing}</td><td>{…}</td><td><span class="badge mid">{Medium}</span> {Why}</td><td>{…}</td></tr>
-            <tr class="recommended"><td><span class="opt">Option 2 <span class="badge rec">Recommended</span></span>{Recommended option}</td><td>{…}</td><td><span class="badge ok">{Low}</span> {Why}</td><td>{…}</td></tr>
-            <tr><td><span class="opt">Option 3</span>{Alternative}</td><td>{…}</td><td><span class="badge bad">{High}</span> {Why}</td><td>{…}</td></tr>
+            <tr><td><span class="opt">{Option A}</span>{Alternative}</td><td>{…}</td><td>{…}</td><td>{…}</td></tr>
+            <tr class="recommended"><td><span class="opt">{Option B} <span class="badge rec">Recommended</span></span>{Recommended option}</td><td>{…}</td><td>{…}</td><td>{…}</td></tr>
+            <tr><td><span class="opt">{Option C}</span>{Do nothing}</td><td>{…}</td><td>{…}</td><td>{…}</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h2><span class="num">3</span>Recommendation</h2>
-      <p><strong>{Choose Option N, and why, in one sentence.}</strong> {Assumptions, residual risks, and what would change the recommendation.}</p>
+      <h2><span class="num">2</span>Recommendation and risks</h2>
+      <p><strong>{Choose option X, and why, in one sentence.}</strong> {Main risks with their mitigations, and what would change the recommendation, in a few sentences.}</p>
 
-      <h2><span class="num">4</span>Next steps</h2>
+      <h2><span class="num">3</span>Next steps</h2>
       <div class="table-wrap">
         <table>
           <thead>
@@ -167,12 +151,25 @@
         </table>
       </div>
 
-      <!-- Annexes: methods, calculations, and sources for readers who want to check. -->
+      <!-- Annexes: key terms, figures, methods, calculations, and sources for readers who want to check. Delete the empty ones. -->
       <section class="annex">
-        <h2 id="annex-a">Annex A. Method and assumptions</h2>
+        <h2 id="annex-a">Annex A. Key terms</h2>
+        <dl class="terms" aria-labelledby="annex-a">
+          <dt>{Term or unit}</dt><dd>{What it means in plain words; for a metric, its unit and which direction is better.}</dd>
+        </dl>
+
+        <h2 id="annex-b">Annex B. Figure</h2>
+        <!-- A chart for numbers or trends, a diagram for a flow or timeline, or a cited source's image. -->
+        <figure class="chart" aria-labelledby="figure-1">
+          <figcaption id="figure-1">{Caption that states the conclusion of the figure}</figcaption>
+          <svg viewBox="0 0 560 220" role="img" aria-label="{Text alternative with the key values}"><!-- {chart or diagram} --></svg>
+          <p class="source">Source: <a href="{https://source/page}">{Source and chart name}</a>, {captured or retrieved date}.</p>
+        </figure>
+
+        <h2 id="annex-c">Annex C. Method and assumptions</h2>
         <p>{How each figure was computed: formula, inputs, and the range of each uncertain input.}</p>
 
-        <h2 id="annex-b">Annex B. Sources</h2>
+        <h2 id="annex-d">Annex D. Sources</h2>
         <ol>
           <li><a href="{https://primary.source/page}">{Source title}</a>, retrieved {date}.</li>
         </ol>

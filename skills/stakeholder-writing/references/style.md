@@ -1,6 +1,6 @@
 # Style for Busy Readers
 
-Defaults for documents read outside the session; adapt them when the reader or the destination calls for it. Where a guideline is easy to misread, a before and after example follows it.
+Defaults for text read outside the session; adapt them when the reader or the destination calls for it. Where a guideline is easy to misread, a before and after example follows it.
 
 ## Plain, literal language
 
@@ -14,9 +14,21 @@ After:
 
 > Running the nightly batch jobs on spot virtual machines would cut their compute cost by about 60%. Google can reclaim these machines at short notice in exchange for the lower price. The jobs already retry automatically, so a reclaimed machine delays a job by minutes rather than failing it. The main risk is missing the 7:00 report deadline when many machines are reclaimed at once.
 
+## Code formatting
+
+Use code formatting only for a command, path, or value the reader must type or copy. Write names, concepts, products, and settings as plain words, and use no code formatting at all for non-technical readers.
+
+Before:
+
+> The `invoice_export` job now writes to `exports-eu` with `retention_days=30`, so `finance-sync` reads the new path.
+
+After:
+
+> The invoice export now goes to the EU storage bucket and keeps files for 30 days. The finance sync already reads from the new location.
+
 ## Terms and metrics
 
-Put the terms, units, and metrics this reader may not know in a **Key terms** block right after the executive summary, one line each, and skip those they use daily, such as CVE for a security team. For a metric, give what it measures, its unit, and which direction is better, and its baseline where you use it. A short email or chat message defines its one or two terms inline instead.
+In a formal document, define inline the one or two terms the main text depends on, and list the other terms, units, and metrics this reader may not know in a **Key terms** annex, one line each, and skip those they use daily, such as CVE for a security team. For a metric, give what it measures, its unit, and which direction is better, and its baseline where you use it. Emails, chat messages, and short documents define their one or two terms inline instead.
 
 Before:
 
@@ -49,7 +61,7 @@ Titles and headings are short names for navigation; the conclusion goes in the b
 | Heading        | Moving the jobs keeps all data in the EU but adds two service accounts  | Security                                                                              |
 | First sentence | We reviewed the security of the move.                                   | **Moving the jobs keeps all data in the EU but adds two service accounts to manage.** |
 
-Put the metadata at the top, one field per line: type, status (draft or final), audience, author, and date.
+In a formal document, put the metadata at the top, one field per line: type, status (draft or final), audience, author, and date.
 
 > Type: Decision memo\
 > Status: Draft\
@@ -64,7 +76,7 @@ Close a section that runs past a few paragraphs or mixes several findings with a
 ## Examples, tables, and visuals
 
 - **Make abstract claims concrete**: "for example, the invoice job that runs at 2:00 and takes 40 minutes".
-- **Use a table for comparisons**: options or periods in rows, the same criteria in columns, numbered options, and the recommended row marked.
+- **Use a table for comparisons**: options or periods in rows, the same criteria in columns, options keeping the user's labels or numbered, and the recommended row marked.
 - **Flag ratings with a color and a word**: Low, Medium, High for risk, or Met, Partial, Not met for requirements, in green, amber, and red. Use the template's badges in HTML, because emoji depend on the reader's fonts, and 🟢 🟡 🔴 in Markdown and chat; never rely on color alone, and keep status marks out of running prose.
 - **Prefer a figure to a paragraph of numbers**: a chart for numbers and trends (inline SVG or matplotlib, following the host's data-visualization skill when it has one) and a diagram for a flow, an architecture, or a timeline. Give each a caption that states its conclusion and a table or text alternative.
 - **Quote third-party figures as a person would**: in a private document for a client team or a small circle, embed a cropped capture of the source's chart with a source line, link, and date; in a public one, redraw it from the published figures or get permission.
@@ -80,7 +92,7 @@ After:
 
 ## Links and sensitivity
 
-Links let the reader check a claim and follow up, so link generously, inline, where the reader needs them: vendor documentation, standards, and primary sources rather than articles about them, plus the internal documents, tickets, and dashboards the user provides. When an internal page exists but you lack its address, write a visible placeholder such as `{link to the usage dashboard}`.
+Links let the reader check a claim and follow up, so link generously, inline, where the reader needs them: vendor documentation, standards, and primary sources rather than articles about them, plus the internal documents, tickets, and dashboards the user provides. When an internal page exists but you lack its address, write a visible placeholder in plain text, such as {link to the usage dashboard}.
 
 Before adding a link, ask whether this reader can open it and should see what it reveals:
 
@@ -91,14 +103,14 @@ Before adding a link, ask whether this reader can open it and should see what it
 
 ## Destination and platform features
 
-A designed document is easier to read and earns trust, so make it beautiful by default: color in headings, the summary card, key-figure tiles, status badges, and framed figures, generous spacing, body text of at least 16 px on screen and 10 pt in print, and a layout that survives phone widths and printing. Use `~/.agents/DESIGN.md` (Fmind Theme) or customer branding if available, and prefer each platform's native features to hand-built imitations, because they render, navigate, and stay editable as the reader expects:
+A designed document is easier to read and earns trust, so make formal documents beautiful by default: color in headings, the summary card, key-figure tiles, status badges, and framed figures, generous spacing, body text of at least 16 px on screen and 10 pt in print, and a layout that survives phone widths and printing. Use `~/.agents/DESIGN.md` (Fmind Theme) or customer branding if available, and prefer each platform's native features to hand-built imitations, because they render, navigate, and stay editable as the reader expects:
 
 - **Standalone HTML**: the [report template](../templates/report.html), self-contained with embedded fonts and images so it renders the same offline and through email gateways.
 - **Markdown**: the [Markdown template](../templates/report.md), adapted to the renderer as its header comment explains.
 - **Zensical sites**: admonitions for take-home boxes and warnings, content tabs for per-option detail, Mermaid diagrams, collapsible blocks for annexes, and the abbreviations glossary as Key terms tooltips ([authoring](../../documentation-site/references/authoring.md)).
 - **GitHub Markdown**: `> [!IMPORTANT]` alerts for the ask, Mermaid diagrams, `<details>` blocks for annexes, and task lists for next steps.
 - **Google Docs**: through [draft-doc](../../draft-doc/SKILL.md), use native Drive Markdown (`.md`) for living, agent-maintained, or frequently updated documents, and a converted Google Doc (`.gdoc`) for polished client or stakeholder deliverables that need colors, highlights, alignment, or smart chips, and for multi-tab documents ([Docs Help](https://support.google.com/docs/answer/18289341)). Native `.md` renders ATX headings in the outline, GFM tables, checklists, footnotes, equations, and compiled Mermaid and SVG figures; it shows YAML frontmatter, `> [!IMPORTANT]` alerts, raw HTML, and HTML comments as text.
-- **Email and chat**: plain text or light formatting that the client shows reliably, with no external images; Slack and Chat support only a small Markdown subset.
+- **Email and chat**: short paragraphs and light formatting that the client shows reliably, with no headings, no external images, and at most one short list; Slack and Chat support only a small Markdown subset.
 
 ## Honest framing
 
