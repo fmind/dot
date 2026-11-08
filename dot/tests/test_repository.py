@@ -447,6 +447,38 @@ def test_status_emits_machine_readable_repository_state(tmp_path: Path) -> None:
     assert "error" not in document["repositories"][0]
 
 
+@pytest.mark.parametrize(
+    ("marker", "operation"),
+    [
+        ("rebase-merge", "rebase"),
+        ("rebase-apply", "rebase"),
+        ("MERGE_HEAD", "merge"),
+        ("CHERRY_PICK_HEAD", "cherry-pick"),
+        ("REVERT_HEAD", "revert"),
+    ],
+)
+def test_status_flags_an_interrupted_git_operation(tmp_path: Path, marker: str, operation: str) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "sample"
+    (repository / ".git" / marker).mkdir(parents=True)
+    runner = RecordingRunner(
+        {
+            STATUS_V2: [result(_V2_HEADER + "# branch.ab +0 -0\n")],
+            ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
+        },
+        {"git"},
+    )
+    state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    status = run_status(state, as_json=True, needs_attention=True)
+
+    assert status[0].operation == operation
+    assert isinstance(state.stdout, io.StringIO)
+    document = json.loads(state.stdout.getvalue())
+    assert document["needs_attention"] is True
+    assert document["repositories"][0]["operation"] == operation
+
+
 def test_status_omits_empty_optional_json_fields(tmp_path: Path) -> None:
     runner = RecordingRunner({}, {"git"})
     config = Config(pull=PullConfig(directories=[str(tmp_path)]))
