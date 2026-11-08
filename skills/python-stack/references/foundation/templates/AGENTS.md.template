@@ -6,7 +6,7 @@ Context and rules for AI agents working in this repository. Humans should start 
 
 - **Name**: <slug>
 - **Description**: <1-2 sentences on what this project does.>
-- **Language**: Python <major.minor>+ (`pyproject.toml`), managed with `uv`.
+- **Language**: Python <python_major_minor>+ (`pyproject.toml`), managed with `uv`.
 
 ## Setup & core commands
 

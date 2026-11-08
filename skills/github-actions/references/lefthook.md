@@ -10,32 +10,8 @@ Thin git hooks that delegate every command to a `mise run` task so hooks and CI 
 ## Workflow
 
 1. **Install**: pin `lefthook` in the repository's mise `[tools]`, Python projects included ([Python stack](../../python-stack/references/foundation/GUIDE.md)); never duplicate it in a package manager's dev dependencies.
-1. **Configure**: create `lefthook.yml` at the repository root from the stack-neutral template below; Python adds the `sort Python imports` and `format Python` jobs from the [python-stack template](../../python-stack/references/foundation/templates/lefthook.yml). The template calls the `check:local` and `check:network` tasks from the [task conventions](../../mise/references/task-conventions.md#conventions); a repository whose checks all run offline (no `check:network`) runs `mise run check` in pre-commit and drops the `scan vulnerabilities` job.
+1. **Configure**: copy `lefthook.yml` to the repository root from the [Python](../../python-stack/references/foundation/templates/lefthook.yml) or [OpenTofu](../../infra-as-code/templates/lefthook.yml) template; another stack keeps the shared jobs and swaps in its own formatters. The templates call the `check:local` and `check:network` tasks from the [task conventions](../../mise/references/task-conventions.md#conventions); a repository whose checks all run offline (no `check:network`) runs `mise run check` in pre-commit and drops the `check:network` job.
 1. **Activate**: `lefthook install`, wired into `mise run install`.
-
-## Template
-
-```yaml
-# Docs: https://lefthook.dev/configuration/
-
-# Jobs run in list order: formatters fix and restage only the staged files, then checks validate the tree.
-pre-commit:
-  jobs:
-    - name: format docs and config
-      glob: "*.{json,md,toml,yaml,yml}"
-      run: mise run format:dprint {staged_files}
-      stage_fixed: true
-    - name: check
-      run: mise run check:local
-pre-push:
-  parallel: true
-  jobs:
-    # Vulnerability and misconfiguration databases need the network; CI runs both through `check`.
-    - name: scan vulnerabilities
-      run: mise run check:network
-    - name: test
-      run: mise run test
-```
 
 ## Principles
 

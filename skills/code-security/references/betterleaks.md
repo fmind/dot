@@ -14,6 +14,7 @@ betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner  
 betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner     # check:leaks:full: complete history, the scheduled audit
 betterleaks git --unsafe-auto-load-config --redact=100 --staged --verbose --no-banner # ad hoc: only the change about to be committed
 betterleaks git --unsafe-auto-load-config --redact=100 --report-format sarif --report-path betterleaks.sarif
+betterleaks stdin --redact < <file> # outgoing text: PR bodies, prompts and diffs for another AI command; fail closed
 ```
 
 Since 1.10, betterleaks reads a target's `.betterleaks.toml` only with `--config <file>` or `--unsafe-auto-load-config`; without either, allowlists and custom rules are silently ignored. Use `--unsafe-auto-load-config` only on the project's own checkout (pass `--config` when the file must exist), never on untrusted targets. `--no-banner` removes decoration; keep `--verbose --redact=100` so finding locations remain actionable without revealing secret values. Full scans retain their scope; never pass `--validation` in hooks or CI so candidate secrets never leave the machine.

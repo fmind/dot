@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-11-07"
+  updated: "2026-11-08"
 ---
 
 # Git Delivery
@@ -25,7 +25,6 @@ Deliver only the authorized changes while preserving the index, branch intent, a
 
 - **Write one Conventional Commits subject**: `<type>(<scope>): <description>` with type `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`, `build`, `style`, or `revert`; imperative, under 72 characters, `!` after the type or scope for a breaking change, and no AI attribution or co-author trailers.
 - **Commit only the staged selection**: never auto-stage unrelated changes; on a hook failure or an empty index, report it and do not amend.
-- **Scan diffs sent to another AI command**: run `betterleaks stdin --redact` on the exact outgoing diff or prompt first and fail closed when the scan fails or is unavailable.
 
 ## Task guides
 

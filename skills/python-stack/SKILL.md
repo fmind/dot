@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-11-07"
+  updated: "2026-11-08"
 ---
 
 # Python Stack

@@ -11,7 +11,7 @@ Build browser utilities with Python components and event handlers. Use [gradio](
 
 1. **Start from the locked release**: inspect the project's locked NiceGUI version and dependency model, preserving packaged or PEP 723 setup. Locate and read its installed agent reference below before using online examples.
 1. **Build from the installed reference**: use that reference for components, page state, callbacks, and tests. Keep computation independently testable and local development bound to `127.0.0.1`.
-1. **Keep the layout Google-simple**: build one focused workspace (`max-w-3xl` for tools, `max-w-6xl` for data views) on the light `~/.agents/DESIGN.md` palette (white canvas, gray panels, its primary color, Google Sans and Google Sans Code; take values from the DESIGN.md export, never copies) unless the project specifies another brand. Expose only essential inputs and one primary action upfront, tuck advanced options into `ui.expansion`, and omit unrequested drawers, header bars, tabs, and KPI cards.
+1. **Keep the layout Google-simple**: build one focused workspace (`max-w-3xl` for tools, `max-w-6xl` for data views) on the light `~/.agents/DESIGN.md` palette per [web-frontend](../../web-frontend/SKILL.md) unless the project specifies another brand. Expose only essential inputs and one primary action upfront, tuck advanced options into `ui.expansion`, and omit unrequested drawers, header bars, tabs, and KPI cards.
 
 ## Installed reference
 

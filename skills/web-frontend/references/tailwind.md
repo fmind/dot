@@ -34,7 +34,7 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
    run = "tailwindcss -i assets/styles.css -o static/css/app.css --watch"
    ```
 1. **Build CSS before packaging**: make the production build depend on `build:css` before Django `collectstatic` or application packaging. Use `--watch=always` only for an intentional supervisor whose stdin closes; stop task-owned watchers after verification.
-1. **Prove source selection in production**: verify a clean production build includes a class used only in a nested template, a conditional class, and a class in Python-generated markup. Delete a class from the fixture and rebuild to check source selection. Inspect the rendered page and its CSS response with [playwright](../../playwright/SKILL.md), including keyboard and responsive states.
+1. **Prove source selection in production**: verify a clean production build includes a class used only in a nested template, a conditional class, and a class in Python-generated markup. Delete a class from the fixture and rebuild to check source selection. Inspect the rendered page and its CSS response with [chrome-devtools](../../chrome-devtools/SKILL.md), including keyboard and responsive states.
 
 ## Gotchas
 

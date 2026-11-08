@@ -147,7 +147,7 @@ jobs:
           gcloud run services describe "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
           gcloud run services get-iam-policy "$CLOUDRUN_SERVICE" --project "$GCP_PROJECT" --region "$GCP_REGION" --format=json > "$RUNNER_TEMP/service-iam.json"
           gcloud projects get-iam-policy "$GCP_PROJECT" --format=json > "$RUNNER_TEMP/project-iam.json"
-          python .github/scripts/verify-private.py "$RUNNER_TEMP" "$CLOUDRUN_SERVICE"
+          python3 .github/scripts/verify-private.py "$RUNNER_TEMP" "$CLOUDRUN_SERVICE"
       - name: Resolve the candidate revision
         id: candidate
         env:

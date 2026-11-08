@@ -8,17 +8,11 @@ The bundled example uses typed settings, SQLAlchemy async sessions with asyncpg,
 
 1. **Install the minimal dependency set**: add the runtime dependencies through [uv](../../../../python-stack/references/uv.md).
    ```bash
-   uv add 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.7' 'sqlalchemy[postgresql-asyncpg]>=2.1.6' 'pydantic>=2.14.2' 'pydantic-settings>=2.16.2' 'structlog>=26.1.0'
-   uv add --dev 'anyio>=4.15.1' 'testcontainers>=4.15.0'
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.7' 'sqlalchemy[postgresql-asyncpg]>=2.1.6' 'pydantic>=2.14.2' 'pydantic-settings>=2.16.2' 'structlog>=26.1.0'
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev 'anyio>=4.15.1' 'testcontainers>=4.15.0'
    ```
    These constraints preserve the example baseline; verify selected versions against the lock and installed APIs. The base package already ships the CLI, `TestClient`, msgspec, and Polyfactory: add `[jinja]` only when the service renders templates, and avoid `[standard]`, which installs a second ASGI server (uvicorn) next to Granian. Granian selects rloop, then uvloop, then asyncio at startup, so pin `[uvloop]` explicitly instead of inheriting it from another package. The `postgresql-asyncpg` extra installs asyncpg and greenlet for the `postgresql+asyncpg://` URL, so deptry needs no ignore.
-1. **Add the application entry points**: replace the foundation example with [init.py](../templates/init.py) at `src/<package>/__init__.py`. Add `src/<package>/__main__.py`:
-   ```python
-   from . import main
-
-   if __name__ == "__main__":
-       main()
-   ```
+1. **Add the application entry points**: replace the foundation example with [init.py](../templates/init.py) at `src/<package>/__init__.py` and [main.py](../../../../python-stack/references/typer/templates/main.py) as `src/<package>/__main__.py`.
 1. **Register the script and replace placeholders**: add `[project.scripts]` with `<slug> = "<package>:main"`. Replace placeholders throughout, including the import package used by Granian.
 1. **Configure settings before importing**: copy [env.example](../templates/env.example) to `.env.example` and the ignored `.env` before importing the application. Require `DATABASE_URL`, keep CORS closed unless explicitly configured, and use fake local values for offline qualification; the template `conftest.py` defaults `DATABASE_URL` to an unreachable database so CI runs the offline gate without `.env`. Add `[env]` with `_.file = ".env"` to `mise.toml`; [mise](../../../../mise/SKILL.md) owns dotenv loading.
 1. **Reload on watch; keep tests offline**: set the `watch` task to `uv run granian --interface asgi --reload <package>:app`. Keep the shared `test` task offline and the `test:integration` task opt-in.

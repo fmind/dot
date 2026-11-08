@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-11-07"
+  updated: "2026-11-08"
 ---
 
 # Full Review
@@ -27,11 +27,11 @@ Parse the request into one line and state it before starting: scope, exclusions 
 1. **Baseline**: record `git status --short`, staged and unstaged diffs, the last tag, and `git fetch` state. Existing uncommitted work is part of the candidate unless the user says otherwise; never discard or restage it. Run the existing gates once to separate preexisting failures from regressions.
 1. **Load decisions**: read `AGENTS.md`, `README.md`, skills, changelog, and stored decisions (agent memory, `## Decisions` notes, ADRs). Do not re-raise kept or declined choices; mention one only when a new change reopens it.
 1. **Inventory coverage**: list tracked files by area with `git ls-files`, minus exclusions and generated or vendored files. Track each area to reviewed; "don't scratch the surface" means no unread area. For large trees, fan out read-only reviews by area to subagents or one session per area when the host supports it, then verify every returned finding yourself before acting.
-1. **Review each dimension** in the [review matrix](references/review-matrix.md), plus what reviews here repeatedly request:
-   - **Works**: every task and CLI entry point runs clean with no warnings ([smoke](references/smoke/GUIDE.md)); production or deployed endpoints are probed read-only when they exist.
+1. **Review each dimension**; skip one only when it is out of scope, and name it in the report:
+   - **Works**: every task and CLI entry point runs clean with no warnings ([smoke](references/smoke/GUIDE.md)); tests are deterministic and cover failure and race paths; production or deployed endpoints are probed read-only when authorized.
    - **Current**: tools, dependencies, actions, and runtimes against their latest releases ([upgrade-tools](../upgrade-tools/SKILL.md)); report drift and upgrade when the request says so.
    - **Simple**: dead code (Python: vulture per [ruff](../python-stack/references/ruff.md#gotchas)), legacy paths, orphan files, stale config, unearned abstractions, and verbose docs ([trim](../trim/SKILL.md)); prefer deletion and consolidation, never a heavier mechanism.
-   - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; the layout follows its stack owner (such as [python-stack](../python-stack/SKILL.md)) and the [bootstrap layer](../project-scaffolding/references/bootstrap.md); hooks and CI call the canonical [mise](../mise/SKILL.md) tasks; ignore files fit the stack ([update-ignores](references/update-ignores/GUIDE.md)).
+   - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; the layout follows its stack owner (such as [python-stack](../python-stack/SKILL.md)) and the [bootstrap layer](../project-scaffolding/references/bootstrap.md); hooks and CI call the canonical [mise](../mise/SKILL.md) tasks; generated files (locks, indexes, formatted output) regenerate with no diff; version, changelog, and tags agree; ignore files fit the stack ([update-ignores](references/update-ignores/GUIDE.md)).
    - **Secure and private**: secrets, permissions, dependencies, and agent tools ([code-security](../code-security/SKILL.md)); private repositories stay private and public ones disclose nothing sensitive.
    - **Documented**: `README.md`, `AGENTS.md`, skills, and `*.md` match behavior, stay concise, and convince their audience ([repository-docs](../repository-docs/SKILL.md)); repeated instructions become skills ([skillify](../skillify/SKILL.md)).
    - **Fast**: slow tasks, tests, CI, or pages with a measured cause ([performance](../python-stack/references/performance.md)).
@@ -51,7 +51,7 @@ Place the candidate on the highest rung its evidence proves, and never collapse 
 - `deployed`: that artifact is running in the target environment.
 - `release-published`: the intended audience can obtain the released result ([release](../git-delivery/references/release/GUIDE.md)).
 
-Never borrow another revision's or environment's evidence: a green run, probe, or deployment elsewhere proves nothing about this candidate. A failed hard gate stays blocked regardless of schedule or sunk cost.
+Never borrow another revision's or environment's evidence: a green run, probe, or deployment elsewhere proves nothing about this candidate. A failed hard gate stays blocked regardless of schedule or sunk cost. Report every material gap above the highest proven rung, such as paths that need unavailable services, paid or destructive end-to-end scenarios, a scanner that timed out or ran on an offline database, or a missing credential.
 
 ## Severity
 

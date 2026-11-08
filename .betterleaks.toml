@@ -16,7 +16,7 @@ paths = ['''^dot_config/mise/locks/npm-firebase-tools/''']
 regexes = ['''@inquirer/password''']
 
 [[allowlists]]
-description = "CLI flag prose in auth-status (`gcloud auth application-default login`, `...`) is not a password assignment."
+description = "CLI flag prose in past auth-status revisions (`gcloud auth application-default login`, `...`) is not a password assignment; check:leaks:full still needs it."
 condition = "AND"
 regexTarget = "line"
 paths = ['''^skills/auth-status/SKILL\.md$''']
