@@ -119,6 +119,16 @@ def test_orphan_rejects_unreadable_state(dump: str) -> None:
         run_orphan(_state(ChezmoiRunner(dump, []))[0])
 
 
+def test_orphan_failure_names_the_chezmoi_cause() -> None:
+    class LockedRunner(ChezmoiRunner):
+        def run(self, args: Sequence[str], **_: object) -> CommandResult:
+            del args
+            return CommandResult("", "chezmoi: timeout obtaining persistent state lock\n", 1)
+
+    with pytest.raises(DotError, match=r"chezmoi state failed \(1\): chezmoi: timeout obtaining persistent state lock"):
+        run_orphan(_state(LockedRunner({}, []))[0])
+
+
 def test_orphan_requires_chezmoi() -> None:
     with pytest.raises(DotError, match="chezmoi"):
         run_orphan(_state(ChezmoiRunner({}, [], installed=False))[0])

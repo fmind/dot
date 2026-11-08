@@ -13,7 +13,7 @@ import typer
 
 from fmind_dot.command_group import JsonOption
 from fmind_dot.errors import DotError
-from fmind_dot.process import run_parallel
+from fmind_dot.process import diagnostic_line, run_parallel
 from fmind_dot.reporting import display_path, write_json
 from fmind_dot.state import State, require_tools, state_from
 
@@ -30,10 +30,18 @@ class Orphan:
     status: str
 
 
+def _chezmoi(state: State, *args: str) -> str:
+    result = state.runner.run(["chezmoi", *args], timeout=60, check=False)
+    if result.returncode != 0:
+        # chezmoi reports local causes, such as a state lock held by a running apply; show its first line.
+        detail = diagnostic_line(result.stderr or result.stdout) or "no output"
+        raise DotError(f"chezmoi {args[0]} failed ({result.returncode}): {detail}")
+    return result.stdout
+
+
 def _entry_state(state: State) -> dict[str, Any]:
-    result = state.runner.run(["chezmoi", "state", "dump", "--format=json"], timeout=60)
     try:
-        document = json.loads(result.stdout)
+        document = json.loads(_chezmoi(state, "state", "dump", "--format=json"))
     except json.JSONDecodeError as error:
         raise DotError(f"chezmoi state dump returned invalid JSON: {error}") from error
     entries = document.get("entryState") if isinstance(document, dict) else None
@@ -43,10 +51,8 @@ def _entry_state(state: State) -> dict[str, Any]:
 
 
 def _managed(state: State) -> set[str]:
-    result = state.runner.run(
-        ["chezmoi", "managed", "--include=all", "--path-style=absolute", "--nul-path-separator"], timeout=60
-    )
-    return {path for path in result.stdout.split("\0") if path}
+    output = _chezmoi(state, "managed", "--include=all", "--path-style=absolute", "--nul-path-separator")
+    return {path for path in output.split("\0") if path}
 
 
 def _sha256(path: Path) -> str:
