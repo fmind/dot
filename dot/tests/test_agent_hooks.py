@@ -382,7 +382,7 @@ def test_notification_dispatch_finds_the_user_bus_socket_without_an_exported_add
 
     (runtime / "bus").unlink()
     with socket.socket(socket.AF_UNIX) as bus:
-        bus.bind(str(runtime / "bus"))
+        bus.bind("run/bus")
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
     hooks.send_notification(make_state(runner), Notification("Done"))
     assert [call[0] for call in runner.calls] == ["notify-send"]
