@@ -34,7 +34,11 @@ def test_chat_preserves_unicode_newlines_shell_text_and_code(tmp_path: Path) -> 
     text = "*Update*\n- Médéric 😀\n`$(touch SHOULD_NOT_EXIST)` and `**kwargs`\n```\n# literal **code**\n```\n"
     result = run_helper(tmp_path, "chat_body", text, "--thread", "spaces/example/threads/topic", stdin=True)
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {"text": text, "thread": {"name": "spaces/example/threads/topic"}}
+    assert json.loads(result.stdout) == {
+        "text": text,
+        "markupSyntax": "MARKUP_SYNTAX_CHAT",
+        "thread": {"name": "spaces/example/threads/topic"},
+    }
     assert not (tmp_path / "SHOULD_NOT_EXIST").exists()
     assert result.stderr == ""
 

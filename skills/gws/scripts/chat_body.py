@@ -34,9 +34,8 @@ def build_body(text: str, syntax: str, thread: str | None = None) -> dict:
             raise ValueError("Markdown bold/link found: use --syntax markdown or author native Chat markup.")
     if fence:
         raise ValueError("Close the triple-backtick code block before preparing the message.")
-    body = {"text": text}
-    if syntax == "markdown":
-        body["markupSyntax"] = "MARKUP_SYNTAX_MARKDOWN"
+    # Always name the syntax: without it a project with no Chat app setting renders Markdown.
+    body = {"text": text, "markupSyntax": "MARKUP_SYNTAX_MARKDOWN" if syntax == "markdown" else "MARKUP_SYNTAX_CHAT"}
     if thread:
         if not re.fullmatch(r"spaces/[^/\s]+/threads/[^/\s]+", thread):
             raise ValueError("Thread must be an observed spaces/SPACE/threads/THREAD resource name.")
