@@ -86,6 +86,8 @@ PRIVACY_SKIP_PATHS = {
 }
 PRIVACY_SKIP_PREFIXES = ("dot_config/mise/locks/",)
 SAFE_HOST_TOKENS = {
+    # A pull directory such as ~/.local/share/chezmoi contributes its public tool name.
+    "chezmoi",
     "courses",
     "debian",
     "default",
@@ -414,8 +416,10 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
     if dot_yaml.is_file():
         try:
             config = yaml.safe_load(dot_yaml.read_text(encoding="utf-8"))
-        except OSError, yaml.YAMLError:
-            config = None
+        except (OSError, yaml.YAMLError) as error:
+            # Fail closed: skipping the file would silently drop every local token from the check.
+            msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error})"
+            raise ValueError(msg) from error
     # privacy.allowed_tokens exempts already-public names without writing them into this repository.
     safe = set(SAFE_HOST_TOKENS)
     privacy = config.get("privacy") if isinstance(config, dict) else None
@@ -475,7 +479,12 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
     """Check tracked sources and git history for unapproved email domains and local host tokens."""
     root = root.resolve()
     resolved_home = (home if home is not None else Path.home()).resolve()
-    tokens = _workstation_tokens(resolved_home, include_hostname=(home is None and root == ROOT))
+    findings: list[str] = []
+    try:
+        tokens = _workstation_tokens(resolved_home, include_hostname=(home is None and root == ROOT))
+    except ValueError as error:
+        findings.append(str(error))
+        tokens = set()
     token_pattern = (
         re.compile(
             r"(?<![A-Za-z0-9])(?:"
@@ -503,7 +512,6 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
             if path.is_file() and not path.is_symlink()
         ]
 
-    findings: list[str] = []
     for relative in sorted(relatives):
         if relative in PRIVACY_SKIP_PATHS or relative.startswith(PRIVACY_SKIP_PREFIXES) or relative.endswith(".age"):
             continue

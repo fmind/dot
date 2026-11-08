@@ -534,6 +534,20 @@ def test_privacy_allowed_tokens_exempt_public_names_from_local_config(
     assert checker._workstation_tokens(home, include_hostname=True) == {"acme-corp"}
 
 
+def test_privacy_findings_fail_closed_on_invalid_local_config(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "sample.py").write_text('OK = "alice@example.com"\n', encoding="utf-8")
+    home = tmp_path / "home"
+    (home / ".config").mkdir(parents=True)
+    (home / ".config/dot.yaml").write_text("trust:\n  github_owners: [acme-corp\n", encoding="utf-8")
+
+    findings = checker.privacy_findings(repo, home=home)
+
+    assert len(findings) == 1
+    assert "dot.yaml: cannot load local privacy tokens" in findings[0]
+
+
 def test_privacy_findings_rejects_ssh_key_comments_naming_machines(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
