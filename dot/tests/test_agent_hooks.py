@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import wave
 from io import StringIO
 from pathlib import Path
@@ -334,24 +335,57 @@ def test_notification_dispatch_skips_unsupported_hosts_and_redacts_backend_failu
     assert "secret" not in str(raised.value)
 
 
-def test_notification_dispatch_skips_missing_desktop_service(monkeypatch: pytest.MonkeyPatch) -> None:
-    runner = ScriptedRunner(
-        {"notify-send"},
-        run=lambda _args, _cwd, _input_text, _check: CommandResult(
-            "",
-            "GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: "
-            "The name org.freedesktop.Notifications was not provided by any .service files",
-            1,
-        ),
+def _no_notification_service(args: list[str], _cwd: object, _input_text: object, _check: bool) -> CommandResult:
+    if args[0] != "notify-send":
+        return CommandResult("", "", 0)
+    return CommandResult(
+        "",
+        "GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: "
+        "The name org.freedesktop.Notifications was not provided by any .service files",
+        1,
     )
+
+
+@pytest.mark.parametrize(("sound", "expected"), [(False, ["notify-send"]), (True, ["notify-send", "paplay"])])
+def test_notification_dispatch_skips_missing_desktop_service_but_keeps_the_chime(
+    monkeypatch: pytest.MonkeyPatch, sound: bool, expected: list[str]
+) -> None:
+    runner = ScriptedRunner({"notify-send", "paplay"}, run=_no_notification_service)
     state = make_state(runner)
     monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/bus")
 
-    hooks.send_notification(state, hooks.Notification("Done"))
+    hooks.send_notification(state, hooks.Notification("Done"), sound=sound)
 
+    assert [call[0] for call in runner.calls] == expected
     assert isinstance(state.stderr, StringIO)
     assert "notification skipped: no desktop notification service" in state.stderr.getvalue()
+
+
+def test_notification_dispatch_finds_the_user_bus_socket_without_an_exported_address(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(hooks.platform, "system", lambda: "Linux")
+    monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
+    runtime = tmp_path / "run"
+    runtime.mkdir()
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
+    runner = ScriptedRunner({"notify-send"})
+
+    hooks.send_notification(make_state(runner), Notification("Done"))
+    (runtime / "bus").write_text("")  # a regular file is not a bus
+    hooks.send_notification(make_state(runner), Notification("Done"))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", "run")  # relative runtime directories are ignored
+    monkeypatch.chdir(tmp_path)
+    hooks.send_notification(make_state(runner), Notification("Done"))
+    assert runner.calls == []
+
+    (runtime / "bus").unlink()
+    with socket.socket(socket.AF_UNIX) as bus:
+        bus.bind(str(runtime / "bus"))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
+    hooks.send_notification(make_state(runner), Notification("Done"))
+    assert [call[0] for call in runner.calls] == ["notify-send"]
 
 
 def test_notification_text_is_short_and_has_no_terminal_controls() -> None:

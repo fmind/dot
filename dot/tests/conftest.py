@@ -27,8 +27,9 @@ def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def isolated_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep suites run inside Zellij from querying the live session or writing the real cache."""
-    for key in ("ZELLIJ", "ZELLIJ_PANE_ID", "ZELLIJ_SESSION_NAME", "XDG_CACHE_HOME"):
+    """Keep suites run inside Zellij or a desktop session from querying the live session, its user bus,
+    or writing the real cache."""
+    for key in ("ZELLIJ", "ZELLIJ_PANE_ID", "ZELLIJ_SESSION_NAME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR"):
         monkeypatch.delenv(key, raising=False)
 
 

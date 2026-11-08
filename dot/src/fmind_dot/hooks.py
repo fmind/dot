@@ -245,9 +245,22 @@ def read_hook_payload(stream: IO[str] | None) -> dict[str, Any] | None:
     return decoded
 
 
+def session_bus_available() -> bool:
+    """Find the user bus as GLib and sd-bus do: the exported address, else `$XDG_RUNTIME_DIR/bus`.
+
+    Sessions started without pam_systemd, such as ttyd tabs in Android's Linux terminal VM, keep the
+    socket but not the variable; notify-send still reaches the bus there through the same fallback.
+    """
+    if os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
+        return True
+    runtime = os.environ.get("XDG_RUNTIME_DIR", "")
+    # The XDG spec ignores a relative runtime directory.
+    return Path(runtime).is_absolute() and (Path(runtime) / "bus").is_socket()
+
+
 def send_notification(state: State, notification: Notification, *, sound: bool = False) -> None:
     host = platform.system().lower()
-    if host not in {"darwin", "linux"} or (host == "linux" and not os.environ.get("DBUS_SESSION_BUS_ADDRESS")):
+    if host not in {"darwin", "linux"} or (host == "linux" and not session_bus_available()):
         return
     command = notification_command(state.runner, notification, system=host, sound=sound)
     try:
@@ -255,12 +268,11 @@ def send_notification(state: State, notification: Notification, *, sound: bool =
     except (DotError, OSError) as error:
         raise DotError(f"failed to send desktop notification with {command[0]}") from error
     if result.returncode != 0:
-        # A session bus can exist in a container without a desktop notification
-        # service. Treat that like a headless session, not a failed agent turn.
-        if result.stderr.startswith("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown:"):
-            state.stderr.write("Desktop notification skipped: no desktop notification service.\n")
-            return
-        raise DotError(f"failed to send desktop notification with {command[0]}")
+        if not result.stderr.startswith("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown:"):
+            raise DotError(f"failed to send desktop notification with {command[0]}")
+        # A session bus can exist without a desktop notification service (containers, Android's
+        # Linux terminal VM): skip the banner, not the turn, and keep the chime, which needs only audio.
+        state.stderr.write("Desktop notification skipped: no desktop notification service.\n")
     if sound and host == "linux":
         play_chime(state.runner)
 
