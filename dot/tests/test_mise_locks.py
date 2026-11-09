@@ -227,6 +227,8 @@ def test_retire_installs_removes_superseded_graphs_and_repoints_dangling_symlink
     keep_project = _uv_install(uv_tool, "1.0~uv~projecthash", current_bytes, py_project)
     stale_graph = _uv_install(uv_tool, "1.0~uv~oldgraph", b"old lock\n", py_current)
     stale_python = _uv_install(uv_tool, "1.0~uv~oldpython", current_bytes, py_removed)
+    stale_plain = uv_tool / "1.0"
+    stale_plain.mkdir()
     project_version = _uv_install(uv_tool, "0.8.0~uv~projectpin", b"project lock\n", py_current)
     plain_version = uv_tool / "0.9.0"
     plain_version.mkdir()
@@ -243,12 +245,13 @@ def test_retire_installs_removes_superseded_graphs_and_repoints_dangling_symlink
     stale_aube.mkdir(parents=True)
     (stale_aube / "aube-lock.yaml").write_bytes(b"old aube\n")
 
-    assert retire_installs(lock, installs) == [stale_graph, stale_python, stale_aube]
+    assert retire_installs(lock, installs) == [stale_plain, stale_graph, stale_python, stale_aube]
     assert keep_global.is_dir()
     assert keep_project.is_dir()
     assert plain_version.is_dir()
     assert project_version.is_dir()
     assert keep_aube.is_dir()
+    assert not stale_plain.exists()
     assert not stale_graph.exists()
     assert not stale_python.exists()
     assert not stale_aube.exists()

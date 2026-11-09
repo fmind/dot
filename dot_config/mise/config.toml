@@ -6,7 +6,7 @@
 # attestations) is deliberately off: upstream attestation coverage is too patchy to
 # gate routine upgrades on. npm provenance (default since mise 2026.11.1) and packslip
 # signatures stay on. The lockfile records a digest for every download and conda
-# dependency, and dot/dot_tasks/mise_refresh.py refuses a lock that misses one.
+# dependency, and dot/dot_tasks/mise_refresh.py refuses a lock whose tool download misses one.
 # Lock revision 4 records supported npm and pypi dependency graphs in locks/; keep these
 # native files with mise.lock and install with --locked. First fetches are unverified.
 aqua.cosign = false
@@ -91,17 +91,20 @@ SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 # npm, not aqua: upstream's standalone macOS binary is x86_64-only, so it would need Rosetta on Apple Silicon.
 "npm:firebase-tools" = "latest" # Official Firebase CLI (firebase) for Hosting, Firestore, Auth, and Rules
 "npm:skills" = "latest" # Agent Skills CLI manager
-"pypi:brain-framework" = "latest" # Brain Framework CLI (bf)
-"pypi:copier" = "latest" # Default project template generator and updater
-"pypi:fmind" = "latest" # Fmind portfolio reader; renders www.fmind.dev from the terminal
+# Bind pypi tools to the global Python minor so project python pins neither re-hash them nor hit missing 3.15 wheels.
+# Temporary `with`: bf 21.3.0 allows typer <1 but passes a context to get_error_hint(), which typer 0.29
+# removed, so every subcommand fails. Drop it once brain-framework caps typer itself.
+"pypi:brain-framework" = { version = "latest", python = "3.14", with = ["typer<0.29"] } # Brain Framework CLI (bf)
+"pypi:copier" = { version = "latest", python = "3.14" } # Default project template generator and updater
+"pypi:fmind" = { version = "latest", python = "3.14" } # Fmind portfolio reader; renders www.fmind.dev from the terminal
 # Let google-colab-cli select its compatible jupyter-kernel-client version;
 # an additional `with` pin can conflict with its exact upstream requirement.
-"pypi:google-colab-cli" = "latest" # CLI client for Google Colab
-"pypi:huggingface_hub" = "latest" # Hugging Face Hub CLI client
+"pypi:google-colab-cli" = { version = "latest", python = "3.14" } # CLI client for Google Colab
+"pypi:huggingface_hub" = { version = "latest", python = "3.14" } # Hugging Face Hub CLI client
 # Keep `with`: kaggle 2.2.5 imports six without declaring it, and python-dateutil 4 no longer brings it.
-"pypi:kaggle" = { version = "latest", with = ["six"] } # Kaggle dataset and competition CLI
+"pypi:kaggle" = { version = "latest", python = "3.14", with = ["six"] } # Kaggle dataset and competition CLI
 # Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
-"pypi:pgcli" = { version = "latest", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
+"pypi:pgcli" = { version = "latest", python = "3.14", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
 acli = "latest" # Atlassian CLI for Jira and Confluence from the terminal
 age = "latest" # Simple and secure file encryption tool
 ast-grep = "latest" # Code structural search, lint, and rewrite tool

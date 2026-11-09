@@ -22,12 +22,18 @@ def validate(configuration: Path, config_name: str = "config.toml") -> None:
     config = tomllib.loads((configuration / config_name).read_text(encoding="utf-8"))
     lock = tomllib.loads((configuration / "mise.lock").read_text(encoding="utf-8"))
     findings: list[str] = []
+    python_version = config["tools"].get("python")
     for name, settings in config["tools"].items():
         entries = lock["tools"].get(name, [])
         if not entries or any(not entry.get("version") for entry in entries):
             findings.append(f"{name}: missing locked version")
             continue
         if name.startswith(("npm:", "pypi:")):
+            if name.startswith("pypi:") and isinstance(python_version, str):
+                if not isinstance(settings, dict) or settings.get("python") != python_version:
+                    findings.append(f"{name}: missing python = {python_version!r}")
+                elif any(entry.get("options", {}).get("python") != python_version for entry in entries):
+                    findings.append(f"{name}: lock options missing python = {python_version!r}")
             # Native dependency graphs are verified by bundle() below.
             if any(not {"aube", "uv"}.intersection(entry) for entry in entries):
                 findings.append(f"{name}: missing dependency graph")

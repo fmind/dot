@@ -17,9 +17,6 @@ require("lazy").setup({
     { "LazyVim/LazyVim", import = "lazyvim.plugins" },
     { import = "plugins" },
   },
-  defaults = {
-    version = false,
-  },
   rocks = {
     enabled = false,
   },
@@ -31,7 +28,6 @@ require("lazy").setup({
         "gzip",
         "netrwPlugin",
         "tarPlugin",
-        "tohtml",
         "tutor",
         "zipPlugin",
       },

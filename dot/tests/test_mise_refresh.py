@@ -180,6 +180,37 @@ def test_validate_reports_every_unverifiable_platform_artifact(tmp_path: Path) -
         mise_refresh.validate(tmp_path)
 
 
+def test_validate_requires_pypi_tools_to_bind_to_global_python(tmp_path: Path) -> None:
+    write_bundle(tmp_path)
+    config = tmp_path / "config.toml"
+    lock = tmp_path / "mise.lock"
+    config.write_text(config.read_text() + 'python = "3.14"\n')
+    lock.write_text(
+        lock.read_text()
+        + '[[tools.python]]\nversion = "3.14.10"\n'
+        + '[tools.python."platforms.linux-x64"]\nurl = "https://example.org/py-linux"\nchecksum = "sha256:py-linux"\n'
+        + '[tools.python."platforms.macos-arm64"]\nurl = "https://example.org/py-macos"\nchecksum = "sha256:py-macos"\n'
+    )
+    with pytest.raises(ValueError, match=r"pypi:example: missing python = '3\.14'"):
+        mise_refresh.validate(tmp_path)
+
+    config.write_text(
+        config.read_text().replace(
+            '"pypi:example" = "latest"', '"pypi:example" = {version = "latest", python = "3.14"}'
+        )
+    )
+    with pytest.raises(ValueError, match=r"pypi:example: lock options missing python = '3\.14'"):
+        mise_refresh.validate(tmp_path)
+
+    lock.write_text(
+        lock.read_text().replace(
+            '[[tools."pypi:example"]]\nversion = "1.0"\n',
+            '[[tools."pypi:example"]]\nversion = "1.0"\noptions = {python = "3.14"}\n',
+        )
+    )
+    mise_refresh.validate(tmp_path)
+
+
 def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

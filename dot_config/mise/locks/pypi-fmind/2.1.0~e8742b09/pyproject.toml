@@ -1,5 +1,5 @@
 [project]
 name = "mise-pypi-tool-environment"
 version = "0.0.0"
-requires-python = ">=3.10"
-dependencies = ["copier==9.19.1"]
+requires-python = "==3.14.*"
+dependencies = ["fmind==2.1.0"]

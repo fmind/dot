@@ -186,12 +186,13 @@ def retire_installs(lock: Path, installs: Path) -> list[Path]:
             if candidate.is_symlink() or not candidate.is_dir():
                 continue
             parts = candidate.name.split("~")
-            if len(parts) != 3 or parts[1] not in _GRAPH_FILES or not parts[0] or not parts[2]:
-                continue
             # Other versions belong to project pins; `mise prune` owns them.
             if not any(version == parts[0] for version, _, _ in allowed):
                 continue
-            if _valid_install(candidate, parts[0], parts[1], allowed):
+            if len(parts) == 3 and parts[1] in _GRAPH_FILES and parts[2]:
+                if _valid_install(candidate, parts[0], parts[1], allowed):
+                    continue
+            elif len(parts) != 1:
                 continue
             shutil.rmtree(candidate)
             retired.append(candidate)

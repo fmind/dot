@@ -2355,50 +2355,50 @@ conda_deps = [
 ]
 
 [[tools.copilot]]
-version = "1.0.107"
+version = "1.0.108"
 backend = "aqua:github/copilot-cli"
 specifiers = ["latest"]
 
 [tools.copilot."platforms.linux-arm64"]
-checksum = "sha256:28c9c911af64521821ba908dc1866bf4bfd1705cd9b3320abc2353704de952a0"
+checksum = "sha256:b0c78c49543bb8a1163e812dcd0601a5ff1ffc067889add6351b0568d76772e6"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.107/copilot-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/718482637"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.108/copilot-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/728128470"
 
 [tools.copilot."platforms.linux-x64"]
-checksum = "sha256:aff04181566f637010a88e68ea145ac1515ec596fae3890d06d81bb8c4be0c4e"
+checksum = "sha256:4c14e320c5cd10234ad56cba855509206e4518e1c04a780ac05a8e1c124bd97d"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.107/copilot-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/718482878"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.108/copilot-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/728129070"
 
 [tools.copilot."platforms.macos-arm64"]
-checksum = "sha256:85c58e1ba11a5869c9f5f59017571674ef6199e474c118caad3cb23ebe99448a"
+checksum = "sha256:567198e7cd947f5b05bef7f036116e6286ddcd8286ec45830082b28c664dbfb0"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.107/copilot-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/718482636"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.108/copilot-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/728128461"
 
 [[tools.databricks-cli]]
-version = "1.24.0"
+version = "1.25.0"
 backend = "aqua:databricks/cli"
 specifiers = ["latest"]
 
 [tools.databricks-cli."platforms.linux-arm64"]
-checksum = "sha256:627543c1fb07d5eac290823b70779b8de73819684f8a1c84355761f80f7f4097"
+checksum = "sha256:ae538f2d8cf9ff8b194f8f15ac37a5ba8eee02685f49782c91a189a5511b88b7"
 checksum_source = "mise-versions"
-url = "https://github.com/databricks/cli/releases/download/v1.24.0/databricks_cli_1.24.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/databricks/cli/releases/assets/709863052"
+url = "https://github.com/databricks/cli/releases/download/v1.25.0/databricks_cli_1.25.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/databricks/cli/releases/assets/727686722"
 
 [tools.databricks-cli."platforms.linux-x64"]
-checksum = "sha256:aa66bcabb237e4849aa153deaf9ba8d97cf501887bf2f3051b049f1c2b9afb6c"
+checksum = "sha256:fbf7cabcece4a139b8dbcc217a9f2bac478d1577310b5043c49129093f173c37"
 checksum_source = "mise-versions"
-url = "https://github.com/databricks/cli/releases/download/v1.24.0/databricks_cli_1.24.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/databricks/cli/releases/assets/709862991"
+url = "https://github.com/databricks/cli/releases/download/v1.25.0/databricks_cli_1.25.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/databricks/cli/releases/assets/727686688"
 
 [tools.databricks-cli."platforms.macos-arm64"]
-checksum = "sha256:6bfdf97da49a11adf610b560c37c0ee002db6410faa0e0f4bc09d91af388eaf8"
+checksum = "sha256:be83411a8cc52b669f70fa7748c1e31b2a91fd4c80730f5982e9a318387758a7"
 checksum_source = "mise-versions"
-url = "https://github.com/databricks/cli/releases/download/v1.24.0/databricks_cli_1.24.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/databricks/cli/releases/assets/709862923"
+url = "https://github.com/databricks/cli/releases/download/v1.25.0/databricks_cli_1.25.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/databricks/cli/releases/assets/727686645"
 
 [[tools.delta]]
 version = "0.20.1"
@@ -3782,7 +3782,7 @@ specifiers = ["latest"]
 
 [[tools."npm:firebase-tools"]]
 version = "15.35.0"
-aube = { path = "locks/npm-firebase-tools/15.35.0", digest = "sha256:26fb6ece403628d9255828f821d35865ef6ac51dfb5f4fcb1dd821437f75dac2" }
+aube = { path = "locks/npm-firebase-tools/15.35.0", digest = "sha256:3f795a2835603bfb2e548ea8d12d763311c432f924e0ffa30116ec901a714b5d" }
 backend = "npm:firebase-tools"
 specifiers = ["latest"]
 
@@ -3816,51 +3816,69 @@ url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714325678"
 
 [[tools."pypi:brain-framework"]]
-version = "21.2.0"
+version = "21.3.0"
 backend = "pypi:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-brain-framework/21.2.0", digest = "sha256:33aa15374671a971bcbc626bd1665bcf15bb795676e2fc5c856cce1b78e5121b" }
+uv = { path = "locks/pypi-brain-framework/21.3.0~900352df", digest = "sha256:28c07dd7346b4115f8c1c8426c3b682a78af493bae23619917bab11767fdd432" }
+
+[tools."pypi:brain-framework".options]
+python = "3.14"
+with = '["typer<0.29"]'
 
 [[tools."pypi:copier"]]
 version = "9.19.1"
 backend = "pypi:copier"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-copier/9.19.1", digest = "sha256:09f1ae120319f2ea0925b80ce9b8786da5a090e34926e091dbe2c543e8edb4c7" }
+uv = { path = "locks/pypi-copier/9.19.1~3571cf8b", digest = "sha256:798f0490e3a1fe80a834d7ecd5e0629ac23de45a818accc37d28b47e0a245ddd" }
+
+[tools."pypi:copier".options]
+python = "3.14"
 
 [[tools."pypi:fmind"]]
-version = "2.0.5"
+version = "2.1.0"
 backend = "pypi:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-fmind/2.0.5", digest = "sha256:31cc10decabd7017403fc7d74ca6d72aae15c189f3a0c323774e121037c1ce7f" }
+uv = { path = "locks/pypi-fmind/2.1.0~e8742b09", digest = "sha256:931d0678fdd265cd1875aa7f0fcfc110102e1d6f48015091eb338ae7f1401cac" }
+
+[tools."pypi:fmind".options]
+python = "3.14"
 
 [[tools."pypi:google-colab-cli"]]
 version = "0.7.5"
 backend = "pypi:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-google-colab-cli/0.7.5", digest = "sha256:94c265d45af054fb8d7a0efa113dec0d94b807cbb38d264199997ba0f6a52152" }
+uv = { path = "locks/pypi-google-colab-cli/0.7.5~37dcb5ee", digest = "sha256:3e0c1e17fd8598c5cb9546879510d710585b25da843a2ffbd2f592df98214193" }
+
+[tools."pypi:google-colab-cli".options]
+python = "3.14"
 
 [[tools."pypi:huggingface_hub"]]
 version = "2.4.0"
 backend = "pypi:huggingface_hub"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-huggingface-hub/2.4.0", digest = "sha256:56e8288b3e212be8958d3c0ad74867c4c8009d244bf3ca31efa004b40ef8d7b2" }
+uv = { path = "locks/pypi-huggingface-hub/2.4.0~2b5d816f", digest = "sha256:a26d01b8712e2a4ee1e0fb419642043b9b6cd18375650040fb821264c80b9f30" }
+
+[tools."pypi:huggingface_hub".options]
+python = "3.14"
 
 [[tools."pypi:kaggle"]]
 version = "2.2.5"
 backend = "pypi:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-kaggle/2.2.5~94defad5", digest = "sha256:839fb2ecd7629d910b6196ab563a00118971fa8314a01098b27d0310fc31670f" }
+uv = { path = "locks/pypi-kaggle/2.2.5~35e9d436", digest = "sha256:efe84121d4cf375ea1f745a147a0bba776ee2fab8d62c5a21fb494c69093d1c5" }
 
 [tools."pypi:kaggle".options]
+python = "3.14"
 with = '["six"]'
 
 [[tools."pypi:pgcli"]]
 version = "4.7.1"
 backend = "pypi:pgcli"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-pgcli/4.7.1~94cd8332", digest = "sha256:908f1484956d9d0ddf4b00d0c82817ae2e0f651dd5ee1086fc576d1a6b2ba9bf" }
+uv = { path = "locks/pypi-pgcli/4.7.1~8ddab439", digest = "sha256:ab15db51777ccad9ecf414298815d35afa63c129828073c54783b968790b989e" }
 
 [tools."pypi:pgcli".options]
+python = "3.14"
 with = '["psycopg[binary]"]'
 
 [[tools.python]]
@@ -4072,27 +4090,27 @@ url = "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-m
 url_api = "https://api.github.com/repos/JohnnyMorganz/StyLua/releases/assets/628185466"
 
 [[tools.tflint]]
-version = "0.65.0"
+version = "0.66.0"
 backend = "aqua:terraform-linters/tflint"
 specifiers = ["latest"]
 
 [tools.tflint."platforms.linux-arm64"]
-checksum = "sha256:843017c47a98be1de4d88fa038daa293770fe25cd01656c4f08b2e30d1d3b3a0"
+checksum = "sha256:1105a0a5ddee7cdac7957a3475571a946b839192ea1bc0c722c6c4686001067e"
 checksum_source = "mise-versions"
-url = "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_arm64.zip"
-url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/666566936"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.66.0/tflint_linux_arm64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/724463994"
 
 [tools.tflint."platforms.linux-x64"]
-checksum = "sha256:d4c545ed2e29d6338604b586f34f544f380f70f243aa72f7b484713835eaec61"
+checksum = "sha256:22be11cadc25cd02401e94c0ccc91aa63467debb8485c2a755d98f4c0a9d1e2e"
 checksum_source = "mise-versions"
-url = "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_amd64.zip"
-url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/666566850"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.66.0/tflint_linux_amd64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/724464090"
 
 [tools.tflint."platforms.macos-arm64"]
-checksum = "sha256:5a71c63481ba56760864298011fdb7317a9ae80a0bbaeceefa35883c7f62ac71"
+checksum = "sha256:859b26af07ead7e65cee7eec9d050b2e2571dc28395b7a39191cae088cd67803"
 checksum_source = "mise-versions"
-url = "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_darwin_arm64.zip"
-url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/666566854"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.66.0/tflint_darwin_arm64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/724463988"
 
 [[tools.tree-sitter]]
 version = "0.27.2"
@@ -4292,27 +4310,27 @@ url = "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-aarch64-app
 url_api = "https://api.github.com/repos/sxyazi/yazi/releases/assets/539261410"
 
 [[tools.yq]]
-version = "4.54.2"
+version = "4.54.3"
 backend = "aqua:mikefarah/yq"
 specifiers = ["latest"]
 
 [tools.yq."platforms.linux-arm64"]
-checksum = "sha256:bd44211dcd29a5f0eb701d4b7eb5ccd0cfff3bd3966cb4f7f9bd5b13701d997e"
+checksum = "sha256:89f69310b61b68d1245065a1241d1fc843f7a36cd6103ffd77ad987613bd1b67"
 checksum_source = "mise-versions"
-url = "https://github.com/mikefarah/yq/releases/download/v4.54.2/yq_linux_arm64"
-url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/715419591"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219924"
 
 [tools.yq."platforms.linux-x64"]
-checksum = "sha256:44c7759059b4910827a0059a2757b22001e59360cdecdb2ef8dedc4b6c7e9f32"
+checksum = "sha256:129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973"
 checksum_source = "mise-versions"
-url = "https://github.com/mikefarah/yq/releases/download/v4.54.2/yq_linux_amd64"
-url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/715419583"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219936"
 
 [tools.yq."platforms.macos-arm64"]
-checksum = "sha256:34923a7ca09a32a4257702ced5f7f2e5e83b16968cce3866f5ff830e4ce1cdd4"
+checksum = "sha256:a2aebb93b5bdcb61bb76f630e42a0ef6a3ee10842a6516cd7b9e4080786ec593"
 checksum_source = "mise-versions"
-url = "https://github.com/mikefarah/yq/releases/download/v4.54.2/yq_darwin_arm64"
-url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/715419585"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_darwin_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219940"
 
 [[tools.zellij]]
 version = "0.45.1"
