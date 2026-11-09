@@ -142,8 +142,8 @@ def _parse_json_stdout(stdout: str, context: str) -> dict[str, Any]:
     return data
 
 
-def _run_gws(args: list[str], context: str, *, cwd: Path | None = None) -> dict[str, Any]:
-    """Execute a gws command and return its parsed JSON object, retrying once on transient HTTP errors."""
+def _run_gws(args: list[str], context: str, *, cwd: Path) -> dict[str, Any]:
+    """Execute a gws command in cwd and return its parsed JSON object, retrying once on transient HTTP errors."""
     gws_bin = shutil.which("gws")
     if not gws_bin:
         raise RuntimeError("`gws` not found in PATH; install @googleworkspace/cli (e.g. `mise install`).")
@@ -173,31 +173,14 @@ def _run_gws(args: list[str], context: str, *, cwd: Path | None = None) -> dict[
     raise RuntimeError(f"{context} failed: {last_msg}")
 
 
-def resolve_send_as(
-    from_email: str | None = None,
-    sendas_json_path: Path | None = None,
-) -> dict[str, Any]:
+def resolve_send_as(from_email: str | None, *, cwd: Path) -> dict[str, Any]:
     """Fetch the sender's sendAs profile and HTML signature from Gmail settings."""
-    if sendas_json_path is not None:
-        data = json.loads(sendas_json_path.read_text(encoding="utf-8"))
-        if isinstance(data, dict) and "sendAs" in data and isinstance(data["sendAs"], list):
-            for entry in data["sendAs"]:
-                if isinstance(entry, dict) and (
-                    (from_email and entry.get("sendAsEmail", "").lower() == from_email.lower())
-                    or (not from_email and entry.get("isDefault"))
-                ):
-                    return entry
-            if data["sendAs"]:
-                return data["sendAs"][0]
-        if not isinstance(data, dict) or not data.get("sendAsEmail"):
-            raise ValueError("sendAs JSON must contain sendAsEmail.")
-        return data
-
     sender = (from_email or "").strip()
     if not sender:
         listing = _run_gws(
             ["gmail", "users", "settings", "sendAs", "list", "--params", '{"userId":"me"}', "--format", "json"],
             "sendAs.list",
+            cwd=cwd,
         )
         entries = [e for e in (listing.get("sendAs") or []) if isinstance(e, dict)]
         chosen = next((e for e in entries if e.get("isDefault")), entries[0] if entries else None)
@@ -209,6 +192,7 @@ def resolve_send_as(
     return _run_gws(
         ["gmail", "users", "settings", "sendAs", "get", "--params", params, "--format", "json"],
         "sendAs.get",
+        cwd=cwd,
     )
 
 
@@ -347,7 +331,6 @@ def compose_draft_payload(
     bcc_flags: list[str],
     remove_flags: list[str],
     subject: str | None = None,
-    body_text: str | None = None,
     parent_msg: dict[str, Any] | None = None,
     reply_all: bool = False,
     attachments: list[Path] | None = None,
@@ -355,7 +338,7 @@ def compose_draft_payload(
     """Construct the RFC 5322 multipart/alternative MIME message and Gmail draft payload."""
     validated_html = validate_html_fragment(body_html)
     core_html = _unwrap_outer_dir_ltr(validated_html)
-    core_text = body_text.strip() if body_text and body_text.strip() else html_to_text(core_html)
+    core_text = html_to_text(core_html)
 
     send_as_email = str(send_as.get("sendAsEmail") or "").strip()
     if not send_as_email:
@@ -494,7 +477,6 @@ def compose_draft_payload(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", help="Path to UTF-8 HTML body fragment file, or - for stdin")
-    parser.add_argument("--text-file", type=Path, help="Optional explicit plain-text fallback file")
     parser.add_argument("--to", action="append", default=[], help="To recipient(s), comma-separated")
     parser.add_argument("--cc", action="append", default=[], help="CC recipient(s), comma-separated")
     parser.add_argument("--bcc", action="append", default=[], help="BCC recipient(s), comma-separated")
@@ -505,8 +487,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reply-all", action="store_true", help="Include original To/CC recipients on reply")
     parser.add_argument("--draft-id", help="Update an existing Gmail draft ID in place instead of creating a new one")
     parser.add_argument("-a", "--attach", action="append", type=Path, default=[], help="Attach a file (repeatable)")
-    parser.add_argument("--sendas-json", type=Path, help="Offline sendAs JSON file (for testing)")
-    parser.add_argument("--parent-json", type=Path, help="Offline parent message JSON file (for testing)")
     parser.add_argument(
         "--dry-run", action="store_true", help="Validate and preview draft payload without calling Gmail write API"
     )
@@ -514,55 +494,55 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         body_html = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
-        body_text = args.text_file.read_text(encoding="utf-8") if args.text_file else None
-        send_as = resolve_send_as(args.from_email, args.sendas_json)
+        # gws loads a `.env` from its working directory upward and rejects --upload paths outside that
+        # directory, so every gws call of this run uses one private temporary directory: the reads, the
+        # upload, and the read-back resolve the same account, and the message stays out of the caller's checkout.
+        with tempfile.TemporaryDirectory(prefix="draft-mail-") as tmp:
+            gws_dir = Path(tmp)
+            send_as = resolve_send_as(args.from_email, cwd=gws_dir)
 
-        parent_msg: dict[str, Any] | None = None
-        if args.parent_json is not None:
-            parent_msg = json.loads(args.parent_json.read_text(encoding="utf-8"))
-        elif args.reply_to_id:
-            params = json.dumps({"userId": "me", "id": args.reply_to_id, "format": "full"})
-            parent_msg = _run_gws(
-                ["gmail", "users", "messages", "get", "--params", params, "--format", "json"], "messages.get"
+            parent_msg: dict[str, Any] | None = None
+            if args.reply_to_id:
+                params = json.dumps({"userId": "me", "id": args.reply_to_id, "format": "full"})
+                parent_msg = _run_gws(
+                    ["gmail", "users", "messages", "get", "--params", params, "--format", "json"],
+                    "messages.get",
+                    cwd=gws_dir,
+                )
+
+            built = compose_draft_payload(
+                body_html,
+                send_as=send_as,
+                to_flags=args.to,
+                cc_flags=args.cc,
+                bcc_flags=args.bcc,
+                remove_flags=args.remove,
+                subject=args.subject,
+                parent_msg=parent_msg,
+                reply_all=args.reply_all,
+                attachments=args.attach,
             )
 
-        built = compose_draft_payload(
-            body_html,
-            send_as=send_as,
-            to_flags=args.to,
-            cc_flags=args.cc,
-            bcc_flags=args.bcc,
-            remove_flags=args.remove,
-            subject=args.subject,
-            body_text=body_text,
-            parent_msg=parent_msg,
-            reply_all=args.reply_all,
-            attachments=args.attach,
-        )
+            if args.dry_run:
+                out = {
+                    "dry_run": True,
+                    "operation": "users.drafts.update" if args.draft_id else "users.drafts.create",
+                    "draftId": args.draft_id,
+                    **built["summary"],
+                    "rawLength": len(built["draft"]["message"]["raw"]),
+                }
+                sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
+                return 0
 
-        if args.dry_run:
-            out = {
-                "dry_run": True,
-                "operation": "users.drafts.update" if args.draft_id else "users.drafts.create",
-                "draftId": args.draft_id,
-                **built["summary"],
-                "rawLength": len(built["draft"]["message"]["raw"]),
-            }
-            sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
-            return 0
-
-        # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG.
-        # gws rejects --upload paths outside its working directory, so it runs inside the private
-        # temporary directory, which keeps the message out of the caller's checkout.
-        message = dict(built["draft"]["message"])
-        raw = message.pop("raw")
-        operation = "update" if args.draft_id else "create"
-        params: dict[str, Any] = {"userId": "me"}
-        metadata: dict[str, Any] = {"message": message} if message else {}
-        if args.draft_id:
-            params["id"] = metadata["id"] = args.draft_id
-        with tempfile.TemporaryDirectory(prefix="draft-mail-") as tmp:
-            eml_path = Path(tmp) / "message.eml"
+            # Upload the RFC 5322 bytes as media: one argument over Linux's 128 KiB limit fails with E2BIG.
+            message = dict(built["draft"]["message"])
+            raw = message.pop("raw")
+            operation = "update" if args.draft_id else "create"
+            params: dict[str, Any] = {"userId": "me"}
+            metadata: dict[str, Any] = {"message": message} if message else {}
+            if args.draft_id:
+                params["id"] = metadata["id"] = args.draft_id
+            eml_path = gws_dir / "message.eml"
             eml_path.write_bytes(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
             resp = _run_gws(
                 [
@@ -582,23 +562,36 @@ def main(argv: list[str] | None = None) -> int:
                     "json",
                 ],
                 f"drafts.{operation}",
-                cwd=Path(tmp),
+                cwd=gws_dir,
             )
 
-        draft_id = str(resp.get("id") or args.draft_id or "").strip()
-        readback = _run_gws(
-            [
-                "gmail",
-                "users",
-                "drafts",
-                "get",
-                "--params",
-                json.dumps({"userId": "me", "id": draft_id, "format": "full"}),
-                "--format",
-                "json",
-            ],
-            "drafts.get",
-        )
+            draft_id = str(resp.get("id") or args.draft_id or "").strip()
+            if not draft_id:
+                raise RuntimeError(
+                    f"drafts.{operation} returned no draft id; do not create the draft again: find it with "
+                    "`gws gmail users drafts list` and rerun with --draft-id <id>."
+                )
+            try:
+                readback = _run_gws(
+                    [
+                        "gmail",
+                        "users",
+                        "drafts",
+                        "get",
+                        "--params",
+                        json.dumps({"userId": "me", "id": draft_id, "format": "full"}),
+                        "--format",
+                        "json",
+                    ],
+                    "drafts.get",
+                    cwd=gws_dir,
+                )
+            except RuntimeError as error:
+                # The draft exists: name it so a retry updates it instead of creating a duplicate.
+                raise RuntimeError(
+                    f"draft {draft_id} was saved, but its read-back failed ({error}); do not create it again: "
+                    f"rerun with --draft-id {draft_id} to update and verify it in place."
+                ) from error
         msg_obj = readback.get("message") or {}
         payload_obj = msg_obj.get("payload") or {}
         out = {

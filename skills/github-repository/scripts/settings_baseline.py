@@ -140,20 +140,17 @@ class State:
     actions: Record
     environments: dict[str, Record]
     publishes: bool
+    other_policies: dict[str, list[Record]]
     owned_rulesets: list[object]
     report: Record
 
 
-def tag_policies(base: str, environment: str) -> set[object]:
+def deployment_policies(base: str, environment: str) -> tuple[bool, list[Record]]:
+    """Return whether the `v*` tag policy exists, and every other policy, which still allows deployments."""
     path = f"{base}/environments/{environment}/deployment-branch-policies?per_page=100"
-    return {item.get("name") for item in get_all(path, "branch_policies") if item.get("type") == "tag"}
-
-
-def release_tags_only(base: str, name: str, environment: Record) -> bool:
-    policy = environment.get("deployment_branch_policy")
-    if not isinstance(policy, dict) or policy.get("custom_branch_policies") is not True:
-        return False
-    return RELEASE_TAGS in tag_policies(base, name)
+    policies = get_all(path, "branch_policies")
+    others = [item for item in policies if (item.get("type"), item.get("name")) != ("tag", RELEASE_TAGS)]
+    return len(others) < len(policies), others
 
 
 def inspect(repository: str) -> State:
@@ -192,6 +189,7 @@ def inspect(repository: str) -> State:
             approval = get_record(f"{base}/actions/permissions/fork-pr-contributor-approval")
             report["fork_pr_approval_policy"] = approval.get("approval_policy")
     environments: dict[str, Record] = {}
+    other_policies: dict[str, list[Record]] = {}
     owned: list[object] = []
     publishes = False
     if public:
@@ -205,7 +203,10 @@ def inspect(repository: str) -> State:
         publishes = report["releases"] is True or bool(environments)
         report["immutable_releases"] = enabled(f"{base}/immutable-releases")
         for name, environment in environments.items():
-            report[f"environment.{name}.release_tags_only"] = release_tags_only(base, name, environment)
+            policy = environment.get("deployment_branch_policy")
+            custom = isinstance(policy, dict) and policy.get("custom_branch_policies") is True
+            release_tags, other_policies[name] = deployment_policies(base, name) if custom else (False, [])
+            report[f"environment.{name}.release_tags_only"] = release_tags and not other_policies[name]
         report["private_vulnerability_reporting"] = get_record(f"{base}/private-vulnerability-reporting").get("enabled")
         rulesets = get_all(f"{base}/rulesets?includes_parents=false&per_page=100")
         owned = [item.get("id") for item in rulesets if item.get("name") == RULESET_NAME]
@@ -225,6 +226,7 @@ def inspect(repository: str) -> State:
         actions=actions,
         environments=environments,
         publishes=publishes,
+        other_policies=other_policies,
         owned_rulesets=owned,
         report=report,
     )
@@ -258,6 +260,20 @@ def duplicates(state: State) -> str | None:
     return f"duplicate {RULESET_NAME!r} rulesets {ids}: delete extras only with the user's approval, then rerun"
 
 
+def leftover_policies(state: State) -> list[str]:
+    """Name the policies the baseline never deletes: each still lets its branch or tag deploy."""
+    problems: list[str] = []
+    for name, policies in state.other_policies.items():
+        if policies:
+            found = ", ".join(f"{item.get('type')} {item.get('name')!r} id {item.get('id')}" for item in policies)
+            path = f"repos/{state.repository}/environments/{name}/deployment-branch-policies/ID"
+            problems.append(
+                f"environment {name}: policies other than tag {RELEASE_TAGS!r} still allow deployments ({found}); "
+                f"delete each only with the user's approval (`gh api --method DELETE {path}`), then rerun"
+            )
+    return problems
+
+
 def apply(state: State, args: argparse.Namespace) -> None:
     """Change only what the baseline owns; every call is idempotent."""
     problem = duplicates(state)
@@ -287,7 +303,7 @@ def apply(state: State, args: argparse.Namespace) -> None:
         for name, environment in state.environments.items():
             path = f"{base}/environments/{name}"
             write("PUT", path, environment_body(name, environment))
-            if RELEASE_TAGS not in tag_policies(base, name):
+            if not deployment_policies(base, name)[0]:
                 write("POST", f"{path}/deployment-branch-policies", {"name": RELEASE_TAGS, "type": "tag"})
     if state.public:
         write(
@@ -367,6 +383,7 @@ def main() -> int:
     problem = duplicates(after)
     if problem:
         drift.append(problem)
+    drift += leftover_policies(after)
     result: Record = {"repository": args.repository, "state": found, "notes": notes, "drift": drift}
     if not args.check:
         result["changed"] = {

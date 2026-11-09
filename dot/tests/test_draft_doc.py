@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 
@@ -65,6 +66,9 @@ def test_check_markdown_dialect_accepts_clean_doc(mod: ModuleType) -> None:
         ("# Heading\n\nLine one<br>Line two\n", "Raw HTML tag"),
         ("# Heading\n\n```mermaid\nflowchart LR\n  A --> B\n```\n", "Uncompiled ```mermaid block"),
         ("# Heading\n\n![Card](card.svg)\n", "Uncompiled .svg image link"),
+        ("# Heading\n\n- Step\n\n  ```mermaid\n  flowchart LR\n    A --> B\n  ```\n", "Indented ```mermaid block"),
+        ("# Heading\n\n1. Step\n\n   ~~~ Mermaid\n   flowchart LR\n   ~~~\n", "Indented ```mermaid block"),
+        ("# Heading\n\n![Card](https://example.com/card.svg)\n", "remote SVG images are unsupported"),
     ],
 )
 def test_check_markdown_dialect_rejects_unsupported_constructs(
@@ -276,7 +280,7 @@ def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
     }
 
     with pytest.raises(ValueError, match="Invalid folder ID"):
-        mod.upload_to_drive(tmp_path / "memo.md", [], drive_folder="bad id with spaces'; DROP")
+        mod.upload_to_drive(tmp_path / "memo.md", [], gws_dir=tmp_path, drive_folder="bad id with spaces'; DROP")
 
 
 def _png(width: int, height: int = 10) -> bytes:
@@ -284,7 +288,7 @@ def _png(width: int, height: int = 10) -> bytes:
     return b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big")
 
 
-def _fake_drive(calls: list[list[str]], *, doc_name: str = "Quarterly Review.md") -> object:
+def _fake_drive(calls: list[list[str]], *, doc_name: str = "Quarterly Review.md") -> Callable[..., dict[str, object]]:
     """Fake gws for an existing document in folder_parent_1 whose assets folders are created on demand."""
 
     def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
@@ -347,7 +351,9 @@ def test_upload_by_file_id_renames_only_with_doc_name(
     calls: list[list[str]] = []
     monkeypatch.setattr(mod, "run_gws", _fake_drive(calls))
 
-    result = mod.upload_to_drive(compiled, [], file_id="doc_file_42", doc_name="Final Report")
+    gws_dir = tmp_path / "gws"
+    gws_dir.mkdir()
+    result = mod.upload_to_drive(compiled, [], gws_dir=gws_dir, file_id="doc_file_42", doc_name="Final Report")
     update = next(c for c in calls if c[:3] == ["drive", "files", "update"])
     assert json.loads(update[update.index("--json") + 1]) == {"name": "Final Report.md"}
     assert result["name"] == "Final Report.md"
@@ -379,7 +385,9 @@ def test_upload_finds_existing_document_on_a_later_page(
         raise AssertionError(msg)
 
     monkeypatch.setattr(mod, "run_gws", fake_run_gws)
-    assert mod.upload_to_drive(compiled, [], drive_folder="parent_folder_123")["file_id"] == "memo_2"
+    gws_dir = tmp_path / "gws"
+    gws_dir.mkdir()
+    assert mod.upload_to_drive(compiled, [], gws_dir=gws_dir, drive_folder="parent_folder_123")["file_id"] == "memo_2"
     assert [c[2] for c in calls] == ["list", "list", "update"]
 
 
@@ -477,3 +485,123 @@ def test_render_svg_png_delegates_to_shared_checker_and_run_gws_skips_keyring_ba
         lambda cmd, **_kw: mod.subprocess.CompletedProcess(cmd, 0, 'Using keyring backend: keyring\n{"id": "1"}\n', ""),
     )
     assert mod.run_gws(["drive", "files", "get"]) == {"id": "1"}
+
+
+def test_check_markdown_dialect_scopes_the_mermaid_and_svg_rejections(mod: ModuleType) -> None:
+    # A remote SVG cannot be compiled, so its message must not send the author back to the compiler.
+    remote = mod.check_markdown_dialect("# Doc\n\n![Card](https://example.com/card.svg)\n")
+    assert len(remote) == 1
+    assert "download the file next to the document" in remote[0]
+    assert "compile_markdown_doc.py" not in remote[0]
+    assert "example.com" not in remote[0]
+    # An indented fence inside a column-0 code block is an example, and an indented non-mermaid fence is plain code.
+    example = "# Doc\n\n````markdown\n- Step\n\n  ```mermaid\n  flowchart LR\n  ```\n````\n"
+    assert mod.check_markdown_dialect(example) == []
+    assert mod.check_markdown_dialect("# Doc\n\n- Step\n\n  ```python\n  pass\n  ```\n") == []
+
+
+def test_compile_markdown_rejects_indented_mermaid_and_remote_svg(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_render(*_args: object, **_kwargs: object) -> None:
+        msg = "nothing here can be rendered"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(mod, "render_mermaid_png", no_render)
+    monkeypatch.setattr(mod, "render_svg_png", no_render)
+    with pytest.raises(ValueError, match="unindent its opening and closing fence lines"):
+        mod.compile_markdown("# Doc\n\n- Step\n\n  ```mermaid\n  flowchart LR\n    A --> B\n  ```\n", tmp_path)
+    with pytest.raises(ValueError, match="remote SVG images are unsupported"):
+        mod.compile_markdown("# Doc\n\n![Card](https://example.com/card.svg)\n", tmp_path)
+
+
+def _record_gws_dirs(
+    calls: list[list[str]], dirs: list[Path | None], *, parents: list[str]
+) -> Callable[..., dict[str, object]]:
+    """Fake gws for an existing document; record the working directory of every call."""
+    drive = _fake_drive(calls)
+
+    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        dirs.append(cwd)
+        result = drive(args, cwd=cwd)
+        if args[:3] == ["drive", "files", "get"]:
+            result["parents"] = parents
+        return result
+
+    return fake_run_gws
+
+
+def test_cli_runs_every_gws_call_from_one_private_directory(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # gws loads a `.env` from its working directory upward: one directory keeps one account for the whole run.
+    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
+    src_md = tmp_path / "report.src.md"
+    src_md.write_text("# Report\n\n![Card](card.svg)\n", encoding="utf-8")
+
+    def fake_render_svg(_svg: Path, out: Path, **_kwargs: object) -> tuple[int, int]:
+        out.write_bytes(_png(600))
+        return (600, 138)
+
+    calls: list[list[str]] = []
+    dirs: list[Path | None] = []
+    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
+    monkeypatch.setattr(mod, "run_gws", _record_gws_dirs(calls, dirs, parents=["folder_parent_1"]))
+
+    out_md = tmp_path / "out" / "report.md"
+    out_md.parent.mkdir()
+    bundle = tmp_path / "bundle"
+    args = [str(src_md), "-o", str(out_md), "--assets-dir", str(bundle), "--file-id", "doc_file_42", "--json"]
+    assert mod.main(args) == 0
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["drive"]["warning"] is None
+    assert captured.err == ""
+    # The metadata read, folder lookups and creations, the document update, and three asset uploads.
+    assert {tuple(call[:3]) for call in calls} == {
+        ("drive", "files", "get"),
+        ("drive", "files", "list"),
+        ("drive", "files", "create"),
+        ("drive", "files", "update"),
+    }
+    assert sum("--upload" in call for call in calls) == 4
+    assert len(set(dirs)) == 1
+    (directory,) = set(dirs)
+    assert directory is not None
+    assert not directory.resolve().is_relative_to(tmp_path.resolve())
+    assert not directory.exists(), "the private gws directory is removed after the run"
+
+
+def test_cli_warns_when_drive_returns_no_parent_for_assets(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
+    src_md = tmp_path / "report.src.md"
+    src_md.write_text("# Report\n\nPRIVATE-TEXT\n\n![Card](card.svg)\n", encoding="utf-8")
+
+    def fake_render_svg(_svg: Path, out: Path, **_kwargs: object) -> tuple[int, int]:
+        out.write_bytes(_png(600))
+        return (600, 138)
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
+    monkeypatch.setattr(mod, "run_gws", _record_gws_dirs(calls, [], parents=[]))
+
+    assert mod.main([str(src_md), "-o", str(tmp_path / "report.md"), "--file-id", "doc_file_42", "--json"]) == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    warning = payload["drive"]["warning"]
+    assert payload["drive"]["uploaded_assets"] == []
+    assert "Skipped 3 asset upload(s) (report.src.md, card.svg, fig-1.png)" in warning
+    assert "Drive returned no parent folder for file doc_file_42" in warning
+    assert "--drive-folder" in warning
+    assert json.loads(captured.err) == {"warning": warning}
+    assert "PRIVATE-TEXT" not in captured.err
+    assert [call[2] for call in calls] == ["get", "update"], "only the document itself is written"

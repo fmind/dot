@@ -296,3 +296,116 @@ def test_cli_live_gws_workflow_fetches_sendas_and_creates_or_updates_draft(
         ["gmail", "users", "drafts", "update", "--params"],
         ["gmail", "users", "drafts", "get", "--params"],
     ]
+
+
+PARENT_MESSAGE: dict[str, Any] = {
+    "id": "msg_parent_1",
+    "threadId": "thread_abc_123",
+    "payload": {
+        "mimeType": "text/plain",
+        "headers": [
+            {"name": "From", "value": "Alice Martin <alice@example.com>"},
+            {"name": "To", "value": "github@fmind.dev"},
+            {"name": "Subject", "value": "API gateway rule"},
+            {"name": "Message-ID", "value": "<msg-2@mail.example.com>"},
+        ],
+        "body": {"data": _b64url("Can we enable the rule on Monday?")},
+    },
+}
+
+
+def _stub_gws(
+    mod: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    draft: dict[str, Any] | None = None,
+    readback_error: str | None = None,
+) -> list[tuple[str, Path]]:
+    """Replace _run_gws with canned Gmail answers; record each call's context and working directory."""
+    calls: list[tuple[str, Path]] = []
+
+    def fake_run_gws(args: list[str], context: str, *, cwd: Path) -> dict[str, Any]:
+        calls.append((context, cwd))
+        assert cwd.is_dir()
+        if context == "sendAs.list":
+            return {"sendAs": [{"sendAsEmail": "github@fmind.dev", "isDefault": True}]}
+        if context == "sendAs.get":
+            return SAMPLE_SEND_AS
+        if context == "messages.get":
+            return PARENT_MESSAGE
+        if context == "drafts.create":
+            assert (cwd / args[args.index("--upload") + 1]).is_file()
+            return {"id": "r-draft-202"} if draft is None else draft
+        if context == "drafts.get":
+            if readback_error:
+                raise RuntimeError(readback_error)
+            return {"id": "r-draft-202", "message": {"id": "msg-202", "threadId": "thread_abc_123"}}
+        raise AssertionError(f"Unexpected gws call ({context}): {args}")
+
+    monkeypatch.setattr(mod, "_run_gws", fake_run_gws)
+    return calls
+
+
+def test_cli_runs_every_gws_call_from_one_private_directory(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # gws loads a `.env` from its working directory upward: one directory keeps one account for the whole run.
+    body_file = tmp_path / "body.html"
+    body_file.write_text("<p>Yes, Monday works.</p>", encoding="utf-8")
+    calls = _stub_gws(mod, monkeypatch)
+
+    assert mod.main([str(body_file), "--reply-to", "msg_parent_1"]) == 0
+    assert json.loads(capsys.readouterr().out)["draftId"] == "r-draft-202"
+    assert [context for context, _ in calls] == [
+        "sendAs.list",
+        "sendAs.get",
+        "messages.get",
+        "drafts.create",
+        "drafts.get",
+    ]
+    directories = {cwd for _, cwd in calls}
+    assert len(directories) == 1
+    (directory,) = directories
+    assert not directory.resolve().is_relative_to(Path.cwd().resolve())
+    assert not directory.exists(), "the private staging directory is removed after the run"
+
+
+def test_cli_names_the_saved_draft_when_the_read_back_fails(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    body_file = tmp_path / "body.html"
+    body_file.write_text("<p>PRIVATE-BODY</p>", encoding="utf-8")
+    calls = _stub_gws(mod, monkeypatch, readback_error="drafts.get failed: HTTP request failed")
+
+    assert mod.main([str(body_file), "--to", "alice@example.com", "--subject", "Status"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "draft r-draft-202 was saved" in captured.err
+    assert "rerun with --draft-id r-draft-202" in captured.err
+    assert "PRIVATE-BODY" not in captured.err
+    assert [context for context, _ in calls].count("drafts.create") == 1
+
+
+def test_cli_asks_for_the_draft_id_when_create_returns_none(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    body_file = tmp_path / "body.html"
+    body_file.write_text("<p>PRIVATE-BODY</p>", encoding="utf-8")
+    calls = _stub_gws(mod, monkeypatch, draft={})
+
+    assert mod.main([str(body_file), "--to", "alice@example.com", "--subject", "Status"]) == 1
+    captured = capsys.readouterr()
+    assert "returned no draft id" in captured.err
+    assert "gws gmail users drafts list" in captured.err
+    assert "--draft-id" in captured.err
+    assert "PRIVATE-BODY" not in captured.err
+    assert "drafts.get" not in [context for context, _ in calls]

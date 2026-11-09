@@ -200,3 +200,43 @@ def test_docs_malformed_or_metadata_only_is_not_empty_success(tmp_path: Path, te
     assert result.returncode == 1
     assert result.stdout == ""
     assert "PRIVATE" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("text", "recovery"),
+    [
+        ('{"error":{"message":"PRIVATE"}}', "docs_text: Expected a successful documents.get object.\n"),
+        ('{"title":"PRIVATE"}', "docs_text: No body or tabs; fetch documents.get with includeTabsContent=true.\n"),
+        (
+            '{"tabs":[{"tabProperties":{"tabId":"t1","title":"PRIVATE"},"documentTab":{}}]}',
+            "docs_text: Body missing; fetch document content without a metadata-only field mask.\n",
+        ),
+        ('{"title":"PRIVATE"', "docs_text: Invalid JSON near character 18.\n"),
+        (
+            '{"tabs":[{"title":"PRIVATE"}]}',
+            "docs_text: Invalid or unreadable Docs input (KeyError); fetch full tab content.\n",
+        ),
+    ],
+)
+def test_docs_failure_prints_its_specific_recovery_without_content(tmp_path: Path, text: str, recovery: str) -> None:
+    result = run_helper(tmp_path, "docs_text", text)
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == recovery
+
+
+def test_docs_undecodable_input_keeps_its_bytes_off_stderr(tmp_path: Path) -> None:
+    # A UnicodeDecodeError is a ValueError whose text quotes the offending byte: only its type is printed.
+    source = tmp_path / "document.json"
+    source.write_bytes(b'{"title":"PRIVATE \xe9"}')
+    result = subprocess.run(
+        [sys.executable, str(SCRIPTS / "docs_text.py"), str(source)],
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 1
+    assert result.stderr == (
+        "docs_text: Invalid or unreadable Docs input (UnicodeDecodeError); fetch full tab content.\n"
+    )

@@ -107,10 +107,11 @@ run = [
 ]
 
 [tasks."check:actions:online"]
-description = "Audit workflows with jactionlint's online rules; fails closed on skipped lookups (needs GH_TOKEN; weekly in security.yml)"
+description = "Audit workflows with jactionlint's online rules; fails on warnings and skipped lookups (needs GH_TOKEN; weekly in security.yml)"
+# Most online audits (ref confusion, repojacking, archived actions) report at warn level.
 run = [
-  "jactionlint --online=strict",
-  "jactionlint --online=strict {{vars.workflow_templates}}",
+  "jactionlint --online=strict --strict-exit",
+  "jactionlint --online=strict --strict-exit {{vars.workflow_templates}}",
 ]
 
 [tasks."check:chezmoi"]
@@ -164,7 +165,7 @@ run = [
 [tasks."check:scan"]
 description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
 # Pass the config explicitly: the workstation's TRIVY_CONFIG (fish env.fish) replaces trivy's
-# ./trivy.yaml default, which would drop this repository's ignorefile.
+# ./trivy.yaml default, which would drop this repository's severity and scan settings.
 run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mcp-setup
   created: "2026-06-23"
-  updated: "2026-11-07"
+  updated: "2026-11-09"
 ---
 
 # MCP Setup
@@ -23,7 +23,7 @@ Connect only the MCP capability the task needs, using the installed host's nativ
 ## Gotchas
 
 - **Claude default scope is `local`**: the server lands in `~/.claude.json` for this path only; pass `--scope project` to share it through `.mcp.json`.
-- **Resolve runners in the agent environment**: agy runs commands with `bash -c` and no shell startup files, so a bare `uvx` or project command may not resolve. Register a pinned `uvx --from` command or a locked virtual environment's absolute executable instead.
+- **Pin the runner version**: register `uvx --from '<package>==<version>'`, not a bare `uvx <package>`. agy runs commands with `bash -c` and no shell startup files, so a project server's command may not resolve; register its locked virtual environment's absolute executable instead.
 - **Keep the trust boundary**: review repository-provided MCP files before starting their servers, enable only the tools a workflow needs (`copilot mcp add --tools`), and keep credentials out of arguments and committed files. Preserve authorized autonomous writes; require confirmation only for effects outside existing authority.
 
 ## Documentation

@@ -6,24 +6,24 @@ Use the approved account/configuration and pass `--project=<project>` on each co
 1. **Set up the project once**: enable the APIs, create the Artifact Registry repository, and create a dedicated runtime service account (never the default compute SA; grant it only what the app reads).
 
    ```bash
-   gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com \
+   gcloud services enable --project=<project> run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com \
      iam.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com sts.googleapis.com
-   gcloud artifacts repositories create <slug> --repository-format=docker --location=<region>
-   gcloud iam service-accounts create <slug>-runtime   # runtime identity, least privilege
+   gcloud artifacts repositories create <slug> --project=<project> --repository-format=docker --location=<region>
+   gcloud iam service-accounts create <slug>-runtime --project=<project>   # runtime identity, least privilege
    ```
 
 1. **Create the keyless CI identity**: reuse an approved Workload Identity Federation pool/provider, or create a dedicated pair, plus a deployer service account that GitHub Actions impersonates over OIDC, so no key is ever exported.
 
    ```bash
-   gcloud iam workload-identity-pools create github --location=global
+   gcloud iam workload-identity-pools create github --project=<project> --location=global
    gcloud iam workload-identity-pools providers create-oidc github-actions \
-     --location=global --workload-identity-pool=github \
+     --project=<project> --location=global --workload-identity-pool=github \
      --issuer-uri="https://token.actions.githubusercontent.com" \
      --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.workflow_ref=assertion.workflow_ref" \
      --attribute-condition="assertion.repository_owner_id=='<owner_id>' && assertion.repository_id=='<repository_id>' && assertion.ref.startsWith('refs/tags/v') && assertion.workflow_ref.startsWith('<owner>/<repo>/.github/workflows/cd.yml@')"
-   gcloud iam service-accounts create <slug>-deployer
+   gcloud iam service-accounts create <slug>-deployer --project=<project>
    gcloud iam service-accounts add-iam-policy-binding "<slug>-deployer@<project>.iam.gserviceaccount.com" \
-     --role=roles/iam.workloadIdentityUser \
+     --project=<project> --role=roles/iam.workloadIdentityUser \
      --member="principalSet://iam.googleapis.com/projects/<project_number>/locations/global/workloadIdentityPools/github/attribute.repository_id/<repository_id>"
    ```
 

@@ -11,7 +11,7 @@ Use this reference to move an existing MkDocs, Material for MkDocs, or Hugo site
 
 Zensical reads `mkdocs.yml`, so migration can be gradual and reversible:
 
-1. **Add Zensical beside MkDocs**: `uv add --dev zensical`, then run `uv run zensical build --clean --strict` against the unchanged `mkdocs.yml`.
+1. **Add Zensical beside MkDocs**: `uv add --dev 'zensical>=0.1.0,<0.2'`, then run `uv run zensical build --clean --strict` against the unchanged `mkdocs.yml`.
 1. **Keep Material's look when needed**: set `theme.variant: classic` when custom CSS or JavaScript depends on Material's appearance; switch to `modern` later as a deliberate redesign.
 1. **Compare with the MkDocs output**: representative pages, navigation, search, generated pages (blog, tags, API reference), and redirects.
 1. **Replace unsupported pieces**: `gen-files` with `api-autonav`/`autoapi` or committed generated files; `hooks` with supported plugins or template overrides; `mkdocs gh-deploy` with the [docs.yml](../templates/docs.yml) workflow; `get-deps` with explicit dependencies. Keep `exclude_docs`, `draft_docs`, and `not_in_nav` on Zensical 0.0.70 or later; `remote_branch` and `remote_name` have no equivalent.

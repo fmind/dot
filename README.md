@@ -90,7 +90,7 @@ The [Dot CLI guide](skills/dot-cli/SKILL.md) covers every command, diagnostic, a
 
 Daily keyboard and shell ergonomics:
 
-- **Fish abbreviations:** `a` runs `agy` (`ac` continue, `ai` interactive, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, and `h` `dot` (`hd` doctor, `hh` headroom, `hs` status with fetch, `hp` pull, `ho` orphans, `hc` caches, `ha` agent stats).
+- **Fish abbreviations:** `a` runs `agy` (`ac` continue, `ai` interactive, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, and `h` `dot` (`hd` doctor, `hh` headroom, `hs` fetched status of repositories needing attention, `hp` pull, `ho` orphans, `hc` caches, `ha` agent stats).
 - **Zellij:** `Alt a` opens Antigravity, `Alt g` lazygit, `Alt y` yazi, and `Alt /` the session manager. `Alt n` tiles up to four columns for ultrawide displays before switching to a half-stacked layout (`Ctrl b`, `Space`); detach with `Ctrl o`, `d`.
 - **Neovim:** `<leader>gm` toggles a buffer's Git diff against the default branch's merge-base, `Tab` accepts completions, `Enter` inserts a newline, and `mise lsp` powers diagnostics in `mise.toml`.
 
@@ -100,7 +100,7 @@ Machine-local settings live in unmanaged `~/.config/dot.yaml` and merge with [bu
 
 ### Usage reports
 
-`dot agent stats` reports token usage, estimated API value, and recorded provider costs (`--monthly` groups by UTC calendar month), syncing local transcripts first via `dot agent session sync` (including retired Codex and Grok archives); see the [usage guide](skills/dot-cli/references/agent-usage.md).
+`dot agent stats` reports token usage, estimated API value, and recorded provider costs, including the retired Codex and Grok archives (`--monthly` groups by UTC calendar month), syncing local transcripts first via `dot agent session sync`; see the [usage guide](skills/dot-cli/references/agent-usage.md).
 
 ## Repository tasks
 
@@ -177,7 +177,7 @@ printf '*@fmind.dev namespaces="git" %s\n' "$(cat ~/.ssh/id_ed25519_signing.pub)
 chezmoi apply ~/.gitconfig ~/.config/git/allowed_signers
 ```
 
-Commit the new [`allowed_signers`](dot_config/git/allowed_signers) line so every machine verifies signatures locally (`git log --show-signature`), and once every machine signs, enable [vigilant mode](https://docs.github.com/en/authentication/managing-commit-signature-verification/displaying-verification-statuses-for-all-of-your-commits) in [GitHub keys](https://github.com/settings/keys). To retire a machine, delete its line and GitHub key.
+Commit the new [`allowed_signers`](dot_config/git/allowed_signers) line so every machine verifies signatures locally (`git log --show-signature`), and once every machine signs, enable [vigilant mode](https://docs.github.com/en/authentication/managing-commit-signature-verification/displaying-verification-statuses-for-all-of-your-commits) in [GitHub keys](https://github.com/settings/keys). To retire a machine, end its line with `valid-before` (`namespaces="git",valid-before="YYYYMMDD"`), so the commits it signed still verify, and delete its GitHub key.
 
 ### Secret Management
 

@@ -14,7 +14,7 @@ npx @google/design.md@0.4.0 export --format dtcg ~/.agents/DESIGN.md  # Figma, S
 
 ## Mermaid
 
-Use Mermaid's `base` theme because it is customizable. This frontmatter stays inside the Mermaid source and works in `.mmd` files and Markdown fences when the target renderer supports frontmatter. `layout: dagre` and `look: classic` keep Mermaid 12, whose defaults are ELK and the shadowed `neo` look, rendering like renderers still on Mermaid 11.
+Use Mermaid's `base` theme because it is customizable. This frontmatter stays inside the Mermaid source and works in `.mmd` files and Markdown fences when the target renderer supports frontmatter. `layout: dagre` and `look: classic` follow the diagrams-as-code rule to [pin the layout and look](../../diagrams-as-code/references/mermaid.md#gotchas), so Mermaid 11 and 12 renderers draw the same diagram.
 
 ```mermaid
 ---
@@ -47,7 +47,7 @@ flowchart LR
   Evidence --> Decision --> Outcome
 ```
 
-For a renderer without Mermaid frontmatter support, move the same configuration into its site-level Mermaid configuration. Load Google Sans before rendering and keep its selection in root-level `config.fontFamily` so label measurements remain stable.
+For a renderer without Mermaid frontmatter support, move the same configuration into its site-level Mermaid configuration. Load Google Sans before rendering, as the [renderer-stable font stack](../../diagrams-as-code/references/mermaid.md#gotchas) rule requires.
 
 ## SVG Illustrations
 
@@ -57,4 +57,4 @@ README and user-doc illustrations copy [illustration.svg](../../diagrams-as-code
 
 [diagram.d2](../templates/diagram.d2) implements the DESIGN.md `diagram-*` components as D2 classes (`group`, `container`, `component`, `actor`, `external`, `step`, `terminal`) on a light surface. Fmind diagrams import it and use its classes instead of declaring colors.
 
-Elsewhere, start from a built-in D2 theme and use `theme-overrides` or `dark-theme-overrides` under `vars.d2-config`. Supply all eight D2 font slots from static TTF faces: Google Sans for `--font-regular`, `--font-italic`, `--font-semibold`, and `--font-bold`; Google Sans Code for `--font-mono`, `--font-mono-italic`, `--font-mono-semibold`, and `--font-mono-bold`. Missing slots fall back to D2 fonts. Instantiate variable fonts at the intended weights before assigning them to these slots; one variable font reused for every slot can render every weight as regular.
+Elsewhere, start from a built-in D2 theme and use `theme-overrides` or `dark-theme-overrides` under `vars.d2-config`. [Supply all eight `--font-*` flags](../../diagrams-as-code/references/d2.md#gotchas) from static TTF faces: Google Sans for `--font-regular`, `--font-italic`, `--font-semibold`, and `--font-bold`; Google Sans Code for `--font-mono`, `--font-mono-italic`, `--font-mono-semibold`, and `--font-mono-bold`. Instantiate variable fonts at the intended weights before assigning them to these slots; one variable font reused for every slot can render every weight as regular.

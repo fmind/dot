@@ -31,7 +31,7 @@ Google Cloud is the default cloud for Fmind projects. Resolve the project and re
    ```
 
 1. **Pin every consequential call**: pass `--configuration`, `--account`, `--project`, and `--billing-project` (plus `--impersonate-service-account` for an approved chain) so terminal defaults cannot redirect the operation.
-1. **Start read-only and bounded**: use supported `--filter` and `--limit` on listings and selected fields in `--format`; for logs, constrain time and resource before projecting message fields. Keep full IAM policies or configuration when required for the review; a limited listing is not an exhaustive audit. `--quiet` controls prompts, not output volume.
+1. **Start read-only and bounded**: use supported `--filter` and `--limit` on listings and selected fields in `--format`; for logs, constrain time and resource before projecting message fields. Keep full IAM policies or configuration when required for the review; a limited listing is not an exhaustive audit.
 1. **Authorize mutations**: API enablement, IAM, billing, deletion, and production changes need explicit authority.
 
 ## Gotchas

@@ -3,10 +3,8 @@
   Recommendation with one section per finding. Emails, status updates, and teammate documents do not use it.
   Replace every {placeholder}, keep the user's option labels, write in the reader's language, and delete sections that do not apply.
   Adapt the syntax to the destination's renderer:
-  - Google Docs native Markdown (.md via draft-doc, for living docs): no YAML frontmatter (---), use a bold
-    blockquote (`> **Important — Decision needed:** ...`) instead of `> [!IMPORTANT]`, use standard `## Annex`
-    headings instead of `<details>`, and compile fenced ```mermaid blocks and .svg links into Base64 PNG reference
-    definitions (`[fig-N]: <data:image/png;base64,...>`) with `draft-doc/scripts/compile_markdown_doc.py`.
+  - Google Docs native Markdown (.md, for living docs): follow the
+    [draft-doc dialect rules](../../draft-doc/SKILL.md#native-md-dialect-rules).
   - GitHub and Zensical: `> [!IMPORTANT]` alerts render on GitHub and on Zensical with gh-admonitions
     (Zensical prefers `!!!` admonitions); `<details>` and fenced Mermaid blocks work natively.
   Delete this comment before sharing.

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-doc
   created: "2026-10-27"
-  updated: "2026-11-08"
+  updated: "2026-11-09"
 ---
 
 # Draft Doc
@@ -29,7 +29,7 @@ Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) an
 
 1. **No YAML frontmatter or Setext underlines**: `---` or `===` directly under a paragraph line makes it a heading. Put metadata lines below `# Title` and leave a blank line before a horizontal rule.
 1. **No GitHub alerts, raw HTML, or HTML comments**: they render as literal text. Use a bold blockquote (`> **Important — Decision needed by YYYY-MM-DD:** ...`), `## Annex` headings, and `\` for hard line breaks.
-1. **Compile figures to PNG references**: Docs shows fenced `mermaid` blocks as code. Author fenced `mermaid` blocks or local `![Caption](figure.svg)` links to 600 px wide SVGs in `.src.md`; the compiler renders each one to a PNG at most 600 px wide, because Docs displays PNG pixels at 0.75 pt each and ignores DPI metadata. It then writes `![Caption][fig-N]` in the body, appends `[fig-N]: <data:image/png;base64,...>` definitions, and exports editable sources to `--assets-dir`. Mermaid runs through a pinned `mise exec` Mermaid CLI, so no global install is needed.
+1. **Compile figures to PNG references**: Docs shows fenced `mermaid` blocks as code. Author fenced `mermaid` blocks at column 0 (an indented fence is rejected) or local `![Caption](figure.svg)` links to 600 px wide SVGs in `.src.md`; the compiler renders each one to a PNG at most 600 px wide, because Docs displays PNG pixels at 0.75 pt each and ignores DPI metadata. It then writes `![Caption][fig-N]` in the body, appends `[fig-N]: <data:image/png;base64,...>` definitions, and exports editable sources to `--assets-dir`. Mermaid runs through a pinned `mise exec` Mermaid CLI, so no global install is needed.
 1. **Verified natively**: ATX headings, ordered lists, checklists, GFM tables, footnotes, `$...$` and `$$...$$` equations, and Base64 PNG reference images.
 
 ## Workflow

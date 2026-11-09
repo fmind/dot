@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/google-developer
   created: "2026-09-03"
-  updated: "2026-11-07"
+  updated: "2026-11-09"
 ---
 
 # Google Developer Catalog
@@ -39,10 +39,6 @@ Route Google product work to the relevant selection in [google/skills](https://g
 - **Protect Ads credentials and spend**: keep developer tokens and OAuth credentials out of arguments and logs. Use test accounts and `validate_only` before authorized live mutations; campaign changes can affect spend.
 - **Distinguish Analytics IDs; bound queries**: API property IDs differ from `G-...` measurement IDs. Bound queries and exports, account for quotas, and keep sensitive reports out of Git.
 - **Select skills, not whole plugins**: select skills rather than importing an entire host plugin; hooks, MCP servers, and permissions are separate integrations. Cloud defaults and mutation scope remain with the owning workflow.
-
-## Official Skills
-
-Upstream: `google/skills`, with `cloud`, `ads`, `analytics`, `developers`, and `identity` groups. Use its current index for the selected package rather than maintaining a copy of the product catalog.
 
 ## Documentation
 

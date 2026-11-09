@@ -105,7 +105,14 @@ def test_secret_seed_validates_before_starting_writer(
     if expected is not None:
         assert writer_input.read_bytes() == expected
         # The value reaches the writer only on stdin, never as an argument.
-        assert json.loads(writer_argv.read_text()) == ["secrets", "versions", "add", "api-key", "--data-file=-"]
+        assert json.loads(writer_argv.read_text()) == [
+            "secrets",
+            "versions",
+            "add",
+            "api-key",
+            "--project=<project>",
+            "--data-file=-",
+        ]
     # No plaintext on disk beside the snippet, and none in its output.
     assert list(workdir.iterdir()) == []
     assert result.stdout == ""

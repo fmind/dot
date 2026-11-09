@@ -3,22 +3,21 @@
 import argparse
 import base64
 import html
-import json
+import importlib.util
 import math
 import mimetypes
-import os
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
+from functools import cache
 from pathlib import Path
+from types import ModuleType
 
+# Reuse the diagrams-as-code Chrome discovery and isolated screenshot; it sits beside this package in the catalog.
+SVG_CHECKER = Path(__file__).resolve().parents[2] / "diagrams-as-code/references/svg/scripts/check_svg.py"
 KINDS = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
 LIMIT = 15 * 1024 * 1024  # Keep the sheet small enough to send or open anywhere.
 NUMBER = re.compile(r"^v(\d+)", re.IGNORECASE)
-CHROMES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
-MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 COLUMNS = 3
 STYLE = """
 body { margin: 0; padding: 24px; background: #F8F9FA; color: #202124;
@@ -81,51 +80,24 @@ def sheet(folder: Path, title: str, items: list[tuple[str, Path]] | None = None)
     return page
 
 
-def chrome() -> str:
-    candidates = [os.environ.get("CHROME", ""), *(shutil.which(name) or "" for name in CHROMES), MAC_CHROME]
-    for candidate in candidates:
-        if candidate and os.access(candidate, os.X_OK):
-            return candidate
-    raise RuntimeError("no Chrome or Chromium found; set CHROME or open the HTML sheet instead")
+@cache
+def svg_checker() -> ModuleType:
+    """Load the shared diagrams-as-code SVG checker module."""
+    spec = importlib.util.spec_from_file_location("check_svg", SVG_CHECKER)
+    if spec is None or spec.loader is None or not SVG_CHECKER.is_file():
+        raise RuntimeError(
+            f"SVG checker not found at {SVG_CHECKER}; install the diagrams-as-code skill beside fmind-visuals "
+            "or open the HTML sheet instead"
+        )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def screenshot(page: Path, count: int) -> Path:
-    shot = page.with_suffix(".png")
+    """Screenshot the sheet with headless Chrome, scripts and network blocked; a failed run keeps the old PNG."""
     height = 80 + math.ceil(count / COLUMNS) * 240
-    binary = chrome()
-    with tempfile.TemporaryDirectory(prefix=".gallery-preview-", dir=page.parent) as temporary:
-        staged = Path(temporary) / shot.name
-        profile = Path(temporary) / "profile"
-        preferences = profile / "Default" / "Preferences"
-        preferences.parent.mkdir(parents=True)
-        preferences.write_text(
-            json.dumps({"profile": {"default_content_setting_values": {"javascript": 2}}}), encoding="utf-8"
-        )
-        completed = subprocess.run(  # noqa: S603 - fixed browser binary and a local file URL
-            [
-                binary,
-                "--headless=new",
-                "--password-store=basic",
-                "--hide-scrollbars",
-                "--disable-gpu",
-                "--host-resolver-rules=MAP * ^NOTFOUND",
-                "--no-proxy-server",
-                f"--user-data-dir={profile}",
-                f"--window-size=1440,{height}",
-                f"--screenshot={staged.resolve()}",
-                page.resolve().as_uri(),
-            ],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=60,
-            check=False,
-        )
-        if completed.returncode or not staged.is_file() or not staged.stat().st_size:
-            tail = " ".join(completed.stderr.decode("utf-8", "replace").split())[-300:]
-            raise RuntimeError(
-                f"{Path(binary).name} failed to screenshot the sheet (exit {completed.returncode}): {tail}"
-            )
-        return staged.replace(shot)
+    return svg_checker().screenshot(page, page.with_suffix(".png"), 1440, height)
 
 
 def main(argv: list[str] | None = None) -> int:

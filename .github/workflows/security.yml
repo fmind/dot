@@ -28,9 +28,9 @@ jobs:
           version: 2026.11.2
       - name: Scan complete Git history
         run: mise run check:leaks:full
-      - name: Scan full checkout
-        # Delegate to the task so this never drifts from the local gate.
-        run: mise run check:scan
+      - name: Scan full checkout and audit locked dependencies
+        # Delegate to the task so this never drifts from the local pre-push gate (Trivy and uv audit).
+        run: mise run check:network
       - name: Audit workflows online
         # The CI gate stays offline for speed and determinism. This weekly pass adds
         # the audits that query GitHub (impostor commits, ref confusion, known

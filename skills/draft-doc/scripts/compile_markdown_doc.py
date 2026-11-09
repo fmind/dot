@@ -45,7 +45,11 @@ RAW_HTML_RE = re.compile(
 SETEXT_UNDERLINE_RE = re.compile(r" {0,3}(?:-+|=+)[ \t]*")
 SINGLE_LINE_BLOCK_RE = re.compile(r" {0,3}(?:#{1,6}(?:[ \t]|$)|([-*_])(?:[ \t]*\1){2,}[ \t]*$)")
 NON_PARAGRAPH_START_RE = re.compile(r"(?: {0,3}(?:>|\||[-+*](?:[ \t]|$)|\d{1,9}[.)](?:[ \t]|$))| {4}|\t)")
+# The compiler reads fences at column 0 only; an indented mermaid fence would reach Docs as a code block.
+INDENTED_MERMAID_RE = re.compile(r"(?mi)^[ \t]+(?:`{3,}|~{3,})[ \t]*mermaid(?:[ \t]|$)")
 SVG_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.svg)\)")
+# Image links the compiler does not read from disk.
+NON_LOCAL_PREFIXES = ("http://", "https://", "data:")
 MERMAID_ALT_RE = re.compile(r"^\s*%%\s*alt\s*:\s*(.+?)\s*$", re.MULTILINE)
 CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\n]+)\*|_([^_\n]+)_)\s*$")
 INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
@@ -129,7 +133,18 @@ def check_markdown_dialect(markdown: str) -> list[str]:
             problems.append(
                 "Uncompiled ```mermaid block found; compile it to a Base64 PNG reference with compile_markdown_doc.py."
             )
-    if SVG_IMAGE_RE.search(outside_code):
+    if INDENTED_MERMAID_RE.search(outside_fences):
+        problems.append(
+            "Indented ```mermaid block found (for example under a list item); the compiler only reads fences "
+            "at column 0, so unindent its opening and closing fence lines."
+        )
+    svg_links = [match.group(2) for match in SVG_IMAGE_RE.finditer(outside_code)]
+    if any(link.startswith(NON_LOCAL_PREFIXES) for link in svg_links):
+        problems.append(
+            "Remote .svg image link found; remote SVG images are unsupported: download the file next to the "
+            "document and link it by its local path, or use a PNG instead."
+        )
+    if any(not link.startswith(NON_LOCAL_PREFIXES) for link in svg_links):
         problems.append(
             "Uncompiled .svg image link found; compile it to a Base64 PNG reference with compile_markdown_doc.py."
         )
@@ -298,8 +313,8 @@ def compile_markdown(
             if _in_code(match.start()):
                 continue
             svg_rel = match.group(2)
-            if svg_rel.startswith(("http://", "https://", "data:")):
-                continue
+            if svg_rel.startswith(NON_LOCAL_PREFIXES):
+                continue  # the dialect check below rejects it as unsupported
             svg_path = (base_dir / svg_rel).resolve()
             svg_problems = check_svg(svg_path, expected_width=svg_width)
             if svg_problems:
@@ -401,7 +416,7 @@ def run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
     return data
 
 
-def _ensure_drive_folder(parent_id: str, folder_name: str) -> str:
+def _ensure_drive_folder(parent_id: str, folder_name: str, gws_dir: Path) -> str:
     """Find or create a child folder named folder_name inside parent_id."""
     valid_parent = _validate_drive_id(parent_id, "parent folder ID")
     q = (
@@ -423,7 +438,8 @@ def _ensure_drive_folder(parent_id: str, folder_name: str) -> str:
                     "fields": "files(id,name)",
                 }
             ),
-        ]
+        ],
+        cwd=gws_dir,
     )
     files = resp.get("files") or []
     if files:
@@ -443,12 +459,13 @@ def _ensure_drive_folder(parent_id: str, folder_name: str) -> str:
                     "parents": [valid_parent],
                 }
             ),
-        ]
+        ],
+        cwd=gws_dir,
     )
     return str(created["id"])
 
 
-def _list_folder_files(parent_id: str) -> dict[str, str]:
+def _list_folder_files(parent_id: str, gws_dir: Path) -> dict[str, str]:
     """Return {name: file_id} for non-trashed non-folder files directly inside parent_id, across all pages."""
     valid_parent = _validate_drive_id(parent_id, "folder ID")
     q = f"trashed = false and mimeType != 'application/vnd.google-apps.folder' and '{valid_parent}' in parents"
@@ -461,7 +478,7 @@ def _list_folder_files(parent_id: str) -> dict[str, str]:
     }
     found: dict[str, str] = {}
     while True:
-        resp = run_gws(["drive", "files", "list", "--params", json.dumps(params)])
+        resp = run_gws(["drive", "files", "list", "--params", json.dumps(params)], cwd=gws_dir)
         for item in resp.get("files") or []:
             if "id" in item and "name" in item:
                 found.setdefault(str(item["name"]), str(item["id"]))
@@ -470,10 +487,10 @@ def _list_folder_files(parent_id: str) -> dict[str, str]:
         params["pageToken"] = resp["nextPageToken"]
 
 
-def _get_drive_file(file_id: str) -> dict[str, Any]:
+def _get_drive_file(file_id: str, gws_dir: Path) -> dict[str, Any]:
     """Return the id, name, and parents of an existing Drive file."""
     params = {"fileId": _validate_drive_id(file_id, "file ID"), "supportsAllDrives": True, "fields": "id,name,parents"}
-    return run_gws(["drive", "files", "get", "--params", json.dumps(params)])
+    return run_gws(["drive", "files", "get", "--params", json.dumps(params)], cwd=gws_dir)
 
 
 def _upsert_drive_file(
@@ -481,6 +498,7 @@ def _upsert_drive_file(
     *,
     name: str,
     content_type: str,
+    gws_dir: Path,
     parent_id: str | None = None,
     file_id: str | None = None,
     existing_by_name: dict[str, str] | None = None,
@@ -489,7 +507,9 @@ def _upsert_drive_file(
     """Create or update a file in Google Drive; updates keep the File ID and rename only when asked."""
     target_id = file_id or (existing_by_name or {}).get(name)
     fields = "id,name,mimeType,version,modifiedTime,webViewLink"
-    # gws rejects --upload paths outside its working directory, so run it from the file's folder.
+    # gws rejects --upload paths outside its working directory, so stage the file in the run's gws
+    # directory and upload it by bare name from there, like every other gws call of the run.
+    shutil.copyfile(local_path, gws_dir / local_path.name)
     upload = ["--upload", local_path.name, "--upload-content-type", content_type]
     if target_id:
         valid_id = _validate_drive_id(target_id, "file ID")
@@ -505,7 +525,7 @@ def _upsert_drive_file(
                 *body,
                 *upload,
             ],
-            cwd=local_path.parent,
+            cwd=gws_dir,
         )
     if not parent_id:
         msg = f"Cannot create {name!r} without a target Drive folder ID."
@@ -522,7 +542,7 @@ def _upsert_drive_file(
             json.dumps({"name": name, "mimeType": content_type, "parents": [valid_parent]}),
             *upload,
         ],
-        cwd=local_path.parent,
+        cwd=gws_dir,
     )
 
 
@@ -530,13 +550,18 @@ def upload_to_drive(
     compiled_md: Path,
     asset_paths: list[Path],
     *,
+    gws_dir: Path,
     drive_folder: str | None = None,
     file_id: str | None = None,
     doc_name: str | None = None,
     doc_slug: str | None = None,
     existing_file: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Upload the compiled .md file and its assets/<doc-slug>/ bundle to Google Drive."""
+    """Upload the compiled .md file and its assets/<doc-slug>/ bundle to Google Drive.
+
+    gws loads a `.env` from its working directory upward, so every gws call runs from gws_dir, a private
+    directory: metadata reads, uploads, and read-backs then resolve the same account.
+    """
     if not drive_folder and not file_id:
         msg = "Provide --drive-folder <FOLDER_ID> and/or --file-id <FILE_ID> to upload to Google Drive."
         raise ValueError(msg)
@@ -545,7 +570,7 @@ def upload_to_drive(
     resolved_name = doc_name or compiled_md.name
     if file_id:
         # Keep the live document's name and location unless --doc-name asks for a rename.
-        existing = existing_file or _get_drive_file(file_id)
+        existing = existing_file or _get_drive_file(file_id, gws_dir)
         if not parent_folder_id and existing.get("parents"):
             parent_folder_id = _validate_drive_id(str(existing["parents"][0]), "folder ID")
         if not doc_name and existing.get("name"):
@@ -554,11 +579,12 @@ def upload_to_drive(
         resolved_name = f"{resolved_name}.md"
 
     resolved_slug = doc_slug or _slugify_doc(resolved_name)
-    existing_in_parent = _list_folder_files(parent_folder_id) if (parent_folder_id and not file_id) else {}
+    existing_in_parent = _list_folder_files(parent_folder_id, gws_dir) if (parent_folder_id and not file_id) else {}
     doc_result = _upsert_drive_file(
         compiled_md,
         name=resolved_name,
         content_type="text/markdown",
+        gws_dir=gws_dir,
         parent_id=parent_folder_id,
         file_id=file_id,
         existing_by_name=existing_in_parent,
@@ -568,10 +594,19 @@ def upload_to_drive(
 
     assets_folder_id: str | None = None
     uploaded_assets: list[dict[str, Any]] = []
+    warning: str | None = None
+    if asset_paths and not parent_folder_id:
+        # Only reachable with --file-id alone, when Drive lists no `parents` for the file.
+        names = ", ".join(path.name for path in asset_paths)
+        warning = (
+            f"Skipped {len(asset_paths)} asset upload(s) ({names}): Drive returned no parent folder for file "
+            f"{uploaded_file_id}, so assets/{resolved_slug}/ has no location; rerun with --drive-folder <FOLDER_ID> "
+            "to upload them."
+        )
     if parent_folder_id and asset_paths:
-        assets_root_id = _ensure_drive_folder(parent_folder_id, "assets")
-        assets_folder_id = _ensure_drive_folder(assets_root_id, resolved_slug)
-        existing_assets = _list_folder_files(assets_folder_id)
+        assets_root_id = _ensure_drive_folder(parent_folder_id, "assets", gws_dir)
+        assets_folder_id = _ensure_drive_folder(assets_root_id, resolved_slug, gws_dir)
+        existing_assets = _list_folder_files(assets_folder_id, gws_dir)
         for asset_path in asset_paths:
             if not asset_path.is_file():
                 continue
@@ -580,6 +615,7 @@ def upload_to_drive(
                 asset_path,
                 name=asset_path.name,
                 content_type=mime,
+                gws_dir=gws_dir,
                 parent_id=assets_folder_id,
                 existing_by_name=existing_assets,
             )
@@ -600,6 +636,7 @@ def upload_to_drive(
         "assets_folder_path": f"assets/{resolved_slug}" if assets_folder_id else None,
         "assets_folder_url": f"https://drive.google.com/drive/folders/{assets_folder_id}" if assets_folder_id else None,
         "uploaded_assets": uploaded_assets,
+        "warning": warning,
     }
 
 
@@ -720,40 +757,49 @@ def main(argv: list[str] | None = None) -> int:
                     if source.name.endswith(".src.md")
                     else f"{source.stem}.gdoc.md"
                 )
-                existing_file = _get_drive_file(args.file_id) if args.file_id and not args.doc_name else None
-                drive_name = args.doc_name or (existing_file or {}).get("name") or out_path.name
-                doc_slug = args.doc_slug or _slugify_doc(str(drive_name))
-                if (args.drive_folder or args.file_id) and assets_dir is None:
-                    assets_dir = out_path.parent / "assets" / doc_slug
-                compiled, figures = compile_markdown(
-                    text,
-                    source.parent,
-                    scale=args.scale,
-                    svg_width=args.svg_width,
-                    assets_dir=assets_dir,
-                )
-                out_path.write_text(compiled, encoding="utf-8")
-                exported_assets: list[str] = []
-                if assets_dir is not None:
-                    src_asset = assets_dir / source.name
-                    if src_asset.resolve() != source.resolve():
-                        shutil.copy2(source, src_asset)
-                    exported_assets.append(str(src_asset))
-                    for fig in figures:
-                        for key in ("source_asset", "png_asset"):
-                            if fig.get(key) and fig[key] not in exported_assets:
-                                exported_assets.append(fig[key])
-                drive_info: dict[str, Any] | None = None
-                if args.drive_folder or args.file_id:
-                    drive_info = upload_to_drive(
-                        out_path,
-                        [Path(p) for p in exported_assets],
-                        drive_folder=args.drive_folder,
-                        file_id=args.file_id,
-                        doc_name=args.doc_name,
-                        doc_slug=doc_slug,
-                        existing_file=existing_file,
+                # One private directory for every gws call of this run: see upload_to_drive.
+                with tempfile.TemporaryDirectory(prefix="draft-doc-") as tmp:
+                    gws_dir = Path(tmp)
+                    existing_file = (
+                        _get_drive_file(args.file_id, gws_dir) if args.file_id and not args.doc_name else None
                     )
+                    drive_name = args.doc_name or (existing_file or {}).get("name") or out_path.name
+                    doc_slug = args.doc_slug or _slugify_doc(str(drive_name))
+                    if (args.drive_folder or args.file_id) and assets_dir is None:
+                        assets_dir = out_path.parent / "assets" / doc_slug
+                    compiled, figures = compile_markdown(
+                        text,
+                        source.parent,
+                        scale=args.scale,
+                        svg_width=args.svg_width,
+                        assets_dir=assets_dir,
+                    )
+                    out_path.write_text(compiled, encoding="utf-8")
+                    exported_assets: list[str] = []
+                    if assets_dir is not None:
+                        src_asset = assets_dir / source.name
+                        if src_asset.resolve() != source.resolve():
+                            shutil.copy2(source, src_asset)
+                        exported_assets.append(str(src_asset))
+                        for fig in figures:
+                            for key in ("source_asset", "png_asset"):
+                                if fig.get(key) and fig[key] not in exported_assets:
+                                    exported_assets.append(fig[key])
+                    drive_info: dict[str, Any] | None = None
+                    if args.drive_folder or args.file_id:
+                        drive_info = upload_to_drive(
+                            out_path,
+                            [Path(p) for p in exported_assets],
+                            drive_folder=args.drive_folder,
+                            file_id=args.file_id,
+                            doc_name=args.doc_name,
+                            doc_slug=doc_slug,
+                            existing_file=existing_file,
+                            gws_dir=gws_dir,
+                        )
+                        if warning := drive_info["warning"]:
+                            line = json.dumps({"warning": warning}) if args.json_output else f"Warning: {warning}"
+                            sys.stderr.write(line + "\n")
                 payload = {
                     "status": "ok",
                     "source": str(source),

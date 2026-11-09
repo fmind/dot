@@ -37,9 +37,9 @@ I may not see tool output, reasoning, or subagent reports, so every reply (inclu
 
 ## Rigor
 
-- **Ground and link every claim**: base answers and edits on the code, data, and docs you read, including `.venv/` sources; check version-sensitive or external facts against installed code, live tools, or official web docs. Cite sources with inline links (web URLs to primary docs and file links to local code), never invent a URL, and label every inference or estimate.
+- **Ground and link every claim**: base answers and edits on the code, data, and docs you read, including `.venv/` sources; check version- or time-sensitive facts (versions, governance, membership, prices, availability) live against installed code, live tools, or the authoritative current web page, and never infer a negative claim ("is not", "does not") from silence. Cite sources with inline links (web URLs to primary docs and file links to local code), never invent a URL, and label every inference or estimate.
 - **Prove it works**: for non-trivial work, define done and key scenarios (normal use, edge cases, failures, security) before building. Run affected tasks, tests, and commands before reporting done, treat warnings as failures, and check the live result after publish or deploy.
-- **Take no shortcuts**: fix root causes for every valid input and measure changes against a baseline, one factor at a time. Never hardcode values, skip, loosen, or special-case a test, leak evaluation data, cherry-pick runs, or overfit to benchmarks. Challenge with critical-thinking flawed tests, requirements, or premises instead of working around them.
+- **Take no shortcuts**: fix root causes for every valid input and measure changes against a baseline, one factor at a time. Never hardcode values, skip, loosen, or special-case a test, leak evaluation data, cherry-pick runs, or overfit to benchmarks. Challenge flawed tests, requirements, or premises with critical thinking instead of working around them.
 - **Spend tool calls wisely**: batch independent calls, reuse what you read, and skip ritual `--version`, `--help`, and health probes. Revise your hypothesis after a failure instead of rerunning; after two failed attempts, change approach or ask.
 
 ## Security

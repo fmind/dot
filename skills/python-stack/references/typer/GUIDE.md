@@ -25,7 +25,7 @@ Use Typer for Python CLIs; [cli-contracts](../cli-contracts.md) owns command beh
 - **Fix the group shape with a callback**: Typer promotes a sole command to the root unless a callback fixes the group shape. The packaged starter uses a callback so `tool greet` remains stable when commands are added; a focused single-command utility should deliberately use the other shape.
 - **Keep agent-invoked startup cheap**: profile imports with `uv run python -X importtime -c 'import <package>' 2> importtime.log` and import heavy SDKs inside the commands that use them; on Python 3.15+ a module-level `__lazy_modules__ = ["<module>", ...]` defers those imports and older interpreters ignore it, whereas `lazy import` syntax fails to parse before 3.15.
 - **Parse help panels when walking commands**: default Typer help draws boxed `Options` and `Commands` panels even when piped (verified on Typer 0.27.3); only `rich_markup_mode=None` prints Click's plain `Commands:` list. Recursive help walks, such as a smoke test, must parse the panel or the app must set that mode.
-- **Configure help, version, and error sanitizing**: configure `context_settings={"help_option_names": ["-h", "--help"]}` and an eager `--version` callback; neither requires application configuration. `pretty_exceptions_show_locals=False` hides locals only, so sanitize expected application failures separately.
+- **Configure help, version, and error sanitizing**: configure `context_settings={"help_option_names": ["-h", "--help"]}` and an eager `--version` callback; neither requires application configuration. `pretty_exceptions_show_locals=False` hides locals only; sanitize errors per [CLI contracts](../cli-contracts.md#defaults-for-new-clis).
 
 ## Official Skills
 

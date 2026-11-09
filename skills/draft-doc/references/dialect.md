@@ -28,18 +28,20 @@ Verified by uploading a test document with [`scripts/compile_markdown_doc.py`](.
 
 The compiler turns every fenced `mermaid` block and local `![alt](path.svg)` link into a short reference in the body and appends the Base64 definitions at the bottom of the file, so the body stays readable:
 
+<!-- dprint-ignore -->
 ```markdown
 ![Figure 1 — Nightly batch execution flow on spot virtual machines][fig-1]
 
 _Figure 1. Automatic retries keep reclaimed spot machines within the 07:00 window._
 
-[fig-1]: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
+[fig-1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...>
 ```
 
+- **Fences at column 0, local SVG files**: the compiler reads only `mermaid` fences that start at column 0 and rejects an indented one (for example under a list item), so unindent it. It also rejects a remote `.svg` link: download the file next to the document or use a PNG.
 - **Alt text for Mermaid**: an explicit `%% alt: <description>` line inside the block, else the italic caption line right after it, else `Figure N — Architecture diagram`.
 - **Rendering**: Mermaid runs through the pinned Mermaid CLI with `mise exec` and system Chrome; SVG figures are checked with the [diagrams-as-code SVG checker](../../diagrams-as-code/references/svg/GUIDE.md) and rasterized by isolated headless Chrome with JavaScript and network disabled. Both render at `--scale` (1 to 4, default 2) but never wider than 600 px (450 pt), which fits Letter and A4 text columns. SVG figures therefore use a 600 px canvas (`--svg-width`, default 600), so 12 px labels read at 9 pt; a wider canvas shrinks text by 600 divided by its width (960 px shows 12 px labels at about 5.6 pt). Keep Mermaid diagrams narrow (`flowchart TD` over `LR`) for the same reason.
 - **Drive assets**: with `--drive-folder` or `--file-id`, the compiler exports the `.src.md`, `fig-N.mmd` sources, `.svg` figures, and `fig-N.png` rasters to `--assets-dir` (default `assets/<doc-slug>/` next to `--output`), upserts them into `assets/<doc-slug>/` in Drive, and returns `drive.docs_url`, `drive.assets_folder_url`, and `drive.uploaded_assets`.
-- **Updates by file ID**: `--file-id` keeps the document's Drive name and parent folder and derives `<doc-slug>` from that name; only `--doc-name` renames it.
+- **Updates by file ID**: `--file-id` keeps the document's Drive name and parent folder and derives `<doc-slug>` from that name; only `--doc-name` renames it. When Drive returns no parent folder, the document is still updated and `drive.warning` (also on stderr) names the skipped assets; rerun with `--drive-folder` to upload them.
 
 ## Official Google Documentation
 

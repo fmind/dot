@@ -9,6 +9,11 @@ quiet = true
 dprint = "latest"
 uv = "latest"
 
+[tasks.all]
+description = "Check formatting and build the docs strictly without rewriting source files"
+# check already builds the docs through check:network; a second build would repeat its downloads.
+run = "mise run check"
+
 [tasks.install]
 run = "uv sync --locked"
 

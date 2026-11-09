@@ -40,7 +40,7 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
 
 - **Source paths are relative to the stylesheet**: default discovery otherwise starts at the process working directory. Explicit roots make repository-root and CI builds agree.
 - **Register sources Tailwind cannot infer**: Tailwind scans text, not Python or Jinja semantics. Ignored files and dependencies require deliberate source registration.
-- **Respect the site's established identity**: resolve design tokens before editing colors; for Fmind apps, export `@theme` tokens from `~/.agents/DESIGN.md` (`npx @google/design.md@0.4.0 export --format css-tailwind ~/.agents/DESIGN.md`) rather than defaulting to generic Tailwind palettes, and use [fmind-visuals](../../fmind-visuals/SKILL.md) for published Fmind artifacts.
+- **Respect the site's established identity**: resolve design tokens before editing colors; for Fmind apps, export `@theme` tokens from `~/.agents/DESIGN.md` with the pinned [fmind-visuals export command](../../fmind-visuals/references/renderers.md#exports) rather than defaulting to generic Tailwind palettes, and use [fmind-visuals](../../fmind-visuals/SKILL.md) for published Fmind artifacts.
 
 ## Documentation
 

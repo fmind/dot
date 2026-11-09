@@ -213,6 +213,42 @@ def test_public_apply_sets_every_baseline_setting(tmp_path: Path) -> None:
     assert report["changed"]["allow_merge_commit"] == [True, False]
 
 
+def test_other_deployment_policies_are_drift_and_never_deleted(tmp_path: Path) -> None:
+    # A `v*` tag policy does not limit deployments while another branch or tag policy still allows them.
+    policies = f"{BASE}/environments/pypi/deployment-branch-policies"
+    state = (
+        public_before()
+        | public_after()
+        | {
+            f"GET {policies}?per_page=100": [
+                {
+                    "branch_policies": [
+                        {"id": 4, "name": "v*", "type": "tag"},
+                        {"id": 5, "name": "main", "type": "branch"},
+                        {"id": 6, "name": "*", "type": "tag"},
+                    ]
+                }
+            ]
+        }
+    )
+    for folder, flags in (("check", ("--check",)), ("apply", ())):
+        (tmp_path / folder).mkdir()
+        result, calls = run(tmp_path / folder, {"before": state}, *flags)
+        assert result.returncode == 1, result.stderr
+        report = json.loads(result.stdout)
+        assert report["state"]["environment.pypi.release_tags_only"] is False
+        assert report["drift"] == [
+            "environment.pypi.release_tags_only: expected true, found false",
+            (
+                "environment pypi: policies other than tag 'v*' still allow deployments "
+                "(branch 'main' id 5, tag '*' id 6); delete each only with the user's approval "
+                f"(`gh api --method DELETE {policies}/ID`), then rerun"
+            ),
+        ]
+        changed = [call for call in mutations(calls) if policies in call[-1]]
+        assert changed == [], "the baseline neither deletes other policies nor adds a second v* policy"
+
+
 def test_private_repository_without_secret_scanning_reports_the_gap(tmp_path: Path) -> None:
     before = {
         f"GET {BASE}": repository("private"),

@@ -46,8 +46,8 @@
    ```bash
    gcloud run deploy <slug> --project=<project> --image="$IMAGE" --region=<region> \
      --service-account="<slug>-runtime@<project>.iam.gserviceaccount.com" \
-     --set-env-vars=HOST=0.0.0.0,ENVIRONMENT=production,LOG_LEVEL=info \
-     --set-secrets=DATABASE_URL=database-url:<version>,API_KEY=api-key:<version> \
+     --set-env-vars=HOST=0.0.0.0,ENVIRONMENT=production \
+     --set-secrets=DATABASE_URL=database-url:<version> \
      --invoker-iam-check --no-allow-unauthenticated
    ```
 
@@ -61,7 +61,7 @@
      set -euo pipefail
      : "${API_KEY:?API_KEY must be supplied by the secret store or a scoped launcher}"
      case $API_KEY in *[$'\r\n']*) printf '%s\n' 'API_KEY must be a single-line string.' >&2; exit 1 ;; esac
-     printf '%s' "$API_KEY" | gcloud secrets versions add api-key --data-file=-
+     printf '%s' "$API_KEY" | gcloud secrets versions add api-key --project="<project>" --data-file=-
    )
    ```
 

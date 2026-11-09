@@ -19,21 +19,11 @@ betterleaks stdin --redact < <file> # outgoing text: PR bodies, prompts and diff
 
 Since 1.10, betterleaks reads a target's `.betterleaks.toml` only with `--config <file>` or `--unsafe-auto-load-config`; without either, allowlists and custom rules are silently ignored. Use `--unsafe-auto-load-config` only on the project's own checkout (pass `--config` when the file must exist), never on untrusted targets. `--no-banner` removes decoration; keep `--verbose --redact=100` so finding locations remain actionable without revealing secret values. Full scans retain their scope; never pass `--validation` in hooks or CI so candidate secrets never leave the machine.
 
-These commands target Betterleaks 1.x (locked at 1.10.0). The 2.0 release candidates are out (rc.7 on 2026-11-04) and the migration waits for 2.0.0 final: re-check every flag here, the code-review Gate, and the repository's `check:leaks` tasks together then.
+These commands target Betterleaks 1.x (locked at 1.10.0). The 2.0 release candidates are out (rc.7 on 2026-11-04) and the migration waits for 2.0.0 final: then change every flag together in this guide, the [Python](../../python-stack/references/foundation/templates/mise.toml) and [OpenTofu](../../infra-as-code/templates/mise.toml) starter tasks, and [scanners](skill-security-review/references/scanners.md), and re-check the code-review Gate and the repository's `check:leaks` tasks.
 
 ## Mise Task
 
-Expose two scopes per [mise](../../mise/SKILL.md). The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.betterleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check:local` run scans every commit before it exists; the scheduled job audits the full history.
-
-```toml
-[tasks."check:leaks"]
-description = "Scan working-tree files, including untracked files, for leaked secrets"
-run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
-
-[tasks."check:leaks:full"]
-description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
-```
+Expose two scopes per [mise](../../mise/SKILL.md): copy `check:leaks` and `check:leaks:full` from the Python or OpenTofu starter linked above. The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.betterleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check:local` run scans every commit before it exists; the scheduled job audits the full history.
 
 ## When a Secret Is Found
 

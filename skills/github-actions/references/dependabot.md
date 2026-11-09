@@ -59,17 +59,6 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
            patterns: ["*"]
    ```
 
-1. **Exempt the cooldown audit**: jactionlint's `dependabot-cooldown` audit still flags this config, but `cooldown` never applies to security updates and version updates are off. Disable the audit in `.github/jactionlint.yaml` instead of adding inert `cooldown` blocks:
-
-   ```yaml
-   # Docs: https://jactionlint.jdx.dev/config
-   profile: default
-
-   rules:
-     # Dependabot runs security updates only, which ignore cooldowns; version updates are off.
-     dependabot-cooldown: off
-   ```
-
 1. **Validate**: `jactionlint` checks `.github/dependabot.yml` against the schema and security audits alongside the repository's workflows and actions (see [jactionlint](jactionlint.md)); GitHub re-validates on push and shows errors in the Dependabot tab.
 1. **Review each security PR locally**: it is ready to merge once the gate passes; never merge blindly and never enable auto-merge (unavailable for private repositories on GitHub Free anyway).
 

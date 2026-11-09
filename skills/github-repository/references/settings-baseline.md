@@ -40,6 +40,7 @@ Use for a new solo-maintained repository or an explicitly requested settings pas
 
 - **Attach release assets before publishing**: immutable releases freeze each published release's tag and assets and add a release attestation, so a release workflow uploads every asset at creation (`gh release create` with its files, or a draft published last). A new repository without a release or publishing environment gets them on the rerun after its first release.
 - **Keep environment reviewers**: an environment PUT replaces its settings, so the script carries required reviewers, self-review prevention, and the wait timer forward before restricting deployments to release tags.
+- **Delete other deployment policies yourself**: the script only adds the `v*` tag policy. Any other branch or tag policy on a publishing environment still allows deployments, so it is reported as drift with its ID and the `gh api --method DELETE` path; delete it only with the user's approval.
 - **Keep direct pushes working**: the ruleset blocks deletion and force pushes without requiring pull requests or signatures. The script updates it in place by name and creates it only when absent and no other ruleset already enforces both rules; duplicates left by earlier runs stop it with their IDs, and extras are deleted only with the user's approval.
 
 ## Gotchas

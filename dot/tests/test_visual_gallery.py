@@ -96,7 +96,7 @@ def test_screenshot_requires_fresh_output_and_preserves_previous_png(
     page.write_text("<p>Current gallery</p>")
     shot = page.with_suffix(".png")
     shot.write_bytes(b"previous screenshot")
-    monkeypatch.setattr(gallery, "chrome", lambda: "chrome")
+    monkeypatch.setattr(gallery.svg_checker(), "chrome", lambda: "chrome")
 
     def browser(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
         if empty:
@@ -104,7 +104,7 @@ def test_screenshot_requires_fresh_output_and_preserves_previous_png(
         return subprocess.CompletedProcess(args, 0, b"", b"")
 
     monkeypatch.setattr(gallery.subprocess, "run", browser)
-    with pytest.raises(RuntimeError, match="failed to screenshot"):
+    with pytest.raises(RuntimeError, match=r"failed to render gallery\.html"):
         gallery.screenshot(page, 1)
     assert shot.read_bytes() == b"previous screenshot"
     assert sorted(path.name for path in tmp_path.iterdir()) == ["gallery.html", "gallery.png"]

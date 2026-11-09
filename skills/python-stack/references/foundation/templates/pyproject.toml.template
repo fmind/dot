@@ -23,7 +23,7 @@ dev = [
   "ruff>=0.17.3",
   "ty>=0.0.95,<0.1", # pre-1.0: pin a compatible range until it stabilizes
   "validate-pyproject>=0.27",
-  "zensical>=0.0.74,<0.1", # pre-1.0: pin a compatible range until it stabilizes
+  "zensical>=0.1.0,<0.2", # pre-1.0: pin a compatible range until it stabilizes
 ]
 
 [build-system]
@@ -37,7 +37,6 @@ extend-exclude = ["*.md"] # dprint owns Markdown, including its Python blocks
 [tool.ruff.format]
 docstring-code-format = true
 line-ending = "lf"
-quote-style = "double"
 
 [tool.ruff.lint]
 select = [

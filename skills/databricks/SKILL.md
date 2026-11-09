@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/databricks
   created: "2026-09-16"
-  updated: "2026-11-08"
+  updated: "2026-11-09"
 ---
 
 # Databricks CLI
@@ -40,7 +40,7 @@ Resolve the workspace, profile, and bundle target before mutations; deployments 
    databricks bundle run <job-or-pipeline-key> --target dev --profile <profile>
    ```
 
-1. **Inspect Unity Catalog assets**: fetch a known resource directly. For discovery, current catalog, schema, and table `list` commands accept `--limit` to cap total results (verified with CLI 1.24.0); scope them to the intended catalog/schema and inspect help when using another version. Omitting a limit can enumerate every visible match.
+1. **Inspect Unity Catalog assets**: fetch a known resource directly. For discovery, current catalog, schema, and table `list` commands accept `--limit` to cap total results (verified with CLI 1.25.0); scope them to the intended catalog/schema and inspect help when using another version. Omitting a limit can enumerate every visible match.
 
    ```bash
    databricks catalogs get <catalog> --profile <profile> --output json

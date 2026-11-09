@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-11-07"
+  updated: "2026-11-09"
 ---
 
 # Documentation Sites
@@ -20,7 +20,7 @@ Use Zensical as the default static site generator for project documentation, cou
 1. **Bootstrap with a locked dependency**: check the [latest release](https://github.com/zensical/zensical/releases), then add it as a dev dependency so `uv run` and `uv sync --locked` include it. Skip `uv init` in an existing Python project; run `zensical new` in a scratch directory when `docs/` or `zensical.toml` already exists, because it never overwrites files.
    ```bash
    uv init --bare <slug> && cd <slug>
-   uv add --dev zensical
+   uv add --dev 'zensical>=0.1.0,<0.2'
    uv run zensical new .
    ```
 1. **Apply the starter**: replace the generated files with the [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) as `docs/index.md`, [extra.css](templates/extra.css) as `docs/stylesheets/extra.css`, and [abbreviations.md](templates/abbreviations.md) as `includes/abbreviations.md`; delete `docs/markdown.md`. Fill every `<placeholder>`, set the real `site_url` with its hosting prefix, and drop unused sections. The starter enables instant navigation, Copy as Markdown, `llms.txt`, social cards, a glossary, checked snippets, minified HTML, and self-hosted fonts and Mermaid; [configuration](references/configuration.md) explains each feature and the optional ones (blog, tags, redirects, API reference, versions, offline).

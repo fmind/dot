@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-11-07"
+  updated: "2026-11-09"
 ---
 
 # xh HTTP Inspection
@@ -40,12 +40,7 @@ Use xh for bounded read-only HTTP inspection. POST, PUT, PATCH, DELETE, uploads,
 ## Gotchas
 
 - **Supervise hard deadlines externally**: `--timeout` covers an individual request, including response-body reads in xh 0.26.3, despite its help calling it a connection timeout. Use a process supervisor for a hard deadline across redirects, authentication retries, and output processing.
-- **Range does not limit transfer**: a Range request is not a guaranteed transfer limit; the byte cap bounds only displayed output.
 - **Avoid persistent sessions**: `--session` persists cookies and credentials; prefer no session, or use `--session-read-only` only with an explicitly approved synthetic fixture.
-
-## Official Skills
-
-xh has no upstream skill bundle. Use the installed CLI and verify flags with `xh --help`.
 
 ## Documentation
 

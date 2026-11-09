@@ -12,7 +12,7 @@ Let the next session continue without the user re-explaining. Prefer the host's 
 - **Same conversation later**: `agy -c` resumes the most recent conversation, `agy --conversation <id>` a specific one, and `/resume` picks one inside the session. No handoff is needed.
 - **Long session**: `/compact [message]` summarizes the conversation to free context, then answers `message` if given; `/context` shows usage.
 - **Alternative approach**: `/fork` copies the conversation history, not the checkout or a Git branch; use [git-worktree](../../git-delivery/references/git-worktree/GUIDE.md) for competing edits.
-- **Claude Code**: `claude -c` continues the most recent conversation in the current directory, `claude --resume <id-or-name>` (`-r`) a specific one or opens a picker, `/compact [instructions]` summarizes, and `/rewind` restores an earlier checkpoint of the conversation or code; add `--fork-session` to resume under a new session ID. Verified on Claude Code 2.1.316.
+- **Claude Code**: `claude -c` continues the most recent conversation in the current directory, `claude --resume <id-or-name>` (`-r`) a specific one or opens a picker, `/compact [instructions]` summarizes, and `/rewind` restores an earlier checkpoint of the conversation or code; add `--fork-session` to resume under a new session ID. Verified on Claude Code 2.1.319.
 - **Fresh start**: write and copy a handoff with the workflow below, then `/clear`, which clears the conversation and starts a new one. Paste the handoff, or its pointer line, as the first prompt.
 
 ## Handoff workflow

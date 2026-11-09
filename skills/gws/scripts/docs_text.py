@@ -7,6 +7,10 @@ import sys
 from pathlib import Path
 
 
+class InputError(ValueError):
+    """A recovery message that is safe to print: fixed text or a character offset, never document content."""
+
+
 def chip(kind: str, label: str | None) -> str:
     """Label a smart chip like the inline-object placeholder, keeping its displayed text."""
     return f"[{kind}: {label}]" if label else f"[{kind}]"
@@ -46,12 +50,12 @@ def structural_text(elements: list) -> str:
 
 def extract(document: dict) -> dict:
     if not isinstance(document, dict) or "error" in document:
-        raise ValueError("Expected a successful documents.get object.")
+        raise InputError("Expected a successful documents.get object.")
     sections = []
 
     def add_sections(content: dict, tab_id: str | None, title: str | None) -> None:
         if "body" not in content:
-            raise ValueError("Body missing; fetch document content without a metadata-only field mask.")
+            raise InputError("Body missing; fetch document content without a metadata-only field mask.")
         groups = [("body", "body", content["body"])]
         for kind in ("headers", "footers", "footnotes"):
             groups.extend((kind, key, value) for key, value in content.get(kind, {}).items())
@@ -77,7 +81,7 @@ def extract(document: dict) -> dict:
     elif "body" in document:
         add_sections(document, None, None)
     else:
-        raise ValueError("No body or tabs; fetch documents.get with includeTabsContent=true.")
+        raise InputError("No body or tabs; fetch documents.get with includeTabsContent=true.")
     return {
         "documentId": document.get("documentId"),
         "title": document.get("title"),
@@ -97,8 +101,12 @@ def main() -> int:
         try:
             document = json.loads(text)
         except json.JSONDecodeError as error:
-            raise ValueError(f"Invalid JSON near character {error.pos}.") from error
+            raise InputError(f"Invalid JSON near character {error.pos}.") from error
         result = extract(document)
+    except InputError as error:
+        sys.stderr.write(f"docs_text: {error}\n")
+        return 1
+    # Other errors can quote the input (a UnicodeDecodeError names its bytes), so print only their type.
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         sys.stderr.write(
             f"docs_text: Invalid or unreadable Docs input ({type(error).__name__}); fetch full tab content.\n"

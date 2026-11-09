@@ -19,7 +19,7 @@ For a Google-native file, inspect `drive.files.export` and use an allowed export
 
 ## Docs
 
-Choose the format with [draft-doc](../../draft-doc/SKILL.md): native Drive Markdown (`.md`, `mimeType: text/markdown`) for living, agent-maintained, or frequently updated documents, which update in place through `drive.files.update --upload` and compile figures to Base64 PNG references; a converted Google Doc (`mimeType: application/vnd.google-apps.document`) for polished deliverables that need styling or smart chips, and for multi-tab documents, edited with `documents.batchUpdate` as below.
+Choose native Drive Markdown or a converted Google Doc with [draft-doc](../../draft-doc/SKILL.md#format-choice), which owns the `.md` dialect rules; edit a converted Google Doc with `documents.batchUpdate` as below.
 
 ```bash
 gws docs documents get --params '{"documentId":"DOC_ID","includeTabsContent":true}' > document.json

@@ -61,7 +61,7 @@ Use simple titles and section names for navigation: the title names the subject 
 | Heading        | Moving the jobs keeps all data in the EU but adds two service accounts  | Security                                                                              |
 | First sentence | We reviewed the security of the move.                                   | **Moving the jobs keeps all data in the EU but adds two service accounts to manage.** |
 
-In a formal document, put the metadata at the top, one field per line: type, status (draft or final), audience, author, and date.
+In a formal document, when the reader needs it, put the metadata at the top, one field per line: type, status (draft or final), audience, author, and date.
 
 > Type: Decision memo\
 > Status: Draft\
@@ -109,7 +109,7 @@ A designed document is easier to read and earns trust, so make formal documents 
 - **Markdown**: the [Markdown template](../templates/report.md), adapted to the renderer as its header comment explains.
 - **Zensical sites**: admonitions for take-home boxes and warnings, content tabs for per-option detail, Mermaid diagrams, collapsible blocks for annexes, and the abbreviations glossary as Key terms tooltips ([authoring](../../documentation-site/references/authoring.md)).
 - **GitHub Markdown**: `> [!IMPORTANT]` alerts for the ask, Mermaid diagrams, `<details>` blocks for annexes, and task lists for next steps.
-- **Google Docs**: through [draft-doc](../../draft-doc/SKILL.md), use native Drive Markdown (`.md`) for living, agent-maintained, or frequently updated documents, and a converted Google Doc (`.gdoc`) for polished client or stakeholder deliverables that need colors, highlights, alignment, or smart chips, and for multi-tab documents ([Docs Help](https://support.google.com/docs/answer/18289341)). Native `.md` renders ATX headings in the outline, GFM tables, checklists, footnotes, equations, and compiled Mermaid and SVG figures; it shows YAML frontmatter, `> [!IMPORTANT]` alerts, raw HTML, and HTML comments as text.
+- **Google Docs**: [draft-doc](../../draft-doc/SKILL.md#format-choice) owns the choice between native Drive Markdown (`.md`) and a converted Google Doc (`.gdoc`), and the [native `.md` dialect rules](../../draft-doc/SKILL.md#native-md-dialect-rules).
 - **Email and chat**: short paragraphs and light formatting that the client shows reliably, with no headings, no external images, and at most one short list; Slack and Chat support only a small Markdown subset.
 
 ## Honest framing

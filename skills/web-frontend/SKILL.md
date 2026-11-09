@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-11-08"
+  updated: "2026-11-09"
 ---
 
 # Web Frontend
@@ -16,7 +16,7 @@ Build calm, spacious, Google-simple browser interfaces with native HTML, CSS, an
 
 ## Workflow
 
-1. **Apply the design system**: for Fmind work, follow `~/.agents/DESIGN.md` for layouts, the single primary action, flat hierarchy, inline states, and omitted chrome; export its CSS variables or Tailwind `@theme` tokens via [fmind-visuals renderers](../fmind-visuals/references/renderers.md#exports) (`npx @google/design.md@0.4.0 export`).
+1. **Apply the design system**: for Fmind work, follow `~/.agents/DESIGN.md` for layouts, the single primary action, flat hierarchy, inline states, and omitted chrome; export its CSS variables or Tailwind `@theme` tokens with the pinned command in [fmind-visuals renderers](../fmind-visuals/references/renderers.md#exports).
 1. **Prefer web platform primitives**: use native elements (`<details>`, `<dialog>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
 1. **Retrieve platform guidance**: search curated web platform recipes, then fetch a guide's implementation details and browser baselines by identifier:
    ```bash
