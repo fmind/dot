@@ -332,8 +332,9 @@ def register(app: typer.Typer) -> None:
         "trust",
         help=(
             "Pre-accept folder trust in Claude, agy, and Copilot, and add trusted repositories to "
-            "agy Remote Control projects; 'all' covers pull.directories and their trust.github_owners repositories"
+            "agy Remote Control projects"
         ),
+        epilog="The target 'all' covers pull.directories and their trust.github_owners repositories.",
     )
     def trust(
         context: typer.Context,

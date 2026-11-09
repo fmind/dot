@@ -156,6 +156,15 @@ def test_show_is_metadata_only_by_default_and_guides_ambiguous_identity() -> Non
         show_session(SessionQuery(identity="missing"))
 
 
+def test_cli_show_content_keeps_an_empty_records_list_when_a_filter_matches_nothing() -> None:
+    _ingest("claude", "only-user")
+
+    shown = CliRunner().invoke(app, ["agent", "session", "show", "only-user", "--content", "--role", "assistant"])
+
+    assert shown.exit_code == 0, shown.output
+    assert json.loads(shown.stdout)["session"]["records"] == []
+
+
 def test_cli_list_is_text_and_show_is_json_without_default_content() -> None:
     _ingest("codex", "cli-session", cwd="/repo", content="cli secret")
     runner = CliRunner()

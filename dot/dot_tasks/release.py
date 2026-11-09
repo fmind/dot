@@ -155,7 +155,8 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
         # Preserve both the worktree and index rather than guessing who owns edits.
         state.stderr.write(
             "Release preparation stopped; changes were kept in CHANGELOG.md, dot/pyproject.toml, and dot/uv.lock. "
-            "Review git diff and git diff --cached before retrying.\n"
+            "Review git diff and git diff --cached before retrying; to drop only the generated release edits, run "
+            "git restore --staged --worktree -- CHANGELOG.md dot/pyproject.toml dot/uv.lock\n"
         )
         raise
     # Atomic: the remote accepts the release commit and its tag together or neither.

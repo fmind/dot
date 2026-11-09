@@ -222,6 +222,8 @@ def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest
     state = _state(monkeypatch, tmp_path)
     ingest_session("claude", "readable", [SessionLog("2026-09-01T10:00:00Z", "claude", "readable", "user", "hi")])
     (session_store_root() / "claude/broken.jsonl").write_text("{}\n")
+    # A stray copy is no bundle name: the listing ignores it, and so does the doctor.
+    (session_store_root() / "claude/readable.bak.jsonl").write_text("{}\n")
     sync_state = session_store_root() / "agy/.sync.json"
     sync_state.parent.mkdir()
     sync_state.write_text(

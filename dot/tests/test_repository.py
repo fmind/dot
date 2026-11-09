@@ -575,7 +575,11 @@ def test_pull_with_no_repositories_reports_a_clean_noop(tmp_path: Path) -> None:
     assert state.stdout.getvalue() == "No git repositories found in configured pull directories.\n"
 
 
-_FOR_EACH_UPSTREAM = ("git", "for-each-ref", "--format=%(upstream:remotename)%00%(upstream:remoteref)")
+_FOR_EACH_UPSTREAM = (
+    "git",
+    "for-each-ref",
+    "--format=%(upstream:remotename)%00%(upstream:remoteref)%00%(push:remotename)",
+)
 
 
 def test_pull_pushes_ahead_branch_to_its_exact_upstream(tmp_path: Path) -> None:
@@ -586,8 +590,8 @@ def test_pull_pushes_ahead_branch_to_its_exact_upstream(tmp_path: Path) -> None:
         {
             STATUS_V2: [v2("feature"), v2("feature", ahead=2), v2("feature", ahead=2)],
             ("git", "fetch", "--prune"): [result()],
-            (*_FOR_EACH_UPSTREAM, "refs/heads/feature"): [result("origin\0refs/heads/main\n")],
-            ("git", "push", "--no-follow-tags", "origin", "HEAD:refs/heads/main"): [result()],
+            (*_FOR_EACH_UPSTREAM, "refs/heads/feature"): [result("origin\0refs/heads/main\0origin\n")],
+            ("git", "push", "--no-follow-tags", "origin", "refs/heads/feature:refs/heads/main"): [result()],
         },
         {"git"},
     )
@@ -610,8 +614,8 @@ def test_pull_reports_push_failure_after_a_successful_fetch(tmp_path: Path) -> N
         {
             STATUS_V2: [v2(), v2(ahead=1), v2(ahead=1)],
             ("git", "fetch", "--prune"): [result()],
-            (*_FOR_EACH_UPSTREAM, "refs/heads/main"): [result("origin\0refs/heads/main\n")],
-            ("git", "push", "--no-follow-tags", "origin", "HEAD:refs/heads/main"): [result(returncode=1)],
+            (*_FOR_EACH_UPSTREAM, "refs/heads/main"): [result("origin\0refs/heads/main\0origin\n")],
+            ("git", "push", "--no-follow-tags", "origin", "refs/heads/main:refs/heads/main"): [result(returncode=1)],
         },
         {"git"},
     )
@@ -624,6 +628,59 @@ def test_pull_reports_push_failure_after_a_successful_fetch(tmp_path: Path) -> N
     assert isinstance(state.stdout, io.StringIO)
     assert "Pull successful (up to date)" in state.stdout.getvalue()
     assert "Push failed" in state.stdout.getvalue()
+
+
+def test_pull_pushes_the_branch_checked_out_after_the_fetch(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "sample"
+    (repository / ".git").mkdir(parents=True)
+    # Another process switches main to feature during the fetch: only feature's own upstream may move.
+    runner = RecordingRunner(
+        {
+            STATUS_V2: [v2("main"), v2("feature", ahead=1), v2("feature", ahead=1)],
+            ("git", "fetch", "--prune"): [result()],
+            (*_FOR_EACH_UPSTREAM, "refs/heads/feature"): [result("origin\0refs/heads/feature\0origin\n")],
+            ("git", "push", "--no-follow-tags", "origin", "refs/heads/feature:refs/heads/feature"): [result()],
+        },
+        {"git"},
+    )
+    state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    results = run_pull(state, push=True)
+
+    assert results[0].branch == "feature"
+    assert results[0].pushed
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        pytest.param("upstream\0refs/heads/main\0origin\n", id="fork-push-remote"),
+        pytest.param(".\0refs/heads/main\0.\n", id="local-upstream"),
+        pytest.param("origin\0refs/heads/main\0\n", id="no-push-remote"),
+    ],
+)
+def test_pull_refuses_to_push_where_plain_git_push_would_not(tmp_path: Path, target: str) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "sample"
+    (repository / ".git").mkdir(parents=True)
+    # No push is scripted: an attempt would fail the lookup instead of the expected refusal.
+    runner = RecordingRunner(
+        {
+            STATUS_V2: [v2(), v2(ahead=1), v2(ahead=1)],
+            ("git", "fetch", "--prune"): [result()],
+            (*_FOR_EACH_UPSTREAM, "refs/heads/main"): [result(target)],
+        },
+        {"git"},
+    )
+    state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    with pytest.raises(DotError, match="failed to pull 1 repositories"):
+        run_pull(state, push=True)
+
+    assert isinstance(state.stdout, io.StringIO)
+    assert "Push failed: cannot resolve the upstream push target for main; push it manually" in state.stdout.getvalue()
+    assert not any(call[0][1] == "push" for call in runner.calls)
 
 
 def test_pull_never_merges_a_diverged_branch(tmp_path: Path) -> None:

@@ -137,7 +137,9 @@ def git_root(state: State, cwd: Path | None = None) -> Path:
             ["git", "rev-parse", "--show-toplevel"], cwd=cwd, timeout=_GIT_ROOT_TIMEOUT_SECONDS, check=False
         )
     except (DotError, OSError) as error:
-        raise DotError(f"failed to inspect {location} with git: {error}") from error
+        # str(OSError) appends the filename's repr, such as PosixPath('...'); the location already names it.
+        cause = getattr(error, "strerror", None) or error
+        raise DotError(f"failed to inspect {location} with git: {cause}") from error
     if result.returncode:
         raise NotGitWorkTreeError(f"{location} is not inside a git work tree")
     output = result.stdout.strip()
@@ -186,16 +188,24 @@ def _remaining_timeout(deadline: float) -> float:
 
 
 def _upstream_push(git: Callable[[Sequence[str]], str], branch: str) -> list[str]:
-    """Push HEAD to the exact upstream the ahead count used, never a same-named branch or extra tags.
+    """Push the branch to the exact upstream the ahead count used, never a same-named branch or extra tags.
 
     A bare `git push` follows push.default and push.followTags, so with `current` a branch
-    tracking a differently named upstream would create a new remote branch instead.
+    tracking a differently named upstream would create a new remote branch instead. The named
+    branch is pushed, not HEAD: a checkout switched meanwhile must not publish another branch's
+    commits there. A separate push remote (a fork) or a local upstream stays the owner's to push.
     """
-    target = git(["for-each-ref", "--format=%(upstream:remotename)%00%(upstream:remoteref)", f"refs/heads/{branch}"])
-    remote, _, ref = target.strip().partition("\0")
-    if not remote or not ref.startswith("refs/heads/"):
+    target = git(
+        [
+            "for-each-ref",
+            "--format=%(upstream:remotename)%00%(upstream:remoteref)%00%(push:remotename)",
+            f"refs/heads/{branch}",
+        ]
+    )
+    remote, ref, push_remote = [*target.strip().split("\0"), "", ""][:3]
+    if not remote or remote == "." or push_remote != remote or not ref.startswith("refs/heads/"):
         raise DotError(f"cannot resolve the upstream push target for {branch}; push it manually")
-    return ["push", "--no-follow-tags", remote, f"HEAD:{ref}"]
+    return ["push", "--no-follow-tags", remote, f"refs/heads/{branch}:{ref}"]
 
 
 def _fetch(state: State, path: Path, deadline: float) -> None:
@@ -230,8 +240,9 @@ def _pull_repository(
         if dirty:
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         _fetch(state, path, deadline)
-        _, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
-        # An editor or agent may write during a slow fetch; never fast-forward over new local work.
+        # An editor or agent may write or switch branches during a slow fetch: never fast-forward
+        # over new local work, and report and push only the branch these counts describe.
+        branch, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
         if dirty:
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         if not upstream:

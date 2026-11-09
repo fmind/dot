@@ -400,8 +400,12 @@ def test_cancel_lets_child_handle_sigterm_before_kill(
     assert [result.returncode for result in results] == [0]
 
 
-@pytest.mark.parametrize("stop", ["timeout", "cancel"])
-@pytest.mark.parametrize("group_error", [None, ProcessLookupError, PermissionError])
+# Timeout and cancel signal through the same group-or-child fallback: the fast cancel cases cover
+# its error branches, so the timeout, which waits a fixed 3 seconds, runs once.
+@pytest.mark.parametrize(
+    ("stop", "group_error"),
+    [("timeout", None), ("cancel", None), ("cancel", ProcessLookupError), ("cancel", PermissionError)],
+)
 def test_child_ignoring_sigterm_is_killed_after_bounded_grace(
     stop: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, group_error: type[OSError] | None
 ) -> None:

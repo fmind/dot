@@ -718,6 +718,14 @@ def test_colab_force_requests_the_grant_without_probing(provider: RecordingRunne
     assert provider.calls == [ADC_LOGIN, COLAB_SESSIONS]
 
 
+def test_forced_machine_login_requests_the_adc_grant_once(provider: RecordingRunner, tmp_path: Path) -> None:
+    path = tmp_path / "dot.yaml"
+    path.write_text("auth:\n  login: [gcp, colab]\n")
+    provider.responses = [TOKEN, TOKEN, TOKEN, COLAB_LISTING]
+    cli(["--config", str(path), "login", "--force"])
+    assert provider.actions == [["gcloud", "auth", "login"], ADC_LOGIN]
+
+
 def test_colab_requires_its_scopes_in_the_adc_policy(provider: RecordingRunner, tmp_path: Path) -> None:
     path = tmp_path / "dot.yaml"
     path.write_text("auth:\n  gcp:\n    adc_scopes: [openid]\n")

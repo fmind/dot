@@ -541,10 +541,16 @@ def test_quiet_sync_announces_a_parser_upgrade_once(tmp_path: Path) -> None:
     path = session_bundle_path("claude", "fixture-id")
     header, rest = path.read_bytes().split(b"\n", 1)
     path.write_bytes(json.dumps(json.loads(header) | {"parser_version": "13"}).encode() + b"\n" + rest)
+    sync_state = path.parent / ".sync.json"
+    sync_state.write_text(json.dumps(json.loads(sync_state.read_text()) | {"parser_version": "13"}))
     state.stderr = io.StringIO()
 
     assert sync_sessions(state, agent="claude", quiet=True).ingested == 1
     assert sync_sessions(state, agent="claude", quiet=True).unchanged == 1
+    # A complete pass by this parser leaves only retained copies on an older one: no repeated notice.
+    header, rest = path.read_bytes().split(b"\n", 1)
+    path.write_bytes(json.dumps(json.loads(header) | {"parser_version": "13"}).encode() + b"\n" + rest)
+    sync_sessions(state, agent="claude", quiet=True)
 
     assert isinstance(state.stderr, io.StringIO)
     assert state.stderr.getvalue() == (

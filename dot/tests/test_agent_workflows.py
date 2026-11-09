@@ -787,3 +787,16 @@ def test_subagent_transcripts_count_once_with_their_parent_session(tmp_path: Pat
         sessions["agent-a1-00-resumed-id"]["sidechain"],
         sessions["agent-a1-00-resumed-id"]["parent_session_id"],
     ) == (True, "00-resumed-id")
+
+    # A transcript declaring another session than its directory parent keeps one archive id across syncs.
+    _write_jsonl(
+        project / "moved-id/subagents/agent-b2.jsonl",
+        {"isSidechain": True, "sessionId": "parent-id", "agentId": "b2"} | answer(25, "claude-haiku-4-5"),
+    )
+    assert sync_sessions(state, agent="claude").ingested == 1
+    again = sync_sessions(state, agent="claude")
+    assert (again.ingested, again.unchanged) == (0, 5)
+    listed = CliRunner().invoke(app, ["agent", "session", "list", "--json"])
+    sessions = {item["session_id"]: item for item in json.loads(listed.stdout)["sessions"]}
+    assert sessions["agent-b2"]["parent_session_id"] == "moved-id"
+    assert "agent-b2-moved-id" not in sessions

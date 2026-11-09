@@ -18,13 +18,12 @@ from fmind_dot.archive.parsers import (
     resolve_cwd,
 )
 from fmind_dot.archive.store import (
-    BUNDLE_SUFFIX,
     SESSION_PARSER_VERSION,
     SessionIngestionResult,
     SessionManifest,
     SessionSource,
+    agent_bundle_paths,
     ingest_session,
-    is_valid_session_id,
     read_session_manifest,
     report_ingestion,
     session_store_root,
@@ -116,13 +115,11 @@ def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
     stored: dict[str, SessionManifest] = {}
     directory = root / agent
     try:
-        paths = list(directory.iterdir())
+        # glob() suppresses scan errors, hiding captures that publication must retain.
+        paths = agent_bundle_paths(directory)
     except FileNotFoundError:
         return stored
-    # glob() suppresses scan errors, hiding captures that publication must retain.
     for path in paths:
-        if path.suffix != BUNDLE_SUFFIX:
-            continue
         try:
             # Keep only capture metadata in memory, not every session's request samples.
             manifest = read_session_manifest(path, usage=False)
@@ -136,13 +133,11 @@ def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
 def _upgrade_bundles(root: Path, adapter: AgentAdapter, fail: Callable[..., None]) -> None:
     directory = root / adapter.name
     try:
-        paths = sorted(directory.iterdir())
+        paths = agent_bundle_paths(directory)
     except OSError:
         # Absent needs nothing; the archive inspection that follows reports an unreadable one once.
         return
     for path in paths:
-        if path.suffix != BUNDLE_SUFFIX or not is_valid_session_id(path.stem):
-            continue
         try:
             # Peek at the version without decoding: a schema 3 manifest line holds every usage sample.
             with path.open("rb") as stream:
@@ -260,9 +255,9 @@ def _write_sync_state(
     root: Path,
     agent: str,
     failed: int,
-    database_signature: str = "",
+    database_signature: str,
     *,
-    retained: int = 0,
+    retained: int,
 ) -> None:
     """Record a complete pass; filtered passes never prove the archive and record nothing."""
     document: dict[str, object] = {
@@ -367,7 +362,10 @@ class _SyncPass:
             return
         if source is None:
             return
-        scan = _AgentScan(adapter, source, announced=not self.quiet)
+        # A complete pass by this parser already upgraded what it could: a bundle still on an older
+        # parser is then a retained copy, not a pending upgrade worth announcing on every quiet run.
+        last = read_sync_state(self.root, adapter.name)
+        scan = _AgentScan(adapter, source, announced=not self.quiet or (isinstance(last, SyncState) and last.current))
         scanned = True
         try:
             if adapter.database:
@@ -518,8 +516,8 @@ def sync_sessions(
     return outcome
 
 
-def bounded_failure(error: BaseException, session_id: str = "", limit: int = FAILURE_DETAIL_LIMIT) -> str:
+def bounded_failure(error: BaseException, session_id: str = "") -> str:
     """Keep failure text short and free of session identities."""
     detail = str(error).replace(session_id, "<session>") if session_id else str(error)
     detail = _UUID.sub("<session>", detail)
-    return " ".join(detail.split())[:limit]
+    return " ".join(detail.split())[:FAILURE_DETAIL_LIMIT]

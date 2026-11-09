@@ -15,7 +15,6 @@ from fmind_dot.archive.parsers import (
     parse_agy_session,
     parse_claude_session,
     parse_copilot_session,
-    parse_opencode_session,
 )
 from fmind_dot.archive.store import SessionLog, fingerprint_bytes, marshal_session_logs
 from fmind_dot.archive.usage import RETIRED_AGENTS, UsageRecord
@@ -377,26 +376,6 @@ def test_agy_usage_uses_provider_reported_counters(tmp_path: Path) -> None:
     assert invalid.usage is None
     assert str(invalid.usage_error) == "usage record field 'input_tokens' must be a non-negative integer"
     assert [line.role for line in invalid.logs] == ["assistant"]
-
-
-def test_opencode_source_bytes_count_encoded_message_bytes(tmp_path: Path) -> None:
-    path = tmp_path / "opencode.db"
-    message = json.dumps(
-        {"role": "assistant", "title": "café", "tokens": {"input": 1, "output": 1}, "time": {"created": 1}},
-        ensure_ascii=False,
-    )
-    with closing(sqlite3.connect(path)) as db, db:
-        db.executescript(
-            "CREATE TABLE session (id TEXT, directory TEXT);"
-            "CREATE TABLE message (id TEXT, session_id TEXT, time_created INTEGER, data TEXT);"
-            "CREATE TABLE part (id TEXT, message_id TEXT, session_id TEXT, time_created INTEGER, data TEXT);"
-            "INSERT INTO session VALUES ('ses_test', '/work/project');"
-        )
-        db.execute("INSERT INTO message VALUES ('msg_0', 'ses_test', 1, ?)", (message,))
-
-    usage = _usage(parse_opencode_session(path, "ses_test"))
-
-    assert usage.source_bytes == len(message.encode()) > len(message)
 
 
 def test_parsers_account_for_malformed_and_unsupported_records(tmp_path) -> None:

@@ -32,7 +32,7 @@ Each session keeps one bundle with its latest measurement:
   line 3+: normalized transcript records
 ```
 
-Directories are private (`0o700`), and files are private (`0o600`). `dot agent session sync` captures agy, Claude, Copilot, and OpenCode; retired Codex and Grok bundles stay queryable. Only the current store is queried; [contracts](contracts.md#session-archive) owns retention and statuses.
+Directories are private (`0o700`), and files are private (`0o600`). `dot agent session sync` captures agy, Claude, and Copilot, and refuses an OpenCode store once it holds sessions (no OpenCode parser yet); earlier OpenCode bundles and retired Codex and Grok bundles stay queryable. Only the current store is queried; [contracts](contracts.md#session-archive) owns retention and statuses.
 
 Prefer the CLI projection to reading bundles directly. `dot agent stats --sessions --limit 0 --json` exports selected session usage records for local analysis (`--agent`, `--project`, `--since`, and `--until` filter by each session's last activity). Prefer statistics JSON for monthly/model aggregation: optional `samples` contain per-request measurements and must never be summed together with their parent session totals.
 

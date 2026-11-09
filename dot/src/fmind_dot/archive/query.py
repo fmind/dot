@@ -72,7 +72,7 @@ class SessionSummary:
         if self.high_water_mark:
             result["high_water_mark"] = self.high_water_mark
         result["completeness"] = self.completeness
-        if self.records and include_records:
+        if include_records:
             result["records"] = [record.to_dict() for record in self.records]
         result.update(
             {

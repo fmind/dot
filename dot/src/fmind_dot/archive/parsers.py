@@ -79,14 +79,6 @@ def resolve_cwd(value: str) -> str:
     return str(path.resolve(strict=False))
 
 
-def _json_document(content: str | bytes, label: str) -> object:
-    """Decode one JSON document; nesting deeper than the interpreter stack is malformed input."""
-    try:
-        return json.loads(content)
-    except RecursionError:
-        raise ValueError(f"{label} is nested too deeply") from None
-
-
 # A JSON escape in the surrogate range can decode to a lone UTF-16 surrogate, which UTF-8 cannot store.
 _SURROGATE_ESCAPE = re.compile(rb"\\u[dD][89a-fA-F]")
 
@@ -142,8 +134,8 @@ def _apply_counters(
                 record.measurement_kind = "provider-reported"
 
 
-def _usage_mapping(value: object, field: str, *, optional: bool = True) -> dict[str, Any]:
-    if value is None and optional:
+def _usage_mapping(value: object, field: str) -> dict[str, Any]:
+    if value is None:
         return {}
     if not isinstance(value, dict):
         raise ValueError(f"usage record field {field!r} must be an object")
@@ -361,7 +353,8 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     )
     messages: dict[tuple[str, str], UsageRecord] = {}
     timed = True
-    parent = ""
+    # The sync claims subagent ids by this directory parent; a declared parent only fills its absence.
+    parent = claude_parent_session_id(path)
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
     # Only validates an undated sample: untimed sessions drop their samples below.
     sample_fallback = _undated_usage_timestamp([], path)
@@ -589,140 +582,9 @@ def _extract_copilot_usage(
     return record.finalize(fallback_timestamp=fallback_timestamp)
 
 
-_OPENCODE_TOKEN_FIELDS = (
-    ("input", "input_tokens"),
-    ("output", "output_tokens"),
-    ("reasoning", "reasoning_tokens"),
-)
-
-
-def _opencode_time(value: object) -> str:
-    if type(value) is not int or not 0 <= value <= 253402300799000:
-        raise ValueError("invalid OpenCode message time")
-    return datetime.fromtimestamp(value / 1000, UTC).isoformat()
-
-
-def _opencode_request(message: dict[str, Any], created: int, session_id: str, cwd: str) -> UsageRecord:
-    """Measure one assistant message: OpenCode records each model step as its own message."""
-    tokens = _usage_mapping(message.get("tokens"), "tokens", optional=False)
-    sample = UsageRecord(harness="opencode", session_id=session_id, cwd=cwd, turn_count=1)
-    _apply_counters(sample, tokens, _OPENCODE_TOKEN_FIELDS)
-    cache = _usage_mapping(tokens.get("cache"), "cache")
-    _apply_counters(sample, cache, (("read", "cached_tokens"), ("write", "cache_write_tokens")))
-    # OpenCode reports reasoning beside output; the archive treats it as a subset of output.
-    sample.output_tokens += sample.reasoning_tokens
-    model = message.get("modelID")
-    sample.model = model if isinstance(model, str) else ""
-    completed = _mapping(message.get("time")).get("completed")
-    sample.timestamp = _opencode_time(completed if completed is not None else created)
-    return sample.finalize()
-
-
-_OPENCODE_MAX_MESSAGES = 20_000
-_OPENCODE_MAX_PARTS = 100_000
-_OPENCODE_MAX_BYTES = 16 << 20
-
-
-def parse_opencode_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
-    """Read text turns and per-step usage from OpenCode's SQLite store.
-
-    Tools, synthetic parts and summaries are excluded from the transcript. The observed message/part
-    schema stores provider JSON in `data` and millisecond times in columns; assistant messages carry
-    `tokens` (input, output, reasoning, cache read/write), OpenCode's computed `cost`, and `modelID`.
-    """
-    if not is_valid_session_id(session_id):
-        raise ValueError("invalid OpenCode session id")
-    with closing(_connect_read_only(path)) as connection:
-        connection.execute("BEGIN")
-        session = connection.execute("SELECT directory FROM session WHERE id = ?", (session_id,)).fetchone()
-        if session is None:
-            raise ValueError("OpenCode session disappeared")
-        cwd = resolve_cwd(session[0] or cwd)
-        # Check sizes inside the same read transaction before materializing provider JSON.
-        sizes = connection.execute(
-            "SELECT COUNT(*), COALESCE(SUM(LENGTH(CAST(data AS BLOB))), 0) FROM message WHERE session_id = ? "
-            "UNION ALL SELECT COUNT(*), COALESCE(SUM(LENGTH(CAST(data AS BLOB))), 0) FROM part WHERE session_id = ?",
-            (session_id, session_id),
-        ).fetchall()
-        if (
-            sizes[0][0] > _OPENCODE_MAX_MESSAGES
-            or sizes[1][0] > _OPENCODE_MAX_PARTS
-            or sum(row[1] for row in sizes) > _OPENCODE_MAX_BYTES
-        ):
-            raise ValueError("OpenCode session exceeds transcript bounds")
-        # The same read transaction keeps these rows within the bounds checked above.
-        messages = connection.execute(
-            "SELECT id, time_created, data FROM message WHERE session_id = ? ORDER BY time_created, id",
-            (session_id,),
-        ).fetchall()
-        parts = connection.execute(
-            "SELECT id, message_id, data FROM part WHERE session_id = ? ORDER BY time_created, id",
-            (session_id,),
-        ).fetchall()
-    content: dict[str, list[str]] = {}
-    message_ids = {row[0] for row in messages}
-    for _, message_id, raw in parts:
-        if message_id not in message_ids:
-            raise ValueError("OpenCode part references a missing message")
-        part = _json_document(raw, "OpenCode part")
-        if not isinstance(part, dict):
-            raise ValueError("invalid OpenCode part")
-        if part.get("type") == "text" and not part.get("synthetic") and not part.get("ignored"):
-            if not isinstance(part.get("text"), str):
-                raise ValueError("invalid OpenCode text")
-            content.setdefault(message_id, []).append(part["text"])
-    logs = []
-    requests: list[UsageRecord] = []
-    costs: list[float | None] = []
-    usage_error: Exception | None = None
-    # One assistant message without counters (an older release) makes the session's usage unknown.
-    measured = True
-    for message_id, created, raw in messages:
-        message = _json_document(raw, "OpenCode message")
-        if not isinstance(message, dict):
-            raise ValueError("invalid OpenCode message")
-        role = message.get("role")
-        if role == "assistant" and message.get("tokens") is None:
-            measured = False
-        elif role == "assistant" and usage_error is None:
-            # Summaries are model calls too, so they count toward usage but not the transcript.
-            try:
-                requests.append(_opencode_request(message, created, session_id, cwd))
-                costs.append(_usage_cost(message.get("cost")))
-            except ValueError as error:
-                usage_error = error
-        if role not in {"user", "assistant"} or message.get("summary") is True:
-            continue
-        timestamp = _opencode_time(created)
-        body = "\n".join(content.get(message_id, []))
-        if body.strip():
-            logs.append(SessionLog(timestamp, "opencode", session_id, role, body, cwd))
-    usage = None
-    if requests and measured and usage_error is None:
-        usage = UsageRecord(
-            harness="opencode",
-            agent="opencode",
-            session_id=session_id,
-            cwd=cwd,
-            measurement_kind="provider-reported",
-            # Message bytes measured above; usage comes from messages only.
-            source_bytes=sizes[0][1],
-        )
-        usage.set_samples(requests)
-        usage.timestamp = max(request.timestamp for request in requests)
-        if all(cost is not None for cost in costs):
-            usage.cost_usd = sum(cost for cost in costs if cost is not None)
-            usage.cost_known = True
-        usage, usage_error = _finalize_parsed_usage(usage, None, usage.timestamp)
-    return ParsedSession(
-        logs,
-        fingerprint_json(
-            {"cwd": cwd, "messages": [tuple(row) for row in messages], "parts": [tuple(row) for row in parts]}
-        ),
-        "opencode-db",
-        usage=usage,
-        usage_error=usage_error,
-    )
+def parse_opencode_session(_path: Path, _session_id: str, _cwd: str = "") -> ParsedSession:
+    """No OpenCode store format is parsed: the enumerator refuses every store that holds sessions."""
+    raise ValueError("OpenCode sessions are not supported")
 
 
 def _file_uri_path(value: object) -> str:
@@ -817,24 +679,25 @@ def _enumerate_copilot(root: Path) -> list[SessionCandidate]:
         ]
 
 
+_OPENCODE_STORES = (
+    ("session_v2", "SELECT 1 FROM session_v2 LIMIT 1", "2.x"),
+    ("session", "SELECT 1 FROM session LIMIT 1", "1.x"),
+)
+
+
 def _enumerate_opencode(root: Path) -> list[SessionCandidate]:
+    """Accept only an empty store.
+
+    OpenCode 2.x replaced the 1.x session/message/part tables with session_v2 tables this archive
+    does not read yet, and the 1.x parser left once no 1.x store remained. An empty store has
+    nothing to archive; refuse real sessions rather than silently skip them.
+    """
     with closing(_connect_read_only(root)) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        if "session" not in tables and "session_v2" in tables:
-            # OpenCode 2.x replaced the 1.x session/message/part tables. An empty 2.x store has
-            # nothing to archive; refuse real 2.x sessions rather than silently skip them.
-            if connection.execute("SELECT 1 FROM session_v2 LIMIT 1").fetchone() is not None:
-                raise ValueError("OpenCode 2.x sessions (session_v2) are not supported yet")
-            return []
-        rows = connection.execute("SELECT id, directory FROM session ORDER BY id LIMIT 20001").fetchall()
-    if len(rows) > 20000:
-        raise ValueError("OpenCode exceeds 20000 sessions")
-    candidates: list[SessionCandidate] = []
-    for identifier, directory in rows:
-        if not isinstance(identifier, str) or not is_valid_session_id(identifier):
-            raise ValueError("invalid OpenCode session identity")
-        candidates.append((identifier, directory or "", root))
-    return candidates
+        for table, probe, release in _OPENCODE_STORES:
+            if table in tables and connection.execute(probe).fetchone() is not None:
+                raise ValueError(f"OpenCode {release} sessions ({table}) are not supported")
+    return []
 
 
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {

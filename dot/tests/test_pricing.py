@@ -279,6 +279,7 @@ def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
     ("harness", "model", "expected"),
     [
         ("codex", "gpt-6.1-sol", 12),
+        ("claude", "claude-fable-5-2", 48),
         ("claude", "claude-sonnet-5-5", 12),
         ("claude", "claude-haiku-5-5", 0.6),
         ("grok", "grok-4.7", 8),

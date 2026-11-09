@@ -366,8 +366,14 @@ def discover_session_bundles() -> list[Path]:
         path
         for agent in root.iterdir()
         if is_valid_session_id(agent.name) and stat.S_ISDIR(agent.stat().st_mode)
-        for path in agent.iterdir()
-        if path.suffix == BUNDLE_SUFFIX and is_valid_session_id(path.stem)
+        for path in agent_bundle_paths(agent)
+    )
+
+
+def agent_bundle_paths(directory: Path) -> list[Path]:
+    """List one agent's bundles; any other name is a temporary file, sync state, or a stray copy."""
+    return sorted(
+        path for path in directory.iterdir() if path.suffix == BUNDLE_SUFFIX and is_valid_session_id(path.stem)
     )
 
 

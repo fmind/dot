@@ -30,11 +30,10 @@ def estimated_tokens(characters: int) -> int:
     return (characters + 3) // 4
 
 
-def skill_index_entry(name: str, description: str, scope: Scope, *, relative: str | None = None) -> str:
+def skill_index_entry(name: str, description: str, scope: Scope, *, relative: str) -> str:
     """Normalize checkout paths so moving a repository cannot change its budget."""
     prefix = "~/.agents/skills" if scope == "global" else ".agents/skills"
-    path = relative or f"{name}/SKILL.md"
-    return f"- {name}: {' '.join(description.split())} (file: {prefix}/{path})\n"
+    return f"- {name}: {' '.join(description.split())} (file: {prefix}/{relative})\n"
 
 
 @dataclass(frozen=True)

@@ -690,7 +690,8 @@ def login_machine(state: State, *, force: bool, dry_run: bool, check: bool) -> N
                 print("Skipping Workspace setup: set GWS_PROJECT or auth.workspace.project.", file=state.stderr)
             login_workspace(state, force=force, dry_run=dry_run)
         else:
-            login_colab(state, force=force, dry_run=dry_run)
+            # A forced gcp login just renewed the same ADC grant: never open that browser flow twice.
+            login_colab(state, force=force and "gcp" not in providers, dry_run=dry_run)
 
 
 @login_app.callback()

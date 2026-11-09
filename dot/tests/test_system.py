@@ -783,7 +783,7 @@ def test_verify_compares_installed_python_package_with_source(
     for package in (source_package, installed_package):
         (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     monkeypatch.setattr(system, "PACKAGE_DIRECTORY", installed_package)
-    monkeypatch.setattr(system, "_installed_version", lambda: "1.26.2")
+    monkeypatch.setattr(system, "__version__", "1.26.2")
     config = _minimal_verify_config()
 
     def source_path(args: list[str], cwd: Path | None, input_text: str | None, check: bool) -> CommandResult:

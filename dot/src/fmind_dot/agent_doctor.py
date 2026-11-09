@@ -9,8 +9,8 @@ from pathlib import Path
 
 from fmind_dot.archive.parsers import AGENT_ADAPTERS
 from fmind_dot.archive.store import (
-    BUNDLE_SUFFIX,
     SESSION_STORE_VERSION,
+    agent_bundle_paths,
     read_session_manifest,
     session_store_root,
 )
@@ -212,15 +212,13 @@ def _check_sync(state: State, root: Path, agent: str) -> tuple[str, str, int, in
 def _check_archive(root: Path, agent: str) -> tuple[str, int]:
     directory = root / agent
     try:
-        paths = list(directory.iterdir())
+        paths = agent_bundle_paths(directory)
     except FileNotFoundError:
         return "empty", 0
     except OSError:
         return "unreadable", 0
     sessions = unreadable = 0
     for path in paths:
-        if path.suffix != BUNDLE_SUFFIX:
-            continue
         try:
             read_session_manifest(path, usage=False)
         except OSError, ValueError:

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-11-08"
+  updated: "2026-11-09"
 ---
 
 # Develop Dot
