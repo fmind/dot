@@ -44,3 +44,4 @@ The [tool version rules](tool-versions.md#select-exact-versions) own selecting a
 - **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
 - **Keep project config project-local**: never symlink a repository's `mise.toml` into `~/.config/mise/conf.d/`; mise then treats it as global, `mise lock` reports `No tools configured to lock`, and its tasks leak everywhere.
 - **Task `dir`**: pin `[task_config] dir = "{{config_root}}"` when inherited configs could select another project root; verify tasks from both the repository root and a subdirectory.
+- **Keep a TTY with redacted `.env`**: `_.file = { path = ".env", redact = true }` pipes `stdout`/`stderr` through the redactor and sets `stdin` to `Stdio::null()` once `.env` exists; set `raw = true` on interactive login and live TUI tasks so they keep the terminal.

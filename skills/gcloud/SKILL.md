@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-11-07"
+  updated: "2026-11-09"
 ---
 
 # Google Cloud CLI
@@ -39,6 +39,7 @@ Google Cloud is the default cloud for Fmind projects. Resolve the project and re
 - **`--quiet` is not authority**: it suppresses prompts; it neither makes an operation safe nor approves it.
 - **Overrides replace the account**: `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT`, `CLOUDSDK_AUTH_ACCESS_TOKEN_FILE`, and `--impersonate-service-account` change the effective principal; prove which is active first.
 - **Firebase reuses ADC**: the global `firebase` CLI (firebase-tools) authenticates with gcloud Application Default Credentials, so skip `firebase login`; pass `--project <id>` and `--json`, and treat `deploy` like any mutation.
+- **Linked BigQuery datasets (`type = "LINKED"`) inherit `projectReaders`**: Cloud Logging linked datasets (`google_logging_linked_dataset`) carry a system `specialGroup: projectReaders` ACL and reject dataset-level IAM (`HTTP 400`); project-level `roles/bigquery.dataViewer` or `roles/viewer` grants BigQuery read access to every linked dataset regardless of `roles/logging.viewAccessor`.
 - **Failures are findings**: on an auth, permission, or quota error report the missing principal, denied permission, or exhausted quota; do not switch configurations, broaden IAM, create keys, or move spend to another project.
 
 ## Official Skills
