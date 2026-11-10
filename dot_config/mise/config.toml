@@ -64,7 +64,13 @@ CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
 # Copilot's autoUpdate setting only stops downloads; this also makes launches ignore newer
 # cached builds, so the mise-locked version is the one that runs.
 COPILOT_AUTO_UPDATE = "false"
+# Copilot-owned GitHub and Entra authentication telemetry; no settings key covers it.
+COPILOT_TELEMETRY_DISABLED = "true"
 HF_HUB_DISABLE_TELEMETRY = "1"
+# mise locks Pi: skip its pi.dev latest-version request and its install/update ping
+# (PI_TELEMETRY also drops Pi's attribution headers on provider requests).
+PI_SKIP_VERSION_CHECK = "1"
+PI_TELEMETRY = "0"
 # Keep sonarqube-cli off the macOS Keychain (whose partition ACL blocks background probes and prompts repeatedly).
 # Its file store writes with default permissions, so chezmoi seeds a private tokens.json it then keeps.
 SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
@@ -148,6 +154,7 @@ lychee = "latest" # Fast link checker for Markdown, HTML, and websites
 neovim = "latest" # Extensible Vim-based text editor
 node = "lts" # Runtime for third-party npm CLIs only; active project authoring is Python.
 opentofu = "latest" # OpenTofu (tofu) for Neovim's Terraform formatting and validation outside projects; projects pin their own
+pi = "latest" # Pi terminal-based AI coding agent CLI
 python = "3.14" # Python interpreter; required tool wheels are not ready for 3.15
 ripgrep = "latest" # Blazing-fast grep alternative
 ruff = "latest" # High-performance Python linter and formatter

@@ -1,53 +1,48 @@
 # Fmind Design in Renderers
 
-`~/.agents/DESIGN.md` owns the Fmind tokens, roles, components, and rules; its source is [fmind/theme DESIGN.md](https://github.com/fmind/theme/blob/main/DESIGN.md). Read it first. This guide only maps it into renderer syntax, so a design change updates DESIGN.md, then the adapters below and the templates that carry native values.
+`~/.agents/DESIGN.md` owns the Fmind tokens, roles, components, and rules; its source is [fmind/theme DESIGN.md](https://github.com/fmind/theme/blob/main/DESIGN.md). Read it first. Renderers then take a ready-made file from the same pinned fmind/theme revision, so no template here carries palette values.
 
-## Exports
+## Pinned files
 
-For CSS-based targets, generate values instead of copying them; the format is alpha, so pin the CLI version and review the output:
+fmind/dot deploys these files to `~/.agents/themes/` beside DESIGN.md ([sources and installation notes](https://github.com/fmind/theme/tree/main/themes)). Copy the file into the project that renders with it and keep it unchanged; change the design in fmind/theme, never in a copy.
+
+- **`css/fmind.css`**: CSS custom properties (`--fmind-color-*`, `--fmind-spacing-*`, `--fmind-rounded-*`) for plain pages and rendered HTML.
+- **`tailwind/fmind.css`**: a Tailwind CSS v4 `@theme` block with the DESIGN.md token names (`bg-canvas`, `text-primary`, `max-w-reading-width`); import it after `tailwindcss`.
+- **`daisyui/fmind.css`**: a daisyUI 5 theme; import it after the plugin with `themes: false`.
+- **`zensical/fmind.css`**: the light scheme of a Zensical or Material for MkDocs site, including syntax colors.
+- **`d2/fmind.d2`**: theme overrides and the `diagram-*` classes.
+- **`mermaid/fmind.json`**: a Mermaid `base` theme configuration.
+- **`vhs/fmind.tape`**: the terminal palette for VHS recordings.
+
+For Figma variables or Style Dictionary, export W3C Design Tokens; the format is alpha, so pin the CLI version and review the output:
 
 ```bash
-npx @google/design.md@0.4.0 export --format css-tailwind ~/.agents/DESIGN.md  # Tailwind v4 @theme
-npx @google/design.md@0.4.0 export --format css-vars --prefix fmind ~/.agents/DESIGN.md  # plain CSS
-npx @google/design.md@0.4.0 export --format dtcg ~/.agents/DESIGN.md  # Figma, Style Dictionary
+npx @google/design.md@0.4.0 export --format dtcg ~/.agents/DESIGN.md
 ```
 
 ## Mermaid
 
-Use Mermaid's `base` theme because it is customizable. This frontmatter stays inside the Mermaid source and works in `.mmd` files and Markdown fences when the target renderer supports frontmatter. `layout: dagre` and `look: classic` follow the diagrams-as-code rule to [pin the layout and look](../../diagrams-as-code/references/mermaid.md#gotchas), so Mermaid 11 and 12 renderers draw the same diagram.
+Render with the pinned configuration: `mmdc --configFile ~/.agents/themes/mermaid/fmind.json --input diagram.mmd --output diagram.svg`. It customizes Mermaid's `base` theme, the only customizable one, and sets the classic look.
+
+A renderer that reads only the Mermaid source, such as GitHub Markdown, needs frontmatter instead. Copy `theme` and the `themeVariables` the diagram uses from the pinned file; these four cover a flowchart. `layout: dagre` and `look: classic` follow the diagrams-as-code rule to [pin the layout and look](../../diagrams-as-code/references/mermaid.md#gotchas), so Mermaid 11 and 12 renderers draw the same diagram.
 
 ```mermaid
 ---
 config:
-  fontFamily: "Google Sans, sans-serif"
-  flowchart:
-    diagramPadding: 16
   layout: dagre
   look: classic
   theme: base
   themeVariables:
-    darkMode: false
-    background: "#FFFFFF"
-    primaryColor: "#F1F3F4"
+    primaryColor: "#f1f3f4"
     primaryTextColor: "#202124"
-    primaryBorderColor: "#174EA6"
-    secondaryColor: "#D2E3FC"
-    secondaryTextColor: "#202124"
-    secondaryBorderColor: "#174EA6"
-    tertiaryColor: "#FFFFFF"
-    tertiaryTextColor: "#595D62"
-    tertiaryBorderColor: "#9AA0A6"
-    lineColor: "#595D62"
-    textColor: "#202124"
-    noteBkgColor: "#F1F3F4"
-    noteTextColor: "#202124"
-    noteBorderColor: "#174EA6"
+    primaryBorderColor: "#174ea6"
+    lineColor: "#174ea6"
 ---
 flowchart LR
   Evidence --> Decision --> Outcome
 ```
 
-For a renderer without Mermaid frontmatter support, move the same configuration into its site-level Mermaid configuration. Load Google Sans before rendering, as the [renderer-stable font stack](../../diagrams-as-code/references/mermaid.md#gotchas) rule requires.
+Load Google Sans before rendering, as the [renderer-stable font stack](../../diagrams-as-code/references/mermaid.md#gotchas) rule requires.
 
 ## SVG Illustrations
 
@@ -55,6 +50,6 @@ README and user-doc illustrations copy [illustration.svg](../../diagrams-as-code
 
 ## D2
 
-[diagram.d2](../templates/diagram.d2) implements the DESIGN.md `diagram-*` components as D2 classes (`group`, `container`, `component`, `actor`, `external`, `step`, `terminal`) on a light surface. Fmind diagrams import it and use its classes instead of declaring colors.
+Copy `~/.agents/themes/d2/fmind.d2` beside the diagram sources and spread-import it on the first line (`...@fmind`). It sets D2 theme overrides, a white canvas, and dark blue connections, and implements the DESIGN.md `diagram-*` components as classes (`group`, `container`, `component`, `actor`, `external`, `step`, `terminal`). Fmind diagrams use these classes instead of declaring colors.
 
-Elsewhere, start from a built-in D2 theme and use `theme-overrides` or `dark-theme-overrides` under `vars.d2-config`. [Supply all eight `--font-*` flags](../../diagrams-as-code/references/d2.md#gotchas) from static TTF faces: Google Sans for `--font-regular`, `--font-italic`, `--font-semibold`, and `--font-bold`; Google Sans Code for `--font-mono`, `--font-mono-italic`, `--font-mono-semibold`, and `--font-mono-bold`. Instantiate variable fonts at the intended weights before assigning them to these slots; one variable font reused for every slot can render every weight as regular.
+For another brand, start from a built-in D2 theme and use `theme-overrides` under `vars.d2-config`. [Supply all eight `--font-*` flags](../../diagrams-as-code/references/d2.md#gotchas) from static TTF faces: Google Sans for `--font-regular`, `--font-italic`, `--font-semibold`, and `--font-bold`; Google Sans Code for `--font-mono`, `--font-mono-italic`, `--font-mono-semibold`, and `--font-mono-bold`. Instantiate variable fonts at the intended weights before assigning them to these slots; one variable font reused for every slot can render every weight as regular.

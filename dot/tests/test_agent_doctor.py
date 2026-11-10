@@ -10,17 +10,15 @@ from pathlib import Path
 from typing import IO
 
 import pytest
-from typer.core import TyperGroup
-from typer.main import get_command
-from typer.testing import CliRunner
 
 from fmind_dot.agent_doctor import HOSTS, gather_agent_doctor, run_agent_doctor
 from fmind_dot.archive.parsers import AGENT_ADAPTERS
 from fmind_dot.archive.store import SESSION_PARSER_VERSION, SessionLog, ingest_session, session_store_root
 from fmind_dot.archive.sync import sync_sessions
-from fmind_dot.cli import app
+from fmind_dot.cli import app, build_parser
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
+from tests.fakes import CliRunner
 
 
 def _text(stream: IO[str]) -> str:
@@ -61,6 +59,10 @@ def _configure_hooks(home: Path, binary: str = "dot") -> None:
         ),
     )
     _write(home / ".copilot/settings.json", json.dumps({"notifications": True}))
+    _write(
+        home / ".pi/agent/extensions/dot-notify.ts",
+        f'spawn("{binary}", ["agent", "hook", "notify", "pi", "stop"], {{}});\n',
+    )
 
 
 def _configure_discovery(home: Path) -> None:
@@ -72,6 +74,7 @@ def _configure_discovery(home: Path) -> None:
         ".claude/CLAUDE.md",
         ".copilot/copilot-instructions.md",
         ".config/opencode/AGENTS.md",
+        ".pi/agent/AGENTS.md",
     ):
         (home / persona).parent.mkdir(parents=True, exist_ok=True)
         (home / persona).symlink_to(home / ".agents/AGENTS.md")
@@ -108,8 +111,9 @@ def test_doctor_reports_three_checks_per_agent_without_content(monkeypatch: pyte
 
     results = {result.agent: result for result in run_agent_doctor(state)}
 
-    assert list(results) == ["agy", "claude", "copilot", "opencode"]
+    assert list(results) == ["agy", "claude", "copilot", "opencode", "pi"]
     assert results["opencode"].hooks == "not-required"
+    assert results["pi"].hooks == "configured"
     claude = results["claude"]
     assert (claude.hooks, claude.source, claude.archive, claude.sessions, claude.sync_failures) == (
         "configured",
@@ -162,6 +166,24 @@ def test_doctor_reads_notify_hooks_statically(
     assert result.hooks == status
     assert not result.healthy
     assert result.next.startswith("chezmoi diff ~/.claude/settings.json")
+
+
+@pytest.mark.parametrize(("content", "status"), [(None, "absent"), ("export default function () {}\n", "malformed")])
+def test_doctor_requires_the_pi_notify_extension(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, content: str | None, status: str
+) -> None:
+    state = _state(monkeypatch, tmp_path)
+    extension = tmp_path / ".pi/agent/extensions/dot-notify.ts"
+    if content is None:
+        extension.unlink()
+    else:
+        extension.write_text(content, encoding="utf-8")
+
+    [result] = gather_agent_doctor(state, agent="pi")
+
+    assert result.hooks == status
+    assert not result.healthy
+    assert result.next.startswith("chezmoi diff ~/.pi/agent/extensions/dot-notify.ts")
 
 
 def test_doctor_accepts_an_absolute_dot_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -288,18 +310,14 @@ def test_doctor_json_is_a_diagnostic_envelope(monkeypatch: pytest.MonkeyPatch, t
 
 
 def test_doctor_cli_keeps_only_json_and_agent_options() -> None:
-    root = get_command(app)
-    assert isinstance(root, TyperGroup)
-    agent = root.commands["agent"]
-    assert isinstance(agent, TyperGroup)
-    doctor = agent.commands["doctor"]
-    options = {option for parameter in doctor.params for option in parameter.opts}
-    assert options == {"--agent", "-a", "--json", "-j"}
+    doctor = build_parser().children["agent"].children["doctor"]
+    options = {option for argument in doctor.arguments for option in argument.option_strings}
+    assert options == {"--agent", "-a", "--json", "-j", "--help", "-h"}
     for removed in ("--fix", "--dry-run", "--deep", "--explain"):
         assert CliRunner().invoke(app, ["agent", "doctor", removed]).exit_code == 2
     unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "unsupported"])
     assert unknown.exit_code == 2
-    assert "'unsupported' is not one of" in unknown.stderr
+    assert "invalid choice: 'unsupported'" in unknown.stderr
 
 
 def test_doctor_reports_retained_sessions_without_failing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -12,19 +12,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import typer
-from typer.core import TyperGroup, TyperOption
-from typer.main import get_command
-from typer.testing import CliRunner
 
 from fmind_dot import auth, reporting, system
 from fmind_dot.cli import app
+from fmind_dot.command import FISH_COMPLETION, Parser
 from fmind_dot.config import Config, DoctorConfig, SecretConfig
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult
 from fmind_dot.state import State
 from fmind_dot.system import COMPLETION_SOURCES, MANAGED_COMPLETIONS, CompletionSource, run_doctor
-from tests.fakes import ScriptedRunner, TerminalIO, doctor_sections, make_state
+from tests.fakes import CliRunner, ScriptedRunner, TerminalIO, doctor_sections, make_state
 
 
 @pytest.fixture(autouse=True)
@@ -252,13 +249,14 @@ def test_completion_uses_only_the_configured_generator(monkeypatch: pytest.Monke
     assert failing.calls == [["plain", "completion", "fish"]]
 
 
-def test_dot_completion_uses_typer_fish_source_protocol() -> None:
+def test_dot_completion_is_its_own_callback_script() -> None:
     runner = ScriptedRunner(
         {"env", "dot"},
         run=lambda _args, _cwd, _input_text, _check: CommandResult("# dot fish completion\n", "", 0),
     )
 
-    assert "_DOT_COMPLETE=complete_fish" in system._generate_completion(make_state(runner), "dot")  # noqa: SLF001
+    assert system._generate_completion(make_state(runner), "dot") == FISH_COMPLETION  # noqa: SLF001
+    assert "complete --command dot" in FISH_COMPLETION
     assert runner.calls == []
 
 
@@ -298,7 +296,7 @@ def test_completion_publication_is_atomic_and_sets_private_cache_permissions(
     assert stat.S_IMODE((cache / "fish").stat().st_mode) == 0o700
     assert stat.S_IMODE((cache / "fish/atuin-init.fish").stat().st_mode) == 0o600
     assert stat.S_IMODE((completions / "dot.fish").stat().st_mode) == 0o644
-    assert "_DOT_COMPLETE=complete_fish" in (completions / "dot.fish").read_text(encoding="utf-8")
+    assert (completions / "dot.fish").read_text(encoding="utf-8") == FISH_COMPLETION
     assert all(not Path(call[0]).name.startswith("python") for call in runner.calls)
     assert list(completions.glob(".dot.fish.*")) == []
 
@@ -872,9 +870,18 @@ def test_doctor_from_a_source_checkout_skips_install_freshness(monkeypatch: pyte
 
 
 def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest.MonkeyPatch) -> None:
-    app = typer.Typer(add_completion=False)
-    system.register(app)
+    root = Parser(prog="dot")
+    system.register_doctor(root)
     state = make_state(ScriptedRunner())
+
+    def doctor(*arguments: str) -> int:
+        args = root.parse_args(["doctor", *arguments])
+        try:
+            args.handler(state, args)
+        except SystemExit as stopped:
+            return int(stopped.code or 0)
+        return 0
+
     passing: list[system.CheckResult] = []
     failing = [
         system.CheckResult("python", "fail", "command not found", group="tools"),
@@ -882,8 +889,7 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
     ]
     monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: passing)
 
-    json_result = CliRunner().invoke(app, ["doctor", "--json", "--fix"], obj=state)
-    assert json_result.exit_code == 0
+    assert doctor("--json", "--fix") == 0
     assert isinstance(state.stdout, StringIO)
     document = json.loads(state.stdout.getvalue())
     assert document["passed"] is True
@@ -891,31 +897,23 @@ def test_verify_command_renders_json_and_human_exit_contract(monkeypatch: pytest
 
     state.stdout.seek(0)
     state.stdout.truncate()
-    human_result = CliRunner().invoke(app, ["doctor"], obj=state)
-    assert human_result.exit_code == 0
+    assert doctor() == 0
     assert "CLI Tools" in state.stdout.getvalue()
 
     monkeypatch.setattr(system, "run_doctor", lambda _state, **_kwargs: failing)
     state.stdout.seek(0)
     state.stdout.truncate()
-    failed_result = CliRunner().invoke(app, ["doctor"], obj=state)
-    assert failed_result.exit_code == 1
+    assert doctor() == 1
     assert "✗ python" in state.stdout.getvalue()
     assert "6.9 GiB free (/tmp)" in state.stdout.getvalue()
 
 
 def test_system_command_surface_and_verify_flags() -> None:
-    app = typer.Typer(add_completion=False)
-    system.register(app)
-    command = get_command(app)
-    assert isinstance(command, TyperGroup)
-    assert set(command.commands) == {"completion", "doctor"}
-    option_names = {
-        name
-        for parameter in command.commands["doctor"].params
-        if isinstance(parameter, TyperOption)
-        for name in parameter.opts
-    }
+    root = Parser(prog="dot")
+    system.register_completion(root)
+    system.register_doctor(root)
+    assert set(root.children) == {"completion", "doctor"}
+    option_names = {name for argument in root.children["doctor"].arguments for name in argument.option_strings}
     assert {"--json", "-j", "--fix", "--deep"} <= option_names
     assert "-f" not in option_names
 

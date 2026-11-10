@@ -4,11 +4,11 @@ import json
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from fmind_dot.archive.store import SessionLog, ingest_session
 from fmind_dot.archive.usage import UsageRecord
 from fmind_dot.cli import app
+from tests.fakes import CliRunner
 
 
 @pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login"]])
@@ -17,7 +17,7 @@ def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> N
     config.write_text("pull:\n  typo: true\n")
     result = CliRunner().invoke(app, ["--config", str(config), *command, "--help"])
     assert result.exit_code == 0
-    assert "Usage:" in result.stdout
+    assert "usage:" in result.stdout
 
 
 @pytest.mark.parametrize(

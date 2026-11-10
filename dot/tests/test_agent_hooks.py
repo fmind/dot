@@ -9,7 +9,6 @@ from io import StringIO
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 import fmind_dot.hooks as hooks
 from fmind_dot import agent as agent_module
@@ -20,7 +19,7 @@ from fmind_dot.errors import DotError
 from fmind_dot.hooks import Notification, agy_print_mode
 from fmind_dot.process import CommandResult
 from fmind_dot.state import State
-from tests.fakes import ScriptedRunner, TerminalIO, make_state
+from tests.fakes import CliRunner, ScriptedRunner, TerminalIO, make_state
 
 
 def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -36,11 +35,28 @@ def test_notify_hook_uses_shared_event_and_workspace_context(monkeypatch: pytest
     result = CliRunner().invoke(
         app,
         ["agent", "hook", "notify", "claude", "needs-input"],
-        input=json.dumps({"cwd": str(project), "notification_type": "permission_prompt"}),
+        stdin=json.dumps({"cwd": str(project), "notification_type": "permission_prompt"}),
     )
 
     assert result.exit_code == 0
     assert captured == [Notification("⏳ Claude Code · project", "Needs your input")]
+
+
+def test_pi_extension_payload_names_the_harness_and_project(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    captured: list[Notification] = []
+    monkeypatch.setattr(
+        agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
+    )
+    command = ["agent", "hook", "notify", "pi", "stop"]
+
+    # The managed extension writes only the working directory when an interactive run settles.
+    assert CliRunner().invoke(app, command, stdin=json.dumps({"cwd": str(project)})).exit_code == 0
+    # Run by hand without a payload, the hook stays quiet like every other harness.
+    assert CliRunner().invoke(app, command).exit_code == 0
+
+    assert captured == [Notification("✅ Pi · project", "Your turn")]
 
 
 @pytest.mark.parametrize("agent", ["claude", "agy", "copilot"])
@@ -53,11 +69,11 @@ def test_turn_notifications_obey_idle_and_reentry_guards(
     )
     payload = {"cwd": str(tmp_path), "fullyIdle": True}
     command = ["agent", "hook", "notify", agent, "stop"]
-    assert CliRunner().invoke(app, command, input=json.dumps(payload)).exit_code == 0
+    assert CliRunner().invoke(app, command, stdin=json.dumps(payload)).exit_code == 0
     assert len(captured) == 1
-    assert CliRunner().invoke(app, command, input=json.dumps({**payload, "stop_hook_active": True})).exit_code == 0
+    assert CliRunner().invoke(app, command, stdin=json.dumps({**payload, "stop_hook_active": True})).exit_code == 0
     if agent == "agy":
-        assert CliRunner().invoke(app, command, input=json.dumps({**payload, "fullyIdle": False})).exit_code == 0
+        assert CliRunner().invoke(app, command, stdin=json.dumps({**payload, "fullyIdle": False})).exit_code == 0
     assert len(captured) == 1
 
 
@@ -72,7 +88,7 @@ def test_background_work_never_announces_a_handoff(monkeypatch: pytest.MonkeyPat
         result = CliRunner().invoke(
             app,
             ["agent", "hook", "notify", agent, "stop"],
-            input=json.dumps({"fullyIdle": True, field: value}),
+            stdin=json.dumps({"fullyIdle": True, field: value}),
         )
         assert result.exit_code == 0
     assert captured == []
@@ -87,13 +103,19 @@ def test_only_idle_and_actionable_notifications_reach_the_user(monkeypatch: pyte
     )
     for kind in ("auth_success", "agent_completed", "task_complete", "quota_auto_resume_fired", "unknown", None):
         for event in ("ready", "needs-input"):
-            result = CliRunner().invoke(app, ["agent", "hook", "notify", agent, event], input=json.dumps({key: kind}))
+            result = CliRunner().invoke(app, ["agent", "hook", "notify", agent, event], stdin=json.dumps({key: kind}))
             assert result.exit_code == 0
     assert captured == []
-    for event, kind in (("ready", "idle_prompt"), ("needs-input", "permission_prompt")):
-        result = CliRunner().invoke(app, ["agent", "hook", "notify", agent, event], input=json.dumps({key: kind}))
+    actionable = (
+        ("ready", "idle_prompt"),
+        ("needs-input", "permission_prompt"),
+        ("needs-input", "quota_auto_resume_stale"),
+        ("needs-input", "quota_auto_resume_disabled"),
+    )
+    for event, kind in actionable:
+        result = CliRunner().invoke(app, ["agent", "hook", "notify", agent, event], stdin=json.dumps({key: kind}))
         assert result.exit_code == 0
-    assert [notification.headline for notification in captured] == ["Your turn", "Needs your input"]
+    assert [notification.headline for notification in captured] == ["Your turn", *["Needs your input"] * 3]
 
 
 def test_question_alerts_survive_background_work_and_stop_reentry(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -104,7 +126,7 @@ def test_question_alerts_survive_background_work_and_stop_reentry(monkeypatch: p
     result = CliRunner().invoke(
         app,
         ["agent", "hook", "notify", "claude", "needs-input"],
-        input=json.dumps(
+        stdin=json.dumps(
             {
                 "notification_type": "permission_prompt",
                 "stop_hook_active": True,
@@ -122,7 +144,7 @@ def test_agy_stop_requires_explicit_idle(monkeypatch: pytest.MonkeyPatch, payloa
     monkeypatch.setattr(
         agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
     )
-    result = CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], input=payload)
+    result = CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], stdin=payload)
     assert result.exit_code == 0
     assert captured == []
 
@@ -181,8 +203,8 @@ def test_headless_agy_turns_stay_quiet(monkeypatch: pytest.MonkeyPatch, tmp_path
     )
     monkeypatch.setattr(hooks, "agy_print_mode", lambda: True)
     payload = json.dumps({"cwd": str(tmp_path), "fullyIdle": True})
-    assert CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], input=payload).exit_code == 0
-    assert CliRunner().invoke(app, ["agent", "hook", "notify", "claude", "stop"], input=payload).exit_code == 0
+    assert CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], stdin=payload).exit_code == 0
+    assert CliRunner().invoke(app, ["agent", "hook", "notify", "claude", "stop"], stdin=payload).exit_code == 0
     assert [notification.summary for notification in captured] == [f"✅ Claude Code · {tmp_path.name}"]
 
 
@@ -192,7 +214,7 @@ def test_child_completion_never_announces_a_handoff(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
     )
-    result = CliRunner().invoke(app, ["agent", "hook", "notify", "claude", "stop"], input=json.dumps(payload))
+    result = CliRunner().invoke(app, ["agent", "hook", "notify", "claude", "stop"], stdin=json.dumps(payload))
     assert result.exit_code == 0
     assert captured == []
 
@@ -203,7 +225,7 @@ def test_notify_failure_warns_on_stderr_without_failing_the_turn(
 ) -> None:
     monkeypatch.setattr(agent_module, "send_notification", _fail)
 
-    result = CliRunner().invoke(app, ["agent", "hook", "notify", "copilot", "stop"], input=payload)
+    result = CliRunner().invoke(app, ["agent", "hook", "notify", "copilot", "stop"], stdin=payload)
 
     assert result.exit_code == 0
     assert result.stdout == ""
@@ -224,7 +246,7 @@ def test_broken_configuration_keeps_default_notifications(
     )
 
     result = CliRunner().invoke(
-        app, ["--config", str(config), "agent", "hook", "notify", "copilot", "stop"], input="{}"
+        app, ["--config", str(config), "agent", "hook", "notify", "copilot", "stop"], stdin="{}"
     )
 
     assert result.exit_code == 0
@@ -243,7 +265,7 @@ def test_deeply_nested_hook_payload_exits_zero(monkeypatch: pytest.MonkeyPatch) 
 
     # About a million levels exceed the interpreter stack while decoding.
     result = CliRunner().invoke(
-        app, ["agent", "hook", "notify", "claude", "stop"], input="[" * 1_000_000 + "]" * 1_000_000
+        app, ["agent", "hook", "notify", "claude", "stop"], stdin="[" * 1_000_000 + "]" * 1_000_000
     )
 
     assert result.exit_code == 0
@@ -524,7 +546,7 @@ def test_notify_hook_applies_configured_settings(monkeypatch: pytest.MonkeyPatch
     result = CliRunner().invoke(
         app,
         ["--config", str(config), "agent", "hook", "notify", "claude", "needs-input"],
-        input=json.dumps({"notification_type": "permission_prompt"}),
+        stdin=json.dumps({"notification_type": "permission_prompt"}),
     )
 
     assert result.exit_code == 0, result.stderr

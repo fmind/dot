@@ -1,5 +1,5 @@
 # Docs: https://github.com/charmbracelet/vhs
-# Generate theme.tape from the selected terminal palette before validation.
+# Copy ~/.agents/themes/vhs/fmind.tape as theme.tape before validation.
 Require python
 Require ttyd
 Require ffmpeg

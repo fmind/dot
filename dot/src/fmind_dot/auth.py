@@ -1,5 +1,6 @@
 """Provider-owned authentication with bounded readiness probes and explicit setup."""
 
+import argparse
 import contextlib
 import json
 import os
@@ -7,27 +8,18 @@ import sys
 import webbrowser
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path, PurePath
-from typing import Annotated, Any
+from typing import Any
 
-import typer
 from pydantic import TypeAdapter, ValidationError
 
-from fmind_dot.command_group import HELP_MARKUP, AlphabeticalGroup, help_group
+from fmind_dot.command import Parser
 from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, LoginProvider, Project, Scope
-from fmind_dot.errors import DotError
+from fmind_dot.errors import DotError, UsageError
 from fmind_dot.process import CommandResult, run_parallel
-from fmind_dot.state import State, require_tools, state_from
-from fmind_dot.workstation import DryRun, execute
+from fmind_dot.state import State, require_tools
+from fmind_dot.workstation import add_dry_run, execute
 
 _LOGIN_EPILOG = "Exit 0 when ready. With --check, exit 1 when a login is needed or the state is unknown."
-login_app = typer.Typer(
-    cls=AlphabeticalGroup,
-    help="Log in where needed to this machine's providers (auth.login), or to one named provider",
-    epilog=_LOGIN_EPILOG,
-    invoke_without_command=True,
-    rich_markup_mode=HELP_MARKUP,
-)
-setup_app = help_group("Reconcile provider setup and configured policy")
 _COLAB_ADC_SCOPES = (
     "openid",
     "https://www.googleapis.com/auth/cloud-platform",
@@ -228,7 +220,7 @@ def one_off_scopes(
         try:
             TypeAdapter(Scope).validate_python(scope)
         except ValidationError as error:
-            raise typer.BadParameter(f"invalid scope {grant!r}", param_hint="--grant") from error
+            raise UsageError(f"--grant: invalid scope {grant!r}") from error
         if scope not in configured and scope not in scopes:
             scopes.append(scope)
     return scopes
@@ -582,8 +574,8 @@ def setup_workspace(state: State, project: str | None, *, dry_run: bool = False)
             project if project is not None else state.config.auth.workspace.project
         )
     except ValidationError as error:
-        raise typer.BadParameter(
-            "set a valid project ID through PROJECT, GWS_PROJECT, or auth.workspace.project", param_hint="PROJECT"
+        raise UsageError(
+            "PROJECT: set a valid project ID through PROJECT, GWS_PROJECT, or auth.workspace.project"
         ) from error
     apis = list(dict.fromkeys(state.config.auth.workspace.apis))
     setup = ["gws", "auth", "setup", "--project", selected]
@@ -611,13 +603,27 @@ def setup_workspace(state: State, project: str | None, *, dry_run: bool = False)
     )
 
 
-ForceLogin = Annotated[
-    bool, typer.Option("--force", "-f", help="Run authentication even when already ready or status is unknown")
-]
-CheckLogin = Annotated[
-    bool,
-    typer.Option("--check", help="Only probe readiness and exit 1 when a login is needed; never opens a login flow"),
-]
+def _add_login_options(parser: Parser, prefix: str = "") -> None:
+    """--force, --dry-run, and --check; the group's own copies use a prefix so a provider's values never hide them."""
+    parser.add_argument(
+        "-f",
+        "--force",
+        dest=f"{prefix}force",
+        action="store_true",
+        help="Run authentication even when already ready or status is unknown",
+    )
+    parser.add_argument(
+        "--dry-run",
+        dest=f"{prefix}dry_run",
+        action="store_true",
+        help="Show possible commands without running probes or making changes",
+    )
+    parser.add_argument(
+        "--check",
+        dest=f"{prefix}check",
+        action="store_true",
+        help="Only probe readiness and exit 1 when a login is needed; never opens a login flow",
+    )
 
 
 def provider_ready(state: State, provider: LoginProvider, *, reconcile: bool = False) -> bool:
@@ -641,7 +647,7 @@ def check_logins(
 ) -> None:
     """Print one readiness line per provider without authenticating; any provider not ready exits 1."""
     if force or dry_run:
-        raise typer.BadParameter("--check cannot be combined with --force or --dry-run", param_hint="--check")
+        raise UsageError("--check cannot be combined with --force or --dry-run")
     warm_probes(state, providers)
     ready = True
     for provider in providers:
@@ -653,7 +659,7 @@ def check_logins(
         print(f"{provider}: {verdict}", file=state.stdout)
     if not ready:
         print(f"Run {remedy} in a terminal to authenticate.", file=state.stderr)
-        raise typer.Exit(1)
+        raise SystemExit(1)
 
 
 def login_machine(state: State, *, force: bool, dry_run: bool, check: bool) -> None:
@@ -694,77 +700,96 @@ def login_machine(state: State, *, force: bool, dry_run: bool, check: bool) -> N
             login_colab(state, force=force and "gcp" not in providers, dry_run=dry_run)
 
 
-@login_app.callback()
-def login_default(
-    context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
-) -> None:
-    if context.invoked_subcommand is None:
-        login_machine(state_from(context), force=force, dry_run=dry_run, check=check)
-    elif force or dry_run or check:
-        raise typer.BadParameter("place options after the provider, as in dot login gcp --check")
-
-
-GrantScopes = Annotated[
-    list[str] | None,
-    typer.Option("--grant", metavar="SCOPE", help="Also request this one-off scope; repeat for several"),
-]
 _GRANT_EPILOGS: dict[LoginProvider, str] = {
     "workspace": "A --grant scope (a URL, or a short name such as admin.directory.user.security) "
     "lasts until dot login workspace --force restores the configured grant.",
     "github": "A --grant scope listed in auth.github.remove_scopes (such as write:public_key) lasts until "
     "dot setup github or dot login removes it; for any other scope, the login prints its removal command.",
 }
+# In dependency order for `dot login`; help lists them alphabetically.
+_LOGINS: dict[LoginProvider, tuple[str, Callable[..., None]]] = {
+    "colab": ("Ensure ADC grants the Colab scopes and verify session access", login_colab),
+    "gcp": ("Ensure Google Cloud and ADC both have usable credentials", login_gcp),
+    "github": ("Ensure GitHub OAuth authentication and requested scopes", login_github),
+    "workspace": ("Authenticate Workspace only when credentials or requested scopes are missing", login_workspace),
+}
 
 
-def _add_login(provider: LoginProvider, description: str, login: Callable[..., None]) -> None:
-    if provider in _GRANT_EPILOGS:
+def _login_default(state: State, args: argparse.Namespace) -> None:
+    login_machine(state, force=args.all_force, dry_run=args.all_dry_run, check=args.all_check)
 
-        @login_app.command(provider, help=description, epilog=f"{_GRANT_EPILOGS[provider]} {_LOGIN_EPILOG}")
-        def grant_command(
-            context: typer.Context,
-            force: ForceLogin = False,
-            dry_run: DryRun = False,
-            check: CheckLogin = False,
-            grant: GrantScopes = None,
-        ) -> None:
-            state = state_from(context)
-            if check:
-                if grant:
-                    raise typer.BadParameter("--check cannot be combined with --grant", param_hint="--check")
-                check_logins(state, [provider], f"dot login {provider}", force=force, dry_run=dry_run)
-                return
-            login(state, force=force, dry_run=dry_run, grants=grant or ())
 
+def _login_provider(state: State, args: argparse.Namespace) -> None:
+    provider: LoginProvider = args.provider
+    if args.all_force or args.all_dry_run or args.all_check:
+        raise UsageError("place options after the provider, as in dot login gcp --check")
+    grants = getattr(args, "grant", [])
+    if args.check:
+        if grants:
+            raise UsageError("--check cannot be combined with --grant")
+        check_logins(state, [provider], f"dot login {provider}", force=args.force, dry_run=args.dry_run)
         return
-
-    @login_app.command(provider, help=description, epilog=_LOGIN_EPILOG)
-    def command(
-        context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False, check: CheckLogin = False
-    ) -> None:
-        state = state_from(context)
-        if check:
-            check_logins(state, [provider], f"dot login {provider}", force=force, dry_run=dry_run)
-            return
-        login(state, force=force, dry_run=dry_run)
+    login = _LOGINS[provider][1]
+    if provider in _GRANT_EPILOGS:
+        login(state, force=args.force, dry_run=args.dry_run, grants=grants)
+    else:
+        login(state, force=args.force, dry_run=args.dry_run)
 
 
-_add_login("workspace", "Authenticate Workspace only when credentials or requested scopes are missing", login_workspace)
-_add_login("github", "Ensure GitHub OAuth authentication and requested scopes", login_github)
-_add_login("gcp", "Ensure Google Cloud and ADC both have usable credentials", login_gcp)
-_add_login("colab", "Ensure ADC grants the Colab scopes and verify session access", login_colab)
+def register_login(commands: Parser) -> None:
+    group = commands.group(
+        "login",
+        "Log in where needed to this machine's providers (auth.login), or to one named provider",
+        handler=_login_default,
+        config=True,
+        epilog=_LOGIN_EPILOG,
+    )
+    _add_login_options(group, prefix="all_")
+    for provider, (summary, _login) in _LOGINS.items():
+        grant_epilog = _GRANT_EPILOGS.get(provider)
+        command = group.command(
+            provider,
+            summary,
+            _login_provider,
+            epilog=f"{grant_epilog} {_LOGIN_EPILOG}" if grant_epilog else _LOGIN_EPILOG,
+        )
+        command.set_defaults(provider=provider)
+        _add_login_options(command)
+        if grant_epilog:
+            command.add_argument(
+                "--grant",
+                action="append",
+                default=[],
+                metavar="SCOPE",
+                help="Also request this one-off scope; repeat for several",
+            )
 
 
-@setup_app.command("github", help="Ensure requested GitHub scopes and remove configured excluded grants")
-def github_setup(context: typer.Context, force: ForceLogin = False, dry_run: DryRun = False) -> None:
-    login_github(state_from(context), reconcile=True, force=force, dry_run=dry_run)
+def _setup_github(state: State, args: argparse.Namespace) -> None:
+    login_github(state, reconcile=True, force=args.force, dry_run=args.dry_run)
 
 
-@setup_app.command("workspace", help="Enable missing Workspace APIs and configure OAuth for an explicit project")
-def workspace_setup(
-    context: typer.Context,
-    project: Annotated[
-        str | None, typer.Argument(envvar="GWS_PROJECT", help="Project ID; overrides auth.workspace.project")
-    ] = None,
-    dry_run: DryRun = False,
-) -> None:
-    setup_workspace(state_from(context), project, dry_run=dry_run)
+def _setup_workspace(state: State, args: argparse.Namespace) -> None:
+    setup_workspace(state, args.project, dry_run=args.dry_run)
+
+
+def register_setup(commands: Parser) -> None:
+    group = commands.group("setup", "Reconcile provider setup and configured policy")
+    github = group.command(
+        "github", "Ensure requested GitHub scopes and remove configured excluded grants", _setup_github
+    )
+    github.add_argument(
+        "-f", "--force", action="store_true", help="Run authentication even when already ready or status is unknown"
+    )
+    add_dry_run(github)
+    workspace = group.command(
+        "workspace", "Enable missing Workspace APIs and configure OAuth for an explicit project", _setup_workspace
+    )
+    workspace.add_argument(
+        "project",
+        nargs="?",
+        # An empty variable counts as unset.
+        default=os.environ.get("GWS_PROJECT") or None,
+        help="Project ID; overrides auth.workspace.project [env: GWS_PROJECT]",
+    )
+    add_dry_run(workspace)

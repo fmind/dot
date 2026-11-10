@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-11-08"
+  updated: "2026-11-10"
 ---
 
 # Git Delivery
@@ -18,7 +18,7 @@ Deliver only the authorized changes while preserving the index, branch intent, a
 
 1. **Resolve delivery authority and target branch**: take both from the request; inspect the current branch and unmerged work before switching. Never overwrite an existing branch or move unrelated commits. History investigation is read-only: fetch missing objects into an isolated clone and bisect in a disposable worktree; pulling into the working tree or rewriting history needs authority.
 1. **Match work to the request**: a commit-only request preserves the staged selection and stops after committing. A delivery request includes staging and pushing only its intended changes; neither implies release publication.
-1. **Follow requested branch and release modes**: if the user requests a branch or PR, follow [git-worktree](references/git-worktree/GUIDE.md) and [github-pull-request](../github-pull-request/SKILL.md). A later release instruction selects the release mode; use the repository's native release task where present.
+1. **Follow requested branch and release modes**: if the user requests a branch or PR, follow [git-worktree](references/git-worktree/GUIDE.md) and [pull-request](../gh/references/pull-request.md). A later release instruction selects the release mode; use the repository's native release task where present.
 1. **Verify the delivery**: the exact commit, remote destination, and requested publication level. Keep published tags immutable and preserve enabled hooks.
 
 ## Commit messages

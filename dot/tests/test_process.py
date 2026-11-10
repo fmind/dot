@@ -62,7 +62,7 @@ def test_sigterm_exits_130_and_stops_child_before_delayed_side_effect(mode: str,
         "  system._tool_results(state)\n"
         " else: runner.interactive(command)\n"
         " return 0\n"
-        "cli._invoke_app=invoke\n"
+        "cli.app=invoke\n"
         "cli.main()\n"
     )
     environment = os.environ.copy()

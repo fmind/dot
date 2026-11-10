@@ -1,13 +1,13 @@
 ---
 name: agent-harnesses
-description: "Operate and configure Claude Code, Copilot, and OpenCode."
+description: "Operate and configure Claude Code, Copilot, OpenCode, and Pi."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Agent Harnesses
@@ -27,10 +27,11 @@ Operate the selected coding-agent host without conflating its configuration, per
 - [copilot](references/copilot/GUIDE.md): Copilot sessions and extensions.
 - [notifications](references/notifications.md): Diagnose or change managed turn notifications, brain session-context hooks, and their wiring per host.
 - [opencode](references/opencode/GUIDE.md): OpenCode sessions and provider configuration.
+- [pi](references/pi.md): Pi sessions, providers, project trust, extensions, and headless runs.
 
 <!-- guides:end -->
 
 ## Gotchas
 
-- **Edit managed host keys in fmind/dot**: on this workstation, Claude, Copilot, and OpenCode settings are merged from `modify_*` chezmoi templates in `~/.local/share/chezmoi`. A direct edit to a managed key (including through `/config` or a host's settings skill) reverts on `chezmoi apply --force`; unmanaged keys survive. Change the source, preview with `mise run diff` (it excludes encrypted targets), then apply.
-- **Install vendor skills through the policy**: the Copilot and OpenCode guides name each host's sources; install a requested package only through the [vendor-skill policy](../agent-project/references/vendor-skills.md) and retain the existing package manager's ownership.
+- **Edit managed host keys in fmind/dot**: on this workstation, Claude, Copilot, OpenCode, and Pi settings are merged from `modify_*` chezmoi templates in `~/.local/share/chezmoi`. A direct edit to a managed key (including through `/config` or a host's settings skill) reverts on `chezmoi apply --force`; unmanaged keys survive. Change the source, preview with `mise run diff` (it excludes encrypted targets), then apply.
+- **Install vendor skills through the policy**: the Copilot and OpenCode guides name each host's sources, and Pi packages and extensions are code that runs in-process; install a requested package only through the [vendor-skill policy](../agent-project/references/vendor-skills.md) and retain the existing package manager's ownership.

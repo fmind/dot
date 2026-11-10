@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
@@ -17,6 +20,46 @@ from fmind_dot.state import State
 from fmind_dot.system import CheckResult
 
 RunHandler = Callable[[list[str], Path | None, str | None, bool], CommandResult]
+
+
+@dataclass
+class CliResult:
+    """What one in-process CLI invocation printed and how it ended."""
+
+    exit_code: int
+    stdout: str
+    stderr: str
+    exception: Exception | None = None
+
+    @property
+    def output(self) -> str:
+        return self.stdout + self.stderr
+
+
+class CliRunner:
+    """Run `fmind_dot.cli.app` in-process with captured streams.
+
+    A failure `cli.main` would report as `dot: <error>` stays on `exception` with exit code 1,
+    so tests assert on the error itself; `main` has its own reporting tests.
+    """
+
+    def invoke(
+        self, app: Callable[[Sequence[str]], None], arguments: Sequence[str] = (), *, stdin: str = ""
+    ) -> CliResult:
+        stdout, stderr, previous = io.StringIO(), io.StringIO(), sys.stdin
+        exit_code, exception = 0, None
+        sys.stdin = io.StringIO(stdin)
+        try:
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                app(list(arguments))
+        except SystemExit as stopped:
+            exit_code = stopped.code if isinstance(stopped.code, int) else int(stopped.code is not None)
+        except Exception as error:  # noqa: BLE001 - mirror the entry point: every failure becomes exit code 1
+            exit_code, exception = 1, error
+        finally:
+            sys.stdin = previous
+        return CliResult(exit_code, stdout.getvalue(), stderr.getvalue(), exception)
+
 
 ROOT = Path(__file__).resolve().parents[2]
 _REAL_HOME = os.environ.get("HOME")

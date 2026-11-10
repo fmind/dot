@@ -1,0 +1,22 @@
+# chezmoi:modify-template
+{{- /* Docs: https://pi.dev/docs/latest/settings
+       Persona (symlinked AGENTS.md) and skills (~/.agents/skills) load natively; Pi asks for
+       no tool approval, and `dot trust` owns trust.json for project-local resources.
+       The provider, model, and thinking level are defaults rather than managed keys: they fill
+       missing keys, then stay whatever /model and /login last persisted. The seed is Agent
+       Platform through ADC, which needs GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION in the
+       ambient shell, so settings never hold a project ID; without them Pi picks the first
+       provider that has credentials.
+       enableInstallTelemetry also drops Pi's attribution headers on provider requests; mise
+       exports PI_TELEMETRY=0 and PI_SKIP_VERSION_CHECK=1 for the same reason, and locks the
+       version, so the changelog after an upgrade stays condensed. */ -}}
+{{- $defaults := dict "defaultProvider" "google-vertex" "defaultModel" "gemini-4-argon" "defaultThinkingLevel" "high" -}}
+{{- $managedConfig := fromJson `
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+  "collapseChangelog": true,
+  "enableAnalytics": false,
+  "enableInstallTelemetry": false
+}
+` -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

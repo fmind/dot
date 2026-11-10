@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="404" viewBox="0 0 960 404" role="img" aria-labelledby="title desc">
-<title id="title">One agent layer for four harnesses</title>
-<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, and host folders such as dot_gemini/ and dot_claude/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; host settings are merged in place. Antigravity, Claude Code, GitHub Copilot and OpenCode all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
+<title id="title">One agent layer for five harnesses</title>
+<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, and host folders such as dot_gemini/ and dot_claude/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; host settings are merged in place. Antigravity, Claude Code, GitHub Copilot, OpenCode and Pi all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
 <style>
@@ -37,13 +37,14 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 </g>
 
 <!-- Harnesses -->
-<text class="label" x="764" y="44" text-anchor="middle">Four harnesses</text>
+<text class="label" x="764" y="44" text-anchor="middle">Five harnesses</text>
 <rect class="box" x="600" y="60" width="328" height="216" rx="14"/>
 <g text-anchor="middle">
-<rect class="chip" x="620" y="88" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="110">Antigravity</text>
-<rect class="chip" x="620" y="130" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="152">Claude Code</text>
-<rect class="chip" x="620" y="172" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="194">GitHub Copilot</text>
-<rect class="chip" x="620" y="214" width="288" height="34" rx="17"/><text class="chip-text" x="764" y="236">OpenCode</text>
+<rect class="chip" x="620" y="76" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="96">Antigravity</text>
+<rect class="chip" x="620" y="114" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="134">Claude Code</text>
+<rect class="chip" x="620" y="152" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="172">GitHub Copilot</text>
+<rect class="chip" x="620" y="190" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="210">OpenCode</text>
+<rect class="chip" x="620" y="228" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="248">Pi</text>
 </g>
 
 <!-- Sessions to reports -->

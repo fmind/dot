@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "skills/github-repository/scripts/settings_baseline.py"
+SCRIPT = ROOT / "skills/gh/references/repository/scripts/settings_baseline.py"
 BASE = "repos/owner/repo"
 # Canned GET responses keyed by "GET path"; an unlisted GET answers 404 like a disabled feature.
 # The read-back starts with the first repository GET after a mutation; from then on "after" overrides "before".

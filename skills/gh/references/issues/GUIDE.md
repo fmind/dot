@@ -1,13 +1,6 @@
 ---
-name: github-issues
-description: "Plan, draft, update, link, and close GitHub issues."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/github-issues
-  created: "2026-08-30"
-  updated: "2026-11-07"
+name: issues
+description: "Plan, draft, deduplicate, update, link, and close GitHub issues."
 ---
 
 # GitHub Issues
@@ -16,7 +9,7 @@ Plan, read, and mutate GitHub issues from verified repository and remote state.
 
 ## Workflow
 
-Use [gh](../gh/SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
+Use [gh](../../SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
 
 1. **Confirm the target**: resolve the repository from the explicit URL or `gh repo view --json nameWithOwner,visibility` and state `OWNER/REPO`; never infer another repository from a similarly named checkout.
 1. **Refresh current state** before proposing a change:
@@ -46,7 +39,7 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 
 ## Documentation
 
-- Upstream: `github/awesome-copilot` ships a same-name `github-issues` (GitHub MCP tools); preview it, never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
+- Upstream: `github/awesome-copilot` ships a `github-issues` skill (GitHub MCP tools); preview it and follow the [vendor-skill policy](../../../agent-project/references/vendor-skills.md) before installing.
 - [gh issue manual](https://cli.github.com/manual/gh_issue)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [full-review](../full-review/SKILL.md) (verified findings), [github-pull-request](../github-pull-request/SKILL.md) (the PR).
+- Companion skills: [full-review](../../../full-review/SKILL.md) (verified findings), [pull-request](../pull-request.md) (the PR).

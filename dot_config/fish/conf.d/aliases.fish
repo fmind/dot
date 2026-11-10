@@ -11,6 +11,10 @@ if status is-interactive
     abbr -a c gcloud
     # d:docker
     abbr -a d docker
+    # Theme DuckDB for people only: an init file adds a stderr notice to every call, which agents would pay for.
+    if test -r $XDG_CONFIG_HOME/duckdb/fmind.duckdbrc
+        alias duckdb="duckdb -init $XDG_CONFIG_HOME/duckdb/fmind.duckdbrc"
+    end
     # e:lazydocker
     abbr -a e lazydocker
     # f:fd

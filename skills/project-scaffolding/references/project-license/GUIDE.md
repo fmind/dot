@@ -5,7 +5,7 @@ description: "Choose, write, and declare a repository LICENSE (MIT, CC-BY-4.0, o
 
 # Project License
 
-Select, write, and declare the LICENSE a repository needs from its namespace, visibility, and content; [github-repository](../../../github-repository/SKILL.md) owns the remaining repository settings.
+Select, write, and declare the LICENSE a repository needs from its namespace, visibility, and content; [repository](../../../gh/references/repository/GUIDE.md) owns the remaining repository settings.
 
 ## Workflow
 
@@ -30,4 +30,4 @@ Select, write, and declare the LICENSE a repository needs from its namespace, vi
 
 - [Choose an Open Source License](https://choosealicense.com/) · [SPDX license list](https://spdx.org/licenses/) · [PEP 639](https://peps.python.org/pep-0639/)
 - [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [legal code](https://creativecommons.org/licenses/by/4.0/legalcode.txt)
-- Companion skills: [bootstrap](../bootstrap.md) (calls this guide when bootstrapping), [github-repository](../../../github-repository/SKILL.md) (repository settings).
+- Companion skills: [bootstrap](../bootstrap.md) (calls this guide when bootstrapping), [repository](../../../gh/references/repository/GUIDE.md) (repository settings).

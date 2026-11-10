@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-11-08"
+  updated: "2026-11-10"
 ---
 
 # Full Review
@@ -31,7 +31,7 @@ Parse the request into one line and state it before starting: scope, exclusions 
    - **Works**: every task and CLI entry point runs clean with no warnings ([smoke](references/smoke/GUIDE.md)); tests are deterministic and cover failure and race paths; production or deployed endpoints are probed read-only when authorized.
    - **Current**: tools, dependencies, actions, and runtimes against their latest releases ([upgrade-tools](../upgrade-tools/SKILL.md)); report drift and upgrade when the request says so.
    - **Simple**: dead code (Python: vulture per [ruff](../python-stack/references/ruff.md#gotchas)), legacy paths, orphan files, stale config, unearned abstractions, and verbose docs ([trim](../trim/SKILL.md)); prefer deletion and consolidation, never a heavier mechanism.
-   - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([github-repository](../github-repository/SKILL.md)), and the website; the layout follows its stack owner (such as [python-stack](../python-stack/SKILL.md)) and the [bootstrap layer](../project-scaffolding/references/bootstrap.md); hooks and CI call the canonical [mise](../mise/SKILL.md) tasks; generated files (locks, indexes, formatted output) regenerate with no diff; version, changelog, and tags agree; ignore files fit the stack ([update-ignores](references/update-ignores/GUIDE.md)).
+   - **Consistent**: names, descriptions, versions, and metadata match across code, `pyproject.toml`, docs, GitHub ([repository](../gh/references/repository/GUIDE.md)), and the website; the layout follows its stack owner (such as [python-stack](../python-stack/SKILL.md)) and the [bootstrap layer](../project-scaffolding/references/bootstrap.md); hooks and CI call the canonical [mise](../mise/SKILL.md) tasks; generated files (locks, indexes, formatted output) regenerate with no diff; version, changelog, and tags agree; ignore files fit the stack ([update-ignores](references/update-ignores/GUIDE.md)).
    - **Secure and private**: secrets, permissions, dependencies, and agent tools ([code-security](../code-security/SKILL.md)); private repositories stay private and public ones disclose nothing sensitive.
    - **Documented**: `README.md`, `AGENTS.md`, skills, and `*.md` match behavior, stay concise, and convince their audience ([repository-docs](../repository-docs/SKILL.md)); repeated instructions become skills ([skillify](../skillify/SKILL.md)).
    - **Fast**: slow tasks, tests, CI, or pages with a measured cause ([performance](../python-stack/references/performance.md)).
@@ -83,4 +83,4 @@ Give each finding its location, reachable trigger, evidence, impact, and smalles
 
 ## Documentation
 
-- Companion skills: [github-pull-request](../github-pull-request/SKILL.md) (open and update PRs), [github-issues](../github-issues/SKILL.md) (findings to issue drafts), [cloud-run](../cloud-run/SKILL.md) (deploy and revision rollback), [continuation](../task-prompts/references/continuation.md) (continue in a fresh session).
+- Companion skills: [pull-request](../gh/references/pull-request.md) (open and update PRs), [issues](../gh/references/issues/GUIDE.md) (findings to issue drafts), [cloud-run](../cloud-run/SKILL.md) (deploy and revision rollback), [continuation](../task-prompts/references/continuation.md) (continue in a fresh session).

@@ -12,15 +12,13 @@ from pathlib import Path
 
 import pytest
 import yaml
-from typer import _click
-from typer.core import TyperGroup
-from typer.main import get_command
-from typer.testing import CliRunner
 
 import fmind_dot.cli as cli
-from fmind_dot.cli import app
-from fmind_dot.errors import DotError
+from fmind_dot.cli import app, build_parser
+from fmind_dot.command import FISH_COMPLETION, Parser, candidates
+from fmind_dot.errors import CancelledError, DotError
 from fmind_dot.process import Runner
+from tests.fakes import CliRunner, native_binary
 
 runner = CliRunner()
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,8 +28,6 @@ def test_root_help_exposes_python_first_command_tree() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    assert "--install-completion" not in result.stdout
-    assert "--show-completion" not in result.stdout
     # Repository tasks and release gates call `dot completion`; it stays out of everyday help.
     assert not re.search(r"^\s*completion\s", result.stdout, flags=re.MULTILINE)
     for removed in (
@@ -48,27 +44,11 @@ def test_root_help_exposes_python_first_command_tree() -> None:
         assert not re.search(rf"^\s*{removed}(?:\s|$)", result.stdout, flags=re.MULTILINE)
 
 
-@pytest.mark.parametrize("option", ["--install-completion", "--show-completion"])
-def test_duplicate_completion_options_are_rejected(option: str) -> None:
-    result = runner.invoke(app, [option, "fish"])
-    assert result.exit_code == 2
-    assert "No such option" in result.output
-
-
-@pytest.mark.parametrize(
-    ("instruction", "expected"),
-    [("source_fish", "complete --command dot"), ("complete_fish", "doctor")],
-)
-def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expected: str, tmp_path: Path) -> None:
+def test_fish_completion_callback_works_in_fresh_process(tmp_path: Path) -> None:
     result = subprocess.run(
-        [sys.executable, "-c", "from fmind_dot.cli import app; app(prog_name='dot')"],
+        [sys.executable, "-m", "fmind_dot", "agent"],
         cwd=tmp_path,
-        env={
-            **os.environ,
-            "_DOT_COMPLETE": instruction,
-            "_TYPER_COMPLETE_ARGS": "dot doc",
-            "_TYPER_COMPLETE_FISH_ACTION": "get-args",
-        },
+        env={**os.environ, "_DOT_COMPLETE": "s"},
         capture_output=True,
         text=True,
         # Returns as soon as the CLI exits; a fresh interpreter can take seconds under load.
@@ -76,8 +56,49 @@ def test_fish_completion_protocol_works_in_fresh_process(instruction: str, expec
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert expected in result.stdout
+    assert result.stdout == (
+        "session\tManage agent session logs\n"
+        "stats\tSync changed sessions (unless --no-sync), then report prompts, tokens, costs, and API equivalents\n"
+    )
     assert result.stderr == ""
+
+
+def test_fish_script_completes_through_the_installed_callback(tmp_path: Path) -> None:
+    fish = native_binary("fish")
+    if fish is None:
+        pytest.skip("fish is not installed")
+    # A stand-in `dot` on PATH runs this checkout, so the script is exercised exactly as Fish loads it.
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin/dot").write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} -m fmind_dot "$@"\n')
+    (tmp_path / "bin/dot").chmod(0o755)
+    (tmp_path / "dot.fish").write_text(FISH_COMPLETION)
+
+    def complete(line: str) -> list[str]:
+        result = subprocess.run(
+            [
+                str(fish),
+                "--no-config",
+                "--command",
+                f"source {tmp_path}/dot.fish; complete --do-complete={shlex.quote(line)}",
+            ],
+            env={**os.environ, "PATH": f"{tmp_path}/bin{os.pathsep}{os.environ['PATH']}"},
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stderr == ""
+        return result.stdout.splitlines()
+
+    assert "doctor\tCheck local workstation health; --deep also probes authentication" in complete("dot do")
+    assert [line.split("\t")[0] for line in complete("dot agent ")] == ["context", "doctor", "session", "stats"]
+    assert complete("dot agent stats --agent cl") == ["claude"]
+    assert "--json\tEmit structured JSON" in complete("dot status --j")
+    # Without candidates Fish falls back to file names.
+    (tmp_path / "custom.yaml").write_text("")
+    assert complete("dot --config cust") == ["custom.yaml"]
 
 
 def test_subcommand_help_displays_canonical_commands() -> None:
@@ -90,8 +111,7 @@ def test_subcommand_help_displays_canonical_commands() -> None:
 
 
 def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
-    command = get_command(app)
-    assert isinstance(command, TyperGroup)
+    root = build_parser()
     expected = {
         "agent",
         "cache",
@@ -107,10 +127,8 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
         "status",
         "trust",
     }
-    visible = [name for name in command.list_commands(_click.Context(command)) if not command.commands[name].hidden]
-
-    assert set(visible) == expected - {"completion"}
-    assert set(command.commands) == expected
+    assert {name for name, child in root.children.items() if not child.hidden} == expected - {"completion"}
+    assert set(root.children) == expected
 
 
 @pytest.mark.parametrize(
@@ -142,29 +160,21 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
 def test_help_lists_commands_alphabetically(path: list[str], names: list[str]) -> None:
     result = runner.invoke(app, [*path, "--help"])
     assert result.exit_code == 0
-    rows = [match.group(1) for match in re.finditer(r"(?m)^[│ ]+(\S+)\s", _click.utils.strip_ansi(result.stdout))]
-    assert [name for name in rows if name in names] == names
+    rows = [match.group(1) for match in re.finditer(r"(?m)^    (\S+)\s", result.stdout)]
+    assert rows == names
 
 
 def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() -> None:
-    root = get_command(app)
-    assert isinstance(root, TyperGroup)
-    agent = root.commands["agent"]
-    assert isinstance(agent, TyperGroup)
-    assert {name for name, child in agent.commands.items() if not child.hidden} == {
+    agent = build_parser().children["agent"]
+    assert {name for name, child in agent.children.items() if not child.hidden} == {
         "context",
         "doctor",
         "session",
         "stats",
     }
-    assert agent.commands["hook"].hidden
-    hook = agent.commands["hook"]
-    assert isinstance(hook, TyperGroup)
-    assert set(hook.commands) == {"notify"}
-
-    session = agent.commands["session"]
-    assert isinstance(session, TyperGroup)
-    assert set(session.commands) == {"list", "show", "sync"}
+    assert agent.children["hook"].hidden
+    assert set(agent.children["hook"].children) == {"notify"}
+    assert set(agent.children["session"].children) == {"list", "show", "sync"}
 
 
 def documented_dot_examples() -> list[str]:
@@ -383,7 +393,7 @@ def test_main_reports_expected_errors_without_a_traceback(
     def fail() -> None:
         raise error
 
-    monkeypatch.setattr(cli, "_invoke_app", fail)
+    monkeypatch.setattr(cli, "app", fail)
 
     with pytest.raises(SystemExit) as exit_info:
         cli.main()
@@ -433,9 +443,12 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
 @pytest.mark.parametrize(
     ("arguments", "expected_exit", "expected_error"),
     [
-        (["--unknown-option"], 2, "No such option: --unknown-option"),
-        (["unknown-command"], 2, "No such command 'unknown-command'"),
-        (["help", "unknown-command"], 2, "No such command 'help'"),
+        (["--unknown-option"], 2, "unrecognized arguments: --unknown-option"),
+        (["unknown-command"], 2, "invalid choice: 'unknown-command'"),
+        (["help", "unknown-command"], 2, "invalid choice: 'help'"),
+        (["agent", "sesion"], 2, "maybe you meant 'session'?"),
+        (["agent", "stats", "--since", "never"], 2, "dot agent stats: error: --since: expected a duration"),
+        (["status", "--js"], 2, "unrecognized arguments: --js"),
     ],
 )
 def test_python_module_entrypoint_preserves_parser_exit_codes(
@@ -466,7 +479,7 @@ def test_main_maps_keyboard_interrupt_to_shell_exit_130(
     def interrupt() -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(cli, "_invoke_app", interrupt)
+    monkeypatch.setattr(cli, "app", interrupt)
 
     with pytest.raises(SystemExit) as exit_info:
         cli.main()
@@ -483,7 +496,7 @@ def test_main_reports_keyboard_interrupt_raised_inside_a_command(
     def interrupt(*_args: object, **_kwargs: object) -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(cli, "state_from", interrupt)
+    monkeypatch.setattr(cli, "dump_config", interrupt)
     monkeypatch.setattr(sys, "argv", ["dot", "config", "show"])
 
     with pytest.raises(SystemExit) as exit_info:
@@ -499,7 +512,7 @@ def test_main_does_not_hide_programmer_errors(monkeypatch: pytest.MonkeyPatch) -
     def fail() -> None:
         raise RuntimeError("programmer error")
 
-    monkeypatch.setattr(cli, "_invoke_app", fail)
+    monkeypatch.setattr(cli, "app", fail)
 
     with pytest.raises(RuntimeError, match="programmer error"):
         cli.main()
@@ -519,33 +532,43 @@ def test_bare_groups_show_help_successfully_without_actions(path: list[str], mon
     monkeypatch.setattr(Runner, "which", lambda *_: pytest.fail("help must not inspect or run native tools"))
     result = runner.invoke(app, path)
     assert result.exit_code == 0, result.output
-    assert "Usage:" in result.stdout
-    assert "Commands" in result.stdout
+    assert "usage:" in result.stdout
+    assert "commands:" in result.stdout
 
 
-def test_every_command_and_group_has_a_description() -> None:
-    def inspect(command: _click.Command, path: str) -> None:
-        assert command.help, f"missing description: {path}"
-        assert command.help.strip(), f"empty description: {path}"
-        if isinstance(command, TyperGroup):
-            for name, child in command.commands.items():
-                inspect(child, f"{path} {name}")
+def walk(parser: Parser, path: str = "dot") -> list[tuple[str, Parser]]:
+    """Every command and group with its full invocation path."""
+    return [
+        (path, parser),
+        *(item for name, child in parser.children.items() for item in walk(child, f"{path} {name}")),
+    ]
 
-    inspect(get_command(app), "dot")
+
+def test_every_command_and_option_has_a_description() -> None:
+    for path, parser in walk(build_parser()):
+        assert parser.summary.strip(), f"missing description: {path}"
+        for argument in parser.arguments:
+            assert (argument.help or "").strip(), f"missing help: {path} {argument.dest}"
+
+
+def test_every_parser_renders_its_help() -> None:
+    # argparse formats help strings with %, so a stray percent sign would only fail when help is shown.
+    for path, parser in walk(build_parser()):
+        assert parser.format_help().startswith(f"usage: {path} "), path
+
+
+def test_commands_register_alphabetically_so_help_lists_them_in_order() -> None:
+    for path, parser in walk(build_parser()):
+        assert list(parser.children) == sorted(parser.children), path
 
 
 def test_date_filters_share_values_and_name_their_time_basis() -> None:
-    help_by_path: dict[str, str] = {}
-
-    def inspect(command: _click.Command, path: str) -> None:
-        for parameter in command.params:
-            if parameter.opts[0] in {"--since", "--until"}:
-                help_by_path[f"{path} {parameter.opts[0]}"] = getattr(parameter, "help", "") or ""
-        if isinstance(command, TyperGroup):
-            for name, child in command.commands.items():
-                inspect(child, f"{path} {name}")
-
-    inspect(get_command(app), "dot")
+    help_by_path = {
+        f"{path} {argument.option_strings[0]}": argument.help or ""
+        for path, parser in walk(build_parser())
+        for argument in parser.arguments
+        if argument.dest in {"since", "until"}
+    }
     assert help_by_path["dot agent session list --since"].startswith("Ingested since")
     assert help_by_path["dot agent stats --until"].startswith("Active until")
     assert help_by_path["dot agent session sync --since"].startswith("Only sources modified since")
@@ -554,33 +577,51 @@ def test_date_filters_share_values_and_name_their_time_basis() -> None:
         assert values in text, path
 
 
-def test_fish_completion_keeps_complete_command_summaries(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
-    monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
-    monkeypatch.setenv("_TYPER_COMPLETE_ARGS", "dot ")
-    result = CliRunner().invoke(app, prog_name="dot")
-    summaries = dict(line.split("\t", 1) for line in result.stdout.splitlines())
+def test_fish_candidates_keep_complete_summaries_and_hide_internal_commands() -> None:
+    summaries = dict(candidates(build_parser(), [""]))
     assert summaries["orphan"] == "List files chezmoi deployed but no longer manages (read-only; never deletes)"
-    assert not any(summary.endswith("...") for summary in summaries.values())
+    assert "completion" not in summaries
+    assert "hook" not in dict(candidates(build_parser(), ["agent", ""]))
 
 
-def test_fish_completion_keeps_long_option_help_on_one_line(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Rich would wrap this at an 80-column console and split one candidate in two.
-    monkeypatch.setenv("COLUMNS", "40")
-    monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
-    monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
-    monkeypatch.setenv("_TYPER_COMPLETE_ARGS", "dot agent context --")
-    result = CliRunner().invoke(app, prog_name="dot")
-    assert all("\t" in line for line in result.stdout.splitlines()), result.stdout
-    assert "--check\tExit 1 at 5000 instruction + discovery tokens in either global or local scope" in result.stdout
-
-
-def test_agent_stats_documents_every_option() -> None:
-    root = get_command(app)
-    assert isinstance(root, TyperGroup)
-    agent = root.commands["agent"]
-    assert isinstance(agent, TyperGroup)
-    undocumented = [
-        parameter.opts[0] for parameter in agent.commands["stats"].params if not getattr(parameter, "help", "")
+def test_fish_candidates_complete_options_choices_and_nothing_after_a_separator() -> None:
+    root = build_parser()
+    options = dict(candidates(root, ["agent", "context", "--"]))
+    assert options["--check"] == (
+        "Exit 1 at 5000 instruction + discovery tokens in either global or local scope, or on duplicate skill names"
+    )
+    assert [value for value, _ in candidates(root, ["agent", "stats", "--agent", "c"])] == [
+        "claude",
+        "copilot",
+        "codex",
     ]
-    assert undocumented == []
+    # A value-taking option consumes the next word: `stats` here is a project, not a command.
+    assert [value for value, _ in candidates(root, ["agent", "stats", "--project", "session", "--mon"])] == [
+        "--monthly"
+    ]
+    assert [value for value, _ in candidates(root, ["login", "g"])] == ["gcp", "github"]
+    assert candidates(root, ["secret", "run", "NAME", "--", "py"]) == []
+    assert candidates(root, ["--config", ""]) == []
+
+
+def test_main_answers_the_completion_callback_without_running_a_command(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("_DOT_COMPLETE", "tr")
+    monkeypatch.setattr(sys, "argv", ["dot"])
+    monkeypatch.setattr(cli, "app", lambda: pytest.fail("completion must not run a command"))
+    cli.main()
+    assert capsys.readouterr().out.startswith("trust\tPre-accept folder trust")
+
+
+def test_main_reports_a_declined_confirmation_as_a_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def decline() -> None:
+        raise CancelledError
+
+    monkeypatch.setattr(cli, "app", decline)
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main()
+    assert exit_info.value.code == 1
+    assert capsys.readouterr().err == "Cancelled.\n"

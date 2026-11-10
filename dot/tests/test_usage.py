@@ -8,7 +8,6 @@ from io import StringIO
 from typing import Any
 
 import pytest
-from typer.testing import CliRunner
 
 from fmind_dot.archive.store import ingest_session
 from fmind_dot.archive.usage import (
@@ -20,6 +19,7 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.cli import app
+from tests.fakes import CliRunner
 
 
 def test_usage_record_finalizes_defaults_and_computed_total() -> None:

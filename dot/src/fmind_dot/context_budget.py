@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import IO, Annotated, Any, Literal
+from typing import IO, Any, Literal
 
-import typer
 import yaml
 
-from fmind_dot.command_group import JsonOption
+from fmind_dot.command import Parser, add_json
 from fmind_dot.errors import DotError
 from fmind_dot.reporting import display_path, write_json
-from fmind_dot.state import state_from
+from fmind_dot.state import State
 
 CONTEXT_TOKEN_LIMIT = 5_000
 MAX_INPUT_BYTES = 1 << 20
@@ -251,48 +251,52 @@ def _check_summary(report: dict[str, Any]) -> str:
     return f"PASS · agent context below {CONTEXT_TOKEN_LIMIT:,} estimated tokens ({scopes})"
 
 
-def register(agent_app: typer.Typer) -> None:
-    """Expose the report under the existing agent command group."""
+def _context(state: State, args: argparse.Namespace) -> None:
+    check = args.check
+    report = context_report(args.project, source=args.source)
+    if args.as_json:
+        write_json(state.stdout, report)
+        if check and report["duplicates"]:
+            # Keep stdout parseable; the text report already carries this guidance.
+            names = ", ".join(item["name"] for item in report["duplicates"])
+            state.stderr.write(f"Duplicate skill names: {names}. {DUPLICATE_GUIDANCE}\n")
+    elif check and report["passed"] and not args.details:
+        # Agents run the gate often; a pass needs one line, a failure keeps the full table.
+        state.stdout.write(_check_summary(report) + "\n")
+    else:
+        _print_report(state.stdout, report, details=args.details)
+    if check and not report["passed"]:
+        raise SystemExit(1)
 
-    @agent_app.command(
+
+def register(commands: Parser) -> None:
+    """Expose the report under the agent command group; it never reads dot.yaml."""
+    context = commands.command(
         "context",
-        help="Measure global, project, and combined AGENTS.md and skill discovery costs; report duplicate skill names",
+        "Measure global, project, and combined AGENTS.md and skill discovery costs; report duplicate skill names",
+        _context,
+        config=False,
     )
-    def context_command(
-        context: typer.Context,
-        project: Annotated[
-            Path, typer.Option("--project", "-p", help="Project root (only its own instructions and skills)")
-        ] = Path(),
-        source: Annotated[
-            Path | None,
-            typer.Option("--source", help="Measure a dot source checkout instead of installed global files"),
-        ] = None,
-        check: Annotated[
-            bool,
-            typer.Option(
-                "--check",
-                help=f"Exit 1 at {CONTEXT_TOKEN_LIMIT} instruction + discovery tokens in either global or local scope, "
-                "or on duplicate skill names",
-            ),
-        ] = False,
-        details: Annotated[
-            bool,
-            typer.Option("--details", help="Include source paths, on-demand file costs, and coverage in text output"),
-        ] = False,
-        as_json: JsonOption = False,
-    ) -> None:
-        state = state_from(context, require_config=False)
-        report = context_report(project, source=source)
-        if as_json:
-            write_json(state.stdout, report)
-            if check and report["duplicates"]:
-                # Keep stdout parseable; the text report already carries this guidance.
-                names = ", ".join(item["name"] for item in report["duplicates"])
-                state.stderr.write(f"Duplicate skill names: {names}. {DUPLICATE_GUIDANCE}\n")
-        elif check and report["passed"] and not details:
-            # Agents run the gate often; a pass needs one line, a failure keeps the full table.
-            state.stdout.write(_check_summary(report) + "\n")
-        else:
-            _print_report(state.stdout, report, details=details)
-        if check and not report["passed"]:
-            raise typer.Exit(1)
+    context.add_argument(
+        "-p",
+        "--project",
+        type=Path,
+        default=Path(),
+        metavar="PATH",
+        help="Project root (only its own instructions and skills)",
+    )
+    context.add_argument(
+        "--source", type=Path, metavar="PATH", help="Measure a dot source checkout instead of installed global files"
+    )
+    context.add_argument(
+        "--check",
+        action="store_true",
+        help=f"Exit 1 at {CONTEXT_TOKEN_LIMIT} instruction + discovery tokens in either global or local scope, "
+        "or on duplicate skill names",
+    )
+    context.add_argument(
+        "--details",
+        action="store_true",
+        help="Include source paths, on-demand file costs, and coverage in text output",
+    )
+    add_json(context)

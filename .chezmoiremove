@@ -1,7 +1,7 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
 # Skills removed or merged on 2026-11-07 (skill review). List a name only while it is still this
 # checkout's link, so apply never deletes a same-named package installed by another tool.
-{{- range list "agent-usage" "ai-red-team" "cli-development" "course-development" "fact-check" "implementation-plan" "production-readiness" "quality-assurance" "repository-history" "repository-review" "smoke" "systematic-debugging" "system-prompts" }}
+{{- range list "agent-usage" "ai-red-team" "cli-development" "course-development" "fact-check" "github-issues" "github-pull-request" "github-repository" "implementation-plan" "production-readiness" "quality-assurance" "repository-history" "repository-review" "smoke" "systematic-debugging" "system-prompts" }}
 {{-   $path := joinPath $.chezmoi.homeDir ".agents/skills" . }}
 {{-   $info := lstat $path }}
 {{-   if and $info (eq $info.type "symlink") }}

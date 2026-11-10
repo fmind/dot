@@ -2,13 +2,14 @@
 
 ## Commands
 
-One Python stdio example per host. For a remote server replace the trailing command with `--transport http <url>` (Claude Code, Copilot), `--url <url>` (OpenCode), or a plain URL argument (Antigravity):
+One Python stdio example per host. For a remote server replace the trailing command with `--transport http <url>` (Claude Code, Copilot), `--url <url>` (OpenCode, Pi), or a plain URL argument (Antigravity):
 
 ```bash
 agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                 # Antigravity CLI; flags before <name>
 claude mcp add --scope project <name> -e KEY=value -- uvx --from '<package>==<version>' <command> # -e is variadic: name first; default scope is local
 copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>             # user configuration
 opencode mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>            # OpenCode 2.x: project configuration unless --global
+pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                  # Pi: user configuration unless -l
 ```
 
 For a server shipped by a local Python project, register the locked environment's absolute executable instead of `uvx`, as the brain server does: `agy mcp add brain -- <brain-checkout>/.venv/bin/bf mcp --brain <brain>`.
@@ -27,3 +28,4 @@ OpenCode 2.x configuration nests servers under `mcp.servers.<name>`: `type: "loc
 | Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                 |
 | Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited) |
 | OpenCode    | `~/.config/opencode/opencode.json` or `.jsonc`       | `opencode.json` or `.jsonc`                     |
+| Pi          | `~/.pi/agent/mcp.json`                               | `.pi/mcp.json` (`-l`), after project trust      |

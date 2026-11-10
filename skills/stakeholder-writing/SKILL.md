@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/stakeholder-writing
   created: "2026-10-25"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Stakeholder Writing
 
-Write text that busy people read in seconds and act on, from a chat message to a decision memo. The user should be able to send it without rewriting. This skill owns the content, the length, and the final check. Delivery stays with [draft-mail](../draft-mail/SKILL.md) (Gmail), [draft-doc](../draft-doc/SKILL.md) (Google Docs), [github-pull-request](../github-pull-request/SKILL.md) and [github-issues](../github-issues/SKILL.md) (GitHub), [documentation-site](../documentation-site/SKILL.md) (Zensical), and [repository-docs](../repository-docs/SKILL.md) (README and AGENTS.md).
+Write text that busy people read in seconds and act on, from a chat message to a decision memo. The user should be able to send it without rewriting. This skill owns the content, the length, and the final check. Delivery stays with [draft-mail](../draft-mail/SKILL.md) (Gmail), [draft-doc](../draft-doc/SKILL.md) (Google Docs), [pull-request](../gh/references/pull-request.md) and [issues](../gh/references/issues/GUIDE.md) (GitHub), [documentation-site](../documentation-site/SKILL.md) (Zensical), and [repository-docs](../repository-docs/SKILL.md) (README and AGENTS.md).
 
 **Short beats complete.** Readers want the message first and open annexes or links when they want depth. Every sentence, caveat, and section costs them time, so keep only what changes what they understand, decide, or do. Adapt any guideline that does not help this reader and tell the user why. Three rules never bend: invent no facts, disclose no secrets or private data, and never let a figure mislead.
 

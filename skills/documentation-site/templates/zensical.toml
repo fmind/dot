@@ -20,7 +20,7 @@ nav = [
   # { "Guides" = ["guides/index.md", "guides/install.md"] },
   # { "Reference" = ["reference/index.md"] },
 ]
-extra_css = ["stylesheets/extra.css"]
+extra_css = ["stylesheets/fmind.css"]
 # Rebuild the preview when shared content outside docs/ changes.
 watch = ["includes"]
 
@@ -69,7 +69,7 @@ media = "(prefers-color-scheme)"
 toggle.icon = "lucide/sun-moon"
 toggle.name = "Switch to light mode"
 
-# fmind/theme is light-only: extra.css styles the light scheme; dark mode keeps stock slate colors.
+# fmind/theme is light-only: fmind.css styles the light scheme; dark mode keeps stock slate colors.
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
 scheme = "default"

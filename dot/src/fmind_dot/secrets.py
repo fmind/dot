@@ -1,25 +1,22 @@
 """Explicit, process-scoped access to personal credentials."""
 
+import argparse
 import os
 import re
 import stat
 from pathlib import Path
-from typing import Annotated
 
-import typer
-
-from fmind_dot.command_group import help_group
-from fmind_dot.errors import DotError
-from fmind_dot.state import require_tools, state_from
+from fmind_dot.command import Parser
+from fmind_dot.errors import DotError, UsageError
+from fmind_dot.state import State, require_tools
 
 _MAX_SECRET_BYTES = 64 << 10
-secret_app = help_group("Use personal credentials for one command without exporting them globally")
 
 
 def personal_token(name: str) -> str:
     """An explicit environment value wins, including an empty value that fails closed."""
     if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", name):
-        raise typer.BadParameter("expected an uppercase environment variable name", param_hint="NAME")
+        raise UsageError("NAME: expected an uppercase environment variable name")
     if name in os.environ:
         value = os.environ[name]
     else:
@@ -42,22 +39,11 @@ def personal_token(name: str) -> str:
     return value
 
 
-@secret_app.command(
-    "run",
-    help="Supply NAME to COMMAND; an existing environment value wins",
-    epilog="Example: dot secret run OPENROUTER_MANAGEMENT_KEY -- python app.py. "
-    "Exits with COMMAND's status; the value is never printed or exported to the shell.",
-)
-def run(
-    context: typer.Context,
-    name: Annotated[str, typer.Argument(help="Variable stored in ~/.config/dot/secrets/NAME")],
-    command: Annotated[list[str], typer.Argument(help="Command and arguments, following --")],
-) -> None:
+def _run(state: State, args: argparse.Namespace) -> None:
+    name, command = args.name, args.command
     # Packages publish through PyPI Trusted Publishing; a long-lived personal upload token is retired.
     if name == "UV_PUBLISH_TOKEN":
-        raise typer.BadParameter("PyPI publishing uses Trusted Publishing, not a personal token", param_hint="NAME")
-    # Scoped credentials never read dot.yaml, so an invalid configuration cannot block them.
-    state = state_from(context, require_config=False)
+        raise UsageError("NAME: PyPI publishing uses Trusted Publishing, not a personal token")
     require_tools(state, [command])
     code = state.runner.interactive(
         command,
@@ -66,4 +52,19 @@ def run(
         stdout=state.stdout,
         stderr=state.stderr,
     )
-    raise typer.Exit(code if code >= 0 else 128 - code)
+    raise SystemExit(code if code >= 0 else 128 - code)
+
+
+def register(commands: Parser) -> None:
+    group = commands.group("secret", "Use personal credentials for one command without exporting them globally")
+    # Scoped credentials never read dot.yaml, so an invalid configuration cannot block them.
+    run = group.command(
+        "run",
+        "Supply NAME to COMMAND; an existing environment value wins",
+        _run,
+        config=False,
+        epilog="Example: dot secret run OPENROUTER_MANAGEMENT_KEY -- python app.py. "
+        "Exits with COMMAND's status; the value is never printed or exported to the shell.",
+    )
+    run.add_argument("name", metavar="NAME", help="Variable stored in ~/.config/dot/secrets/NAME")
+    run.add_argument("command", nargs="+", metavar="COMMAND", help="Command and arguments, following --")

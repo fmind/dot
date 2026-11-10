@@ -6,12 +6,11 @@ import json
 from pathlib import Path
 
 import pytest
-from typer._click.utils import strip_ansi
-from typer.testing import CliRunner
 
 from fmind_dot.cli import app
 from fmind_dot.context_budget import MAX_INPUT_BYTES, context_report
 from fmind_dot.errors import DotError
+from tests.fakes import CliRunner
 
 runner = CliRunner()
 
@@ -91,7 +90,7 @@ def test_check_fails_on_cross_scope_duplicate_with_paths_and_guidance(tmp_path: 
     assert "Duplicate skill names" in plain.stdout
     checked = runner.invoke(app, [*arguments, "--check"])
     assert checked.exit_code == 1
-    output = strip_ansi(checked.stdout)
+    output = checked.stdout
     # A failing check keeps the full report: the name, both copies, and how to fix it.
     assert "Duplicate skill names · FAIL" in output
     # Text abbreviates the home directory; JSON keeps absolute paths.
@@ -118,7 +117,7 @@ def test_duplicate_paths_stay_absolute_in_json_under_home(tmp_path: Path, monkey
     [duplicate] = report["duplicates"]
     assert duplicate["paths"] == [entry["path"] for entry in report["entries"] if entry["name"] == "shared"]
     # Text output abbreviates for humans only.
-    text = strip_ansi(runner.invoke(app, arguments).stdout)
+    text = runner.invoke(app, arguments).stdout
     assert "    ~/.agents/skills/shared/SKILL.md\n" in text
 
 

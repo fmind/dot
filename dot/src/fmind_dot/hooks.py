@@ -310,6 +310,9 @@ def notification_workspace(stream: IO[str] | None, agent: str, event: str = "sto
             "elicitation_dialog",
             "elicitation_url_dialog",
             "agent_needs_input",
+            # A usage-limit wait that ended without continuing the task; no idle_prompt follows it.
+            "quota_auto_resume_stale",
+            "quota_auto_resume_disabled",
         }:
             return None
     if payload.get("hook_event_name") == "SubagentStop":

@@ -1,59 +1,52 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.14"
-# dependencies = [
-#     "rich>=15.0.0",
-#     "typer>=0.27.0",
-# ]
+# dependencies = []
 # ///
+"""A concise description of what this script does goes here."""
 
+import argparse
+import sys
 from pathlib import Path
-from typing import Annotated
-
-import typer
-from rich.console import Console
 
 __version__ = "0.1.0"
-app = typer.Typer(
-    add_completion=False,
-    context_settings={"help_option_names": ["-h", "--help"]},
-    pretty_exceptions_show_locals=False,
-)
-err = Console(stderr=True, markup=False, highlight=False, emoji=False)  # stderr: logs and errors
-out = Console(markup=False, highlight=False, emoji=False)  # stdout: results
 
 
-def version_callback(value: bool) -> None:
-    """Show the version without requiring an input file."""
-    if value:
-        typer.echo(__version__)
-        raise typer.Exit(code=0)
+def existing_file(value: str) -> Path:
+    """argparse type: reject a missing input before any work starts."""
+    path = Path(value)
+    if not path.is_file():
+        raise argparse.ArgumentTypeError(f"not a file: {value}")
+    return path
 
 
-@app.command(no_args_is_help=True)
-def main(
-    input_file: Annotated[Path, typer.Argument(help="Path to process", exists=True, dir_okay=False)],
-    output_dir: Annotated[Path | None, typer.Option("--output", "-o", help="Output directory")] = None,
-    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show progress details")] = False,
-    _version: Annotated[
-        bool, typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit.")
-    ] = False,
-) -> None:
-    """A concise description of what this script does goes here."""
+def process(input_file: Path, target: Path) -> None:
+    del input_file, target
+    # ... do the real work here ...
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser.add_argument("input_file", type=existing_file, metavar="INPUT", help="Path to process")
+    parser.add_argument("-o", "--output", type=Path, metavar="DIR", help="Output directory")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show progress details on stderr")
+    parser.add_argument("--version", action="version", version=__version__)
+    args = parser.parse_args()
+    target = args.output or args.input_file.parent
+    if args.verbose:
+        sys.stderr.write(f"Processing {args.input_file} -> {target}\n")
     try:
-        target = output_dir or input_file.parent
-        if verbose:
-            err.print(f"Processing {input_file} -> {target}", style="dim", soft_wrap=True)
-        # ... do the real work here ...
-        out.print(f"Successfully processed {input_file}", soft_wrap=True)
-    except OSError as exc:
-        err.print("Error: Cannot process the file. Check file access and the output directory.")
-        raise typer.Exit(code=1) from exc
-    except Exception as exc:
-        # Exception messages and traceback source lines can contain secrets too.
-        err.print("Error: Processing failed. Check the inputs; if it persists, report the failure.")
-        raise typer.Exit(code=1) from exc
+        process(args.input_file, target)
+    except OSError as error:
+        sys.stderr.write("Error: Cannot process the file. Check file access and the output directory.\n")
+        raise SystemExit(1) from error
+    except Exception as error:
+        # Exception messages and traceback source lines can contain secrets too: report none of them.
+        sys.stderr.write("Error: Processing failed. Check the inputs; if it persists, report the failure.\n")
+        raise SystemExit(1) from error
+    sys.stdout.write(f"Successfully processed {args.input_file}\n")
+    return 0
 
 
 if __name__ == "__main__":
-    app()
+    raise SystemExit(main())

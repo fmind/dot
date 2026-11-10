@@ -11,3 +11,11 @@ class CommandTimeoutError(DotError):
 
 class NotGitWorkTreeError(DotError):
     """A path that git does not place inside any work tree."""
+
+
+class UsageError(Exception):
+    """Arguments that parse but cannot be combined or resolved; the CLI reports them with exit status 2."""
+
+
+class CancelledError(Exception):
+    """The user declined a confirmation or closed the prompt; the CLI reports it with exit status 1."""

@@ -1,18 +1,18 @@
 ---
 name: python-stack
-description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest, async, HTTPX, Typer and CLI contracts, observability, LangExtract, debugging, profiling, benchmarks."
+description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest, async, HTTPX, argparse and CLI contracts, observability, LangExtract, debugging, profiling, benchmarks."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Python Stack
 
-Maintain a small typed Python foundation and choose libraries for demonstrated requirements. Preserve the existing environment and conventions rather than restarting a scaffold for every feature.
+Maintain a small typed Python foundation: use the standard library when it fits, and proven packages when they remove real code or risk — never reinvent the wheel or add a low-value dependency. Preserve the existing environment and conventions rather than restarting a scaffold for every feature.
 
 ## Workflow
 
@@ -23,6 +23,7 @@ Read only the matching guide and its required resources. Dataframe code in any p
 <!-- guides:start -->
 
 - [api-client](references/api-client/GUIDE.md): Build typed Python HTTPX API clients with bounded pagination and retries.
+- [argparse](references/argparse/GUIDE.md): Python CLI code with standard-library argparse: commands, help, usage errors, tests; existing Typer CLIs.
 - [cli-contracts](references/cli-contracts.md): Design any CLI's commands, flags, streams, exit codes, and JSON output, in any language.
 - [foundation](references/foundation/GUIDE.md): Python package layout, dependency choices, defaults, and project scaffolding.
 - [langextract](references/langextract.md): Extract structured facts from text with LangExtract and source-grounded evidence.
@@ -34,7 +35,6 @@ Read only the matching guide and its required resources. Dataframe code in any p
 - [python-testing](references/python-testing/GUIDE.md): Write Python tests with pytest, fixtures, property and mutation tests.
 - [ruff](references/ruff.md): Python linting, formatting, imports, and safe fixes.
 - [ty](references/ty.md): Type diagnostics and environment resolution.
-- [typer](references/typer/GUIDE.md): Typer application code, help, completion, and command tests.
 - [uv](references/uv.md): Dependency resolution, environments, packaging, and lockfiles.
 
 <!-- guides:end -->

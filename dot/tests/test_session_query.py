@@ -5,8 +5,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from typer import _click
-from typer.testing import CliRunner
 
 from fmind_dot.archive import query as session_query
 from fmind_dot.archive.query import (
@@ -25,6 +23,7 @@ from fmind_dot.archive.store import (
 )
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
+from tests.fakes import CliRunner
 
 
 def _ingest(
@@ -326,8 +325,7 @@ def test_unexpandable_project_is_a_usage_error(command: list[str]) -> None:
     result = CliRunner().invoke(app, ["agent", *command])
 
     assert result.exit_code == 2
-    # GitHub Actions forces Typer to colorize usage errors.
-    assert "--project" in _click.utils.strip_ansi(result.stderr)
+    assert "--project" in result.stderr
     assert not isinstance(result.exception, RuntimeError)
 
 

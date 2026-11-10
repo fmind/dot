@@ -1,27 +1,26 @@
 """Pre-accept coding-harness folder trust for repositories the owner works in."""
 
+import argparse
 import hashlib
 import json
 import re
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 from urllib.parse import unquote, urlparse
 
-import typer
-
-from fmind_dot.command_group import JsonOption
+from fmind_dot.command import Parser, add_json
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
 from fmind_dot.repository import find_git_repositories
-from fmind_dot.state import State, state_from
+from fmind_dot.state import State
 
 # Each harness stores trust in a file it also writes itself; preserve unrelated state.
 # Claude and agy key trust on the repository root, so a trusted parent
-# never covers the repositories below it; Copilot trusts every path below an entry.
+# never covers the repositories below it; Copilot and Pi trust every path below an entry.
 _COPILOT_COMMENT = re.compile(r"^\s*//")
 # github.com origins over HTTPS, ssh:// URLs, or scp-like SSH; the owner is the first path segment.
 _GITHUB_ORIGIN = re.compile(
@@ -114,6 +113,15 @@ def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
 
 
+def _pi(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
+    """Trust repository roots only: Pi applies a decision to every folder below it and then loads
+    that folder's `.pi/` extensions, so a trusted workspace would run code from any clone inside it."""
+    data = _load_json(path, text)
+    changed = [folder for folder in folders if data.get(folder) is not True and (Path(folder) / ".git").exists()]
+    data.update(dict.fromkeys(changed, True))
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
+
+
 def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
     # Claude keeps trust in ~/.claude.json but its state directory is ~/.claude.
     return {
@@ -126,6 +134,7 @@ def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
             home / ".copilot" / "config.json",
             lambda path, text, folders: _json_list(path, text, folders, "trustedFolders"),
         ),
+        "pi": (home / ".pi" / "agent" / "trust.json", _pi),
     }
 
 
@@ -327,27 +336,21 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
         )
 
 
-def register(app: typer.Typer) -> None:
-    @app.command(
+def _trust(state: State, args: argparse.Namespace) -> None:
+    run_trust(state, args.targets or ["."], dry_run=args.dry_run, as_json=args.as_json)
+
+
+def register(commands: Parser) -> None:
+    trust = commands.command(
         "trust",
-        help=(
-            "Pre-accept folder trust in Claude, agy, and Copilot, and add trusted repositories to "
-            "agy Remote Control projects"
-        ),
+        "Pre-accept folder trust in Claude, agy, Copilot, and Pi, and add trusted repositories to agy Remote Control projects",
+        _trust,
         epilog="The target 'all' covers pull.directories and their trust.github_owners repositories.",
     )
-    def trust(
-        context: typer.Context,
-        targets: Annotated[
-            list[str] | None,
-            typer.Argument(
-                help="Folders or repositories to trust, or 'all' for the configured workspaces [default: .]",
-                show_default=False,
-            ),
-        ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Report trust changes without writing harness files")
-        ] = False,
-        json_output: JsonOption = False,
-    ) -> None:
-        run_trust(state_from(context), targets or ["."], dry_run=dry_run, as_json=json_output)
+    trust.add_argument(
+        "targets",
+        nargs="*",
+        help="Folders or repositories to trust, or 'all' for the configured workspaces [default: .]",
+    )
+    trust.add_argument("--dry-run", action="store_true", help="Report trust changes without writing harness files")
+    add_json(trust)

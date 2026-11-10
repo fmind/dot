@@ -17,7 +17,7 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
     """Apply exact model rates to known accounting conventions only."""
     if record.measurement_kind != "provider-reported":
         return None, "measurement is not provider-reported"
-    if record.harness not in {"codex", "claude", "copilot", "grok"}:
+    if record.harness not in {"codex", "claude", "copilot", "grok", "pi"}:
         return None, "unsupported accounting"
     if not any((record.input_tokens, record.output_tokens, record.cached_tokens, record.cache_write_tokens)):
         if record.total_tokens:
@@ -37,7 +37,7 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
     # UsageRecord validation keeps 1-hour cache writes within cache writes.
     input_tokens = record.input_tokens
     if record.harness in CACHE_INCLUSIVE_INPUT_HARNESSES:
-        # OpenAI input and Grok ACP input include cached reads and cache writes; Claude/Copilot input excludes them.
+        # OpenAI input and Grok ACP input include cached reads and cache writes; Claude, Copilot, and Pi input excludes them.
         input_tokens -= record.cached_tokens + record.cache_write_tokens
         if input_tokens < 0:
             return None, f"unsupported {record.harness.capitalize()} cache accounting"

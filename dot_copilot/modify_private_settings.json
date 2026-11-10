@@ -1,7 +1,8 @@
 # chezmoi:modify-template
 {{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
        Native model and UI choices survive apply; mise owns CLI updates. askUser stays on so
-       autopilot can still pause on the question form when a task is unclear. */ -}}
+       autopilot can still pause on the question form when a task is unclear. connectors is
+       false: account-managed Copilot Connectors would add MCP servers to every session. */ -}}
 {{- $defaults := fromJson `
 {
   "banner": "never",
@@ -15,6 +16,7 @@
 {
   "askUser": true,
   "autoUpdate": false,
+  "connectors": false,
   "continueOnAutoMode": true,
   "defaultMode": "autopilot",
   "defaultPermissionMode": "allow-all",

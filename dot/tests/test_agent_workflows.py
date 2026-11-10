@@ -10,8 +10,6 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from typer import _click
-from typer.testing import CliRunner
 
 from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
@@ -31,7 +29,7 @@ from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.hooks import notification_workspace
 from fmind_dot.state import State
-from tests.fakes import COPILOT_SCHEMA, make_state
+from tests.fakes import COPILOT_SCHEMA, CliRunner, make_state
 
 
 def _stderr(state: State) -> str:
@@ -657,7 +655,7 @@ def test_usage_and_session_empty_cli_contracts() -> None:
     assert usage.exit_code == 0
     assert usage.stdout == "No usage records found.\n"
     assert shown.exit_code == 2
-    assert "Missing argument 'identity'" in shown.stderr
+    assert "the following arguments are required: SESSION" in shown.stderr
     for removed in (["compact", "--apply"], ["ingest", "claude", "session-id"], ["show", "x", "--latest"]):
         assert CliRunner().invoke(app, ["agent", "session", *removed]).exit_code == 2
 
@@ -683,7 +681,7 @@ def test_reports_reject_unknown_agents_before_any_sync(
     monkeypatch.setattr(agent_module, "sync_sessions", forbidden)
     result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 2, arguments
-    assert "'claud' is not one of" in _click.utils.strip_ansi(result.stderr)
+    assert "invalid choice: 'claud'" in result.stderr
     assert not (tmp_path / ".agents").exists()
 
 

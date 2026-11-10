@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Dot CLI
@@ -36,7 +36,7 @@ Use `dot` for bounded repository operations, local diagnostics, and agent-sessio
 
 ## Workflow ownership
 
-Use [git-delivery](../git-delivery/SKILL.md#commit-messages) for staged commits, [github-pull-request](../github-pull-request/SKILL.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy ([authentication](references/authentication.md)); inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics, and use [auth-status](../auth-status/SKILL.md) for a read-only login and expiry sweep. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
+Use [git-delivery](../git-delivery/SKILL.md#commit-messages) for staged commits, [pull-request](../gh/references/pull-request.md) for PRs, and repository mise tasks for releases. Use `dot login` and `dot setup` for configured provider policy ([authentication](references/authentication.md)); inspect `gh auth`, `gcloud auth`, and `gws auth` directly for native diagnostics, and use [auth-status](../auth-status/SKILL.md) for a read-only login and expiry sweep. Skills own AI judgment; deterministic privacy and mutation boundaries still apply.
 
 ## Documentation
 

@@ -9,7 +9,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 
 ## Workflow
 
-1. **Enable alerts and security updates on the repository**: both are free for public and private repositories, and neither needs a token or app. The [settings baseline](../../github-repository/references/settings-baseline.md) runs this for every new repository:
+1. **Enable alerts and security updates on the repository**: both are free for public and private repositories, and neither needs a token or app. The [settings baseline](../../gh/references/repository/references/settings-baseline.md) runs this for every new repository:
 
    ```bash
    gh api -X PUT "repos/$repository/vulnerability-alerts"
@@ -86,4 +86,4 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
 
 - [Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Configuring security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates)
 - Releases: [Supply chain security changelog](https://github.blog/changelog/label/supply-chain-security/) (Dependabot entries)
-- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (deliberate upgrades), [jactionlint](jactionlint.md) (offline validation), [settings baseline](../../github-repository/references/settings-baseline.md) (repository switches).
+- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (deliberate upgrades), [jactionlint](jactionlint.md) (offline validation), [settings baseline](../../gh/references/repository/references/settings-baseline.md) (repository switches).

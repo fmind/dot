@@ -1,11 +1,9 @@
 """Command contracts for agent workflows."""
 
+import argparse
 from datetime import datetime
-from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Any, Literal
-
-import typer
+from typing import Any
 
 from fmind_dot.agent_doctor import run_agent_doctor
 from fmind_dot.archive.parsers import AGENT_ADAPTERS, resolve_cwd
@@ -28,30 +26,28 @@ from fmind_dot.archive.usage import (
     parse_flexible_time,
     write_usage_stats,
 )
-from fmind_dot.command_group import JsonOption, help_group
+from fmind_dot.command import Parser, add_json, non_negative
 from fmind_dot.config import NotifyConfig
 from fmind_dot.context_budget import register as register_context
-from fmind_dot.errors import DotError
+from fmind_dot.errors import DotError, UsageError
 from fmind_dot.hooks import build_notification, notification_workspace, send_notification, zellij_pane
 from fmind_dot.reporting import write_json, write_report_line
-from fmind_dot.state import State, state_from
+from fmind_dot.state import State
 
-agent_app = help_group("Manage AI agent integrations and sessions")
-register_context(agent_app)
-session_app = help_group("Manage agent session logs")
-hook_app = help_group("Run native agent notification hooks")
-# Choices render in --help and Fish completions and are validated before any sync.
-# Retired agents stay selectable where their archived sessions are queried; the doctor inspects live adapters only.
-AgentName = StrEnum("AgentName", {name: name for name in (*AGENT_ADAPTERS, *RETIRED_AGENTS)})
-LiveAgentName = StrEnum("LiveAgentName", {name: name for name in AGENT_ADAPTERS})
-SessionStatus = StrEnum("SessionStatus", {name: name for name in SESSION_STATUSES})
+# Choices render in --help and Fish completions and are validated before any sync, so a typo never becomes
+# an all-agent capture. Retired agents stay selectable where their archived sessions are queried; the doctor
+# inspects live adapters only.
+_AGENTS = (*AGENT_ADAPTERS, *RETIRED_AGENTS)
+# Each date filter names its time basis: ingestion for archive queries, activity for reports.
+_SINCE_VALUES = "duration (7d, 24h), UTC date, or timestamp"
+_UNTIL_VALUES = "duration, UTC date (whole day), or timestamp"
 
 
 def _parse_time(value: str, option: str) -> datetime | None:
     try:
         return parse_flexible_time(value, end_of_day=option == "--until") if value else None
     except (ValueError, OverflowError) as error:
-        raise typer.BadParameter("expected a duration (7d, 24h), UTC date, or timestamp", param_hint=option) from error
+        raise UsageError(f"{option}: expected a duration (7d, 24h), UTC date, or timestamp") from error
 
 
 def _project(cwd: str) -> str:
@@ -59,7 +55,7 @@ def _project(cwd: str) -> str:
     try:
         return resolve_cwd(cwd)
     except ValueError as error:
-        raise typer.BadParameter(str(error), param_hint="--project") from None
+        raise UsageError(f"--project: {error}") from None
 
 
 def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> SessionQuery:
@@ -71,60 +67,36 @@ def _query(agent: str, cwd: str, identity: str, since: str, until: str) -> Sessi
         until=_parse_time(until, "--until"),
     )
     if query.since and query.until and query.since > query.until:
-        raise typer.BadParameter("must not be after --until", param_hint="--since")
+        raise UsageError("--since: must not be after --until")
     return query
 
 
-NoSyncOption = Annotated[
-    bool, typer.Option("--no-sync", help="Report the archive as stored, without capturing changed sessions first")
-]
-# Shared filters keep one documented contract across session and report commands.
-AgentOption = Annotated[AgentName | None, typer.Option("--agent", "-a", help="Filter by agent")]
-ProjectOption = Annotated[
-    str, typer.Option("--project", help="Filter by project directory; relative paths resolve first")
-]
-SessionOption = Annotated[str, typer.Option("--session", help="Filter by session identity")]
-LimitOption = Annotated[int, typer.Option("--limit", "-n", min=0, help="Maximum rows to return; 0 returns all")]
-# Each date filter names its time basis: ingestion for archive queries, activity for reports.
-_SINCE_VALUES = "duration (7d, 24h), UTC date, or timestamp"
-_UNTIL_VALUES = "duration, UTC date (whole day), or timestamp"
-SinceOption = Annotated[str, typer.Option("--since", help=f"Ingested since {_SINCE_VALUES}")]
-UntilOption = Annotated[str, typer.Option("--until", help=f"Ingested until {_UNTIL_VALUES}")]
+def _add_filters(parser: Parser, *, basis: str, session: bool = False) -> None:
+    """Shared filters keep one documented contract across session and report commands."""
+    parser.add_argument("-a", "--agent", choices=_AGENTS, default="", help="Filter by agent")
+    parser.add_argument(
+        "--project",
+        dest="cwd",
+        default="",
+        metavar="PATH",
+        help="Filter by project directory; relative paths resolve first",
+    )
+    if session:
+        parser.add_argument("--session", dest="identity", default="", metavar="ID", help="Filter by session identity")
+    parser.add_argument("--since", default="", metavar="WHEN", help=f"{basis} since {_SINCE_VALUES}")
+    parser.add_argument("--until", default="", metavar="WHEN", help=f"{basis} until {_UNTIL_VALUES}")
 
 
-def _agent(agent: AgentName | LiveAgentName | None) -> str:
-    """Typer rejects a misspelled agent before a report syncs, so a typo never becomes an all-agent capture."""
-    return str(agent) if agent else ""
-
-
-@session_app.command(
-    "list",
-    help="List archived sessions, newest ingestion first",
-    epilog="Example: dot agent session list --agent claude --since 7d --status partial --json",
-)
-def session_list(
-    context: typer.Context,
-    agent: AgentOption = None,
-    cwd: ProjectOption = "",
-    identity: SessionOption = "",
-    since: SinceOption = "",
-    until: UntilOption = "",
-    limit: LimitOption = 50,
-    as_json: JsonOption = False,
-    status: Annotated[
-        list[SessionStatus] | None, typer.Option("--status", help="Filter by session status; repeatable")
-    ] = None,
-) -> None:
-    state = state_from(context)
-    selected_statuses = {str(item) for item in status or ()}
-    query = _query(_agent(agent), cwd, identity, since, until)
+def _session_list(state: State, args: argparse.Namespace) -> None:
+    selected_statuses = set(args.status)
+    query = _query(args.agent, args.cwd, args.identity, args.since, args.until)
     summaries = query_session_summaries(
         query,
         validate_content="invalid" in selected_statuses,
         statuses=selected_statuses,
-        limit=limit or None,
+        limit=args.limit or None,
     )
-    if as_json:
+    if args.as_json:
         write_json(
             state.stdout,
             {
@@ -140,31 +112,11 @@ def session_list(
         )
 
 
-@session_app.command(
-    "show",
-    help="Print one archived session as JSON; --content adds its records",
-    epilog="Example: dot agent session show SESSION_ID --content --role user --tail 20. "
-    "Transcripts can be megabytes: bound --content with --tail or --role.",
-)
-def session_show(
-    context: typer.Context,
-    identity: Annotated[str, typer.Argument(help="Session identity, as session list prints it")],
-    agent: AgentOption = None,
-    cwd: ProjectOption = "",
-    since: SinceOption = "",
-    until: UntilOption = "",
-    content: Annotated[bool, typer.Option("--content", help="Include prompt and response content")] = False,
-    role: Annotated[
-        Literal["user", "assistant"] | None, typer.Option("--role", help="With --content, keep only this role")
-    ] = None,
-    tail: Annotated[
-        int, typer.Option("--tail", min=0, help="With --content, keep only the last N records; 0 keeps all")
-    ] = 0,
-) -> None:
-    state = state_from(context)
+def _session_show(state: State, args: argparse.Namespace) -> None:
+    content, role, tail = args.content, args.role, args.tail
     if (role or tail) and not content:
-        raise typer.BadParameter("--role and --tail select --content records", param_hint="--content")
-    query = _query(_agent(agent), cwd, identity, since, until)
+        raise UsageError("--role and --tail select --content records")
+    query = _query(args.agent, args.cwd, args.identity, args.since, args.until)
     summary = show_session(query, include_content=content)
     if role:
         summary.records = [record for record in summary.records if record.role == role]
@@ -188,35 +140,16 @@ def session_show(
         )
 
 
-@session_app.command(
-    "sync",
-    help="Capture new and changed sessions from configured agent sources",
-    epilog=(
-        "Progress goes to stderr: one summary per agent plus each retained session; --verbose also lists "
-        "every ingested session. Exit 1 after any failed session, once the others are captured."
-    ),
-)
-def session_sync(
-    context: typer.Context,
-    agent: Annotated[AgentName | None, typer.Option("--agent", "-a", help="Synchronize one adapter")] = None,
-    session: Annotated[str, typer.Option("--session", help="Synchronize one session identity")] = "",
-    cwd: Annotated[str, typer.Option("--project", help="Filter by resolved project path")] = "",
-    since: Annotated[str, typer.Option("--since", help=f"Only sources modified since {_SINCE_VALUES}")] = "",
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Inspect candidates without writing archives or usage")
-    ] = False,
-    as_json: JsonOption = False,
-    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Also list every ingested session")] = False,
-) -> None:
+def _session_sync(state: State, args: argparse.Namespace) -> None:
     sync_sessions(
-        state_from(context),
-        agent=_agent(agent),
-        session=session,
-        cwd=_project(cwd),
-        since=_parse_time(since, "--since"),
-        dry_run=dry_run,
-        as_json=as_json,
-        verbose=verbose,
+        state,
+        agent=args.agent,
+        session=args.session,
+        cwd=_project(args.cwd),
+        since=_parse_time(args.since, "--since"),
+        dry_run=args.dry_run,
+        as_json=args.as_json,
+        verbose=args.verbose,
     )
 
 
@@ -248,13 +181,8 @@ def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
     write(f"Prompt coverage: {'complete' if document['complete'] else 'INCOMPLETE'} within the selected archive.")
 
 
-@hook_app.command("notify", help="Send a desktop notification for a native agent event")
-def hook_notify(
-    context: typer.Context,
-    agent: Annotated[str, typer.Argument(help="Agent adapter name")],
-    event: Annotated[str, typer.Argument(help="Native hook event name")],
-) -> None:
-    state = state_from(context, require_config=False)
+def _hook_notify(state: State, args: argparse.Namespace) -> None:
+    agent, event = args.agent, args.event
     try:
         # Consume the hook payload so re-entrant and mid-turn events remain quiet.
         workspace = notification_workspace(state.stdin, agent, event)
@@ -288,45 +216,17 @@ def _print_session_usage(state: State, records: list[UsageRecord]) -> None:
         )
 
 
-@agent_app.command(
-    "stats",
-    help="Sync changed sessions (unless --no-sync), then report prompts, tokens, costs, and API equivalents",
-    epilog="Examples: dot agent stats --since 7d --tokens-only --json · dot agent stats --sessions -n 10 --since 7d · "
-    "dot agent stats --monthly --agent agy. Exit 1 when prompt statistics are incomplete; JSON is still printed.",
-)
-def agent_stats(
-    context: typer.Context,
-    agent: AgentOption = None,
-    since: Annotated[str, typer.Option("--since", help=f"Active since {_SINCE_VALUES}")] = "",
-    until: Annotated[str, typer.Option("--until", help=f"Active until {_UNTIL_VALUES}")] = "",
-    cwd: ProjectOption = "",
-    by_model: Annotated[bool, typer.Option("--by-model", "-m", help="Group usage by model")] = False,
-    by_project: Annotated[bool, typer.Option("--by-project", help="Group prompts and usage by project")] = False,
-    as_json: JsonOption = False,
-    monthly: Annotated[bool, typer.Option("--monthly", help="Group usage by calendar month in UTC")] = False,
-    tokens_only: Annotated[
-        bool, typer.Option("--tokens-only", help="Skip prompt analysis for a quick usage report")
-    ] = False,
-    prompts_only: Annotated[
-        bool, typer.Option("--prompts-only", help="Skip token analysis and report prompt activity")
-    ] = False,
-    no_sync: NoSyncOption = False,
-    sessions: Annotated[
-        bool, typer.Option("--sessions", help="List per-session usage, newest activity first, instead of totals")
-    ] = False,
-    limit: Annotated[
-        int, typer.Option("--limit", "-n", min=0, help="With --sessions, maximum rows; 0 returns all")
-    ] = 50,
-) -> None:
-    state = state_from(context)
-    selected = _agent(agent)
+def _agent_stats(state: State, args: argparse.Namespace) -> None:
+    selected, as_json, no_sync, limit = args.agent, args.as_json, args.no_sync, args.limit
+    by_model, by_project, monthly = args.by_model, args.by_project, args.monthly
+    sessions, tokens_only, prompts_only = args.sessions, args.tokens_only, args.prompts_only
     if sessions and (by_model or by_project or monthly or tokens_only or prompts_only):
-        raise typer.BadParameter("lists sessions; drop the grouping and --*-only options", param_hint="--sessions")
+        raise UsageError("--sessions: lists sessions; drop the grouping and --*-only options")
     if tokens_only and prompts_only:
-        raise typer.BadParameter("cannot be combined with --prompts-only", param_hint="--tokens-only")
+        raise UsageError("--tokens-only: cannot be combined with --prompts-only")
     if prompts_only and (monthly or by_model):
-        raise typer.BadParameter("--monthly and --by-model require token statistics", param_hint="--prompts-only")
-    query = _query(selected, cwd, "", since, until)
+        raise UsageError("--prompts-only: --monthly and --by-model require token statistics")
+    query = _query(selected, args.cwd, "", args.since, args.until)
     # A retired agent has nothing to capture: report its archive as stored.
     synced = not no_sync and selected not in RETIRED_AGENTS
     if synced:
@@ -390,20 +290,110 @@ def agent_stats(
         raise DotError("prompt statistics are incomplete; inspect excluded sessions and partial counts")
 
 
-@agent_app.command(
-    "doctor",
-    help="Check discovery, notify hooks, session sync, and archive readability per agent",
-    epilog="Exit 1 when any agent is unhealthy; each failing agent names its next command.",
-)
-def agent_doctor(
-    context: typer.Context,
-    agent: Annotated[LiveAgentName | None, typer.Option("--agent", "-a", help="Inspect only one agent")] = None,
-    as_json: JsonOption = False,
-) -> None:
-    run_agent_doctor(state_from(context), as_json=as_json, agent=_agent(agent))
+def _agent_doctor(state: State, args: argparse.Namespace) -> None:
+    run_agent_doctor(state, as_json=args.as_json, agent=args.agent)
 
 
-agent_app.add_typer(hook_app, name="hook", hidden=True)
+def _register_session(commands: Parser) -> None:
+    group = commands.group("session", "Manage agent session logs")
+    listing = group.command(
+        "list",
+        "List archived sessions, newest ingestion first",
+        _session_list,
+        epilog="Example: dot agent session list --agent claude --since 7d --status partial --json",
+    )
+    _add_filters(listing, basis="Ingested", session=True)
+    listing.add_argument(
+        "-n", "--limit", type=non_negative, default=50, metavar="N", help="Maximum rows to return; 0 returns all"
+    )
+    add_json(listing)
+    listing.add_argument(
+        "--status", action="append", choices=SESSION_STATUSES, default=[], help="Filter by session status; repeatable"
+    )
+    show = group.command(
+        "show",
+        "Print one archived session as JSON; --content adds its records",
+        _session_show,
+        epilog="Example: dot agent session show SESSION_ID --content --role user --tail 20. "
+        "Transcripts can be megabytes: bound --content with --tail or --role.",
+    )
+    show.add_argument("identity", metavar="SESSION", help="Session identity, as session list prints it")
+    _add_filters(show, basis="Ingested")
+    show.add_argument("--content", action="store_true", help="Include prompt and response content")
+    show.add_argument("--role", choices=("user", "assistant"), help="With --content, keep only this role")
+    show.add_argument(
+        "--tail",
+        type=non_negative,
+        default=0,
+        metavar="N",
+        help="With --content, keep only the last N records; 0 keeps all",
+    )
+    sync = group.command(
+        "sync",
+        "Capture new and changed sessions from configured agent sources",
+        _session_sync,
+        epilog=(
+            "Progress goes to stderr: one summary per agent plus each retained session; --verbose also lists "
+            "every ingested session. Exit 1 after any failed session, once the others are captured."
+        ),
+    )
+    sync.add_argument("-a", "--agent", choices=_AGENTS, default="", help="Synchronize one adapter")
+    sync.add_argument("--session", default="", metavar="ID", help="Synchronize one session identity")
+    sync.add_argument("--project", dest="cwd", default="", metavar="PATH", help="Filter by resolved project path")
+    sync.add_argument("--since", default="", metavar="WHEN", help=f"Only sources modified since {_SINCE_VALUES}")
+    sync.add_argument("--dry-run", action="store_true", help="Inspect candidates without writing archives or usage")
+    add_json(sync)
+    sync.add_argument("-v", "--verbose", action="store_true", help="Also list every ingested session")
 
 
-agent_app.add_typer(session_app, name="session")
+def _register_stats(commands: Parser) -> None:
+    stats = commands.command(
+        "stats",
+        "Sync changed sessions (unless --no-sync), then report prompts, tokens, costs, and API equivalents",
+        _agent_stats,
+        epilog="Examples: dot agent stats --since 7d --tokens-only --json · dot agent stats --sessions -n 10 --since 7d "
+        "· dot agent stats --monthly --agent agy. Exit 1 when prompt statistics are incomplete; JSON is still printed.",
+    )
+    _add_filters(stats, basis="Active")
+    stats.add_argument("-m", "--by-model", action="store_true", help="Group usage by model")
+    stats.add_argument("--by-project", action="store_true", help="Group prompts and usage by project")
+    add_json(stats)
+    stats.add_argument("--monthly", action="store_true", help="Group usage by calendar month in UTC")
+    stats.add_argument("--tokens-only", action="store_true", help="Skip prompt analysis for a quick usage report")
+    stats.add_argument("--prompts-only", action="store_true", help="Skip token analysis and report prompt activity")
+    stats.add_argument(
+        "--no-sync",
+        action="store_true",
+        help="Report the archive as stored, without capturing changed sessions first",
+    )
+    stats.add_argument(
+        "--sessions", action="store_true", help="List per-session usage, newest activity first, instead of totals"
+    )
+    stats.add_argument(
+        "-n",
+        "--limit",
+        type=non_negative,
+        default=50,
+        metavar="N",
+        help="With --sessions, maximum rows; 0 returns all",
+    )
+
+
+def register(commands: Parser) -> None:
+    group = commands.group("agent", "Manage AI agent integrations and sessions")
+    register_context(group)
+    doctor = group.command(
+        "doctor",
+        "Check discovery, notify hooks, session sync, and archive readability per agent",
+        _agent_doctor,
+        epilog="Exit 1 when any agent is unhealthy; each failing agent names its next command.",
+    )
+    doctor.add_argument("-a", "--agent", choices=tuple(AGENT_ADAPTERS), default="", help="Inspect only one agent")
+    add_json(doctor)
+    # Native harness hooks call this; it stays out of everyday help and never needs a valid dot.yaml.
+    hook = group.group("hook", "Run native agent notification hooks", hidden=True)
+    notify = hook.command("notify", "Send a desktop notification for a native agent event", _hook_notify, config=False)
+    notify.add_argument("agent", help="Agent adapter name")
+    notify.add_argument("event", help="Native hook event name")
+    _register_session(group)
+    _register_stats(group)

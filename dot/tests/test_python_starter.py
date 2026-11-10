@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _render(name: str, replacements: dict[str, str], *, guide: str = "foundation") -> str:
-    owner = {"foundation": "python-stack", "typer": "python-stack", "litestar": "python-web"}[guide]
+    owner = {"foundation": "python-stack", "argparse": "python-stack", "litestar": "python-web"}[guide]
     content = (ROOT / "skills" / owner / "references" / guide / "templates" / name).read_text(encoding="utf-8")
     for placeholder, value in replacements.items():
         content = content.replace(placeholder, value)
@@ -43,11 +43,8 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
     environment.pop("UV_PROJECT", None)
     environment.pop("VIRTUAL_ENV", None)
     environment.pop("COVERAGE_FILE", None)
-    # Typer forces a terminal whenever GITHUB_ACTIONS, FORCE_COLOR or PY_COLORS is set,
-    # and NO_COLOR does not undo it. Rich then splits option names across escape
-    # sequences ("--name" becomes "\x1b[1m-\x1b[0m\x1b[1m-name"), so help assertions
-    # only hold once every forcing variable is removed.
-    for forced in ("CLICOLOR_FORCE", "FORCE_COLOR", "GITHUB_ACTIONS", "PY_COLORS"):
+    # argparse colors help when a CI forces it; help assertions read plain text.
+    for forced in ("FORCE_COLOR", "PYTHON_COLORS"):
         environment.pop(forced, None)
     result = subprocess.run(
         list(command),
@@ -93,11 +90,10 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     if profile == "library":
         _write(project, "tests/test_library.py", _render("test_library.py", replacements))
     elif profile == "cli":
-        _run(project, "uv", "add", "typer>=0.27.2")
-        _write(project, "src/starter_py/__init__.py", _render("init-cli.py", replacements, guide="typer"))
-        _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="typer"))
+        _write(project, "src/starter_py/__init__.py", _render("init-cli.py", replacements, guide="argparse"))
+        _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
         for name in ("test_smoke.py", "test_cli.py"):
-            _write(project, f"tests/{name}", _render(name, replacements, guide="typer"))
+            _write(project, f"tests/{name}", _render(name, replacements, guide="argparse"))
     else:
         _run(
             project,
@@ -171,18 +167,6 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
                 assert "greet" in _run(outside, *command, flag)
                 assert "--name" in _run(outside, *command, "greet", flag)
             _run(outside, *command, "--unknown-option", expected_code=2)
-        for shell in ("bash", "zsh", "fish"):
-            result = subprocess.run(
-                [str(runtime / "bin/starter-py")],
-                cwd=outside,
-                env={**os.environ, "_STARTER_PY_COMPLETE": f"source_{shell}"},
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            assert result.returncode == 0, result.stderr
-            assert "starter-py" in result.stdout
-            if shell == "bash" and "Bash versions older than 4.4" in result.stderr:
-                continue
-            assert result.stderr == ""
+            _run(outside, *command, expected_code=2)
+        # The CLI profile ships on the standard library alone.
+        assert [line for line in requirements.splitlines() if line and not line.startswith("#")] == []

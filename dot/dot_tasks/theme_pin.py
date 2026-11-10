@@ -10,6 +10,7 @@ the pin only advances while every copy matches the target revision.
 from __future__ import annotations
 
 import argparse
+import configparser
 import hashlib
 import json
 import re
@@ -37,6 +38,7 @@ ENTRY = re.compile(r'(    url = "\{\{ \$base \}\}/(?P<path>[^"]+)"\n    checksum
 COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
     "dot_config/fastfetch/config.jsonc": ("themes/fastfetch/fmind.json", (("display", "color"),)),
     "dot_config/lazydocker/config.yml": ("themes/lazydocker/fmind.yml", (("gui", "theme"),)),
+    "dot_config/pgcli/config": ("themes/pgcli/fmind.config", (("main", "syntax_style"), ("colors",))),
     "dot_config/ripgrep/config.tmpl": ("themes/ripgrep/fmind.ripgreprc", (("colors",),)),
     "dot_config/starship.toml": ("themes/starship/fmind.toml", (("palette",), ("palettes",))),
 }
@@ -106,6 +108,11 @@ def parse(text: str, upstream: str) -> dict[str, Any]:
     if suffix == ".json":
         # Native configs may be JSONC; only whole-line comments occur in these files.
         return json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE))
+    if suffix == ".config":
+        # pgcli's INI dialect; values keep their quotes on both sides.
+        ini = configparser.ConfigParser(interpolation=None)
+        ini.read_string(text)
+        return {section: dict(ini[section]) for section in ini.sections()}
     if suffix == ".ripgreprc":
         return {"colors": [line for line in text.splitlines() if line.startswith("--colors=")]}
     raise ValueError(f"unsupported theme format: {upstream}")
@@ -172,7 +179,14 @@ def main() -> int:
             return 1
         if updated != template:
             path.write_text(updated, encoding="utf-8")
-    except (OSError, ValueError, subprocess.SubprocessError, tomllib.TOMLDecodeError, yaml.YAMLError) as error:
+    except (
+        OSError,
+        ValueError,
+        configparser.Error,
+        subprocess.SubprocessError,
+        tomllib.TOMLDecodeError,
+        yaml.YAMLError,
+    ) as error:
         sys.stderr.write(f"Cannot pin fmind/theme: {error}\n")
         return 1
     sys.stdout.write(f"fmind/theme pinned to {revision}\n")

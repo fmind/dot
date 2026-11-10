@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from fmind_dot import repository
 from fmind_dot.archive import parsers as agent_parsers
@@ -19,7 +18,7 @@ from fmind_dot.archive.usage import UsageRecord, aggregate_usage, write_usage_st
 from fmind_dot.cli import app
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
-from tests.fakes import make_state
+from tests.fakes import CliRunner, make_state
 
 
 @pytest.mark.parametrize("separator", ["\u0085", "\u2028", "\u2029"])

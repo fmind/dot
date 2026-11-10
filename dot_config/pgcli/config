@@ -2,3 +2,45 @@
 # pgcli merges this partial file over its packaged defaults.
 [main]
 vi = True
+# Source: https://github.com/fmind/theme/blob/main/themes/pgcli/fmind.config
+# The colorless base style; the pygments.* entries below add the Fmind syntax colors.
+syntax_style = bw
+
+[colors]
+completion-menu.completion.current = 'bg:#d2e3fc #202124'
+completion-menu.completion = 'bg:#f1f3f4 #202124'
+completion-menu.meta.completion.current = 'bg:#d2e3fc #202124'
+completion-menu.meta.completion = 'bg:#f1f3f4 #595d62'
+completion-menu.multi-column-meta = 'bg:#f1f3f4 #595d62'
+scrollbar.arrow = 'bg:#9aa0a6'
+scrollbar = 'bg:#f1f3f4'
+selected = '#202124 bg:#d2e3fc'
+search = '#202124 bg:#feefc3'
+search.current = '#202124 bg:#fbbc04'
+bottom-toolbar = 'bg:#f1f3f4 #595d62'
+bottom-toolbar.off = 'bg:#f1f3f4 #595d62'
+bottom-toolbar.on = 'bg:#f1f3f4 #202124'
+search-toolbar = 'noinherit bold'
+search-toolbar.text = 'nobold'
+system-toolbar = 'noinherit bold'
+arg-toolbar = 'noinherit bold'
+arg-toolbar.text = 'nobold'
+bottom-toolbar.transaction.valid = 'bg:#f1f3f4 #0d652d bold'
+bottom-toolbar.transaction.failed = 'bg:#f1f3f4 #a50e0e bold'
+
+# Query syntax. pgcli colors the input through these prompt_toolkit classes.
+pygments.keyword = 'bold #174ea6'
+pygments.keyword.type = 'nobold #681da8'
+pygments.operator.word = 'bold #174ea6'
+pygments.name.builtin = '#681da8'
+pygments.name.function = '#174ea6'
+pygments.literal.string = 'noitalic nobold #0d652d'
+pygments.literal.number = '#934900'
+pygments.comment = 'noitalic #595d62'
+pygments.error = '#a50e0e'
+
+# Result tables.
+output.header = '#174ea6 bold'
+output.odd-row = ''
+output.even-row = ''
+output.null = '#595d62'

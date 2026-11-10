@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Documentation Sites
@@ -23,7 +23,7 @@ Use Zensical as the default static site generator for project documentation, cou
    uv add --dev 'zensical>=0.1.0,<0.2'
    uv run zensical new .
    ```
-1. **Apply the starter**: replace the generated files with the [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) as `docs/index.md`, [extra.css](templates/extra.css) as `docs/stylesheets/extra.css`, and [abbreviations.md](templates/abbreviations.md) as `includes/abbreviations.md`; delete `docs/markdown.md`. Fill every `<placeholder>`, set the real `site_url` with its hosting prefix, and drop unused sections. The starter enables instant navigation, Copy as Markdown, `llms.txt`, social cards, a glossary, checked snippets, minified HTML, and self-hosted fonts and Mermaid; [configuration](references/configuration.md) explains each feature and the optional ones (blog, tags, redirects, API reference, versions, offline).
+1. **Apply the starter**: replace the generated files with the [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) as `docs/index.md`, the pinned `~/.agents/themes/zensical/fmind.css` as `docs/stylesheets/fmind.css` (for another brand, write a stylesheet with that brand's values for the same variables), and [abbreviations.md](templates/abbreviations.md) as `includes/abbreviations.md`; delete `docs/markdown.md`. Fill every `<placeholder>`, set the real `site_url` with its hosting prefix, and drop unused sections. The starter enables instant navigation, Copy as Markdown, `llms.txt`, social cards, a glossary, checked snippets, minified HTML, and self-hosted fonts and Mermaid; [configuration](references/configuration.md) explains each feature and the optional ones (blog, tags, redirects, API reference, versions, offline).
 1. **Write under `docs/`**: one H1 per page, explicit `nav`, a section `index.md` for overviews, relative `.md` links, and a `description` in front matter for search and social cards. Use [authoring](references/authoring.md) for page types and syntax. For courses, start each lesson from the [lesson template](templates/lesson.md), prefer local exercises because live models and cloud resources need declared authority and cost, and record terminal demos with [VHS](../fmind-visuals/references/recording.md) beside a static equivalent.
 1. **Wire tasks and ignores**: merge [mise.toml](templates/mise.toml) into the task graph and add `site/` and `.cache/` to `.gitignore`. Use [dprint](../dprint/SKILL.md) for Markdown and [python-stack](../python-stack/references/foundation/GUIDE.md) for executable examples.
 1. **Validate**: `uv run --locked zensical build --clean --strict` must print `No issues found` and exit 0. Preview with `uv run --locked zensical serve` (default `localhost:8000`) and check navigation, search, both palettes, a 390 px viewport, keyboard use, and code copy; use [playwright](../playwright/SKILL.md) for screenshots. Run lesson code and external links separately.

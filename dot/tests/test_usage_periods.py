@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from fmind_dot.archive import store
 from fmind_dot.archive.parsers import parse_claude_session
@@ -16,6 +15,7 @@ from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_rec
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
+from tests.fakes import CliRunner
 
 
 def request(timestamp: str, *, model: str = "gpt-5.4", tokens: int = 1_000_000) -> UsageRecord:

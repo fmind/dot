@@ -25,6 +25,10 @@ set -gx COPILOT_ALLOW_ALL 1
 # ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively;
 # loading both resolves each duplicate name nondeterministically.
 set -gx OPENCODE_DISABLE_CLAUDE_CODE_SKILLS 1
+# gh renders Markdown with Glamour; the fmind/theme external replaces its built-in 256-color style.
+if test -r $XDG_CONFIG_HOME/glamour/fmind.json
+    set -gx GLAMOUR_STYLE $XDG_CONFIG_HOME/glamour/fmind.json
+end
 # Layer the fmind/theme external over the managed config; lazygit rejects a missing
 # custom config file, so wait until chezmoi has fetched it.
 if test -r $XDG_CONFIG_HOME/lazygit/theme.yml

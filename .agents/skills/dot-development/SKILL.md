@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Develop Dot
@@ -18,7 +18,7 @@ Change the Python CLI while retaining its observable command, archive, and insta
 
 1. **Find the owner**: follow the source/test map below and read the current implementation before selecting a change boundary.
 1. **Define the observable change**: keep the [cli-contracts](../../../skills/python-stack/references/cli-contracts.md) surface and Fish completions unless the task changes them. Exercise configuration errors through the public CLI; repair commands must remain usable when ordinary config loading fails.
-1. **Implement through existing boundaries**: reuse `State`, `Runner`, and `run_parallel` for configuration, streams, external commands, and concurrent subprocess probes. Use temporary homes and fake runners in tests so a CLI regression cannot authenticate, publish, prune real data, or modify the workstation.
+1. **Implement through existing boundaries**: reuse `State`, `Runner`, and `run_parallel` for configuration, streams, external commands, and concurrent subprocess probes. Runtime dependencies stay at Pydantic and PyYAML: use the standard library for everything else. Use temporary homes and fake runners in tests so a CLI regression cannot authenticate, publish, prune real data, or modify the workstation.
 1. **Select proof**: run relevant existing tests with `uv run --frozen --project dot pytest -q dot/tests/<test_file>.py`; add behavioral cases for changed outcomes and realistic failures. Read [session compatibility](references/session-compatibility.md) before changing parser output, replacement rules, or stored formats.
 1. **Qualify the candidate**: run affected static checks and reuse the focused test results above; project `AGENTS.md` owns the full-gate boundary and formatter isolation.
 1. **Verify the right executable**: use `uv run --frozen --project dot dot <command>` for checkout behavior. When installation is in scope, `mise run deploy` reinstalls it with `uv tool install`, constrained to `dot/uv.lock`; verify `dot --version` and the changed installed command separately. `mise run doctor` is workstation health, not repository qualification.
@@ -27,7 +27,7 @@ Change the Python CLI while retaining its observable command, archive, and insta
 
 Modules live in `dot/src/fmind_dot/` and tests in `dot/tests/`; a module's tests are `test_<module>.py` unless listed here, and `rg -l <symbol> dot/tests` finds the rest.
 
-- `cli.py`, `command_group.py`, and `state.py`: `test_cli.py`; exercise configuration errors through the public CLI.
+- `cli.py`, `command.py`, and `state.py`: `test_cli.py`; exercise configuration errors through the public CLI. The CLI is standard-library `argparse`: `cli.build_parser()` registers every command in alphabetical order (help lists them as registered), each module adds its parsers through `Parser.group()` and `Parser.command()` with a `handler(state, args)`, and a handler raises `UsageError` for arguments that parse but cannot be combined (exit 2). Fish completion is one callback: the script in `command.FISH_COMPLETION` runs `dot` with `_DOT_COMPLETE` set and `command.candidates()` answers from the same tree, so new commands and options complete without a regenerated script.
 - `auth.py` and `workstation.py`: `test_workstation.py` with synthetic provider probes. Never run real login/setup/prune as a validation gate.
 - `secrets.py`: `test_secrets.py` (it rejects a personal `UV_PUBLISH_TOKEN`; packages use Trusted Publishing). Keep fixtures synthetic and never print credential values.
 - `hooks.py`: `test_agent_hooks.py`.

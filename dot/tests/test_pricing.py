@@ -5,7 +5,6 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from fmind_dot.archive import store
 from fmind_dot.archive.pricing import api_equivalent
@@ -15,6 +14,7 @@ from fmind_dot.archive.store import SessionLog, ingest_session, session_bundle_p
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records
 from fmind_dot.cli import app
 from fmind_dot.config import default_pricing
+from tests.fakes import CliRunner
 
 
 def record(**kwargs) -> UsageRecord:

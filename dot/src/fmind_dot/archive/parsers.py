@@ -467,6 +467,115 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     )
 
 
+def pi_session_id(path: Path) -> str:
+    """Pi names a transcript `<timestamp>_<session-id>.jsonl`; the timestamp holds no underscore."""
+    return path.stem.partition("_")[2]
+
+
+# Pi input excludes cache reads and writes, like Claude's; reasoning is already part of output.
+_PI_TOKEN_FIELDS = (
+    ("input", "input_tokens"),
+    ("output", "output_tokens"),
+    ("cacheRead", "cached_tokens"),
+    ("cacheWrite", "cache_write_tokens"),
+    ("cacheWrite1h", "cache_write_1h_tokens"),
+    ("reasoning", "reasoning_tokens"),
+    ("totalTokens", "total_tokens"),
+)
+
+
+def _pi_sample(session_id: str, timestamp: str, model: object, raw_usage: object) -> tuple[UsageRecord, float | None]:
+    """One Pi `Usage` object as a request measurement and the cost Pi recorded for it."""
+    usage = _usage_mapping(raw_usage, "usage")
+    sample = UsageRecord(harness="pi", session_id=session_id, timestamp=timestamp)
+    if isinstance(model, str) and model:
+        sample.observe_model(model)
+    _apply_counters(sample, usage, _PI_TOKEN_FIELDS)
+    return sample, _usage_cost(_usage_mapping(usage.get("cost"), "cost").get("total"))
+
+
+def _pi_text(content: object) -> str:
+    """Join the text blocks of a Pi message; tool calls, thinking, and images are not prompts."""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    return "\n".join(
+        part["text"]
+        for part in content
+        if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str) and part["text"]
+    )
+
+
+def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
+    """Read one Pi transcript: every branch of its entry tree was a real exchange, so all of them count."""
+    logs: list[SessionLog] = []
+    samples: list[UsageRecord] = []
+    malformed = decoded = 0
+    cost, cost_known, timed = 0.0, False, True
+    usage_error: Exception | None = None
+    forked_at: datetime | None = None
+    session_cwd = resolve_cwd(cwd)
+    records, fingerprint, source_bytes = _jsonl_snapshot(path)
+    sample_fallback = _undated_usage_timestamp([], path)
+    for raw in records:
+        if raw is None:
+            malformed += 1
+            continue
+        decoded += 1
+        kind = raw.get("type")
+        stamp = raw.get("timestamp")
+        timestamp = stamp if isinstance(stamp, str) else ""
+        if kind == "session":
+            header_cwd = raw.get("cwd")
+            if isinstance(header_cwd, str) and header_cwd:
+                session_cwd = resolve_cwd(header_cwd)
+            if raw.get("parentSession"):
+                # /fork and /clone copy the parent's entries, usage included, under a new header.
+                forked_at = parse_utc_instant(timestamp)
+            continue
+        if forked_at is not None and (instant := parse_utc_instant(timestamp)) is not None and instant < forked_at:
+            # Copied entries predate the fork and stay with the parent session, or they would count twice.
+            continue
+        message = raw.get("message") if kind == "message" else None
+        role = message.get("role") if isinstance(message, dict) else None
+        # Usage sits on assistant messages, on tool results that ran nested model work, on
+        # `usage` entries (cache warming), and on the summaries of compactions and branches.
+        measured = message if role in {"assistant", "toolResult"} else raw
+        if isinstance(measured, dict) and measured.get("usage") is not None:
+            try:
+                sample, sample_cost = _pi_sample(session_id, timestamp, measured.get("model"), measured.get("usage"))
+                sample.turn_count = int(role == "assistant")
+                timed = timed and bool(sample.timestamp)
+                sample.finalize(fallback_timestamp=sample_fallback)
+            except ValueError as error:
+                usage_error = error
+            else:
+                samples.append(sample)
+                if sample_cost is not None:
+                    cost, cost_known = cost + sample_cost, True
+        if not isinstance(message, dict) or role not in {"user", "assistant"}:
+            continue
+        content = _pi_text(message.get("content"))
+        if not content.strip():
+            continue
+        model = message.get("model") if isinstance(message.get("model"), str) else ""
+        logs.append(SessionLog(timestamp, "pi", session_id, str(role), content, session_cwd, model))
+    propagate_models(logs)
+    usage = UsageRecord(harness="pi", agent="pi", session_id=session_id, cwd=session_cwd, source_bytes=source_bytes)
+    if all(sample.measurement_kind for sample in samples) and samples:
+        usage.measurement_kind = "provider-reported"
+        usage.set_samples(samples, timed=timed)
+        usage.timestamp = max(sample.timestamp for sample in samples) if timed else ""
+    usage.cost_usd, usage.cost_known = cost, cost_known
+    if not usage.measurement_kind and not cost_known:
+        # An absent measurement is unknown, not a zero-token provider request.
+        parsed_usage = None
+    else:
+        parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
+    return ParsedSession(logs, fingerprint, "pi-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
+
+
 def _mapping(value: object) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -700,9 +809,16 @@ def _enumerate_opencode(root: Path) -> list[SessionCandidate]:
     return []
 
 
+def _enumerate_pi(root: Path) -> list[SessionCandidate]:
+    return [
+        (session_id, "", path) for path in _jsonl_files(root) if is_valid_session_id(session_id := pi_session_id(path))
+    ]
+
+
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "agy": AgentAdapter("agy", "agy", False, parse_agy_session, _enumerate_agy, "Antigravity", external_cwd=True),
     "claude": AgentAdapter("claude", "Claude", False, parse_claude_session, _enumerate_claude, "Claude Code"),
     "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session, _enumerate_copilot, "Copilot"),
     "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session, _enumerate_opencode, "OpenCode"),
+    "pi": AgentAdapter("pi", "Pi", False, parse_pi_session, _enumerate_pi, "Pi"),
 }

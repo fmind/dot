@@ -55,7 +55,7 @@ I may not see tool output, reasoning, or subagent reports, so every reply (inclu
 
 Customer, employer, and existing projects keep their own stack and design.
 
-- **Default to Python and Zensical**: Python for new apps, agents, CLIs, and automation, uv with PEP 723 metadata for scripts with dependencies, and Zensical for docs sites.
+- **Default to Python, standard library first, and Zensical**: Python for new apps, agents, CLIs, and automation; use the standard library when it fits and proven stack packages (`python-stack` skill) rather than reinventing the wheel or adding low-value dependencies that widen the supply chain; uv with PEP 723 metadata for scripts with dependencies, and Zensical for docs sites.
 - **Run independent I/O concurrently**: use `asyncio` for concurrent network, LLM, and MCP calls, and bounded worker pools for subprocess or file fan-out in CLIs (`python-stack` skill).
 - **Prefer deletion and existing tools**: keep code, configs, flags, checks, CI, and templates minimal. Consolidate before adding, abstract only existing repetition or real boundaries, and prefer a few high-impact changes over many small tweaks.
 - **Document configuration, enforce invariants in code**: document defaults, precedence, and validation. Prefer native formats, else YAML for people and JSON with a schema for programs. Comment non-obvious decisions and keep operations re-runnable.

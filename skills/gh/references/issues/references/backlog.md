@@ -4,7 +4,7 @@ Turn verified findings into a deduplicated, prioritized, dependency-ordered set 
 
 ## Workflow
 
-1. **Retain review proof**: start from reproduced findings and keep partial scans or unavailable services as evidence gaps; use [full-review](../../full-review/SKILL.md) when the audit is not complete.
+1. **Retain review proof**: start from reproduced findings and keep partial scans or unavailable services as evidence gaps; use [full-review](../../../../full-review/SKILL.md) when the audit is not complete.
 1. **Map existing relationships**: add native `blockedBy` and `blocking` relationships to the open and closed issues read for duplicate analysis; compare the underlying problem and evidence, not titles alone.
 1. **Classify**: mark each candidate a `verified-finding` or `trend-opportunity`; retain an opportunity only when current project evidence proves fit and value.
 1. **Reject noise**: drop candidates that duplicate an issue, lack reproducible evidence, exceed likely value, restore rejected scope, or add unjustified complexity.

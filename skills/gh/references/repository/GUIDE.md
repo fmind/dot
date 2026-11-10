@@ -1,13 +1,6 @@
 ---
-name: github-repository
-description: "Set GitHub repo description, topics, merge policy, and security settings."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/github-repository
-  created: "2026-06-23"
-  updated: "2026-11-09"
+name: repository
+description: "Set GitHub repo description, homepage, topics, merge policy, and security settings."
 ---
 
 # GitHub Repository
@@ -16,7 +9,7 @@ Derive a repository's description, homepage, and topics from its codebase and ap
 
 ## Workflow
 
-Use [gh](../gh/SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
+Use [gh](../../SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
 
 1. **Extract metadata** from the codebase:
    - Project metadata: Python `pyproject.toml` (`[project]` name, description, and URLs).
@@ -45,14 +38,6 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 1. **Verify** with the same `gh repo view --json ...` fields and report the ones that changed.
 1. **Run the settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) script applies merge policy, sidebar features, secret scanning, Dependabot security updates, Actions hardening, immutable releases, and public-repository protection in its own run, then prints a read-back that covers fields `gh repo view` does not expose.
 
-## Task guides
-
-<!-- guides:start -->
-
-- [settings-baseline](references/settings-baseline.md): Apply or check the solo-maintainer merge, feature, secret-scanning, Dependabot, Actions, immutable-release, and branch-protection baseline with one script.
-
-<!-- guides:end -->
-
 ## Gotchas
 
 - **Avoid description truncation**: keep the description single-line and under ~140 characters or the GitHub UI truncates it.
@@ -62,4 +47,4 @@ Use [gh](../gh/SKILL.md) for account selection, repository identity without prin
 
 - [gh repo edit manual](https://cli.github.com/manual/gh_repo_edit)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [github-pull-request](../github-pull-request/SKILL.md) (PR titles feed the squash message), [project-license](../project-scaffolding/references/project-license/GUIDE.md) (LICENSE), [project-scaffolding](../project-scaffolding/references/bootstrap.md) (bootstrap).
+- Companion skills: [pull-request](../pull-request.md) (PR titles feed the squash message), [project-license](../../../project-scaffolding/references/project-license/GUIDE.md) (LICENSE), [project-scaffolding](../../../project-scaffolding/references/bootstrap.md) (bootstrap).

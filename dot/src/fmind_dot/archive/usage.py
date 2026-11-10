@@ -27,7 +27,7 @@ USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
 USAGE_EXTRACTOR_VERSION = "2"
 _USAGE_IDENTITY_FIELDS = ("timestamp", "harness", "agent", "session_id")
 # Harnesses whose turn_count counts model requests; agy counts prompts and Grok completed turns.
-REQUEST_COUNTING_HARNESSES = frozenset({"claude", "codex", "copilot", "opencode"})
+REQUEST_COUNTING_HARNESSES = frozenset({"claude", "codex", "copilot", "opencode", "pi"})
 # Harnesses dot no longer captures (removed 2026-10-25); their archived bundles stay queryable.
 RETIRED_AGENTS = ("codex", "grok")
 _USAGE_INTEGER_FIELDS = (

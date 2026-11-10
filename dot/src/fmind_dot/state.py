@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO
 
-import typer
 from pydantic import ValidationError
 
 from fmind_dot.config import Config, config_file_path, load_config
@@ -21,7 +20,7 @@ class State:
 
     config_argument: Path | None = None
     runner: Runner = field(default_factory=Runner)
-    # Resolve standard streams at invocation time so Typer/test capture and callers
+    # Resolve standard streams at invocation time so test capture and callers
     # that redirect streams observe the same process state as the command.
     stdin: IO[str] = field(default_factory=lambda: sys.stdin)
     stdout: IO[str] = field(default_factory=lambda: sys.stdout)
@@ -55,17 +54,6 @@ def validated_config(path: Path | None) -> Config:
             f"invalid config file at {config_file_path(path)[0]} ({error.error_count()} validation error(s)): "
             f"{problems}; fix it with: dot config edit"
         ) from error
-
-
-def state_from(context: typer.Context, *, require_config: bool = True) -> State:
-    state = context.find_root().obj
-    if not isinstance(state, State):
-        raise DotError("CLI state is unavailable")
-    # Leaf commands resolve state after parsing, so help needs no valid config.
-    # Config repair commands and configuration-independent notifications keep lazy access.
-    if require_config and context.find_root().invoked_subcommand != "config":
-        _ = state.config
-    return state
 
 
 def require_tools(state: State, commands: list[list[str]]) -> None:

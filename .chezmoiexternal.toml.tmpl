@@ -3,12 +3,48 @@
 # (Neovim Lua, Git includes); `mise run upgrade` advances the pin via dot_tasks.theme_pin.
 # Configs that cannot include a theme file copy its block instead; theme_pin refuses a pin they no longer match.
 # DESIGN.md, the Fmind design system, shares the pin so agents read the same revision as the themes.
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/353a21de490052976509104bb0723ac8c88e3295" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/539f45b1c96787f8ac6944c5f7aabb24e4017773" }}
 
 [".agents/DESIGN.md"]
     type = "file"
     url = "{{ $base }}/DESIGN.md"
-    checksum.sha256 = "192c4582b53d5e96fcd91493acc11a67ac0986d341dd226a070cf9932f0c0bd7"
+    checksum.sha256 = "77af598a768f4ee98144947313bcb47902c70a41f55fd8940c31fc9ea1f240eb"
+
+# Ready-made renderer files sit beside DESIGN.md, so skills copy a pinned file instead of palette values.
+[".agents/themes/css/fmind.css"]
+    type = "file"
+    url = "{{ $base }}/themes/css/fmind.css"
+    checksum.sha256 = "75872dc3952484acf7092d00c6b29aad59c4f04fe7a6537eae88630a09ca6f53"
+
+[".agents/themes/d2/fmind.d2"]
+    type = "file"
+    url = "{{ $base }}/themes/d2/fmind.d2"
+    checksum.sha256 = "0723ac7e771faadc55cb411a12148a33698889e311c33f04b65537f9a78cd6e2"
+
+[".agents/themes/daisyui/fmind.css"]
+    type = "file"
+    url = "{{ $base }}/themes/daisyui/fmind.css"
+    checksum.sha256 = "0b67ea3bf9cc212705e5deea87c047db0bd787f4937c69c31df0647b7788e2ce"
+
+[".agents/themes/mermaid/fmind.json"]
+    type = "file"
+    url = "{{ $base }}/themes/mermaid/fmind.json"
+    checksum.sha256 = "70513e82d5a9180d3de3fd5f8bb3af69230587ad282b5115af46cfe8fe58d3f8"
+
+[".agents/themes/tailwind/fmind.css"]
+    type = "file"
+    url = "{{ $base }}/themes/tailwind/fmind.css"
+    checksum.sha256 = "9899c42511da2b890c5e3ab22d925a77b851008223d82f05834991054c9ef05c"
+
+[".agents/themes/vhs/fmind.tape"]
+    type = "file"
+    url = "{{ $base }}/themes/vhs/fmind.tape"
+    checksum.sha256 = "18301c068373a9e224e0b82e3b5d43e17de4b10c6d522f0470c2c5642cc41770"
+
+[".agents/themes/zensical/fmind.css"]
+    type = "file"
+    url = "{{ $base }}/themes/zensical/fmind.css"
+    checksum.sha256 = "25d04020640e058e083db5043b5133cfce30f9e0435bcb60ed47cb2a5c3cef2f"
 
 {{ $fonts := ".local/share/fonts" -}}
 {{ if eq .chezmoi.os "darwin" }}{{ $fonts = "Library/Fonts" }}{{ end -}}
@@ -44,12 +80,12 @@
 [".config/fish/themes/fmind.theme"]
     type = "file"
     url = "{{ $base }}/themes/fish/fmind.theme"
-    checksum.sha256 = "112f42dc86788e7ab95c3312bb695bc7dcf041fbf2f731070d7376da4f291862"
+    checksum.sha256 = "227bc0eb46e260da0ee3fc9ea5cc39e2ff3cdb05b9ad8002462b6e57424a62cc"
 
 [".config/nvim/colors/fmind.lua"]
     type = "file"
     url = "{{ $base }}/themes/nvim/colors/fmind.lua"
-    checksum.sha256 = "173e8998ce785031c84fb6c94a4684ab23166b70dc1e9ce8cd74527a601565d7"
+    checksum.sha256 = "f116ed759a019d56f83e16830265286f9c5d600bba4a1d64f65f1be174b5b876"
 
 [".config/nvim/lua/lualine/themes/fmind.lua"]
     type = "file"
@@ -69,7 +105,7 @@
 [".config/fzf/theme.conf"]
     type = "file"
     url = "{{ $base }}/themes/fzf/fmind.conf"
-    checksum.sha256 = "05d3d7e8f68cc90d954a2623b19725cf99dcc4f5b2df70aab7ba3f6af476e29e"
+    checksum.sha256 = "4d1fe83a123a88a4948469b8b199efe4a7dbd1db3201bc5df05d476518808b15"
 
 [".config/opencode/themes/fmind.json"]
     type = "file"
@@ -90,17 +126,29 @@
 [".config/lazygit/theme.yml"]
     type = "file"
     url = "{{ $base }}/themes/lazygit/fmind.yml"
-    checksum.sha256 = "3d2977fa91e53ea774e729250dd72261c1ed97dcb6767ac6c71594ed690d0433"
+    checksum.sha256 = "7d123b42c7a71a33075d31aaae8ba0e4f282f18e0c5879910a404fffd53024c6"
 
 [".config/lsd/colors.yaml"]
     type = "file"
     url = "{{ $base }}/themes/lsd/fmind.yaml"
-    checksum.sha256 = "886e3a31a6cb390f02e53cb9cfc80de379892783a6e4c15ee3f7a48c832ee20b"
+    checksum.sha256 = "29c2214d179005ff6467532646aacbd6e3ae3c9731bdf96ff2c3e806c5e3f96b"
+
+# aliases.fish loads this file in interactive shells only; agents keep DuckDB's defaults.
+[".config/duckdb/fmind.duckdbrc"]
+    type = "file"
+    url = "{{ $base }}/themes/duckdb/fmind.duckdbrc"
+    checksum.sha256 = "80f08cfc8c08fcc7571b4cc5c55170731347a35950f612794aa1a2015fa55089"
+
+# GLAMOUR_STYLE (env.fish) selects this style for Markdown that gh renders.
+[".config/glamour/fmind.json"]
+    type = "file"
+    url = "{{ $base }}/themes/glamour/fmind.json"
+    checksum.sha256 = "7d094c76df89e3829098ea915cea8080039e47220c2d56c2744b80f196fc6892"
 
 [".config/yazi/theme.toml"]
     type = "file"
     url = "{{ $base }}/themes/yazi/fmind.toml"
-    checksum.sha256 = "b1576be2b3ade9d442d787518178e90b3ef33b2a85ab06f840ca8a510f48700f"
+    checksum.sha256 = "2bf01ee2a4c3bd6cefed1729978c37df75d585ebee104f194607d366f11c1f82"
 
 # Install only the Mono family, keeping terminal icons within character cells.
 ["{{ $fonts }}/GoogleSansCode"]

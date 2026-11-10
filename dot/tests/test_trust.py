@@ -22,7 +22,7 @@ def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = Non
 
 
 def harness_home(home: Path) -> None:
-    for directory in (".claude", ".gemini/antigravity-cli", ".copilot"):
+    for directory in (".claude", ".gemini/antigravity-cli", ".copilot", ".pi/agent"):
         (home / directory).mkdir(parents=True)
     claude = {"oauthAccount": {"id": "kept"}, "projects": {"/other": {"hasTrustDialogAccepted": False, "x": 1}}}
     (home / ".claude.json").write_text(json.dumps(claude))
@@ -56,6 +56,21 @@ def test_trust_adds_each_harness_once_and_preserves_host_state(tmp_path: Path) -
     assert copilot.startswith(COPILOT_HEADER)
     assert json.loads(copilot.removeprefix(COPILOT_HEADER)) == {"banner": "never", "trustedFolders": [str(repository)]}
     assert all(path.stat().st_mode & 0o777 == 0o600 for path in tmp_path.rglob("*") if path.is_file())
+
+
+def test_pi_trusts_repository_roots_only_and_keeps_other_decisions(tmp_path: Path) -> None:
+    harness_home(tmp_path)
+    repository, folder = tmp_path / "work/repo", tmp_path / "work/notes"
+    (repository / ".git").mkdir(parents=True)
+    folder.mkdir()
+    store = tmp_path / ".pi/agent/trust.json"
+    store.write_text(json.dumps({"/elsewhere": False, str(repository): False}))
+
+    changed = trust_folders([repository, folder], home=tmp_path)
+
+    assert changed == {repository: ["claude", "agy", "copilot", "pi"], folder: ["claude", "agy", "copilot"]}
+    assert json.loads(store.read_text()) == {"/elsewhere": False, str(repository): True}
+    assert trust_folders([repository, folder], home=tmp_path) == {repository: [], folder: []}
 
 
 def test_trust_reports_when_no_harness_has_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -146,7 +161,12 @@ def test_trust_all_covers_configured_workspaces_and_their_repositories(
     # An explicitly named repository is trusted regardless of its origin.
     state.stdout = io.StringIO()
     run_trust(state, [str(workspace / "local")])
-    assert state.stdout.getvalue() == f"+ {workspace / 'local'}: trusted in claude, agy, copilot\n"
+    assert state.stdout.getvalue() == f"+ {workspace / 'local'}: trusted in claude, agy, copilot, pi\n"
+    # Pi applies a decision to every folder below it: the workspace itself stays undecided there,
+    # so the repositories the allowlist skipped keep asking.
+    assert json.loads((tmp_path / ".pi/agent/trust.json").read_text()) == dict.fromkeys(
+        (str(workspace / name) for name in ("one", "two", "local")), True
+    )
 
     state.stdout = io.StringIO()
     run_trust(state, [str(workspace / "one" / ".")])
@@ -208,6 +228,7 @@ def test_trust_all_writes_each_harness_file_once(tmp_path: Path, monkeypatch: py
         ".claude.json",
         "config.json",
         "settings.json",
+        "trust.json",
     ]
     projects = json.loads((tmp_path / ".claude.json").read_text())["projects"]
     assert {str(workspace), str(workspace / "one"), str(workspace / "two")} <= projects.keys()
@@ -276,7 +297,8 @@ def test_trust_dry_run_json_reports_changes_without_writing(tmp_path: Path, monk
     document = json.loads(state.stdout.getvalue())
     assert (document["schema"], document["dry_run"], document["skipped"]) == ("dot.trust/v1", True, [])
     assert document["folders"][0]["path"] == str(folder)
-    assert set(document["folders"][0]["changed"]) == set(document["harnesses"])
+    # Pi trusts repository roots only; this plain folder keeps its own prompt there.
+    assert set(document["folders"][0]["changed"]) == set(document["harnesses"]) - {"pi"}
     assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before
 
 

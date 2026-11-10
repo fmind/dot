@@ -1,5 +1,6 @@
 """Workstation diagnostics, completions, and installation freshness."""
 
+import argparse
 import os
 import re
 import shutil
@@ -10,10 +11,6 @@ import tomllib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Annotated
-
-import typer
-from typer.completion import get_completion_script
 
 from fmind_dot import __version__
 from fmind_dot.auth import (
@@ -26,14 +23,14 @@ from fmind_dot.auth import (
     github_token_plaintext,
     workspace_ready,
 )
-from fmind_dot.command_group import JsonOption
+from fmind_dot.command import FISH_COMPLETION, Parser, add_json
 from fmind_dot.config import expand_path
-from fmind_dot.errors import CommandTimeoutError, DotError
+from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
 from fmind_dot.orphan import find_orphans
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import CommandResult, Runner, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
-from fmind_dot.state import State, require_tools, state_from
+from fmind_dot.state import State, require_tools
 
 # Operating thresholds shared with the persona and the dot-cli disk-space guide.
 _GIB = 1024**3
@@ -119,7 +116,7 @@ COMPLETION_SOURCES: dict[str, CompletionSource] = {
     "databricks": CompletionSource(),
     "delta": CompletionSource(args=("--generate-completion", "fish")),
     "doggo": CompletionSource(args=("completions", "fish")),
-    # Rendered in-process from Click; the installed dot may be older than this checkout.
+    # A constant callback script (command.FISH_COMPLETION); the installed dot answers each completion.
     "dot": CompletionSource(),
     "dprint": CompletionSource(args=("completions", "fish")),
     "fastfetch": CompletionSource(package="github:fastfetch-cli/fastfetch"),
@@ -160,9 +157,7 @@ def _generate_completion(state: State, tool: str) -> str:
     custom = COMPLETION_SOURCES.get(tool)
     binary = custom.binary if custom and custom.binary else tool
     if tool == "dot":
-        return get_completion_script(  # noqa: S604 - static Fish protocol template, not a shell invocation.
-            prog_name="dot", complete_var="_DOT_COMPLETE", shell="fish"
-        )
+        return FISH_COMPLETION
     if not _completion_available(state, tool):
         raise FileNotFoundError(tool)
     if custom and custom.package:
@@ -208,7 +203,7 @@ def run_completion(state: State, *, check_only: bool = False) -> None:
         success = f"\n✓ Completions updated in {directory}"
     if failures:
         raise DotError("completion generation failed: " + "; ".join(failures))
-    typer.echo(success, file=state.stdout)
+    print(success, file=state.stdout)
 
 
 def _complete_tool(state: State, directory: Path, tool: str) -> tuple[str, str | None]:
@@ -235,7 +230,7 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
                 path.unlink()
             except OSError as error:
                 failures.append(f"{path.name}: {error}")
-    typer.echo(
+    print(
         f"=> Generating Fish autocompletions for {len(COMPLETION_SOURCES)} tools in {directory}...\n",
         file=state.stdout,
     )
@@ -245,14 +240,14 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         sorted(COMPLETION_SOURCES),
         _PROBE_CONCURRENCY,
     ):
-        typer.echo(line, file=state.stdout)
+        print(line, file=state.stdout)
         if failure is not None:
             failures.append(failure)
     try:
         cache.mkdir(mode=0o700, parents=True, exist_ok=True)
     except OSError:
         failures.append("fish cache directory: failed to create")
-        typer.echo("  ✗ Failed to create fish cache directory", file=state.stdout)
+        print("  ✗ Failed to create fish cache directory", file=state.stdout)
     else:
         for path in sorted(cache.glob("*-init.fish")):
             if path.name != "atuin-init.fish" and not path.is_symlink() and path.is_file():
@@ -266,10 +261,10 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
                 args = ["atuin", "init", "fish", "--disable-ai"]
                 result = state.runner.run(args, timeout=_COMPLETION_TIMEOUT_SECONDS)
                 _write_validated_fish(state, cache / "atuin-init.fish", result.stdout, 0o600)
-                typer.echo("  ✓ Generated atuin-init.fish", file=state.stdout)
+                print("  ✓ Generated atuin-init.fish", file=state.stdout)
         except (DotError, OSError) as error:
             failures.append(f"atuin-init.fish: {error}")
-            typer.echo("  ✗ Failed to generate atuin-init.fish", file=state.stdout)
+            print("  ✗ Failed to generate atuin-init.fish", file=state.stdout)
     return failures
 
 
@@ -588,69 +583,75 @@ def run_doctor(state: State, *, fix: bool, deep: bool = False) -> list[CheckResu
 def _print_doctor(state: State, results: Sequence[CheckResult]) -> None:
     icons = {"pass": "✓", "fail": "✗", "warn": "!", "skip": "○"}
     for group, label in _DOCTOR_GROUPS.items():
-        typer.echo(f"\n{label}", file=state.stdout)
+        print(f"\n{label}", file=state.stdout)
         for item in results:
             if item.group == group:
                 # Several filesystems can each report a disk line; name the paths behind each.
                 details = f"{item.details} ({item.path})" if item.name == "disk" else item.details
-                typer.echo(f"  {icons[item.status]} {item.name:<20} {details}", file=state.stdout)
+                print(f"  {icons[item.status]} {item.name:<20} {details}", file=state.stdout)
 
 
-def register(app: typer.Typer) -> None:
-    @app.command(
+def _completion(state: State, args: argparse.Namespace) -> None:
+    run_completion(state, check_only=args.check_only)
+
+
+def _doctor(state: State, args: argparse.Namespace) -> None:
+    if args.headroom:
+        # Headroom never reads dot.yaml, so a broken config must not block the pre-job check.
+        if args.fix or args.deep:
+            raise UsageError("--headroom cannot be combined with --fix or --deep")
+        checks = headroom_results()
+        if args.as_json:
+            payload = [replace(item, group="resources").payload() for item in checks]
+            write_json(state.stdout, diagnostic_report("headroom", payload))
+        else:
+            print(_headroom_line(checks), file=state.stdout)
+        if any(item.status == "fail" for item in checks):
+            raise SystemExit(1)
+        return
+    _ = state.config
+    results = run_doctor(state, fix=args.fix, deep=args.deep)
+    if args.as_json:
+        write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in results]))
+    else:
+        _print_doctor(state, results)
+    if any(item.status == "fail" for item in results):
+        raise SystemExit(1)
+
+
+def register_completion(commands: Parser) -> None:
+    completion = commands.command(
         "completion",
-        help="Generate and validate Fish completions",
+        "Generate and validate Fish completions",
+        _completion,
         epilog="Exit 1 when any generator fails; the scripts that succeeded are still installed.",
         # `mise run completions` and the release gate own this; keep it out of everyday help.
         hidden=True,
     )
-    def completion(
-        context: typer.Context,
-        check_only: Annotated[
-            bool,
-            typer.Option("--check", help="Validate generators in a temporary directory without installing scripts"),
-        ] = False,
-    ) -> None:
-        run_completion(state_from(context), check_only=check_only)
+    completion.add_argument(
+        "--check",
+        dest="check_only",
+        action="store_true",
+        help="Validate generators in a temporary directory without installing scripts",
+    )
 
-    @app.command(
+
+def register_doctor(commands: Parser) -> None:
+    doctor = commands.command(
         "doctor",
-        help="Check local workstation health; --deep also probes authentication",
+        "Check local workstation health; --deep also probes authentication",
+        _doctor,
+        # The handler validates dot.yaml itself: --headroom must work while it is broken.
+        config=False,
         epilog=f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free "
         f"(warns below {_DISK_WARN_GIB}). --headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory.",
     )
-    def doctor(
-        context: typer.Context,
-        json_output: JsonOption = False,
-        fix: Annotated[bool, typer.Option("--fix", help="Repair local secret-file permissions")] = False,
-        deep: Annotated[bool, typer.Option("--deep", help="Also probe provider authentication")] = False,
-        headroom: Annotated[
-            bool,
-            typer.Option(
-                "--headroom",
-                help=f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom "
-                "before large downloads or builds; prints one line",
-            ),
-        ] = False,
-    ) -> None:
-        # Headroom never reads dot.yaml, so a broken config must not block the pre-job check.
-        state = state_from(context, require_config=not headroom)
-        if headroom:
-            if fix or deep:
-                raise typer.BadParameter("--headroom cannot be combined with --fix or --deep")
-            checks = headroom_results()
-            if json_output:
-                payload = [replace(item, group="resources").payload() for item in checks]
-                write_json(state.stdout, diagnostic_report("headroom", payload))
-            else:
-                typer.echo(_headroom_line(checks), file=state.stdout)
-            if any(item.status == "fail" for item in checks):
-                raise typer.Exit(1)
-            return
-        results = run_doctor(state, fix=fix, deep=deep)
-        if json_output:
-            write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in results]))
-        else:
-            _print_doctor(state, results)
-        if any(item.status == "fail" for item in results):
-            raise typer.Exit(1)
+    add_json(doctor)
+    doctor.add_argument("--fix", action="store_true", help="Repair local secret-file permissions")
+    doctor.add_argument("--deep", action="store_true", help="Also probe provider authentication")
+    doctor.add_argument(
+        "--headroom",
+        action="store_true",
+        help=f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom "
+        "before large downloads or builds; prints one line",
+    )

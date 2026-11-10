@@ -32,6 +32,14 @@ def isolated_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def plain_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """argparse colors help and usage errors when a CI or a terminal forces color; assert on plain text."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    for key in ("FORCE_COLOR", "PYTHON_COLORS"):
+        monkeypatch.delenv(key, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def isolated_home(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Point HOME at the test's tmp_path so no test can read or write the real archive, config, or secrets.
 

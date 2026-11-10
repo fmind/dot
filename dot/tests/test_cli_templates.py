@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATES = ROOT / "skills/python-stack/references/typer/templates"
+TEMPLATES = ROOT / "skills/python-stack/references/argparse/templates"
 SCRIPT = ROOT / "skills/python-stack/references/python-script/templates/script.py"
 # The packaged template reads its version from installed metadata; unpackaged runs borrow pytest's.
 INSTALLED_DISTRIBUTION = "pytest"
@@ -16,7 +16,7 @@ INSTALLED_DISTRIBUTION = "pytest"
 
 def _invoke(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
     environment: dict[str, str] = {**os.environ, "NO_COLOR": "1", "TERM": "dumb"}
-    for key in ("CLICOLOR_FORCE", "FORCE_COLOR", "GITHUB_ACTIONS", "PY_COLORS"):
+    for key in ("FORCE_COLOR", "PYTHON_COLORS"):
         environment.pop(key, None)
     return subprocess.run(
         [sys.executable, str(script), *args],
@@ -47,16 +47,23 @@ def test_cli_template_information_without_inputs(tmp_path: Path, template: str, 
     assert "\x1b[" not in result.stdout
 
 
-def test_packaged_command_survives_a_second_command(tmp_path: Path) -> None:
+def test_packaged_template_needs_no_third_party_import(tmp_path: Path) -> None:
     source = (TEMPLATES / "init-cli.py").read_text().replace("<slug>", INSTALLED_DISTRIBUTION)
+    imports = {line.split()[1].split(".")[0] for line in source.splitlines() if line.startswith(("import ", "from "))}
+    assert imports <= sys.stdlib_module_names | {"__future__"}
     script = tmp_path / "cli.py"
     script.write_text(source + '\nif __name__ == "__main__":\n    main()\n')
-    before = _invoke(script, "greet", "--name", "Ada")
-    script.write_text(source + '\n@app.command()\ndef farewell() -> None:\n    typer.echo("Goodbye")\n\nmain()\n')
-    after = _invoke(script, "greet", "--name", "Ada")
-    assert before.returncode == after.returncode == 0
-    assert before.stdout == after.stdout == "Hello, Ada!\n"
-    assert before.stderr == after.stderr == ""
+    greeted = _invoke(script, "greet", "--name", "Ada")
+    assert (greeted.returncode, greeted.stdout, greeted.stderr) == (0, "Hello, Ada!\n", "")
+    for arguments in ([], ["gret"], ["greet", "--nam", "Ada"]):
+        rejected = _invoke(script, *arguments)
+        assert rejected.returncode == 2, arguments
+        assert rejected.stdout == ""
+        assert rejected.stderr.startswith("usage:")
+
+
+def test_script_template_declares_no_dependencies() -> None:
+    assert "# dependencies = []\n" in SCRIPT.read_text()
 
 
 @pytest.mark.parametrize("name", ["report[red].txt", "report[/].txt", "report:smile:.txt"])

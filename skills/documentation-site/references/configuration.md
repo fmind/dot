@@ -47,7 +47,7 @@ Add `mkdocstrings-python` with `uv add --dev mkdocstrings-python`; `api-autonav`
 ## Look and feel
 
 - **Variant**: `variant = "modern"` for new sites; `classic` reproduces Material for MkDocs and its custom CSS.
-- **Brand colors**: use the `custom` palette with CSS variables in `extra.css`, as the starter does.
+- **Brand colors**: use the `custom` palette with CSS variables in a stylesheet scoped to `[data-md-color-scheme="default"]`, as the starter does with the pinned `fmind.css`.
 - **Fonts**: `font = false` uses system fonts without external requests. Override with `--md-text-font` and `--md-code-font`, never `font-family`.
 - **Language**: search UI is English-only for now, whatever `theme.language` says.
 

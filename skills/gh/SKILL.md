@@ -1,18 +1,18 @@
 ---
 name: gh
-description: "Use gh for GitHub auth, repo selection, Actions logs, and API calls."
+description: "Use gh for GitHub issues, pull requests, repo metadata and settings, Actions logs, auth, and API calls."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # GitHub CLI
 
-Use `gh` for authenticated GitHub input and output. This connector owns account selection and request mechanics; the task skills below own planning, delivery, and repository policy.
+Use `gh` for authenticated GitHub input and output. This connector owns account selection, request mechanics, and the task guides below for issues, pull requests, and repository settings; [github-actions](../github-actions/SKILL.md) owns workflow authoring and CI/CD policy, and [git-delivery](../git-delivery/SKILL.md) owns commits, pushes, and releases.
 
 ## Workflow
 
@@ -22,13 +22,15 @@ Use `gh` for authenticated GitHub input and output. This connector owns account 
 1. **Read failed Actions logs first**: `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed`, saved to a file when large.
 1. **Write from files, then read back**: use `--body-file` or `gh api --input <file>` for an authorized write, re-read the changed fields, and reconcile remote state before retrying an uncertain write.
 
-## Task owners
+## Task guides
 
-- [github-issues](../github-issues/SKILL.md): issue planning, drafts, dependencies, updates, and closure.
-- [github-pull-request](../github-pull-request/SKILL.md): PR creation, updates, base/head selection, verification, and merging.
-- [github-repository](../github-repository/SKILL.md): repository metadata, visibility, and settings.
-- [github-actions](../github-actions/SKILL.md): workflow authoring and CI/CD policy.
-- [git-delivery](../git-delivery/SKILL.md): authorized commits, pushes, and releases.
+<!-- guides:start -->
+
+- [issues](references/issues/GUIDE.md): Plan, draft, deduplicate, update, link, and close GitHub issues.
+- [pull-request](references/pull-request.md): Open, update, verify, comment on, and merge GitHub pull requests.
+- [repository](references/repository/GUIDE.md): Set GitHub repo description, homepage, topics, merge policy, and security settings.
+
+<!-- guides:end -->
 
 ## Gotchas
 
@@ -43,3 +45,4 @@ Upstream `cli/cli` publishes agent skills, including a same-name `gh`: preview i
 
 - [GitHub CLI manual](https://cli.github.com/manual/) · [API command](https://cli.github.com/manual/gh_api)
 - Releases: [GitHub CLI](https://github.com/cli/cli/releases)
+- Companion skills: [github-actions](../github-actions/SKILL.md) (CI/CD workflows and Dependabot), [git-delivery](../git-delivery/SKILL.md) (commits, pushes, worktrees, and releases).

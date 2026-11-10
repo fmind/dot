@@ -12,7 +12,6 @@ from pathlib import Path
 from threading import Event, current_thread
 
 import pytest
-from typer.testing import CliRunner
 
 from fmind_dot.archive import parsers, store
 from fmind_dot.archive import sync as archive_sync
@@ -22,7 +21,7 @@ from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_rec
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.state import State
-from tests.fakes import COPILOT_SCHEMA
+from tests.fakes import COPILOT_SCHEMA, CliRunner
 
 
 def _state(home: Path, agent: str, monkeypatch: pytest.MonkeyPatch) -> State:

@@ -20,7 +20,7 @@ class StrictModel(BaseModel):
 # `~`, `~/...`, or absolute: a relative workspace would resolve against the caller's directory.
 WorkspacePath = Annotated[str, Field(pattern=r"^(?:~|~/.+|/.*)$")]
 # The keys of archive.parsers.AGENT_ADAPTERS (a test keeps them equal); importing the parsers here would cycle.
-LIVE_AGENTS = ("agy", "claude", "copilot", "opencode")
+LIVE_AGENTS = ("agy", "claude", "copilot", "opencode", "pi")
 
 
 class CompletionConfig(StrictModel):
@@ -89,6 +89,7 @@ class AgentConfig(StrictModel):
             "claude": "~/.claude/projects",
             "copilot": "~/.copilot/session-store.db",
             "opencode": "~/.local/share/opencode/opencode.db",
+            "pi": "~/.pi/agent/sessions",
         }
     )
     pricing: PricingConfig = Field(default_factory=default_pricing)
@@ -130,6 +131,7 @@ class DoctorConfig(StrictModel):
             "nvim",
             "opencode",
             "pgcli",
+            "pi",
             "python",
             "ruff",
             "sqlite3",

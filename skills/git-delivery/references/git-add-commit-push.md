@@ -28,4 +28,4 @@ Stage, commit, and push the authorized change, preserving existing work and repa
 ## Documentation
 
 - [Git push](https://git-scm.com/docs/git-push) · [lefthook](../../github-actions/references/lefthook.md)
-- Companion skills: [git-worktree](git-worktree/GUIDE.md), [github-pull-request](../../github-pull-request/SKILL.md), [resolve-conflicts](resolve-conflicts.md).
+- Companion skills: [git-worktree](git-worktree/GUIDE.md), [pull-request](../../gh/references/pull-request.md), [resolve-conflicts](resolve-conflicts.md).

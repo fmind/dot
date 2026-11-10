@@ -5,7 +5,7 @@ description: "Django applications, ORM, admin, authentication, and native testin
 
 # Django
 
-Use Django when its integrated ORM, migrations, forms, templates, authentication, and admin reduce the total system; [python-stack](../../../python-stack/references/foundation/GUIDE.md) owns non-Django Python packages, [typer](../../../python-stack/references/typer/GUIDE.md) owns CLIs, and the [Litestar guide](../litestar/GUIDE.md) owns async services.
+Use Django when its integrated ORM, migrations, forms, templates, authentication, and admin reduce the total system; [python-stack](../../../python-stack/references/foundation/GUIDE.md) owns non-Django Python packages, [argparse](../../../python-stack/references/argparse/GUIDE.md) owns CLIs, and the [Litestar guide](../litestar/GUIDE.md) owns async services.
 
 ## Workflow
 

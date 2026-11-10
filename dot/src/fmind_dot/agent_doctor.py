@@ -62,6 +62,8 @@ HOSTS = {
     ),
     # OpenCode collection is database-based; this integration does not install notification hooks.
     "opencode": HostDeployment("", (), "~/.config/opencode/AGENTS.md", ""),
+    # Pi has no command hooks: a managed extension runs the notifier when a run settles.
+    "pi": HostDeployment("~/.pi/agent/extensions/dot-notify.ts", ("extension",), "~/.pi/agent/AGENTS.md", ""),
 }
 
 
@@ -125,6 +127,9 @@ def _check_hooks(agent: str, definition: HostDeployment) -> str:
         return "absent"
     except OSError:
         return "unreadable"
+    if definition.notify_events == ("extension",):
+        # The extension spawns dot with an argument array; its presence in the source is the wiring.
+        return "configured" if f'"agent", "hook", "notify", "{agent}", "stop"'.encode() in content else "malformed"
     try:
         config = json.loads(content)
     except UnicodeError, ValueError, RecursionError:

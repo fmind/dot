@@ -50,6 +50,20 @@ def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path)
         assert re.fullmatch(r"[0-9a-f]{64}", entry["checksum"]["sha256"])
 
 
+def test_skills_reference_only_deployed_theme_files(tmp_path: Path) -> None:
+    # Skills copy renderer files from ~/.agents/themes/ instead of carrying palette values.
+    template = (ROOT / ".chezmoiexternal.toml.tmpl").read_text()
+    targets = set(tomllib.loads(chezmoi(tmp_path, "execute-template", stdin=template)))
+    referenced = {
+        match.removeprefix("~/")
+        for path in (ROOT / "skills").rglob("*")
+        if path.suffix in {".md", ".tape"} and path.is_file()
+        for match in re.findall(r"~/\.agents/themes/[\w-]+/[\w.-]+\.\w+", path.read_text(encoding="utf-8"))
+    }
+    assert referenced
+    assert referenced <= targets
+
+
 def test_theme_pin_rewrites_revision_and_checksums() -> None:
     template = '{{ $base := "https://raw.githubusercontent.com/fmind/theme/' + "a" * 40 + '" }}\n'
     for path in ("themes/fish/fmind.fish", "DESIGN.md"):
@@ -133,4 +147,9 @@ def test_copied_theme_parsers_ignore_comments() -> None:
     assert theme_pin.parse(jsonc, "fastfetch/fmind.json") == {"$schema": "https://example.com/schema.json", "a": 1}
     assert theme_pin.parse("--hidden\n--colors=path:style:bold\n", "ripgrep/fmind.ripgreprc") == {
         "colors": ["--colors=path:style:bold"]
+    }
+    ini = "# Source: theme\n[main]\nvi = True\n[colors]\npygments.keyword = 'bold #174ea6'\n"
+    assert theme_pin.parse(ini, "pgcli/fmind.config") == {
+        "main": {"vi": "True"},
+        "colors": {"pygments.keyword": "'bold #174ea6'"},
     }

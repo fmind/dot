@@ -5,14 +5,14 @@ description: "Standalone single-file utilities with PEP 723 inline metadata run 
 
 # PEP 723 Standalone Python Scripts
 
-Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by `uv run`; uv manages the environment without a `pyproject.toml` or manual virtualenv setup. A script that needs reusable modules moves to [foundation](../foundation/GUIDE.md).
+Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by `uv run`; uv manages the environment without a `pyproject.toml` or manual virtualenv setup. Stay on the standard library where it is enough: a script with `dependencies = []` starts at once and has nothing to audit. A script that needs reusable modules moves to [foundation](../foundation/GUIDE.md).
 
 ## Workflow
 
-1. **Start from the template**: copy [script.py](templates/script.py); its shebang (`#!/usr/bin/env -S uv run --quiet --script`) and `# /// script` block declare `requires-python` and dependency lower bounds.
-1. **Parse arguments with Typer**: use `Annotated[..., typer.Argument/Option(...)]` with help text and the [CLI defaults](../cli-contracts.md#defaults-for-new-clis). The template stays a single command with `-h` / `--help` and an eager `--version` that works without an input file. Packaged toolboxes use the explicit-group [Typer starter](../typer/references/bootstrap.md).
-1. **Render values literally**: stdout carries results and stderr carries progress/errors. The template disables Rich markup, highlighting, and emoji conversion so external paths remain literal; apply styles separately and avoid wrapping path values. Use `typer.echo` or a serializer directly for machine data.
-1. **Handle errors at the boundary**: catch failures around application work, give specific sanitized recovery advice for expected errors, and preserve the cause with `raise typer.Exit(code=1) from exc`. Keep CLI exits outside the protected operation. Never print raw exception messages or tracebacks by default: `show_locals=False` is no redaction per the [error contract](../cli-contracts.md#defaults-for-new-clis). `--verbose` adds progress only; add opt-in diagnostic tracebacks only with a tested redaction policy.
+1. **Start from the template**: copy [script.py](templates/script.py); its shebang (`#!/usr/bin/env -S uv run --quiet --script`) and `# /// script` block declare `requires-python` and `dependencies` (empty in the template; add lower bounds as the script needs packages).
+1. **Parse arguments with argparse**: declare each argument with help text, a `metavar`, and a `type` that rejects bad input, and apply the [CLI defaults](../cli-contracts.md#defaults-for-new-clis). The template stays a single command with `-h` / `--help` and a `--version` that works without an input file. Packaged toolboxes use the explicit-group [argparse starter](../argparse/references/bootstrap.md).
+1. **Render values literally**: stdout carries results and stderr carries progress/errors. Write plain text so external paths and names print unchanged; a script that adds Rich must disable markup, highlighting, and emoji conversion on its consoles.
+1. **Handle errors at the boundary**: catch failures around application work, give specific sanitized recovery advice for expected errors, and return exit status 1 (the template raises `SystemExit(1) from error`, which prints no traceback). Keep usage checks in the parser, outside the protected operation. Never print raw exception messages or tracebacks by default, per the [error contract](../cli-contracts.md#defaults-for-new-clis). `--verbose` adds progress only; add opt-in diagnostic tracebacks only with a tested redaction policy.
 1. **Run**: `chmod +x script.py && ./script.py input.txt`, or `uv run script.py input.txt`; uv resolves and caches the dependencies on first run.
 1. **Lock a durable script**: `uv lock --script script.py`, then `uv run --locked --script script.py`; lower bounds alone are not reproducible. Audit it with `uv audit --preview-features audit-command --locked --script script.py`; exit 1 means findings or a missing lock.
 1. **Lint and type-check**: `ruff check script.py`, `uv sync --script script.py`, then `ty check --python "$(uv python find --script script.py)" script.py`; without `--python`, ty cannot resolve the script's dependencies.
@@ -27,6 +27,6 @@ For recurring execution of the finished command, use [scheduled-jobs](../../../s
 
 ## Documentation
 
-- [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [Typer](https://typer.tiangolo.com/)
+- [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [argparse](https://docs.python.org/3/library/argparse.html)
 - Releases: [uv](https://github.com/astral-sh/uv/releases) · [changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
 - Companion guides: [foundation](../foundation/GUIDE.md) (full projects), [uv](../uv.md) (script and lock modes), [cli-contracts](../cli-contracts.md) (flags, streams, exit codes).

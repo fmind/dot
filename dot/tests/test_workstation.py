@@ -9,16 +9,17 @@ from pathlib import Path
 from typing import IO, Any, get_args
 
 import pytest
-from typer.testing import CliRunner, Result
 
 from fmind_dot import auth, workstation
-from fmind_dot.cli import app
+from fmind_dot.cli import app, build_parser
+from fmind_dot.command import candidates
 from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, CacheProvider, Config, PruneProvider
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
 from fmind_dot.workstation import CACHE_TOOLS, run_prune
-from tests.fakes import TerminalIO
+from tests.fakes import CliResult as Result
+from tests.fakes import CliRunner, TerminalIO
 
 
 def test_setup_without_arguments_shows_help() -> None:
@@ -1111,14 +1112,8 @@ def test_prune_aggressive_asks_only_about_caches_it_empties(provider: RecordingR
 @pytest.mark.parametrize(
     ("command", "providers"), [("cache", get_args(CacheProvider)), ("prune", get_args(PruneProvider))]
 )
-def test_cache_and_prune_complete_provider_names(
-    monkeypatch: pytest.MonkeyPatch, command: str, providers: tuple[str, ...]
-) -> None:
-    monkeypatch.setenv("_DOT_COMPLETE", "complete_fish")
-    monkeypatch.setenv("_TYPER_COMPLETE_FISH_ACTION", "get-args")
-    monkeypatch.setenv("_TYPER_COMPLETE_ARGS", f"dot {command} ")
-    result = CliRunner().invoke(app, prog_name="dot")
-    assert result.stdout.split() == ["all", *providers]
+def test_cache_and_prune_complete_provider_names(command: str, providers: tuple[str, ...]) -> None:
+    assert [value for value, _ in candidates(build_parser(), [command, ""])] == ["all", *providers]
 
 
 def test_docker_prune_requires_explicit_selection(provider: RecordingRunner) -> None:

@@ -6,7 +6,7 @@
    ```bash
    mkdir -p .agents/skills .agents/prompts
    ```
-   Start `AGENTS.md` from the [project template](../templates/AGENTS.md.template) (named `.template` because Claude Code and OpenCode load an `AGENTS.md` beside a file they read); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored). Antigravity, Copilot, Cursor, and OpenCode read `AGENTS.md` and `.agents/skills` natively, as do other hosts that follow the [AGENTS.md standard](https://agents.md) (for example Codex); check such a host's docs for its own files.
+   Start `AGENTS.md` from the [project template](../templates/AGENTS.md.template) (named `.template` because Claude Code and OpenCode load an `AGENTS.md` beside a file they read); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored). Antigravity, Copilot, Cursor, OpenCode, and Pi read `AGENTS.md` and `.agents/skills` natively, as do other hosts that follow the [AGENTS.md standard](https://agents.md) (for example Codex); check such a host's docs for its own files.
 1. **Bridge Claude Code skills only when the repository is also used with Claude Code**: Claude Code 2.1.277+ loads project `AGENTS.md` when no `CLAUDE.md` exists, so add no `CLAUDE.md`; a present one replaces `AGENTS.md` under the default `instructionFiles` mode. Its skills still load only from `.claude/skills`. After checking that the path does not already exist unmanaged:
    ```bash
    mkdir -p .claude && ln -s ../.agents/skills .claude/skills
@@ -23,6 +23,7 @@
    - **Copilot**: `.github/copilot-instructions.md` only for extra repository-wide Copilot instructions.
    - **Cursor**: `.cursor/rules` only for Cursor-specific rules. `.cursor/cli.json` owns project permissions and `.cursor/mcp.json` owns project MCP.
    - **OpenCode**: `opencode.json` or `.jsonc` for project configuration and MCP. See [opencode](../../agent-harnesses/references/opencode/GUIDE.md) for session operation.
+   - **Pi**: `.pi/settings.json` and `.pi/mcp.json` only for Pi-specific overrides; both load after project trust. See [pi](../../agent-harnesses/references/pi.md) for session operation.
 1. **Verify each installed CLI**: start it from the repository root and confirm instructions, skills, and configured MCP servers load, using the listing commands in [host discovery](host-discovery.md).
 
 ## Layout

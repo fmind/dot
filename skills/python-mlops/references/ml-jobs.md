@@ -13,4 +13,4 @@ Use the [source map](sources.md) to choose between the Cookiecutter foundation a
 ## Documentation
 
 - [Pydantic guide](../../python-stack/references/pydantic.md) · [OmegaConf usage and merging](https://omegaconf.readthedocs.io/en/latest/usage.html) · [OmegaConf releases](https://github.com/hydra-ecosystem/omegaconf/releases).
-- [python-testing](../../python-stack/references/python-testing/GUIDE.md), [typer](../../python-stack/references/typer/GUIDE.md), and [mise](../../mise/SKILL.md) own the shared implementation procedures.
+- [python-testing](../../python-stack/references/python-testing/GUIDE.md), [argparse](../../python-stack/references/argparse/GUIDE.md), and [mise](../../mise/SKILL.md) own the shared implementation procedures.

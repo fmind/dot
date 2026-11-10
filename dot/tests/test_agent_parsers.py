@@ -15,6 +15,7 @@ from fmind_dot.archive.parsers import (
     parse_agy_session,
     parse_claude_session,
     parse_copilot_session,
+    parse_pi_session,
 )
 from fmind_dot.archive.store import SessionLog, fingerprint_bytes, marshal_session_logs
 from fmind_dot.archive.usage import RETIRED_AGENTS, UsageRecord
@@ -295,12 +296,232 @@ def test_public_discovery_contracts_cover_each_verified_store(tmp_path) -> None:
     fallback_claude.touch()
     (fallback_claude.parent / "memory.jsonl").touch()
 
-    assert list(AGENT_ADAPTERS) == ["agy", "claude", "copilot", "opencode"]
+    pi_root = tmp_path / "pi"
+    pi_session = pi_root / "--work-project--/2026-11-09T20-57-49-274Z_01a1c21a-59da-72a5-a7df-7f7fdf5ccf02.jsonl"
+    pi_session.parent.mkdir(parents=True)
+    pi_session.touch()
+    # A custom --session-id may hold underscores; a name without the timestamp prefix is no session.
+    custom = pi_session.with_name("2026-11-09T21-00-00-000Z_nightly_review.jsonl")
+    custom.touch()
+    pi_session.with_name("notes.jsonl").touch()
+
+    assert list(AGENT_ADAPTERS) == ["agy", "claude", "copilot", "opencode", "pi"]
+    assert AGENT_ADAPTERS["pi"].enumerate(pi_root) == [
+        ("01a1c21a-59da-72a5-a7df-7f7fdf5ccf02", "", pi_session),
+        ("nightly_review", "", custom),
+    ]
     assert AGENT_ADAPTERS["agy"].enumerate(agy_root) == [("agy-id", "", preferred_agy)]
     assert {candidate[0] for candidate in AGENT_ADAPTERS["claude"].enumerate(claude_root)} == {
         "claude-direct",
         "claude-fallback",
     }
+
+
+def _pi_usage(input_tokens: int, output: int, cache_read: int = 0, total_cost: float = 0.0) -> dict[str, object]:
+    return {
+        "input": input_tokens,
+        "output": output,
+        "cacheRead": cache_read,
+        "cacheWrite": 0,
+        "reasoning": 10,
+        "totalTokens": input_tokens + output + cache_read,
+        "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": total_cost,
+            "totalFromProvider": False,
+        },
+    }
+
+
+def _pi_message(identity: str, parent: str | None, timestamp: str, message: dict[str, object]) -> dict[str, object]:
+    return {"type": "message", "id": identity, "parentId": parent, "timestamp": timestamp, "message": message}
+
+
+# The entry shapes Pi 1.5.0 wrote for a prompt that ran one tool, captured from a local mock provider.
+_PI_SESSION = [
+    {"type": "session", "version": 3, "id": "pi-id", "timestamp": "2026-11-09T20:57:49.274Z", "cwd": "/work/project"},
+    {
+        "type": "model_change",
+        "id": "e1",
+        "parentId": None,
+        "timestamp": "2026-11-09T20:57:49.320Z",
+        "provider": "mock",
+        "modelId": "mock-model",
+    },
+    {
+        "type": "thinking_level_change",
+        "id": "e2",
+        "parentId": "e1",
+        "timestamp": "2026-11-09T20:57:49.321Z",
+        "thinkingLevel": "off",
+    },
+    _pi_message(
+        "e3",
+        "e2",
+        "2026-11-09T20:57:49.326Z",
+        {"role": "system", "content": "", "sections": {"preamble": "private prompt"}},
+    ),
+    _pi_message(
+        "e4", "e3", "2026-11-09T20:57:49.326Z", {"role": "user", "content": [{"type": "text", "text": "Say hello"}]}
+    ),
+    _pi_message(
+        "e5",
+        "e4",
+        "2026-11-09T20:57:49.341Z",
+        {
+            "role": "assistant",
+            "content": [{"type": "toolCall", "id": "call-1", "name": "bash", "arguments": {"command": "echo hi"}}],
+            "provider": "mock",
+            "model": "mock-model",
+            "usage": _pi_usage(200, 30, 1000, 0.00036),
+            "stopReason": "toolUse",
+        },
+    ),
+    _pi_message(
+        "e6",
+        "e5",
+        "2026-11-09T20:57:49.347Z",
+        {"role": "toolResult", "toolName": "bash", "content": [{"type": "text", "text": "hi"}]},
+    ),
+    _pi_message(
+        "e7",
+        "e6",
+        "2026-11-09T20:57:49.352Z",
+        {
+            "role": "assistant",
+            "content": [{"type": "thinking", "thinking": "private"}, {"type": "text", "text": "Hello."}],
+            "provider": "mock",
+            "model": "mock-model",
+            "usage": _pi_usage(200, 30, 1000, 0.00036),
+            "stopReason": "stop",
+        },
+    ),
+]
+
+
+def test_pi_session_keeps_prompts_and_provider_usage(tmp_path: Path) -> None:
+    transcript = tmp_path / "2026-11-09T20-57-49-274Z_pi-id.jsonl"
+    _jsonl(transcript, _PI_SESSION)
+
+    parsed = parse_pi_session(transcript, "pi-id")
+
+    assert [(log.role, log.content, log.model, log.cwd) for log in parsed.logs] == [
+        ("user", "Say hello", "mock-model", "/work/project"),
+        ("assistant", "Hello.", "mock-model", "/work/project"),
+    ]
+    assert (parsed.source_type, parsed.malformed, parsed.skipped) == ("pi-jsonl", 0, 6)
+    usage = _usage(parsed)
+    # Pi input excludes cache reads, and reasoning is part of output.
+    assert (usage.input_tokens, usage.output_tokens, usage.cached_tokens, usage.reasoning_tokens) == (400, 60, 2000, 20)
+    assert (usage.total_tokens, usage.turn_count, usage.model, usage.cwd) == (2460, 2, "mock-model", "/work/project")
+    assert (usage.measurement_kind, usage.cost_known, round(usage.cost_usd, 5)) == ("provider-reported", True, 0.00072)
+    assert [sample["timestamp"] for sample in usage.samples] == ["2026-11-09T20:57:49.341Z", "2026-11-09T20:57:49.352Z"]
+    assert usage.timestamp == "2026-11-09T20:57:49.352Z"
+
+
+def test_pi_fork_counts_only_entries_written_after_it_forked(tmp_path: Path) -> None:
+    fork = tmp_path / "2026-11-09T20-59-53-059Z_pi-fork.jsonl"
+    header = _PI_SESSION[0] | {
+        "id": "pi-fork",
+        "timestamp": "2026-11-09T20:59:53.059Z",
+        "parentSession": "/s/a_pi-id.jsonl",
+    }
+    follow_up = [
+        _pi_message("f1", "e7", "2026-11-09T20:59:53.113Z", {"role": "user", "content": "Fork follow-up"}),
+        _pi_message(
+            "f2",
+            "f1",
+            "2026-11-09T20:59:53.128Z",
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "Again."}],
+                "model": "mock-model",
+                "usage": _pi_usage(5, 7),
+            },
+        ),
+    ]
+    # /fork copies every parent entry, usage included, under the new header.
+    _jsonl(fork, [header, *_PI_SESSION[1:], *follow_up])
+
+    parsed = parse_pi_session(fork, "pi-fork")
+
+    assert [log.content for log in parsed.logs] == ["Fork follow-up", "Again."]
+    usage = _usage(parsed)
+    assert (usage.input_tokens, usage.output_tokens, usage.cached_tokens, usage.turn_count) == (5, 7, 0, 1)
+    assert not parsed.sidechain
+    assert parsed.parent_session_id == ""
+
+
+def test_pi_counts_usage_recorded_outside_assistant_messages(tmp_path: Path) -> None:
+    transcript = tmp_path / "2026-11-09T20-57-49-274Z_pi-id.jsonl"
+    extra = [
+        {
+            "type": "usage",
+            "id": "u1",
+            "parentId": "e7",
+            "timestamp": "2026-11-09T21:00:00.000Z",
+            "kind": "cache_warm",
+            "model": "mock-model",
+            "usage": _pi_usage(0, 0, 50000, 0.015),
+        },
+        {
+            "type": "compaction",
+            "id": "c1",
+            "parentId": "u1",
+            "timestamp": "2026-11-09T21:01:00.000Z",
+            "summary": "private",
+            "firstKeptEntryId": "e4",
+            "tokensBefore": 9,
+            "usage": _pi_usage(100, 20, 0, 0.001),
+        },
+        {
+            "type": "compaction",
+            "id": "c2",
+            "parentId": "c1",
+            "timestamp": "2026-11-09T21:02:00.000Z",
+            "summary": "private",
+            "firstKeptEntryId": "e4",
+            "tokensBefore": 9,
+        },
+        _pi_message(
+            "t1",
+            "c2",
+            "2026-11-09T21:03:00.000Z",
+            {"role": "toolResult", "toolName": "agent", "content": [], "usage": _pi_usage(7, 3)},
+        ),
+    ]
+    _jsonl(transcript, [*_PI_SESSION, *extra])
+
+    usage = _usage(parse_pi_session(transcript, "pi-id"))
+
+    assert (usage.input_tokens, usage.output_tokens, usage.cached_tokens) == (507, 83, 52000)
+    # Only assistant messages are model requests of the conversation.
+    assert (usage.turn_count, len(usage.samples), round(usage.cost_usd, 5)) == (2, 5, 0.01672)
+
+
+def test_pi_session_without_usage_reports_no_measurement(tmp_path: Path) -> None:
+    transcript = tmp_path / "2026-11-09T20-57-49-274Z_pi-id.jsonl"
+    _jsonl(transcript, _PI_SESSION[:5])
+    transcript.write_bytes(transcript.read_bytes() + b"{not json\n")
+
+    parsed = parse_pi_session(transcript, "pi-id")
+
+    assert [log.content for log in parsed.logs] == ["Say hello"]
+    assert (parsed.malformed, parsed.usage, parsed.usage_error) == (1, None, None)
+
+
+def test_pi_usage_rejects_invalid_numeric_metrics(tmp_path: Path) -> None:
+    transcript = tmp_path / "2026-11-09T20-57-49-274Z_pi-id.jsonl"
+    broken = _pi_message(
+        "e5", "e4", "2026-11-09T20:57:49.341Z", {"role": "assistant", "content": [], "usage": {"input": -1}}
+    )
+    _jsonl(transcript, [*_PI_SESSION[:5], broken])
+
+    with pytest.raises(ValueError, match="'input_tokens' must be a non-negative integer"):
+        _usage(parse_pi_session(transcript, "pi-id"))
 
 
 def test_retired_agents_have_no_capture_adapter() -> None:

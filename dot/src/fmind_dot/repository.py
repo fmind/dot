@@ -1,20 +1,18 @@
 """Bounded multi-repository synchronization and status."""
 
+import argparse
 import stat
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import monotonic
-from typing import Annotated
 
-import typer
-
-from fmind_dot.command_group import JsonOption
+from fmind_dot.command import Parser, add_json
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.process import CommandResult, diagnostic_line, run_parallel
 from fmind_dot.reporting import write_json
-from fmind_dot.state import State, require_tools, state_from
+from fmind_dot.state import State, require_tools
 
 
 @dataclass(frozen=True)
@@ -486,52 +484,47 @@ def run_status(
     return status
 
 
-def pull_command(
-    context: typer.Context,
-    paths: Annotated[
-        list[Path] | None, typer.Argument(help="Repositories to update; defaults to configured workspaces")
-    ] = None,
-    push: Annotated[bool, typer.Option("--push", "-P", help="Push clean repositories that are ahead")] = False,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="List targets without fetching or changing repositories")
-    ] = False,
-    as_json: JsonOption = False,
-) -> None:
-    run_pull(state_from(context), push=push, paths=paths or (), dry_run=dry_run, as_json=as_json)
+def _pull(state: State, args: argparse.Namespace) -> None:
+    run_pull(state, push=args.push, paths=args.paths, dry_run=args.dry_run, as_json=args.as_json)
 
 
-def status_command(
-    context: typer.Context,
-    paths: Annotated[
-        list[Path] | None, typer.Argument(help="Repositories to inspect; defaults to configured workspaces")
-    ] = None,
-    as_json: JsonOption = False,
-    needs_attention: Annotated[
-        bool,
-        typer.Option(
-            "--needs-attention",
-            help="Only show repositories that are dirty, diverged, untracked, mid-operation, or failed",
-        ),
-    ] = False,
-    fetch: Annotated[
-        bool, typer.Option("--fetch", "-f", help="Fetch each remote first (never merges) so ahead/behind are current")
-    ] = False,
-) -> None:
-    run_status(state_from(context), as_json=as_json, paths=paths or (), needs_attention=needs_attention, fetch=fetch)
+def _status(state: State, args: argparse.Namespace) -> None:
+    run_status(state, as_json=args.as_json, paths=args.paths, needs_attention=args.needs_attention, fetch=args.fetch)
 
 
-def register(parent: typer.Typer) -> None:
-    parent.command(
+def register_pull(commands: Parser) -> None:
+    pull = commands.command(
         "pull",
-        help="Fast-forward configured repositories; never merges, rebases, or touches dirty checkouts",
+        "Fast-forward configured repositories; never merges, rebases, or touches dirty checkouts",
+        _pull,
         epilog=(
             "Skips dirty worktrees and branches without an upstream, and reports diverged branches without "
             "changing them. --push pushes clean branches that are ahead to their exact upstream, without tags. "
             "Exit 1 when any repository fails or diverged."
         ),
-    )(pull_command)
-    parent.command(
+    )
+    pull.add_argument("paths", nargs="*", type=Path, help="Repositories to update; defaults to configured workspaces")
+    pull.add_argument("-P", "--push", action="store_true", help="Push clean repositories that are ahead")
+    pull.add_argument("--dry-run", action="store_true", help="List targets without fetching or changing repositories")
+    add_json(pull)
+
+
+def register_status(commands: Parser) -> None:
+    status = commands.command(
         "status",
-        help="Show repository status using cached upstream refs (--fetch refreshes them)",
+        "Show repository status using cached upstream refs (--fetch refreshes them)",
+        _status,
         epilog="Exit 1 when any repository cannot be inspected; --json still prints every result.",
-    )(status_command)
+    )
+    status.add_argument(
+        "paths", nargs="*", type=Path, help="Repositories to inspect; defaults to configured workspaces"
+    )
+    add_json(status)
+    status.add_argument(
+        "--needs-attention",
+        action="store_true",
+        help="Only show repositories that are dirty, diverged, untracked, mid-operation, or failed",
+    )
+    status.add_argument(
+        "-f", "--fetch", action="store_true", help="Fetch each remote first (never merges) so ahead/behind are current"
+    )

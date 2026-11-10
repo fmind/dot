@@ -39,7 +39,7 @@ def test_terminal_input_and_interrupt(tmp_path: Path, interrupt: str) -> None:
         " try:\n"
         "  return Runner().interactive([sys.executable,'-c',sys.argv[1],sys.argv[2]])\n"
         " finally: print('RETURNED',flush=True)\n"
-        "cli._invoke_app=invoke\n"
+        "cli.app=invoke\n"
         "cli.main()\n"
     )
     pid, terminal = pty.fork()

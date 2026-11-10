@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -9,13 +10,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-import typer
-
-from fmind_dot.command_group import JsonOption
+from fmind_dot.command import Parser, add_json
 from fmind_dot.errors import DotError
 from fmind_dot.process import diagnostic_line, run_parallel
 from fmind_dot.reporting import display_path, write_json
-from fmind_dot.state import State, require_tools, state_from
+from fmind_dot.state import State, require_tools
 
 # chezmoi also records scripts and remove_ markers; only written targets can be orphaned.
 _TARGET_TYPES = {"dir", "file", "symlink"}
@@ -152,7 +151,15 @@ def run_orphan(state: State, *, as_json: bool = False) -> list[Orphan]:
     return orphans
 
 
-def register(app: typer.Typer) -> None:
-    @app.command("orphan", help="List files chezmoi deployed but no longer manages (read-only; never deletes)")
-    def orphan(context: typer.Context, as_json: JsonOption = False) -> None:
-        run_orphan(state_from(context, require_config=False), as_json=as_json)
+def _orphan(state: State, args: argparse.Namespace) -> None:
+    run_orphan(state, as_json=args.as_json)
+
+
+def register(commands: Parser) -> None:
+    orphan = commands.command(
+        "orphan",
+        "List files chezmoi deployed but no longer manages (read-only; never deletes)",
+        _orphan,
+        config=False,
+    )
+    add_json(orphan)

@@ -189,6 +189,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
         assert data["syncClaudeAiSkills"] is False
+        assert data["syncClaudeAiPlugins"] is False
         assert data["disableClaudeAiConnectors"] is True
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
@@ -205,6 +206,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert seeded["modelSettings"] == {
             "claude-opus-5-5": {"effortLevel": "medium"},
             "claude-fable-5-1": {"effortLevel": "high"},
+            "claude-fable-5-2": {"effortLevel": "high"},
         }
         # The template's fallback must match dot's own pull.directories default.
         pull_defaults = [str(self.home / path.removeprefix("~/")) for path in PullConfig().directories]
@@ -451,6 +453,7 @@ class HarnessConfigTests(unittest.TestCase):
             "dot_config/opencode/modify_private_opencode.json",
             "dot_config/opencode/modify_cli.json",
         ]
+        assert json.loads(self.render(templates[0], ""))["connectors"] is False
         original = '{/* host preference */ "hostCounter":9007199254740993,"hostUrl":"https://example.com/a//b",}'
         for template in templates:
             with self.subTest(template=template):
@@ -549,7 +552,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert claude["Notification"][1]["matcher"] == "^idle_prompt$"
         assert claude["Notification"][1]["hooks"][0]["command"] == f"{dot} agent hook notify claude ready"
         assert claude["Notification"][0]["matcher"] == (
-            "^(permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input)$"
+            "^(permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input|quota_auto_resume_stale|quota_auto_resume_disabled)$"
         )
         assert [hook["command"] for hook in claude["Notification"][0]["hooks"]] == [
             f"{dot} agent hook notify claude needs-input"
@@ -572,6 +575,49 @@ class HarnessConfigTests(unittest.TestCase):
         commands = [value for config in (claude, agy) for value in _strings(config) if " agent hook " in value]
         assert len(commands) == 3
         assert all(command.startswith(f"{dot} agent hook notify ") for command in commands)
+
+        # Pi has no command hooks: its managed extension spawns the same notifier without a shell.
+        extension = chezmoi(
+            self.source,
+            "execute-template",
+            "--file",
+            str(ROOT / "dot_pi/agent/extensions/dot-notify.ts.tmpl"),
+            config=self.config,
+            env=dict(os.environ, HOME=str(self.home)),
+        )
+        assert f'spawn("{dot}", ["agent", "hook", "notify", "pi", "stop"]' in extension
+        assert 'pi.on("agent_settled"' in extension
+
+    def test_pi_settings_seed_the_model_once_and_keep_host_state(self):
+        template = "dot_pi/agent/modify_private_settings.json"
+        fresh = json.loads(self.render(template, ""))
+        assert fresh == {
+            "$schema": "https://pi.dev/schemas/settings.schema.json",
+            "collapseChangelog": True,
+            "defaultModel": "gemini-4-argon",
+            "defaultProvider": "google-vertex",
+            "defaultThinkingLevel": "high",
+            "enableAnalytics": False,
+            "enableInstallTelemetry": False,
+        }
+        # Pi rewrites this file on /model and after an upgrade: its choices and bookkeeping survive apply.
+        host = {
+            "defaultProvider": "anthropic",
+            "defaultModel": "host-model",
+            "enableInstallTelemetry": True,
+            "lastChangelogVersion": "1.5.0",
+            "packages": ["npm:synthetic-package"],
+        }
+        merged = json.loads(self.render(template, json.dumps(host)))
+        assert (merged["defaultProvider"], merged["defaultModel"], merged["defaultThinkingLevel"]) == (
+            "anthropic",
+            "host-model",
+            "high",
+        )
+        assert merged["enableInstallTelemetry"] is False
+        assert (merged["lastChangelogVersion"], merged["packages"]) == ("1.5.0", ["npm:synthetic-package"])
+        rendered = self.render(template, json.dumps(merged, indent=2) + "\n")
+        assert rendered == json.dumps(merged, indent=2) + "\n"
 
     def test_hook_commands_reject_home_directories_that_need_shell_quoting(self):
         self.home = self.home / "home with spaces"

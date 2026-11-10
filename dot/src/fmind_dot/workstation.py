@@ -1,5 +1,6 @@
 """Native workstation commands with one Python-owned CLI and configuration."""
 
+import argparse
 import json
 import os
 import select
@@ -8,16 +9,14 @@ import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Annotated, Any, Literal
+from typing import IO, Any, get_args
 
-import typer
-
-from fmind_dot.command_group import JsonOption
+from fmind_dot.command import Parser, add_json
 from fmind_dot.config import CacheProvider, PruneProvider
-from fmind_dot.errors import CommandTimeoutError, DotError
+from fmind_dot.errors import CancelledError, CommandTimeoutError, DotError
 from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
-from fmind_dot.state import State, require_tools, state_from
+from fmind_dot.state import State, require_tools
 
 
 @dataclass(frozen=True)
@@ -73,16 +72,19 @@ CACHE_TOOLS = {
 # Long-running `uv run` processes (services, agent loops) hold the cache lock: fail fast instead of
 # waiting, and never pass --force, which would delete files those processes are using.
 _UV_LOCK_TIMEOUT_SECONDS = "10"
-# Typed choices give Fish completion and --help the provider names, and Typer rejects others.
-CacheTarget = Literal["all", CacheProvider]
-PruneTarget = Literal["all", PruneProvider]
+# Typed choices give Fish completion and --help the provider names, and the parser rejects others.
+_CACHE_TARGETS = ("all", *get_args(CacheProvider))
+_PRUNE_TARGETS = ("all", *get_args(PruneProvider))
 _CACHE_TIMEOUT_SECONDS = 120
 # A stopped engine answers at once; a hung one must not stall every other provider.
 _ENGINE_PROBE_TIMEOUT_SECONDS = 15
 CACHE_WORKERS = len(CACHE_TOOLS)
-DryRun = Annotated[
-    bool, typer.Option("--dry-run", help="Show possible commands without running probes or making changes")
-]
+
+
+def add_dry_run(parser: Parser) -> None:
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show possible commands without running probes or making changes"
+    )
 
 
 def _ensure_hf_cache_dir() -> None:
@@ -300,12 +302,12 @@ def _confirm_prune(state: State, names: list[str]) -> None:
             print(question, end="", file=state.stderr, flush=True)
             _wait_for_line(state.stdin)
             answer = state.stdin.readline().strip().lower()
-        except KeyboardInterrupt, EOFError:
-            raise typer.Abort from None
+        except EOFError:
+            raise CancelledError from None
         if answer in {"y", "yes"}:
             return
         if answer in {"", "n", "no"}:
-            raise typer.Abort
+            raise CancelledError
         print("Error: invalid input", file=state.stderr)
 
 
@@ -340,28 +342,36 @@ def run_prune(
         raise DotError(f"cache cleanup failed for {', '.join(failed)}; the other providers were cleaned")
 
 
-def register(app: typer.Typer) -> None:
-    @app.command(
+def _cache(state: State, args: argparse.Namespace) -> None:
+    selected = state.config.cache.providers if args.provider == "all" else [args.provider]
+    names = list(dict.fromkeys(selected))
+    run_cache(state, names, as_json=args.as_json, dry_run=args.dry_run, optional=args.provider == "all")
+
+
+def _prune(state: State, args: argparse.Namespace) -> None:
+    names = list(dict.fromkeys(state.config.prune.providers if args.provider == "all" else [args.provider]))
+    run_prune(state, names, aggressive=args.aggressive, dry_run=args.dry_run, yes=args.yes)
+
+
+def register_cache(commands: Parser) -> None:
+    cache = commands.command(
         "cache",
-        help="Show how much disk tool caches use (read-only); defaults to the configured providers",
+        "Show how much disk tool caches use (read-only); defaults to the configured providers",
+        _cache,
         epilog="With all, providers that are not installed and a stopped Docker engine are skipped. "
         "Exit 1 when any inspection fails; "
         "the other providers still report.",
     )
-    def cache(
-        context: typer.Context,
-        provider: Annotated[CacheTarget, typer.Argument(help="all uses cache.providers")] = "all",
-        dry_run: DryRun = False,
-        json_output: JsonOption = False,
-    ) -> None:
-        state = state_from(context)
-        selected = state.config.cache.providers if provider == "all" else [provider]
-        names = list(dict.fromkeys(selected))
-        run_cache(state, names, as_json=json_output, dry_run=dry_run, optional=provider == "all")
+    cache.add_argument("provider", nargs="?", choices=_CACHE_TARGETS, default="all", help="all uses cache.providers")
+    add_dry_run(cache)
+    add_json(cache)
 
-    @app.command(
+
+def register_prune(commands: Parser) -> None:
+    prune = commands.command(
         "prune",
-        help="Clean tool caches: stale entries by default, whole rebuildable caches with --aggressive",
+        "Clean tool caches: stale entries by default, whole rebuildable caches with --aggressive",
+        _prune,
         epilog=(
             "Never touches repositories, installed tool versions, current models, Docker images, containers, "
             "or volumes. all uses prune.providers (every provider but Docker by default). --aggressive asks "
@@ -369,15 +379,9 @@ def register(app: typer.Typer) -> None:
             "exit 1 when any fails, such as uv while a `uv run` process holds its cache."
         ),
     )
-    def prune(
-        context: typer.Context,
-        provider: Annotated[PruneTarget, typer.Argument(help="all uses prune.providers")] = "all",
-        aggressive: Annotated[
-            bool, typer.Option("--aggressive", help="Empty whole caches; they download or rebuild on next use")
-        ] = False,
-        dry_run: DryRun = False,
-        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm --aggressive without prompting")] = False,
-    ) -> None:
-        state = state_from(context)
-        names = list(dict.fromkeys(state.config.prune.providers if provider == "all" else [provider]))
-        run_prune(state, names, aggressive=aggressive, dry_run=dry_run, yes=yes)
+    prune.add_argument("provider", nargs="?", choices=_PRUNE_TARGETS, default="all", help="all uses prune.providers")
+    prune.add_argument(
+        "--aggressive", action="store_true", help="Empty whole caches; they download or rebuild on next use"
+    )
+    add_dry_run(prune)
+    prune.add_argument("-y", "--yes", action="store_true", help="Confirm --aggressive without prompting")

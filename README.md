@@ -9,7 +9,7 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 <a href=".github/assets/dot-overview.svg">
   <img
     src=".github/assets/dot-overview.svg"
-    alt="How dot works: clone this repository of dotfiles, persona, skills, tool baseline and encrypted credentials; install.sh bootstraps mise and chezmoi; chezmoi applies files, mise installs locked tools and the dot CLI checks health, so your Linux or macOS workstation gets its terminal, editor, Python, cloud tools and four agent harnesses. Change the source, never the deployed copy."
+    alt="How dot works: clone this repository of dotfiles, persona, skills, tool baseline and encrypted credentials; install.sh bootstraps mise and chezmoi; chezmoi applies files, mise installs locked tools and the dot CLI checks health, so your Linux or macOS workstation gets its terminal, editor, Python, cloud tools and five agent harnesses. Change the source, never the deployed copy."
     width="960"
   >
 </a>
@@ -18,8 +18,8 @@ My personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS
 
 - **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit — tuned for fast keyboard navigation and ultrawide displays.
 - **Editor:** Neovim with LazyVim, styled across every tool with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity (primary), Claude Code, Copilot, and OpenCode share one persona and [skill catalog](skills/), with local session archiving and usage reporting.
-- **Development:** Python 3.14 with uv, Ruff, ty, and pytest, plus cloud and service CLIs; projects pin their own stack tools.
+- **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving and usage reporting.
+- **Development:** Python 3.14 with uv, Ruff, ty, and pytest, standard library first, plus cloud and service CLIs; projects pin their own stack tools.
 - **Automation:** the `dot` CLI checks workstation health, manages multi-repo workspaces, handles provider logins and scoped secrets, and tracks agent context budgets.
 
 ## Prerequisites
@@ -122,12 +122,12 @@ Contributor details: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-v
 <a href=".github/assets/agent-layer.svg">
   <img
     src=".github/assets/agent-layer.svg"
-    alt="One agent layer for four harnesses: the persona, skill catalog and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, GitHub Copilot and OpenCode; dot agent session sync archives their sessions and dot agent stats reports usage."
+    alt="One agent layer for five harnesses: the persona, skill catalog and per-host settings are written once in this repository, deployed by chezmoi to Antigravity, Claude Code, GitHub Copilot, OpenCode and Pi; dot agent session sync archives their sessions and dot agent stats reports usage."
     width="960"
   >
 </a>
 
-Antigravity, Claude Code, Copilot, and OpenCode share one persona ([`dot_agents/AGENTS.md`](dot_agents/AGENTS.md)) and one skill catalog ([`skills/`](skills/)). Launching `agy` from Fish or Zellij (`Alt a`) puts mise shims first on `PATH` so agent commands respect each project's tool pins. General-purpose subagents inherit the same persona and skills without custom role definitions; see [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+Antigravity, Claude Code, Copilot, OpenCode, and Pi share one persona ([`dot_agents/AGENTS.md`](dot_agents/AGENTS.md)) and one skill catalog ([`skills/`](skills/)). Launching `agy` from Fish or Zellij (`Alt a`) puts mise shims first on `PATH` so agent commands respect each project's tool pins. General-purpose subagents inherit the same persona and skills without custom role definitions; see [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 
 ## Agent skills
 
@@ -161,6 +161,9 @@ Agent harnesses manage their own logins (mise locks every harness except self-up
 | Claude Code | `claude auth login`   | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
 | Copilot     | `copilot login`       | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
 | OpenCode    | `opencode auth login` | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
+| Pi          | `/login` inside `pi`  | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
+
+Pi's seeded provider is Agent Platform through ADC: export `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` in the launching shell after `dot login gcp`, or `/login` to another provider.
 
 Add optional MCP servers with [mcp-setup](skills/mcp-setup/SKILL.md).
 
@@ -201,7 +204,7 @@ Fork and replace these personal defaults:
 1. **Secrets:** replace the age recipient in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and remove or re-encrypt `*.age` sources before applying ([Secret Management](#secret-management)).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md), shared across all harnesses.
 1. **Workspaces & trust:** update `pull.directories` (also seeds Claude's `additionalDirectories`), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus personal-checkout `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
-1. **Theme & design:** update [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl), pinned to an [fmind/theme](https://github.com/fmind/theme) commit (`mise run upgrade` advances it; personal work only).
+1. **Theme & design:** update [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl), pinned to an [fmind/theme](https://github.com/fmind/theme) commit (`mise run upgrade` advances it; personal work only). It deploys the app themes, `~/.agents/DESIGN.md`, and the renderer files in `~/.agents/themes/` that the visual skills copy.
 
 ## Uninstall / rollback
 
