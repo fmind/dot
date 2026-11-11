@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.11.0] - 2026-11-11
+
+### 🚀 Features
+
+- _(dot)_ Migrate CLI to argparse, add pi harness, and merge gh skills
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Drop opencode 1.x parser and harden archive, auth, and pull
+- _(skills)_ Isolate gws cwd, tighten dialect and baseline checks, and sync docs
+- _(dot)_ Move Claude directory trust to dot trust and harden CLI
+
+### ♻️ Refactor
+
+- _(skills)_ Merge dprint, mcp-setup, and google-developer skills
+
+### 📚 Documentation
+
+- _(skills)_ Note linked BigQuery dataset IAM and redacted .env TTY
+
+### ⚙️ Build & CI
+
+- _(mise)_ Bind pypi tools to python 3.14 and refresh locks
+- _(mise)_ Refresh tool locks, add typos gate, and trim workflows
+
 ## [15.10.2] - 2026-11-08
 
 ### 🐛 Bug Fixes
