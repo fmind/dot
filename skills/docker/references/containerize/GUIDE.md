@@ -15,7 +15,7 @@ Build minimal, reproducible, non-root `uv` Python images locally, verify `@sha25
 
    ```bash
    mkdir -p tmp
-   docker buildx build --output type=docker,dest=tmp/image.tar .
+   docker buildx build --tag <slug>:local --output type=docker,dest=tmp/image.tar .
    ```
 
 1. **Wire `mise.toml` tasks**:
@@ -23,7 +23,7 @@ Build minimal, reproducible, non-root `uv` Python images locally, verify `@sha25
    ```toml
    [tasks."build:image"]
    description = "Build the Python OCI image locally"
-   run = ["mkdir -p tmp", "docker buildx build --output type=docker,dest=tmp/image.tar ."]
+   run = ["mkdir -p tmp", "docker buildx build --tag <slug>:local --output type=docker,dest=tmp/image.tar ."]
 
    [tasks."check:image"]
    description = "Scan the local OCI image"
@@ -31,7 +31,7 @@ Build minimal, reproducible, non-root `uv` Python images locally, verify `@sha25
    run = "trivy --config trivy.yaml image --skip-dirs '' --input tmp/image.tar"
    ```
 
-1. **Smoke-test the image**: `docker load --input tmp/image.tar`, then test `/health` and `/ready` via `docker run --rm -p 127.0.0.1:8080:8080 --env-file <runtime-env-file> -e HOST=0.0.0.0 -e PORT=8080 -e ENVIRONMENT=production <local-reference>` (or exercise CLI args/exit codes directly for CLI images).
+1. **Smoke-test the image**: `docker load --input tmp/image.tar`, then test `/health` and `/ready` via `docker run --rm -p 127.0.0.1:8080:8080 --env-file <runtime-env-file> -e HOST=0.0.0.0 -e PORT=8080 -e ENVIRONMENT=production <slug>:local` (or exercise CLI args/exit codes directly for CLI images).
 1. **Push when authorized**: run `docker buildx build --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .`, validate `containerimage.digest` (`^sha256:[0-9a-f]{64}$`), and record `$IMAGE_REPOSITORY@$DIGEST`.
 1. **Sign and attest**: run the [cosign release sequence](../cosign.md#release-sequence) on `$IMAGE_REPOSITORY@$DIGEST` (automated in the [CD template](../../../github-actions/references/ci-cd/templates/cd.yml)).
 1. **Clean up** task-created artifacts on success or failure per [resource cleanup](../resource-cleanup.md) and report any retained footprint.

@@ -5,12 +5,29 @@ description: "Technical-doc diagrams in Markdown and GitHub: syntax, validation,
 
 # Mermaid Diagram Standard
 
-Default technical-doc diagram format: one portable source renders in GitHub Markdown and Mermaid-enabled docs. [Diagrams as code](../SKILL.md) owns choosing Mermaid, [SVG](svg/GUIDE.md), [D2](d2.md), or prose.
+Default technical-doc diagram format: one portable source renders in GitHub Markdown and Mermaid-enabled docs. [Diagrams as code](../SKILL.md) owns format selection and brand rules.
 
 ## Workflow
 
 1. **Write portable source**: inline `mermaid` fence for a single page, or `.mmd` when reused or exported standalone.
-1. **Configure via frontmatter**: never use `%%{init: ...}%%` or renderer-specific fence flags; apply the Fmind frontmatter from [renderers](../../fmind-visuals/references/renderers.md) for Médéric or `www.fmind.dev`.
+1. **Configure via frontmatter**: never use `%%{init: ...}%%` or renderer-specific fence flags. For Fmind or `www.fmind.dev` inline Markdown, embed `base` (Mermaid's only customizable theme) with pinned `dagre`/`classic` and used `themeVariables`; for CLI exports, pass `--configFile ~/.agents/themes/mermaid/fmind.json`:
+
+   ```mermaid
+   ---
+   config:
+     layout: dagre
+     look: classic
+     theme: base
+     themeVariables:
+       primaryColor: "#f1f3f4"
+       primaryTextColor: "#202124"
+       primaryBorderColor: "#174ea6"
+       lineColor: "#174ea6"
+   ---
+   flowchart LR
+     Evidence --> Decision --> Outcome
+   ```
+
 1. **Validate and render** with project-pinned `mmdc` (`mise use --pin npm:@mermaid-js/mermaid-cli`; not installed globally):
 
    ```bash
@@ -33,4 +50,4 @@ Default technical-doc diagram format: one portable source renders in GitHub Mark
 
 - [Syntax reference](https://mermaid.js.org/intro/syntax-reference.html) · [Theming](https://mermaid.js.org/config/theming) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)
 - Releases: [Mermaid](https://github.com/mermaid-js/mermaid/releases) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli/releases)
-- Companion skills: [fmind-visuals](../../fmind-visuals/SKILL.md) (Fmind theme), [svg](svg/GUIDE.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).
+- Companion guides: [svg](svg/GUIDE.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).

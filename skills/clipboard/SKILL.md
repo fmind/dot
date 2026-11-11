@@ -25,7 +25,7 @@ metadata:
    CLIPBOARD_PAYLOAD
    ```
 
-1. **Confirm without repeating the payload**: `copy.py` verifies the clipboard byte-for-byte. On failure, report the native diagnostic and recovery from [platform behavior](references/platforms.md) without claiming success.
+1. **Confirm without repeating the payload**: `copy.py` verifies the clipboard byte-for-byte (`pbcopy`/`pbpaste` with `LC_CTYPE=UTF-8` on macOS; `wl-copy`/`wl-paste` on `WAYLAND_DISPLAY`, else `xclip` on `DISPLAY`—forwarded as OSC 52 by `ttyd-clipboard.service` on Android AVF `ttyd` VMs; 5s timeout per command). On failure, report the native diagnostic without retrying or claiming success.
 
 ## Boundaries
 

@@ -16,7 +16,7 @@ Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Def
 
 ## Workflow
 
-1. **Apply the design system**: follow `~/.agents/DESIGN.md` (single primary action, flat hierarchy, inline states, minimal chrome) and copy `~/.agents/themes/` CSS, Tailwind `@theme`, or daisyUI files ([renderers](../fmind-visuals/references/renderers.md#pinned-files)).
+1. **Apply the design system**: follow `~/.agents/DESIGN.md` (single primary action, flat hierarchy, inline states, minimal chrome) and copy `~/.agents/themes/{css,tailwind,daisyui}/fmind.css` from [fmind/theme](https://github.com/fmind/theme/tree/main/themes) without editing local copies (export W3C Design Tokens via `npx @google/design.md@0.4.0 export --format dtcg ~/.agents/DESIGN.md`).
 1. **Use native web primitives**: prefer `<details>`, `<dialog>`, Popover API, subgrid, container queries, and CSS nesting over JS wrappers or component libraries.
 1. **Lookup curated platform guidance**:
    ```bash

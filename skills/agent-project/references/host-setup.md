@@ -6,7 +6,7 @@
    ```bash
    mkdir -p .agents/skills .agents/prompts
    ```
-   Seed `AGENTS.md` from [AGENTS.md.template](../templates/AGENTS.md.template) (suffixed `.template` so Claude Code and OpenCode do not auto-load it); `.agents/skills/<name>/SKILL.md` holds repo skills and gitignored `.agents/prompts/` holds handoffs. Antigravity, Copilot, Cursor, OpenCode, Pi, and other [AGENTS.md](https://agents.md) hosts (such as Codex) read both natively.
+   Seed `AGENTS.md` from [AGENTS.md.template](../templates/AGENTS.md.template) when no stack template supplied one (suffixed `.template` so Claude Code and OpenCode do not auto-load it); `.agents/skills/<name>/SKILL.md` holds repo skills and gitignored `.agents/prompts/` holds handoffs. Antigravity, Copilot, Cursor, OpenCode, Pi, and other [AGENTS.md](https://agents.md) hosts (such as Codex) read both natively.
 1. **Bridge Claude Code skills when needed**: Claude Code 2.1.277+ reads `AGENTS.md` when `CLAUDE.md` is absent (never add `CLAUDE.md`, which shadows `AGENTS.md` under default `instructionFiles`), but loads skills only from `.claude/skills`:
    ```bash
    mkdir -p .claude && ln -s ../.agents/skills .claude/skills

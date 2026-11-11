@@ -1,6 +1,6 @@
 ---
 name: skillify
-description: "Capture workflows as skills or guides, or extract AGENTS.md procedures."
+description: "Route session lessons to checks, skills, AGENTS.md, or decision logs; author skills and guides."
 license: MIT
 metadata:
   kind: task
@@ -12,10 +12,11 @@ metadata:
 
 # Skillify
 
-Capture session lessons as reusable skills or guides. This skill owns workflow extraction, catalog conventions, and [package rules](references/package-rules.md); [lesson-learned](../lesson-learned/SKILL.md) decides whether a lesson belongs in a skill at all.
+Capture workflows as reusable skills or guides, extract `AGENTS.md` procedures, and route `(Lesson Learned)` session corrections to one canonical owner via [lesson-learned](references/lesson-learned.md). This skill owns workflow extraction, catalog conventions, and [package rules](references/package-rules.md).
 
 ## Workflow
 
+1. **Decide the owner first**: for session corrections, decisions, or `(Lesson Learned)` proposals, run [lesson-learned](references/lesson-learned.md) before touching a skill—prefer deterministic checks, tests, or code defaults over prose.
 1. **Extract from the session**: goal, trigger phrases, verified commands with flags, user corrections, decisions with reasons, dead ends, and required tools; strip session paths, one-off values, and secrets.
 1. **Apply the admission rule** in [package rules](references/package-rules.md#categories-and-scope) before picking an owner or scope.
 1. **Check neighbors**: run `rg -m1 '^description:' ~/.agents/skills/*/SKILL.md .agents/skills/*/SKILL.md` (`gh skill list` scans host directories without descriptions) and inspect overlapping skills; extend an existing owner for the same workflow, create a new skill only for a distinct trigger, and link neighbors instead of copying.
@@ -37,6 +38,14 @@ Keep personal defaults in global `AGENTS.md` and repo invariants in project `AGE
 - **Keep dates current**: set `created` and `updated` on creation; bump `updated` on every edit.
 - **Vendor external skills cleanly**: follow [vendor-skills](../agent-project/references/vendor-skills.md) instead of retyping upstream skills.
 - **Follow [portability](references/portability.md)** when promoting a guide or publishing standalone.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [lesson-learned](references/lesson-learned.md): Turn session corrections and decisions into minimal edits to checks, skills, AGENTS.md, or decision logs.
+
+<!-- guides:end -->
 
 ## Documentation
 

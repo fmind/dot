@@ -5,7 +5,7 @@ description: "Configure and format JSON, Markdown, TOML, and YAML with dprint."
 
 # dprint
 
-Format JSON, Markdown, TOML, and YAML with `dprint` (Python formatting and linting belong to [ruff](../../python-stack/references/ruff.md)).
+Format JSON, Markdown, TOML, and YAML with `dprint` (Python formatting and linting belong to [Ruff](../../python-stack/references/foundation/GUIDE.md#ruff)).
 
 ## Configuration
 

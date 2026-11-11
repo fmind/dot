@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-mlops
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Python MLOps
@@ -35,4 +35,4 @@ Read only the matching guide. Go straight to `marimo` for notebooks/reactivity; 
 
 - [python-stack](../python-stack/SKILL.md) (uv, typing, packaging, async) · [python-testing](../python-stack/references/python-testing/GUIDE.md) (tests) · [observability](../python-stack/references/observability.md) (telemetry).
 - [Colab](../colab/SKILL.md), [Kaggle](../kaggle/SKILL.md), [Hugging Face](../hf/SKILL.md): accounts, sessions, transfers, and compute (available quota never implies authorization).
-- [duckdb](../duckdb/SKILL.md) (SQL/file queries) · [python-web](../python-web/SKILL.md) (APIs/demos) · [agent-evaluation](../agent-evaluation/SKILL.md) (agent evals).
+- [duckdb](../duckdb/SKILL.md) (SQL/file queries) · [python-web](../python-web/SKILL.md) (APIs/demos) · [evaluation](../agent-frameworks/references/evaluation/GUIDE.md) (agent evals).

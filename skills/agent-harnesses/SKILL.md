@@ -12,7 +12,7 @@ metadata:
 
 # Agent Harnesses
 
-Operate the selected coding-agent host without mixing another host's settings, permissions, or lifecycle. [agy](../agy/SKILL.md) owns Antigravity; for Claude Code, use built-in help and the [docs index](https://code.claude.com/docs/llms.txt).
+Operate the selected coding-agent host without mixing another host's settings, permissions, or lifecycle. [agy](../agy/SKILL.md) owns Antigravity; [claude](references/claude.md) owns Claude Code.
 
 ## Workflow
 
@@ -24,6 +24,7 @@ Operate the selected coding-agent host without mixing another host's settings, p
 
 <!-- guides:start -->
 
+- [claude](references/claude.md): Claude Code sessions, managed settings, headless flags, hooks, and background tasks.
 - [copilot](references/copilot/GUIDE.md): Copilot sessions and extensions.
 - [mcp-setup](references/mcp-setup.md): Add, vet, or fix MCP servers across coding hosts and verify live access.
 - [notifications](references/notifications.md): Diagnose or change managed turn notifications and brain session-context hooks per host.

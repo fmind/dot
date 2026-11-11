@@ -1,18 +1,26 @@
 ---
 name: argparse
-description: "Python CLI code with standard-library argparse: commands, help, usage errors, tests; existing Typer CLIs."
+description: "Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Typer CLIs."
 ---
 
-# Python CLIs With argparse
+# CLI Contracts & Python argparse
 
-Build Python CLIs on stdlib `argparse` with zero runtime dependencies. [cli-contracts](../cli-contracts.md) owns command behavior and [foundation](../foundation/GUIDE.md) owns packaging; existing Typer/Click CLIs stay on their framework (see [Existing Typer CLIs](#existing-typer-clis)).
+Define a stable human + machine CLI contract in any language, and build new Python CLIs on stdlib `argparse` with zero runtime dependencies ([foundation](../foundation/GUIDE.md) owns packaging; existing Typer/Click CLIs stay on their framework per [Existing Typer CLIs](#existing-typer-clis)).
+
+## Defaults for new CLIs
+
+Existing public contracts govern shape, streams, exit codes, and formats; side-effect-free help/version, consent, markup escaping, and error redaction apply to every CLI:
+
+- **Command shape, help, & version**: explicit subcommands for growing toolboxes, single command for one focused job. `-h`/`--help` (root + subcommands) and eager root `--version` work without credentials, network, valid config, or side effects (`0` on explicit help; `2` + stderr usage on invalid args or bare command groups unless defined as help).
+- **Streams, exits, & JSON**: requested data on stdout; progress, diagnostics, and sanitized recovery errors on stderr (`-v`/`--verbose` adds stderr progress only, never raw tracebacks or secret/token values). Exit codes: `0` success, `2` invalid usage, `1` operational failure. `--json` emits one schema-stable JSON object on stdout (empty stdout + stderr error + non-zero exit on failure); bound large outputs via filters, limits, cursors, or file export.
+- **Secrets, config, & TTY**: never pass secrets in CLI args (use credential stores, protected files, hidden TTY prompts, or stdin); precedence is flags > `<APP>_*` env vars > config file > defaults (validated lazily per command). Detect stdout/stderr TTY separately, honor non-empty `NO_COLOR` and `TERM=dumb`, disable spinners/pagers on pipes, escape untrusted markup, provide flags for every required input, never prompt on non-TTY stdin (`--no-input` disables prompts without consent), and require confirmation or `--yes` on destructive actions.
 
 ## Workflow
 
-1. **Bootstrap**: follow [bootstrap](references/bootstrap.md) + [CLI defaults](../cli-contracts.md#defaults-for-new-clis) for packaged CLIs, or [python-script](../python-script/GUIDE.md) for single-file scripts.
+1. **Bootstrap**: follow [bootstrap](references/bootstrap.md) for packaged CLIs, or [python-script](../python-script/GUIDE.md) for single-file scripts.
 1. **Isolate `Namespace` at the boundary**: build the parser tree in `build_parser()`, bind subparsers via `set_defaults(handler=...)`, and unpack untyped `args` into typed handler arguments (`lambda args: greet(name=args.name)`) or a typed dataclass so `ty check` verifies call sites. Pass `allow_abbrev=False` and `suggest_on_error=True` (`3.14+`) on every parser.
 1. **Fail invalid input with exit `2`**: use `choices`, `type`, `nargs`, `required`, and `parser.error("--since: must not be after --until")` (prints usage to stderr and exits `2`, never `1`).
-1. **Test streams & exit codes**: assert stdout, stderr, and exit codes separately across `-h`/`--help` (root + subcommand), `--version`, happy paths, and usage errors via in-process `main([...])` + `capsys` + `pytest.raises(SystemExit)`, plus one subprocess `python -m <package>` smoke test (and JSON, non-TTY, or bad-config cases when supported).
+1. **Test streams & exit codes**: assert stdout, stderr, and exit codes (`0`/`1`/`2`) across `-h`/`--help` (root + subcommand, including broken config / no credentials), `--version`, happy paths, usage errors, non-TTY/`--no-input`, piped/`NO_COLOR`, and JSON schemas via in-process `main([...])` + `capsys` + `pytest.raises(SystemExit)`, plus one subprocess `python -m <package>` smoke test (and fresh-shell completions when shipped).
 
 ## CLI resources
 
@@ -21,22 +29,17 @@ Build Python CLIs on stdlib `argparse` with zero runtime dependencies. [cli-cont
 
 ## Gotchas
 
-- **`help` vs `description`**: `add_parser(name, help=...)` populates parent list summaries (omit `help` to hide internal commands); `description` renders on `<cmd> --help`.
-- **Subparser slot**: `add_subparsers(title="commands", metavar="COMMAND", required=True)` replaces `{a,b,c}` noise and exits `2` on bare group calls (use `required=False` + help handler if bare group should exit `0`).
-- **Distinct `dest` names**: subparsers overwrite parent namespace keys — never reuse a root option's `dest` on a subcommand.
-- **Short flags & `metavar`**: pass `"-n", "--limit"` (`dest` derives from `--limit`) and set `metavar` (`--since WHEN`).
-- **Env defaults & colors**: build parsers inside `main()` reading `os.environ.get("APP_CONFIG") or None` (named in `help`). Python `3.14+` colors TTY help/errors (`NO_COLOR`, `FORCE_COLOR`, `PYTHON_COLORS`) — set `NO_COLOR=1` and strip forcing vars in tests.
-- **Formatting, completions, & TUIs**: use `RawDescriptionHelpFormatter` (or paragraph-splitting `_fill_text`) for multi-paragraph text. Add `argcomplete` or `rich`/`textual` (with markup/highlighting/emoji disabled on untrusted text) only for interactive human UIs, never agent CLIs.
-- **Fast startup**: profile via `uv run python -X importtime -c 'import <package>' 2> importtime.log` and lazy-import heavy SDKs inside handlers (or declare module-level `__lazy_modules__ = [...]` on Python `3.15+`, ignored safely on `<3.15`, unlike `lazy import` syntax).
+- **`help` vs `description` & subparsers**: `add_parser(name, help=...)` populates parent list summaries (omit `help` to hide internal commands; `description` renders on `<cmd> --help`). `add_subparsers(title="commands", metavar="COMMAND", required=True)` avoids `{a,b,c}` noise and exits `2` on bare group calls; never reuse a root option's `dest` on a subcommand.
+- **Flags, env defaults, & colors**: pass `"-n", "--limit"` with `metavar` (`--since WHEN`), and build parsers inside `main()` reading `os.environ.get("APP_CONFIG") or None` (named in `help`). Python `3.14+` colors TTY help/errors (`NO_COLOR`, `FORCE_COLOR`, `PYTHON_COLORS`) — set `NO_COLOR=1` and strip forcing vars in tests.
+- **Formatting, TUIs, & startup**: use `RawDescriptionHelpFormatter` for multi-paragraph help; add `argcomplete` or `rich`/`textual` (markup/highlighting/emoji disabled on untrusted text) only for interactive human UIs, never agent CLIs. Profile startup via `uv run python -X importtime -c 'import <package>'` and lazy-import heavy SDKs inside handlers (or module-level `__lazy_modules__ = [...]` on `3.15+`).
 
 ## Existing Typer CLIs
 
 Keep locked Typer unless asked to migrate:
 
-- **Bundled skill (`0.25.1+`)**: read `typer/.agents/skills/typer/SKILL.md` from `.venv/`.
-- **Pin minor (`typer>=0.N,<0.N+1`)**: `0.x` minors break APIs (`0.29` changed `get_error_hint()`); install `typer` directly (`typer-slim`/`typer-cli` deprecated; Click vendored since `0.26.0`, so use `typer.testing.CliRunner`).
+- **Bundled skill & minor pin**: read `typer/.agents/skills/typer/SKILL.md` from `.venv/` (`0.25.1+`) and pin `typer>=0.N,<0.N+1` (`0.x` minors break APIs; `typer-slim`/`typer-cli` are deprecated, and Click is vendored since `0.26.0` — use `typer.testing.CliRunner`).
 - **Group callback & plain help**: add `@app.callback()` so single-command apps keep subcommand shape and `no_args_is_help=True` works; set `rich_markup_mode=None` when plain piped help is required (`GITHUB_ACTIONS`/`FORCE_COLOR`/`PY_COLORS` override `NO_COLOR` on Rich panels).
 
 ## Documentation
 
-- [argparse](https://docs.python.org/3/library/argparse.html) · [tutorial](https://docs.python.org/3/howto/argparse.html) · [CPython changelog](https://docs.python.org/3/whatsnew/changelog.html) · [Typer releases](https://typer.tiangolo.com/release-notes/)
+- [argparse](https://docs.python.org/3/library/argparse.html) · [Command Line Interface Guidelines](https://clig.dev) · [NO_COLOR](https://no-color.org/) · [Typer releases](https://typer.tiangolo.com/release-notes/)

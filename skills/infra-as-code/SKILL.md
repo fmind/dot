@@ -57,4 +57,4 @@ Manage infrastructure with OpenTofu (`tofu`); pin HashiCorp `terraform` in `mise
 
 - [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/) · [releases](https://github.com/opentofu/opentofu/releases)
 - Upstream: `hashicorp/agent-skills` via [vendor-skill policy](../agent-project/references/vendor-skills.md).
-- Companion skills: [mise](../mise/SKILL.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [code-security](../code-security/references/code-review/GUIDE.md), [google-developer](../gcloud/references/google-developer.md).
+- Companion skills: [mise](../mise/SKILL.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [code-security](../code-security/references/code-review/GUIDE.md), [gcloud](../gcloud/references/google-developer.md).

@@ -5,7 +5,7 @@ description: "Write Python tests with pytest, fixtures, property and mutation te
 
 # Python Testing
 
-Prove behavior changes with tests that fail before the fix and pass with it (for test-only maintenance, read [pytest mechanics](references/pytest.md) directly). Approved [ty baselines](../ty.md) only ever shrink.
+Prove behavior changes with tests that fail before the fix and pass with it (for test-only maintenance, read [pytest mechanics](references/pytest.md) directly). Approved [ty baselines](../foundation/GUIDE.md#ty) only ever shrink.
 
 ## Workflow
 

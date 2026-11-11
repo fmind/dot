@@ -38,7 +38,7 @@ Compile Tailwind via the standalone `tailwindcss` binary in `mise.toml` without 
 ## Gotchas
 
 - **Explicit roots prevent cwd drift**: `source(none)` + `@source` keeps root and CI invocations identical; register gitignored or external template paths explicitly since Tailwind scans raw text, not Python/Jinja ASTs.
-- **Apply brand tokens**: for Fmind apps, import `~/.agents/themes/tailwind/fmind.css` (and `daisyui/fmind.css` when using daisyUI) per [renderers](../../fmind-visuals/references/renderers.md#pinned-files), and follow [fmind-visuals](../../fmind-visuals/SKILL.md) for published assets.
+- **Apply brand tokens**: for Fmind apps, import `~/.agents/themes/tailwind/fmind.css` after `tailwindcss` (and `daisyui/fmind.css` after the plugin with `themes: false`), and follow [diagrams-as-code](../../diagrams-as-code/SKILL.md) for published visual assets.
 
 ## Documentation
 

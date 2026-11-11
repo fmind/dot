@@ -112,11 +112,16 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "src/starter_py/__init__.py",
             _render("init.py", replacements, guide="litestar"),
         )
-        _write(project, "src/starter_py/__main__.py", 'from . import main\n\nif __name__ == "__main__":\n    main()\n')
+        _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
         for name in ("test_web.py", "test_integration.py"):
             _write(project, f"tests/{name}", _render(name, replacements, guide="litestar"))
         _write(project, "tests/conftest.py", _render("conftest.py", replacements, guide="litestar"))
-        _write(project, ".env", _render("env.example", replacements, guide="litestar"))
+        # Developer `.env` files must never leak into unit tests that instantiate Settings().
+        _write(
+            project,
+            ".env",
+            'DATABASE_URL=postgresql+asyncpg://env.invalid/db\nCORS_ORIGINS=["https://allowed.example"]\n',
+        )
 
     _run(project, "uv", "lock")
     _run(project, "uv", "sync", "--locked")
@@ -153,12 +158,16 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     )
     outside = project / "outside"
     outside.mkdir()
-    if profile == "web":
-        _write(outside, ".env", _render("env.example", replacements, guide="litestar"))
     assert (
         _run(outside, str(runtime / "bin/python"), "-c", "import starter_py; print(starter_py.__version__)")
         == "0.1.0\n"
     )
+    if profile == "web":
+        for command in ([str(runtime / "bin/starter-py")], [str(runtime / "bin/python"), "-m", "starter_py"]):
+            assert _run(outside, *command, "--version") == "0.1.0\n"
+            for flag in ("-h", "--help"):
+                assert "starter-py" in _run(outside, *command, flag)
+            _run(outside, *command, "--unknown-option", expected_code=2)
     if profile == "cli":
         for command in ([str(runtime / "bin/starter-py")], [str(runtime / "bin/python"), "-m", "starter_py"]):
             assert _run(outside, *command, "greet", "--name", "Ada") == "Hello, Ada!\n"

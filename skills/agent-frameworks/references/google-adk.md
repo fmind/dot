@@ -26,11 +26,11 @@ Implement Python ADK agents inside the project; [agents-cli](agents-cli/GUIDE.md
 
 ## Official Skills
 
-Use `google/agents-cli` skills via [agents-cli](agents-cli/GUIDE.md), or for standalone ADK discover [google/adk-python skills](https://github.com/google/adk-python/tree/main/.agents/skills) (`adk-agent-builder`, `adk-debug`) with `DISABLE_TELEMETRY=1 skills add google/adk-python --list` per [vendor-skill policy](../../agent-project/references/vendor-skills.md).
+Use `google/agents-cli` skills via [agents-cli](agents-cli/GUIDE.md), or for standalone ADK discover [google/adk-python skills](https://github.com/google/adk-python/tree/main/.agents/skills) (`adk-agent-builder`, `adk-debug`) with `DISABLE_TELEMETRY=1 skills add google/adk-python --list --json` per [vendor-skill policy](../../agent-project/references/vendor-skills.md).
 
 ## Documentation
 
 - [Session state](https://adk.dev/sessions/state/) · [Runtime](https://adk.dev/runtime/) · [Workflows](https://adk.dev/workflows/)
 - [ADK docs](https://adk.dev/) · [Python SDK](https://github.com/google/adk-python) · [Google CLI and skills](https://github.com/google/agents-cli)
 - Releases: [adk-python](https://github.com/google/adk-python/releases) · [changelog](https://github.com/google/adk-python/blob/main/CHANGELOG.md)
-- Companion skills: [agents-cli](agents-cli/GUIDE.md), [system-prompts](system-prompts.md), [python-stack](../../python-stack/references/foundation/GUIDE.md).
+- Companion skills: [agents-cli](agents-cli/GUIDE.md), [evaluation](evaluation/GUIDE.md), [python-stack](../../python-stack/references/foundation/GUIDE.md).

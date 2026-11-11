@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # xh HTTP Inspection
@@ -22,7 +22,7 @@ Bounded read-only HTTP probing with `xh` (POST, PUT, PATCH, DELETE, uploads, and
    xh --ignore-stdin --check-status --timeout 10 --print=h HEAD https://example.com/health
    ```
 
-1. **Bound response bodies to 64 KiB**: cap output even if `Range` is ignored, check `Location` before `--follow` (which can forward credentials cross-origin), and inspect `${PIPESTATUS[0]}` immediately since `head` masks `xh`'s 4xx/5xx exit code:
+1. **Bound response bodies to 64 KiB**: cap output even if `Range` is ignored, check `Location` before `--follow` (which can forward credentials cross-origin), and inspect `${PIPESTATUS[0]}` (bash) or `$pipestatus[1]` (fish) immediately since `head` masks `xh`'s 4xx/5xx exit code:
 
    ```bash
    xh --ignore-stdin --check-status --timeout 10 GET https://example.com/api Range:bytes=0-65535 | head -c 65536

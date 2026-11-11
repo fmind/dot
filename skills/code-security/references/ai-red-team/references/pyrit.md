@@ -6,7 +6,7 @@ Baseline: [PyRIT 1.1.0](https://github.com/microsoft/PyRIT/tree/d0524f0714840519
 
 ```bash
 uv init --python 3.14
-uv add 'pyrit==1.1.0'
+UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'pyrit==1.1.0'
 uv run --locked python -c 'from importlib.metadata import version; print(version("pyrit"))'
 uv run --locked pyrit_scan --help
 uv run --locked pyrit_scan run --help

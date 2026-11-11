@@ -12,17 +12,18 @@ Build typed MCP tools, resources, prompts, and clients with the official `mcp` P
 1. **Initialize and lock**: inspect the installed SDK before using APIs beyond quickstart.
    ```bash
    uv init --package <slug> && cd <slug>
-   uv add "mcp[cli]" && uv add --dev pytest
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check "mcp[cli]"
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev pytest
    ```
 1. **Define `MCPServer`** (`mcp.server`): type-hint and document every handler to generate accurate JSON Schemas. Prefix tool names by service, set `ToolAnnotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`—hints never replace authz), paginate lists with cursor + total, and return actionable errors.
 1. **Select transport**: stdio for local child processes (stdout protocol-only, logs to stderr) or Streamable HTTP at `/mcp` for hosted services:
    ```bash
-   uv run mcp run src/<package>/server.py:server
-   uv run mcp run src/<package>/server.py:server --transport streamable-http
+   uv run --locked mcp run src/<package>/server.py:server
+   uv run --locked mcp run src/<package>/server.py:server --transport streamable-http
    ```
-1. **Test in-process and over stdio**: adapt [test_protocol.py](templates/test_protocol.py) using `Client(server)` plus one `Client(StdioServerParameters(...))` subprocess test covering schemas, valid outputs, and bad inputs; before release, evaluate ~10 multi-tool read-only questions per [agent-evaluation](../../../agent-evaluation/SKILL.md).
+1. **Test in-process and over stdio**: adapt [test_protocol.py](templates/test_protocol.py) using `Client(server)` plus one `Client(StdioServerParameters(...))` subprocess test covering schemas, valid outputs, and bad inputs; before release, evaluate ~10 multi-tool read-only questions per [evaluation](../../../agent-frameworks/references/evaluation/GUIDE.md).
    ```bash
-   uv run pytest -q
+   uv run --locked pytest -q
    ```
 1. **Harden HTTP**: check `Origin`, bind dev servers to `127.0.0.1`, enforce OAuth or workload identity remotely, and authorize each call against caller and resource.
 1. **Build clients**: `async with Client(<approved-url-or-stdio-params>) as client` (plain `mcp` suffices without `[cli]`); bound timeouts and output size, and test unknown tools, bad args, cancellation, and transport errors.

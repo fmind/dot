@@ -9,7 +9,7 @@ Local offline stdlib helpers and `gws` CLI diagnostics.
 
 ## Local helpers
 
-Run via `uv run --no-project python ~/.agents/skills/gws/scripts/<script>.py --help` (stdlib-only; UTF-8 file or `-` stdin → JSON stdout; no auth or network I/O):
+Run via `python3 -I ~/.agents/skills/gws/scripts/<script>.py --help` (stdlib-only; UTF-8 file or `-` stdin → JSON stdout; no auth or network I/O):
 
 - [chat_body.py](../scripts/chat_body.py): builds a Chat text payload with explicit `markupSyntax` and optional `thread`, rejecting headings, tables, labeled fences, and >30 KB bodies.
 - [pages.py](../scripts/pages.py): merges JSON/NDJSON pages and verifies `nextPageToken`/`incompleteSearch` completeness (errors on incomplete sets unless `--allow-incomplete`; requires pagination fields in the upstream query).

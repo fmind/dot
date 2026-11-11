@@ -35,13 +35,13 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
 
    ```bash
    # Reply (optional: --reply-all / --remove bob@example.com / --cc carol@example.com / -a report.pdf)
-   uv run --no-project python ~/.agents/skills/draft-mail/scripts/draft_email.py \
+   python3 -I ~/.agents/skills/draft-mail/scripts/draft_email.py \
      "$SCRATCH/body.html" --reply-to MESSAGE_ID --dry-run
-   uv run --no-project python ~/.agents/skills/draft-mail/scripts/draft_email.py \
+   python3 -I ~/.agents/skills/draft-mail/scripts/draft_email.py \
      "$SCRATCH/body.html" --reply-to MESSAGE_ID
 
    # New thread (or --draft-id DRAFT_ID to update in place)
-   uv run --no-project python ~/.agents/skills/draft-mail/scripts/draft_email.py \
+   python3 -I ~/.agents/skills/draft-mail/scripts/draft_email.py \
      "$SCRATCH/body.html" --to alice@example.com --subject 'Subject'
    ```
 

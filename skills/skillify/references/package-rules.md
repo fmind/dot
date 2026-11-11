@@ -17,13 +17,13 @@ Keep discovery compact and load procedures on demand. This page owns admission a
 - **Action-led descriptions**: start with the work performed, include distinctive tools/triggers, differentiate close neighbors, and drop hype ("modern", "comprehensive", "best"). Guide descriptions state only that guide's branch.
 - **Informative guide names**: use task nouns (`foundation`, `bootstrap`, `image-build`, `code-review`), reserving tool names for tool-specific guides; never repeat the parent's name or keep alias packages after a rename.
 
-| Request boundary                                               | Owners                                                                                                                                                                                           |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Browser UI, Python server, documentation site, notebook        | [web-frontend](../../web-frontend/SKILL.md), [python-web](../../python-web/SKILL.md), [documentation-site](../../documentation-site/SKILL.md), [marimo](../../python-mlops/references/marimo.md) |
-| Project creation, repository upkeep, code audit                | [project-scaffolding](../../project-scaffolding/SKILL.md), [full-review](../../full-review/SKILL.md)                                                                                             |
-| Task handoff, embedded application prompt                      | [task-prompts](../../task-prompts/SKILL.md), [system-prompts](../../agent-frameworks/references/system-prompts.md), [request contracts](../../model-providers/SKILL.md#request-contracts)        |
-| Configure coding hosts, connect MCP, implement protocols       | [agent-harnesses](../../agent-harnesses/SKILL.md), [mcp-setup](../../agent-harnesses/references/mcp-setup.md), [agent-protocols](../../agent-protocols/SKILL.md)                                 |
-| Test code, smoke-test entry points, evaluate stochastic agents | [python-testing](../../python-stack/references/python-testing/GUIDE.md), [smoke](../../full-review/references/smoke/GUIDE.md), [agent-evaluation](../../agent-evaluation/SKILL.md)               |
+| Request boundary                                               | Owners                                                                                                                                                                                             |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser UI, Python server, documentation site, notebook        | [web-frontend](../../web-frontend/SKILL.md), [python-web](../../python-web/SKILL.md), [documentation-site](../../documentation-site/SKILL.md), [marimo](../../python-mlops/references/marimo.md)   |
+| Project creation, repository upkeep, code audit                | [project-scaffolding](../../project-scaffolding/SKILL.md), [full-review](../../full-review/SKILL.md)                                                                                               |
+| Task handoff, embedded application prompt                      | [task-prompts](../../task-prompts/SKILL.md), [system-prompts](../../agent-frameworks/SKILL.md#system-prompts), [request contracts](../../model-providers/SKILL.md#request-contracts)               |
+| Configure coding hosts, connect MCP, implement protocols       | [agent-harnesses](../../agent-harnesses/SKILL.md), [mcp-setup](../../agent-harnesses/references/mcp-setup.md), [agent-protocols](../../agent-protocols/SKILL.md)                                   |
+| Test code, smoke-test entry points, evaluate stochastic agents | [python-testing](../../python-stack/references/python-testing/GUIDE.md), [smoke](../../full-review/references/smoke/GUIDE.md), [evaluation](../../agent-frameworks/references/evaluation/GUIDE.md) |
 
 ## Entrypoints and guides
 
@@ -40,7 +40,7 @@ Keep discovery compact and load procedures on demand. This page owns admission a
 
 ## Resources and portability
 
-- **Standard folders only**: `references/` (decisions/procedures), `templates/` and `assets/` (copied outputs), `scripts/` (executables and deterministic helpers). Validate links across reachable Markdown; follow [portability](portability.md) for promotion or standalone export, and route durable fixes to one owner per [lesson-learned](../../lesson-learned/SKILL.md) (update memory only on user request).
+- **Standard folders only**: `references/` (decisions/procedures), `templates/` and `assets/` (copied outputs), `scripts/` (executables and deterministic helpers). Validate links across reachable Markdown; follow [portability](portability.md) for promotion or standalone export, and route durable fixes to one owner per [lesson-learned](lesson-learned.md) (update memory only on user request).
 
 ## Authoring and verification
 

@@ -21,7 +21,7 @@ dev = [
   "pytest-watcher>=0.6.3",
   "pytest>=9.2.0",
   "ruff>=0.17.4",
-  "ty>=0.0.100,<0.1", # pre-1.0: pin a compatible range until it stabilizes
+  "ty>=0.0.101,<0.1", # pre-1.0: pin a compatible range until it stabilizes
   "validate-pyproject>=0.27",
   "zensical>=0.1.1,<0.2", # pre-1.0: pin a compatible range until it stabilizes
 ]

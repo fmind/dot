@@ -13,8 +13,8 @@ Align ignore and exclude configs with the repository's actual stack and tasks—
 1. **Audit gitignore-syntax files**: [audit.py](scripts/audit.py) maps tracked, untracked, and collapsed-ignored paths to their deciding rule (resolving relative `core.excludesFile` from repo root), flagging zero-hit, duplicate, and global-duplicate rules; pass `.ignore` explicitly so `.gitignore`-shadowed rules surface as unused:
 
    ```bash
-   python -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py            # every non-ignored .gitignore
-   python -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py .ignore --json
+   python3 -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py            # every non-ignored .gitignore
+   python3 -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py .ignore --json
    ```
 
 1. **Prune & add**: drop zero-hit rules from foreign stacks, dead tools, duplicates, or shadowed lines while keeping preventive secret/state/task-output rules (`.env`, `*.tfstate`, `*.pem`, `.terraform/`). Cover stack outputs (Python: `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.ty_cache/`, `.coverage*`, `htmlcov/`, `dist/`; docs: `site/`; Node: `node_modules/`); keep personal OS/editor/harness noise in global `core.excludesFile` (`~/.config/git/ignore` via `chezmoi source-path ~/.config/git/ignore`) unless external cloners need it.

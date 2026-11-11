@@ -4,10 +4,10 @@ Shared review-first policy for third-party skill bundles; tool guides name only 
 
 ## Workflow
 
-1. **Pin a snapshot**: run `DISABLE_TELEMETRY=1 skills add <source> --list` in the target project and resolve the latest compatible release tag (or exact commit when untagged) to `https://github.com/<owner>/<repo>/tree/<full-commit>`.
-1. **Vet before installing**: print with `DISABLE_TELEMETRY=1 skills use <snapshot> --skill <name>` and audit `SKILL.md`, scripts, hooks, MCP, and linked files via [skill-security-review](../../code-security/references/skill-security-review/GUIDE.md) (skip contributor/sample skills and distinguish wrapper bundles from first-party library skills).
+1. **Pin a snapshot**: run `DISABLE_TELEMETRY=1 skills add <source> --list --json` in the target project and resolve the latest compatible release tag (or exact commit when untagged) to `https://github.com/<owner>/<repo>/tree/<full-commit>`.
+1. **Vet before installing**: print `SKILL.md` with `DISABLE_TELEMETRY=1 skills use <snapshot> --skill <name>`, inspect the pinned commit's repository tree directly for `scripts/`, hooks, MCP configs, symlinks, and linked files (`skills use` outputs `SKILL.md` text only), and audit the full package via [skill-security-review](../../code-security/references/skill-security-review/GUIDE.md) (skip contributor/sample skills and distinguish wrapper bundles from first-party library skills).
 1. **Install project-scoped**: check [name collisions](#name-collisions), then run `DISABLE_TELEMETRY=1 skills add <snapshot> --skill <name> -y` (never `--global`); add plugin hooks, agents, commands, MCP/LSP servers, or cloud resources separately only if needed.
-1. **Validate**: inspect `DISABLE_TELEMETRY=1 skills list`, `.agents/skills/`, and `skills-lock.json`, confirm content matches the reviewed commit, and run the repo gate.
+1. **Validate**: inspect `DISABLE_TELEMETRY=1 skills list --json`, `.agents/skills/`, and `skills-lock.json`, confirm content matches the reviewed commit, and run the repo gate.
 1. **Update deliberately**: run `DISABLE_TELEMETRY=1 skills update -p -y` only on a clean tree and repeat the full review.
 
 ## Name collisions

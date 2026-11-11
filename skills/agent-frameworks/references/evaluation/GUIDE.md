@@ -1,18 +1,11 @@
 ---
-name: agent-evaluation
-description: "Evaluate prompt, model, retrieval, and agent changes with graded trials."
-license: MIT
-metadata:
-  kind: task
-  author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/agent-evaluation
-  created: "2026-09-09"
-  updated: "2026-11-10"
+name: evaluation
+description: "Evaluate prompt, model, retrieval, and agent changes with graded multi-trial experiments."
 ---
 
 # Agent Evaluation
 
-Test whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../agent-frameworks/references/system-prompts.md) owns prompt changes; [python-testing](../python-stack/references/python-testing/GUIDE.md) owns deterministic proof. Reuse the project or provider's evaluation workflow.
+Test whether a stochastic candidate improves observable outcomes under comparable conditions. [Agent frameworks](../../SKILL.md#system-prompts) owns prompt layering; [python-testing](../../../python-stack/references/python-testing/GUIDE.md) owns deterministic proof. Reuse the project or provider's evaluation workflow.
 
 ## Workflow
 
@@ -32,6 +25,6 @@ Test whether a stochastic candidate improves observable outcomes under comparabl
 
 ## Documentation
 
-- Upstream: `mlflow/skills` (`mlflow-evaluation` for MLflow scorers, judges, and runs); vet per [vendor-skill policy](../agent-project/references/vendor-skills.md).
+- Upstream: `mlflow/skills` (`mlflow-evaluation` for MLflow scorers, judges, and runs); vet per [vendor-skill policy](../../../agent-project/references/vendor-skills.md).
 - [Anthropic agent evaluation](https://www.anthropic.com/research/demystifying-evals-for-ai-agents)
-- Companion skills: [agents-cli](../agent-frameworks/references/agents-cli/GUIDE.md) (Google eval CLI), [observability](../python-stack/references/observability.md), [skillify](../skillify/SKILL.md), [AI red team](../code-security/references/ai-red-team/GUIDE.md) (adversarial scenarios and PyRIT).
+- Companions: [agents-cli](../agents-cli/GUIDE.md) (Google eval CLI), [observability](../../../python-stack/references/observability.md), [skillify](../../../skillify/SKILL.md), [AI red team](../../../code-security/references/ai-red-team/GUIDE.md).

@@ -1,13 +1,31 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
-.config/duckdb/fmind.duckdbrc
-{{- $duckdbDir := joinPath $.chezmoi.destDir ".config/duckdb" }}
-{{- $duckdbInfo := lstat $duckdbDir }}
-{{- if and $duckdbInfo (eq $duckdbInfo.type "dir") (has (output "ls" "-A" $duckdbDir | trim) (list "" "fmind.duckdbrc")) }}
-.config/duckdb
+.config/systemd/user/cros-garcon.service.d/oom-policy.conf
+{{- $garconDir := joinPath $.chezmoi.destDir ".config/systemd/user/cros-garcon.service.d" }}
+{{- $garconInfo := lstat $garconDir }}
+{{- if and $garconInfo (eq $garconInfo.type "dir") (has (output "ls" "-A" $garconDir | trim) (list "" "oom-policy.conf")) }}
+.config/systemd/user/cros-garcon.service.d
 {{- end }}
-# Skills merged in this release (2026-11-10). List a name only while it is still this
-# checkout's link, so apply never deletes a same-named package installed by another tool.
-{{- range list "dprint" "google-developer" "mcp-setup" }}
+.local/share/applications/com.mitchellh.ghostty.desktop
+{{- $appsDir := joinPath $.chezmoi.destDir ".local/share/applications" }}
+{{- $appsInfo := lstat $appsDir }}
+{{- if and $appsInfo (eq $appsInfo.type "dir") (has (output "ls" "-A" $appsDir | trim) (list "" "com.mitchellh.ghostty.desktop")) }}
+.local/share/applications
+{{- end }}
+.local/share/dbus-1/services/org.freedesktop.Notifications.service
+{{- $dbusServices := joinPath $.chezmoi.destDir ".local/share/dbus-1/services" }}
+{{- $dbusServicesInfo := lstat $dbusServices }}
+{{- $removeDbusServices := and $dbusServicesInfo (eq $dbusServicesInfo.type "dir") (has (output "ls" "-A" $dbusServices | trim) (list "" "org.freedesktop.Notifications.service")) }}
+{{- if $removeDbusServices }}
+.local/share/dbus-1/services
+{{- end }}
+{{- $dbusDir := joinPath $.chezmoi.destDir ".local/share/dbus-1" }}
+{{- $dbusInfo := lstat $dbusDir }}
+{{- if and $dbusInfo (eq $dbusInfo.type "dir") (or (eq (output "ls" "-A" $dbusDir | trim) "") (and $removeDbusServices (eq (output "ls" "-A" $dbusDir | trim) "services"))) }}
+.local/share/dbus-1
+{{- end }}
+# Skills merged in recent releases (2026-11-10..2026-11-11). List a name only while it is still
+# this checkout's link, so apply never deletes a same-named package installed by another tool.
+{{- range list "agent-evaluation" "dprint" "fmind-visuals" "google-developer" "lesson-learned" "mcp-setup" }}
 {{-   $path := joinPath $.chezmoi.destDir ".agents/skills" . }}
 {{-   $info := lstat $path }}
 {{-   if and $info (eq $info.type "symlink") }}

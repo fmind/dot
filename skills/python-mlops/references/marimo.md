@@ -21,7 +21,7 @@ Pairing executes kernel code and `ctx.packages.add` mutates project dependencies
 
 ## Official Skills
 
-List upstream skills from [marimo-team/skills](https://github.com/marimo-team/skills) via `DISABLE_TELEMETRY=1 skills add marimo-team/skills --list` and install reviewed snapshots per [vendor-skills](../../agent-project/references/vendor-skills.md) ([marimo-team/marimo-pair](https://github.com/marimo-team/marimo-pair) is superseded by `marimo pair`). Before promising `marimo export html-wasm`, verify Pyodide package support and server-only limits.
+List upstream skills from [marimo-team/skills](https://github.com/marimo-team/skills) via `DISABLE_TELEMETRY=1 skills add marimo-team/skills --list --json` and install reviewed snapshots per [vendor-skills](../../agent-project/references/vendor-skills.md) ([marimo-team/marimo-pair](https://github.com/marimo-team/marimo-pair) is superseded by `marimo pair`). Before promising `marimo export html-wasm`, verify Pyodide package support and server-only limits.
 
 ## Documentation
 

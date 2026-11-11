@@ -7,7 +7,7 @@ description: "OpenRouter model routing, API key authentication, and OpenAI-compa
 
 Use OpenRouter (`https://openrouter.ai/api/v1`, `Authorization: Bearer $OPENROUTER_API_KEY`) when requested; it is OpenCode's workstation default.
 
-1. **Scope `OPENROUTER_API_KEY` per process**: OpenCode uses its native store; other apps load it via secret manager or `dot secret run OPENROUTER_API_KEY -- COMMAND` (never global env, config literals, CLI args, logs, or examples).
+1. **Scope `OPENROUTER_API_KEY` per process**: OpenCode uses its native store; other apps load it at runtime from a secret manager (never global env, config literals, CLI args, logs, or examples; `dot secret run` manages only read-only `OPENROUTER_MANAGEMENT_KEY`).
 1. **Query targeted model metadata**: inspect `GET /api/v1/model/<vendor>/<model>` (or `/models/<vendor>/<model>/endpoints`) for `supported_parameters` instead of the ~800 KB `/api/v1/models` dump. Strip OpenCode's `openrouter/` prefix in direct API calls (`google/gemini-3.8-flash`, not `openrouter/google/gemini-3.8-flash`).
 1. **Probe read-only first**: check `GET /api/v1/key` privately without printing secrets (verifies key, not paid model access); bound `/chat/completions` with `max_tokens` and a timeout.
 1. **Configure OpenAI-compatible SDKs**: pass `base_url` and `api_key`, verify tool/reasoning/streaming/schema support on the target model, and set `provider.require_parameters` when parameter drops would break callers.

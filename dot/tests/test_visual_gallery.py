@@ -8,7 +8,7 @@ from types import ModuleType
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "skills/fmind-visuals/scripts/gallery.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "skills/diagrams-as-code/references/variants/scripts/gallery.py"
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
 
 

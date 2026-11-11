@@ -12,8 +12,8 @@ from functools import cache
 from pathlib import Path
 from types import ModuleType
 
-# Reuse the diagrams-as-code Chrome discovery and isolated screenshot; it sits beside this package in the catalog.
-SVG_CHECKER = Path(__file__).resolve().parents[2] / "diagrams-as-code/references/svg/scripts/check_svg.py"
+# Reuse the sibling SVG checker's Chrome discovery and isolated screenshot.
+SVG_CHECKER = Path(__file__).resolve().parents[2] / "svg/scripts/check_svg.py"
 MIME_TYPES = {
     ".svg": "image/svg+xml",
     ".png": "image/png",
@@ -92,12 +92,14 @@ def svg_checker() -> ModuleType:
     """Load the shared diagrams-as-code SVG checker module."""
     spec = importlib.util.spec_from_file_location("check_svg", SVG_CHECKER)
     if spec is None or spec.loader is None or not SVG_CHECKER.is_file():
-        raise RuntimeError(
-            f"SVG checker not found at {SVG_CHECKER}; install the diagrams-as-code skill beside fmind-visuals "
-            "or open the HTML sheet instead"
-        )
+        raise RuntimeError(f"SVG checker not found at {SVG_CHECKER}; open the HTML sheet instead")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 

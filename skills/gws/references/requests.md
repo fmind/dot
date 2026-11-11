@@ -10,7 +10,7 @@ cat > "$request_dir/message.txt" <<'TEXT'
 - Check the proposed change.
 - Keep `$(example)` as literal text.
 TEXT
-uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py \
+python3 -I ~/.agents/skills/gws/scripts/chat_body.py \
   "$request_dir/message.txt" > "$request_dir/body.json"
 jq -n --arg parent "$SPACE" '{parent: $parent}' > "$request_dir/params.json"
 (

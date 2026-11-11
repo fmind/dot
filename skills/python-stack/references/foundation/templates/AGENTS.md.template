@@ -14,11 +14,10 @@ Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `u
 - `mise run watch` — continuous test/app watcher.
 - **Fast inner loop**: `uv run --locked pytest -q <path>::<test>`, `uv run --locked pytest -q -x -l --lf`, `uv run --locked ruff check <path>`, `uv run --locked ty check <path>`; finish with full `mise` gates.
 
-## Done & Conventions
+## Conventions
 
-- Done requires clean `mise run format`, `check`, `test`, and `build` locally, plus tests for changed behavior. Fix root causes — never weaken assertions, add skips/`xfail`s, loosen types, or suppress lints to force green.
-- Chain specific exceptions (`raise ... from err`); never swallow errors or log secrets.
-- Validate external inputs/settings at boundaries, document defaults and precedence, declare only used dependencies, use modern Python annotations (`list[str]`, `X | Y`, `Annotated`), and write Conventional Commits without attribution.
+- Done requires clean `mise run format`, `check`, `test`, and `build` locally, plus tests for changed behavior.
+- Declare only used dependencies (`deptry` enforces), use modern Python annotations (`list[str]`, `X | Y`, `Annotated`), and add repo-specific boundaries here without repeating `~/.agents/AGENTS.md`.
 
 ## Layout
 

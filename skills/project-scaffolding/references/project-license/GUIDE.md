@@ -12,7 +12,7 @@ Select, write, and declare a repository's `LICENSE` from its namespace, visibili
 1. **Inspect namespace and existing license**: run `ls LICENSE*` and `gh repo view --json nameWithOwner,isPrivate,licenseInfo` (never print raw Git remotes, which may embed credentials). Keep any existing license unless asked to replace it.
 1. **Select**:
    - Public `fmind` code: [MIT](templates/MIT) as `LICENSE`.
-   - Written course material (lessons, exercises, prose, e.g., `fmind/mlops-coding-course`): CC-BY-4.0 as `LICENSE.txt` via `curl -fsSL https://creativecommons.org/licenses/by/4.0/legalcode.txt -o LICENSE.txt`.
+   - Written course material (lessons, exercises, prose, e.g., `fmind/mlops-coding-course`): CC-BY-4.0 as `LICENSE.txt` via `curl -fsSL --max-time 10 https://creativecommons.org/licenses/by/4.0/legalcode.txt -o LICENSE.txt`.
    - Every private repository and every other namespace: [PROPRIETARY](templates/PROPRIETARY) as `LICENSE` (never an open-source license).
 1. **Write root file**: set `<holder>` to `Médéric Hurier (Fmind)` in `fmind` (keep existing owner or ask in customer/employer repos) and `<year>` to `date +%Y`.
 1. **Declare in `pyproject.toml`** (Python packages only): PEP 639 SPDX `license = "MIT"` or `license = "LicenseRef-Proprietary"` plus `license-files = ["LICENSE"]`.

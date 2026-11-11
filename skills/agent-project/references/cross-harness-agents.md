@@ -24,6 +24,6 @@ All four use YAML frontmatter + Markdown body (Pi uses TypeScript extensions and
 
 ## Permission limits
 
-In Antigravity, omitting `tools` leaves a minimal read/web/messaging set without shell or edit, and an explicit list replaces it: include `view_file`, `run_command`, `write_to_file`, `replace_file_content`, `read_url_content`, `search_web`, and `finish` (required for `--json-schema` `structured_output`); unknown tool names fail startup, and `skills` neither preloads nor filters. Other hosts inherit the parent session's permissions.
+In Antigravity, set `subagent: true` (`mainAgent: false` for subagent-only roles); omitting `tools` leaves a minimal read/web/messaging set without shell or edit, and an explicit list replaces it: use exact registry names from `init.tools` (`view_file`, `grep_search`, `run_command`, `write_to_file`, `replace_file_content`, `read_url_content`, `search_web`, and `finish` for `--json-schema` `structured_output` — never model-prompt aliases like `read_file`/`edit_file`, as unmapped names fail or hang startup), and note `skills` neither preloads nor filters. Other hosts inherit the parent session's permissions.
 
 Instructions are not OS access control: enforce read-only reviews via host read-only mode or native role restrictions, and test syntax, discovery, and runtime execution separately.

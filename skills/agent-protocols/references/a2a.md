@@ -14,7 +14,7 @@ Use official `a2a-sdk` (`a2aproject/a2a-python`) and the `a2a` CLI (`a2aproject/
 1. **Implement executor and handler**: map execution to task states and artifacts, preserve task/context IDs, persist durable state, and propagate cancellation downstream.
 1. **Build clients via current factories**: use the locked SDK's client factory and card resolver rather than legacy client classes.
 1. **Test a local round trip**: drive a deterministic executor or `a2a server --echo` (`--protocol 0.3` for legacy, `--proxy` logs live traffic to stderr—keep private) across `a2a card get`, `a2a send`, `a2a send --stream` (if advertised), `a2a task cancel`, invalid inputs, and unknown task IDs.
-1. **Harden peers and egress**: authenticate peers, authorize every task read/write per caller, enforce timeouts/size caps, validate advertised/callback URLs before egress, and test idempotent retries.
+1. **Harden peers and egress**: authenticate peers, authorize every task read/write per caller, enforce timeouts/size caps, validate advertised/callback URLs at connect time before egress ([ssrf-egress](../../code-security/references/code-review/references/ssrf-egress.md)), and test idempotent retries.
 
 ## Gotchas
 

@@ -12,7 +12,7 @@ Discover vendor skills in [google/skills](https://github.com/google/skills) whil
 1. **Filter `index.json` by product keyword** and match the group below:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/google/skills/main/index.json \
+   curl -fsSL --max-time 10 https://raw.githubusercontent.com/google/skills/main/index.json \
      | jq -r '.skills[] | select((.name + " " + .description) | test("bigquery"; "i")) | .name'
    ```
 

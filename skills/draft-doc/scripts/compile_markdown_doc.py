@@ -78,7 +78,12 @@ def svg_checker() -> ModuleType:
         msg = f"SVG checker not found at {SVG_CHECKER}; install the diagrams-as-code skill beside draft-doc."
         raise RuntimeError(msg)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 

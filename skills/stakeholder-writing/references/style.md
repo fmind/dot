@@ -1,10 +1,10 @@
 # Style for Busy Readers
 
-Defaults for external readers; adapt when the reader or destination calls for it.
+Defaults for formal documents and external readers; adapt when the reader or destination calls for it.
 
 ## Plain, literal language
 
-Write active sentences with everyday words and one idea per short paragraph. Replace arrows, slash chains, stacked parentheses, and coined labels with prose, and expand acronyms at first use.
+Write active sentences with everyday words, one idea per short paragraph, and acronyms expanded at first use.
 
 Before: `Batch → spot VMs ≈ -60% compute (preemptible, w/ retries); SLA risk ↑.`
 
@@ -14,24 +14,21 @@ After:
 
 ## Code formatting
 
-Use code formatting only for commands, paths, or literal values the reader must copy—never for product names, concepts, or non-technical readers (write "the invoice export writes to the EU bucket for 30 days", not `` `invoice_export` writes to `exports-eu` with `retention_days=30` ``).
+Use backticks only for commands, paths, or literal values the reader must copy — never for product names, concepts, or non-technical readers ("the invoice export writes to the EU bucket for 30 days", not `` `invoice_export` writes to `exports-eu` with `retention_days=30` ``).
 
 ## Terms and metrics
 
-Define one or two essential terms inline. In formal documents, put other unfamiliar terms, units, and metrics in a **Key terms** annex (one line each) and skip daily team vocabulary (such as CVE for security). State each metric's meaning, unit, better direction (`**p95 latency**: time within which 95% of requests finish, in seconds; lower is better`), and inline baseline (`fell from 1.2 s to 0.4 s over 10,000 requests in the week of 6 October`). Short documents, emails, and chat define terms inline.
+Define 1–2 essential terms inline. In formal documents, move other unfamiliar terms, units, and metrics to a **Key terms** annex (one line each), skipping daily team vocabulary. State meaning, unit, better direction (`**p95 latency**: time within which 95% of requests finish, in seconds; lower is better`), and baseline (`fell from 1.2 s to 0.4 s over 10,000 requests in the week of 6 October`).
 
 ## Numbers
 
-- **Give full context**: unit, currency, period, region, and price date ("€4,200/month at October 2026 list prices in europe-west1").
-- **Round to input precision**: "about €4,000 to €5,000 per month", not "€4,213.57".
-- **Show conservative ranges**: name the driving input and give both ends.
-- **Separate percent from percentage points**: "fell from 4% to 3% (1 percentage point, a 25% reduction)".
-- **Compare against a baseline**: "30% cheaper than today's managed-service spend at current volume".
-- **Match reader locale**: in French, write "4 200 €" and use a decimal comma.
+- **Full context & locale**: include unit, currency, period, region, price date ("€4,200/month at October 2026 list prices in europe-west1"), and reader locale ("4 200 €" + decimal comma in French).
+- **Precision & ranges**: round to input precision ("about €4,000 to €5,000/month", not "€4,213.57") and show conservative ranges naming the driving input.
+- **Deltas & baselines**: separate percent from percentage points ("fell from 4% to 3%: 1 percentage point, a 25% reduction") against a named baseline.
 
 ## Titles, headings, and section summaries
 
-Keep titles and headings short and literal for navigation ("Context", "Options", "Security", "Next steps"). Put the conclusion in the section's bold first sentence, never in the heading.
+Keep titles and headings short and literal ("Context", "Options", "Security", "Next steps"). Put the conclusion in the section's bold first sentence, never in the heading (slide decks use assertion-evidence titles per [slides.md](slides.md)).
 
 | Element        | Before                                                                  | After                                                                                 |
 | -------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -39,40 +36,31 @@ Keep titles and headings short and literal for navigation ("Context", "Options",
 | Heading        | Moving the jobs keeps all data in the EU but adds two service accounts  | Security                                                                              |
 | First sentence | We reviewed the security of the move.                                   | **Moving the jobs keeps all data in the EU but adds two service accounts to manage.** |
 
-When a formal document needs metadata at the top, list one field per line: `Type`, `Status` (Draft/Final), `Audience`, `Author`, and `Date`. Close long or multi-finding sections with a 1–3 sentence `**Take-home messages**: ...` box; short sections need none.
+When top metadata helps, list `Type`, `Status` (Draft/Final), `Audience`, `Author`, and `Date` (one per line). Close long multi-finding sections with a 1–3 sentence `**Take-home messages**: ...` box.
 
 ## Examples, tables, and visuals
 
-- **Ground abstract claims**: "for example, the 2:00 invoice job that runs for 40 minutes".
-- **Compare in tables**: options or periods in rows, shared criteria in columns, user labels preserved, and the recommended row marked.
-- **Pair color with words**: `Low` / `Medium` / `High` or `Met` / `Partial` / `Not met` in green, amber, and red. Use CSS badges in HTML (emoji vary across fonts) and 🟢 🟡 🔴 in Markdown or chat; keep status marks out of running prose.
-- **Draw figures when faster than prose**: use SVG, Mermaid, or matplotlib—charts for trends and numbers, diagrams for flows, architectures, or timelines ([diagrams-as-code](../../diagrams-as-code/SKILL.md)). Put key figures in the body and supporting ones in annexes, each with a conclusion caption plus a table or text alternative.
-- **Cite third-party figures properly**: private team docs may embed a cropped capture with source, link, and date; public docs must redraw from published data or obtain permission.
-- **Bold for skimming**: bold the take-home message, each section's opening sentence, and at most one key phrase per paragraph so the bold text alone carries the argument.
+- **Concrete comparisons**: ground abstract claims with examples and compare options/periods in tables (shared criteria in columns, user labels preserved, recommended row marked).
+- **Worded statuses**: pair color with words (`Low`/`Medium`/`High` or `Met`/`Partial`/`Not met` via CSS badges in HTML and 🟢 🟡 🔴 in Markdown/chat; keep badges out of prose).
+- **Figures & citations**: draw SVG, Mermaid, or matplotlib visuals when faster than prose ([diagrams-as-code](../../diagrams-as-code/SKILL.md)), with conclusion captions and text/table alternatives. Cite source, link, and date on third-party figures (redraw or get permission for public docs).
+- **Bold skim**: bold the take-home message, each section's opening sentence, and at most one phrase per paragraph so bold text alone carries the argument.
 
 ## Links and sensitivity
 
-Link claims inline to primary docs, standards, and user-provided internal pages rather than secondary articles; mark missing internal URLs with plain placeholders like `{link to the usage dashboard}`. Before linking, check reader access and URL exposure:
+Link primary docs and standards inline, using plain `{link to ...}` placeholders when internal URLs are missing:
 
-- **Link only accessible pages**: skip client wikis in vendor or public docs; dead or login-walled links read as noise.
-- **Inspect URL text**: hostnames, customer or person names, paths, and ticket slugs leak context even when locked—describe the source in prose instead.
-- **Strip unintended access**: never include tokens, signed/expiring URLs, or link-sharing grants unless authorized.
-- **Exclude session workspace**: keep brain notes, local paths, session/agent links, and private repos out of client and public deliverables.
+- **Reader access & URL leaks**: skip login-walled or dead links; describe locked sources in prose when hostnames, customer/person names, or ticket slugs in URLs leak context.
+- **No tokens or session artifacts**: strip signed/expiring URLs, sharing grants, brain notes, local paths, agent/session links, and private repos.
 
 ## Destination and platform features
 
-Design formal documents cleanly by default: colored headings, summary card, key-figure tiles, status badges, framed figures, ≥16 px screen / ≥10 pt print body type, and responsive/print-safe layout. Apply `~/.agents/DESIGN.md` (Fmind Theme) or customer branding, using each platform's native primitives:
+Apply `~/.agents/DESIGN.md` (Fmind Theme) or customer branding (≥16 px screen / ≥10 pt print body type, print-safe layout) using native primitives:
 
-- **Standalone HTML**: [report template](../templates/report.html), self-contained with embedded WOFF2 fonts and data-URI images for offline and email-gateway safety.
-- **Markdown**: [Markdown template](../templates/report.md), adapted to the target renderer.
-- **Zensical sites**: admonitions, content tabs, Mermaid fences, collapsible annexes, and glossary tooltips ([authoring](../../documentation-site/references/authoring.md)).
-- **GitHub Markdown**: `> [!IMPORTANT]` alerts, Mermaid fences, `<details>` annexes, and task lists.
-- **Google Docs**: [draft-doc](../../draft-doc/SKILL.md#format-choice) selects native `.md` vs `.gdoc` and enforces [native `.md` dialect rules](../../draft-doc/SKILL.md#native-md-dialect-rules).
-- **Email and chat**: short paragraphs, no headings, no external images, and at most one short list within Slack/Chat Markdown limits.
+- **Standalone HTML / Markdown**: [report.html](../templates/report.html) (embedded WOFF2 fonts + data-URI images) or [report.md](../templates/report.md).
+- **Zensical / GitHub**: admonitions/alerts, Mermaid fences, collapsible annexes, and tabs/task lists ([authoring](../../documentation-site/references/authoring.md)).
+- **Google Docs**: [draft-doc](../../draft-doc/SKILL.md#format-choice) and [native `.md` dialect rules](../../draft-doc/SKILL.md#native-md-dialect-rules).
+- **Email and chat**: short paragraphs, no headings or external images, and at most one short list.
 
 ## Honest framing
 
-- **Ground confidence**: "high confidence: measured on production traffic" or "low confidence: list prices only, no load test".
-- **State gaps and flip conditions**: name what was not checked and what finding would change the recommendation.
-- **Stay neutral**: apply identical criteria and tone to every option, include counter-evidence, and flag non-comparable benchmarks.
-- **Cut unsupported superlatives**: drop "best", "seamless", "guaranteed", or "secure" without proof.
+- **Evidence & neutrality**: ground confidence in named evidence, state unchecked gaps and flip conditions, compare options on equal criteria (including counter-evidence), and drop unsupported superlatives ("seamless", "guaranteed").

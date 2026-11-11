@@ -37,8 +37,6 @@ Install host packages first; everything else runs in user space:
 ```bash
 # Debian / Ubuntu
 sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-clipboard libnotify-bin pulseaudio-utils fonts-noto-color-emoji
-# ChromeOS Linux with GPU acceleration: grant Ghostty GPU access, then restart Linux
-sudo usermod -aG render "$USER"
 
 # macOS
 xcode-select --install
@@ -115,7 +113,7 @@ Run from the checkout (`mise tasks` lists all tasks and aliases):
 | `mise run upgrade` | Upgrade dependencies, tools, theme pin, and plugins (includes `full`)           |
 | `mise run all`     | Check, test, and build the repository (read-only; no file rewrites or deploy)   |
 
-Contributor guides: [AGENTS.md](AGENTS.md), [verification](.agents/skills/dot-verify/SKILL.md), and [releases](.agents/skills/dot-release/SKILL.md). Python tracks the latest 3.14 patch until required tools ship 3.15 wheels.
+Contributor guides: [AGENTS.md](AGENTS.md) and [releases & qualification](.agents/skills/dot-release/SKILL.md). Python tracks the latest 3.14 patch until required tools ship 3.15 wheels.
 
 ## Agent layer
 
@@ -136,7 +134,7 @@ Setup links [`skills/`](skills/) into `~/.agents/skills/` beside standalone inst
 Common slash commands:
 
 - **Deliverables & writing:** `/clipboard` copies the last output ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` drafts and fact-checks message-first prose; `/draft-doc` builds Google Docs; `/draft-mail` drafts Gmail replies without sending.
-- **Engineering & maintenance:** `/full-review` audits a repo or PR and smoke-tests tasks; `/trim <path>` cuts tokens without losing facts; `/lesson-learned` codifies corrections; `/auth-status` checks CLI logins; `/task-prompts` writes handoffs (`agy -c` resumes, `/compact` compacts).
+- **Engineering & maintenance:** `/full-review` audits a repo or PR and smoke-tests tasks; `/trim <path>` cuts tokens without losing facts; `/skillify` captures workflows and session lessons; `/auth-status` checks CLI logins; `/task-prompts` writes handoffs (`agy -c` resumes, `/compact` compacts).
 
 ## Credentials
 
@@ -163,7 +161,7 @@ Harnesses manage their own logins (mise locks all except self-updating Antigravi
 | OpenCode    | `opencode auth login` | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
 | Pi          | `/login` inside `pi`  | [agent-harnesses](skills/agent-harnesses/SKILL.md) |
 
-Pi seeds Agent Platform via ADC: export `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` after `dot login gcp`, or `/login` to another provider. Add optional MCP servers via [mcp-setup](skills/agent-harnesses/references/mcp-setup.md).
+Pi seeds Agent Platform via ADC: export `GOOGLE_CLOUD_PROJECT` after `dot login gcp` (`GOOGLE_CLOUD_LOCATION` defaults to `global`), or `/login` to another provider. Add optional MCP servers via [mcp-setup](skills/agent-harnesses/references/mcp-setup.md).
 
 ### Commit signing
 

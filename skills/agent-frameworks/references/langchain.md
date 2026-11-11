@@ -30,4 +30,4 @@ Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langch
 - [Agents](https://docs.langchain.com/oss/python/langchain/agents) · [Middleware](https://docs.langchain.com/oss/python/langchain/middleware/overview) · [Structured output](https://docs.langchain.com/oss/python/langchain/structured-output) · [MCP](https://docs.langchain.com/oss/python/langchain/mcp) · [Unit testing](https://docs.langchain.com/oss/python/langchain/test/unit-testing)
 - Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langchain/releases) · [v1 migration](https://docs.langchain.com/oss/python/migrate/langchain-v1)
 - Live docs MCP: `https://docs.langchain.com/mcp`.
-- Companion skills: [system-prompts](system-prompts.md), [pydantic](../../python-stack/references/pydantic.md), [observability](../../python-stack/references/observability.md).
+- Companion skills: [evaluation](evaluation/GUIDE.md), [pydantic](../../python-stack/references/pydantic.md), [observability](../../python-stack/references/observability.md).

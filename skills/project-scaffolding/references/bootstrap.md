@@ -13,7 +13,7 @@ Compose the selected foundation and application owner, then add the shared repos
 1. **Choose template ownership**: one-off repos need no template. Reusable templates default to [Copier](copier.md); existing Cookiecutter/Cruft projects stay on [their workflow](cookiecutter.md) unless migration is requested.
 1. **Compose the stack** and finish its application profile before validation, reusing supplied `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and `AGENTS.md`:
    - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md).
-   - Python CLI: Python foundation + [argparse](../../python-stack/references/argparse/GUIDE.md) + [cli-contracts](../../python-stack/references/cli-contracts.md).
+   - Python CLI: Python foundation + [argparse](../../python-stack/references/argparse/GUIDE.md).
    - Litestar web app: Python foundation + [litestar](../../python-web/references/litestar/GUIDE.md).
    - Django web app: [django](../../python-web/references/django/GUIDE.md).
    - Python agent (`agents` CLI): [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md), then [google-adk](../../agent-frameworks/references/google-adk.md).
@@ -24,7 +24,7 @@ Compose the selected foundation and application owner, then add the shared repos
    - `dprint.json`: [dprint](../../mise/references/dprint.md); hooks: [lefthook](../../github-actions/references/lefthook.md).
    - Security checks: `check:leaks` + `check:vuln` + `check:actions` for pure-Python repos; add `trivy.yaml` + `check:scan` when the repo ships containers, IaC, or non-`uv` lockfiles per [code-security](../../code-security/references/code-review/GUIDE.md).
    - `.github/workflows/{ci,security}.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md).
-   - `AGENTS.md`, `.agents/skills/`, and `.claude/skills` (only when Claude Code is used): [agent-project](../../agent-project/SKILL.md); `README.md` and docs: [repository-docs](../../repository-docs/SKILL.md).
+   - `AGENTS.md` (only when no stack template supplied one), `.agents/skills/`, and `.claude/skills` (only when Claude Code is used): [agent-project](../../agent-project/SKILL.md); `README.md` and docs: [repository-docs](../../repository-docs/SKILL.md).
 1. **Apply the [README standard](../../repository-docs/references/readme.md)**: SVG logo, clear audience/outcome, badges backed by live resources (omit unpublished ones), and a verified quickstart; link deep references instead of bloating `README.md`.
 1. **Pin tools via [mise](../../mise/SKILL.md)**: replace scaffold selectors with exact versions (seeded from workstation locks where shared), resolve project-only tools, and commit project lockfiles so the repo installs without `fmind/dot`.
 1. **Validate locally**: `mise run install` and `mise run all` (including `check:leaks` before first commit); for Python packages, qualify the built wheel and entry points.

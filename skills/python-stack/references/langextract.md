@@ -5,7 +5,7 @@ description: "Extract structured facts from text with LangExtract and source-gro
 
 # LangExtract
 
-Source-grounded structured extraction with Google LangExtract; [pydantic](pydantic.md) owns schemas and [agent-evaluation](../../agent-evaluation/SKILL.md) owns precision/recall evaluation.
+Source-grounded structured extraction with Google LangExtract; [pydantic](pydantic.md) owns schemas and [evaluation](../../agent-frameworks/references/evaluation/GUIDE.md) owns precision/recall evaluation.
 
 ## Workflow
 

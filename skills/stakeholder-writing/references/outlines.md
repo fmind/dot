@@ -65,7 +65,7 @@ No headings; at most one short list.
 1. **Verification**: how it was proved and where reviewers should start.
 1. **Risks**: rollout and rollback.
 
-Issue drafts follow the gh [draft contract](../../gh/references/issues/references/backlog.md#draft-contract).
+Issue drafts follow the gh [draft contract](../../gh/references/issues/references/backlog.md#draft-contract); presentations follow the 8–12 slide arc in [slides.md](slides.md).
 
 ## Reader lenses
 

@@ -10,6 +10,7 @@ For existing or explicitly chosen FastAPI services (including [agents-cli](../..
 ## Workflow
 
 1. **Native OpenTelemetry (`0.142+`)**: configure `FastAPI(telemetry={...})` instead of `opentelemetry-instrumentation-fastapi` (install `[opentelemetry]` extra if not using `standard`). From `0.143+`, auto-setup is opt-in: set `FASTAPI_OTEL_AUTO_CONFIGURE=true` or `FastAPI(telemetry={"auto_configure": True})` + `OTEL_EXPORTER_OTLP_ENDPOINT` + `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` (port `4318`; `grpc` exports nothing and warns). Set `"auto_configure": False` when the app manages exporters. See [native telemetry](https://fastapi.tiangolo.com/advanced/opentelemetry/) and [observability](../../python-stack/references/observability.md).
+1. **Stream LLM and agent events cleanly**: prefer FastAPI's native `EventSourceResponse` (`from fastapi.sse import EventSourceResponse`, `0.135+`) or `StreamingResponse` with `Cache-Control: no-cache` and `X-Accel-Buffering: no`, propagating client disconnect (`await request.is_disconnected()` / `asyncio.CancelledError`) to cancel upstream model streams and enforce hard token/time bounds.
 1. **Test requests, lifespan, and OpenAPI**: declare `httpx2` as a test dependency (Starlette `1.2+` warns on `httpx` in `TestClient`, failing `filterwarnings = ["error"]`).
 
 ## Gotchas

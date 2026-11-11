@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Trim
@@ -35,4 +35,4 @@ Handle `/trim <path>` or verbosity complaints by cutting words, lines, and setti
 
 ## Documentation
 
-- Companions: [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/references/system-prompts.md).
+- Companions: [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/SKILL.md#system-prompts).

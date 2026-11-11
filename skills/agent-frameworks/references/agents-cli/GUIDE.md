@@ -17,7 +17,7 @@ Scaffold, run, evaluate, and deploy Google Cloud agents with `agents-cli`; [goog
    ```
 1. **Review official skills before use**: list the bundle and inspect each snapshot without installing.
    ```bash
-   DISABLE_TELEMETRY=1 skills add google/agents-cli --list
+   DISABLE_TELEMETRY=1 skills add google/agents-cli --list --json
    DISABLE_TELEMETRY=1 skills use <snapshot> --skill <name>
    ```
 1. **Default to the full ADK scaffold** (Agent Runtime, Gateway-ready image, BigQuery analytics, GitHub Actions, Terraform, `AGENTS.md`): `--skip-checks --yes` skips interactive cloud setup. Rehearse in a temp directory per [scaffold qualification](references/scaffold-qualification.md) when the CLI version or flags change.
@@ -28,7 +28,7 @@ Scaffold, run, evaluate, and deploy Google Cloud agents with `agents-cli`; [goog
      --skip-checks --yes
    cd <name>
    DISABLE_TELEMETRY=1 skills add <snapshot> --skill <name> -y
-   DISABLE_TELEMETRY=1 skills list
+   DISABLE_TELEMETRY=1 skills list --json
    ```
    Running `skills add` inside `<name>` keeps the immutable reviewed snapshot project-scoped. Use `--prototype` only on request (`--adk` quickstart also forces it). Keep existing projects' architecture: [enhance in place](references/scaffold-qualification.md#checklist), and upgrade CLI releases via `agents-cli scaffold upgrade --dry-run` plus a reviewed 3-way merge rather than regenerating.
 1. **Implement with [google-adk](../google-adk.md)**: preserve `agent.py`, `fast_api_app.py`, `agents-cli-manifest.yaml`, and generated tests. Give tools strict types, narrow permissions, and explicit error contracts; keep prompts and model pins in source.
@@ -42,7 +42,7 @@ Scaffold, run, evaluate, and deploy Google Cloud agents with `agents-cli`; [goog
    ```
 1. **Evaluate behavior**: run `agents-cli eval run --dataset <versioned-cases.json> --output <results-dir>` on baseline and candidate (requires provider/GCP Eval Service authorization), then diff offline with `agents-cli eval compare <baseline.json> <candidate.json>`. Since 1.13, `eval run` and `eval grade` exit 1 on case errors (lower `--qps` on rate limits), config `thresholds:` misses, or `--fail-under METRIC=SCORE`; gate CI on the exit code.
 1. **Instrument**: wire OpenTelemetry traces and structured logs per [observability](../../../python-stack/references/observability.md), omitting prompt, completion, secret, and PII bodies unless policy permits; pass `--otel-to-cloud` on `run` or `playground` only when authorized.
-1. **Preview and gate deployment**: from the project root, preview with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run` (pass `--no-agent-gateway` on `cloud_run`/`gke`). Inspect Terraform (1.11+) and IAM: Agent Runtime (1.10+) and Cloud Run (1.13+) default to an Agent Identity principal unless created with `--agent-runtime-identity-default service_account` or `--cloud-run-identity-default service_account`. Run read-only `agents-cli deploy --dry-run` (Agent Runtime or, since 1.12, Cloud Run: checks APIs, IAM, `actAs`, secrets; exits 1 on failure), deploy only with explicit approval (A2A Agent Runtime deploys also register the card in Agent Registry / Gemini Enterprise), and verify via `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
+1. **Preview and gate deployment**: from the project root, preview with `agents-cli scaffold enhance --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run` (pass `--no-agent-gateway` on `cloud_run`/`gke`). Inspect Terraform (1.11+) and IAM: Agent Runtime (1.10+) and Cloud Run (1.13+) default to an Agent Identity principal unless created with `--agent-runtime-identity-default service_account` or `--cloud-run-identity-default service_account`. Run read-only `agents-cli deploy --dry-run` (Agent Runtime or, since 1.12, Cloud Run: checks APIs, IAM, `actAs`, secrets; exits 1 on failure), deploy only with explicit approval (A2A Agent Runtime deploys also register the card in Agent Registry / Gemini Enterprise), and verify via `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
 
 ## Gotchas
 
@@ -62,4 +62,4 @@ Upstream `google/agents-cli` bundles workflow, scaffold, ADK, eval, deploy, publ
 
 - [ADK](https://adk.dev/) · [google/agents-cli](https://github.com/google/agents-cli) · [Agent Runtime](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale)
 - Releases: [agents-cli](https://github.com/google/agents-cli/releases)
-- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [observability](../../../python-stack/references/observability.md), [cloud-run](../../../cloud-run/SKILL.md), [google-developer](../../../gcloud/references/google-developer.md), [system-prompts](../system-prompts.md), [model-providers](../../../model-providers/SKILL.md).
+- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [observability](../../../python-stack/references/observability.md), [cloud-run](../../../cloud-run/SKILL.md), [google-developer](../../../gcloud/references/google-developer.md), [evaluation](../evaluation/GUIDE.md), [model-providers](../../../model-providers/SKILL.md).

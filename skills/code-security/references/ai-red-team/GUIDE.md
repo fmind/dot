@@ -5,7 +5,7 @@ description: "Red-team AI apps and agents with PyRIT: prompt injection, tool mis
 
 # AI Red Team
 
-Turn concrete AI attack paths into reproducible PyRIT assessments and regression tests inside a project-local `uv` environment. [threat-model](../threat-model.md) owns design analysis, [code-review](../code-review/GUIDE.md) owns source/dependency audits, and [agent-evaluation](../../../agent-evaluation/SKILL.md) owns multi-trial comparisons.
+Turn concrete AI attack paths into reproducible PyRIT assessments and regression tests inside a project-local `uv` environment. [threat-model](../threat-model.md) owns design analysis, [code-review](../code-review/GUIDE.md) owns source/dependency audits, and [evaluation](../../../agent-frameworks/references/evaluation/GUIDE.md) owns multi-trial comparisons.
 
 ## Workflow
 

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from importlib.metadata import version
 from typing import Literal
@@ -36,7 +37,6 @@ class Settings(BaseSettings):
     port: int = 8000
 
 
-settings = Settings()
 logger = structlog.get_logger()
 
 
@@ -99,14 +99,16 @@ def create_app(config: Settings) -> Litestar:
     )
 
 
-app = create_app(settings)
+def create_default_app() -> Litestar:
+    """Build the ASGI application from runtime environment settings."""
+    return create_app(Settings())
 
 
 # Granian aliases MPServer or MTServer by interpreter build, which type checkers reject as a type.
 def create_server(config: Settings) -> MPServer | MTServer:
     """Configure Granian without starting a worker process."""
-    # The import package is the ASGI target; the distribution/command may contain hyphens.
-    target = f"{__name__}:app"
+    # The import package is the ASGI factory target; the distribution/command may contain hyphens.
+    target = f"{__name__}:create_default_app"
 
     return Granian(
         target,
@@ -114,23 +116,29 @@ def create_server(config: Settings) -> MPServer | MTServer:
         port=config.port,
         address=config.host,
         reload=config.environment == "development",
+        factory=True,
         # Granian's own logger skips the root handlers StructlogPlugin formats unless it propagates.
         log_dictconfig={"loggers": {"_granian": {"handlers": [], "propagate": True}}},
     )
 
 
-def main() -> None:
-    """Entrypoint invoked by the `<slug>` console script or `uv run`."""
+def build_parser() -> argparse.ArgumentParser:
+    """Define CLI flags so `--help` and `--version` stay free of runtime side effects."""
+    parser = argparse.ArgumentParser(
+        prog="<slug>", description="<description>.", allow_abbrev=False, suggest_on_error=True
+    )
+    parser.add_argument("--version", action="version", version=__version__)
+    return parser
 
+
+def main(argv: Sequence[str] | None = None) -> None:
+    """Entrypoint invoked by the `<slug>` console script or `uv run`."""
+    build_parser().parse_args(argv)
+    config = Settings()
     logger.info(
         "Starting <slug> web server",
-        host=settings.host,
-        port=settings.port,
-        environment=settings.environment,
+        host=config.host,
+        port=config.port,
+        environment=config.environment,
     )
-
-    create_server(settings).serve()
-
-
-if __name__ == "__main__":
-    main()
+    create_server(config).serve()

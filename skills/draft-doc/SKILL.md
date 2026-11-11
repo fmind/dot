@@ -21,7 +21,7 @@ Create and update Google Docs deliverables in Drive with `gws`, following [stake
 
 ## Branding
 
-Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) and [fmind-visuals Mermaid frontmatter](../fmind-visuals/references/renderers.md#mermaid), or the customer's brand guide (ask if missing; never invent colors or mix brands). Keep an opaque white canvas for dark-mode legibility.
+Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) and [Mermaid frontmatter](../diagrams-as-code/references/mermaid.md), or the customer's brand guide (ask if missing; never invent colors or mix brands). Keep an opaque white canvas for dark-mode legibility.
 
 ## Native `.md` Dialect Rules
 
@@ -39,12 +39,12 @@ Verified live on 2026-10-28 ([references/dialect.md](references/dialect.md)) and
 
    ```bash
    # Create or upsert <Title>.md and assets/<doc-slug>/ in a Drive folder
-   uv run --no-project python ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
+   python3 -I ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
      "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" \
      --drive-folder "<FOLDER_ID>" --doc-name "<Title>.md" --json
 
    # Update an existing .md in place (preserves name, URL, revisions, and assets/<slug>/)
-   uv run --no-project python ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
+   python3 -I ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
      "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" \
      --file-id "<FILE_ID>" --json
    ```

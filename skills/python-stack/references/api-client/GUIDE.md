@@ -22,6 +22,7 @@ Prefer an existing CLI or maintained SDK when it fits; [xh](../../../xh/SKILL.md
 - **Secrets in URLs & retry logs**: `httpx`/`httpx2` log full URLs (with query strings) at `INFO` — raise loggers to `WARNING`, pass credentials in headers, validate base URLs at config load, and never pass secrets as args to `@stamina.retry` callables (`stamina` logs call args at `WARNING`; bind on `self` or override `stamina.instrumentation.set_on_retry_hooks(...)`).
 - **Deadline-aware `stamina`**: `@stamina.retry(on=predicate, attempts=N, timeout=deadline)` — return `False` for permanent errors or when `Retry-After` exceeds remaining deadline (`stamina 26.1` otherwise sleeps past `timeout`); test with `with stamina.set_testing(True, attempts=N):`.
 - **Never mask errors as `[]`**: empty results mean zero records, never swallowed `403`s, truncated pages, or parse errors.
+- **Untrusted or webhook URLs**: string parsing alone falls to DNS rebinding and redirects — enforce connect-time IP checks and manual redirect validation per [ssrf-egress](../../../code-security/references/code-review/references/ssrf-egress.md).
 
 ## Documentation
 

@@ -12,7 +12,7 @@ metadata:
 
 # Full Review
 
-Handle "full review", "final check before release", "ready to ship", "review this diff or PR", "smoke-test everything", or repository upkeep. Whole-repo runs deliver a fixed, proven tree; diff/PR reviews deliver a read-only report. Defer to a repo-specific verify skill (such as `dot-verify`) when present, covering only what it omits.
+Handle "full review", "final check before release", "ready to ship", "review this diff or PR", "smoke-test everything", or repository upkeep. Whole-repo runs deliver a fixed, proven tree; diff/PR reviews deliver a read-only report. Defer to a repo-specific qualification skill (such as `dot-release` in `fmind/dot`) when present, covering only what it omits.
 
 ## Arguments
 
@@ -30,7 +30,7 @@ State the parsed scope, exclusions, depth, mode, and requested follow-ups (relea
 1. **Audit dimensions** (name any out-of-scope skip):
    - **Works**: tasks and CLIs exit clean with zero warnings ([smoke](references/smoke/GUIDE.md)), deterministic failure/race tests pass, and authorized live endpoints respond read-only.
    - **Current**: check tools, deps, actions, and runtimes against latest stable ([upgrade-tools](../upgrade-tools/SKILL.md)), upgrading when requested.
-   - **Simple**: delete dead code (vulture per [ruff](../python-stack/references/ruff.md#gotchas)), legacy paths, orphan files, stale config, unearned abstractions, and prose bloat ([trim](../trim/SKILL.md)).
+   - **Simple**: delete dead code (vulture per [Ruff](../python-stack/references/foundation/GUIDE.md#ruff)), legacy paths, orphan files, stale config, unearned abstractions, and prose bloat ([trim](../trim/SKILL.md)).
    - **Consistent**: align metadata and versions across code, `pyproject.toml`, docs, GitHub ([repository](../gh/references/repository/GUIDE.md)), site, changelog, and tags; match stack/[bootstrap](../project-scaffolding/references/bootstrap.md) layout ([python-stack](../python-stack/SKILL.md)); route hooks and CI through [mise](../mise/SKILL.md); confirm locks/indexes/formatters regenerate cleanly; audit ignores ([update-ignores](references/update-ignores/GUIDE.md)).
    - **Secure and private**: audit secrets, permissions, dependencies, agent tools ([code-security](../code-security/SKILL.md)), repo visibility, and leak-free public content.
    - **Documented**: sync concise `README.md`, `AGENTS.md`, skills, and docs ([repository-docs](../repository-docs/SKILL.md)); extract recurring procedures via [skillify](../skillify/SKILL.md).

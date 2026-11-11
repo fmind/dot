@@ -13,9 +13,9 @@
 **/*.log
 **/.coverage*
 .python-version
-**/build
-**/dist
-**/htmlcov
+/build
+/dist
+/htmlcov
 tmp
 **/.env*
 !**/.env.example

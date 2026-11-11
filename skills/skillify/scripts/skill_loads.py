@@ -1,8 +1,8 @@
 """Count the sessions that loaded each skill, from local agy, Claude Code, and Pi transcripts.
 
-A load is a tool call that reads a catalog skill's SKILL.md (or Claude's Skill tool); catalog text
-injected at startup and quoted prompts are not tool calls, so they never count. Only names and
-counts leave the transcripts: no prompt, path, or message text is printed.
+A load is a tool call that reads a catalog skill's SKILL.md or references/ (or Claude's Skill tool);
+catalog text injected at startup and quoted prompts are not tool calls, so they never count. Only
+names and counts leave the transcripts: no prompt, path, or message text is printed.
 """
 
 import argparse
@@ -15,11 +15,13 @@ import time
 from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-_SKILL_PATH = re.compile(r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/SKILL\.md")
+_SKILL_PATH = re.compile(r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/(?:SKILL\.md|references/)")
 _AGY_READS = {"read_file", "view_file"}
+_CLAUDE_NON_SESSION_FILES = frozenset({"memory.jsonl", "journal.jsonl"})
 
 
 def _records(path: Path, *markers: str) -> Iterator[dict[str, object]]:
@@ -48,7 +50,7 @@ def agy_loads(path: Path) -> set[str]:
     """Skills read through agy's file tools in one conversation transcript."""
     return {
         name
-        for record in _records(path, "tool_calls", "SKILL.md")
+        for record in _records(path, "tool_calls", "skills/")
         for call in _dicts(record.get("tool_calls"))
         if call.get("name") in _AGY_READS
         for name in _paths(call.get("args"))
@@ -86,10 +88,30 @@ def claude_session_loads(path: Path) -> set[str]:
     return loads
 
 
+def _instant(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def _pi_forked_at(path: Path) -> datetime | None:
+    for record in _records(path, '"session"', '"parentSession"'):
+        if record.get("type") == "session" and record.get("parentSession"):
+            return _instant(record.get("timestamp"))
+    return None
+
+
 def pi_loads(path: Path) -> set[str]:
     """Skills read through Pi's read tool in one session file."""
+    forked_at = _pi_forked_at(path)
     loads: set[str] = set()
-    for record in _records(path, '"toolCall"', "SKILL.md"):
+    for record in _records(path, '"toolCall"', "skills/"):
+        if forked_at is not None and (instant := _instant(record.get("timestamp"))) is not None and instant < forked_at:
+            continue
         message = record.get("message")
         for part in _dicts(message.get("content") if isinstance(message, dict) else None):
             if part.get("type") == "toolCall" and part.get("name") == "read":
@@ -171,14 +193,14 @@ def file_sessions(paths: Iterator[Path], parse: Callable[[Path], set[str]], *, s
             continue
 
 
-def session_files(root: Path) -> Iterator[Path]:
+def session_files(root: Path, *, exclude: frozenset[str] = frozenset()) -> Iterator[Path]:
     # Claude subagent transcripts belong to their parent session's task; count top-level sessions.
     if not root.is_dir():
         return
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [name for name in dirnames if name != "subagents"]
         for name in filenames:
-            if name.endswith(".jsonl"):
+            if name.endswith(".jsonl") and name not in exclude:
                 yield Path(dirpath) / name
 
 
@@ -194,7 +216,11 @@ def count(
     """
     sources = {
         "agy": agy_sessions(home / ".gemini/antigravity-cli", since=since),
-        "claude": file_sessions(session_files(home / ".claude/projects"), claude_session_loads, since=since),
+        "claude": file_sessions(
+            session_files(home / ".claude/projects", exclude=_CLAUDE_NON_SESSION_FILES),
+            claude_session_loads,
+            since=since,
+        ),
         "pi": file_sessions(session_files(home / ".pi/agent/sessions"), pi_loads, since=since),
     }
     loads = {agent: Counter[str]() for agent in AGENTS}

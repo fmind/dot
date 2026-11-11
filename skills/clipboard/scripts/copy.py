@@ -25,15 +25,12 @@ def commands() -> tuple[list[str], list[str]]:
         copy, paste = shutil.which("wl-copy"), shutil.which("wl-paste")
         x11 = ([xclip, "-selection", "clipboard"], [xclip, "-selection", "clipboard", "-o"]) if xclip else None
         wayland = ([copy, "--type", "text/plain;charset=utf-8"], [paste, "--no-newline"]) if copy and paste else None
-        # Crostini's Sommelier syncs the X11 clipboard with ChromeOS; native Wayland
-        # desktops would otherwise route through XWayland, which some compositors break.
-        prefer_x11 = bool(os.environ.get("SOMMELIER_VERSION")) or not os.environ.get("WAYLAND_DISPLAY")
-        order = ((os.environ.get("DISPLAY"), x11), (os.environ.get("WAYLAND_DISPLAY"), wayland))
-        for session, backend in order if prefer_x11 else reversed(order):
-            if session and backend:
-                return backend
-        raise RuntimeError("Linux requires DISPLAY with xclip, or WAYLAND_DISPLAY with wl-copy and wl-paste")
-    raise RuntimeError("supported platforms: macOS and ChromeOS/Linux")
+        if os.environ.get("WAYLAND_DISPLAY") and wayland:
+            return wayland
+        if os.environ.get("DISPLAY") and x11:
+            return x11
+        raise RuntimeError("Linux requires WAYLAND_DISPLAY with wl-copy and wl-paste, or DISPLAY with xclip")
+    raise RuntimeError("supported platforms: macOS and Linux")
 
 
 def environment() -> dict[str, str]:

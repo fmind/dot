@@ -37,6 +37,6 @@ def test_in_process_contract() -> None:
 def test_stdio_protocol() -> None:
     params = StdioServerParameters(
         command="uv",
-        args=["run", "mcp", "run", "src/<package>/server.py:server"],
+        args=["run", "--locked", "mcp", "run", "src/<package>/server.py:server"],
     )
     asyncio.run(assert_add_contract(Client(params)))

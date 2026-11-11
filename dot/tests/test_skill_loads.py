@@ -153,3 +153,119 @@ def test_agy_subagent_loads_roll_into_root_conversation(tmp_path: Path) -> None:
     assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
     assert by_skill["alpha"] == {"skill": "alpha", "agy": 1, "claude": 1, "pi": 0, "total": 2}
     assert by_skill["beta"] == {"skill": "beta", "agy": 1, "claude": 1, "pi": 1, "total": 3}
+
+
+def test_direct_reference_guide_reads_count_as_skill_loads_without_double_counting(tmp_path: Path) -> None:
+    home = _home(tmp_path)
+    alpha_guide = str(home / ".agents/skills/alpha/references/guide.md")
+    bulk_guide = str(home / ".agents/skills/bulk-1/references/nested/GUIDE.md")
+    _jsonl(
+        home / ".gemini/antigravity-cli/brain/guide-task/.system_generated/logs/transcript.jsonl",
+        [
+            {"type": "USER_INPUT", "content": f"quoted path {home / '.agents/skills/bulk-2/references/guide.md'}"},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": alpha_guide}}]},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "alpha")}}]},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": bulk_guide}}]},
+            {"tool_calls": [{"name": "run_command", "args": {"CommandLine": f"cat {bulk_guide}"}}]},
+        ],
+    )
+    _jsonl(
+        home / ".claude/projects/-work-project/guide-session.jsonl",
+        [
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": bulk_guide}}]},
+            }
+        ],
+    )
+    _jsonl(
+        home / ".pi/agent/sessions/--work-project--/2026-11-10T10-00-00-000Z_pi-guide.jsonl",
+        [
+            {
+                "type": "message",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "toolCall",
+                            "id": "c2",
+                            "name": "read",
+                            "arguments": {"path": "skills/bulk-1/references/guide.md"},
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+
+    report = json.loads(_run(home, "--json").stdout)
+    by_skill = {row["skill"]: row for row in report["skills"]}
+
+    assert report["sessions"] == {"agy": 3, "claude": 3, "pi": 2}
+    assert by_skill["alpha"] == {"skill": "alpha", "agy": 2, "claude": 1, "pi": 0, "total": 3}
+    assert by_skill["bulk-1"] == {"skill": "bulk-1", "agy": 1, "claude": 1, "pi": 1, "total": 3}
+    assert by_skill["bulk-2"]["total"] == 0
+
+
+def test_claude_non_session_files_and_pi_pre_fork_loads_are_excluded(tmp_path: Path) -> None:
+    home = _home(tmp_path)
+    claude = home / ".claude/projects/-work-project"
+    for name in ("memory.jsonl", "journal.jsonl"):
+        _jsonl(
+            claude / name,
+            [
+                {
+                    "type": "assistant",
+                    "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "bulk-3"}}]},
+                }
+            ],
+        )
+    _jsonl(
+        home / ".pi/agent/sessions/--work-project--/2026-11-10T12-00-00-000Z_pi-fork.jsonl",
+        [
+            {
+                "type": "session",
+                "id": "pi-fork",
+                "timestamp": "2026-11-10T12:00:00.000Z",
+                "parentSession": "/work/parent.jsonl",
+            },
+            {
+                "type": "message",
+                "timestamp": "2026-11-10T11:59:59.000Z",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "toolCall",
+                            "id": "copied",
+                            "name": "read",
+                            "arguments": {"path": "skills/bulk-4/SKILL.md"},
+                        }
+                    ],
+                },
+            },
+            {
+                "type": "message",
+                "timestamp": "2026-11-10T12:00:01.000Z",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "toolCall",
+                            "id": "fresh",
+                            "name": "read",
+                            "arguments": {"path": "skills/bulk-5/SKILL.md"},
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+
+    report = json.loads(_run(home, "--json").stdout)
+    by_skill = {row["skill"]: row for row in report["skills"]}
+
+    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 2}
+    assert by_skill["bulk-3"]["total"] == 0
+    assert by_skill["bulk-4"]["total"] == 0
+    assert by_skill["bulk-5"] == {"skill": "bulk-5", "agy": 0, "claude": 0, "pi": 1, "total": 1}

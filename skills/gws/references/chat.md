@@ -14,8 +14,8 @@ Lead with one sentence, a few bullets, and a link—replacing headings with bold
 Always set `markupSyntax` (`MARKUP_SYNTAX_CHAT` default vs `MARKUP_SYNTAX_MARKDOWN`), since omitting it falls back to Markdown when no Chat app is configured and turns `*bold*` into italics. Never set output-only `formattedText`; author user-authenticated messages as text (cards use separate HTML rules):
 
 ```bash
-uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py message.txt > body.json
-uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py message.md --syntax markdown > body.json
+python3 -I ~/.agents/skills/gws/scripts/chat_body.py message.txt > body.json
+python3 -I ~/.agents/skills/gws/scripts/chat_body.py message.md --syntax markdown > body.json
 ```
 
 Audit nested/escaped delimiters, images, and mentions (`<users/ID>` in native Chat, `chat-user` in Markdown; resolve user IDs explicitly and never mention `@all` unasked).

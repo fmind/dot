@@ -10,13 +10,13 @@ Apply to new solo-maintained repositories or explicit settings passes; preserve 
 1. **Preview** (default GET-only check; `--check` is an explicit alias):
 
    ```bash
-   python -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO
+   python3 -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO
    ```
 
 1. **Apply** (requires explicit `--apply`; stops before writes on failed reads or duplicate rulesets):
 
    ```bash
-   python -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO --apply --disable wiki --disable projects --disable discussions
+   python3 -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO --apply --disable wiki --disable projects --disable discussions
    ```
 
 1. **Verify JSON output**: `state`, `changed` (`[before, after]` on `--apply`), `notes`, and `drift` (exit `0` clean, `1` failed `gh`/duplicate rulesets/drift, `2` bad args). Pass identical flags on follow-up checks (rerun once if API propagation lags).

@@ -16,16 +16,15 @@ Maintain a lean, strictly typed Python foundation: stdlib first for plumbing, pr
 
 ## Workflow
 
-Read only the matching guide and its required resources. Dataframe code defaults to [Polars](../python-mlops/references/polars.md); [cli-contracts](references/cli-contracts.md) applies to CLIs in any language. Requests to diagnose, debug, or profile authorize read-only observation and isolated reproduction — modify product code only when asked for a fix.
+Read only the matching guide and its required resources. Dataframe code defaults to [Polars](../python-mlops/references/polars.md); [argparse](references/argparse/GUIDE.md#defaults-for-new-clis) owns CLI contracts in any language. Requests to diagnose, debug, or profile authorize read-only observation and isolated reproduction — modify product code only when asked for a fix.
 
 ## Task guides
 
 <!-- guides:start -->
 
 - [api-client](references/api-client/GUIDE.md): Build typed Python HTTPX API clients with bounded pagination and retries.
-- [argparse](references/argparse/GUIDE.md): Python CLI code with standard-library argparse: commands, help, usage errors, tests; existing Typer CLIs.
-- [cli-contracts](references/cli-contracts.md): Design any CLI's commands, flags, streams, exit codes, and JSON output, in any language.
-- [foundation](references/foundation/GUIDE.md): Python package layout, dependency choices, defaults, and project scaffolding.
+- [argparse](references/argparse/GUIDE.md): Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Typer CLIs.
+- [foundation](references/foundation/GUIDE.md): Python package layout, dependency choices, uv/Ruff/ty tooling, and project scaffolding.
 - [langextract](references/langextract.md): Extract structured facts from text with LangExtract and source-grounded evidence.
 - [observability](references/observability.md): Instrument Python services and agents: structlog logs, OpenTelemetry traces and metrics.
 - [performance](references/performance.md): Profile Python CPU and memory, and benchmark commands and HTTP load with hyperfine, oha, or Locust.
@@ -33,8 +32,5 @@ Read only the matching guide and its required resources. Dataframe code defaults
 - [python-async](references/python-async/GUIDE.md): Async design, cancellation, timeouts, and shutdown.
 - [python-script](references/python-script/GUIDE.md): Standalone single-file utilities with PEP 723 inline metadata run by uv run --script.
 - [python-testing](references/python-testing/GUIDE.md): Write Python tests with pytest, fixtures, property and mutation tests.
-- [ruff](references/ruff.md): Python linting, formatting, imports, and safe fixes.
-- [ty](references/ty.md): Type diagnostics and environment resolution.
-- [uv](references/uv.md): Dependency resolution, environments, packaging, and lockfiles.
 
 <!-- guides:end -->

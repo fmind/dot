@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Auth Status
@@ -33,6 +33,9 @@ Check login state, scopes, and expiry with read-only probes, then give the user 
    | AWS SSO      | `aws sts get-caller-identity --profile <profile> --no-cli-pager`                          | `aws sso login --profile <profile>`                      |
    | Databricks   | `databricks auth profiles` (validates each profile)                                       | `databricks auth login --host <url> --profile <profile>` |
    | Atlassian    | `acli auth status`; API-token Jira: `acli jira auth status`                               | `acli auth login`                                        |
+   | SonarQube    | `sonar auth status`                                                                       | `sonar auth login`                                       |
+   | Vault        | `vault token lookup -format=json \| jq '{expire_time, policies}'`                         | `vault login`                                            |
+   | Bitwarden    | `bw status \| jq '{status, userEmail}'`                                                   | `bw login` / `bw unlock`                                 |
 
 1. **Report only provider-exposed expiry**: for AWS SSO, read `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json` without printing cache files (client registrations expire separately); otherwise report `"unknown"`—never infer from mtimes.
 1. **Detect env overrides** (presence only, never values; note `gws` also loads `GOOGLE_WORKSPACE_CLI_*` from ancestor `.env` files):
@@ -41,7 +44,7 @@ Check login state, scopes, and expiry with read-only probes, then give the user 
    for name in GH_TOKEN GITHUB_TOKEN GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_AUTH_ACCESS_TOKEN_FILE \
      GOOGLE_WORKSPACE_CLI_TOKEN GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE GEMINI_API_KEY GOOGLE_API_KEY \
      HF_TOKEN KAGGLE_API_TOKEN KAGGLE_KEY AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SESSION_TOKEN \
-     DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_CLIENT_SECRET; do
+     DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_CLIENT_SECRET SONAR_TOKEN VAULT_TOKEN BW_SESSION; do
      if [ -n "$(printenv "$name")" ]; then echo "$name is set"; fi
    done
    ```
@@ -50,7 +53,7 @@ Check login state, scopes, and expiry with read-only probes, then give the user 
 
 ## Gotchas
 
-- **Never print secrets**: forbid `print-access-token`, `gh auth token`, `gws auth export`, `databricks auth token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, and `--show-token`.
+- **Never print secrets**: forbid `print-access-token`, `gh auth token`, `gws auth export`, `databricks auth token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, `vault print token`, `bw get`, `bw unlock --raw`, reading `~/.sonar/sonarqube-cli/tokens.json`, and `--show-token`.
 - **Exit 0 is not proof**: `gh auth status --json` and `colab` can exit 0 on auth failure—inspect JSON fields and stderr.
 - **Strictly read-only**: logging in, switching accounts, changing scopes, or editing `dot` config requires user action.
 
